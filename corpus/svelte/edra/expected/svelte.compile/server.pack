@@ -15245,7 +15245,7 @@ export default function Toc($$renderer, $$props) {
 		}
 	});
 }
-=== 412 src/lib/edra/tiptap/components/EditorContent.svelte	js
+=== 325 src/lib/edra/tiptap/components/EditorContent.svelte	js
 import * as $ from 'svelte/internal/server';
 import { untrack } from 'svelte';
 
@@ -15254,10 +15254,7 @@ export default function EditorContent($$renderer, $$props) {
 		let { editor, class: className } = $$props;
 		let rootEl = void 0;
 
-		$$renderer.push(`<div${$.attr_class($.clsx(
-			// Already mounted — avoid re-appending / re-creating on every transaction
-			className
-		))}></div>`);
+		$$renderer.push(`<div${$.attr_class($.clsx(className))}></div>`);
 	});
 }
 === 382 src/lib/edra/tiptap/components/MarkViewContent.svelte	js
@@ -15458,7 +15455,7 @@ export default function TiptapContent($$renderer, $$props) {
 		EditorContent($$renderer, { editor, class: className });
 	});
 }
-=== 900 src/lib/edra/tiptap/components/menus/BubbleMenu.svelte	js
+=== 740 src/lib/edra/tiptap/components/menus/BubbleMenu.svelte	js
 import * as $ from 'svelte/internal/server';
 import { untrack } from 'svelte';
 import { BubbleMenuPlugin } from '@tiptap/extension-bubble-menu';
@@ -15484,15 +15481,7 @@ export default function BubbleMenu($$renderer, $$props) {
 		let rootEl = void 0;
 		let registered = false;
 
-		$$renderer.push(`<div${$.attributes({
-			class: $.clsx(
-				// Guard against Hot re-runs driven by reactive reads (e.g. transaction version)
-				// editor may already be destroyed during navigation
-				className
-			),
-			...rest
-		})}>`);
-
+		$$renderer.push(`<div${$.attributes({ class: $.clsx(className), ...rest })}>`);
 		children($$renderer);
 		$$renderer.push(`<!----></div>`);
 	});

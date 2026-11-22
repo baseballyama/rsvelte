@@ -10,7 +10,8 @@
 		}
 	}
 
-=== 4715 src/routes/+page.svelte	js
+=== 4757 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DemoDatePicker from './DemoDatePicker.svelte';
@@ -193,7 +194,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 333 src/routes/404/+page.svelte	js
+=== 375 src/routes/404/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -209,7 +211,8 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
-=== 8845 src/routes/DemoDateInput.svelte	js
+=== 8887 src/routes/DemoDateInput.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DateInput from '$lib/DateInput.svelte';
@@ -637,7 +640,8 @@ export default function DemoDateInput($$anchor, $$props) {
 
 	$.pop();
 }
-=== 4841 src/routes/DemoDatePicker.svelte	js
+=== 4883 src/routes/DemoDatePicker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DatePicker from '$lib/DatePicker.svelte';
@@ -857,7 +861,8 @@ export default function DemoDatePicker($$anchor, $$props) {
 
 	$.pop();
 }
-=== 886 src/routes/bug/+page.svelte	js
+=== 928 src/routes/bug/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DatePicker from '$lib/DatePicker.svelte';
@@ -896,7 +901,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1005 src/routes/bug/isdisableddate/+page.svelte	js
+=== 1047 src/routes/bug/isdisableddate/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DateInput from '$lib/DateInput.svelte';
@@ -944,7 +950,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 860 src/routes/bug/timeprecision/+page.svelte	js
+=== 902 src/routes/bug/timeprecision/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DatePicker from '$lib/DatePicker.svelte';
@@ -983,7 +990,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 715 src/routes/demo/+page.svelte	js
+=== 757 src/routes/demo/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import DemoDatePicker from '../DemoDatePicker.svelte';

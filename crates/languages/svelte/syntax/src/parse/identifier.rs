@@ -82,6 +82,10 @@ pub(super) fn match_bracket(s: &str, open: u8, close: u8) -> Result<usize, Unmat
             Some(&Open::Bracket { default, .. }) => default,
             None => default_brackets,
         };
+        // The `>` of an arrow function type, as in `T extends () => void`, closes no list.
+        if c == b'>' && close == b'>' && i >= 2 && b[i - 2] == b'=' {
+            continue;
+        }
         match c {
             b'"' | b'\'' => {
                 let quote = i;

@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 1050 src/lib/AttributionControl.svelte	js
+=== 1092 src/lib/AttributionControl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getMapContext } from './context.svelte.js';
@@ -34,7 +35,8 @@ export default function AttributionControl($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2836 src/lib/BackgroundLayer.svelte	js
+=== 2878 src/lib/BackgroundLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getId } from './context.svelte.js';
@@ -162,7 +164,8 @@ export default function BackgroundLayer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3010 src/lib/CircleLayer.svelte	js
+=== 3052 src/lib/CircleLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getId } from './context.svelte.js';
@@ -299,7 +302,8 @@ export default function CircleLayer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1225 src/lib/Control.svelte	js
+=== 1267 src/lib/Control.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -357,7 +361,8 @@ export default function Control($$anchor, $$props) {
     place-items: center;
   }
 
-=== 1178 src/lib/ControlButton.svelte	js
+=== 1220 src/lib/ControlButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -394,7 +399,8 @@ export default function ControlButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 475 src/lib/ControlGroup.svelte	js
+=== 517 src/lib/ControlGroup.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -410,7 +416,8 @@ export default function ControlGroup($$anchor, $$props) {
 	$.template_effect(() => $.set_class(div, 1, `maplibregl-ctrl-group ${classNames() ?? ''}`));
 	$.append($$anchor, div);
 }
-=== 4247 src/lib/DeckGlLayer.svelte	js
+=== 4289 src/lib/DeckGlLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, onDestroy } from 'svelte';
@@ -604,7 +611,8 @@ export default function DeckGlLayer($$anchor, $$props) {
 	}
 ]
 
-=== 4160 src/lib/DefaultMarker.svelte	js
+=== 4202 src/lib/DefaultMarker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -762,7 +770,8 @@ export default function DefaultMarker($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2844 src/lib/FillExtrusionLayer.svelte	js
+=== 2886 src/lib/FillExtrusionLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getId } from './context.svelte.js';
@@ -893,7 +902,8 @@ export default function FillExtrusionLayer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2823 src/lib/FillLayer.svelte	js
+=== 2865 src/lib/FillLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getId } from './context.svelte.js';
@@ -1024,7 +1034,8 @@ export default function FillLayer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1228 src/lib/FullscreenControl.svelte	js
+=== 1270 src/lib/FullscreenControl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getMapContext } from './context.svelte.js';
@@ -1071,7 +1082,8 @@ export default function FullscreenControl($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3946 src/lib/GeoJSON.svelte	js
+=== 3988 src/lib/GeoJSON.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -1210,7 +1222,8 @@ export default function GeoJSON($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1391 src/lib/GeolocateControl.svelte	js
+=== 1433 src/lib/GeolocateControl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getMapContext } from './context.svelte.js';
@@ -1254,7 +1267,8 @@ export default function GeolocateControl($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2832 src/lib/HeatmapLayer.svelte	js
+=== 2874 src/lib/HeatmapLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getId } from './context.svelte.js';
@@ -1385,7 +1399,8 @@ export default function HeatmapLayer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2104 src/lib/HillshadeLayer.svelte	js
+=== 2146 src/lib/HillshadeLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getId } from './context.svelte.js';
@@ -1479,7 +1494,8 @@ export default function HillshadeLayer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2557 src/lib/ImageSource.svelte	js
+=== 2599 src/lib/ImageSource.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -1583,7 +1599,8 @@ export default function ImageSource($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1756 src/lib/JoinedData.svelte	js
+=== 1798 src/lib/JoinedData.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getSource, getMapContext } from './context.svelte.js';
@@ -1651,7 +1668,8 @@ export default function JoinedData($$anchor, $$props) {
 
 	$.pop();
 }
-=== 10033 src/lib/Layer.svelte	js
+=== 10075 src/lib/Layer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { flush } from '$lib/flush.js';
@@ -2034,7 +2052,8 @@ export default function Layer($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2873 src/lib/LineLayer.svelte	js
+=== 2915 src/lib/LineLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getId } from './context.svelte.js';
@@ -2166,7 +2185,8 @@ export default function LineLayer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1889 src/lib/MapEvents.svelte	js
+=== 1931 src/lib/MapEvents.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -2273,7 +2293,8 @@ export default function MapEvents($$anchor, $$props) {
     right: 0;
   }
 
-=== 16293 src/lib/MapLibre.svelte	js
+=== 16335 src/lib/MapLibre.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { flush } from '$lib/flush.js';
@@ -2825,7 +2846,8 @@ export default function MapLibre($$anchor, $$props) {
 	}
 ]
 
-=== 6721 src/lib/Marker.svelte	js
+=== 6763 src/lib/Marker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -3098,7 +3120,8 @@ export default function Marker($$anchor, $$props) {
 }
 
 $.delegate(['click', 'dblclick', 'contextmenu', 'mousemove', 'keydown']);
-=== 8183 src/lib/MarkerLayer.svelte	js
+=== 8225 src/lib/MarkerLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -3383,7 +3406,8 @@ export default function MarkerLayer($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1144 src/lib/NavigationControl.svelte	js
+=== 1186 src/lib/NavigationControl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getMapContext } from './context.svelte.js';
@@ -3434,7 +3458,8 @@ export default function NavigationControl($$anchor, $$props) {
     z-index: 200;
   }
 
-=== 12178 src/lib/Popup.svelte	js
+=== 12220 src/lib/Popup.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -3874,7 +3899,8 @@ export default function Popup($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3504 src/lib/RasterDEMTileSource.svelte	js
+=== 3546 src/lib/RasterDEMTileSource.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -4001,7 +4027,8 @@ export default function RasterDEMTileSource($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2051 src/lib/RasterLayer.svelte	js
+=== 2093 src/lib/RasterLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getId } from './context.svelte.js';
@@ -4094,7 +4121,8 @@ export default function RasterLayer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3923 src/lib/RasterTileSource.svelte	js
+=== 3965 src/lib/RasterTileSource.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -4262,7 +4290,8 @@ export default function RasterTileSource($$anchor, $$props) {
 	}
 ]
 
-=== 979 src/lib/ScaleControl.svelte	js
+=== 1021 src/lib/ScaleControl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getMapContext } from './context.svelte.js';
@@ -4297,7 +4326,8 @@ export default function ScaleControl($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3054 src/lib/SymbolLayer.svelte	js
+=== 3096 src/lib/SymbolLayer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getId } from './context.svelte.js';
@@ -4435,7 +4465,8 @@ export default function SymbolLayer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 824 src/lib/Terrain.svelte	js
+=== 866 src/lib/Terrain.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getMapContext } from './context.svelte.js';
@@ -4467,7 +4498,8 @@ export default function Terrain($$anchor, $$props) {
 
 	$.pop();
 }
-=== 913 src/lib/TerrainControl.svelte	js
+=== 955 src/lib/TerrainControl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getMapContext } from './context.svelte.js';
@@ -4499,7 +4531,8 @@ export default function TerrainControl($$anchor, $$props) {
 
 	$.pop();
 }
-=== 4717 src/lib/TopoJSON.svelte	js
+=== 4759 src/lib/TopoJSON.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getId } from './context.svelte.js';
@@ -4673,7 +4706,8 @@ export default function TopoJSON($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3292 src/lib/VectorTileSource.svelte	js
+=== 3334 src/lib/VectorTileSource.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -4826,7 +4860,8 @@ export default function VectorTileSource($$anchor, $$props) {
 	}
 ]
 
-=== 1780 src/lib/ZoomRange.svelte	js
+=== 1822 src/lib/ZoomRange.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -4925,7 +4960,8 @@ export default function ZoomRange($$anchor, $$props) {
 	}
 ]
 
-=== 4188 src/routes/+layout.svelte	js
+=== 4230 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '../app.css';
@@ -5071,7 +5107,8 @@ export default function _layout($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 470 src/routes/+page.svelte	js
+=== 512 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5088,7 +5125,8 @@ export default function _page($$anchor) {
 	$.next(2);
 	$.append($$anchor, fragment);
 }
-=== 457 src/routes/LogoAndMenu.svelte	js
+=== 499 src/routes/LogoAndMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5101,7 +5139,8 @@ export default function LogoAndMenu($$anchor, $$props) {
 	$.template_effect(() => $.set_class(a, 1, $.clsx(className())));
 	$.append($$anchor, a);
 }
-=== 6138 src/routes/NavBar.svelte	js
+=== 6180 src/routes/NavBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { beforeNavigate } from '$app/navigation';
@@ -5318,7 +5357,8 @@ export default function NavBar($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 844 src/routes/examples/+layout.svelte	js
+=== 886 src/routes/examples/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/stores';
@@ -5343,7 +5383,8 @@ export default function _layout($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2595 src/routes/examples/3d_buildings/+page.svelte	js
+=== 2637 src/routes/examples/3d_buildings/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -5454,7 +5495,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 6113 src/routes/examples/3d_terrain/+page.svelte	js
+=== 6155 src/routes/examples/3d_terrain/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -5644,7 +5686,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1528 src/routes/examples/ClusterPopup.svelte	js
+=== 1570 src/routes/examples/ClusterPopup.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getSource, getMapContext } from '$lib/context.svelte.js';
@@ -5698,7 +5741,8 @@ export default function ClusterPopup($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1390 src/routes/examples/background/+page.svelte	js
+=== 1432 src/routes/examples/background/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -5749,7 +5793,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1415 src/routes/examples/basic/+page.svelte	js
+=== 1457 src/routes/examples/basic/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -5813,7 +5858,8 @@ export default function _page($$anchor, $$props) {
     padding: 10px 20px;
   }
 
-=== 4885 src/routes/examples/changing_basemap_style/+page.svelte	js
+=== 4927 src/routes/examples/changing_basemap_style/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -6004,7 +6050,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 10039 src/routes/examples/clusters/+page.svelte	js
+=== 10081 src/routes/examples/clusters/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -6355,7 +6402,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4383 src/routes/examples/controls/+page.svelte	js
+=== 4425 src/routes/examples/controls/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -6523,7 +6571,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1613 src/routes/examples/cooperative_gestures/+page.svelte	js
+=== 1655 src/routes/examples/cooperative_gestures/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -6568,7 +6617,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4542 src/routes/examples/custom_marker/+page.svelte	js
+=== 4584 src/routes/examples/custom_marker/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -6729,7 +6779,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 9502 src/routes/examples/custom_marker_clusters/+page.svelte	js
+=== 9544 src/routes/examples/custom_marker_clusters/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -7023,7 +7074,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3598 src/routes/examples/data_join/+page.svelte	js
+=== 3640 src/routes/examples/data_join/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -7140,7 +7192,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 7563 src/routes/examples/deckgl-arcs/+page.svelte	js
+=== 7605 src/routes/examples/deckgl-arcs/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -7414,7 +7467,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3041 src/routes/examples/draggable_custom_marker/+page.svelte	js
+=== 3083 src/routes/examples/draggable_custom_marker/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -7522,7 +7576,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2226 src/routes/examples/draw/+page.svelte	js
+=== 2268 src/routes/examples/draw/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -7606,7 +7661,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3290 src/routes/examples/geojson_extrusion/+page.svelte	js
+=== 3332 src/routes/examples/geojson_extrusion/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -7729,7 +7785,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2915 src/routes/examples/geojson_line_layer/+page.svelte	js
+=== 2957 src/routes/examples/geojson_line_layer/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -7840,7 +7897,8 @@ export default function _page($$anchor, $$props) {
     grid-template-columns: repeat(auto-fill, 150px);
   }
 
-=== 5394 src/routes/examples/geojson_polygon/+page.svelte	js
+=== 5436 src/routes/examples/geojson_polygon/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -8039,7 +8097,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1533 src/routes/examples/globe/+page.svelte	js
+=== 1575 src/routes/examples/globe/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -8091,7 +8150,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 3429 src/routes/examples/heatmap/+page.svelte	js
+=== 3471 src/routes/examples/heatmap/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -8229,7 +8289,8 @@ export default function _page($$anchor, $$props) {
     background-color: blue;
   }
 
-=== 3437 src/routes/examples/image_source/+page.svelte	js
+=== 3479 src/routes/examples/image_source/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -8369,7 +8430,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 6167 src/routes/examples/image_symbols/+page.svelte	js
+=== 6209 src/routes/examples/image_symbols/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -8587,7 +8649,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2457 src/routes/examples/marker/+page.svelte	js
+=== 2499 src/routes/examples/marker/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -8685,7 +8748,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2478 src/routes/examples/marker_layer/+page.svelte	js
+=== 2520 src/routes/examples/marker_layer/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -8774,7 +8838,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1610 src/routes/examples/marker_on_click/+page.svelte	js
+=== 1652 src/routes/examples/marker_on_click/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -8836,7 +8901,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 10309 src/routes/examples/overlapping_layer_events/+page.svelte	js
+=== 10351 src/routes/examples/overlapping_layer_events/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -9167,7 +9233,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1701 src/routes/examples/pmtile_source/+page.svelte	js
+=== 1743 src/routes/examples/pmtile_source/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -9226,7 +9293,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3774 src/routes/examples/popup_remote/+page.svelte	js
+=== 3816 src/routes/examples/popup_remote/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -9373,7 +9441,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3151 src/routes/examples/raster_source/+page.svelte	js
+=== 3193 src/routes/examples/raster_source/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -9466,7 +9535,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1693 src/routes/examples/vector_source/+page.svelte	js
+=== 1735 src/routes/examples/vector_source/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -9528,7 +9598,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 7940 src/routes/examples/zoom_transition/+page.svelte	js
+=== 7982 src/routes/examples/zoom_transition/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as maplibregl from 'maplibre-gl';
@@ -9831,7 +9902,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3476 src/routes/tests/change_center_zoom/+page.svelte	js
+=== 3518 src/routes/tests/change_center_zoom/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MapLibre from '$lib/MapLibre.svelte';
@@ -9948,7 +10020,8 @@ export default function _page($$anchor) {
 }
 
 $.delegate(['click']);
-=== 1352 src/routes/tests/map-style-update/+page.svelte	js
+=== 1394 src/routes/tests/map-style-update/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MapLibre from '$lib/MapLibre.svelte';
@@ -9997,7 +10070,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 2293 src/routes/tests/marker-class-update/+page.svelte	js
+=== 2335 src/routes/tests/marker-class-update/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MapLibre from '$lib/MapLibre.svelte';
@@ -10078,7 +10152,8 @@ export default function _page($$anchor) {
 }
 
 $.delegate(['click']);
-=== 2396 src/routes/tests/marker-z-index/+page.svelte	js
+=== 2438 src/routes/tests/marker-z-index/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MapLibre from '$lib/MapLibre.svelte';
@@ -10172,7 +10247,8 @@ export default function _page($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2447 src/routes/tests/replace_source/+page.svelte	js
+=== 2489 src/routes/tests/replace_source/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { MapLibre, GeoJSON, LineLayer, FillLayer, Marker } from '$lib/index.js';
@@ -10284,7 +10360,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1311 src/routes/tests/standalone-popup/+page.svelte	js
+=== 1353 src/routes/tests/standalone-popup/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MapLibre from '$lib/MapLibre.svelte';
@@ -10342,7 +10419,8 @@ export default function _page($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 2193 src/site/CodeSample.svelte	js
+=== 2235 src/site/CodeSample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CodeBlock from '$site/components/CodeBlock.svelte';
@@ -10421,7 +10499,8 @@ export default function CodeSample($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1187 src/site/components/CodeBlock.svelte	js
+=== 1229 src/site/components/CodeBlock.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import hljs from 'highlight.js';
 import hljsSvelte from 'highlightjs-svelte/dist/index.mjs';
@@ -10467,7 +10546,8 @@ export default function CodeBlock($$anchor, $$props) {
 	$.append($$anchor, pre);
 	$.pop();
 }
-=== 4701 src/site/components/ui/button/button.svelte	js
+=== 4743 src/site/components/ui/button/button.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { cn } from '$site/utils.js';
 import { tv } from 'tailwind-variants';
@@ -10589,7 +10669,8 @@ export default function Button($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 786 src/site/components/ui/sheet/sheet-close.svelte	js
+=== 828 src/site/components/ui/sheet/sheet-close.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Dialog as SheetPrimitive } from 'bits-ui';
@@ -10620,7 +10701,8 @@ export default function Sheet_close($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4526 src/site/components/ui/sheet/sheet-content.svelte	js
+=== 4568 src/site/components/ui/sheet/sheet-content.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Dialog as SheetPrimitive } from 'bits-ui';
@@ -10753,7 +10835,8 @@ export default function Sheet_content($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1043 src/site/components/ui/sheet/sheet-description.svelte	js
+=== 1085 src/site/components/ui/sheet/sheet-description.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Dialog as SheetPrimitive } from 'bits-ui';
@@ -10798,7 +10881,8 @@ export default function Sheet_description($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 820 src/site/components/ui/sheet/sheet-footer.svelte	js
+=== 862 src/site/components/ui/sheet/sheet-footer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { cn } from '$site/utils.js';
@@ -10832,7 +10916,8 @@ export default function Sheet_footer($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 814 src/site/components/ui/sheet/sheet-header.svelte	js
+=== 856 src/site/components/ui/sheet/sheet-header.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { cn } from '$site/utils.js';
@@ -10866,7 +10951,8 @@ export default function Sheet_header($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1066 src/site/components/ui/sheet/sheet-overlay.svelte	js
+=== 1108 src/site/components/ui/sheet/sheet-overlay.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Dialog as SheetPrimitive } from 'bits-ui';
@@ -10911,7 +10997,8 @@ export default function Sheet_overlay($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 581 src/site/components/ui/sheet/sheet-portal.svelte	js
+=== 623 src/site/components/ui/sheet/sheet-portal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Dialog as SheetPrimitive } from 'bits-ui';
@@ -10929,7 +11016,8 @@ export default function Sheet_portal($$anchor, $$props) {
 
 	$.append($$anchor, fragment);
 }
-=== 1011 src/site/components/ui/sheet/sheet-title.svelte	js
+=== 1053 src/site/components/ui/sheet/sheet-title.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Dialog as SheetPrimitive } from 'bits-ui';
@@ -10974,7 +11062,8 @@ export default function Sheet_title($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 796 src/site/components/ui/sheet/sheet-trigger.svelte	js
+=== 838 src/site/components/ui/sheet/sheet-trigger.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Dialog as SheetPrimitive } from 'bits-ui';
@@ -11005,7 +11094,8 @@ export default function Sheet_trigger($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 753 src/site/components/ui/sheet/sheet.svelte	js
+=== 795 src/site/components/ui/sheet/sheet.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Dialog as SheetPrimitive } from 'bits-ui';

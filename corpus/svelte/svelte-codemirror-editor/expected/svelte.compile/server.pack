@@ -54,7 +54,7 @@
         }
     }
 
-=== 7388 src/lib/CodeMirror.svelte	js
+=== 7317 src/lib/CodeMirror.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onDestroy, onMount, untrack } from "svelte";
 import { debounce } from "./util";
@@ -150,8 +150,6 @@ export default function CodeMirror($$renderer, $$props) {
 		let first_config = true;
 		let first_update = true;
 		let state_extensions = $.derived(() => [...get_base_extensions(), ...get_theme(), ...extensions]);
-
-		//eslint-disable-next-line @typescript-eslint/no-unused-expressions
 		let on_change = $.derived(() => nodebounce ? handle_change : debounce(handle_change, 300));
 
 		onMount(() => {

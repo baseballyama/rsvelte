@@ -1,4 +1,4 @@
-// svelte 5.57.3, aria-query 5.3.1, axobject-query 4.1.0
+// svelte 5.59.1, aria-query 5.3.1, axobject-query 4.1.0
 
 pub(super) static INTERACTIVE_ROLES: &[&str] = &[
     "alertdialog",

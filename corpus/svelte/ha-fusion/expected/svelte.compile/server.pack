@@ -1282,11 +1282,11 @@ export default function _layout($$renderer, $$props) {
 		var $$store_subs;
 
 		$.head('12qhfyh', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description" content="fusion"/> <meta charset="utf-8"/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>FUSION</title>`);
 			});
-
-			$$renderer.push(`<meta name="description" content="fusion"/> <meta charset="utf-8"/>`);
 		});
 
 		Modals($$renderer, {

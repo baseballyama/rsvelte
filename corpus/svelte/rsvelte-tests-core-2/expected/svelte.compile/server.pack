@@ -4573,13 +4573,12 @@ export async function run() {
 export default function _942fe0d9ad9915c($$renderer) {
 	$$renderer.push(`<p>hi</p>`);
 }
-=== 240 dev_inspect_trace_label/a_comment_before_the_trace_call_does_not_move_the_label/62ae9006847bd4a6.svelte	js
+=== 173 dev_inspect_trace_label/a_comment_before_the_trace_call_does_not_move_the_label/62ae9006847bd4a6.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _2ae9006847bd4a6($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
 		let count = 0;
-		// $inspect.trace must be the first statement of a function body
 	});
 }
 === 166 dev_inspect_trace_label/arrow_and_class_trace_labels_use_their_own_function_context/00f1975de948967a.svelte	js
@@ -14316,14 +14315,14 @@ export default function _ea8fae1c7e337b5($$renderer) {
 
 	$$renderer.push(`<p>ok</p>`);
 }
-=== 190 early_errors_3243/the_legal_neighbour_of_every_early_error_still_compiles/3bf05bb47c4e1ad1.svelte	js
+=== 192 early_errors_3243/the_legal_neighbour_of_every_early_error_still_compiles/3bf05bb47c4e1ad1.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _bf05bb47c4e1ad1($$renderer) {
 	function f(a = 1) {
 		const x = 1;
 
-		'use strict';
+		('use strict');
 	}
 
 	$$renderer.push(`<p>ok</p>`);
@@ -41029,20 +41028,20 @@ export default function _8d74c00b0942086($$renderer) {
 	'use strict';
 	foo();
 }
-=== 129 parse_script_directive_4133/a_string_statement_inside_a_block_is_not_a_directive/9228c90d9061e866.svelte	js
+=== 131 parse_script_directive_4133/a_string_statement_inside_a_block_is_not_a_directive/9228c90d9061e866.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _228c90d9061e866($$renderer) {
 	{
-		'not a directive';
+		('not a directive');
 	}
 }
-=== 130 parse_script_directive_4133/a_string_statement_that_is_not_first_is_not_a_directive/da2479a5f57a91f9.svelte	js
+=== 132 parse_script_directive_4133/a_string_statement_that_is_not_first_is_not_a_directive/da2479a5f57a91f9.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Da2479a5f57a91f9($$renderer) {
 	foo();
-	'not a directive';
+	('not a directive');
 }
 === 136 parse_script_directive_4133/every_statement_of_a_multi_directive_prologue_survives_in_order/c8bca4d504818920.svelte	js
 import * as $ from 'svelte/internal/server';

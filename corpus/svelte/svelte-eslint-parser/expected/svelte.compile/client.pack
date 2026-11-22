@@ -31,7 +31,8 @@
 		display: none;
 	}
 
-=== 2421 explorer-v2/src/lib/Header.svelte	js
+=== 2463 explorer-v2/src/lib/Header.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SnsBar from './SnsBar.svelte';
@@ -117,7 +118,8 @@ export default function Header($$anchor, $$props) {
 		height: 23px !important;
 	}
 
-=== 1297 explorer-v2/src/lib/SnsBar.svelte	js
+=== 1339 explorer-v2/src/lib/SnsBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -179,7 +181,8 @@ export default function SnsBar($$anchor, $$props) {
 		height: 100%;
 	}
 
-=== 604 explorer-v2/src/routes/+layout.svelte	js
+=== 646 explorer-v2/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Header from '$lib/Header.svelte';
@@ -225,7 +228,8 @@ export default function _layout($$anchor, $$props) {
 === 1 explorer-v2/src/routes/+page.svelte	css
 
 
-=== 464 explorer-v2/src/routes/+page.svelte	js
+=== 506 explorer-v2/src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import AstExplorer from '$lib/AstExplorer.svelte';
@@ -245,7 +249,8 @@ export default function _page($$anchor) {
 
 	AstExplorer($$anchor, {});
 }
-=== 351 explorer-v2/src/routes/playground/+page.svelte	js
+=== 393 explorer-v2/src/routes/playground/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ESLintPlayground from '$lib/ESLintPlayground.svelte';
@@ -259,7 +264,8 @@ export default function _page($$anchor) {
 
 	ESLintPlayground($$anchor, {});
 }
-=== 344 explorer-v2/src/routes/scope/+page.svelte	js
+=== 386 explorer-v2/src/routes/scope/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ScopeExplorer from '$lib/ScopeExplorer.svelte';
@@ -273,7 +279,8 @@ export default function _page($$anchor) {
 
 	ScopeExplorer($$anchor, {});
 }
-=== 362 explorer-v2/src/routes/virtual-script-code/+page.svelte	js
+=== 404 explorer-v2/src/routes/virtual-script-code/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import VirtualScriptCode from '$lib/VirtualScriptCode.svelte';
@@ -287,7 +294,8 @@ export default function _page($$anchor) {
 
 	VirtualScriptCode($$anchor, {});
 }
-=== 270 tests/fixtures/integrations/prettier-plugin/x-input.svelte	js
+=== 312 tests/fixtures/integrations/prettier-plugin/x-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -300,7 +308,8 @@ export default function X_input($$anchor) {
 	div.textContent = 'Hello';
 	$.append($$anchor, div);
 }
-=== 1827 tests/fixtures/integrations/snippet-scope/snippet-shadow-scope-input.svelte	js
+=== 1869 tests/fixtures/integrations/snippet-scope/snippet-shadow-scope-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Foo from './Foo.svelte';
@@ -388,7 +397,8 @@ export default function Snippet_shadow_scope_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 312 tests/fixtures/integrations/snippet-scope/ts-snippet-hoist-scope-input.svelte	js
+=== 354 tests/fixtures/integrations/snippet-scope/ts-snippet-hoist-scope-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -405,7 +415,8 @@ export default function Ts_snippet_hoist_scope_input($$anchor) {
 
 	bar($$anchor);
 }
-=== 756 tests/fixtures/integrations/type-info-tests/$derived-input.svelte	js
+=== 798 tests/fixtures/integrations/type-info-tests/$derived-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -461,7 +472,8 @@ export default function $derived_input($$anchor) {
 	}
 ]
 
-=== 327 tests/fixtures/integrations/type-info-tests/$props-input.svelte	js
+=== 369 tests/fixtures/integrations/type-info-tests/$props-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -474,7 +486,8 @@ export default function $props_input($$anchor, $$props) {
 	$.template_effect(() => $.set_text(text, $$props.x));
 	$.append($$anchor, div);
 }
-=== 453 tests/fixtures/integrations/type-info-tests/await-input.svelte	js
+=== 495 tests/fixtures/integrations/type-info-tests/await-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -540,7 +553,8 @@ export default function Await_input($$anchor) {
 	}
 ]
 
-=== 2733 tests/fixtures/integrations/type-info-tests/await-with-same-id-input.svelte	js
+=== 2775 tests/fixtures/integrations/type-info-tests/await-with-same-id-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -680,7 +694,8 @@ export default function Await_with_same_id_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 546 tests/fixtures/integrations/type-info-tests/i18n-input.svelte	js
+=== 588 tests/fixtures/integrations/type-info-tests/i18n-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { _ } from './svelte-i18n';
@@ -700,7 +715,8 @@ export default function I18n_input($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1618 tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte	js
+=== 1660 tests/fixtures/integrations/type-info-tests/plugin-issue254-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -833,7 +849,8 @@ export default function Plugin_issue254_input($$anchor) {
 	}
 ]
 
-=== 419 tests/fixtures/parser/ast/$$slots-input.svelte	js
+=== 461 tests/fixtures/parser/ast/$$slots-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -870,7 +887,8 @@ export default function $$slots_input($$anchor, $$props) {
 	}
 ]
 
-=== 302 tests/fixtures/parser/ast/$var-input.svelte	js
+=== 344 tests/fixtures/parser/ast/$var-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { a } from "./stores";
@@ -882,7 +900,8 @@ export default function $var_input($$anchor) {
 	$.store_set(a, 42);
 	$$cleanup();
 }
-=== 459 tests/fixtures/parser/ast/at-const01-within-component-input.svelte	js
+=== 501 tests/fixtures/parser/ast/at-const01-within-component-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from './Component.svelte';
@@ -904,7 +923,8 @@ export default function At_const01_within_component_input($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 295 tests/fixtures/parser/ast/at-html01-input.svelte	js
+=== 337 tests/fixtures/parser/ast/at-html01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -915,7 +935,8 @@ export default function At_html01_input($$anchor) {
 	$.html(node, () => `<script>var x = ${50}</script>`);
 	$.append($$anchor, fragment);
 }
-=== 312 tests/fixtures/parser/ast/attr01-input.svelte	js
+=== 354 tests/fixtures/parser/ast/attr01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -948,7 +969,8 @@ export default function Attr01_input($$anchor) {
 	}
 ]
 
-=== 769 tests/fixtures/parser/ast/await01-input.svelte	js
+=== 811 tests/fixtures/parser/ast/await01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1079,7 +1101,8 @@ export default function Await01_input($$anchor, $$props) {
 	}
 ]
 
-=== 1145 tests/fixtures/parser/ast/await02-input.svelte	js
+=== 1187 tests/fixtures/parser/ast/await02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1132,7 +1155,8 @@ export default function Await02_input($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 667 tests/fixtures/parser/ast/await03-input.svelte	js
+=== 709 tests/fixtures/parser/ast/await03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1157,7 +1181,8 @@ export default function Await03_input($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 332 tests/fixtures/parser/ast/await04-input.svelte	js
+=== 374 tests/fixtures/parser/ast/await04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1201,7 +1226,8 @@ export default function Await04_input($$anchor) {
 	}
 ]
 
-=== 721 tests/fixtures/parser/ast/blog/write-less-code01-input.svelte	js
+=== 763 tests/fixtures/parser/ast/blog/write-less-code01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1259,7 +1285,8 @@ export default function Write_less_code01_input($$anchor) {
 	}
 ]
 
-=== 459 tests/fixtures/parser/ast/class-directive01-input.svelte	js
+=== 501 tests/fixtures/parser/ast/class-directive01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1278,7 +1305,8 @@ export default function Class_directive01_input($$anchor) {
 	$.set_class(div_1, 1, '', null, {}, { foo });
 	$.append($$anchor, fragment);
 }
-=== 285 tests/fixtures/parser/ast/comments01-input.svelte	js
+=== 327 tests/fixtures/parser/ast/comments01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1308,7 +1336,8 @@ export default function Comments01_input($$anchor) {
 	}
 ]
 
-=== 221 tests/fixtures/parser/ast/components01-input.svelte	js
+=== 263 tests/fixtures/parser/ast/components01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MyComponent from './MyComponent.svelte';
@@ -1316,7 +1345,8 @@ import MyComponent from './MyComponent.svelte';
 export default function Components01_input($$anchor) {
 	MyComponent($$anchor, {});
 }
-=== 440 tests/fixtures/parser/ast/components02-input.svelte	js
+=== 482 tests/fixtures/parser/ast/components02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MyComponent from './MyComponent.svelte';
@@ -1336,7 +1366,8 @@ export default function Components02_input($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 945 tests/fixtures/parser/ast/components03-input.svelte	js
+=== 987 tests/fixtures/parser/ast/components03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as MyComponents from './MyComponents';
@@ -1378,7 +1409,8 @@ export default function Components03_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 397 tests/fixtures/parser/ast/components04-input.svelte	js
+=== 439 tests/fixtures/parser/ast/components04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as Nested from './Nested.svelte';
@@ -1393,7 +1425,8 @@ export default function Components04_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 379 tests/fixtures/parser/ast/directive-on-with-expr-like-input.svelte	js
+=== 421 tests/fixtures/parser/ast/directive-on-with-expr-like-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Inner from './Inner.svelte';
@@ -1409,7 +1442,8 @@ export default function Directive_on_with_expr_like_input($$anchor, $$props) {
 		}
 	});
 }
-=== 365 tests/fixtures/parser/ast/directive-use-with-expr-input.svelte	js
+=== 407 tests/fixtures/parser/ast/directive-use-with-expr-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1449,14 +1483,16 @@ export default function Directive_use_with_expr_input($$anchor) {
 
 	/* styles go here */
 
-=== 155 tests/fixtures/parser/ast/docs/component-format/01-script/01-export-creates-a-component-prop/01-input.svelte	js
+=== 197 tests/fixtures/parser/ast/docs/component-format/01-script/01-export-creates-a-component-prop/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _1_input($$anchor) {
 	// logic goes here
 }
-=== 330 tests/fixtures/parser/ast/docs/component-format/01-script/01-export-creates-a-component-prop/05-input.svelte	js
+=== 372 tests/fixtures/parser/ast/docs/component-format/01-script/01-export-creates-a-component-prop/05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1477,7 +1513,8 @@ export default function _5_input($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 290 tests/fixtures/parser/ast/docs/component-format/01-script/02-assignments-are-reactive/01-input.svelte	js
+=== 332 tests/fixtures/parser/ast/docs/component-format/01-script/02-assignments-are-reactive/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1490,7 +1527,8 @@ export default function _1_input($$anchor) {
 		count = count + 1;
 	}
 }
-=== 515 tests/fixtures/parser/ast/docs/component-format/01-script/04-prefix-stores-with-$-to-access-their-values/01-input.svelte	js
+=== 557 tests/fixtures/parser/ast/docs/component-format/01-script/04-prefix-stores-with-$-to-access-their-values/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { writable } from 'svelte/store';
@@ -1510,7 +1548,8 @@ export default function _1_input($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 334 tests/fixtures/parser/ast/docs/component-format/02-script-context-module/01-input.svelte	js
+=== 376 tests/fixtures/parser/ast/docs/component-format/02-script-context-module/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1549,7 +1588,8 @@ export default function _1_input($$anchor) {
 		color: burlywood;
 	}*/
 
-=== 134 tests/fixtures/parser/ast/docs/component-format/03-style/01-input.svelte	js
+=== 176 tests/fixtures/parser/ast/docs/component-format/03-style/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1586,7 +1626,8 @@ export default function _1_input($$anchor) {}
 		color: goldenrod;
 	}*/
 
-=== 134 tests/fixtures/parser/ast/docs/component-format/03-style/02-input.svelte	js
+=== 176 tests/fixtures/parser/ast/docs/component-format/03-style/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1614,12 +1655,14 @@ export default function _2_input($$anchor) {}
 	@keyframes my-animation-name {
 	}
 
-=== 134 tests/fixtures/parser/ast/docs/component-format/03-style/03-input.svelte	js
+=== 176 tests/fixtures/parser/ast/docs/component-format/03-style/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _3_input($$anchor) {}
-=== 368 tests/fixtures/parser/ast/docs/component-format/03-style/04-input.svelte	js
+=== 410 tests/fixtures/parser/ast/docs/component-format/03-style/04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1634,7 +1677,8 @@ export default function _4_input($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 278 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/01-input.svelte	js
+=== 320 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1645,7 +1689,8 @@ export default function _1_input($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 238 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/02-input.svelte	js
+=== 280 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1656,7 +1701,8 @@ export default function _2_input($$anchor) {
 
 	$.append($$anchor, input);
 }
-=== 297 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/03-input.svelte	js
+=== 339 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1669,7 +1715,8 @@ export default function _3_input($$anchor) {
 	a.textContent = `page ${p ?? ''}`;
 	$.append($$anchor, a);
 }
-=== 267 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/04-input.svelte	js
+=== 309 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1681,7 +1728,8 @@ export default function _4_input($$anchor) {
 	button.disabled = !clickable;
 	$.append($$anchor, button);
 }
-=== 456 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/05-input.svelte	js
+=== 498 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1698,7 +1746,8 @@ export default function _5_input($$anchor) {
 	$.set_attribute(div, 'title', null);
 	$.append($$anchor, fragment);
 }
-=== 270 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/06-input.svelte	js
+=== 312 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/06-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1710,7 +1759,8 @@ export default function _6_input($$anchor) {
 	button.disabled = number !== 42;
 	$.append($$anchor, button);
 }
-=== 403 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/07-input.svelte	js
+=== 445 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/07-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1727,21 +1777,24 @@ export default function _7_input($$anchor) {
 	button_1.disabled = disabled;
 	$.append($$anchor, fragment);
 }
-=== 195 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/08-input.svelte	js
+=== 237 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/08-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _8_input($$anchor) {
 	Widget($$anchor, { foo: bar, answer: 42, text: 'hello' });
 }
-=== 178 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/09-input.svelte	js
+=== 220 tests/fixtures/parser/ast/docs/template-syntax/02-attributes-and-props/09-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _9_input($$anchor) {
 	Widget($$anchor, $.spread_props(things));
 }
-=== 227 tests/fixtures/parser/ast/docs/template-syntax/03-text-expressions/01-input.svelte	js
+=== 269 tests/fixtures/parser/ast/docs/template-syntax/03-text-expressions/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1753,7 +1806,8 @@ export default function _1_input($$anchor) {
 	text.nodeValue = expression;
 	$.append($$anchor, text);
 }
-=== 402 tests/fixtures/parser/ast/docs/template-syntax/03-text-expressions/02-input.svelte	js
+=== 444 tests/fixtures/parser/ast/docs/template-syntax/03-text-expressions/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1770,7 +1824,8 @@ export default function _2_input($$anchor) {
 	p.textContent = `${a ?? ''} + ${b ?? ''} = ${a + b}.`;
 	$.append($$anchor, fragment);
 }
-=== 228 tests/fixtures/parser/ast/docs/template-syntax/04-comments/01-input.svelte	js
+=== 270 tests/fixtures/parser/ast/docs/template-syntax/04-comments/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1781,7 +1836,8 @@ export default function _1_input($$anchor) {
 
 	$.append($$anchor, h1);
 }
-=== 1199 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/01-input.svelte	js
+=== 1241 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1845,7 +1901,8 @@ export default function _1_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 464 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/02-input.svelte	js
+=== 506 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1869,7 +1926,8 @@ export default function _2_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 1293 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/01-input.svelte	js
+=== 1335 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1942,7 +2000,8 @@ export default function _1_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 590 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/02-input.svelte	js
+=== 632 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1964,7 +2023,8 @@ export default function _2_input($$anchor) {
 	$.reset(ul);
 	$.append($$anchor, fragment);
 }
-=== 517 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/03-input.svelte	js
+=== 559 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1984,7 +2044,8 @@ export default function _3_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 860 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/04-input.svelte	js
+=== 902 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2015,7 +2076,8 @@ export default function _4_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 1732 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/05-input.svelte	js
+=== 1774 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2078,7 +2140,8 @@ export default function _5_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 619 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/06-input.svelte	js
+=== 661 tests/fixtures/parser/ast/docs/template-syntax/06-hash-each/06-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2110,7 +2173,8 @@ export default function _6_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 1182 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/01-input.svelte	js
+=== 1224 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2175,7 +2239,8 @@ export default function _1_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 867 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/02-input.svelte	js
+=== 909 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2212,7 +2277,8 @@ export default function _2_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 649 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/03-input.svelte	js
+=== 691 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2242,7 +2308,8 @@ export default function _3_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 492 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/04-input.svelte	js
+=== 534 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2262,7 +2329,8 @@ export default function _4_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 500 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/05-input.svelte	js
+=== 542 tests/fixtures/parser/ast/docs/template-syntax/07-hash-await/05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2282,7 +2350,8 @@ export default function _5_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 343 tests/fixtures/parser/ast/docs/template-syntax/08-hash-key/01-input.svelte	js
+=== 385 tests/fixtures/parser/ast/docs/template-syntax/08-hash-key/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2298,7 +2367,8 @@ export default function _1_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 432 tests/fixtures/parser/ast/docs/template-syntax/08-hash-key/02-input.svelte	js
+=== 474 tests/fixtures/parser/ast/docs/template-syntax/08-hash-key/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2318,7 +2388,8 @@ export default function _2_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 266 tests/fixtures/parser/ast/docs/template-syntax/09-at-html/01-input.svelte	js
+=== 308 tests/fixtures/parser/ast/docs/template-syntax/09-at-html/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2329,7 +2400,8 @@ export default function _1_input($$anchor) {
 	$.html(node, () => expression);
 	$.append($$anchor, fragment);
 }
-=== 388 tests/fixtures/parser/ast/docs/template-syntax/09-at-html/02-input.svelte	js
+=== 430 tests/fixtures/parser/ast/docs/template-syntax/09-at-html/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2347,7 +2419,8 @@ export default function _2_input($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 370 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/01-input.svelte	js
+=== 412 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2369,7 +2442,8 @@ export default function _1_input($$anchor) {
 		debugger;
 	});
 }
-=== 472 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/02-input.svelte	js
+=== 514 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2390,7 +2464,8 @@ export default function _2_input($$anchor) {
 	$.template_effect(() => $.set_text(text, `Hello ${user.firstname ?? ''}!`));
 	$.append($$anchor, h1);
 }
-=== 377 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/03-input.svelte	js
+=== 419 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2411,7 +2486,8 @@ export default function _3_input($$anchor) {
 		debugger;
 	});
 }
-=== 443 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/02-input.svelte	js
+=== 485 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2463,7 +2539,8 @@ export default function _2_input($$anchor) {
 	}
 ]
 
-=== 325 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/03-input.svelte	js
+=== 367 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2494,7 +2571,8 @@ export default function _3_input($$anchor) {
 	}
 ]
 
-=== 283 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/04-input.svelte	js
+=== 325 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2524,7 +2602,8 @@ export default function _4_input($$anchor) {
 	}
 ]
 
-=== 384 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/05-input.svelte	js
+=== 426 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2557,7 +2636,8 @@ export default function _5_input($$anchor, $$props) {
 	}
 ]
 
-=== 436 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/06-input.svelte	js
+=== 478 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/06-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2612,7 +2692,8 @@ export default function _6_input($$anchor) {
 	}
 ]
 
-=== 1977 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/02-input.svelte	js
+=== 2019 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2699,7 +2780,8 @@ export default function _2_input($$anchor) {
 	}
 ]
 
-=== 289 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/04-bind-this/01-input.svelte	js
+=== 331 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/04-bind-this/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2729,7 +2811,8 @@ export default function _1_input($$anchor) {
 	}
 ]
 
-=== 501 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/04-bind-this/02-input.svelte	js
+=== 543 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/04-bind-this/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -2753,7 +2836,8 @@ export default function _2_input($$anchor, $$props) {
 	$.append($$anchor, canvas);
 	$.pop();
 }
-=== 417 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05-class-name/01-input.svelte	js
+=== 459 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05-class-name/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2802,7 +2886,8 @@ export default function _1_input($$anchor) {
 	}
 ]
 
-=== 648 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05-class-name/02-input.svelte	js
+=== 690 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05-class-name/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2827,7 +2912,8 @@ export default function _2_input($$anchor) {
 	$.set_class(div_3, 1, '', null, {}, { active, inactive: !active, isAdmin });
 	$.append($$anchor, fragment);
 }
-=== 507 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/01-input.svelte	js
+=== 549 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2894,7 +2980,8 @@ export default function _1_input($$anchor) {
 	}
 ]
 
-=== 707 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/02-input.svelte	js
+=== 749 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2924,7 +3011,8 @@ export default function _2_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 277 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/02.1-input.svelte	js
+=== 319 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/02.1-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2936,7 +3024,8 @@ export default function _2_1_input($$anchor) {
 	$.set_style(div, '', {}, [{}, { color: 'red' }]);
 	$.append($$anchor, div);
 }
-=== 294 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/03-input.svelte	js
+=== 336 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/05.1-style-property/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2948,7 +3037,8 @@ export default function _3_input($$anchor) {
 	$.set_style(div, 'color: blue;', {}, { color: 'red' });
 	$.append($$anchor, div);
 }
-=== 547 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/06-use-action/01-input.svelte	js
+=== 589 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/06-use-action/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2998,7 +3088,8 @@ export default function _1_input($$anchor) {
 	}
 ]
 
-=== 414 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/06-use-action/02-input.svelte	js
+=== 456 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/06-use-action/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3019,7 +3110,8 @@ export default function _2_input($$anchor) {
 	$.action(div, ($$node) => foo?.($$node));
 	$.append($$anchor, div);
 }
-=== 711 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/01-input.svelte	js
+=== 753 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3106,7 +3198,8 @@ export default function _1_input($$anchor) {
 	}
 ]
 
-=== 497 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/02-input.svelte	js
+=== 539 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3131,7 +3224,8 @@ export default function _2_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 545 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/03-input.svelte	js
+=== 587 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3156,7 +3250,8 @@ export default function _3_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 758 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/06-input.svelte	js
+=== 800 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/06-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3245,7 +3340,8 @@ export default function _6_input($$anchor) {
 	}
 ]
 
-=== 929 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/07-input.svelte	js
+=== 971 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/07-transition-fn/07-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3286,7 +3382,8 @@ export default function _7_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 924 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/01-input.svelte	js
+=== 966 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3429,7 +3526,8 @@ export default function _1_input($$anchor) {
 	}
 ]
 
-=== 536 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/02-input.svelte	js
+=== 578 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3455,7 +3553,8 @@ export default function _2_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 517 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/02-input.svelte	js
+=== 559 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3476,7 +3575,8 @@ export default function _2_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 535 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/03-input.svelte	js
+=== 577 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3497,7 +3597,8 @@ export default function _3_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 902 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/04-input.svelte	js
+=== 944 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { cubicOut } from 'svelte/easing';
@@ -3532,7 +3633,8 @@ export default function _4_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 895 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/05-input.svelte	js
+=== 937 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { cubicOut } from 'svelte/easing';
@@ -3567,21 +3669,24 @@ export default function _5_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 192 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/01-input.svelte	js
+=== 234 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _1_input($$anchor) {
 	MyComp($$anchor, { $$events: { eventname: handler } });
 }
-=== 198 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/02-input.svelte	js
+=== 240 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _2_input($$anchor) {
 	SomeComponent($$anchor, { $$events: { whatever: handler } });
 }
-=== 278 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/03-input.svelte	js
+=== 320 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3600,7 +3705,8 @@ export default function _3_input($$anchor, $$props) {
 	  background-color: var(--rail-color, var(--theme-color, 'purple'));
 	}*/
 
-=== 446 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/03-input.svelte	js
+=== 488 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3636,14 +3742,16 @@ export default function _3_input($$anchor) {
 	}
 ]
 
-=== 240 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/01-input.svelte	js
+=== 282 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _1_input($$anchor) {
 	$.bind_this(MyComp($$anchor, {}), ($$value) => component_instance = $$value, () => component_instance);
 }
-=== 462 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/02-input.svelte	js
+=== 504 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3678,7 +3786,8 @@ export default function _2_input($$anchor) {
 	}
 ]
 
-=== 524 tests/fixtures/parser/ast/docs/template-syntax/13-slot/00/01-input.svelte	js
+=== 566 tests/fixtures/parser/ast/docs/template-syntax/13-slot/00/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3745,7 +3854,8 @@ export default function _1_input($$anchor, $$props) {
 	}
 ]
 
-=== 887 tests/fixtures/parser/ast/docs/template-syntax/13-slot/00/02-input.svelte	js
+=== 929 tests/fixtures/parser/ast/docs/template-syntax/13-slot/00/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3800,7 +3910,8 @@ export default function _2_input($$anchor, $$props) {
 	}
 ]
 
-=== 1008 tests/fixtures/parser/ast/docs/template-syntax/13-slot/01-slot-name-name/01-input.svelte	js
+=== 1050 tests/fixtures/parser/ast/docs/template-syntax/13-slot/01-slot-name-name/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3876,7 +3987,8 @@ export default function _1_input($$anchor, $$props) {
 	}
 ]
 
-=== 999 tests/fixtures/parser/ast/docs/template-syntax/13-slot/01-slot-name-name/02-input.svelte	js
+=== 1041 tests/fixtures/parser/ast/docs/template-syntax/13-slot/01-slot-name-name/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3950,7 +4062,8 @@ export default function _2_input($$anchor, $$props) {
 	}
 ]
 
-=== 1044 tests/fixtures/parser/ast/docs/template-syntax/13-slot/02-$$slots/01-input.svelte	js
+=== 1086 tests/fixtures/parser/ast/docs/template-syntax/13-slot/02-$$slots/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4030,7 +4143,8 @@ export default function _1_input($$anchor, $$props) {
 	}
 ]
 
-=== 1043 tests/fixtures/parser/ast/docs/template-syntax/13-slot/03-slot-let-name-value/01-input.svelte	js
+=== 1085 tests/fixtures/parser/ast/docs/template-syntax/13-slot/03-slot-let-name-value/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4101,7 +4215,8 @@ export default function _1_input($$anchor, $$props) {
 	}
 ]
 
-=== 1280 tests/fixtures/parser/ast/docs/template-syntax/13-slot/03-slot-let-name-value/02-input.svelte	js
+=== 1322 tests/fixtures/parser/ast/docs/template-syntax/13-slot/03-slot-let-name-value/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4196,7 +4311,8 @@ export default function _2_input($$anchor, $$props) {
 	}
 ]
 
-=== 334 tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/01-input.svelte	js
+=== 376 tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4228,7 +4344,8 @@ export default function _1_input($$anchor) {
 	}
 ]
 
-=== 360 tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/02-input.svelte	js
+=== 402 tests/fixtures/parser/ast/docs/template-syntax/15_1-svelte-component/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4260,7 +4377,8 @@ export default function _2_input($$anchor) {
 	}
 ]
 
-=== 276 tests/fixtures/parser/ast/docs/template-syntax/15_2-svelte-element/01-input.svelte	js
+=== 318 tests/fixtures/parser/ast/docs/template-syntax/15_2-svelte-element/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4271,14 +4389,16 @@ export default function _1_input($$anchor) {
 	$.element(node, () => expression, false);
 	$.append($$anchor, fragment);
 }
-=== 173 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/01-input.svelte	js
+=== 215 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _1_input($$anchor) {
 	$.event('event', $.window, handler);
 }
-=== 259 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/03-input.svelte	js
+=== 301 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4289,14 +4409,16 @@ export default function _3_input($$anchor) {
 
 	$.event('keydown', $.window, handleKeydown);
 }
-=== 175 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/01-input.svelte	js
+=== 217 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _1_input($$anchor) {
 	$.event('event', $.document, handler);
 }
-=== 258 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/02-input.svelte	js
+=== 300 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4304,14 +4426,16 @@ export default function _2_input($$anchor) {
 	$.event('visibilitychange', $.document, handleVisibilityChange);
 	$.action($.document, ($$node) => someAction?.($$node));
 }
-=== 180 tests/fixtures/parser/ast/docs/template-syntax/17-svelte-body/01-input.svelte	js
+=== 222 tests/fixtures/parser/ast/docs/template-syntax/17-svelte-body/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _1_input($$anchor) {
 	$.event('event', $.document.body, handler);
 }
-=== 253 tests/fixtures/parser/ast/docs/template-syntax/17-svelte-body/02-input.svelte	js
+=== 295 tests/fixtures/parser/ast/docs/template-syntax/17-svelte-body/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4319,7 +4443,8 @@ export default function _2_input($$anchor) {
 	$.event('mouseenter', $.document.body, handleMouseenter);
 	$.event('mouseleave', $.document.body, handleMouseleave);
 }
-=== 232 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/01-input.svelte	js
+=== 274 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4330,7 +4455,8 @@ export default function _1_input($$anchor) {
 		$.append($$anchor, text);
 	});
 }
-=== 309 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/02-input.svelte	js
+=== 351 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4343,7 +4469,8 @@ export default function _2_input($$anchor) {
 		$.append($$anchor, link);
 	});
 }
-=== 244 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-input.svelte	js
+=== 286 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4368,7 +4495,8 @@ customElements.define('my-custom-element', $.create_custom_element(_2_input, {},
 	}
 ]
 
-=== 1058 tests/fixtures/parser/ast/docs/template-syntax/20-svelte-fragment/01-input.svelte	js
+=== 1100 tests/fixtures/parser/ast/docs/template-syntax/20-svelte-fragment/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4445,7 +4573,8 @@ export default function _1_input($$anchor, $$props) {
 	}
 ]
 
-=== 581 tests/fixtures/parser/ast/each-with-comment-input.svelte	js
+=== 623 tests/fixtures/parser/ast/each-with-comment-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Foo from './foo.svelte';
@@ -4474,7 +4603,8 @@ export default function Each_with_comment_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 235 tests/fixtures/parser/ast/empty-elements01-input.svelte	js
+=== 277 tests/fixtures/parser/ast/empty-elements01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4485,7 +4615,8 @@ export default function Empty_elements01_input($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 283 tests/fixtures/parser/ast/hello/hello-world01-input.svelte	js
+=== 325 tests/fixtures/parser/ast/hello/hello-world01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4506,7 +4637,8 @@ export default function Hello_world01_input($$anchor) {
 		font-size: 2em;
 	}
 
-=== 390 tests/fixtures/parser/ast/hello/hello-world02-input.svelte	js
+=== 432 tests/fixtures/parser/ast/hello/hello-world02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Nested from './Nested.svelte';
@@ -4520,7 +4652,8 @@ export default function Hello_world02_input($$anchor) {
 	Nested(node, {});
 	$.append($$anchor, fragment);
 }
-=== 252 tests/fixtures/parser/ast/hello/hello-world03-input.svelte	js
+=== 294 tests/fixtures/parser/ast/hello/hello-world03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4531,7 +4664,8 @@ export default function Hello_world03_input($$anchor) {
 
 	$.append($$anchor, p);
 }
-=== 484 tests/fixtures/parser/ast/hello/hello-world04-input.svelte	js
+=== 526 tests/fixtures/parser/ast/hello/hello-world04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4617,7 +4751,8 @@ export default function Hello_world04_input($$anchor) {
 		will-change: filter;
 	}
 
-=== 2407 tests/fixtures/parser/ast/hello/hello-world05-input.svelte	js
+=== 2449 tests/fixtures/parser/ast/hello/hello-world05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { quintOut } from 'svelte/easing';
@@ -4703,7 +4838,8 @@ export default function Hello_world05_input($$anchor) {
 	}
 ]
 
-=== 352 tests/fixtures/parser/ast/html-comments01-input.svelte	js
+=== 394 tests/fixtures/parser/ast/html-comments01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4735,7 +4871,8 @@ export default function Html_comments01_input($$anchor) {
 	}
 ]
 
-=== 561 tests/fixtures/parser/ast/i18n-test-input.svelte	js
+=== 603 tests/fixtures/parser/ast/i18n-test-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { _ } from './i18n-test-svelte-i18n';
@@ -4755,7 +4892,8 @@ export default function I18n_test_input($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 634 tests/fixtures/parser/ast/i18n-test-type-output.svelte	js
+=== 676 tests/fixtures/parser/ast/i18n-test-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { _ } from './i18n-test-svelte-i18n';
@@ -4778,7 +4916,8 @@ export default function I18n_test_type_output($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 515 tests/fixtures/parser/ast/if-block01-input.svelte	js
+=== 557 tests/fixtures/parser/ast/if-block01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4798,7 +4937,8 @@ export default function If_block01_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 346 tests/fixtures/parser/ast/issue327-eslint-plugin-svelte-input.svelte	js
+=== 388 tests/fixtures/parser/ast/issue327-eslint-plugin-svelte-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -4841,7 +4981,8 @@ export default function Issue327_eslint_plugin_svelte_input($$anchor) {
 		display: block;
 	}
 
-=== 846 tests/fixtures/parser/ast/kit-demo-home-input.svelte	js
+=== 888 tests/fixtures/parser/ast/kit-demo-home-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Counter from '$lib/Counter/index.svelte';
@@ -4883,7 +5024,8 @@ export default function Kit_demo_home_input($$anchor) {
 	}
 ]
 
-=== 1145 tests/fixtures/parser/ast/let-directive01-input.svelte	js
+=== 1187 tests/fixtures/parser/ast/let-directive01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import FancyList from 'mod';
@@ -4927,7 +5069,8 @@ export default function Let_directive01_input($$anchor) {
 	text_2.nodeValue = ` ${data ?? ''} no-def`;
 	$.append($$anchor, fragment);
 }
-=== 668 tests/fixtures/parser/ast/let-directive02-input.svelte	js
+=== 710 tests/fixtures/parser/ast/let-directive02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Hoverable from './Hoverable.svelte';
@@ -4972,7 +5115,8 @@ export default function Let_directive02_input($$anchor) {
 	}
 ]
 
-=== 924 tests/fixtures/parser/ast/let-directive03-input.svelte	js
+=== 966 tests/fixtures/parser/ast/let-directive03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import FancyList from 'mod';
@@ -5010,7 +5154,8 @@ export default function Let_directive03_input($$anchor) {
 		}
 	});
 }
-=== 241 tests/fixtures/parser/ast/mustache-with-comment-input.svelte	js
+=== 283 tests/fixtures/parser/ast/mustache-with-comment-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5022,7 +5167,8 @@ export default function Mustache_with_comment_input($$anchor) {
 	text.nodeValue = foo();
 	$.append($$anchor, text);
 }
-=== 285 tests/fixtures/parser/ast/nesting-script-tag01-input.svelte	js
+=== 327 tests/fixtures/parser/ast/nesting-script-tag01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5042,7 +5188,8 @@ export default function Nesting_script_tag01_input($$anchor) {
     background-colour: grey;
   }*/
 
-=== 139 tests/fixtures/parser/ast/postcss-input.svelte	js
+=== 181 tests/fixtures/parser/ast/postcss-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5065,7 +5212,8 @@ export default function Postcss_input($$anchor) {}
 	}
 ]
 
-=== 312 tests/fixtures/parser/ast/props03-input.svelte	js
+=== 354 tests/fixtures/parser/ast/props03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5086,7 +5234,8 @@ export default function Props03_input($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 318 tests/fixtures/parser/ast/props04-input.svelte	js
+=== 360 tests/fixtures/parser/ast/props04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5107,7 +5256,8 @@ export default function Props04_input($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 312 tests/fixtures/parser/ast/pug/each/self-closing-template-input.svelte	js
+=== 354 tests/fixtures/parser/ast/pug/each/self-closing-template-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5144,7 +5294,8 @@ export default function Self_closing_template_input($$anchor) {
     content: '<script> </script>';
 }*/
 
-=== 147 tests/fixtures/parser/ast/script-in-style-input.svelte	js
+=== 189 tests/fixtures/parser/ast/script-in-style-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5167,7 +5318,8 @@ export default function Script_in_style_input($$anchor) {}
 	}
 ]
 
-=== 395 tests/fixtures/parser/ast/script-tag-input.svelte	js
+=== 437 tests/fixtures/parser/ast/script-tag-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5178,7 +5330,8 @@ export default function Script_tag_input($$anchor) {
 
 	$.append($$anchor, head);
 }
-=== 898 tests/fixtures/parser/ast/store-bindings-input.svelte	js
+=== 940 tests/fixtures/parser/ast/store-bindings-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { name, greeting } from './stores.js';
@@ -5222,7 +5375,8 @@ export default function Store_bindings_input($$anchor) {
 	}
 ]
 
-=== 631 tests/fixtures/parser/ast/style-directive01-input.svelte	js
+=== 673 tests/fixtures/parser/ast/style-directive01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5293,7 +5447,8 @@ export default function Style_directive01_input($$anchor) {
 	}
 ]
 
-=== 679 tests/fixtures/parser/ast/style-directive02-input.svelte	js
+=== 721 tests/fixtures/parser/ast/style-directive02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5318,7 +5473,8 @@ export default function Style_directive02_input($$anchor) {
 	$.set_style(div_3, '', {}, { color: `template${literal}` });
 	$.append($$anchor, fragment);
 }
-=== 302 tests/fixtures/parser/ast/style-directive03-input.svelte	js
+=== 344 tests/fixtures/parser/ast/style-directive03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5337,7 +5493,8 @@ div.svelte-4d0lb3 {
     color: red;
 }
 
-=== 255 tests/fixtures/parser/ast/style-global01-input.svelte	js
+=== 297 tests/fixtures/parser/ast/style-global01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5374,7 +5531,8 @@ div.svelte-1ve119u {
     }
 }
 
-=== 290 tests/fixtures/parser/ast/style-global02-input.svelte	js
+=== 332 tests/fixtures/parser/ast/style-global02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5409,7 +5567,8 @@ div.svelte-13jt2l3 {
   color: red;
 }
 
-=== 249 tests/fixtures/parser/ast/style01-input.svelte	js
+=== 291 tests/fixtures/parser/ast/style01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5438,7 +5597,8 @@ export default function Style01_input($$anchor) {
 	}
 ]
 
-=== 444 tests/fixtures/parser/ast/svelte5/$bindable-used-input.svelte	js
+=== 486 tests/fixtures/parser/ast/svelte5/$bindable-used-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5461,7 +5621,8 @@ export default function $bindable_used_input($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 520 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-runes-input.svelte	js
+=== 562 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-runes-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5478,7 +5639,8 @@ export default function $props_without_destructuring_runes_input($$anchor, $$pro
 	$.template_effect(() => $.set_text(text, props));
 	$.append($$anchor, span);
 }
-=== 524 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-without-runes-input.svelte	js
+=== 566 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-without-runes-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5495,7 +5657,8 @@ export default function $props_without_destructuring_without_runes_input($$ancho
 	$.template_effect(() => $.set_text(text, props));
 	$.append($$anchor, span);
 }
-=== 348 tests/fixtures/parser/ast/svelte5/$props-without-runes01-input.svelte	js
+=== 390 tests/fixtures/parser/ast/svelte5/$props-without-runes01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5508,7 +5671,8 @@ export default function $props_without_runes01_input($$anchor, $$props) {
 	$.template_effect(() => $.set_text(text, $$props.p));
 	$.append($$anchor, span);
 }
-=== 494 tests/fixtures/parser/ast/svelte5/async/boundaries-input.svelte	js
+=== 536 tests/fixtures/parser/ast/svelte5/async/boundaries-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MyApp from './MyApp.svelte';
@@ -5533,7 +5697,8 @@ export default function Boundaries_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 408 tests/fixtures/parser/ast/svelte5/attach-ts-01-input.svelte	js
+=== 450 tests/fixtures/parser/ast/svelte5/attach-ts-01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5553,7 +5718,8 @@ export default function Attach_ts_01_input($$anchor) {
 	$.attach(div, () => myAttachment);
 	$.append($$anchor, div);
 }
-=== 754 tests/fixtures/parser/ast/svelte5/attach-ts-02-input.svelte	js
+=== 796 tests/fixtures/parser/ast/svelte5/attach-ts-02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import tippy from 'tippy.js';
@@ -5585,7 +5751,8 @@ export default function Attach_ts_02_input($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 719 tests/fixtures/parser/ast/svelte5/attach-ts-03-input.svelte	js
+=== 761 tests/fixtures/parser/ast/svelte5/attach-ts-03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { paint } from './gradient.js';
@@ -5618,7 +5785,8 @@ export default function Attach_ts_03_input($$anchor, $$props) {
 	$.append($$anchor, canvas_1);
 	$.pop();
 }
-=== 456 tests/fixtures/parser/ast/svelte5/attach01-input.svelte	js
+=== 498 tests/fixtures/parser/ast/svelte5/attach01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5639,7 +5807,8 @@ export default function Attach01_input($$anchor) {
 	$.attach(div, () => myAttachment);
 	$.append($$anchor, div);
 }
-=== 843 tests/fixtures/parser/ast/svelte5/attach02-input.svelte	js
+=== 885 tests/fixtures/parser/ast/svelte5/attach02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import tippy from 'tippy.js';
@@ -5675,7 +5844,8 @@ export default function Attach02_input($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 715 tests/fixtures/parser/ast/svelte5/attach03-input.svelte	js
+=== 757 tests/fixtures/parser/ast/svelte5/attach03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { paint } from './gradient.js';
@@ -5708,7 +5878,8 @@ export default function Attach03_input($$anchor, $$props) {
 	$.append($$anchor, canvas_1);
 	$.pop();
 }
-=== 1059 tests/fixtures/parser/ast/svelte5/attach04-input.svelte	js
+=== 1101 tests/fixtures/parser/ast/svelte5/attach04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import tippy from 'tippy.js';
@@ -5756,7 +5927,8 @@ export default function Attach04_input($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 969 tests/fixtures/parser/ast/svelte5/attach04-ts-input.svelte	js
+=== 1011 tests/fixtures/parser/ast/svelte5/attach04-ts-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import tippy from 'tippy.js';
@@ -5800,7 +5972,8 @@ export default function Attach04_ts_input($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 324 tests/fixtures/parser/ast/svelte5/comments-in-tags01-input.svelte	js
+=== 366 tests/fixtures/parser/ast/svelte5/comments-in-tags01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5814,7 +5987,8 @@ export default function Comments_in_tags01_input($$anchor) {
 }
 
 $.delegate(['click']);
-=== 746 tests/fixtures/parser/ast/svelte5/declaration-tag-input.svelte	js
+=== 788 tests/fixtures/parser/ast/svelte5/declaration-tag-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5842,7 +6016,8 @@ export default function Declaration_tag_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 826 tests/fixtures/parser/ast/svelte5/docs/fine-grained-reactivity/example01-input.svelte	js
+=== 868 tests/fixtures/parser/ast/svelte5/docs/fine-grained-reactivity/example01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5893,7 +6068,8 @@ export default function Example01_input($$anchor, $$props) {
 
 	$.pop();
 }
-=== 385 tests/fixtures/parser/ast/svelte5/docs/functions/01-untrack-input.svelte	js
+=== 427 tests/fixtures/parser/ast/svelte5/docs/functions/01-untrack-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { untrack } from 'svelte';
@@ -5911,7 +6087,8 @@ export default function _1_untrack_input($$anchor, $$props) {
 
 	$.pop();
 }
-=== 622 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/01-counter-input.svelte	js
+=== 664 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/01-counter-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5955,7 +6132,8 @@ export default function _1_counter_input($$anchor, $$props) {
 	}
 ]
 
-=== 757 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/02-tracking-dependencies-input.svelte	js
+=== 799 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/02-tracking-dependencies-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6013,7 +6191,8 @@ export default function _2_tracking_dependencies_input($$anchor) {
 	}
 ]
 
-=== 852 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/03-untracking-dependencies-input.svelte	js
+=== 894 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/03-untracking-dependencies-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { untrack } from 'svelte';
@@ -6075,7 +6254,8 @@ export default function _3_untracking_dependencies_input($$anchor, $$props) {
 	}
 ]
 
-=== 328 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/04-simple-component-props-input.svelte	js
+=== 370 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/04-simple-component-props-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6089,7 +6269,8 @@ export default function _4_simple_component_props_input($$anchor, $$props) {
 	$.template_effect(() => $.set_text(text, count()));
 	$.append($$anchor, text);
 }
-=== 576 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/05-advanced-component-props-input.svelte	js
+=== 618 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/05-advanced-component-props-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6114,7 +6295,8 @@ export default function _5_advanced_component_props_input($$anchor, $$props) {
 
 	$.append($$anchor, pre);
 }
-=== 1554 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/06-autoscroll-input.svelte	js
+=== 1596 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/06-autoscroll-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tick } from 'svelte';
@@ -6214,7 +6396,8 @@ export default function _6_autoscroll_input($$anchor, $$props) {
 	}
 ]
 
-=== 427 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-input.svelte	js
+=== 469 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6247,7 +6430,8 @@ export default function _1_$state_input($$anchor) {
 	}
 ]
 
-=== 673 tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	js
+=== 715 tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6288,7 +6472,8 @@ export default function _2_$derived_input($$anchor) {
 	}
 ]
 
-=== 619 tests/fixtures/parser/ast/svelte5/docs/runes/02-2-$derived-by-input.svelte	js
+=== 661 tests/fixtures/parser/ast/svelte5/docs/runes/02-2-$derived-by-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6332,7 +6517,8 @@ export default function _2_2_$derived_by_input($$anchor) {
 	}
 ]
 
-=== 1123 tests/fixtures/parser/ast/svelte5/docs/runes/03-1-$effect-input.svelte	js
+=== 1165 tests/fixtures/parser/ast/svelte5/docs/runes/03-1-$effect-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6391,7 +6577,8 @@ export default function _3_1_$effect_input($$anchor, $$props) {
 	}
 ]
 
-=== 581 tests/fixtures/parser/ast/svelte5/docs/runes/03-2-$effect-tracking-input.svelte	js
+=== 623 tests/fixtures/parser/ast/svelte5/docs/runes/03-2-$effect-tracking-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6419,7 +6606,8 @@ export default function _3_2_$effect_tracking_input($$anchor, $$props) {
 	$.append($$anchor, p);
 	$.pop();
 }
-=== 1025 tests/fixtures/parser/ast/svelte5/docs/runes/04-$effect-pre-input.svelte	js
+=== 1067 tests/fixtures/parser/ast/svelte5/docs/runes/04-$effect-pre-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tick } from 'svelte';
@@ -6463,19 +6651,22 @@ export default function _4_$effect_pre_input($$anchor, $$props) {
 	$.append($$anchor, div_1);
 	$.pop();
 }
-=== 211 tests/fixtures/parser/ast/svelte5/docs/runes/05-$props-input.svelte	js
+=== 253 tests/fixtures/parser/ast/svelte5/docs/runes/05-$props-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _5_$props_input($$anchor, $$props) {
 	let optionalProp = $.prop($$props, 'optionalProp', 3, 42);
 }
-=== 150 tests/fixtures/parser/ast/svelte5/docs/runes/06-$props-input.svelte	js
+=== 192 tests/fixtures/parser/ast/svelte5/docs/runes/06-$props-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _6_$props_input($$anchor, $$props) {}
-=== 293 tests/fixtures/parser/ast/svelte5/docs/runes/07-$props-input.svelte	js
+=== 335 tests/fixtures/parser/ast/svelte5/docs/runes/07-$props-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6484,7 +6675,8 @@ var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'a', 'b', 'c']);
 export default function _7_$props_input($$anchor, $$props) {
 	let everythingElse = $.rest_props($$props, rest_excludes);
 }
-=== 754 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-input.svelte	js
+=== 796 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6509,7 +6701,8 @@ export default function _8_$props_id_input($$anchor) {
 
 	$.append($$anchor, form);
 }
-=== 757 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-ts-input.svelte	js
+=== 799 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-id-ts-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6534,7 +6727,8 @@ export default function _8_$props_id_ts_input($$anchor) {
 
 	$.append($$anchor, form);
 }
-=== 296 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-ts-input.svelte	js
+=== 338 tests/fixtures/parser/ast/svelte5/docs/runes/08-$props-ts-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6543,7 +6737,8 @@ var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 'a', 'b', 'c']);
 export default function _8_$props_ts_input($$anchor, $$props) {
 	let everythingElse = $.rest_props($$props, rest_excludes);
 }
-=== 190 tests/fixtures/parser/ast/svelte5/docs/runes/08-2-$bindable-input.svelte	js
+=== 232 tests/fixtures/parser/ast/svelte5/docs/runes/08-2-$bindable-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6551,7 +6746,8 @@ export default function _8_2_$bindable_input($$anchor, $$props) {
 	$.push($$props, true);
 	$.pop();
 }
-=== 261 tests/fixtures/parser/ast/svelte5/docs/runes/08-3-$bindable-input.svelte	js
+=== 303 tests/fixtures/parser/ast/svelte5/docs/runes/08-3-$bindable-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6562,7 +6758,8 @@ export default function _8_3_$bindable_input($$anchor, $$props) {
 
 	$.pop();
 }
-=== 256 tests/fixtures/parser/ast/svelte5/docs/runes/08-4-$bindable-ts-input.svelte	js
+=== 298 tests/fixtures/parser/ast/svelte5/docs/runes/08-4-$bindable-ts-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6573,12 +6770,14 @@ export default function _8_4_$bindable_ts_input($$anchor, $$props) {
 
 	$.pop();
 }
-=== 148 tests/fixtures/parser/ast/svelte5/docs/runes/09-how-to-opt-in-input.svelte	js
+=== 190 tests/fixtures/parser/ast/svelte5/docs/runes/09-how-to-opt-in-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function _9_how_to_opt_in_input($$anchor) {}
-=== 369 tests/fixtures/parser/ast/svelte5/docs/runes/10-$effect-root-input.svelte	js
+=== 411 tests/fixtures/parser/ast/svelte5/docs/runes/10-$effect-root-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6599,7 +6798,8 @@ export default function _0_$effect_root_input($$anchor, $$props) {
 
 	$.pop();
 }
-=== 653 tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-input.svelte	js
+=== 695 tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6622,7 +6822,8 @@ export default function _1_1_$inspect_input($$anchor) {
 }
 
 $.delegate(['click']);
-=== 656 tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-ts-input.svelte	js
+=== 698 tests/fixtures/parser/ast/svelte5/docs/runes/11-1-$inspect-ts-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6645,7 +6846,8 @@ export default function _1_1_$inspect_ts_input($$anchor) {
 }
 
 $.delegate(['click']);
-=== 451 tests/fixtures/parser/ast/svelte5/docs/runes/11-2-$inspect-input.svelte	js
+=== 493 tests/fixtures/parser/ast/svelte5/docs/runes/11-2-$inspect-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6667,7 +6869,8 @@ export default function _1_2_$inspect_input($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 454 tests/fixtures/parser/ast/svelte5/docs/runes/11-2-$inspect-ts-input.svelte	js
+=== 496 tests/fixtures/parser/ast/svelte5/docs/runes/11-2-$inspect-ts-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6689,7 +6892,8 @@ export default function _1_2_$inspect_ts_input($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 211 tests/fixtures/parser/ast/svelte5/docs/runes/11-3-$inspect-input.svelte	js
+=== 253 tests/fixtures/parser/ast/svelte5/docs/runes/11-3-$inspect-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6701,7 +6905,8 @@ export default function _1_3_$inspect_input($$anchor, $$props) {
 	;;
 	$.pop();
 }
-=== 214 tests/fixtures/parser/ast/svelte5/docs/runes/11-3-$inspect-ts-input.svelte	js
+=== 256 tests/fixtures/parser/ast/svelte5/docs/runes/11-3-$inspect-ts-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6713,7 +6918,8 @@ export default function _1_3_$inspect_ts_input($$anchor, $$props) {
 	;;
 	$.pop();
 }
-=== 405 tests/fixtures/parser/ast/svelte5/docs/runes/12-$inspect-input.svelte	js
+=== 447 tests/fixtures/parser/ast/svelte5/docs/runes/12-$inspect-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6732,7 +6938,8 @@ export default function _2_$inspect_input($$anchor) {
 }
 
 $.delegate(['click']);
-=== 192 tests/fixtures/parser/ast/svelte5/docs/runes/13-$inspect-input.svelte	js
+=== 234 tests/fixtures/parser/ast/svelte5/docs/runes/13-$inspect-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6742,7 +6949,8 @@ export default function _3_$inspect_input($$anchor) {
 	;;
 	$.set(stuff, 1);
 }
-=== 1467 tests/fixtures/parser/ast/svelte5/docs/snippets/01-input.svelte	js
+=== 1509 tests/fixtures/parser/ast/svelte5/docs/snippets/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6801,7 +7009,8 @@ export default function _1_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 832 tests/fixtures/parser/ast/svelte5/docs/snippets/02-input.svelte	js
+=== 874 tests/fixtures/parser/ast/svelte5/docs/snippets/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6831,7 +7040,8 @@ const figure = ($$anchor, $$arg0) => {
 var root = $.from_html(`<figure><img/> <figcaption> </figcaption></figure>`);
 
 export default function _2_input($$anchor) {}
-=== 719 tests/fixtures/parser/ast/svelte5/docs/snippets/03-snippet-scope-input.svelte	js
+=== 761 tests/fixtures/parser/ast/svelte5/docs/snippets/03-snippet-scope-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6858,7 +7068,8 @@ export default function _3_snippet_scope_input($$anchor, $$props) {
 	hello(node_1, () => 'bob');
 	$.append($$anchor, fragment);
 }
-=== 595 tests/fixtures/parser/ast/svelte5/docs/snippets/04-snippet-scope-input.svelte	js
+=== 637 tests/fixtures/parser/ast/svelte5/docs/snippets/04-snippet-scope-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6892,7 +7103,8 @@ export default function _4_snippet_scope_input($$anchor) {
 	$.snippet(node_1, () => x);
 	$.append($$anchor, fragment);
 }
-=== 1010 tests/fixtures/parser/ast/svelte5/docs/snippets/05-snippet-scope-input.svelte	js
+=== 1052 tests/fixtures/parser/ast/svelte5/docs/snippets/05-snippet-scope-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6936,7 +7148,8 @@ var root_1 = $.from_html(`<span> </span> <!>`, 1);
 export default function _5_snippet_scope_input($$anchor) {
 	countdown($$anchor, () => 10);
 }
-=== 1319 tests/fixtures/parser/ast/svelte5/docs/snippets/06-passing-snippets-to-components-input.svelte	js
+=== 1361 tests/fixtures/parser/ast/svelte5/docs/snippets/06-passing-snippets-to-components-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Table from './Table.svelte';
@@ -6993,7 +7206,8 @@ export default function _6_passing_snippets_to_components_input($$anchor) {
 		}
 	});
 }
-=== 1155 tests/fixtures/parser/ast/svelte5/docs/snippets/07-passing-snippets-to-components-input.svelte	js
+=== 1197 tests/fixtures/parser/ast/svelte5/docs/snippets/07-passing-snippets-to-components-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7038,7 +7252,8 @@ export default function _7_passing_snippets_to_components_input($$anchor) {
 		});
 	}
 }
-=== 448 tests/fixtures/parser/ast/svelte5/docs/snippets/08-passing-snippets-to-components-input.svelte	js
+=== 490 tests/fixtures/parser/ast/svelte5/docs/snippets/08-passing-snippets-to-components-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7056,7 +7271,8 @@ export default function _8_passing_snippets_to_components_input($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 698 tests/fixtures/parser/ast/svelte5/docs/snippets/09-passing-snippets-to-components-input.svelte	js
+=== 740 tests/fixtures/parser/ast/svelte5/docs/snippets/09-passing-snippets-to-components-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7087,7 +7303,8 @@ export default function _9_passing_snippets_to_components_input($$anchor, $$prop
 	$.reset(table);
 	$.append($$anchor, table);
 }
-=== 1016 tests/fixtures/parser/ast/svelte5/docs/snippets/10-typing-snippets-input.svelte	js
+=== 1058 tests/fixtures/parser/ast/svelte5/docs/snippets/10-typing-snippets-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7131,7 +7348,8 @@ export default function _0_typing_snippets_input($$anchor, $$props) {
 	$.reset(table);
 	$.append($$anchor, table);
 }
-=== 1404 tests/fixtures/parser/ast/svelte5/docs/snippets/10-typing-snippets-type-output.svelte	js
+=== 1446 tests/fixtures/parser/ast/svelte5/docs/snippets/10-typing-snippets-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7182,7 +7400,8 @@ export default function _0_typing_snippets_type_output($$anchor, $$props) {
 	$.reset(table);
 	$.append($$anchor, table);
 }
-=== 1016 tests/fixtures/parser/ast/svelte5/docs/snippets/11-typing-snippets-input.svelte	js
+=== 1058 tests/fixtures/parser/ast/svelte5/docs/snippets/11-typing-snippets-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7226,7 +7445,8 @@ export default function _1_typing_snippets_input($$anchor, $$props) {
 	$.reset(table);
 	$.append($$anchor, table);
 }
-=== 1475 tests/fixtures/parser/ast/svelte5/docs/snippets/11-typing-snippets-type-output.svelte	js
+=== 1517 tests/fixtures/parser/ast/svelte5/docs/snippets/11-typing-snippets-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7278,7 +7498,8 @@ export default function _1_typing_snippets_type_output($$anchor, $$props) {
 	$.reset(table);
 	$.append($$anchor, table);
 }
-=== 365 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/01-input.svelte	js
+=== 407 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7296,7 +7517,8 @@ export default function _1_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 635 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/02-input.svelte	js
+=== 677 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7326,7 +7548,8 @@ export default function _2_input($$anchor) {
 }
 
 $.delegate(['click']);
-=== 700 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/03-input.svelte	js
+=== 742 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7366,7 +7589,8 @@ export default function _3_input($$anchor) {
 }
 
 $.delegate(['click']);
-=== 374 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/04-input.svelte	js
+=== 416 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7384,7 +7608,8 @@ export default function _4_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 892 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/05-input.svelte	js
+=== 934 tests/fixtures/parser/ast/svelte5/docs/svelte-boundary/05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7430,7 +7655,8 @@ export default function _5_input($$anchor) {
 }
 
 $.delegate(['click']);
-=== 406 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/01-each-blocks-without-an-item-input.svelte	js
+=== 448 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/01-each-blocks-without-an-item-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7448,7 +7674,8 @@ export default function _1_each_blocks_without_an_item_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 406 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/02-each-blocks-without-an-item-input.svelte	js
+=== 448 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/02-each-blocks-without-an-item-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7466,7 +7693,8 @@ export default function _2_each_blocks_without_an_item_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 731 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/03-each-blocks-without-an-item-input.svelte	js
+=== 773 tests/fixtures/parser/ast/svelte5/docs/template-syntax/03-each/03-each-blocks-without-an-item-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7493,7 +7721,8 @@ export default function _3_each_blocks_without_an_item_input($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 322 tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/01-input.svelte	js
+=== 364 tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7506,7 +7735,8 @@ export default function _1_input($$anchor) {
 	$.bind_value(input, () => value, (v) => value = v.toLowerCase());
 	$.append($$anchor, input);
 }
-=== 325 tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/02-input.svelte	js
+=== 367 tests/fixtures/parser/ast/svelte5/docs/template-syntax/11-bind/function-bindings/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7519,7 +7749,8 @@ export default function _2_input($$anchor) {
 	$.bind_element_size(div, 'clientHeight', redraw);
 	$.append($$anchor, div);
 }
-=== 471 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/01-input.svelte	js
+=== 513 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7557,7 +7788,8 @@ export default function _1_input($$anchor) {
 	}
 ]
 
-=== 679 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/02-input.svelte	js
+=== 721 tests/fixtures/parser/ast/svelte5/docs/universal-reactivity/02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7609,7 +7841,8 @@ export default function _2_input($$anchor) {
 	}
 ]
 
-=== 312 tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	js
+=== 354 tests/fixtures/parser/ast/svelte5/function-binding-with-comment01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7622,7 +7855,8 @@ export default function Function_binding_with_comment01_input($$anchor) {
 	$.bind_value(input, x, y);
 	$.append($$anchor, input);
 }
-=== 312 tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	js
+=== 354 tests/fixtures/parser/ast/svelte5/function-binding-with-comment02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7635,7 +7869,8 @@ export default function Function_binding_with_comment02_input($$anchor) {
 	$.bind_value(input, x, y);
 	$.append($$anchor, input);
 }
-=== 1017 tests/fixtures/parser/ast/svelte5/generics01-snippets-input.svelte	js
+=== 1059 tests/fixtures/parser/ast/svelte5/generics01-snippets-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7679,7 +7914,8 @@ export default function Generics01_snippets_input($$anchor, $$props) {
 	$.reset(table);
 	$.append($$anchor, table);
 }
-=== 1503 tests/fixtures/parser/ast/svelte5/generics01-snippets-type-output.svelte	js
+=== 1545 tests/fixtures/parser/ast/svelte5/generics01-snippets-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7732,7 +7968,8 @@ export default function Generics01_snippets_type_output($$anchor, $$props) {
 	$.reset(table);
 	$.append($$anchor, table);
 }
-=== 303 tests/fixtures/parser/ast/svelte5/non-function-binding01-input.svelte	js
+=== 345 tests/fixtures/parser/ast/svelte5/non-function-binding01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7745,7 +7982,8 @@ export default function Non_function_binding01_input($$anchor) {
 	$.bind_value(input, x, y);
 	$.append($$anchor, input);
 }
-=== 303 tests/fixtures/parser/ast/svelte5/non-function-binding02-input.svelte	js
+=== 345 tests/fixtures/parser/ast/svelte5/non-function-binding02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7758,7 +7996,8 @@ export default function Non_function_binding02_input($$anchor) {
 	$.bind_value(input, x, y);
 	$.append($$anchor, input);
 }
-=== 376 tests/fixtures/parser/ast/svelte5/render01-input.svelte	js
+=== 418 tests/fixtures/parser/ast/svelte5/render01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7778,7 +8017,8 @@ export default function Render01_input($$anchor, $$props) {
 
 	$.append($$anchor, fragment);
 }
-=== 304 tests/fixtures/parser/ast/svelte5/render02-optional-input.svelte	js
+=== 346 tests/fixtures/parser/ast/svelte5/render02-optional-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7789,7 +8029,8 @@ export default function Render02_optional_input($$anchor, $$props) {
 	$.snippet(node, () => $$props.foo ?? $.noop);
 	$.append($$anchor, fragment);
 }
-=== 305 tests/fixtures/parser/ast/svelte5/snippet01-hoist-input.svelte	js
+=== 347 tests/fixtures/parser/ast/svelte5/snippet01-hoist-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7806,7 +8047,8 @@ export default function Snippet01_hoist_input($$anchor) {
 
 	bar($$anchor);
 }
-=== 543 tests/fixtures/parser/ast/svelte5/snippet02-nesting-input.svelte	js
+=== 585 tests/fixtures/parser/ast/svelte5/snippet02-nesting-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Foo from '$lib/foo.svelte';
@@ -7838,18 +8080,21 @@ export default function Snippet02_nesting_input($$anchor) {
 		}
 	});
 }
-=== 148 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options01-input.svelte	js
+=== 190 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function Svelte_options01_input($$anchor) {}
-=== 187 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options02-input.svelte	js
+=== 229 tests/fixtures/parser/ast/svelte5/svelte-options/svelte-options02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import 'svelte/internal/flags/legacy';
 import * as $ from 'svelte/internal/client';
 
 export default function Svelte_options02_input($$anchor) {}
-=== 623 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-input.svelte	js
+=== 665 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7893,7 +8138,8 @@ export default function Ts_$derived_by01_input($$anchor) {
 	}
 ]
 
-=== 802 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-type-output.svelte	js
+=== 844 tests/fixtures/parser/ast/svelte5/ts-$derived-by01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7939,7 +8185,8 @@ export default function Ts_$derived_by01_type_output($$anchor) {
 	}
 ]
 
-=== 680 tests/fixtures/parser/ast/svelte5/ts-$derived01-input.svelte	js
+=== 722 tests/fixtures/parser/ast/svelte5/ts-$derived01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7980,7 +8227,8 @@ export default function Ts_$derived01_input($$anchor) {
 	}
 ]
 
-=== 769 tests/fixtures/parser/ast/svelte5/ts-$derived01-type-output.svelte	js
+=== 811 tests/fixtures/parser/ast/svelte5/ts-$derived01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8023,7 +8271,8 @@ export default function Ts_$derived01_type_output($$anchor) {
 	}
 ]
 
-=== 1129 tests/fixtures/parser/ast/svelte5/ts-$effect01-input.svelte	js
+=== 1171 tests/fixtures/parser/ast/svelte5/ts-$effect01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8082,7 +8331,8 @@ export default function Ts_$effect01_input($$anchor, $$props) {
 	}
 ]
 
-=== 1571 tests/fixtures/parser/ast/svelte5/ts-$effect01-type-output.svelte	js
+=== 1613 tests/fixtures/parser/ast/svelte5/ts-$effect01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8144,7 +8394,8 @@ export default function Ts_$effect01_type_output($$anchor, $$props) {
 	}
 ]
 
-=== 1134 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-input.svelte	js
+=== 1176 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8203,7 +8454,8 @@ export default function Ts_$effectpre01_input($$anchor, $$props) {
 	}
 ]
 
-=== 1576 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-type-output.svelte	js
+=== 1618 tests/fixtures/parser/ast/svelte5/ts-$effectpre01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8265,7 +8517,8 @@ export default function Ts_$effectpre01_type_output($$anchor, $$props) {
 	}
 ]
 
-=== 487 tests/fixtures/parser/ast/svelte5/ts-$props01-input.svelte	js
+=== 529 tests/fixtures/parser/ast/svelte5/ts-$props01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8285,7 +8538,8 @@ ${everythingElse ?? ''}`));
 
 	$.append($$anchor, text);
 }
-=== 709 tests/fixtures/parser/ast/svelte5/ts-$props01-type-output.svelte	js
+=== 751 tests/fixtures/parser/ast/svelte5/ts-$props01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8306,7 +8560,8 @@ export default function Ts_$props01_type_output($$anchor, $$props) {
 	$.template_effect(() => $.set_text(text, `${$$props.a ?? ''} ${$$props.b ?? ''} ${$$props.c ?? ''} ${everythingElse ?? ''}`));
 	$.append($$anchor, text);
 }
-=== 273 tests/fixtures/parser/ast/svelte5/ts-$props02-input.svelte	js
+=== 315 tests/fixtures/parser/ast/svelte5/ts-$props02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8318,7 +8573,8 @@ export default function Ts_$props02_input($$anchor, $$props) {
 	$.template_effect(() => $.set_text(text, $$props.name));
 	$.append($$anchor, text);
 }
-=== 353 tests/fixtures/parser/ast/svelte5/ts-$props02-type-output.svelte	js
+=== 395 tests/fixtures/parser/ast/svelte5/ts-$props02-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8331,7 +8587,8 @@ export default function Ts_$props02_type_output($$anchor, $$props) {
 	$.append($$anchor, text);
 	// name: string, name: string, name: string, $props(): { name: string; }
 }
-=== 449 tests/fixtures/parser/ast/svelte5/ts-$state01-input.svelte	js
+=== 491 tests/fixtures/parser/ast/svelte5/ts-$state01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8365,7 +8622,8 @@ export default function Ts_$state01_input($$anchor) {
 	}
 ]
 
-=== 524 tests/fixtures/parser/ast/svelte5/ts-$state01-type-output.svelte	js
+=== 566 tests/fixtures/parser/ast/svelte5/ts-$state01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8400,7 +8658,8 @@ export default function Ts_$state01_type_output($$anchor) {
 	}
 ]
 
-=== 372 tests/fixtures/parser/ast/svelte5/ts-derived-in-snippet-declaration-tag-input.svelte	js
+=== 414 tests/fixtures/parser/ast/svelte5/ts-derived-in-snippet-declaration-tag-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8417,7 +8676,8 @@ var root = $.from_html(`<p></p>`);
 export default function Ts_derived_in_snippet_declaration_tag_input($$anchor) {
 	derivedConst($$anchor);
 }
-=== 469 tests/fixtures/parser/ast/svelte5/ts-event01-input.svelte	js
+=== 511 tests/fixtures/parser/ast/svelte5/ts-event01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from 'foo.svelte';
@@ -8467,7 +8727,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 469 tests/fixtures/parser/ast/svelte5/ts-event02-input.svelte	js
+=== 511 tests/fixtures/parser/ast/svelte5/ts-event02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from 'foo.svelte';
@@ -8517,7 +8778,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 512 tests/fixtures/parser/ast/svelte5/ts-event02-type-output.svelte	js
+=== 554 tests/fixtures/parser/ast/svelte5/ts-event02-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from 'foo.svelte';
@@ -8570,7 +8832,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 566 tests/fixtures/parser/ast/svelte5/ts-event03-input.svelte	js
+=== 608 tests/fixtures/parser/ast/svelte5/ts-event03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8629,7 +8892,8 @@ $.delegate(['click', 'input']);
 	}
 ]
 
-=== 1182 tests/fixtures/parser/ast/svelte5/ts-event03-type-output.svelte	js
+=== 1224 tests/fixtures/parser/ast/svelte5/ts-event03-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8697,7 +8961,8 @@ $.delegate(['click', 'input']);
 	}
 ]
 
-=== 303 tests/fixtures/parser/ast/svelte5/ts-event04-input.svelte	js
+=== 345 tests/fixtures/parser/ast/svelte5/ts-event04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8730,7 +8995,8 @@ export default function Ts_event04_input($$anchor) {
 	}
 ]
 
-=== 373 tests/fixtures/parser/ast/svelte5/ts-event04-type-output.svelte	js
+=== 415 tests/fixtures/parser/ast/svelte5/ts-event04-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8764,7 +9030,8 @@ export default function Ts_event04_type_output($$anchor) {
 	}
 ]
 
-=== 486 tests/fixtures/parser/ast/svelte5/ts-event05-input.svelte	js
+=== 528 tests/fixtures/parser/ast/svelte5/ts-event05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from './ts-event03-input.svelte';
@@ -8798,7 +9065,8 @@ export default function Ts_event05_input($$anchor) {
 	}
 ]
 
-=== 589 tests/fixtures/parser/ast/svelte5/ts-event05-type-output.svelte	js
+=== 631 tests/fixtures/parser/ast/svelte5/ts-event05-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from './ts-event03-input.svelte';
@@ -8834,7 +9102,8 @@ export default function Ts_event05_type_output($$anchor) {
 	}
 ]
 
-=== 282 tests/fixtures/parser/ast/svelte5/ts-event06-input.svelte	js
+=== 324 tests/fixtures/parser/ast/svelte5/ts-event06-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from './ts-event03-input.svelte';
@@ -8865,7 +9134,8 @@ export default function Ts_event06_input($$anchor) {
 	}
 ]
 
-=== 436 tests/fixtures/parser/ast/svelte5/ts-event06-type-output.svelte	js
+=== 478 tests/fixtures/parser/ast/svelte5/ts-event06-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from './ts-event03-input.svelte';
@@ -8898,7 +9168,8 @@ export default function Ts_event06_type_output($$anchor) {
 	}
 ]
 
-=== 692 tests/fixtures/parser/ast/svelte5/ts-event07-type-output.svelte	js
+=== 734 tests/fixtures/parser/ast/svelte5/ts-event07-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8946,7 +9217,8 @@ export default function Ts_event07_type_output($$anchor) {
 	}
 ]
 
-=== 490 tests/fixtures/parser/ast/svelte5/ts-event08-input.svelte	js
+=== 532 tests/fixtures/parser/ast/svelte5/ts-event08-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8967,7 +9239,8 @@ export default function Ts_event08_input($$anchor) {
 }
 
 $.delegate(['click']);
-=== 648 tests/fixtures/parser/ast/svelte5/ts-event08-type-output.svelte	js
+=== 690 tests/fixtures/parser/ast/svelte5/ts-event08-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8997,7 +9270,8 @@ export default function Ts_event08_type_output($$anchor) {
 }
 
 $.delegate(['click']);
-=== 399 tests/fixtures/parser/ast/svelte5/ts-snippet01-input.svelte	js
+=== 441 tests/fixtures/parser/ast/svelte5/ts-snippet01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9016,7 +9290,8 @@ export default function Ts_snippet01_input($$anchor) {
 
 	foo($$anchor, () => msg);
 }
-=== 420 tests/fixtures/parser/ast/svelte5/ts-snippet01-type-output.svelte	js
+=== 462 tests/fixtures/parser/ast/svelte5/ts-snippet01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9035,7 +9310,8 @@ export default function Ts_snippet01_type_output($$anchor) {
 
 	foo($$anchor, () => msg);
 }
-=== 478 tests/fixtures/parser/ast/svelte5/ts-snippet03-input.svelte	js
+=== 520 tests/fixtures/parser/ast/svelte5/ts-snippet03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9076,7 +9352,8 @@ export default function Ts_snippet03_input($$anchor) {
 	}
 ]
 
-=== 334 tests/fixtures/parser/ast/template-curly-spacing-test-input.svelte	js
+=== 376 tests/fixtures/parser/ast/template-curly-spacing-test-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9107,7 +9384,8 @@ export default function Template_curly_spacing_test_input($$anchor) {
 	}
 ]
 
-=== 946 tests/fixtures/parser/ast/this-attr01-input.svelte	js
+=== 988 tests/fixtures/parser/ast/this-attr01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import component from './foo';
@@ -9199,7 +9477,8 @@ export default function This_attr01_input($$anchor) {
 	}
 ]
 
-=== 946 tests/fixtures/parser/ast/this-attr02-input.svelte	js
+=== 988 tests/fixtures/parser/ast/this-attr02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import component from './foo';
@@ -9291,7 +9570,8 @@ export default function This_attr02_input($$anchor) {
 	}
 ]
 
-=== 946 tests/fixtures/parser/ast/this-attr03-input.svelte	js
+=== 988 tests/fixtures/parser/ast/this-attr03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import component from './foo';
@@ -9383,7 +9663,8 @@ export default function This_attr03_input($$anchor) {
 	}
 ]
 
-=== 611 tests/fixtures/parser/ast/this-attr04-input.svelte	js
+=== 653 tests/fixtures/parser/ast/this-attr04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9423,7 +9704,8 @@ export default function This_attr04_input($$anchor) {
 	}
 ]
 
-=== 611 tests/fixtures/parser/ast/this-attr05-input.svelte	js
+=== 653 tests/fixtures/parser/ast/this-attr05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9445,7 +9727,8 @@ export default function This_attr05_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 373 tests/fixtures/parser/ast/trailing-comment01-input.svelte	js
+=== 415 tests/fixtures/parser/ast/trailing-comment01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9480,7 +9763,8 @@ export default function Trailing_comment01_input($$anchor) {
 	}
 ]
 
-=== 353 tests/fixtures/parser/ast/ts-$$slots01-input.svelte	js
+=== 395 tests/fixtures/parser/ast/ts-$$slots01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9513,7 +9797,8 @@ export default function Ts_$$slots01_input($$anchor, $$props) {
 	}
 ]
 
-=== 398 tests/fixtures/parser/ast/ts-$$slots01-type-output.svelte	js
+=== 440 tests/fixtures/parser/ast/ts-$$slots01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9546,7 +9831,8 @@ export default function Ts_$$slots01_type_output($$anchor, $$props) {
 	}
 ]
 
-=== 217 tests/fixtures/parser/ast/ts-$$slots02-no-slot-input.svelte	js
+=== 259 tests/fixtures/parser/ast/ts-$$slots02-no-slot-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9555,7 +9841,8 @@ export default function Ts_$$slots02_no_slot_input($$anchor, $$props) {
 
 	$$slots;
 }
-=== 256 tests/fixtures/parser/ast/ts-$$slots02-no-slot-type-output.svelte	js
+=== 298 tests/fixtures/parser/ast/ts-$$slots02-no-slot-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9564,7 +9851,8 @@ export default function Ts_$$slots02_no_slot_type_output($$anchor, $$props) {
 
 	$$slots; // $$slots: Record<any, boolean>
 }
-=== 355 tests/fixtures/parser/ast/ts-$$slots03-named-input.svelte	js
+=== 397 tests/fixtures/parser/ast/ts-$$slots03-named-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9597,7 +9885,8 @@ export default function Ts_$$slots03_named_input($$anchor, $$props) {
 	}
 ]
 
-=== 396 tests/fixtures/parser/ast/ts-$$slots03-named-type-output.svelte	js
+=== 438 tests/fixtures/parser/ast/ts-$$slots03-named-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9630,7 +9919,8 @@ export default function Ts_$$slots03_named_type_output($$anchor, $$props) {
 	}
 ]
 
-=== 468 tests/fixtures/parser/ast/ts-$$slots04-named-input.svelte	js
+=== 510 tests/fixtures/parser/ast/ts-$$slots04-named-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9683,7 +9973,8 @@ export default function Ts_$$slots04_named_input($$anchor, $$props) {
 	}
 ]
 
-=== 517 tests/fixtures/parser/ast/ts-$$slots04-named-type-output.svelte	js
+=== 559 tests/fixtures/parser/ast/ts-$$slots04-named-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9736,7 +10027,8 @@ export default function Ts_$$slots04_named_type_output($$anchor, $$props) {
 	}
 ]
 
-=== 1100 tests/fixtures/parser/ast/ts-await-non-promise01-input.svelte	js
+=== 1142 tests/fixtures/parser/ast/ts-await-non-promise01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9778,7 +10070,8 @@ export default function Ts_await_non_promise01_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 1147 tests/fixtures/parser/ast/ts-await-non-promise01-type-output.svelte	js
+=== 1189 tests/fixtures/parser/ast/ts-await-non-promise01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9820,7 +10113,8 @@ export default function Ts_await_non_promise01_type_output($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 783 tests/fixtures/parser/ast/ts-each01-input.svelte	js
+=== 825 tests/fixtures/parser/ast/ts-each01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9854,7 +10148,8 @@ export default function Ts_each01_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 849 tests/fixtures/parser/ast/ts-each01-type-output.svelte	js
+=== 891 tests/fixtures/parser/ast/ts-each01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9888,7 +10183,8 @@ export default function Ts_each01_type_output($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 453 tests/fixtures/parser/ast/ts-event01-input.svelte	js
+=== 495 tests/fixtures/parser/ast/ts-event01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from 'foo.svelte';
@@ -9936,7 +10232,8 @@ export default function Ts_event01_input($$anchor) {
 	}
 ]
 
-=== 453 tests/fixtures/parser/ast/ts-event02-input.svelte	js
+=== 495 tests/fixtures/parser/ast/ts-event02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from 'foo.svelte';
@@ -9984,7 +10281,8 @@ export default function Ts_event02_input($$anchor) {
 	}
 ]
 
-=== 496 tests/fixtures/parser/ast/ts-event02-type-output.svelte	js
+=== 538 tests/fixtures/parser/ast/ts-event02-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from 'foo.svelte';
@@ -10035,7 +10333,8 @@ export default function Ts_event02_type_output($$anchor) {
 	}
 ]
 
-=== 600 tests/fixtures/parser/ast/ts-event03-input.svelte	js
+=== 642 tests/fixtures/parser/ast/ts-event03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { createEventDispatcher } from 'svelte';
@@ -10110,7 +10409,8 @@ export default function Ts_event03_input($$anchor, $$props) {
 	}
 ]
 
-=== 1365 tests/fixtures/parser/ast/ts-event03-type-output.svelte	js
+=== 1407 tests/fixtures/parser/ast/ts-event03-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { createEventDispatcher } from 'svelte';
@@ -10192,7 +10492,8 @@ export default function Ts_event03_type_output($$anchor, $$props) {
 	}
 ]
 
-=== 303 tests/fixtures/parser/ast/ts-event04-input.svelte	js
+=== 345 tests/fixtures/parser/ast/ts-event04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10239,7 +10540,8 @@ export default function Ts_event04_input($$anchor) {
 	}
 ]
 
-=== 373 tests/fixtures/parser/ast/ts-event04-type-output.svelte	js
+=== 415 tests/fixtures/parser/ast/ts-event04-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10287,7 +10589,8 @@ export default function Ts_event04_type_output($$anchor) {
 	}
 ]
 
-=== 509 tests/fixtures/parser/ast/ts-event05-input.svelte	js
+=== 551 tests/fixtures/parser/ast/ts-event05-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from './ts-event03-input.svelte';
@@ -10305,7 +10608,8 @@ export default function Ts_event05_input($$anchor) {
 		}
 	});
 }
-=== 626 tests/fixtures/parser/ast/ts-event05-type-output.svelte	js
+=== 668 tests/fixtures/parser/ast/ts-event05-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from './ts-event03-input.svelte';
@@ -10325,7 +10629,8 @@ export default function Ts_event05_type_output($$anchor) {
 		}
 	});
 }
-=== 302 tests/fixtures/parser/ast/ts-event06-input.svelte	js
+=== 344 tests/fixtures/parser/ast/ts-event06-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from './ts-event03-input.svelte';
@@ -10340,7 +10645,8 @@ export default function Ts_event06_input($$anchor) {
 		}
 	});
 }
-=== 434 tests/fixtures/parser/ast/ts-event06-sveltev4-type-output.svelte	js
+=== 476 tests/fixtures/parser/ast/ts-event06-sveltev4-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from './ts-event03-input.svelte';
@@ -10357,7 +10663,8 @@ export default function Ts_event06_sveltev4_type_output($$anchor) {
 		}
 	});
 }
-=== 717 tests/fixtures/parser/ast/ts-event06-type-output.svelte	js
+=== 759 tests/fixtures/parser/ast/ts-event06-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from './ts-event03-input.svelte';
@@ -10374,7 +10681,8 @@ export default function Ts_event06_type_output($$anchor) {
 		}
 	});
 }
-=== 1696 tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	js
+=== 1738 tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component, { ListItem } from "./lib/Component.svelte";
@@ -10445,7 +10753,8 @@ export default function Ts_let01_input($$anchor) {
 	$.reset(main);
 	$.append($$anchor, main);
 }
-=== 1919 tests/fixtures/parser/ast/ts-let/ts-let01-sveltev4-type-output.svelte	js
+=== 1961 tests/fixtures/parser/ast/ts-let/ts-let01-sveltev4-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component, { ListItem } from "./lib/Component.svelte";
@@ -10526,7 +10835,8 @@ export default function Ts_let01_sveltev4_type_output($$anchor) {
 	$.reset(main);
 	$.append($$anchor, main);
 }
-=== 2092 tests/fixtures/parser/ast/ts-let/ts-let01-type-output.svelte	js
+=== 2134 tests/fixtures/parser/ast/ts-let/ts-let01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component, { ListItem } from "./lib/Component.svelte";
@@ -10607,7 +10917,8 @@ export default function Ts_let01_type_output($$anchor) {
 	$.reset(main);
 	$.append($$anchor, main);
 }
-=== 992 tests/fixtures/parser/ast/ts-promise01-input.svelte	js
+=== 1034 tests/fixtures/parser/ast/ts-promise01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10649,7 +10960,8 @@ export default function Ts_promise01_input($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1158 tests/fixtures/parser/ast/ts-promise01-type-output.svelte	js
+=== 1200 tests/fixtures/parser/ast/ts-promise01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10691,7 +11003,8 @@ export default function Ts_promise01_type_output($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4975 tests/fixtures/parser/ast/ts-promise02-input.svelte	js
+=== 5017 tests/fixtures/parser/ast/ts-promise02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10911,7 +11224,8 @@ export default function Ts_promise02_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 4981 tests/fixtures/parser/ast/ts-promise02-type-output.svelte	js
+=== 5023 tests/fixtures/parser/ast/ts-promise02-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -11131,7 +11445,8 @@ export default function Ts_promise02_type_output($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 437 tests/fixtures/parser/ast/ts-shorthand-attr01-input.svelte	js
+=== 479 tests/fixtures/parser/ast/ts-shorthand-attr01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -11149,7 +11464,8 @@ export default function Ts_shorthand_attr01_input($$anchor) {
 	$.set_attribute(img_1, 'src', src);
 	$.append($$anchor, fragment);
 }
-=== 459 tests/fixtures/parser/ast/ts-shorthand-attr01-type-output.svelte	js
+=== 501 tests/fixtures/parser/ast/ts-shorthand-attr01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -11167,7 +11483,8 @@ export default function Ts_shorthand_attr01_type_output($$anchor) {
 	$.set_attribute(img_1, 'src', src);
 	$.append($$anchor, fragment);
 }
-=== 388 tests/fixtures/parser/ast/ts-slot-binding01-input-child.svelte	js
+=== 430 tests/fixtures/parser/ast/ts-slot-binding01-input-child.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -11208,7 +11525,8 @@ export default function Ts_slot_binding01_input_child($$anchor, $$props) {
 	}
 ]
 
-=== 559 tests/fixtures/parser/ast/ts-slot-binding01-input.svelte	js
+=== 601 tests/fixtures/parser/ast/ts-slot-binding01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from "./ts-slot-binding01-input-child.svelte";
@@ -11228,7 +11546,8 @@ export default function Ts_slot_binding01_input($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 577 tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-input.svelte	js
+=== 619 tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from "./ts-slot-binding01-sveltev4-input-child.svelte";
@@ -11248,7 +11567,8 @@ export default function Ts_slot_binding01_sveltev4_input($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 621 tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-type-output.svelte	js
+=== 663 tests/fixtures/parser/ast/ts-slot-binding01-sveltev4-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from "./ts-slot-binding01-sveltev4-input-child.svelte";
@@ -11269,7 +11589,8 @@ export default function Ts_slot_binding01_sveltev4_type_output($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 729 tests/fixtures/parser/ast/ts-slot-binding01-type-output.svelte	js
+=== 771 tests/fixtures/parser/ast/ts-slot-binding01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Component from "./ts-slot-binding01-input-child.svelte";
@@ -11290,7 +11611,8 @@ export default function Ts_slot_binding01_type_output($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 578 tests/fixtures/parser/ast/ts-store02-input.svelte	js
+=== 620 tests/fixtures/parser/ast/ts-store02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { writable } from 'svelte/store';
 import * as $ from 'svelte/internal/client';
@@ -11334,7 +11656,8 @@ ${$b() ?? ''}`));
 	}
 ]
 
-=== 653 tests/fixtures/parser/ast/ts-store02-type-output.svelte	js
+=== 695 tests/fixtures/parser/ast/ts-store02-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { writable } from 'svelte/store';
 import * as $ from 'svelte/internal/client';
@@ -11378,7 +11701,8 @@ export default function Ts_store02_type_output($$anchor, $$props) {
 	}
 ]
 
-=== 924 tests/fixtures/parser/ast/ts-store03-input.svelte	js
+=== 966 tests/fixtures/parser/ast/ts-store03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Writable, Readable } from 'svelte/store';
@@ -11418,7 +11742,8 @@ ${$maybeNullAndStr() ?? ''}`));
 
 	return $$pop;
 }
-=== 1260 tests/fixtures/parser/ast/ts-store03-type-output.svelte	js
+=== 1302 tests/fixtures/parser/ast/ts-store03-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Writable, Readable } from 'svelte/store';
@@ -11460,7 +11785,8 @@ export default function Ts_store03_type_output($$anchor, $$props) {
 
 	return $$pop;
 }
-=== 486 tests/fixtures/parser/ast/ts-use01-input.svelte	js
+=== 528 tests/fixtures/parser/ast/ts-use01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -11503,7 +11829,8 @@ export default function Ts_use01_input($$anchor) {
 	}
 ]
 
-=== 950 tests/fixtures/parser/ast/ts-use01-type-output.svelte	js
+=== 992 tests/fixtures/parser/ast/ts-use01-type-output.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -11566,7 +11893,8 @@ export default function Ts_use01_type_output($$anchor) {
 		cursor: move;
 	}
 
-=== 1288 tests/fixtures/parser/ast/tutorial/actions-input.svelte	js
+=== 1330 tests/fixtures/parser/ast/tutorial/actions-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { pannable } from './pannable.js';
@@ -11659,7 +11987,8 @@ export default function Actions_input($$anchor, $$props) {
 	}
 ]
 
-=== 1436 tests/fixtures/parser/ast/tutorial/adding-parameters-to-actions-input.svelte	js
+=== 1478 tests/fixtures/parser/ast/tutorial/adding-parameters-to-actions-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { longpress } from './longpress.js';
@@ -11768,7 +12097,8 @@ export default function Adding_parameters_to_actions_input($$anchor) {
 	}
 ]
 
-=== 892 tests/fixtures/parser/ast/tutorial/adding-parameters-to-transitions-input.svelte	js
+=== 934 tests/fixtures/parser/ast/tutorial/adding-parameters-to-transitions-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fly } from 'svelte/transition';
@@ -11887,7 +12217,8 @@ export default function Adding_parameters_to_transitions_input($$anchor) {
 		opacity: 1;
 	}
 
-=== 3776 tests/fixtures/parser/ast/tutorial/animate-input.svelte	js
+=== 3818 tests/fixtures/parser/ast/tutorial/animate-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { flip } from 'svelte/animate';
@@ -12089,7 +12420,8 @@ export default function Animate_input($$anchor, $$props) {
 	}
 ]
 
-=== 1087 tests/fixtures/parser/ast/tutorial/auto-subscriptions01-input.svelte	js
+=== 1129 tests/fixtures/parser/ast/tutorial/auto-subscriptions01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -12132,7 +12464,8 @@ export default function Auto_subscriptions01_input($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2410 tests/fixtures/parser/ast/tutorial/await-blocks-input.svelte	js
+=== 2452 tests/fixtures/parser/ast/tutorial/await-blocks-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -12277,7 +12610,8 @@ export default function Await_blocks_input($$anchor, $$props) {
 		mask: url(svelte-logo-mask.svg) 50% 50% no-repeat;
 	}
 
-=== 1290 tests/fixtures/parser/ast/tutorial/bind-this-input.svelte	js
+=== 1332 tests/fixtures/parser/ast/tutorial/bind-this-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -12328,7 +12662,8 @@ export default function Bind_this_input($$anchor, $$props) {
 	$.append($$anchor, canvas_1);
 	$.pop();
 }
-=== 1167 tests/fixtures/parser/ast/tutorial/checkbox-inputs-input.svelte	js
+=== 1209 tests/fixtures/parser/ast/tutorial/checkbox-inputs-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -12396,7 +12731,8 @@ export default function Checkbox_inputs_input($$anchor) {
 		font-size: 4em;
 	}
 
-=== 746 tests/fixtures/parser/ast/tutorial/class-shorthand-input.svelte	js
+=== 788 tests/fixtures/parser/ast/tutorial/class-shorthand-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -12453,7 +12789,8 @@ export default function Class_shorthand_input($$anchor) {
 		color: white;
 	}
 
-=== 939 tests/fixtures/parser/ast/tutorial/classes-input.svelte	js
+=== 981 tests/fixtures/parser/ast/tutorial/classes-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -12539,7 +12876,8 @@ export default function Classes_input($$anchor) {
 	}
 ]
 
-=== 312 tests/fixtures/parser/ast/tutorial/component-events01-input.svelte	js
+=== 354 tests/fixtures/parser/ast/tutorial/component-events01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Inner from './Inner.svelte';
@@ -12551,7 +12889,8 @@ export default function Component_events01_input($$anchor) {
 
 	Inner($$anchor, { $$events: { message: handleMessage } });
 }
-=== 510 tests/fixtures/parser/ast/tutorial/component-events02-input.svelte	js
+=== 552 tests/fixtures/parser/ast/tutorial/component-events02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { createEventDispatcher } from 'svelte';
@@ -12602,7 +12941,8 @@ export default function Component_events02_input($$anchor, $$props) {
 		font-size: 5vw;
 	}
 
-=== 1318 tests/fixtures/parser/ast/tutorial/congratulations-input.svelte	js
+=== 1360 tests/fixtures/parser/ast/tutorial/congratulations-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -12687,7 +13027,8 @@ export default function Congratulations_input($$anchor, $$props) {
 		border-radius: 4px;
 	}
 
-=== 592 tests/fixtures/parser/ast/tutorial/contenteditable-bindings-input.svelte	js
+=== 634 tests/fixtures/parser/ast/tutorial/contenteditable-bindings-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -12722,7 +13063,8 @@ export default function Contenteditable_bindings_input($$anchor) {
 	}
 ]
 
-=== 1280 tests/fixtures/parser/ast/tutorial/context-api01-input.svelte	js
+=== 1322 tests/fixtures/parser/ast/tutorial/context-api01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Map from './Map.svelte';
@@ -12788,7 +13130,8 @@ export default function Context_api01_input($$anchor) {
 		font-size: 4em;
 	}
 
-=== 1243 tests/fixtures/parser/ast/tutorial/custom-css-transitions01-input.svelte	js
+=== 1285 tests/fixtures/parser/ast/tutorial/custom-css-transitions01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -12871,7 +13214,8 @@ export default function Custom_css_transitions01_input($$anchor, $$props) {
 		font-size: 4em;
 	}
 
-=== 1410 tests/fixtures/parser/ast/tutorial/custom-css-transitions02-input.svelte	js
+=== 1452 tests/fixtures/parser/ast/tutorial/custom-css-transitions02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fade } from 'svelte/transition';
@@ -12948,7 +13292,8 @@ export default function Custom_css_transitions02_input($$anchor, $$props) {
 	}
 ]
 
-=== 1350 tests/fixtures/parser/ast/tutorial/custom-js-transitions-input.svelte	js
+=== 1392 tests/fixtures/parser/ast/tutorial/custom-js-transitions-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13025,7 +13370,8 @@ export default function Custom_js_transitions_input($$anchor, $$props) {
 	}
 ]
 
-=== 1050 tests/fixtures/parser/ast/tutorial/custom-stores-input.svelte	js
+=== 1092 tests/fixtures/parser/ast/tutorial/custom-stores-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { count } from './stores.js';
@@ -13108,7 +13454,8 @@ export default function Custom_stores_input($$anchor, $$props) {
 	}
 ]
 
-=== 855 tests/fixtures/parser/ast/tutorial/debug01-input.svelte	js
+=== 897 tests/fixtures/parser/ast/tutorial/debug01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13140,7 +13487,8 @@ export default function Debug01_input($$anchor) {
 	$.bind_value(input_1, () => user.lastname, ($$value) => user.lastname = $$value);
 	$.append($$anchor, fragment);
 }
-=== 877 tests/fixtures/parser/ast/tutorial/debug02-input.svelte	js
+=== 919 tests/fixtures/parser/ast/tutorial/debug02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13172,7 +13520,8 @@ export default function Debug02_input($$anchor) {
 	$.bind_value(input_1, () => user.lastname, ($$value) => user.lastname = $$value);
 	$.append($$anchor, fragment);
 }
-=== 223 tests/fixtures/parser/ast/tutorial/declaring-props01-input.svelte	js
+=== 265 tests/fixtures/parser/ast/tutorial/declaring-props01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Nested from './Nested.svelte';
@@ -13180,7 +13529,8 @@ import Nested from './Nested.svelte';
 export default function Declaring_props01_input($$anchor) {
 	Nested($$anchor, { answer: 42 });
 }
-=== 210 tests/fixtures/parser/ast/tutorial/default-values01-input.svelte	js
+=== 252 tests/fixtures/parser/ast/tutorial/default-values01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Nested from './Nested.svelte';
@@ -13253,7 +13603,8 @@ export default function Default_values01_input($$anchor) {
 		opacity: 1;
 	}
 
-=== 3637 tests/fixtures/parser/ast/tutorial/deferred-transitions-input.svelte	js
+=== 3679 tests/fixtures/parser/ast/tutorial/deferred-transitions-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { quintOut } from 'svelte/easing';
@@ -13452,7 +13803,8 @@ export default function Deferred_transitions_input($$anchor, $$props) {
 	}
 ]
 
-=== 1035 tests/fixtures/parser/ast/tutorial/derived-stores-input.svelte	js
+=== 1077 tests/fixtures/parser/ast/tutorial/derived-stores-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { time, elapsed } from './stores.js';
@@ -13499,7 +13851,8 @@ export default function Derived_stores_input($$anchor, $$props) {
 	div.svelte-1fbbxg7 { display: inline-block; }
 	span.svelte-1fbbxg7 { word-break: break-all; }
 
-=== 1198 tests/fixtures/parser/ast/tutorial/dimensions-input.svelte	js
+=== 1240 tests/fixtures/parser/ast/tutorial/dimensions-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13599,7 +13952,8 @@ export default function Dimensions_input($$anchor) {
 	}
 ]
 
-=== 318 tests/fixtures/parser/ast/tutorial/dom-event-forwarding01-input.svelte	js
+=== 360 tests/fixtures/parser/ast/tutorial/dom-event-forwarding01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CustomButton from './CustomButton.svelte';
@@ -13630,7 +13984,8 @@ export default function Dom_event_forwarding01_input($$anchor) {
 		color: #aaa;
 	}
 
-=== 389 tests/fixtures/parser/ast/tutorial/dom-event-forwarding02-input.svelte	js
+=== 431 tests/fixtures/parser/ast/tutorial/dom-event-forwarding02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13667,7 +14022,8 @@ export default function Dom_event_forwarding02_input($$anchor, $$props) {
 
 	div.svelte-xw72cm { width: 100%; height: 100%; }
 
-=== 536 tests/fixtures/parser/ast/tutorial/dom-events-input.svelte	js
+=== 578 tests/fixtures/parser/ast/tutorial/dom-events-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13720,7 +14076,8 @@ export default function Dom_events_input($$anchor) {
 	}
 ]
 
-=== 568 tests/fixtures/parser/ast/tutorial/dynamic-attributes-input.svelte	js
+=== 610 tests/fixtures/parser/ast/tutorial/dynamic-attributes-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13774,7 +14131,8 @@ export default function Dynamic_attributes_input($$anchor) {
 	}
 ]
 
-=== 918 tests/fixtures/parser/ast/tutorial/each-blocks01-input.svelte	js
+=== 960 tests/fixtures/parser/ast/tutorial/each-blocks01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13809,7 +14167,8 @@ export default function Each_blocks01_input($$anchor) {
 	$.reset(ul);
 	$.append($$anchor, fragment);
 }
-=== 936 tests/fixtures/parser/ast/tutorial/each-blocks02-input.svelte	js
+=== 978 tests/fixtures/parser/ast/tutorial/each-blocks02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13844,7 +14203,8 @@ export default function Each_blocks02_input($$anchor) {
 	$.reset(ul);
 	$.append($$anchor, fragment);
 }
-=== 832 tests/fixtures/parser/ast/tutorial/else-blocks-input.svelte	js
+=== 874 tests/fixtures/parser/ast/tutorial/else-blocks-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13915,7 +14275,8 @@ export default function Else_blocks_input($$anchor) {
 	}
 ]
 
-=== 1102 tests/fixtures/parser/ast/tutorial/else-if-blocks01-input.svelte	js
+=== 1144 tests/fixtures/parser/ast/tutorial/else-if-blocks01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13968,7 +14329,8 @@ export default function Else_if_blocks01_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 847 tests/fixtures/parser/ast/tutorial/else-if-blocks02-input.svelte	js
+=== 889 tests/fixtures/parser/ast/tutorial/else-if-blocks02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14008,7 +14370,8 @@ export default function Else_if_blocks02_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 312 tests/fixtures/parser/ast/tutorial/event-forwarding01-input.svelte	js
+=== 354 tests/fixtures/parser/ast/tutorial/event-forwarding01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Outer from './Outer.svelte';
@@ -14020,7 +14383,8 @@ export default function Event_forwarding01_input($$anchor) {
 
 	Outer($$anchor, { $$events: { message: handleMessage } });
 }
-=== 445 tests/fixtures/parser/ast/tutorial/event-forwarding03-input.svelte	js
+=== 487 tests/fixtures/parser/ast/tutorial/event-forwarding03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Inner from './Inner.svelte';
@@ -14038,7 +14402,8 @@ export default function Event_forwarding03_input($$anchor, $$props) {
 	Inner($$anchor, { $$events: { message: forward } });
 	$.pop();
 }
-=== 321 tests/fixtures/parser/ast/tutorial/event-forwarding04-input.svelte	js
+=== 363 tests/fixtures/parser/ast/tutorial/event-forwarding04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Inner from './Inner.svelte';
@@ -14052,7 +14417,8 @@ export default function Event_forwarding04_input($$anchor, $$props) {
 		}
 	});
 }
-=== 359 tests/fixtures/parser/ast/tutorial/event-modifiers-input.svelte	js
+=== 401 tests/fixtures/parser/ast/tutorial/event-modifiers-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14086,7 +14452,8 @@ export default function Event_modifiers_input($$anchor) {
 	}
 ]
 
-=== 3352 tests/fixtures/parser/ast/tutorial/group-inputs-input.svelte	js
+=== 3394 tests/fixtures/parser/ast/tutorial/group-inputs-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14276,7 +14643,8 @@ export default function Group_inputs_input($$anchor, $$props) {
 	}
 ]
 
-=== 361 tests/fixtures/parser/ast/tutorial/html-tags01-input.svelte	js
+=== 403 tests/fixtures/parser/ast/tutorial/html-tags01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14289,7 +14657,8 @@ export default function Html_tags01_input($$anchor) {
 	p.textContent = 'this string contains some <strong>HTML!!!</strong>';
 	$.append($$anchor, p);
 }
-=== 335 tests/fixtures/parser/ast/tutorial/html-tags02-input.svelte	js
+=== 377 tests/fixtures/parser/ast/tutorial/html-tags02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14303,7 +14672,8 @@ export default function Html_tags02_input($$anchor) {
 	$.reset(p);
 	$.append($$anchor, p);
 }
-=== 966 tests/fixtures/parser/ast/tutorial/if-blocks-input.svelte	js
+=== 1008 tests/fixtures/parser/ast/tutorial/if-blocks-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14383,7 +14753,8 @@ export default function If_blocks_input($$anchor) {
 	}
 ]
 
-=== 911 tests/fixtures/parser/ast/tutorial/in-and-out-input.svelte	js
+=== 953 tests/fixtures/parser/ast/tutorial/in-and-out-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fade, fly } from 'svelte/transition';
@@ -14442,7 +14813,8 @@ export default function In_and_out_input($$anchor) {
 
 	div.svelte-17o00mv { width: 100%; height: 100%; }
 
-=== 568 tests/fixtures/parser/ast/tutorial/inline-handlers-input.svelte	js
+=== 610 tests/fixtures/parser/ast/tutorial/inline-handlers-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14509,7 +14881,8 @@ export default function Inline_handlers_input($$anchor) {
 	}
 ]
 
-=== 819 tests/fixtures/parser/ast/tutorial/keyed-each-blocks-input.svelte	js
+=== 861 tests/fixtures/parser/ast/tutorial/keyed-each-blocks-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Thing from './Thing.svelte';
@@ -14583,7 +14956,8 @@ export default function Keyed_each_blocks_input($$anchor) {
 		border-top: 1px solid #eee;
 	}
 
-=== 1536 tests/fixtures/parser/ast/tutorial/local-transitions-input.svelte	js
+=== 1578 tests/fixtures/parser/ast/tutorial/local-transitions-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { slide } from 'svelte/transition';
@@ -14735,7 +15109,8 @@ export default function Local_transitions_input($$anchor) {
 		width: 100%;
 	}
 
-=== 3284 tests/fixtures/parser/ast/tutorial/media-elements-input.svelte	js
+=== 3326 tests/fixtures/parser/ast/tutorial/media-elements-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14935,7 +15310,8 @@ export default function Media_elements_input($$anchor, $$props) {
 	}
 ]
 
-=== 1671 tests/fixtures/parser/ast/tutorial/module-exports01-input.svelte	js
+=== 1713 tests/fixtures/parser/ast/tutorial/module-exports01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import AudioPlayer, { stopAll } from './AudioPlayer.svelte';
@@ -15014,7 +15390,8 @@ export default function Module_exports01_input($$anchor) {
 	}
 ]
 
-=== 3208 tests/fixtures/parser/ast/tutorial/multiple-select-bindings-input.svelte	js
+=== 3250 tests/fixtures/parser/ast/tutorial/multiple-select-bindings-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15189,7 +15566,8 @@ export default function Multiple_select_bindings_input($$anchor, $$props) {
 	}
 ]
 
-=== 594 tests/fixtures/parser/ast/tutorial/named-slots01-input.svelte	js
+=== 636 tests/fixtures/parser/ast/tutorial/named-slots01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ContactCard from './ContactCard.svelte';
@@ -15242,7 +15620,8 @@ export default function Named_slots01_input($$anchor) {
 	.email.svelte-9fyfo5   { background-image: url(tutorial/icons/email.svg) }
 	.missing.svelte-9fyfo5 { color: #999 }
 
-=== 1257 tests/fixtures/parser/ast/tutorial/named-slots02-input.svelte	js
+=== 1299 tests/fixtures/parser/ast/tutorial/named-slots02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15334,7 +15713,8 @@ export default function Named_slots02_input($$anchor, $$props) {
 	}
 ]
 
-=== 379 tests/fixtures/parser/ast/tutorial/nested-components01-input.svelte	js
+=== 421 tests/fixtures/parser/ast/tutorial/nested-components01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Nested from './Nested.svelte';
@@ -15348,7 +15728,8 @@ export default function Nested_components01_input($$anchor) {
 	Nested(node, {});
 	$.append($$anchor, fragment);
 }
-=== 256 tests/fixtures/parser/ast/tutorial/nested-components02-input.svelte	js
+=== 298 tests/fixtures/parser/ast/tutorial/nested-components02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15359,7 +15740,8 @@ export default function Nested_components02_input($$anchor) {
 
 	$.append($$anchor, p);
 }
-=== 1012 tests/fixtures/parser/ast/tutorial/numeric-inputs01-input.svelte	js
+=== 1054 tests/fixtures/parser/ast/tutorial/numeric-inputs01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15398,7 +15780,8 @@ export default function Numeric_inputs01_input($$anchor) {
 	p.textContent = '1 + 2 = 3';
 	$.append($$anchor, fragment);
 }
-=== 1226 tests/fixtures/parser/ast/tutorial/numeric-inputs02-input.svelte	js
+=== 1268 tests/fixtures/parser/ast/tutorial/numeric-inputs02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15470,7 +15853,8 @@ export default function Numeric_inputs02_input($$anchor) {
 	}
 ]
 
-=== 583 tests/fixtures/parser/ast/tutorial/ondestroy-input.svelte	js
+=== 625 tests/fixtures/parser/ast/tutorial/ondestroy-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy } from 'svelte';
@@ -15526,7 +15910,8 @@ export default function Ondestroy_input($$anchor, $$props) {
 		margin: 0;
 	}
 
-=== 1308 tests/fixtures/parser/ast/tutorial/onmount-input.svelte	js
+=== 1350 tests/fixtures/parser/ast/tutorial/onmount-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -15625,7 +16010,8 @@ export default function Onmount_input($$anchor, $$props) {
 		min-width: 200px;
 	}
 
-=== 1443 tests/fixtures/parser/ast/tutorial/optional-slots01-input.svelte	js
+=== 1485 tests/fixtures/parser/ast/tutorial/optional-slots01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Project from './Project.svelte';
@@ -15685,7 +16071,8 @@ export default function Optional_slots01_input($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 525 tests/fixtures/parser/ast/tutorial/reactive-assignments-input.svelte	js
+=== 567 tests/fixtures/parser/ast/tutorial/reactive-assignments-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15738,7 +16125,8 @@ export default function Reactive_assignments_input($$anchor) {
 	}
 ]
 
-=== 705 tests/fixtures/parser/ast/tutorial/readable-stores-input.svelte	js
+=== 747 tests/fixtures/parser/ast/tutorial/readable-stores-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { time } from './stores.js';
@@ -15770,7 +16158,8 @@ export default function Readable_stores_input($$anchor, $$props) {
 
 	input.svelte-1gf1md7 { display: block; width: 500px; max-width: 100%; }
 
-=== 1916 tests/fixtures/parser/ast/tutorial/select-bindings-input.svelte	js
+=== 1958 tests/fixtures/parser/ast/tutorial/select-bindings-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15899,7 +16288,8 @@ export default function Select_bindings_input($$anchor) {
 	}
 ]
 
-=== 1501 tests/fixtures/parser/ast/tutorial/sharing-code01-input.svelte	js
+=== 1543 tests/fixtures/parser/ast/tutorial/sharing-code01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import AudioPlayer from './AudioPlayer.svelte';
@@ -15955,7 +16345,8 @@ export default function Sharing_code01_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 635 tests/fixtures/parser/ast/tutorial/slot-fallbacks01-input.svelte	js
+=== 677 tests/fixtures/parser/ast/tutorial/slot-fallbacks01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Box from './Box.svelte';
@@ -15993,7 +16384,8 @@ export default function Slot_fallbacks01_input($$anchor) {
 		margin: 0 0 1em 0;
 	}
 
-=== 485 tests/fixtures/parser/ast/tutorial/slot-fallbacks02-input.svelte	js
+=== 527 tests/fixtures/parser/ast/tutorial/slot-fallbacks02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16044,7 +16436,8 @@ export default function Slot_fallbacks02_input($$anchor, $$props) {
 		color: white;
 	}
 
-=== 1104 tests/fixtures/parser/ast/tutorial/slot-props01-input.svelte	js
+=== 1146 tests/fixtures/parser/ast/tutorial/slot-props01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Hoverable from './Hoverable.svelte';
@@ -16088,7 +16481,8 @@ export default function Slot_props01_input($$anchor) {
 		}
 	});
 }
-=== 567 tests/fixtures/parser/ast/tutorial/slot-props02-input.svelte	js
+=== 609 tests/fixtures/parser/ast/tutorial/slot-props02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16212,7 +16606,8 @@ export default function Slot_props02_input($$anchor, $$props) {
 		color: white;
 	}
 
-=== 1110 tests/fixtures/parser/ast/tutorial/slot-props03-input.svelte	js
+=== 1152 tests/fixtures/parser/ast/tutorial/slot-props03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Hoverable from './Hoverable.svelte';
@@ -16256,7 +16651,8 @@ export default function Slot_props03_input($$anchor) {
 		}
 	});
 }
-=== 482 tests/fixtures/parser/ast/tutorial/slots01-input.svelte	js
+=== 524 tests/fixtures/parser/ast/tutorial/slots01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Box from './Box.svelte';
@@ -16285,7 +16681,8 @@ export default function Slots01_input($$anchor) {
 		margin: 0 0 1em 0;
 	}
 
-=== 350 tests/fixtures/parser/ast/tutorial/slots02-input.svelte	js
+=== 392 tests/fixtures/parser/ast/tutorial/slots02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16317,7 +16714,8 @@ export default function Slots02_input($$anchor, $$props) {
 	}
 ]
 
-=== 484 tests/fixtures/parser/ast/tutorial/spread-props01-input.svelte	js
+=== 526 tests/fixtures/parser/ast/tutorial/spread-props01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Info from './Info.svelte';
@@ -16348,7 +16746,8 @@ export default function Spread_props01_input($$anchor) {
 		}
 	});
 }
-=== 329 tests/fixtures/parser/ast/tutorial/spread-props03-input.svelte	js
+=== 371 tests/fixtures/parser/ast/tutorial/spread-props03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Info from './Info.svelte';
@@ -16368,7 +16767,8 @@ export default function Spread_props03_input($$anchor) {
 	svg.svelte-1qldjtf { width: 100%; height: 100%; margin: -8px; }
 	circle.svelte-1qldjtf { fill: #ff3e00 }
 
-=== 1976 tests/fixtures/parser/ast/tutorial/spring-input.svelte	js
+=== 2018 tests/fixtures/parser/ast/tutorial/spring-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { spring } from 'svelte/motion';
@@ -16486,7 +16886,8 @@ export default function Spring_input($$anchor, $$props) {
 
 	/* styles go here */
 
-=== 240 tests/fixtures/parser/ast/tutorial/styling01-input.svelte	js
+=== 282 tests/fixtures/parser/ast/tutorial/styling01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16505,7 +16906,8 @@ export default function Styling01_input($$anchor) {
 		font-size: 2em;
 	}
 
-=== 262 tests/fixtures/parser/ast/tutorial/styling02-input.svelte	js
+=== 304 tests/fixtures/parser/ast/tutorial/styling02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16535,7 +16937,8 @@ export default function Styling02_input($$anchor) {
 		overflow: hidden;
 	}
 
-=== 666 tests/fixtures/parser/ast/tutorial/svelte-body-input.svelte	js
+=== 708 tests/fixtures/parser/ast/tutorial/svelte-body-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16573,7 +16976,8 @@ export default function Svelte_body_input($$anchor) {
 	}
 ]
 
-=== 1336 tests/fixtures/parser/ast/tutorial/svelte-component-input.svelte	js
+=== 1378 tests/fixtures/parser/ast/tutorial/svelte-component-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import RedThing from './RedThing.svelte';
@@ -16654,7 +17058,8 @@ export default function Svelte_component_input($$anchor) {
 	}
 ]
 
-=== 599 tests/fixtures/parser/ast/tutorial/svelte-document-input.svelte	js
+=== 641 tests/fixtures/parser/ast/tutorial/svelte-document-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16691,7 +17096,8 @@ export default function Svelte_document_input($$anchor) {
 	}
 ]
 
-=== 1178 tests/fixtures/parser/ast/tutorial/svelte-element-input.svelte	js
+=== 1220 tests/fixtures/parser/ast/tutorial/svelte-element-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16753,7 +17159,8 @@ export default function Svelte_element_input($$anchor) {
 	}
 ]
 
-=== 448 tests/fixtures/parser/ast/tutorial/svelte-fragment-input.svelte	js
+=== 490 tests/fixtures/parser/ast/tutorial/svelte-fragment-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Box from './Box.svelte';
@@ -16772,7 +17179,8 @@ export default function Svelte_fragment_input($$anchor) {
 		}
 	});
 }
-=== 416 tests/fixtures/parser/ast/tutorial/svelte-head-input.svelte	js
+=== 458 tests/fixtures/parser/ast/tutorial/svelte-head-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16790,7 +17198,8 @@ export default function Svelte_head_input($$anchor) {
 
 	$.append($$anchor, h1);
 }
-=== 940 tests/fixtures/parser/ast/tutorial/svelte-options01-input.svelte	js
+=== 982 tests/fixtures/parser/ast/tutorial/svelte-options01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Todo from './Todo.svelte';
@@ -16848,7 +17257,8 @@ export default function Svelte_options01_input($$anchor) {
 	}
 ]
 
-=== 1005 tests/fixtures/parser/ast/tutorial/svelte-self01-input.svelte	js
+=== 1047 tests/fixtures/parser/ast/tutorial/svelte-self01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Folder from './Folder.svelte';
@@ -16959,7 +17369,8 @@ export default function Svelte_self01_input($$anchor) {
 		background-color: rgb(253, 174, 51);
 	}
 
-=== 1437 tests/fixtures/parser/ast/tutorial/svelte-window-bindings-input.svelte	js
+=== 1479 tests/fixtures/parser/ast/tutorial/svelte-window-bindings-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -17044,7 +17455,8 @@ export default function Svelte_window_bindings_input($$anchor) {
 		color: #555;
 	}
 
-=== 1199 tests/fixtures/parser/ast/tutorial/svelte-window-input.svelte	js
+=== 1241 tests/fixtures/parser/ast/tutorial/svelte-window-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -17129,7 +17541,8 @@ export default function Svelte_window_input($$anchor) {
 	}
 ]
 
-=== 539 tests/fixtures/parser/ast/tutorial/text-inputs01-input.svelte	js
+=== 581 tests/fixtures/parser/ast/tutorial/text-inputs01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -17167,7 +17580,8 @@ export default function Text_inputs01_input($$anchor) {
 	}
 ]
 
-=== 438 tests/fixtures/parser/ast/tutorial/text-inputs02-input.svelte	js
+=== 480 tests/fixtures/parser/ast/tutorial/text-inputs02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -17190,7 +17604,8 @@ export default function Text_inputs02_input($$anchor) {
 
 	textarea.svelte-hcsj82 { width: 100%; height: 200px; }
 
-=== 634 tests/fixtures/parser/ast/tutorial/textarea-inputs-input.svelte	js
+=== 676 tests/fixtures/parser/ast/tutorial/textarea-inputs-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import marked from 'marked';
@@ -17238,7 +17653,8 @@ export default function Textarea_inputs_input($$anchor, $$props) {
 		height: 200px;
 	}
 
-=== 1115 tests/fixtures/parser/ast/tutorial/tick-input.svelte	js
+=== 1157 tests/fixtures/parser/ast/tutorial/tick-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tick } from 'svelte';
@@ -17308,7 +17724,8 @@ export default function Tick_input($$anchor, $$props) {
 	}
 ]
 
-=== 1290 tests/fixtures/parser/ast/tutorial/transition-events-input.svelte	js
+=== 1332 tests/fixtures/parser/ast/tutorial/transition-events-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fly } from 'svelte/transition';
@@ -17440,7 +17857,8 @@ export default function Transition_events_input($$anchor) {
 	}
 ]
 
-=== 836 tests/fixtures/parser/ast/tutorial/transition-input.svelte	js
+=== 878 tests/fixtures/parser/ast/tutorial/transition-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fade } from 'svelte/transition';
@@ -17501,7 +17919,8 @@ export default function Transition_input($$anchor) {
 		width: 100%;
 	}
 
-=== 1276 tests/fixtures/parser/ast/tutorial/tweened-input.svelte	js
+=== 1318 tests/fixtures/parser/ast/tutorial/tweened-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tweened } from 'svelte/motion';
@@ -17607,7 +18026,8 @@ export default function Tweened_input($$anchor, $$props) {
 	}
 ]
 
-=== 900 tests/fixtures/parser/ast/tutorial/writable-stores01-input.svelte	js
+=== 942 tests/fixtures/parser/ast/tutorial/writable-stores01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { count } from './stores.js';
@@ -17662,7 +18082,8 @@ export default function Writable_stores01_input($$anchor, $$props) {
 	}
 ]
 
-=== 426 tests/fixtures/parser/ast/tutorial/writable-stores02-input.svelte	js
+=== 468 tests/fixtures/parser/ast/tutorial/writable-stores02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { count } from './stores.js';
@@ -17700,7 +18121,8 @@ export default function Writable_stores02_input($$anchor, $$props) {
 	}
 ]
 
-=== 426 tests/fixtures/parser/ast/tutorial/writable-stores03-input.svelte	js
+=== 468 tests/fixtures/parser/ast/tutorial/writable-stores03-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { count } from './stores.js';
@@ -17738,7 +18160,8 @@ export default function Writable_stores03_input($$anchor, $$props) {
 	}
 ]
 
-=== 408 tests/fixtures/parser/ast/tutorial/writable-stores04-input.svelte	js
+=== 450 tests/fixtures/parser/ast/tutorial/writable-stores04-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { count } from './stores.js';
@@ -17776,7 +18199,8 @@ export default function Writable_stores04_input($$anchor, $$props) {
 	}
 ]
 
-=== 397 tests/fixtures/parser/ast/unknown-directive01-input.svelte	js
+=== 439 tests/fixtures/parser/ast/unknown-directive01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -17824,7 +18248,8 @@ export default function Unknown_directive01_input($$anchor) {
 	}
 ]
 
-=== 833 tests/fixtures/parser/ast/unused-write-only-store-input.svelte	js
+=== 875 tests/fixtures/parser/ast/unused-write-only-store-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { imported, createStore } from './store.js';
@@ -17914,7 +18339,8 @@ export default function Unused_write_only_store_input($$anchor, $$props) {
 	}
 ]
 
-=== 1050 tests/fixtures/parser/error/directive-animate-with-expr-input.svelte	js
+=== 1092 tests/fixtures/parser/error/directive-animate-with-expr-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { flip } from 'svelte/animate';
@@ -17971,7 +18397,8 @@ export default function Directive_animate_with_expr_input($$anchor) {
 	}
 ]
 
-=== 481 tests/fixtures/parser/error/directive-class-with-expr-input.svelte	js
+=== 523 tests/fixtures/parser/error/directive-class-with-expr-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -17988,7 +18415,8 @@ export default function Directive_class_with_expr_input($$anchor) {
 	$.set_class(div_1, 1, '', null, {}, { 'Number(2)': Number(2) });
 	$.append($$anchor, fragment);
 }
-=== 924 tests/fixtures/parser/error/directive-in-with-exxpr-input.svelte	js
+=== 966 tests/fixtures/parser/error/directive-in-with-exxpr-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fade, fly } from 'svelte/transition';
@@ -18043,7 +18471,8 @@ export default function Directive_in_with_exxpr_input($$anchor) {
 	}
 ]
 
-=== 889 tests/fixtures/parser/error/directive-out-with-expr-input.svelte	js
+=== 931 tests/fixtures/parser/error/directive-out-with-expr-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fade, fly } from 'svelte/transition';
@@ -18098,7 +18527,8 @@ export default function Directive_out_with_expr_input($$anchor) {
 	}
 ]
 
-=== 463 tests/fixtures/parser/error/directive-style-with-expr-input.svelte	js
+=== 505 tests/fixtures/parser/error/directive-style-with-expr-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18115,7 +18545,8 @@ export default function Directive_style_with_expr_input($$anchor) {
 	$.set_style(div_1, '', {}, { 'Number(2)': Number(2) });
 	$.append($$anchor, fragment);
 }
-=== 883 tests/fixtures/parser/error/directive-transition-with-expr-input.svelte	js
+=== 925 tests/fixtures/parser/error/directive-transition-with-expr-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fade } from 'svelte/transition';
@@ -18170,7 +18601,8 @@ export default function Directive_transition_with_expr_input($$anchor) {
 	}
 ]
 
-=== 357 tests/fixtures/parser/error/directive-use-with-expr01-input.svelte	js
+=== 399 tests/fixtures/parser/error/directive-use-with-expr01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18218,7 +18650,8 @@ export default function Directive_use_with_expr01_input($$anchor) {
 	}
 ]
 
-=== 358 tests/fixtures/parser/error/directive-use-with-expr02-input.svelte	js
+=== 400 tests/fixtures/parser/error/directive-use-with-expr02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18249,7 +18682,8 @@ export default function Directive_use_with_expr02_input($$anchor) {
 	}
 ]
 
-=== 349 tests/fixtures/parser/error/name01-input.svelte	js
+=== 391 tests/fixtures/parser/error/name01-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18265,7 +18699,8 @@ export default function Name01_input($$anchor) {
 	$.transition(3, h1, () => max-width);
 	$.append($$anchor, h1);
 }
-=== 369 tests/fixtures/parser/error/shorthand02-input.svelte	js
+=== 411 tests/fixtures/parser/error/shorthand02-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18299,7 +18734,8 @@ export default function Shorthand02_input($$anchor) {
     color: blue;
   }*/
 
-=== 396 tests/fixtures/parser/selector-parsing/simple-css-input.svelte	js
+=== 438 tests/fixtures/parser/selector-parsing/simple-css-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18402,7 +18838,8 @@ export default function Simple_css_input($$anchor) {
     color: blue;
   }*/
 
-=== 324 tests/fixtures/parser/selector-parsing/simple-postcss-input.svelte	js
+=== 366 tests/fixtures/parser/selector-parsing/simple-postcss-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18522,7 +18959,8 @@ export default function Simple_postcss_input($$anchor) {
     }*/
   }
 
-=== 366 tests/fixtures/parser/selector-parsing/simple-scss-input.svelte	js
+=== 408 tests/fixtures/parser/selector-parsing/simple-scss-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18607,7 +19045,8 @@ export default function Simple_scss_input($$anchor) {
 	}
 ]
 
-=== 266 tests/fixtures/parser/style-context/empty-style-element-input.svelte	js
+=== 308 tests/fixtures/parser/style-context/empty-style-element-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18620,7 +19059,8 @@ export default function Empty_style_element_input($$anchor) {
 	b.textContent = '10';
 	$.append($$anchor, b);
 }
-=== 263 tests/fixtures/parser/style-context/no-style-element-input.svelte	js
+=== 305 tests/fixtures/parser/style-context/no-style-element-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18635,7 +19075,8 @@ export default function No_style_element_input($$anchor) {
 }
 === 40 tests/fixtures/parser/style-context/one-line-css-input.svelte	css
  .myClass.svelte-2goq89 { color: red; } 
-=== 284 tests/fixtures/parser/style-context/one-line-css-input.svelte	js
+=== 326 tests/fixtures/parser/style-context/one-line-css-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18657,7 +19098,8 @@ export default function One_line_css_input($$anchor) {
     font-size: xx-large;
   }
 
-=== 394 tests/fixtures/parser/style-context/simple-css-input.svelte	js
+=== 436 tests/fixtures/parser/style-context/simple-css-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18678,7 +19120,8 @@ export default function Simple_css_input($$anchor) {
     background-colour: grey;
   }*/
 
-=== 324 tests/fixtures/parser/style-context/simple-postcss-input.svelte	js
+=== 366 tests/fixtures/parser/style-context/simple-postcss-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18720,7 +19163,8 @@ export default function Simple_postcss_input($$anchor) {
     }
   }
 
-=== 363 tests/fixtures/parser/style-context/simple-scss-input.svelte	js
+=== 405 tests/fixtures/parser/style-context/simple-scss-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18741,7 +19185,8 @@ export default function Simple_scss_input($$anchor) {
     font-size: xx-large;
   }
 
-=== 404 tests/fixtures/parser/style-context/unrelated-style-attr-input.svelte	js
+=== 446 tests/fixtures/parser/style-context/unrelated-style-attr-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18762,7 +19207,8 @@ export default function Unrelated_style_attr_input($$anchor) {
     background-colour: grey;
   }*/
 
-=== 324 tests/fixtures/parser/style-location-converter/simple-postcss-input.svelte	js
+=== 366 tests/fixtures/parser/style-location-converter/simple-postcss-input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 

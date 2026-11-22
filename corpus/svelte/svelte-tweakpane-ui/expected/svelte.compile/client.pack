@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 1747 src/examples/docs/SvelteTweakpaneEventExample.svelte	js
+=== 1789 src/examples/docs/SvelteTweakpaneEventExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, Monitor, Slider } from '$lib';
@@ -123,7 +124,8 @@ export default function SvelteTweakpaneEventExample($$anchor) {
 	}
 ]
 
-=== 593 src/examples/docs/SvelteTweakpaneRange.svelte	js
+=== 635 src/examples/docs/SvelteTweakpaneRange.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Slider } from '$lib';
@@ -173,7 +175,8 @@ export default function SvelteTweakpaneRange($$anchor) {
 	}
 ]
 
-=== 353 src/examples/docs/SvelteTweakpaneThemeBasic.svelte	js
+=== 395 src/examples/docs/SvelteTweakpaneThemeBasic.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, ThemeUtils } from '$lib';
@@ -190,7 +193,8 @@ export default function SvelteTweakpaneThemeBasic($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1709 src/examples/docs/SvelteTweakpaneThemeCustom.svelte	js
+=== 1751 src/examples/docs/SvelteTweakpaneThemeCustom.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from '$lib';
@@ -237,7 +241,8 @@ export default function SvelteTweakpaneThemeCustom($$anchor) {
 		}
 	});
 }
-=== 509 src/examples/docs/SvelteTweakpaneThemeExtend.svelte	js
+=== 551 src/examples/docs/SvelteTweakpaneThemeExtend.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, ThemeUtils } from '$lib';
@@ -260,7 +265,8 @@ export default function SvelteTweakpaneThemeExtend($$anchor, $$props) {
 
 	$.pop();
 }
-=== 282 src/examples/docs/SvelteTweakpaneThemeOverride.svelte	js
+=== 324 src/examples/docs/SvelteTweakpaneThemeOverride.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from '$lib';
@@ -271,7 +277,8 @@ export default function SvelteTweakpaneThemeOverride($$anchor) {
 		theme: { baseBorderRadius: '6px' }
 	});
 }
-=== 768 src/examples/docs/SvelteTweakpaneThemePicker.svelte	js
+=== 810 src/examples/docs/SvelteTweakpaneThemePicker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { List, Pane, ThemeUtils } from '$lib';
@@ -330,7 +337,8 @@ export default function SvelteTweakpaneThemePicker($$anchor, $$props) {
 	}
 ]
 
-=== 1800 src/examples/docs/SvelteTweakpaneWideSlideExample.svelte	js
+=== 1842 src/examples/docs/SvelteTweakpaneWideSlideExample.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -500,7 +508,8 @@ export default function SvelteTweakpaneWideSlideExample($$anchor) {
 	}
 ]
 
-=== 909 src/examples/docs/VanillaTweakpaneRange.svelte	js
+=== 951 src/examples/docs/VanillaTweakpaneRange.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -561,7 +570,8 @@ export default function VanillaTweakpaneRange($$anchor, $$props) {
 	}
 ]
 
-=== 2731 src/examples/tests/TestAutoObject.svelte	js
+=== 2773 src/examples/tests/TestAutoObject.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { AutoObject } from '$lib';
@@ -761,7 +771,8 @@ export default function TestAutoObject($$anchor) {
 	}
 ]
 
-=== 838 src/examples/tests/TestAutoObjectNesting.svelte	js
+=== 880 src/examples/tests/TestAutoObjectNesting.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { AutoObject } from '$lib';
@@ -816,7 +827,8 @@ export default function TestAutoObjectNesting($$anchor) {
 	}
 ]
 
-=== 8553 src/examples/tests/TestAutoValue.svelte	js
+=== 8595 src/examples/tests/TestAutoValue.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { AutoValue } from '$lib';
@@ -1486,7 +1498,8 @@ export default function TestAutoValue($$anchor) {
 	}
 ]
 
-=== 2326 src/examples/tests/TestBinding.svelte	js
+=== 2368 src/examples/tests/TestBinding.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Binding } from '$lib';
@@ -1662,7 +1675,8 @@ export default function TestBinding($$anchor) {
 	}
 ]
 
-=== 2377 src/examples/tests/TestCheckbox.svelte	js
+=== 2419 src/examples/tests/TestCheckbox.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox } from '$lib';
@@ -1844,7 +1858,8 @@ export default function TestCheckbox($$anchor) {
 	}
 ]
 
-=== 21946 src/examples/tests/TestCls.svelte	js
+=== 21988 src/examples/tests/TestCls.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -3280,7 +3295,8 @@ export default function TestCls($$anchor, $$props) {
 	}
 ]
 
-=== 4797 src/examples/tests/TestCollapseExpand.svelte	js
+=== 4839 src/examples/tests/TestCollapseExpand.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, Element, Pane, ThemeUtils } from '$lib';
@@ -3553,7 +3569,8 @@ export default function TestCollapseExpand($$anchor, $$props) {
 	}
 ]
 
-=== 4442 src/examples/tests/TestColor.svelte	js
+=== 4484 src/examples/tests/TestColor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Color } from '$lib';
@@ -3889,7 +3906,8 @@ export default function TestColor($$anchor) {
 	}
 ]
 
-=== 2385 src/examples/tests/TestCubicBezier.svelte	js
+=== 2427 src/examples/tests/TestCubicBezier.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { CubicBezier } from '$lib';
@@ -4066,7 +4084,8 @@ export default function TestCubicBezier($$anchor) {
 	}
 ]
 
-=== 1969 src/examples/tests/TestElementIfStatement.svelte	js
+=== 2011 src/examples/tests/TestElementIfStatement.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, Element, TabGroup, TabPage, Text } from '$lib';
@@ -4207,7 +4226,8 @@ export default function TestElementIfStatement($$anchor) {
 	}
 ]
 
-=== 2249 src/examples/tests/TestFile.svelte	js
+=== 2291 src/examples/tests/TestFile.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { File } from '$lib';
@@ -4381,7 +4401,8 @@ export default function TestFile($$anchor) {
 	}
 ]
 
-=== 352 src/examples/tests/TestFormat.svelte	js
+=== 394 src/examples/tests/TestFormat.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Slider } from '$lib';
@@ -4420,7 +4441,8 @@ export default function TestFormat($$anchor) {
 	}
 ]
 
-=== 318 src/examples/tests/TestFpsEvent.svelte	js
+=== 360 src/examples/tests/TestFpsEvent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { FpsGraph } from '$lib';
@@ -4455,7 +4477,8 @@ export default function TestFpsEvent($$anchor) {
 		width: fit-content;
 	}
 
-=== 1551 src/examples/tests/TestGridLayoutPane.svelte	js
+=== 1593 src/examples/tests/TestGridLayoutPane.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, Pane, Slider } from '$lib';
@@ -4610,7 +4633,8 @@ export default function TestGridLayoutPane($$anchor) {
 		grid-column: span 2;
 	}
 
-=== 1108 src/examples/tests/TestGridLayoutWrapper.svelte	js
+=== 1150 src/examples/tests/TestGridLayoutWrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, Slider } from '$lib';
@@ -4715,7 +4739,8 @@ export default function TestGridLayoutWrapper($$anchor) {
 	}
 ]
 
-=== 2684 src/examples/tests/TestImage.svelte	js
+=== 2726 src/examples/tests/TestImage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, Image } from '$lib';
@@ -4910,7 +4935,8 @@ export default function TestImage($$anchor) {
 	}
 ]
 
-=== 2331 src/examples/tests/TestIntervalSlider.svelte	js
+=== 2373 src/examples/tests/TestIntervalSlider.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Slider } from '$lib';
@@ -5088,7 +5114,8 @@ export default function TestIntervalSlider($$anchor) {
 	}
 ]
 
-=== 893 src/examples/tests/TestIntervalSliderWide.svelte	js
+=== 935 src/examples/tests/TestIntervalSliderWide.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, IntervalSlider } from '$lib';
@@ -5169,7 +5196,8 @@ export default function TestIntervalSliderWide($$anchor) {
 	}
 ]
 
-=== 1393 src/examples/tests/TestInvisibleFolder.svelte	js
+=== 1435 src/examples/tests/TestInvisibleFolder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, Folder, Pane } from '$lib';
@@ -5290,7 +5318,8 @@ export default function TestInvisibleFolder($$anchor) {
 	}
 ]
 
-=== 2426 src/examples/tests/TestList.svelte	js
+=== 2468 src/examples/tests/TestList.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { List } from '$lib';
@@ -5473,7 +5502,8 @@ export default function TestList($$anchor) {
 	}
 ]
 
-=== 4307 src/examples/tests/TestOrder.svelte	js
+=== 4349 src/examples/tests/TestOrder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { AutoValue, ButtonGrid, Checkbox, Pane, Separator, Slider } from '$lib';
@@ -5712,7 +5742,8 @@ export default function TestOrder($$anchor) {
 	}
 ]
 
-=== 749 src/examples/tests/TestPane.svelte	js
+=== 791 src/examples/tests/TestPane.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -5791,7 +5822,8 @@ export default function TestPane($$anchor, $$props) {
 	}
 ]
 
-=== 3163 src/examples/tests/TestPaneAdvanced.svelte	js
+=== 3205 src/examples/tests/TestPaneAdvanced.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -6077,7 +6109,8 @@ export default function TestPaneAdvanced($$anchor, $$props) {
 	}
 ]
 
-=== 2574 src/examples/tests/TestPoint.svelte	js
+=== 2616 src/examples/tests/TestPoint.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Point } from '$lib';
@@ -6268,7 +6301,8 @@ export default function TestPoint($$anchor) {
 	}
 ]
 
-=== 2343 src/examples/tests/TestRadioGrid.svelte	js
+=== 2385 src/examples/tests/TestRadioGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { RadioGrid } from '$lib';
@@ -6444,7 +6478,8 @@ export default function TestRadioGrid($$anchor) {
 	}
 ]
 
-=== 2629 src/examples/tests/TestRing.svelte	js
+=== 2671 src/examples/tests/TestRing.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Ring } from '$lib';
@@ -6634,7 +6669,8 @@ export default function TestRing($$anchor, $$props) {
 	}
 ]
 
-=== 816 src/examples/tests/TestRingWide.svelte	js
+=== 858 src/examples/tests/TestRingWide.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, Ring } from '$lib';
@@ -6713,7 +6749,8 @@ export default function TestRingWide($$anchor) {
 	}
 ]
 
-=== 2406 src/examples/tests/TestRotationEuler.svelte	js
+=== 2448 src/examples/tests/TestRotationEuler.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { RotationEuler } from '$lib';
@@ -6891,7 +6928,8 @@ export default function TestRotationEuler($$anchor) {
 	}
 ]
 
-=== 2418 src/examples/tests/TestRotationQuaternion.svelte	js
+=== 2460 src/examples/tests/TestRotationQuaternion.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { RotationQuaternion } from '$lib';
@@ -7069,7 +7107,8 @@ export default function TestRotationQuaternion($$anchor) {
 	}
 ]
 
-=== 2279 src/examples/tests/TestSlider.svelte	js
+=== 2321 src/examples/tests/TestSlider.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Slider } from '$lib';
@@ -7243,7 +7282,8 @@ export default function TestSlider($$anchor) {
 	}
 ]
 
-=== 1386 src/examples/tests/TestSliderWide.svelte	js
+=== 1428 src/examples/tests/TestSliderWide.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, Slider } from '$lib';
@@ -7359,7 +7399,8 @@ export default function TestSliderWide($$anchor) {
 	}
 ]
 
-=== 2283 src/examples/tests/TestStepper.svelte	js
+=== 2325 src/examples/tests/TestStepper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Stepper } from '$lib';
@@ -7533,7 +7574,8 @@ export default function TestStepper($$anchor) {
 	}
 ]
 
-=== 497 src/examples/tests/TestStepperValue.svelte	js
+=== 539 src/examples/tests/TestStepperValue.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Stepper } from '$lib';
@@ -7579,7 +7621,8 @@ export default function TestStepperValue($$anchor) {
 	}
 ]
 
-=== 2358 src/examples/tests/TestStoreInitialization.svelte	js
+=== 2400 src/examples/tests/TestStoreInitialization.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, tick } from 'svelte';
@@ -7661,7 +7704,8 @@ export default function TestStoreInitialization($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 3291 src/examples/tests/TestTabIndexBinding.svelte	js
+=== 3333 src/examples/tests/TestTabIndexBinding.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, Pane, TabGroup, TabPage } from '$lib';
@@ -7829,7 +7873,8 @@ export default function TestTabIndexBinding($$anchor) {
 	}
 ]
 
-=== 1989 src/examples/tests/TestTabIndexBindingAlt.svelte	js
+=== 2031 src/examples/tests/TestTabIndexBindingAlt.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, Pane, TabGroup, TabPage } from '$lib';
@@ -7948,7 +7993,8 @@ export default function TestTabIndexBindingAlt($$anchor) {
 	}
 ]
 
-=== 5286 src/examples/tests/TestTabsNested.svelte	js
+=== 5328 src/examples/tests/TestTabsNested.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, Pane, TabGroup, TabPage } from '$lib';
@@ -8202,7 +8248,8 @@ export default function TestTabsNested($$anchor) {
 	}
 ]
 
-=== 1477 src/examples/tests/TestTabsSort.svelte	js
+=== 1519 src/examples/tests/TestTabsSort.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, Pane, TabGroup, TabPage } from '$lib';
@@ -8296,7 +8343,8 @@ export default function TestTabsSort($$anchor) {
 	}
 ]
 
-=== 2749 src/examples/tests/TestText.svelte	js
+=== 2791 src/examples/tests/TestText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, Text } from '$lib';
@@ -8513,7 +8561,8 @@ export default function TestText($$anchor) {
 	}
 ]
 
-=== 2405 src/examples/tests/TestTextStringDetection.svelte	js
+=== 2447 src/examples/tests/TestTextStringDetection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { AutoObject, AutoValue, Color, Text } from '$lib';
@@ -8641,7 +8690,8 @@ export default function TestTextStringDetection($$anchor) {
 	}
 ]
 
-=== 2785 src/examples/tests/TestTextarea.svelte	js
+=== 2827 src/examples/tests/TestTextarea.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, Textarea } from '$lib';
@@ -8858,7 +8908,8 @@ export default function TestTextarea($$anchor) {
 	}
 ]
 
-=== 1169 src/examples/tests/TestTitlelessDraggable.svelte	js
+=== 1211 src/examples/tests/TestTitlelessDraggable.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Pane, Text } from '$lib';
@@ -8952,7 +9003,8 @@ export default function TestTitlelessDraggable($$anchor) {
 	}
 ]
 
-=== 2494 src/examples/tests/TestWheel.svelte	js
+=== 2536 src/examples/tests/TestWheel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Wheel } from '$lib';
@@ -9135,7 +9187,8 @@ export default function TestWheel($$anchor, $$props) {
 	}
 ]
 
-=== 820 src/examples/tests/TestWheelWide.svelte	js
+=== 862 src/examples/tests/TestWheelWide.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox, Wheel } from '$lib';

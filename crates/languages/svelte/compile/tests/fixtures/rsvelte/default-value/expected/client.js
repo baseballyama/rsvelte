@@ -1,3 +1,4 @@
+import "svelte/internal/init-operations";
 import "svelte/internal/disclose-version";
 import * as $ from "svelte/internal/client";
 var root = $.from_html(`<input value="x"/> <input/> <input type="checkbox" checked=""/> <input type="checkbox"/> <textarea>content</textarea> <textarea></textarea>`, 1);

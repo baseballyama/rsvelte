@@ -21526,6 +21526,20 @@
 6:16 6:38 svelte/shorthand-directive "Expected shorthand directive."
 7:18 7:40 svelte/shorthand-directive "Expected shorthand directive."
 
+=== 967 pattern/head-title-renders-after-the-rest-of-the-head.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:27 6:48 svelte/max-attributes-per-line "'content' should be on a new line."
+7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:24 8:39 svelte/max-attributes-per-line "'href' should be on a new line."
+8:24 8:39 svelte/sort-attributes "Attribute 'href' should go before 'rel'."
+9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+10:35 10:56 svelte/max-attributes-per-line "'content' should be on a new line."
+10:35 10:56 svelte/sort-attributes "Attribute 'content' should go before 'property'."
+11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
 === 719 pattern/input-default-value-style-directive.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:25 5:40 svelte/no-inline-styles "Found disallowed style directive."
@@ -29111,6 +29125,31 @@
 2:20 2:22 svelte/html-self-closing "Disallow self-closing on HTML elements."
 2:20 2:20 svelte/valid-compile "Expected token >\nhttps://svelte.dev/e/expected_token(expected_token)"
 
+=== 1835 pattern/server-drops-comments-of-removed-effects.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+6:19 6:26 no-undef "'console' is not defined."
+7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:8 14:12 no-unused-vars "'stop' is assigned a value but never used."
+15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+20:3 20:11 svelte/no-inspect "Do not use $inspect directive"
+21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+23:1 23:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+24:1 24:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
+27:1 27:33 svelte/button-has-type "Missing an explicit type attribute for button."
+
 === 132 pattern/slot-closed-by-parent-end-tag.svelte	lint.txt
 3:0 - - "Parsing error: `</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
 
@@ -29149,6 +29188,23 @@
 17:2 17:19 svelte/require-each-key "Each block should have a key"
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 1233 pattern/string-statements-outside-a-prologue.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:7 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
+12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 82 pattern/svelte-options-left-open.svelte	lint.txt
 1:0 - - "Parsing error: Block was left open\nhttps://svelte.dev/e/block_unclosed"

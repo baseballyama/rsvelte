@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 976 src/routes/+page.svelte	js
+=== 1018 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { box } from "$lib/box/box.svelte";

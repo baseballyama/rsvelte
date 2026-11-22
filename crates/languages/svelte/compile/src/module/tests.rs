@@ -73,10 +73,11 @@ fn a_typescript_module_keeps_what_typescript_emits() {
         "import * as $ from \"svelte/internal/client\";\nexport class A {\n\tx;\n\tconstructor(x) \
          {\n\t\tthis.x = x;\n\t}\n}\n"
     );
-    // A script is strict.
+    // A script is strict. TypeScript's directive lands after the import, where it is none, so it
+    // prints as a string statement does.
     assert_eq!(
         compiled("let a: number = 1;\n"),
-        "import * as $ from \"svelte/internal/client\";\n\"use strict\";\nlet a = 1;\n"
+        "import * as $ from \"svelte/internal/client\";\n(\"use strict\");\nlet a = 1;\n"
     );
 }
 

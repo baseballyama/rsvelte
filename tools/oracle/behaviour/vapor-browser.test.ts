@@ -60,6 +60,7 @@ test(
 			'svelte/transition': '/svelte/src/transition/index.js',
 			'svelte/animate': '/svelte/src/animate/index.js',
 			'svelte/internal/client': '/svelte/src/internal/client/index.js',
+			'svelte/internal/init-operations': '/svelte/src/internal/init-operations.js',
 			'svelte/internal/disclose-version': '/svelte/src/internal/disclose-version.js',
 			'svelte/internal/flags/legacy': '/svelte/src/internal/flags/legacy.js',
 			'svelte/internal/flags/async': '/svelte/src/internal/flags/async.js',

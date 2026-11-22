@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 8651 src/routes/(admin)/account/(menu)/+layout.svelte	js
+=== 8693 src/routes/(admin)/account/(menu)/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import "../../../../app.css";
@@ -85,7 +86,8 @@ export default function _layout($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 2765 src/routes/(admin)/account/(menu)/+page.svelte	js
+=== 2807 src/routes/(admin)/account/(menu)/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -116,7 +118,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2624 src/routes/(admin)/account/(menu)/billing/+page.svelte	js
+=== 2666 src/routes/(admin)/account/(menu)/billing/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -213,7 +216,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2610 src/routes/(admin)/account/(menu)/settings/+page.svelte	js
+=== 2652 src/routes/(admin)/account/(menu)/settings/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -333,7 +337,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1290 src/routes/(admin)/account/(menu)/settings/change_email/+page.svelte	js
+=== 1332 src/routes/(admin)/account/(menu)/settings/change_email/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -384,7 +389,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1351 src/routes/(admin)/account/(menu)/settings/change_email_subscription/+page.svelte	js
+=== 1393 src/routes/(admin)/account/(menu)/settings/change_email_subscription/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SettingsModule from "../settings_module.svelte";
@@ -439,7 +445,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4695 src/routes/(admin)/account/(menu)/settings/change_password/+page.svelte	js
+=== 4737 src/routes/(admin)/account/(menu)/settings/change_password/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from "$app/stores";
@@ -601,7 +608,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1327 src/routes/(admin)/account/(menu)/settings/delete_account/+page.svelte	js
+=== 1369 src/routes/(admin)/account/(menu)/settings/delete_account/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -655,7 +663,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1359 src/routes/(admin)/account/(menu)/settings/edit_profile/+page.svelte	js
+=== 1401 src/routes/(admin)/account/(menu)/settings/edit_profile/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SettingsModule from "../settings_module.svelte";
@@ -720,7 +729,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1145 src/routes/(admin)/account/(menu)/settings/reset_password/+page.svelte	js
+=== 1187 src/routes/(admin)/account/(menu)/settings/reset_password/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -772,7 +782,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 9123 src/routes/(admin)/account/(menu)/settings/settings_module.svelte	js
+=== 9165 src/routes/(admin)/account/(menu)/settings/settings_module.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { enhance, applyAction } from "$app/forms";
@@ -1083,7 +1094,8 @@ export default function Settings_module($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 778 src/routes/(admin)/account/+layout.svelte	js
+=== 820 src/routes/(admin)/account/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { invalidate } from "$app/navigation";
@@ -1112,7 +1124,8 @@ export default function _layout($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 4427 src/routes/(admin)/account/create_profile/+page.svelte	js
+=== 4469 src/routes/(admin)/account/create_profile/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { applyAction, enhance } from "$app/forms";
@@ -1231,7 +1244,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 930 src/routes/(admin)/account/select_plan/+page.svelte	js
+=== 972 src/routes/(admin)/account/select_plan/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import PricingModule from "../../../(marketing)/pricing/pricing_module.svelte";
@@ -1257,7 +1271,8 @@ export default function _page($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 786 src/routes/(admin)/account/sign_out/+page.svelte	js
+=== 828 src/routes/(admin)/account/sign_out/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { goto } from "$app/navigation";
@@ -1289,7 +1304,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, h1);
 	$.pop();
 }
-=== 3581 src/routes/(marketing)/+layout.svelte	js
+=== 3623 src/routes/(marketing)/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebsiteName } from "./../../config";
@@ -1321,7 +1337,8 @@ export default function _layout($$anchor, $$props) {
 	$.template_effect(() => $.set_text(text, WebsiteName));
 	$.append($$anchor, fragment);
 }
-=== 36828 src/routes/(marketing)/+page.svelte	js
+=== 36870 src/routes/(marketing)/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WebsiteName, WebsiteBaseUrl, WebsiteDescription } from "./../../config";
@@ -1626,7 +1643,8 @@ export default function _page($$anchor) {
 	$.next(2);
 	$.append($$anchor, fragment_1);
 }
-=== 3286 src/routes/(marketing)/blog/(posts)/+layout.svelte	js
+=== 3328 src/routes/(marketing)/blog/(posts)/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from "$app/stores";
@@ -1730,7 +1748,8 @@ export default function _layout($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 781 src/routes/(marketing)/blog/(posts)/awesome_post/+page.svelte	js
+=== 823 src/routes/(marketing)/blog/(posts)/awesome_post/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1748,7 +1767,8 @@ export default function _page($$anchor) {
 	$.next(12);
 	$.append($$anchor, fragment);
 }
-=== 1267 src/routes/(marketing)/blog/(posts)/how_we_built_our_41kb_saas_website/+page.svelte	js
+=== 1309 src/routes/(marketing)/blog/(posts)/how_we_built_our_41kb_saas_website/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1765,7 +1785,8 @@ export default function _page($$anchor) {
 	$.next(10);
 	$.append($$anchor, fragment);
 }
-=== 2437 src/routes/(marketing)/blog/+page.svelte	js
+=== 2479 src/routes/(marketing)/blog/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { sortedBlogPosts, blogInfo } from "./posts";
@@ -1833,7 +1854,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6722 src/routes/(marketing)/contact_us/+page.svelte	js
+=== 6764 src/routes/(marketing)/contact_us/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { enhance, applyAction } from "$app/forms";
@@ -2046,7 +2068,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 908 src/routes/(marketing)/login/+layout.svelte	js
+=== 950 src/routes/(marketing)/login/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2077,7 +2100,8 @@ export default function _layout($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 613 src/routes/(marketing)/login/+page.svelte	js
+=== 655 src/routes/(marketing)/login/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2094,7 +2118,8 @@ export default function _page($$anchor) {
 
 	$.append($$anchor, div);
 }
-=== 746 src/routes/(marketing)/login/current_password_error/+page.svelte	js
+=== 788 src/routes/(marketing)/login/current_password_error/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2116,7 +2141,8 @@ export default function _page($$anchor) {
 	$.next(6);
 	$.append($$anchor, fragment);
 }
-=== 1216 src/routes/(marketing)/login/forgot_password/+page.svelte	js
+=== 1258 src/routes/(marketing)/login/forgot_password/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Auth } from "@supabase/auth-ui-svelte";
@@ -2165,7 +2191,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2706 src/routes/(marketing)/login/sign_in/+page.svelte	js
+=== 2748 src/routes/(marketing)/login/sign_in/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Auth } from "@supabase/auth-ui-svelte";
@@ -2258,7 +2285,8 @@ export default function _page($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1141 src/routes/(marketing)/login/sign_up/+page.svelte	js
+=== 1183 src/routes/(marketing)/login/sign_up/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Auth } from "@supabase/auth-ui-svelte";
@@ -2306,7 +2334,8 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 7288 src/routes/(marketing)/pricing/+page.svelte	js
+=== 7330 src/routes/(marketing)/pricing/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import PricingModule from "./pricing_module.svelte";
@@ -2455,7 +2484,8 @@ export default function _page($$anchor) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 3350 src/routes/(marketing)/pricing/pricing_module.svelte	js
+=== 3392 src/routes/(marketing)/pricing/pricing_module.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { pricingPlans } from "./pricing_plans";
@@ -2549,7 +2579,8 @@ export default function Pricing_module($$anchor, $$props) {
 	$.template_effect(() => $.set_class(div, 1, `flex flex-col lg:flex-row gap-10 ${center() ? 'place-content-center' : ''} flex-wrap`));
 	$.append($$anchor, div);
 }
-=== 6534 src/routes/(marketing)/search/+page.svelte	js
+=== 6576 src/routes/(marketing)/search/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from "$app/stores";
@@ -2766,7 +2797,8 @@ export default function _page($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 988 src/routes/+error.svelte	js
+=== 1030 src/routes/+error.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import "../app.css";
@@ -2794,7 +2826,8 @@ export default function _error($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1040 src/routes/+layout.svelte	js
+=== 1082 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import "../app.css";
