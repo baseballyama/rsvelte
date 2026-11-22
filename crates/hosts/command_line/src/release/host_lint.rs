@@ -20,7 +20,7 @@ use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::performance::stack;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_lint_runner::catalog::Category;
-use rsvelte_svelte_lint::{Configuration, LintSettings};
+use rsvelte_svelte_lint::{Configuration, Directives, LintSettings};
 use rsvelte_typescript_semantic::globals::{Declared, Setting};
 use serde::Deserialize;
 use serde_json::value::{RawValue, to_raw_value};
@@ -150,6 +150,35 @@ impl HostLinter for Svelte {
         }
     }
 
+    fn check_options(&self, rule: &str, options: &[serde_json::Value]) -> Result<(), String> {
+        // As in oxlint, a rule that needs options does nothing without them.
+        if options.is_empty() {
+            return Ok(());
+        }
+        let options: Vec<Box<RawValue>> = (options.iter())
+            .map(|option| to_raw_value(option).map_err(|e| e.to_string()))
+            .collect::<Result<_, _>>()?;
+        Configuration::new(LintSettings::default())
+            .rule(
+                &format!("{PLUGIN}/{rule}"),
+                Severity::Warning,
+                &options,
+                &[],
+            )
+            .map(drop)
+    }
+
+    fn check_settings(
+        &self,
+        settings: &serde_json::Map<String, serde_json::Value>,
+    ) -> Result<(), String> {
+        settings.get(PLUGIN).map_or(Ok(()), |settings| {
+            LintSettings::deserialize(settings)
+                .map(drop)
+                .map_err(|e| format!("settings.svelte: {e}"))
+        })
+    }
+
     fn lint(&self, file: &HostFile<'_>) -> Vec<Message> {
         if file.rules.is_empty() {
             return Vec::new();
@@ -174,15 +203,7 @@ impl HostLinter for Svelte {
 impl Svelte {
     fn lint_file(&self, file: &HostFile<'_>) -> Vec<Message> {
         let (path, source_text) = (file.path, file.source_text);
-        let configuration = match configuration(file) {
-            Ok(configuration) => configuration,
-            Err(error) => {
-                return vec![Message::new(
-                    OxcDiagnostic::error(error),
-                    PossibleFixes::None,
-                )];
-            }
-        };
+        let configuration = configuration(file);
         let Ok(document) =
             Document::new(path.to_string_lossy().into_owned(), source_text.to_owned())
         else {
@@ -223,17 +244,19 @@ fn is_component(path: &Path) -> bool {
     path.extension().is_some_and(|ext| ext == "svelte")
 }
 
-/// The Svelte linter's configuration of `file`: its rules, `settings.svelte`, and the globals
-/// `env` and `globals` declare.
-fn configuration(file: &HostFile<'_>) -> Result<Configuration, String> {
-    let settings = match file.settings.and_then(|settings| settings.get(PLUGIN)) {
-        Some(settings) => {
-            LintSettings::deserialize(settings).map_err(|e| format!("settings.svelte: {e}"))?
-        }
-        None => LintSettings::default(),
-    };
+/// The Svelte linter's configuration of `file`: its rules, `settings.svelte`, the globals `env`
+/// and `globals` declare, and oxlint's directive comments. oxlint has checked the options and the
+/// settings when it read the configuration.
+fn configuration(file: &HostFile<'_>) -> Configuration {
+    let settings = (file.settings)
+        .and_then(|settings| settings.get(PLUGIN))
+        .and_then(|settings| LintSettings::deserialize(settings).ok())
+        .unwrap_or_default();
     let mut configuration = Configuration::new(settings);
     configuration.declare_globals(globals(file));
+    configuration.directives(Directives::Oxlint {
+        report_unused: file.report_unused_directives.map(severity),
+    });
     for rule in file.rules {
         let name = if rule.plugin == PLUGIN {
             format!("{PLUGIN}/{}", rule.name)
@@ -243,18 +266,18 @@ fn configuration(file: &HostFile<'_>) -> Result<Configuration, String> {
         let options: Vec<Box<RawValue>> = (rule.options.iter())
             .filter_map(|option| to_raw_value(option).ok())
             .collect();
-        let severity = match rule.severity {
-            AllowWarnDeny::Deny => Severity::Error,
-            _ => Severity::Warning,
-        };
-        // As in oxlint, a rule that needs options does nothing when a category turns it on.
-        if let Err(error) = configuration.rule(&name, severity, &options, &[])
-            && !rule.options.is_empty()
-        {
-            return Err(error);
-        }
+        // A rule that needs options and has none does nothing, as in oxlint, which has checked
+        // the options it was given.
+        let _needs_options = configuration.rule(&name, severity(rule.severity), &options, &[]);
     }
-    Ok(configuration)
+    configuration
+}
+
+const fn severity(severity: AllowWarnDeny) -> Severity {
+    match severity {
+        AllowWarnDeny::Deny => Severity::Error,
+        AllowWarnDeny::Warn | AllowWarnDeny::Allow => Severity::Warning,
+    }
 }
 
 /// The globals of `file`: those of each environment `env` turns on, from oxlint's own table, and

@@ -58,6 +58,8 @@ rules of `correctness` run, as in oxlint:
 The Svelte linter reads `settings.svelte` as eslint-plugin-svelte does, the globals of `env` and
 `globals`, and the nearest `svelte.config.js` above each file. In `.svelte.js` and `.svelte.ts`
 modules, oxlint's rules read the runes, such as `$state`, as globals.
+Comments such as `// oxlint-disable-next-line` turn off a Svelte rule as they turn off one of
+oxlint's. In the markup, write them as HTML comments: `<!-- oxlint-disable-next-line -->`.
 To run ESLint after rsvelte without reporting a finding twice, use
 [`@rsvelte/eslint-plugin`](https://www.npmjs.com/package/@rsvelte/eslint-plugin).
 

@@ -70,6 +70,12 @@
 	read the runes as globals.
 </p>
 
+<p>
+	Comments such as <code>// oxlint-disable-next-line</code> turn off a Svelte rule as they turn off
+	one of oxlint's. In the markup, write them as HTML comments:
+	<code>&lt;!-- oxlint-disable-next-line --&gt;</code>.
+</p>
+
 <h2 id="format"><code>format</code></h2>
 
 <pre><code class="language-sh">rsvelte format [path...] [--check]</code></pre>

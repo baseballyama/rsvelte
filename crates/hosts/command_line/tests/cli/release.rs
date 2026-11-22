@@ -143,6 +143,83 @@ fn lint_is_oxlint_with_svelte_files_linted_natively() {
 }
 
 #[test]
+fn lint_applies_directive_comments_to_svelte_findings_as_oxlint_does() {
+    let project = Project::new(&[
+        (
+            ".oxlintrc.json",
+            r#"{ "rules": { "svelte/no-at-html-tags": "error", "no-unused-vars": "error" } }"#,
+        ),
+        (
+            "A.svelte",
+            concat!(
+                "<script>\n",
+                "\t// eslint-disable-next-line no-unused-vars\n",
+                "\tlet a = 1;\n",
+                "\t// oxlint-disable-next-line\n",
+                "\tlet b = 1;\n",
+                "\t// oxlint-disable-next-line svelte/no-at-html-tags\n",
+                "\tlet html = '';\n",
+                "</script>\n",
+                "<!-- oxlint-disable-next-line svelte/no-at-html-tags -->\n",
+                "{@html html}\n",
+                "<!-- eslint-disable-next-line -->\n",
+                "<p></p>\n",
+            ),
+        ),
+    ]);
+    let lint = project.rsvelte(&["lint", "-f", "unix"]);
+    let report = text(&lint.stdout);
+    assert_eq!(lint.status.code(), Some(0), "{report}");
+    assert!(!report.contains("A.svelte"), "{report}");
+    // Each directive that turns nothing off is reported once: oxlint the script's, the Svelte
+    // linter the template's.
+    let unused = project.rsvelte(&["lint", "-f", "unix", "--report-unused-disable-directives"]);
+    let report = text(&unused.stdout);
+    let lines: Vec<&str> = report
+        .lines()
+        .filter(|line| line.starts_with("A.svelte"))
+        .collect();
+    assert_eq!(lines.len(), 2, "{report}");
+    assert!(lines[0].starts_with("A.svelte:6:2: Unused"), "{report}");
+    assert!(
+        lines[1].starts_with("A.svelte:11:1: Unused eslint-disable-next-line directive"),
+        "{report}"
+    );
+}
+
+#[test]
+fn lint_checks_the_svelte_configuration_once() {
+    let project = Project::new(&[
+        (
+            ".oxlintrc.json",
+            r#"{ "settings": { "svelte": { "typo": 1 } } }"#,
+        ),
+        ("A.svelte", "<p></p>\n"),
+        ("B.svelte", "<p></p>\n"),
+    ]);
+    let lint = project.rsvelte(&["lint"]);
+    let (stdout, stderr) = (text(&lint.stdout), text(&lint.stderr));
+    assert_eq!(lint.status.code(), Some(1), "{stdout}{stderr}");
+    let output = format!("{stdout}{stderr}");
+    assert_eq!(
+        output
+            .matches("settings.svelte: unknown field `typo`")
+            .count(),
+        1,
+        "{output}"
+    );
+    std::fs::write(
+        project.0.join(".oxlintrc.json"),
+        r#"{ "rules": { "svelte/no-at-html-tags": ["error", { "x": 1 }] } }"#,
+    )
+    .unwrap();
+    let lint = project.rsvelte(&["lint"]);
+    let output = format!("{}{}", text(&lint.stdout), text(&lint.stderr));
+    assert_eq!(lint.status.code(), Some(1), "{output}");
+    assert_eq!(output.matches("takes no options").count(), 1, "{output}");
+}
+
+#[test]
 fn version_names_the_oracles_of_the_corpus_and_the_type_checker() {
     #[derive(serde::Deserialize)]
     struct Task {
