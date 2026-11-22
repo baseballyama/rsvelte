@@ -51,6 +51,13 @@ bare name, so when the component declares its own `type Record`, svelte-check re
 an unknown prop. This is a deliberate divergence, listed as item 171 in
 [rsvelte#4939](https://github.com/baseballyama/rsvelte/issues/4939), and the
 `component-export-kinds/own-record` fixture holds it.
+The projection copies a script statement that oxc cannot parse unchanged (`program_with_holes`
+in `typescript/tree/src/builder/program.rs`), so the checker reads the source's text. svelte2tsx
+rewrites a module script's `<T>e` as `e as T` on TypeScript's error-recovered tree, so inside such a
+statement it can write other text: `export const el = <span />;` becomes `/> as span;`. There
+svelte-check reports TS1161, and rsvelte reports TS1005 and TS2304 at the same statement. Matching
+it would take TypeScript's parser recovery, so this is a deliberate divergence, with the cells in
+[rsvelte#5081](https://github.com/baseballyama/rsvelte/issues/5081).
 Empty findings do not prove that the checker checked its props or its instance. A
 component that does not parse is not checked: as in svelte-check, its one finding is the
 parser's error, with the code `-1`.
