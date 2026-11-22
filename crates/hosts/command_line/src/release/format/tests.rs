@@ -27,10 +27,10 @@ fn the_svelte_options_are_prettiers_without_its_plumbing() {
 fn a_value_the_svelte_formatter_does_not_print_is_an_error() {
     let error = format(
         "<p>a</p>\n",
-        &json!({ "printWidth": 80, "experimentalOperatorPosition": "start" }),
+        &json!({ "printWidth": 80, "experimentalTernaries": true }),
     )
     .unwrap_err();
-    assert!(error.contains("`experimentalOperatorPosition`"), "{error}");
+    assert!(error.contains("`experimentalTernaries`"), "{error}");
 }
 
 #[test]

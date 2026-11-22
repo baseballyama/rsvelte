@@ -48,13 +48,26 @@ impl Printer<'_> {
     /// svelte2tsx's default export in `JSDoc`, whose `@typedef` merges with the constant because
     /// the constant is exported; an import of the component may read it as `any`, as the run
     /// declares.
-    pub(super) fn javascript_export(&mut self, component: NodeIdentifier, instance: &str) {
+    pub(super) fn javascript_export(
+        &mut self,
+        component: NodeIdentifier,
+        instance: &str,
+        unrendered: &str,
+    ) {
         self.output.push("export const ");
         self.push_default_export();
-        self.output.push(
-            " = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ (",
-        );
+        self.output
+            .push(" = /** @type {__rsvelte_javascript_export<");
+        self.render_result(|_| {}, unrendered);
+        self.output.push(">} */ (");
+        // What a render function closed early returns converts to its component through `unknown`.
+        if self.tree.holes {
+            self.output.push("/** @type {unknown} */ (");
+        }
         self.node(component);
+        if self.tree.holes {
+            self.output.push(")");
+        }
         for part in [");\n/** @typedef {", instance, "<typeof "] {
             self.output.push(part);
         }

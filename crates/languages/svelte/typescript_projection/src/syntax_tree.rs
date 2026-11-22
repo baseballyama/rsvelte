@@ -268,6 +268,17 @@ pub(crate) enum Instance {
     Constructed,
 }
 
+impl Instance {
+    /// svelte2tsx's component of a render function that returns nothing: its helper's
+    /// constraints.
+    pub(crate) const fn unrendered(self) -> &'static str {
+        match self {
+            Self::Returned => "__rsvelte_unrendered_component",
+            Self::Constructed => "__rsvelte_unrendered_isomorphic",
+        }
+    }
+}
+
 /// A generic component's type parameters, without their angle brackets.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum TypeParameters {
@@ -290,6 +301,9 @@ pub struct SyntaxTree {
     pub(crate) root: Range,
     /// Neither script is TypeScript, so the projection is JavaScript without type syntax.
     pub(crate) javascript: bool,
+    /// The instance script has a hole. A hole is copied as written, so its text can close the
+    /// render function before the return of the component; a script without one parses balanced.
+    pub(crate) holes: bool,
 }
 
 impl Default for SyntaxTree {
@@ -299,6 +313,7 @@ impl Default for SyntaxTree {
             children: buffer_pool::take_keyed::<Self, _>(),
             root: Range::default(),
             javascript: false,
+            holes: false,
         }
     }
 }

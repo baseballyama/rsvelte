@@ -123,7 +123,8 @@ pub(super) enum Find {
     /// The initializer of the class field whose key is the label.
     Initializer,
     /// The type alias, interface or class member with a public name whose name is the label, or
-    /// the parameter list around it, where the label redeclares the name the span is.
+    /// the parameter list around it or the signature or function without a body that holds it,
+    /// where the label redeclares the name the span is.
     Redeclared(oxc_span::Span),
     /// Where acorn reads the name the label is: the innermost function, class static block or
     /// class field initializer around it.
@@ -217,8 +218,14 @@ impl Locator {
             }
             _ => {}
         }
+        // The innermost holder of parameters around the label decides: a signature or a function
+        // without a body, whose parameter names acorn does not check, or the parameter list of
+        // one that has a body.
+        if let Some(checked) = parameters_checked(kind).filter(|_| around) {
+            self.found = (!checked).then(|| (kind.span().start, kind.ty()));
+        }
         let name = match kind {
-            AstKind::FormalParameters(it) if around => {
+            AstKind::FormalParameters(it) if around && self.found.is_none() => {
                 return self.found = Some((it.span.start, kind.ty()));
             }
             AstKind::TSTypeAliasDeclaration(it) => it.id.span,
@@ -360,6 +367,20 @@ impl Locator {
             _ => return,
         };
         self.found = Some((found, kind.ty()));
+    }
+}
+
+/// Whether acorn checks the names of the parameters `kind` holds, where it holds any.
+const fn parameters_checked(kind: AstKind<'_>) -> Option<bool> {
+    match kind {
+        AstKind::Function(it) => Some(it.body.is_some()),
+        AstKind::ArrowFunctionExpression(_) => Some(true),
+        AstKind::TSFunctionType(_)
+        | AstKind::TSConstructorType(_)
+        | AstKind::TSMethodSignature(_)
+        | AstKind::TSCallSignatureDeclaration(_)
+        | AstKind::TSConstructSignatureDeclaration(_) => Some(false),
+        _ => None,
     }
 }
 

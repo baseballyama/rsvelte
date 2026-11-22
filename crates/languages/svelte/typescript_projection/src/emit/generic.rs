@@ -6,6 +6,9 @@ use rsvelte_svelte_syntax::syntax_tree::Range;
 use super::Printer;
 use crate::syntax_tree::{Node, NodeIdentifier, TypeParameters};
 
+/// svelte2tsx's generic component of a render function that returns nothing.
+const UNRENDERED: &str = "__rsvelte_unrendered_generic";
+
 impl Printer<'_> {
     /// svelte2tsx's `__sveltets_Render` and `$$IsomorphicComponent`: the component of the render
     /// function's contract for each instantiation.
@@ -22,18 +25,26 @@ impl Printer<'_> {
         let arguments = arguments.as_str();
         let plain = self.joined(declared);
         let plain = plain.as_str();
+        let instantiated = |printer: &mut Self| {
+            for part in ["<", arguments, ">"] {
+                printer.output.push(part);
+            }
+        };
+        // Each declaration is one line whose findings TypeScript drops, as svelte-check drops
+        // those of svelte2tsx's copies of the generics, which map to no source.
         for part in [
-            // Each declaration is one line whose findings TypeScript drops, as svelte-check drops
-            // those of svelte2tsx's copies of the generics, which map to no source.
             "// @ts-ignore\nclass __rsvelte_Render<",
             parameters,
-            // `Awaited` reads an async render function's component.
-            "> { props(): Parameters<Awaited<ReturnType<typeof $$render<",
-            arguments,
-            ">>>>[1] { return null as any; } exports(): NonNullable<Awaited<ReturnType<typeof \
-                $$render<",
-            arguments,
-            ">>>['__rsvelte_exports']> { return null as any; } instance(): \
+            "> { props(): Parameters<",
+        ] {
+            self.output.push(part);
+        }
+        self.render_result(instantiated, UNRENDERED);
+        self.output
+            .push(">[1] { return null as any; } exports(): NonNullable<");
+        self.render_result(instantiated, UNRENDERED);
+        for part in [
+            "['__rsvelte_exports']> { return null as any; } instance(): \
                 import('svelte').SvelteComponent<ReturnType<__rsvelte_Render<",
             arguments,
             ">['props']>, {}, {}> & ReturnType<__rsvelte_Render<",
@@ -54,16 +65,22 @@ impl Printer<'_> {
             arguments,
             ">['props']>) => ReturnType<__rsvelte_Render<",
             arguments,
-            ">['instance']>; element?: typeof HTMLElement; z_$$bindings?: \
-                NonNullable<Awaited<ReturnType<typeof $$render<",
+            ">['instance']>; element?: typeof HTMLElement; z_$$bindings?: NonNullable<",
         ] {
             self.output.push(part);
         }
         // svelte2tsx's `__sveltets_Render<any>`: the bindings of any instantiation.
-        for index in 0..self.tree.children(names).len() {
-            self.output.push(if index == 0 { "any" } else { ", any" });
-        }
-        self.output.push(">>>['__rsvelte_bindings']>; }\nconst ");
+        let count = self.tree.children(names).len();
+        let any = |printer: &mut Self| {
+            for index in 0..count {
+                printer
+                    .output
+                    .push(if index == 0 { "<any" } else { ", any" });
+            }
+            printer.output.push(">");
+        };
+        self.render_result(any, UNRENDERED);
+        self.output.push("['__rsvelte_bindings']>; }\nconst ");
         self.push_default_export();
         self.output
             .push(": $$IsomorphicComponent = null as any;\n// @ts-ignore\ntype ");

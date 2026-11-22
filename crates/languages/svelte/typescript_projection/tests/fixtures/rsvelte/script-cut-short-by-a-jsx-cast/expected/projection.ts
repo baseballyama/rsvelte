@@ -9,6 +9,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, { [evt: string]: CustomEvent<any> }, {}, string>} */ (__rsvelte_export_isomorphic))()({});
 }
-export const ScriptCutShortByAJsxCast__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+export const ScriptCutShortByAJsxCast__SvelteComponent_ = /** @type {__rsvelte_javascript_export<__rsvelte_rendered<Awaited<ReturnType<typeof $$render>>, __rsvelte_unrendered_isomorphic>>} */ (/** @type {unknown} */ ($$render()));
 /** @typedef {InstanceType<typeof ScriptCutShortByAJsxCast__SvelteComponent_>} ScriptCutShortByAJsxCast__SvelteComponent_ */
 export default ScriptCutShortByAJsxCast__SvelteComponent_;
