@@ -12,7 +12,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_export_isomorphic_slots<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, "">()({
+  return __rsvelte_export_isomorphic_slots<globalThis.Record<string, never>, {}, "">()(__rsvelte_any_event({}), {
     "a": {
       v: x,
     },

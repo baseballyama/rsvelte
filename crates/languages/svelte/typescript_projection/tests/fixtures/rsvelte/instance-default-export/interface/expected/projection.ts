@@ -8,7 +8,7 @@ export default interface Props {
 
 ;
 
-  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, {}, string>()(__rsvelte_any_event({}), {});
 }
 const Interface__SvelteComponent_ = $$render();
 type Interface__SvelteComponent_ = InstanceType<typeof Interface__SvelteComponent_>;

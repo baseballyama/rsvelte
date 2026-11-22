@@ -32,7 +32,9 @@ function $$render() {
       __rsvelte_instance(__rsvelte_component_0).$on("click", f);
     }
   };
-  return (/** @type {typeof __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, "">} */ (__rsvelte_export_isomorphic))()({});
+  return (/** @type {typeof __rsvelte_export_isomorphic<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_isomorphic))()(__rsvelte_any_event({
+    "bubble": __sveltets_2_bubbleEventDef(__sveltets_2_instanceOf((/** @type {typeof __rsvelte_value<typeof C>} */ (__rsvelte_value))()).$$events_def, "bubble"),
+  }), {});
 }
 export const ComponentEvents__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {InstanceType<typeof ComponentEvents__SvelteComponent_>} ComponentEvents__SvelteComponent_ */

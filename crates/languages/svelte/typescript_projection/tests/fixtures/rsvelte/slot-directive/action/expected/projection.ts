@@ -12,7 +12,7 @@ function $$render() {
       __rsvelte_slots()("default", {});
     }
   };
-  return __rsvelte_export_isomorphic_slots<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({
+  return __rsvelte_export_isomorphic_slots<globalThis.Record<string, never>, {}, string>()(__rsvelte_any_event({}), {
     "default": {},
   });
 }

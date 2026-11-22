@@ -39,7 +39,7 @@ function $$render() {
       C;
     }
   };
-  return (/** @type {typeof __rsvelte_export_isomorphic_slots<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, "">} */ (__rsvelte_export_isomorphic_slots))()({
+  return (/** @type {typeof __rsvelte_export_isomorphic_slots<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_isomorphic_slots))()(__rsvelte_any_event({}), {
     "default": {
       foo: __rsvelte_untyped_prop(),
     },
