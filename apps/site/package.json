@@ -20,7 +20,7 @@
 		"build:bundle": "vite build",
 		"preview": "vite preview",
 		"precheck": "pnpm run generate",
-		"check": "svelte-kit sync && rsvelte lint typecheck",
+		"check": "svelte-kit sync && rsvelte format lint typecheck --check",
 		"test": "node --test 'scripts/*.test.ts' 'src/**/*.test.ts' && pnpm run lint"
 	},
 	"devDependencies": {

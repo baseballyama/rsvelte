@@ -29,6 +29,14 @@ pub enum Acorn {
     Stops(u32),
     /// It fails at `at` with `message`.
     Fails { message: Cow<'static, str>, at: u32 },
+    /// It fails at `at` with `message` once it has read on to `raised`: a check of a function's
+    /// parameters, which acorn makes at the start of its block body or the end of its expression
+    /// body.
+    FailsLater {
+        message: Cow<'static, str>,
+        at: u32,
+        raised: u32,
+    },
 }
 
 impl From<SyntaxError> for Diagnostic {
@@ -99,8 +107,17 @@ impl SyntaxError {
     #[must_use]
     pub const fn acorn_at(&self) -> u32 {
         match self.acorn {
-            Some(Acorn::Stops(at) | Acorn::Fails { at, .. }) => at,
+            Some(Acorn::Stops(at) | Acorn::Fails { at, .. } | Acorn::FailsLater { at, .. }) => at,
             None => self.diagnostic.span.start_offset,
+        }
+    }
+
+    /// How far acorn has read when it raises this error, which orders the errors it meets.
+    #[must_use]
+    pub const fn acorn_raised_at(&self) -> u32 {
+        match self.acorn {
+            Some(Acorn::FailsLater { raised, .. }) => raised,
+            _ => self.acorn_at(),
         }
     }
 }
@@ -112,6 +129,15 @@ impl Acorn {
             Self::Fails { message, at } => Self::Fails {
                 message,
                 at: at + shift,
+            },
+            Self::FailsLater {
+                message,
+                at,
+                raised,
+            } => Self::FailsLater {
+                message,
+                at: at + shift,
+                raised: raised + shift,
             },
         }
     }

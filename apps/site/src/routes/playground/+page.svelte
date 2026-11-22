@@ -37,8 +37,8 @@
 
 <p>
 	Write a Svelte component to see rsvelte lint, format and compile it. rsvelte also has a Svelte
-	compiler, which the <code>rsvelte</code> command does not include yet. Type checking does not run in
-	a browser.
+	compiler, which the <code>rsvelte</code> command does not include yet. Type checking does not run
+	in a browser.
 </p>
 
 <div class="operations" role="radiogroup" aria-label="Operation">
