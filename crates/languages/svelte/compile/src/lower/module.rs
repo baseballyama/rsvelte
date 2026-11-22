@@ -101,7 +101,7 @@ fn typescript_emit<'o>(
         ));
     }
     if !source.body.iter().any(Statement::is_module_declaration) {
-        out.directives.insert(0, b.directive(SPAN, "use strict"));
+        out.body.insert(0, b.statement(b.string("use strict")));
     }
     Ok(())
 }
