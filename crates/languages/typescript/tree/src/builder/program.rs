@@ -419,11 +419,13 @@ struct Read {
     recovered: Option<ProgramIdentifier>,
 }
 
-/// The program oxc reads from `text[start..]` up to the target it cannot assign that `first`
-/// labels, with the target replaced by a name of the same length and the brackets open before it
-/// closed: its tree places the target in the functions around it, where acorn reads `await` and
-/// `yield`. One read of the text before the target, so a document with many such targets costs
-/// what one does. `None` for another error, or where the cut does not read.
+/// A program oxc reads from `text[start..]` with the target it cannot assign that `first` labels
+/// replaced by a name of the same length: its tree places the target in the functions around it,
+/// where acorn reads `await` and `yield`. The whole text is read with each target oxc reports
+/// replaced, for at most [`WHOLE_READS`] reads, which covers a pattern with two such elements, as
+/// in a loop's head; then the text up to the last target reported, with the brackets open there
+/// closed. A constant number of reads, so a document with many such targets costs what one does.
+/// `None` for another error, or where none reads.
 #[cold]
 fn named_target<'b>(
     allocator: &'b oxc_allocator::Allocator,
@@ -431,11 +433,44 @@ fn named_target<'b>(
     source_type: SourceType,
     (first, tokens): (&oxc_diagnostics::OxcDiagnostic, &[Token]),
 ) -> Option<Program<'b>> {
-    let label = first
-        .labels
-        .first()
-        .filter(|_| unassignable_target(first))?;
-    let (at, len) = (label.offset() as usize, label.len() as usize);
+    const WHOLE_READS: usize = 2;
+    let label = |error: &oxc_diagnostics::OxcDiagnostic| {
+        let label = error
+            .labels
+            .first()
+            .filter(|_| unassignable_target(error))?;
+        Some((label.offset() as usize, label.len() as usize))
+    };
+    let read = |named: &str| {
+        Parser::new(allocator, allocator.alloc_str(named), source_type)
+            .with_options(parentheses::options(false))
+            .with_config(TokensParserConfig)
+            .with_start(start)
+            .parse()
+    };
+    let mut named = text.to_owned();
+    let (mut target, mut tokens) = (label(first)?, tokens.to_vec());
+    for _ in 0..WHOLE_READS {
+        let (at, len) = target;
+        named.replace_range(
+            at..at + len,
+            &format!("_{}", " ".repeat(len.checked_sub(1)?)),
+        );
+        let parsed = read(&named);
+        if !parsed.fatal_error {
+            return Some(parsed.program);
+        }
+        match parsed.diagnostics.first().and_then(label) {
+            Some(next) if next.0 > at => (target, tokens) = (next, parsed.tokens.to_vec()),
+            _ => break,
+        }
+    }
+    let (at, len) = target;
+    named.replace_range(
+        at..at + len,
+        &format!("_{}", " ".repeat(len.checked_sub(1)?)),
+    );
+    named.truncate(at + len);
     let mut closers = Vec::new();
     for token in tokens
         .iter()
@@ -452,14 +487,7 @@ fn named_target<'b>(
             _ => {}
         }
     }
-    let mut named = String::with_capacity(at + len + closers.len() * 2);
-    named.push_str(text.get(..at)?);
-    named.push('_');
-    named.extend(std::iter::repeat_n(' ', len.checked_sub(1)?));
     named.extend(closers.into_iter().rev());
-    let parsed = Parser::new(allocator, allocator.alloc_str(&named), source_type)
-        .with_options(parentheses::options(false))
-        .with_start(start)
-        .parse();
+    let parsed = read(&named);
     (!parsed.fatal_error).then_some(parsed.program)
 }
