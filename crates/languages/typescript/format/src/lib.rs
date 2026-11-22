@@ -13,8 +13,7 @@ pub static EXTENSION: rsvelte_plugin_interface::Extension = rsvelte_plugin_inter
     install: |registry, settings| {
         let options = settings
             .options::<Options>(EXTENSION.identifier)?
-            .map(|o| o.value)
-            .unwrap_or_default();
+            .map_or_default(|o| o.value);
         // Checked once for the run, not on every document.
         if let Err(name) = options.formatter() {
             return Err(rsvelte_plugin_interface::CallError(format!(

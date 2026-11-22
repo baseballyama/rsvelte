@@ -68,10 +68,7 @@ pub(super) fn typescript_view(
         env: Arc::clone(env),
         extension: if typescript { ".ts" } else { ".js" },
         imports: relative_imports(component),
-        store_reads: read
-            .resolution(context)
-            .map(store_reads)
-            .unwrap_or_default(),
+        store_reads: read.resolution(context).map_or_default(store_reads),
         hidden: hidden(component, &context.document.text),
         drops_unmapped: read.has_script_errors(),
         inserted: Vec::new(),

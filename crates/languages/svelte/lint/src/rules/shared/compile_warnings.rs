@@ -359,10 +359,9 @@ impl Targets<'_> {
             .iter()
             .rposition(|(node, _)| matches!(component.node(*node), TemplateNode::Element { .. }))
         else {
-            return path
-                .first()
-                .map(|&(node, fragment)| vec![self.leading(fragment, self.start(node))])
-                .unwrap_or_default();
+            return path.first().map_or_default(|&(node, fragment)| {
+                vec![self.leading(fragment, self.start(node))]
+            });
         };
         let mut out = Vec::new();
         loop {
