@@ -310,6 +310,100 @@ fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
     );
 }
 
+/// svelte2tsx's ignore start keeps a `generics` list that begins with `/` from reading as `</`,
+/// a closing tag, in its `.tsx` code. With a list that comments out the rest of its line, the
+/// script's own code follows the type parameters; these four lines are svelte-check 4.7.8's.
+#[cfg(unix)]
+#[test]
+fn typecheck_reads_a_javascript_generics_list_after_the_ignore_start() {
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let output = Project::new(&[
+        ("rsvelte.config.json", config.as_str()),
+        (
+            "tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"types":[],"allowJs":true,"checkJs":true},"include":["src"]}"#,
+        ),
+        (
+            "src/C.svelte",
+            "<script generics=\"// x\">\n  /** @type {{ n: number }} */\n  let { n } = $props();\n\
+             </script>\n<p>{n}</p>\n",
+        ),
+    ])
+    .rsvelte(&["typecheck"]);
+    let report = format!("{}{}", text(&output.stdout), text(&output.stderr));
+    let lines: Vec<&str> = report.lines().collect();
+    for oracle in [
+        "src/C.svelte(3,7): error TS1005: '>' expected.",
+        "src/C.svelte(3,13): error TS2809: Declaration or statement expected. This '=' follows a \
+         block of statements, so if you intended to write a destructuring assignment, you might \
+         need to wrap the whole assignment in parentheses.",
+        "src/C.svelte(3,9): error TS2304: Cannot find name 'n'.",
+        "src/C.svelte(5,5): error TS2304: Cannot find name 'n'.",
+    ] {
+        assert!(lines.contains(&oracle), "{oracle} missing from:\n{report}");
+    }
+    // Without the ignore start, TypeScript reads `</` and then a regular expression.
+    for text in ["TS1161", "TS2363", "Unterminated regular expression"] {
+        assert!(!report.contains(text), "{text} in:\n{report}");
+    }
+}
+
+/// svelte2tsx writes a JavaScript component's `generics` list and its `>` between its ignore
+/// comments, and svelte-check hides a finding that starts there: one at the list's `>` is hidden
+/// and one at the `(` after it is shown, though both map to the closing quote. The ignore end also
+/// closes a comment the list leaves open. The expected lines are svelte-check 4.7.8's.
+#[cfg(unix)]
+#[test]
+fn typecheck_hides_what_starts_in_the_ignored_generics_of_a_javascript_component() {
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let lists = [
+        "T extends (",
+        "T>U",
+        "T extends string /* x",
+        "T extends",
+        "T extends string",
+        "T,",
+        "",
+    ];
+    let components: Vec<(String, String)> = (lists.iter().enumerate())
+        .map(|(i, list)| {
+            (
+                format!("src/C{}.svelte", i + 1),
+                format!(
+                    "<script generics=\"{list}\">\n  /** @type {{{{ n: number }}}} */\n  \
+                     let {{ n }} = $props();\n</script>\n<p>{{n}}</p>\n"
+                ),
+            )
+        })
+        .collect();
+    let mut files = vec![
+        ("rsvelte.config.json", config.as_str()),
+        (
+            "tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"types":[],"allowJs":true,"checkJs":true},"include":["src"]}"#,
+        ),
+    ];
+    files.extend(
+        components
+            .iter()
+            .map(|(path, text)| (path.as_str(), text.as_str())),
+    );
+    let output = Project::new(&files).rsvelte(&["typecheck"]);
+    assert_eq!(
+        format!("{}{}", text(&output.stdout), text(&output.stderr)),
+        "src/C1.svelte(1,30): error TS1109: Expression expected.\n\
+         src/C1.svelte(1,30): error TS1005: ')' expected.\n\
+         src/C2.svelte(1,22): error TS1109: Expression expected.\n\
+         src/C2.svelte(1,22): error TS1005: ';' expected.\n\
+         src/C2.svelte(1,2): error TS7010: '$$render', which lacks return-type annotation, \
+         implicitly has an 'any' return type.\n\
+         src/C3.svelte(1,40): error TS1005: '>' expected.\n\
+         \nFound 6 errors in 3 files.\n"
+    );
+}
+
 /// A project whose component imports svelte's types, checked without `skipLibCheck` and with
 /// `lib`, and its `rsvelte.config.json`, which names its tsconfig so the CLI runs from anywhere.
 #[cfg(unix)]
