@@ -282,7 +282,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         stylesheet.is_some(),
         props_id,
     );
-    let func = super::script::with_prologue(b, func);
+    let func = super::script::with_prologue(b, func, input.component);
     let registration = context.custom_element_registration(&exports);
 
     let mut program = Vec::new();

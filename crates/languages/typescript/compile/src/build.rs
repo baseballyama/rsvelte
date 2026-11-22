@@ -388,11 +388,11 @@ impl<'o> Builder<'o> {
         Statement::new_expression_statement(SPAN, expression, self)
     }
 
-    /// `'value';` printed bare, as esrap prints a directive, so that it is one where it opens a
-    /// body.
+    /// The directive `'raw';`, `raw` being its text between the quotes.
     #[must_use]
-    pub fn directive(&self, value: &str) -> Statement<'o> {
-        Statement::new_expression_statement(SPAN, self.string(value), self)
+    pub fn directive(&self, span: Span, raw: &str) -> ast::Directive<'o> {
+        let raw = self.str(raw);
+        ast::Directive::new(span, StringLiteral::new(span, raw, None, self), raw, self)
     }
 
     pub fn block(&self, body: impl IntoIterator<Item = Statement<'o>>) -> Statement<'o> {

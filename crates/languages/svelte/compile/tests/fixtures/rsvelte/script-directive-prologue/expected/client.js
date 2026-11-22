@@ -4,7 +4,7 @@ import * as $ from "svelte/internal/client";
 var root = $.from_html(`<p> </p>`);
 export default function Script_directive_prologue($$anchor, $$props) {
 	$.push($$props, true);
-	"use strict";
+	("use strict");
 	let b = $.state(0);
 	$.user_effect(() => {
 		$.set(b, $$props.a, true);

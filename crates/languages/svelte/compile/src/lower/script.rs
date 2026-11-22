@@ -527,13 +527,26 @@ pub(super) fn should_proxy_read(res: &Resolution, e: &Expression<'_>) -> bool {
     prop || res.should_proxy(e)
 }
 
-/// Makes the string statements that open the component's function, or the server's context
-/// callback in it, its prologue: upstream prints them bare, where they are directives.
-pub(super) fn with_prologue<'o>(b: &Builder<'o>, mut function: Statement<'o>) -> Statement<'o> {
+/// Makes the instance script's directives that open the component's function, or the server's
+/// context callback in it, its prologue: upstream prints a directive bare, where it is one there.
+/// Any other string statement is none, wherever it lands.
+pub(super) fn with_prologue<'o>(
+    b: &Builder<'o>,
+    mut function: Statement<'o>,
+    component: rsvelte_svelte_semantic::input::ComponentInput<'_>,
+) -> Statement<'o> {
+    let directives = component.instance.map_or(&[][..], |instance| {
+        component
+            .javascript
+            .get_program(instance)
+            .directives
+            .as_slice()
+    });
     if let Statement::FunctionDeclaration(f) = &mut function
         && let Some(body) = &mut f.body
+        && !directives.is_empty()
     {
-        hoist_body(b, body);
+        hoist_body(b, body, directives);
     }
     function
 }
@@ -547,22 +560,31 @@ pub(super) fn instance_span(component: rsvelte_svelte_semantic::input::Component
     })
 }
 
-fn hoist_body<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {
-    hoist_into(b, body);
+fn hoist_body<'o>(
+    b: &Builder<'o>,
+    body: &mut oxc_ast::ast::FunctionBody<'o>,
+    directives: &[oxc_ast::ast::Directive<'_>],
+) {
+    hoist_into(b, body, directives);
     if let [Statement::ExpressionStatement(statement)] = body.statements.as_mut_slice()
         && let Expression::CallExpression(call) = &mut statement.expression
         && let Some(Argument::ArrowFunctionExpression(callback)) = call.arguments.first_mut()
         && let oxc_ast::ast::ArrowFunctionBody::FunctionBody(body) = &mut callback.body
     {
-        hoist_into(b, body);
+        hoist_into(b, body, directives);
     }
 }
 
-fn hoist_into<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {
+fn hoist_into<'o>(
+    b: &Builder<'o>,
+    body: &mut oxc_ast::ast::FunctionBody<'o>,
+    directives: &[oxc_ast::ast::Directive<'_>],
+) {
     let count = (body.statements.iter())
         .take_while(|s| {
             matches!(s, Statement::ExpressionStatement(e)
-                if matches!(e.expression, Expression::StringLiteral(_)))
+                if matches!(&e.expression, Expression::StringLiteral(literal)
+                    if directives.iter().any(|d| d.expression.span == literal.span)))
         })
         .count();
     for statement in body.statements.drain(..count) {
@@ -572,10 +594,7 @@ fn hoist_into<'o>(b: &Builder<'o>, body: &mut oxc_ast::ast::FunctionBody<'o>) {
         let Expression::StringLiteral(literal) = statement.unbox().expression else {
             unreachable!("counted as a string statement")
         };
-        let literal = literal.unbox();
-        let raw = b.str(&super::javascript::string_value(literal.value));
-        let directive =
-            oxc_ast::ast::Directive::new(literal.span, literal.clone_in(b.allocator()), raw, b);
-        body.directives.push(directive);
+        let raw = super::javascript::string_value(literal.value);
+        body.directives.push(b.directive(literal.span, &raw));
     }
 }
