@@ -17,6 +17,6 @@ function $$render() {
     api: typeof api;
   }, "">();
 }
-const CloseParen__SvelteComponent_ = $$render();
+const CloseParen__SvelteComponent_ = __rsvelte_rendered_component($$render());
 type CloseParen__SvelteComponent_ = ReturnType<typeof CloseParen__SvelteComponent_>;
 export default CloseParen__SvelteComponent_;

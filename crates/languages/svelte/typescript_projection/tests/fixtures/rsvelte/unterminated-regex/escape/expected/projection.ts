@@ -17,6 +17,6 @@ function $$render() {
     api: typeof api;
   }, "">();
 }
-const Escape__SvelteComponent_ = $$render();
+const Escape__SvelteComponent_ = __rsvelte_rendered_component($$render());
 type Escape__SvelteComponent_ = ReturnType<typeof Escape__SvelteComponent_>;
 export default Escape__SvelteComponent_;

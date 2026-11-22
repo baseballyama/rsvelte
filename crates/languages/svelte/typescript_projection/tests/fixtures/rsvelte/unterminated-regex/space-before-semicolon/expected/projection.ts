@@ -17,6 +17,6 @@ function $$render() {
     api: typeof api;
   }, "">();
 }
-const SpaceBeforeSemicolon__SvelteComponent_ = $$render();
+const SpaceBeforeSemicolon__SvelteComponent_ = __rsvelte_rendered_component($$render());
 type SpaceBeforeSemicolon__SvelteComponent_ = ReturnType<typeof SpaceBeforeSemicolon__SvelteComponent_>;
 export default SpaceBeforeSemicolon__SvelteComponent_;

@@ -15,6 +15,6 @@ function $$render() {
     api: typeof api;
   }, string>()({});
 }
-const NoBracket__SvelteComponent_ = $$render();
+const NoBracket__SvelteComponent_ = __rsvelte_rendered_isomorphic($$render());
 type NoBracket__SvelteComponent_ = InstanceType<typeof NoBracket__SvelteComponent_>;
 export default NoBracket__SvelteComponent_;

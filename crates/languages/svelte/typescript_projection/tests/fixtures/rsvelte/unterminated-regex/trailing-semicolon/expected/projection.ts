@@ -17,6 +17,6 @@ function $$render() {
     api: typeof api;
   }, "">();
 }
-const TrailingSemicolon__SvelteComponent_ = $$render();
+const TrailingSemicolon__SvelteComponent_ = __rsvelte_rendered_component($$render());
 type TrailingSemicolon__SvelteComponent_ = ReturnType<typeof TrailingSemicolon__SvelteComponent_>;
 export default TrailingSemicolon__SvelteComponent_;

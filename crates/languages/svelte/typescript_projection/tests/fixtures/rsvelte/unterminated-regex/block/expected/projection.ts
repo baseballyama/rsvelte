@@ -17,6 +17,6 @@ function $$render() {
     api: typeof api;
   }, "">();
 }
-const Block__SvelteComponent_ = $$render();
+const Block__SvelteComponent_ = __rsvelte_rendered_component($$render());
 type Block__SvelteComponent_ = ReturnType<typeof Block__SvelteComponent_>;
 export default Block__SvelteComponent_;
