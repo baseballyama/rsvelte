@@ -17,6 +17,6 @@ function $$render() {
     api: typeof api;
   }, "">();
 }
-const Quantifier__SvelteComponent_ = $$render();
+const Quantifier__SvelteComponent_ = $$render() as unknown as __rsvelte_rendered<Awaited<ReturnType<typeof $$render>>, __rsvelte_unrendered_component>;
 type Quantifier__SvelteComponent_ = ReturnType<typeof Quantifier__SvelteComponent_>;
 export default Quantifier__SvelteComponent_;
