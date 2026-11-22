@@ -1,8 +1,8 @@
 # rsvelte pack 1
-=== 591 src/lib/components/common/DragRegion.svelte	lint.txt
+=== 590 src/lib/components/common/DragRegion.svelte	lint.txt
+1:1 1:51 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 1:26 1:48 svelte/max-attributes-per-line "'data-tauri-drag-region' should be on a new line."
 1:49 1:51 svelte/html-self-closing "Disallow self-closing on HTML elements."
-1:51 1:51 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 3:1 10:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 4:2 4:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
 

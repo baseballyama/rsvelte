@@ -9393,10 +9393,9 @@ Rule: "svelte/valid-compile"
 1:1 1:25 svelte/no-unused-class-name "Unused class \"alpha\"."
 1:1 1:25 svelte/no-unused-class-name "Unused class \"beta\"."
 
-=== 302 lint/no-unused-class-name/09-unknown-lang.svelte	lint.txt
+=== 172 lint/no-unused-class-name/09-unknown-lang.svelte	lint.txt
 3:1 7:9 svelte/valid-style-parse "Found unsupported style element language \"less\""
 3:1 7:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
-4:3 4:13 svelte/valid-compile "Unused CSS selector \".something\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 66 lint/no-unused-class-name/10-keyframes-only.svelte	lint.txt
 1:1 1:23 svelte/no-unused-class-name "Unused class \"animated\"."
@@ -9507,8 +9506,7 @@ Rule: "svelte/valid-compile"
 2:18 2:26 svelte/max-attributes-per-line "'alt' should be on a new line."
 2:18 2:26 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
 
-=== 275 lint/no-unused-svelte-ignore/10-style-scss-css-ignore.svelte	lint.txt
-2:20 2:39 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
+=== 186 lint/no-unused-svelte-ignore/10-style-scss-css-ignore.svelte	lint.txt
 3:1 7:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 4:2 4:7 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
@@ -27918,12 +27916,11 @@ Rule: "svelte/valid-compile"
 === 81 pattern/issues/nested-global-local-scope.svelte	lint.txt
 1:7 1:15 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 449 pattern/issues/nested-global-parent-scopes-through-nesting.svelte	lint.txt
+=== 306 pattern/issues/nested-global-parent-scopes-through-nesting.svelte	lint.txt
 1:1 1:16 svelte/no-unused-class-name "Unused class \"a\"."
 1:16 1:32 svelte/no-unused-class-name "Unused class \"b\"."
 3:1 11:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 4:2 4:8 svelte/consistent-selector-style "Selector should select by element type instead of class"
-6:4 7:14 svelte/valid-compile "Unused CSS selector \".input :global(a):hover\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 403 pattern/issues/nested-not-functional-selector-list.svelte	lint.txt
 4:3 4:11 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -28475,10 +28472,9 @@ Rule: "svelte/valid-compile"
 1:1 7:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 3:3 3:8 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 307 pattern/issues/scss-line-comment-apostrophe.svelte	lint.txt
+=== 186 pattern/issues/scss-line-comment-apostrophe.svelte	lint.txt
 3:1 8:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 5:2 5:4 svelte/consistent-selector-style "Selector should select by element type instead of class"
-5:2 5:4 svelte/valid-compile "Unused CSS selector \".a\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 186 pattern/issues/scss-line-comment-brace-drift.svelte	lint.txt
 3:1 8:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."

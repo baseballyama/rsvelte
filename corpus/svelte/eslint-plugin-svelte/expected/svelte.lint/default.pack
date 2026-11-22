@@ -409,8 +409,8 @@
 54:7 54:14 svelte/consistent-selector-style "Selector should select by element type instead of ID"
 58:3 58:10 svelte/consistent-selector-style "Selector should select by element type instead of ID"
 
-=== 424 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/class-id-type/class-scss01-input.svelte	lint.txt
-1:30 1:30 svelte/valid-compile "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
+=== 423 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/class-id-type/class-scss01-input.svelte	lint.txt
+1:1 1:30 svelte/valid-compile "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
 7:1 15:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 8:3 8:8 svelte/consistent-selector-style "Selector should select by element type instead of class"
 12:3 12:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
@@ -462,8 +462,8 @@
 3:1 3:34 svelte/valid-compile "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
 30:3 30:24 svelte/valid-compile "Unused CSS selector \".bold[data-key=\"val\"]\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
-=== 234 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-class-id/type-scss01-input.svelte	lint.txt
-1:17 1:17 svelte/valid-compile "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
+=== 233 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-class-id/type-scss01-input.svelte	lint.txt
+1:1 1:17 svelte/valid-compile "`<a>` element should have an href attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
 5:1 13:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
 === 1241 packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-id-class/class-dynamic-prefix01-input.svelte	lint.txt
@@ -9492,20 +9492,18 @@
 7:2 7:6 svelte/consistent-selector-style "Selector should select by ID instead of class"
 10:5 10:9 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 747 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang03-input.svelte	lint.txt
+=== 658 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang03-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:2 2:21 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 2:19 2:21 svelte/html-self-closing "Disallow self-closing on HTML elements."
-5:20 5:39 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 6:1 15:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 7:2 7:6 svelte/consistent-selector-style "Selector should select by ID instead of class"
 10:3 10:7 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 653 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang05-input.svelte	lint.txt
+=== 564 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang05-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:2 2:21 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 2:19 2:21 svelte/html-self-closing "Disallow self-closing on HTML elements."
-5:20 5:39 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 6:1 15:9 svelte/valid-style-parse "Found unsupported style element language \"less\""
 6:1 15:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 

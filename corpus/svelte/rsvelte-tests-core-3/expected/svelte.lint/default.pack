@@ -8009,10 +8009,9 @@
 2:1 2:37 svelte/valid-style-parse "Error parsing style element. Error message: \"style_close_tag_scan_3281/a_stray_open_tag_in_the_block_is_still_rejected/a1d8eb3f75962cab.svelte:1:19: Unknown word <b>\""
 2:26 2:26 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
 
-=== 307 style_close_tag_scan_3281/an_apostrophe_in_an_scss_line_comment_does_not_hide_the_css_error/94b995e04075acf2.svelte	lint.txt
+=== 186 style_close_tag_scan_3281/an_apostrophe_in_an_scss_line_comment_does_not_hide_the_css_error/94b995e04075acf2.svelte	lint.txt
 1:1 4:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 3:1 3:3 svelte/consistent-selector-style "Selector should select by element type instead of class"
-3:1 3:3 svelte/valid-compile "Unused CSS selector \".a\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 301 style_close_tag_scan_3281/an_unclosed_paren_in_a_value_does_not_hide_the_closing_tag/8e5b133ba891ac79.svelte	lint.txt
 3:1 8:9 svelte/valid-style-parse "Error parsing style element. Error message: \"style_close_tag_scan_3281/an_unclosed_paren_in_a_value_does_not_hide_the_closing_tag/8e5b133ba891ac79.svelte:3:6: Unclosed bracket\""

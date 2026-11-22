@@ -1091,10 +1091,9 @@
 === 109 rsvelte_language_server/folding/tests/no_input_panics/44ed4dc1414715c3.svelte	lint.txt
 1:5 - - "Parsing error: Attribute shorthand cannot be empty\nhttps://svelte.dev/e/attribute_empty_shorthand"
 
-=== 312 rsvelte_language_server/folding/tests/no_input_panics/55ce6fb6ed3ca3b4.svelte	lint.txt
+=== 189 rsvelte_language_server/folding/tests/no_input_panics/55ce6fb6ed3ca3b4.svelte	lint.txt
 1:1 1:47 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 1:27 1:29 svelte/consistent-selector-style "Selector should select by element type instead of class"
-1:27 1:29 svelte/valid-compile "Unused CSS selector \".b\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 87 rsvelte_language_server/folding/tests/no_input_panics/63da7bc39ac503b0.svelte	lint.txt
 1:7 - - "Parsing error: Expected whitespace\nhttps://svelte.dev/e/expected_whitespace"
@@ -1187,10 +1186,9 @@
 1:6 1:14 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:15 1:17 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 293 rsvelte_language_server/hover/tests/a_sass_or_stylus_block_gets_no_css_hover/88bb11a823b81892.svelte	lint.txt
+=== 172 rsvelte_language_server/hover/tests/a_sass_or_stylus_block_gets_no_css_hover/88bb11a823b81892.svelte	lint.txt
 1:1 3:9 svelte/valid-style-parse "Found unsupported style element language \"less\""
 1:1 3:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
-2:3 2:5 svelte/valid-compile "Unused CSS selector \"h1\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 172 rsvelte_language_server/hover/tests/a_sass_or_stylus_block_gets_no_css_hover/a51ab80fa726532a.svelte	lint.txt
 1:1 3:9 svelte/valid-style-parse "Found unsupported style element language \"styl\""
@@ -4741,10 +4739,9 @@
 2:20 2:39 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 3:8 3:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 669 rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	lint.txt
+=== 580 rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	lint.txt
 1:18 1:37 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 1:35 1:37 svelte/html-self-closing "Disallow self-closing on HTML elements."
-2:20 2:39 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 3:1 3:57 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 3:20 3:24 svelte/consistent-selector-style "Selector should select by ID instead of class"
 3:27 3:31 svelte/consistent-selector-style "Selector should select by ID instead of class"
@@ -15050,9 +15047,8 @@
 
 === 0 rsvelte_projection/svelte2tsx_whitespace_parity_2172/style_between_elements_keeps_both_sides/30cb27dc5001c079.svelte	lint.txt
 
-=== 207 rsvelte_projection/svelte2tsx_whitespace_parity_2172/style_the_parser_does_not_capture_keeps_the_whitespace_around_it/82635606e280819f.svelte	lint.txt
+=== 87 rsvelte_projection/svelte2tsx_whitespace_parity_2172/style_the_parser_does_not_capture_keeps_the_whitespace_around_it/82635606e280819f.svelte	lint.txt
 1:1 3:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
-2:2 2:3 svelte/valid-compile "Unused CSS selector \"p\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 0 rsvelte_projection/svelte2tsx_whitespace_parity_2172/top_level_style_keeps_the_whitespace_around_it/319b9f4d18b06c6a.svelte	lint.txt
 
