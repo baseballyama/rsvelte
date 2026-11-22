@@ -303,13 +303,12 @@ fn early_error(
             let name = text.get(start as usize..end as usize)?;
             let mut locator = Locator::new(start, end, Find::Binding);
             visit(&mut locator);
-            let message = if locator.found.is_some() && locator.declares {
-                format!("Binding {name} in strict mode")
-            } else {
-                format!("Assigning to {name} in strict mode")
-            };
+            if locator.found.is_some() && locator.declares {
+                let message = Cow::Owned(format!("Binding {name} in strict mode"));
+                return Some(locator.checked(message, start));
+            }
             Some(Acorn::Fails {
-                message: Cow::Owned(message),
+                message: Cow::Owned(format!("Assigning to {name} in strict mode")),
                 at: start,
             })
         }
@@ -483,7 +482,9 @@ fn redeclaration(
     let locator = redeclared(first, second, visit);
     let at = locator.redeclared_name()?.start;
     let message = match (locator.found, locator.first_is_type) {
-        (Some((_, AstType::FormalParameters)), _) => return Some(fails("Argument name clash", at)),
+        (Some((_, AstType::FormalParameters)), _) => {
+            return Some(locator.checked(Cow::Borrowed("Argument name clash"), at));
+        }
         (Some((_, AstType::TSTypeAliasDeclaration)), true) => {
             format!("type '{name}' has already been declared.")
         }

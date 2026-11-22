@@ -174,3 +174,77 @@ fn the_first_error_in_the_document_wins_over_every_later_one() {
         );
     }
 }
+
+#[test]
+fn acorn_checks_a_functions_parameters_only_when_it_reaches_the_body() {
+    let deleting = "Deleting local variable in strict mode";
+    let clash = "Argument name clash";
+    // From svelte 5.57.3's `compile`: a parameter's name at the start of a block body or after an
+    // expression body, and a function expression's own at the start of its body.
+    for (source, message, at) in [
+        ("{(a, a) => delete a}", deleting, 11),
+        ("{(a, a) => { delete a }}", clash, 5),
+        ("{(a, a) => (b) => delete b}", deleting, 18),
+        ("{(a, a = delete b) => {}}", deleting, 9),
+        ("{(eval) => delete a}", deleting, 11),
+        ("{(eval) => { delete a }}", "Binding eval in strict mode", 2),
+        ("{(a, a) => 0}{delete b}", clash, 5),
+        (
+            "<script>const f = (a, a) => delete a;</script>",
+            deleting,
+            28,
+        ),
+        (
+            "<script>const f = (a, a) => function () { with (a) {} };</script>",
+            "'with' in strict mode",
+            42,
+        ),
+        ("<script>function f(a, a) { delete a }</script>", clash, 22),
+        (
+            "<script>function f(a, a = delete b) {}</script>",
+            deleting,
+            26,
+        ),
+        (
+            "<script>const f = (a, a) => (b) => { delete c };</script>",
+            deleting,
+            37,
+        ),
+        (
+            "<script>const f = (b) => (a, a) => delete c;</script>",
+            deleting,
+            35,
+        ),
+        (
+            "<script>const f = (a = (eval) => 0, b = delete c) => 0;</script>",
+            "Binding eval in strict mode",
+            24,
+        ),
+        (
+            "<script lang=\"ts\">const f = (a: number, a: number) => delete a;</script>",
+            deleting,
+            54,
+        ),
+        (
+            "<script>const f = function eval(b = delete z) {};</script>",
+            deleting,
+            36,
+        ),
+        (
+            "<script>const f = function eval() { delete z };</script>",
+            "Binding eval in strict mode",
+            27,
+        ),
+        (
+            "<script>function eval(b = delete z) {}</script>",
+            "Binding eval in strict mode",
+            17,
+        ),
+    ] {
+        assert_eq!(
+            first_javascript_error(source),
+            ("js_parse_error".to_owned(), message.to_owned(), at),
+            "{source}"
+        );
+    }
+}
