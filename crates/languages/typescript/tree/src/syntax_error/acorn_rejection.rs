@@ -3,18 +3,19 @@
 use std::borrow::Cow;
 
 use oxc_ast::AstType;
-use oxc_ast::ast::Expression;
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
-use oxc_span::{GetSpan, SourceType};
+use oxc_span::SourceType;
 
 use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
 use super::word::{keyword, misused};
 
 mod lexer;
+mod pattern;
 use lexer::regular_expression;
+use pattern::parenthesized_element;
 
 /// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one
 /// of `unchecked`, the rules the host's parser does not check, nor, for a host that reads
@@ -45,7 +46,8 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
         "1047" => optional_rest(start, end, visit) == Some(Ok(())),
         // acorn-typescript reads a class accessor without a body as a signature.
         "1005" => locate(start, end, Find::BodilessAccessor, visit).is_some(),
-        // acorn-typescript checks no interface, and a type alias only against the types before it.
+        // acorn-typescript checks no interface nor public class member, and a type alias only
+        // against the types before it.
         "2300" => {
             let Some(second) = error.labels.get(1) else {
                 return false;
@@ -53,7 +55,13 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
             let second = (second.offset(), second.offset() + second.len());
             let locator = redeclared((start, end), second, visit);
             match locator.found {
-                Some((_, AstType::TSInterfaceDeclaration)) => true,
+                Some((
+                    _,
+                    AstType::TSInterfaceDeclaration
+                    | AstType::PropertyDefinition
+                    | AstType::MethodDefinition
+                    | AstType::AccessorProperty,
+                )) => true,
                 Some((_, AstType::TSTypeAliasDeclaration)) => !locator.first_is_type,
                 _ => false,
             }
@@ -154,8 +162,8 @@ pub(crate) fn acorn(
                 .last()?
                 .start(),
         )),
-        "2364" | "2701" | "2357" | "2406" | "2487" | "2777" | "2778" | "2779" | "2780" | "2781" => {
-            unassignable(number, text, (start, end))
+        number if let Some(message) = unassignable_message(number) => {
+            unassignable(message, text, start, &read().collect::<Vec<_>>())
         }
         "1127" => unexpected_character(text, start, end),
         // A word reserved in strict code, or `await` outside an async function, which acorn reads
@@ -195,33 +203,40 @@ pub(crate) fn acorn(
     }
 }
 
-/// What acorn reports for a target that cannot be assigned, which tsc's code `number` names apart
-/// when it is an optional chain.
-fn unassignable(number: &str, text: &str, label: (u32, u32)) -> Option<Acorn> {
-    let message = match number {
+/// Acorn's message for a target that tsc's code `number` says cannot be assigned, which names an
+/// optional chain apart.
+fn unassignable_message(number: &str) -> Option<&'static str> {
+    match number {
+        "2364" | "2701" | "2357" | "2406" | "2487" => Some("Assigning to rvalue"),
         "2777" | "2778" | "2779" | "2780" | "2781" => {
-            "Optional chaining cannot appear in left-hand side"
+            Some("Optional chaining cannot appear in left-hand side")
         }
-        _ => "Assigning to rvalue",
-    };
-    Some(fails(message, rejected(text, label)?))
+        _ => None,
+    }
 }
 
-/// Where acorn reports a target that oxc labels `start..end` as tsc does, with the parentheses and
-/// type assertions around it: at the expression inside them, where acorn's node starts, or at the
-/// outermost parenthesis around an object or an array, which acorn reads as a pattern.
-#[cold]
-fn rejected(text: &str, (start, end): (u32, u32)) -> Option<u32> {
-    let target = text.get(start as usize..end as usize)?;
-    crate::scratch::with_scratch_arena(|allocator| {
-        let target = Parser::new(allocator, target, SourceType::ts())
-            .parse_expression()
-            .ok()?;
-        Some(match target.get_inner_expression() {
-            Expression::ObjectExpression(_) | Expression::ArrayExpression(_) => start,
-            inner => start + inner.span().start,
-        })
-    })
+/// What acorn reports for a target that cannot be assigned, which oxc labels from its outermost
+/// parentheses at `start`. In a destructuring pattern, acorn first checks the pattern as a whole:
+/// see [`parenthesized_element`]. Otherwise it reports `message` at the target inside the
+/// parentheses, or at them around an object or an array.
+fn unassignable(message: &'static str, text: &str, start: u32, tokens: &[Token]) -> Option<Acorn> {
+    if let Some(at) = parenthesized_element(text, start, tokens) {
+        return Some(fails("Assigning to rvalue", at));
+    }
+    let mut after = tokens.iter().skip_while(|token| token.start() < start);
+    let first = after.next()?;
+    let inside = std::iter::once(first)
+        .chain(after)
+        .find(|token| token.kind() != Kind::LParen)?;
+    let pattern = matches!(inside.kind(), Kind::LCurly | Kind::LBrack);
+    Some(fails(
+        message,
+        if pattern {
+            first.start()
+        } else {
+            inside.start()
+        },
+    ))
 }
 
 /// What acorn reports for an error of the analysis, which oxc labels from `start` to `end` and
@@ -260,8 +275,9 @@ fn early_error(
         )),
         "2524" => Some(fails("Await expression cannot be a default value", start)),
         "2523" => Some(fails("Yield expression cannot be a default value", start)),
-        // A second declaration: oxc labels the first one first, and acorn fails at this one.
-        "2300" => redeclaration((start, end), second_label()?, text, visit),
+        // A second declaration: oxc labels the first one first, and acorn fails at this one. A
+        // private name shared by a static and an instance member is one too.
+        "2300" | "2804" => redeclaration((start, end), second_label()?, text, visit),
         "1114" => {
             let (at, name) = second()?;
             Some(Acorn::Fails {

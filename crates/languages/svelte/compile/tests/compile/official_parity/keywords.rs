@@ -328,5 +328,5 @@ const CASES: &[(&str, &str, u32)] = &[
 
 #[test]
 fn a_misused_keyword_raises_acorns_error_in_a_script_and_in_a_module() {
-    super::assert_script_and_module_errors(CASES);
+    super::outcomes::assert_script_and_module_errors(CASES);
 }

@@ -13,7 +13,7 @@ use oxc_formatter_core::TailwindSorter;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
-    AttributeKind, AttributeValue, Component, Part, TemplateNode,
+    Attribute, AttributeKind, AttributeValue, Component, Part, Range, TemplateNode,
 };
 
 /// The project's Tailwind CSS, which a host provides.
@@ -32,6 +32,16 @@ pub trait ClassSorter: Send + Sync {
     ///
     /// Why the classes cannot be ordered.
     fn order(&self, lists: Vec<Vec<String>>) -> Result<Vec<Vec<(String, bool)>>, String>;
+
+    /// Whether each of `names`, in the order the plugin reads them, is an attribute whose classes
+    /// sort, as the plugin's matcher tells: `sortTailwindcss` names it, or names a regular
+    /// expression (`/…/flags`) it matches. `None` is the name of a spread or an attachment, which
+    /// the plugin tests as `undefined`.
+    ///
+    /// # Errors
+    ///
+    /// Why the names cannot be matched.
+    fn match_attributes(&self, names: Vec<Option<String>>) -> Result<Vec<bool>, String>;
 }
 
 /// oxfmt's `sortTailwindcss`, with the sorter of the component's project, for one component.
@@ -128,7 +138,7 @@ pub(crate) fn sorted(
     source_text: &str,
     tailwind: &Tailwind,
 ) -> Result<Option<String>, String> {
-    let runs = runs(c, source_text, tailwind);
+    let runs = runs(c, source_text, tailwind)?;
     let splits: Vec<Split<'_>> = (runs.iter())
         .map(|run| Split::new(run.span.text(source_text), run))
         .collect();
@@ -180,56 +190,124 @@ pub(crate) fn sorted(
     Ok(Some(out))
 }
 
+/// The attributes of the template in the order the plugin's `transformSvelte` reads them: an
+/// element's, then those of the nodes in it, branch by branch. Its tree keeps `<svelte:options>`
+/// out of the template.
+fn attributes<'c>(c: &'c Component, source_text: &str) -> Vec<&'c Attribute> {
+    fn walk<'c>(c: &'c Component, source_text: &str, nodes: Range, out: &mut Vec<&'c Attribute>) {
+        for &node in nodes.get(&c.children) {
+            let branches: [Option<Range>; 3] = match &c.nodes[node as usize] {
+                TemplateNode::Element {
+                    name,
+                    attributes,
+                    children,
+                    ..
+                } => {
+                    if name.text(source_text) != "svelte:options" {
+                        out.extend(attributes.get(&c.attributes));
+                    }
+                    [Some(*children), None, None]
+                }
+                TemplateNode::If {
+                    consequent,
+                    alternate,
+                    ..
+                } => [Some(*consequent), *alternate, None],
+                TemplateNode::Each { body, fallback, .. } => [Some(*body), Some(*fallback), None],
+                TemplateNode::Key { body, .. } | TemplateNode::Snippet { body, .. } => {
+                    [Some(*body), None, None]
+                }
+                TemplateNode::Await {
+                    pending,
+                    then,
+                    catch,
+                    ..
+                } => [Some(*pending), Some(*then), Some(*catch)],
+                _ => [None; 3],
+            };
+            for branch in branches.into_iter().flatten().filter_map(Range::present) {
+                walk(c, source_text, branch, out);
+            }
+        }
+    }
+    let mut out = Vec::new();
+    walk(c, source_text, c.root, &mut out);
+    out
+}
+
+/// The name the plugin's matcher tests an attribute by: a directive's without its prefix, and none
+/// for a spread or an attachment.
+fn matcher_name(c: &Component, source_text: &str, attribute: &Attribute) -> Option<String> {
+    match attribute.kind {
+        AttributeKind::Attribute => Some(attribute.name.text(source_text).to_owned()),
+        AttributeKind::Spread | AttributeKind::Attach => None,
+        _ => (attribute.directive_name(&c.modifiers)).map(|name| name.text(source_text).to_owned()),
+    }
+}
+
 /// The runs of `sortClasses` the plugin's `transformSvelte` makes: each text of a class attribute,
 /// and each string literal and template literal text in its expressions.
-fn runs(c: &Component, source_text: &str, tailwind: &Tailwind) -> Vec<Run> {
+fn runs(c: &Component, source_text: &str, tailwind: &Tailwind) -> Result<Vec<Run>, String> {
+    let configured = &tailwind.javascript.attributes;
+    // Only the project's JavaScript reads a regular expression as the plugin does.
+    let matched = if configured.iter().any(|name| name.starts_with('/')) {
+        // Every attribute, directives included: a `g` expression keeps state between tests.
+        let names: Vec<Option<String>> = (attributes(c, source_text).into_iter())
+            .map(|attribute| matcher_name(c, source_text, attribute))
+            .collect();
+        let count = names.len();
+        let matched = tailwind.sorter.match_attributes(names)?;
+        if matched.len() != count {
+            return Err(format!(
+                "the sorter matched {} attributes for {count}",
+                matched.len()
+            ));
+        }
+        Some(matched)
+    } else {
+        None
+    };
     let mut runs = Vec::new();
-    for node in &c.nodes {
-        let TemplateNode::Element {
-            name, attributes, ..
-        } = node
-        else {
-            continue;
-        };
-        // The plugin's tree keeps `<svelte:options>` out of the template it walks.
-        if name.text(source_text) == "svelte:options" {
+    for (index, attribute) in attributes(c, source_text).into_iter().enumerate() {
+        if attribute.kind != AttributeKind::Attribute {
             continue;
         }
-        for attribute in attributes.get(&c.attributes) {
-            let name = attribute.name.text(source_text);
-            if attribute.kind != AttributeKind::Attribute
-                || (name != "class" && !tailwind.javascript.attributes.iter().any(|a| a == name))
-            {
-                continue;
-            }
-            let AttributeValue::Parts(parts) = attribute.value else {
-                continue;
-            };
-            let parts = parts.get(&c.parts);
-            for (i, part) in parts.iter().enumerate() {
-                match *part {
-                    Part::Text(span) => {
-                        let text = span.text(source_text);
-                        runs.push(Run {
-                            span,
-                            ignore_first: i > 0 && !text.starts_with(is_ecmascript_whitespace),
-                            ignore_last: i + 1 < parts.len()
-                                && !text.ends_with(is_ecmascript_whitespace),
-                            remove_duplicates: !tailwind.preserve_duplicates,
-                        });
-                    }
-                    Part::Expression { expression, .. } => {
-                        let mut literals = Literals {
-                            source_text,
-                            runs: &mut runs,
-                        };
-                        literals.visit_expression(c.javascript.get_expression(expression));
-                    }
+        let name = attribute.name.text(source_text);
+        let sorts = name == "class"
+            || matched.as_ref().map_or_else(
+                || configured.iter().any(|a| a == name),
+                |matched| matched[index],
+            );
+        if !sorts {
+            continue;
+        }
+        let AttributeValue::Parts(parts) = attribute.value else {
+            continue;
+        };
+        let parts = parts.get(&c.parts);
+        for (i, part) in parts.iter().enumerate() {
+            match *part {
+                Part::Text(span) => {
+                    let text = span.text(source_text);
+                    runs.push(Run {
+                        span,
+                        ignore_first: i > 0 && !text.starts_with(is_ecmascript_whitespace),
+                        ignore_last: i + 1 < parts.len()
+                            && !text.ends_with(is_ecmascript_whitespace),
+                        remove_duplicates: !tailwind.preserve_duplicates,
+                    });
+                }
+                Part::Expression { expression, .. } => {
+                    let mut literals = Literals {
+                        source_text,
+                        runs: &mut runs,
+                    };
+                    literals.visit_expression(c.javascript.get_expression(expression));
                 }
             }
         }
     }
-    runs
+    Ok(runs)
 }
 
 /// The string literals and template literal texts of an expression, which the plugin sorts
