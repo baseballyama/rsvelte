@@ -28,9 +28,9 @@
 <p>
 	<code>rsvelte lint</code> is oxlint with a built-in Svelte linter. It runs
 	<a href="https://oxc.rs/docs/guide/usage/linter/rules">oxlint's rules</a>, and adds these
-	{rules.length} rules, ported from ESLint and eslint-plugin-svelte under the same names. Some of them
-	check <a href={resolve('/guide') + '#legacy'}>legacy syntax</a>, such as <code>$:</code>. Each has
-	one of oxlint's categories, and by default only <code>correctness</code> runs.
+	{rules.length} rules, ported from ESLint and eslint-plugin-svelte under the same names. Some of
+	them check <a href={resolve('/guide') + '#legacy'}>legacy syntax</a>, such as <code>$:</code>.
+	Each has one of oxlint's categories, and by default only <code>correctness</code> runs.
 </p>
 
 <p>

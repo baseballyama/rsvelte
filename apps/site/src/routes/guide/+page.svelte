@@ -43,8 +43,8 @@
 	each file it checks, and the scripts of each <code>.svelte</code> file, with its own rules. The
 	Svelte linter checks the whole <code>.svelte</code> file with the <code>svelte/</code> rules, and
 	runs
-	<code>no-unused-vars</code> and <code>no-undef</code> there instead of oxlint, because they read the
-	template.
+	<code>no-unused-vars</code> and <code>no-undef</code> there instead of oxlint, because they read
+	the template.
 </p>
 
 <p>
@@ -66,8 +66,8 @@
 	The Svelte linter reads <code>settings.svelte</code> as eslint-plugin-svelte does, the globals of
 	<code>env</code> and <code>globals</code>, and the nearest <code>svelte.config.js</code>. A Svelte
 	rule that also applies to scripts, such as <code>svelte/no-inspect</code>, also checks JavaScript
-	and TypeScript files. In <code>.svelte.js</code> and <code>.svelte.ts</code> modules, oxlint's rules
-	read the runes as globals.
+	and TypeScript files. In <code>.svelte.js</code> and <code>.svelte.ts</code> modules, oxlint's
+	rules read the runes as globals.
 </p>
 
 <p>
@@ -92,8 +92,8 @@
 
 <p>
 	It formats each file that oxfmt formats itself, such as TypeScript, JSON, CSS and Markdown. It
-	also formats the <code>svelte</code> code blocks in Markdown. It skips the files that oxfmt hands to
-	Prettier.
+	also formats the <code>svelte</code> code blocks in Markdown. It skips the files that oxfmt hands
+	to Prettier.
 </p>
 
 <p>
@@ -132,15 +132,15 @@ npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
 
 <ul>
 	<li>
-		No configuration file, or no <code>typescript.check</code>: the <code>tsconfig.json</code> in the
-		current directory.
+		No configuration file, or no <code>typescript.check</code>: the <code>tsconfig.json</code> in
+		the current directory.
 	</li>
 	<li>
 		<code>typescript.check</code> with <code>"tsconfig"</code>: the file at that path.
 	</li>
 	<li>
-		<code>typescript.check</code> without <code>"tsconfig"</code>: the <code>tsconfig.json</code> next
-		to the configuration file.
+		<code>typescript.check</code> without <code>"tsconfig"</code>: the <code>tsconfig.json</code>
+		next to the configuration file.
 	</li>
 </ul>
 
@@ -199,8 +199,8 @@ npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
 			<td><code>format</code></td>
 			<td><code>--check</code> found a file to format, or the oxfmt configuration is invalid</td>
 			<td>
-				<code>format</code> failed on a file (for example, because of an unsupported Svelte option), or
-				no path matched a file
+				<code>format</code> failed on a file (for example, because of an unsupported Svelte option),
+				or no path matched a file
 			</td>
 		</tr>
 	</tbody>
@@ -237,7 +237,8 @@ export default [
 	Each turns off the rules your <code>.oxlintrc.json</code> turns on.
 	<code>rsvelte.configs['flat/recommended']</code> instead turns off the rules of the
 	<a href={resolve('/rules') + '#correctness'}><code>correctness</code></a> category, and
-	<code>flat/all</code> every rule outside the <code>nursery</code> category of rules in development.
+	<code>flat/all</code> every rule outside the <code>nursery</code> category of rules in
+	development.
 </p>
 
 <p>A script that runs both: <code>"lint": "rsvelte lint && eslint"</code></p>
@@ -263,8 +264,8 @@ export default [
 		<code>&lt;script lang="ts"&gt;</code>, it can report no error at all.
 	</li>
 	<li>
-		<code>lint</code> and <code>format</code> read legacy syntax, but their results can differ from the
-		official tools.
+		<code>lint</code> and <code>format</code> read legacy syntax, but their results can differ from
+		the official tools.
 	</li>
 </ul>
 
