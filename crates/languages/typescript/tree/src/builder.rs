@@ -34,6 +34,7 @@ pub struct TreeBuilder<'a> {
     allocator: &'a Allocator,
     source_text: &'a str,
     programs: IndexVector<ProgramIdentifier, Program<'a>>,
+    program_tokens: IndexVector<ProgramIdentifier, &'a [Token]>,
     expressions: IndexVector<ExpressionIdentifier, Expression<'a>>,
     patterns: IndexVector<PatternIdentifier, FormalParameter<'a>>,
     parameters: IndexVector<ParametersIdentifier, FormalParameters<'a>>,
@@ -81,6 +82,7 @@ impl<'a> TreeBuilder<'a> {
             allocator,
             source_text,
             programs: IndexVector::new(),
+            program_tokens: IndexVector::new(),
             expressions: IndexVector::new(),
             patterns: IndexVector::new(),
             parameters: IndexVector::new(),
@@ -117,6 +119,7 @@ impl<'a> TreeBuilder<'a> {
         Trees {
             source_text: self.source_text,
             programs: self.programs,
+            program_tokens: self.program_tokens,
             expressions: self.expressions,
             patterns: self.patterns,
             parameters: self.parameters,
@@ -473,6 +476,12 @@ impl<'a> TreeBuilder<'a> {
 
     /// Keeps a program built in [`TreeBuilder::nodes`]'s arena, such as one a compiler writes.
     pub fn keep_program(&mut self, program: Program<'a>) -> ProgramIdentifier {
+        self.push_program(program, &[])
+    }
+
+    /// Keeps a program with the tokens oxc read in it.
+    fn push_program(&mut self, program: Program<'a>, tokens: &'a [Token]) -> ProgramIdentifier {
+        self.program_tokens.push(tokens);
         self.programs.push(program)
     }
 

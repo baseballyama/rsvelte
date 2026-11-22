@@ -146,9 +146,10 @@ impl<'a> TreeBuilder<'a> {
         );
         let recorded =
             oxc_allocator::Vec::from_iter_in(program.comments.iter().cloned(), &self.allocator);
-        self.record(tokens.into_arena_slice(), recorded.into_arena_slice(), 0);
+        let tokens = tokens.into_arena_slice();
+        self.record(tokens, recorded.into_arena_slice(), 0);
         WithHoles {
-            program: self.programs.push(program),
+            program: self.push_program(program, tokens),
             holes: Holes(holes),
             errors,
         }
@@ -208,10 +209,11 @@ impl<'a> TreeBuilder<'a> {
         let comments =
             oxc_allocator::Vec::from_iter_in(program.comments.iter().cloned(), &self.allocator);
         let comments = comments.into_arena_slice();
-        self.record(parsed.tokens.into_arena_slice(), comments, 0);
+        let tokens = parsed.tokens.into_arena_slice();
+        self.record(tokens, comments, 0);
         // Its spans are the document's, so a task that reads text at a span reads the document.
         program.source_text = self.source_text;
-        let identifier = self.programs.push(program);
+        let identifier = self.push_program(program, tokens);
         match rejection {
             None => Ok(identifier),
             Some(error) => Err(Box::new(Read {
