@@ -186,12 +186,12 @@ impl Tsc {
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
         let [program, syntactic, semantic] = checked.found;
         let index = path_index(paths);
-        let untyped = untyped::imports(req, &checked.modules, root, &index);
-        // TypeScript does not load a JavaScript file that the tsconfig's program reaches only
-        // through an untyped import. A document the program does not reach at all is one the
+        let untyped = untyped::imports(req, &checked.modules, &index);
+        // Where JavaScript is untyped, TypeScript loads no JavaScript file the tsconfig does not
+        // select, whatever imports it. A document the program does not reach at all is one the
         // run was given, which svelte-check checks as a root.
         let unloaded =
-            |file: usize| untyped.read.contains(&file) && checked.reached.contains(&paths[file]);
+            |file: usize| untyped::javascript(req, file) && checked.reached.contains(&paths[file]);
         let lines: Vec<LineIndex> = (0..req.files.len())
             .map(|i| LineIndex::new(req.text(i)))
             .collect();

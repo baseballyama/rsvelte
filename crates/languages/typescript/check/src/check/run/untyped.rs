@@ -3,7 +3,7 @@
 //! loads such a document where TypeScript would not load a JavaScript file; a probe asks whether
 //! the project's options would report it for a plain JavaScript file.
 
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
@@ -85,8 +85,6 @@ pub(super) struct Untyped<'a> {
     pub found: Vec<TypeScriptDiagnostic>,
     /// The names those imports bind, by document.
     pub names: Vec<(usize, &'a str)>,
-    /// The JavaScript documents those imports read, which TypeScript does not load for them.
-    pub read: HashSet<usize>,
 }
 
 /// The modules each import of document `file` reads, as the checker resolves them, in the order of
@@ -111,7 +109,6 @@ pub(super) fn modules(
 pub(super) fn imports<'a>(
     req: &'a CheckRequest<'_>,
     modules: &[(usize, Vec<Option<PathBuf>>)],
-    root: &Path,
     index: &HashMap<&Path, usize>,
 ) -> Untyped<'a> {
     let mut untyped = Untyped::default();
@@ -121,13 +118,10 @@ pub(super) fn imports<'a>(
             let Some(module) = module.as_deref().map(normalized) else {
                 continue;
             };
-            let Some(&read) = (index.get(module.as_path())).filter(|&&read| javascript(req, read))
-            else {
+            if !(index.get(module.as_path())).is_some_and(|&read| javascript(req, read)) {
                 continue;
-            };
-            untyped.read.insert(read);
+            }
             (untyped.names).extend(import.names.iter().map(|name| (file, name.as_str())));
-            let shown = module.strip_prefix(root).unwrap_or(&module);
             untyped.found.push(TypeScriptDiagnostic {
                 file,
                 code: CODE,
@@ -135,7 +129,7 @@ pub(super) fn imports<'a>(
                     "Could not find a declaration file for module '{}'. '{}' implicitly has an \
                      'any' type.",
                     import.specifier,
-                    shown.display()
+                    module.display()
                 ),
                 span: Some(import.at),
                 syntactic: false,
@@ -146,7 +140,7 @@ pub(super) fn imports<'a>(
 }
 
 /// Whether document `file` projects to JavaScript.
-fn javascript(req: &CheckRequest<'_>, file: usize) -> bool {
+pub(super) fn javascript(req: &CheckRequest<'_>, file: usize) -> bool {
     req.mapped(file)
         .is_some_and(|mapped| JAVASCRIPT.contains(&mapped.generated_extension))
 }
