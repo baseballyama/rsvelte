@@ -16,11 +16,11 @@
 		"message": "Property 'd' is missing in type '{ from: DOMRect; to: DOMRect; }' but required in type '{ d: number; }'.",
 		"start": {
 			"line": 3,
-			"character": 35
+			"character": 36
 		},
 		"end": {
 			"line": 3,
-			"character": 35
+			"character": 36
 		}
 	}
 ]

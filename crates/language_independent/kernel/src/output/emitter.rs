@@ -127,6 +127,14 @@ impl Emitter {
         self.out.push_str(span.text(source));
     }
 
+    /// Where the first verbatim copy of the original character at `source` is in the output.
+    #[must_use]
+    pub fn generated(&self, source: u32) -> Option<u32> {
+        (self.mappings.iter())
+            .find(|m| (m.source_text..m.source_text + m.len).contains(&source))
+            .map(|m| m.generated + (source - m.source_text))
+    }
+
     /// The original offset of the generated character at `position`, as a per-character source map
     /// answers it (greatest lower bound on the same generated line): inside a verbatim copy 1:1,
     /// in inserted text the last mapped character before it, and `None` when no mapping precedes

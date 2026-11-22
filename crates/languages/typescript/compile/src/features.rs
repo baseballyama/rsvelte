@@ -68,9 +68,18 @@ impl Finder {
         }
     }
 
-    /// A module block the walk has entered, refused once its statements are walked.
-    fn module_block(&mut self, block: &TSModuleBlock<'_>, span: Span) {
-        if block.body.iter().any(|s| !crate::strip::is_type_only(s)) {
+    /// A namespace, module or global declaration at `span`: `walk` walks what it holds, and
+    /// it is refused once that is walked if its block holds a value.
+    fn namespace(
+        &mut self,
+        span: Span,
+        block: Option<&TSModuleBlock<'_>>,
+        walk: impl FnOnce(&mut Self),
+    ) {
+        self.namespaces += 1;
+        walk(self);
+        self.namespaces -= 1;
+        if block.is_some_and(|block| block.body.iter().any(|s| !crate::strip::is_type_only(s))) {
             self.found(Feature::NamespaceWithValues, span);
         }
     }
@@ -97,23 +106,36 @@ impl<'a> Visit<'a> for Finder {
         self.found(Feature::Enum, it.span);
     }
 
+    // An ambient declaration holds no value once types are erased, but Svelte's
+    // `remove_typescript_nodes` refuses one with a value like any namespace.
     fn visit_ts_namespace_declaration(&mut self, it: &TSNamespaceDeclaration<'a>) {
-        // Svelte 5.57.3 refuses a value here too, though erasing the types leaves nothing.
-        if it.declare {
+        if it.declare && !self.svelte {
             return;
         }
-        self.namespaces += 1;
-        walk::walk_ts_namespace_declaration(self, it);
-        self.namespaces -= 1;
-        if let TSNamespaceDeclarationBody::TSModuleBlock(block) = &it.body {
-            self.module_block(block, it.span);
+        let block = match &it.body {
+            TSNamespaceDeclarationBody::TSModuleBlock(block) => Some(&**block),
+            TSNamespaceDeclarationBody::TSNamespaceDeclaration(_) => None,
+        };
+        self.namespace(it.span, block, |this| {
+            walk::walk_ts_namespace_declaration(this, it);
+        });
+    }
+
+    fn visit_ts_external_module_declaration(&mut self, it: &TSExternalModuleDeclaration<'a>) {
+        if self.svelte {
+            self.namespace(it.span, it.body.as_deref(), |this| {
+                walk::walk_ts_external_module_declaration(this, it);
+            });
         }
     }
 
-    // Always ambient, so it holds no value.
-    fn visit_ts_external_module_declaration(&mut self, _: &TSExternalModuleDeclaration<'a>) {}
-
-    fn visit_ts_global_declaration(&mut self, _: &TSGlobalDeclaration<'a>) {}
+    fn visit_ts_global_declaration(&mut self, it: &TSGlobalDeclaration<'a>) {
+        if self.svelte {
+            self.namespace(it.span, Some(&it.body), |this| {
+                walk::walk_ts_global_declaration(this, it);
+            });
+        }
+    }
 
     fn visit_decorator(&mut self, it: &Decorator<'a>) {
         self.found(Feature::Decorator, it.span);
