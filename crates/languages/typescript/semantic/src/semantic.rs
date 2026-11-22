@@ -17,6 +17,7 @@ thread_local! {
 static SCOPINGS: Pool = Pool::new(&SCOPING_ARENAS);
 
 mod cell;
+mod walk;
 
 // Only what the tasks read: the whole `oxc_semantic::Semantic` is not covariant once a crate in
 // the build turns on oxc's `jsdoc` feature, as `oxc_linter` does.
@@ -24,18 +25,18 @@ struct Analyzed<'a> {
     /// `None` only while [`Semantic`] drops, which takes it to give its scoping arena back.
     scoping: Option<Scoping>,
     nodes: AstNodes<'a>,
-    /// The first error a module rejects that the parser does not: `delete x`, a name declared
-    /// twice, an octal escape, ….
-    syntax_error: Option<Box<SyntaxError>>,
+    /// The errors a module rejects that the parser does not, in the order acorn meets them:
+    /// `delete x`, a name declared twice, an octal escape, ….
+    syntax_errors: Box<[SyntaxError]>,
 }
 
-/// The scope analysis of one document.
 impl Analyzed<'_> {
     const fn scoping(&self) -> &Scoping {
         self.scoping.as_ref().expect("taken only while dropping")
     }
 }
 
+/// The scope analysis of one document.
 pub struct Semantic(cell::Cell);
 
 impl std::fmt::Debug for Semantic {
@@ -67,19 +68,12 @@ impl Semantic {
         Self(cell::Cell::new(tree, |tree| {
             let builder = Self::builder().with_scoping_allocator(SCOPINGS.take());
             let analysis = build(tree, builder);
-            let text = tree.source_text();
-            let nodes = analysis.semantic.nodes();
-            let visit = |locator: &mut Locator| {
-                nodes.iter().for_each(|node| locator.enter(node.kind()));
-            };
-            let syntax_error = (analysis.diagnostics.errors())
-                .find(|error| tree.reports(error, visit))
-                .map(|error| Box::new(rsvelte_typescript_tree::analysis_error(error, text, visit)));
+            let syntax_errors = syntax_errors(tree, &analysis);
             let (scoping, nodes) = analysis.semantic.into_scoping_and_nodes();
             Analyzed {
                 scoping: Some(scoping),
                 nodes,
-                syntax_error,
+                syntax_errors,
             }
         }))
     }
@@ -92,6 +86,10 @@ impl Semantic {
         })
     }
 
+    fn analyzed(&self) -> &Analyzed<'_> {
+        self.0.borrow_dependent()
+    }
+
     #[must_use]
     pub fn tree(&self) -> &Tree {
         self.0.borrow_owner()
@@ -99,7 +97,7 @@ impl Semantic {
 
     #[must_use]
     pub fn scoping(&self) -> &Scoping {
-        self.0.borrow_dependent().scoping()
+        self.analyzed().scoping()
     }
 
     /// The first error a module rejects that the parser does not report.
@@ -112,14 +110,41 @@ impl Semantic {
     /// [`Self::syntax_error`], with what acorn reports for it.
     #[must_use]
     pub fn javascript_syntax_error(&self) -> Option<&SyntaxError> {
-        self.0.borrow_dependent().syntax_error.as_deref()
+        self.javascript_syntax_errors().first()
+    }
+
+    /// Every error a module rejects that the parser does not report, with what acorn reports for
+    /// each, in the order acorn meets them.
+    #[must_use]
+    pub fn javascript_syntax_errors(&self) -> &[SyntaxError] {
+        &self.0.borrow_dependent().syntax_errors
     }
 
     /// Every node with its parent and scope.
     #[must_use]
     pub fn nodes(&self) -> &AstNodes<'_> {
-        &self.0.borrow_dependent().nodes
+        &self.analyzed().nodes
     }
+}
+
+/// The errors of `analysis` a module rejects that the parser does not, in the order acorn
+/// meets them.
+fn syntax_errors(tree: &Tree, analysis: &SemanticBuilderReturn<'_>) -> Box<[SyntaxError]> {
+    let mut errors = analysis.diagnostics.errors().peekable();
+    if errors.peek().is_none() {
+        return Box::default();
+    }
+    // Each error reads only the nodes around and in its labels.
+    let nodes = walk::ByStart::new(analysis.semantic.nodes());
+    let visit = |locator: &mut Locator| nodes.visit(locator);
+    let text = tree.source_text();
+    let mut reported: Box<[SyntaxError]> = errors
+        .filter(|error| tree.reports(error, visit))
+        .map(|error| rsvelte_typescript_tree::analysis_error(error, text, visit))
+        .collect();
+    // oxc checks the programs one after another, not in the order acorn reads them.
+    reported.sort_by_key(SyntaxError::acorn_at);
+    reported
 }
 
 // The scoping arena goes back to this thread's pool, as the tree's arena does.

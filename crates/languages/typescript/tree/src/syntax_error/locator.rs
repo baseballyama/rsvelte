@@ -264,6 +264,16 @@ impl Locator {
         }
     }
 
+    /// The spans whose nodes decide what the locator finds: those around each, those in each,
+    /// and no other node. The label, and for a second declaration the first one's name.
+    pub fn regions(&self) -> impl Iterator<Item = oxc_span::Span> {
+        let first = match self.find {
+            Find::Redeclared(first) => Some(first),
+            _ => None,
+        };
+        std::iter::once(self.label).chain(first)
+    }
+
     /// Takes in a node of the walk, outer nodes before inner ones.
     pub fn enter(&mut self, kind: AstKind<'_>) {
         self.walked = true;
