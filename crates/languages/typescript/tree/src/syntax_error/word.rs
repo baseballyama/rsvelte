@@ -177,8 +177,9 @@ fn misused_word(
 }
 
 /// Where acorn reads the word oxc labels `start..end`, and the name oxc's tree reads there. A
-/// part oxc could not read has no tree, and there only a name outside every bracket and arrow
-/// before it is known to be at the top level.
+/// part oxc could not read has no tree. There a name is known to be at the top level when it is
+/// outside every bracket and arrow before it, or when nothing before it can start a function:
+/// `function`, `class`, `=>` or the `) {` of a method.
 pub(super) fn home(
     start: u32,
     end: u32,
@@ -190,17 +191,29 @@ pub(super) fn home(
     if locator.walked {
         return (Some(locator.home.unwrap_or(Home::TopLevel)), locator.word);
     }
-    let (depth, arrow) = tokens.take_while(|token| token.start() < start).fold(
-        (0_i32, false),
-        |(depth, arrow), token| match token.kind() {
-            Kind::LCurly | Kind::LParen | Kind::LBrack | Kind::TemplateHead => (depth + 1, arrow),
-            Kind::RCurly | Kind::RParen | Kind::RBrack | Kind::TemplateTail => (depth - 1, arrow),
-            Kind::Arrow if depth == 0 => (depth, true),
-            Kind::Semicolon if depth == 0 => (depth, false),
-            _ => (depth, arrow),
+    let (depth, arrow, function) = tokens.take_while(|token| token.start() < start).fold(
+        (0_i32, false, (false, Kind::Undetermined)),
+        |(depth, arrow, (function, previous)), token| {
+            let kind = token.kind();
+            let function = function
+                || matches!(kind, Kind::Function | Kind::Arrow | Kind::Class)
+                || (previous == Kind::RParen && kind == Kind::LCurly);
+            let (depth, arrow) = match kind {
+                Kind::LCurly | Kind::LParen | Kind::LBrack | Kind::TemplateHead => {
+                    (depth + 1, arrow)
+                }
+                Kind::RCurly | Kind::RParen | Kind::RBrack | Kind::TemplateTail => {
+                    (depth - 1, arrow)
+                }
+                Kind::Arrow if depth == 0 => (depth, true),
+                Kind::Semicolon if depth == 0 => (depth, false),
+                _ => (depth, arrow),
+            };
+            (depth, arrow, (function, kind))
         },
     );
-    ((depth == 0 && !arrow).then_some(Home::TopLevel), None)
+    let top_level = (depth == 0 && !arrow) || !function.0;
+    (top_level.then_some(Home::TopLevel), None)
 }
 
 /// Acorn's error at a reserved `word`.

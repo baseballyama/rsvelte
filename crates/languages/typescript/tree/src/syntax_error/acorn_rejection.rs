@@ -11,7 +11,7 @@ use oxc_span::{GetSpan, SourceType};
 
 use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
-use super::word::{Home, home, keyword, misused};
+use super::word::{home, keyword, misused};
 
 mod lexer;
 mod pattern;
@@ -239,19 +239,6 @@ fn unassignable(
 ) -> Option<Acorn> {
     let tokens = &tokens.collect::<Vec<_>>();
     let (home, _) = home(start, end, tokens.iter().copied(), visit);
-    // Without a tree, a part where no function can start is read at the top level.
-    let home = home.or_else(|| {
-        let mut before = tokens.iter().take_while(|token| token.start() < start);
-        let mut previous = Kind::Undetermined;
-        before
-            .all(|token| {
-                let opens = matches!(token.kind(), Kind::Function | Kind::Arrow | Kind::Class)
-                    || (previous == Kind::RParen && token.kind() == Kind::LCurly);
-                previous = token.kind();
-                !opens
-            })
-            .then_some(Home::TopLevel)
-    });
     if let Some(home) = home {
         if let Some(at) = parenthesized_element(text, start, tokens, home) {
             return Some(fails("Assigning to rvalue", at));

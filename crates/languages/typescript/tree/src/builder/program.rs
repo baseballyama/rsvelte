@@ -1,7 +1,7 @@
 use oxc_ast::ast::Program;
 use oxc_diagnostics::Diagnostics;
 use oxc_parser::config::TokensParserConfig;
-use oxc_parser::{Kind, Parser};
+use oxc_parser::{Kind, Parser, Token};
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
 
@@ -174,7 +174,12 @@ impl<'a> TreeBuilder<'a> {
         if parsed.fatal_error {
             let acorn = parsed.diagnostics.first().and_then(|first| {
                 crate::scratch::with_scratch_arena(|allocator| {
-                    let named = named_targets(allocator, (text, start), source_type, first);
+                    let named = named_target(
+                        allocator,
+                        (text, start),
+                        source_type,
+                        (first, &parsed.tokens),
+                    );
                     acorn(first, text, (&parsed.tokens, None), |locator| {
                         if let Some(program) = &named {
                             Part::Program(program).walk(locator);
@@ -282,13 +287,12 @@ impl Holes {
 /// program ends at `end`: the tokens it read, the text they cover, and where the next statement
 /// starts. `None` when nothing is left to read.
 fn skip<'t>(
-    tokens: &'t [oxc_parser::Token],
+    tokens: &'t [Token],
     diagnostics: &Diagnostics,
     (at, text, end): (u32, &str, u32),
-) -> Option<(&'t [oxc_parser::Token], Span, u32)> {
-    let covered = |read: &[oxc_parser::Token], until: u32| {
-        Span::new(read.first().map_or(at, oxc_parser::Token::start), until)
-    };
+) -> Option<(&'t [Token], Span, u32)> {
+    let covered =
+        |read: &[Token], until: u32| Span::new(read.first().map_or(at, Token::start), until);
     // TypeScript's scanner reads on past the token it cannot finish where the lexer gave up on the
     // rest; the tokens from there on are the lexer's guesses.
     let stopped_the_lexer =
@@ -302,7 +306,7 @@ fn skip<'t>(
     }
     // Otherwise to the token the statement stopped at, or past it when it stopped at its first.
     let (&stop, read) = tokens.split_last()?;
-    let read_end = read.last().map_or(at, oxc_parser::Token::end);
+    let read_end = read.last().map_or(at, Token::end);
     Some(match stop.kind() {
         Kind::Eof => (read, covered(read, read_end), end),
         _ if stop.start() > at => (read, covered(read, read_end), stop.start()),
@@ -415,36 +419,47 @@ struct Read {
     recovered: Option<ProgramIdentifier>,
 }
 
-/// The program oxc reads from `text[start..]` with each target it cannot assign, from `first` on,
-/// replaced by a name of the same length: its tree places those targets in the functions around
-/// them, where acorn reads `await` and `yield`. `None` where another error stops it.
+/// The program oxc reads from `text[start..]` up to the target it cannot assign that `first`
+/// labels, with the target replaced by a name of the same length and the brackets open before it
+/// closed: its tree places the target in the functions around it, where acorn reads `await` and
+/// `yield`. One read of the text before the target, so a document with many such targets costs
+/// what one does. `None` for another error, or where the cut does not read.
 #[cold]
-fn named_targets<'b>(
+fn named_target<'b>(
     allocator: &'b oxc_allocator::Allocator,
     (text, start): (&str, u32),
     source_type: SourceType,
-    first: &oxc_diagnostics::OxcDiagnostic,
+    (first, tokens): (&oxc_diagnostics::OxcDiagnostic, &[Token]),
 ) -> Option<Program<'b>> {
-    let mut named = text.to_owned();
-    let mut error = first.clone();
-    loop {
-        let label = error
-            .labels
-            .first()
-            .filter(|_| unassignable_target(&error))?;
-        let range = label.offset() as usize..(label.offset() + label.len()) as usize;
-        let name = format!("_{}", " ".repeat(range.len().checked_sub(1)?));
-        if named.get(range.clone())? == name {
-            return None;
+    let label = first
+        .labels
+        .first()
+        .filter(|_| unassignable_target(first))?;
+    let (at, len) = (label.offset() as usize, label.len() as usize);
+    let mut closers = Vec::new();
+    for token in tokens
+        .iter()
+        .take_while(|token| (token.start() as usize) < at)
+    {
+        match token.kind() {
+            Kind::LParen => closers.push(")"),
+            Kind::LBrack => closers.push("]"),
+            Kind::LCurly => closers.push("}"),
+            Kind::TemplateHead => closers.push("}`"),
+            Kind::RParen | Kind::RBrack | Kind::RCurly | Kind::TemplateTail => {
+                closers.pop();
+            }
+            _ => {}
         }
-        named.replace_range(range, &name);
-        let parsed = Parser::new(allocator, allocator.alloc_str(&named), source_type)
-            .with_options(parentheses::options(false))
-            .with_start(start)
-            .parse();
-        if !parsed.fatal_error {
-            return Some(parsed.program);
-        }
-        error = parsed.diagnostics.into_iter().next()?;
     }
+    let mut named = String::with_capacity(at + len + closers.len() * 2);
+    named.push_str(text.get(..at)?);
+    named.push('_');
+    named.extend(std::iter::repeat_n(' ', len.checked_sub(1)?));
+    named.extend(closers.into_iter().rev());
+    let parsed = Parser::new(allocator, allocator.alloc_str(&named), source_type)
+        .with_options(parentheses::options(false))
+        .with_start(start)
+        .parse();
+    (!parsed.fatal_error).then_some(parsed.program)
 }

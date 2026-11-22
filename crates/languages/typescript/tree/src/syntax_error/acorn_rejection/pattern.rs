@@ -2,7 +2,7 @@
 //! elements.
 
 use oxc_ast::ast::{
-    ArrayExpressionElement, ChainElement, Expression, ObjectPropertyKind, Statement,
+    ArrayExpressionElement, ChainElement, ClassElement, Expression, ObjectPropertyKind, Statement,
 };
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::{GetSpan, SourceType};
@@ -48,8 +48,7 @@ impl Reparsed<'_, '_> {
 
 /// `text[start..end]` read as an expression where acorn reads it, which `home` says: that decides
 /// whether `await` and `yield` are keywords, so the expression is read inside a function like the
-/// one around it. `None` where it does not read as one expression there, or where `home` is a class
-/// static block, which no wrapper here reproduces.
+/// one around it. `None` where it does not read as one expression there.
 #[cold]
 pub(super) fn reparsed<R>(
     text: &str,
@@ -58,30 +57,29 @@ pub(super) fn reparsed<R>(
     read: impl FnOnce(&Reparsed<'_, '_>) -> R,
 ) -> Option<R> {
     let target = text.get(start as usize..end as usize)?;
-    let function = match home {
-        Home::TopLevel => "",
+    let (before, after) = match home {
+        Home::TopLevel => ("", ""),
         Home::Function {
             is_async: false,
             is_generator: false,
         }
-        | Home::Initializer => "function _() {",
+        | Home::Initializer => ("function _() {", "}"),
         Home::Function {
             is_async: true,
             is_generator: false,
-        } => "async function _() {",
+        } => ("async function _() {", "}"),
         Home::Function {
             is_async: false,
             is_generator: true,
-        } => "function* _() {",
+        } => ("function* _() {", "}"),
         Home::Function {
             is_async: true,
             is_generator: true,
-        } => "async function* _() {",
-        Home::StaticBlock => return None,
+        } => ("async function* _() {", "}"),
+        Home::StaticBlock => ("class _ { static {", "} }"),
     };
-    let close = if function.is_empty() { "" } else { "}" };
-    let source = format!("{function}({target});{close}");
-    let open = u32::try_from(function.len()).ok()? + 1;
+    let source = format!("{before}({target});{after}");
+    let open = u32::try_from(before.len()).ok()? + 1;
     crate::scratch::with_scratch_arena(|allocator| {
         let parsed = Parser::new(allocator, &source, SourceType::ts()).parse();
         if parsed.fatal_error {
@@ -91,6 +89,10 @@ pub(super) fn reparsed<R>(
             Statement::FunctionDeclaration(function) => {
                 function.body.as_ref()?.statements.first()?
             }
+            Statement::ClassDeclaration(class) => match class.body.body.first()? {
+                ClassElement::StaticBlock(block) => block.body.first()?,
+                _ => return None,
+            },
             statement => statement,
         };
         let Statement::ExpressionStatement(statement) = statement else {

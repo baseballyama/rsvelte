@@ -358,6 +358,16 @@ fn a_target_is_read_where_acorn_reads_it() {
             "<script lang=\"ts\">function* g() { ((yield) as any) = 1; }</script>",
             36,
         ),
+        (
+            "<script>class A { static { [(f()), (g())] = o; } }</script>",
+            28,
+        ),
+        ("<script>class A { static { (f()) = 1; } }</script>", 28),
+        (
+            "<script>async function f() { (await x) = 1; } async function g() { (await y) = 1; }</script>",
+            30,
+        ),
+        ("<script>({ async m() { (await x) = 1; } })</script>", 24),
     ] {
         let error = parse(source).expect_err(source);
         assert_eq!(
@@ -369,4 +379,37 @@ fn a_target_is_read_where_acorn_reads_it() {
             "{source}"
         );
     }
+}
+
+#[test]
+fn many_unassignable_targets_are_located_in_time_linear_in_their_number() {
+    // Each function's target is an error that stops oxc, so finding the function around the first
+    // one reads the program again: once, not once per target after it.
+    let script = |n: usize| {
+        let functions = (0..n).map(|i| format!("async function f{i}() {{ (await x) = 1; }}\n"));
+        format!("<script>\n{}</script>", functions.collect::<String>())
+    };
+    let seconds = |source: &str| {
+        let started = std::time::Instant::now();
+        let error = parse(source).expect_err("an unassignable target");
+        let elapsed = started.elapsed().as_secs_f64();
+        // The control: the error is the first target's, at the node inside its parentheses, which
+        // only the function around it places.
+        assert_eq!(
+            (error.message.lines().next(), error.span.start_offset),
+            (Some("Assigning to rvalue"), 32)
+        );
+        elapsed
+    };
+    let (short, long) = (script(1000), script(4000));
+    let (mut short_time, mut long_time) = (f64::MAX, f64::MAX);
+    for _ in 0..3 {
+        short_time = short_time.min(seconds(&short));
+        long_time = long_time.min(seconds(&long));
+    }
+    // Four times the targets take about four times as long; re-reading per target, sixteen.
+    assert!(
+        long_time < 8.0 * short_time,
+        "1000 took {short_time} s, 4000 took {long_time} s"
+    );
 }
