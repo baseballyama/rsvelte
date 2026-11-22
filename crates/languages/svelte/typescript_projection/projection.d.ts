@@ -22,6 +22,11 @@ declare function __rsvelte_export_isomorphic<Props extends Record<string, any>, 
 // As svelte2tsx's `__sveltets_2_isomorphic_component_slots`: a component with slots, whose default slot takes children.
 // @ts-ignore
 declare function __rsvelte_export_isomorphic_slots<Props extends Record<string, any>, Events extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string>(): <Slots>(slots: Slots) => __sveltets_2_IsomorphicComponent<__sveltets_2_PropsWithChildren<Props, Slots>, Events, Slots, Exports, Bindings>;
+// What a render function returns, or `Unrendered` when a hole closes it before its return: svelte2tsx's helpers then make the component of their constraints.
+type __rsvelte_rendered<Rendered, Unrendered> = [Rendered] extends [void] ? Unrendered : Rendered;
+type __rsvelte_unrendered_component = import('svelte').Component<Record<string, any>, Record<string, any>, string>;
+type __rsvelte_unrendered_generic = import('svelte').Component<any, any, any> & { __rsvelte_bindings?: any; __rsvelte_exports?: any };
+type __rsvelte_unrendered_isomorphic = __sveltets_2_IsomorphicComponent<Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>, string>;
 declare function __rsvelte_value<T>(): T;
 // What `bind:this` assigns: a generic component's instance, or else what its call returns.
 declare function __rsvelte_bind_this<C>(component: C): C extends { __rsvelte_instance: infer Instance } ? Instance : C;

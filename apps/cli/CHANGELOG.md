@@ -1,5 +1,20 @@
 # @rsvelte/cli
 
+## 0.5.0
+
+### Minor Changes
+
+- 1c04c06: `format` reads `oxfmt.config.ts` with `node`. It formats Svelte files with every value that oxfmt takes for `quoteProps`, `trailingComma` and `bracketSpacing`. The same holds for `objectWrap`, `arrowParens` and `experimentalOperatorPosition`.
+
+### Patch Changes
+
+- b119ed1: `rsvelte check` no longer types a component as `void` when a stray `}` in its script closes the render function before its return. Like svelte2tsx, it types that component by the export helper's constraints, so an importer can pass any prop.
+- 717f866: `compile` now reports the first JavaScript error in the document, as svelte does, when the template and the scripts both carry one.
+- 4d94e22: `rsvelte typecheck` reads the `generics` attribute of a JavaScript component, as svelte-check does, instead of reporting `Cannot find name` for its type parameters.
+- e949791: Report a parenthesized element of a destructuring pattern at its parenthesis, before any element's own error, as Svelte does.
+- 268efc7: `compile` now raises what svelte raises for a TypeScript class member or block function declared again, instead of oxc's TypeScript errors.
+- 0855204: `compile` now accepts two parameters of one name in a TypeScript signature or a function without a body, as svelte does.
+
 ## 0.4.0
 
 ### Minor Changes
