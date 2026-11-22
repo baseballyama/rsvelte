@@ -143,11 +143,11 @@ fn element_and_attachment_semantics_are_lowered_before_printing() {
 
 #[test]
 fn unsupported_semantics_are_reported_at_the_original_construct() {
-    let source = "<script lang=\"ts\">import C from './C.svelte';</script><C transition:fade />";
+    let source = "<script lang=\"ts\">import C from './C.svelte';</script><C class:a />";
     let component = parse(source).expect("valid Svelte source");
     let error = crate::lower_alone(&component, source, "App.svelte")
-        .expect_err("a transition on a component has no type semantics yet");
-    assert_eq!(error.span().text(source), "transition:fade");
+        .expect_err("a class directive on a component has no type semantics yet");
+    assert_eq!(error.span().text(source), "class:a");
 }
 
 #[test]

@@ -93,21 +93,12 @@ fn names_lists_every_option() {
 #[test]
 fn every_option_value_not_printed_yet_is_refused() {
     let cases = [
-        (r#"{"quoteProps": "consistent"}"#, "quoteProps"),
-        (r#"{"trailingComma": "es5"}"#, "trailingComma"),
-        (r#"{"bracketSpacing": false}"#, "bracketSpacing"),
-        (r#"{"objectWrap": "collapse"}"#, "objectWrap"),
-        (r#"{"arrowParens": "avoid"}"#, "arrowParens"),
         (r#"{"printWidth": 0}"#, "printWidth"),
         (r#"{"printWidth": 321}"#, "printWidth"),
         (r#"{"tabWidth": 25}"#, "tabWidth"),
         (
             r#"{"experimentalTernaries": true}"#,
             "experimentalTernaries",
-        ),
-        (
-            r#"{"experimentalOperatorPosition": "start"}"#,
-            "experimentalOperatorPosition",
         ),
     ];
     assert_eq!(unported(&Options::default()), None);

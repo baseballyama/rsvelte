@@ -17,6 +17,6 @@ function $$render() {
     api: typeof api;
   }, "">();
 }
-const RegexBracket__SvelteComponent_ = $$render();
+const RegexBracket__SvelteComponent_ = $$render() as unknown as __rsvelte_rendered<Awaited<ReturnType<typeof $$render>>, __rsvelte_unrendered_component>;
 type RegexBracket__SvelteComponent_ = ReturnType<typeof RegexBracket__SvelteComponent_>;
 export default RegexBracket__SvelteComponent_;

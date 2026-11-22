@@ -133,7 +133,7 @@ fn syntax_errors(tree: &Tree, analysis: &SemanticBuilderReturn<'_>) -> Box<[Synt
         .map(|error| rsvelte_typescript_tree::analysis_error(error, text, visit))
         .collect();
     // oxc checks the programs one after another, not in the order acorn reads them.
-    reported.sort_by_key(SyntaxError::acorn_at);
+    reported.sort_by_key(SyntaxError::acorn_raised_at);
     reported
 }
 

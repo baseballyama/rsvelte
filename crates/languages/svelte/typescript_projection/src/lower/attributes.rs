@@ -148,17 +148,10 @@ impl Builder<'_> {
                 AttributeKind::Use
                 | AttributeKind::Transition { .. }
                 | AttributeKind::Animate
-                | AttributeKind::Style
-                    if host.intrinsic() =>
-                {
-                    self.directive(attribute, host.name, directives)?;
+                | AttributeKind::Style => {
+                    self.directive(attribute, host, directives)?;
                 }
-                AttributeKind::On
-                | AttributeKind::Use
-                | AttributeKind::Transition { .. }
-                | AttributeKind::Animate
-                | AttributeKind::Style
-                | AttributeKind::Let => {
+                AttributeKind::On | AttributeKind::Let => {
                     return Err(refuse("directives", attribute.span));
                 }
                 AttributeKind::Class if !host.is_component() => {}
