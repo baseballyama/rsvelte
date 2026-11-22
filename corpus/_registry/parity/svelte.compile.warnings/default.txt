@@ -1,1 +1,1 @@
-# svelte.compile.warnings: 31971 match
+# svelte.compile.warnings: 31976 match

@@ -1015,7 +1015,7 @@ export default function ImageSource($$renderer, $$props) {
 		$$renderer.push(`<!--]-->`);
 	});
 }
-=== 649 src/lib/JoinedData.svelte	js
+=== 412 src/lib/JoinedData.svelte	js
 import * as $ from 'svelte/internal/server';
 import { getSource, getMapContext } from './context.svelte.js';
 
@@ -1028,12 +1028,9 @@ export default function JoinedData($$renderer, $$props) {
 			map = $.derived(() => $$d().map);
 
 		const source = getSource();
-		// Avoid updates for features which are the same
-		// MapLibre manages each key in the feature state independently, and we don't want to
-		// clear state set from elsewhere such as hover state, so we need to clear each key explicitly.
 	});
 }
-=== 6638 src/lib/Layer.svelte	js
+=== 6490 src/lib/Layer.svelte	js
 import * as $ from 'svelte/internal/server';
 import { flush } from '$lib/flush.js';
 import { onDestroy } from 'svelte';
@@ -1255,8 +1252,6 @@ export default function Layer($$renderer, $$props) {
 		let actualMaxZoom = $.derived(() => maxzoom ?? maxzoomContext());
 		let actualSource = $.derived(() => source || sourceName?.value);
 
-		// @ts-expect-error Maplibre types try to match the `type` to the `paint` and `layout` but since
-		// we're generic here it complains. That's ok.
 		let applyPaint = $.derived(() => layer.value
 			? diffApplier((key, value) => {
 				if (!map()) return;
@@ -1467,7 +1462,7 @@ export default function MapEvents($$renderer, $$props) {
     right: 0;
   }
 
-=== 11849 src/lib/MapLibre.svelte	js
+=== 11741 src/lib/MapLibre.svelte	js
 import * as $ from 'svelte/internal/server';
 import { flush } from '$lib/flush.js';
 import { Box, createMapContext, setLayerEvent } from './context.svelte.js';
@@ -1828,7 +1823,6 @@ export default function MapLibre($$renderer, $$props) {
 		// We then update the style which will trigger the style.load event on
 		// map which will in turn add the user defined sources and layers back
 		// on to the map
-		// Changing the style unloads the images. We'll reload them after the map finishes loading the new style.
 		function onHashChange() {
 			if (hash) {
 				let parts = parseViewportHash(window.location.hash);
@@ -1915,7 +1909,7 @@ export default function MapLibre($$renderer, $$props) {
 	}
 ]
 
-=== 3852 src/lib/Marker.svelte	js
+=== 3688 src/lib/Marker.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as maplibregl from 'maplibre-gl';
 import { Box, getMapContext, setLngLatContext, updatedMarkerContext } from './context.svelte.js';
@@ -1985,12 +1979,7 @@ export default function Marker($$renderer, $$props) {
 
 		let previousClassNames;
 
-		function manageClasses(node) {
-			// Parse the classNames prop into a set
-			// Calculate classes to remove and add
-			// Batch DOM changes
-			// Update previousClassNames for next comparison
-		}
+		function manageClasses(node) {}
 
 		let lngLatBox = new Box(lngLat);
 
@@ -2329,7 +2318,7 @@ export default function NavigationControl($$renderer, $$props) {
     z-index: 200;
   }
 
-=== 8043 src/lib/Popup.svelte	js
+=== 7981 src/lib/Popup.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as maplibregl from 'maplibre-gl';
 import { onDestroy, onMount } from 'svelte';
@@ -2603,8 +2592,6 @@ export default function Popup($$renderer, $$props) {
 
 		let popupEl = void 0;
 		let actualCloseButton = $.derived(() => closeButton ?? (!closeOnClickOutside && !closeOnClickInside));
-
-		// We handle this ourselves to improve behavior on mobile.
 		let hoveringOnLayer = $.derived(() => openOn === 'hover' && (layerEvent.value?.type === 'mousemove' || layerEvent.value?.type === 'mouseenter'));
 
 		if (children) {
@@ -2751,7 +2738,7 @@ export default function RasterLayer($$renderer, $$props) {
 		});
 	});
 }
-=== 2289 src/lib/RasterTileSource.svelte	js
+=== 2169 src/lib/RasterTileSource.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onDestroy } from 'svelte';
 import { getId, getMapContext, updatedSourceContext } from './context.svelte.js';
@@ -2796,7 +2783,6 @@ export default function RasterTileSource($$renderer, $$props) {
 		let first = true;
 
 		// Don't set tiles/url again after we've just created it.
-		// @ts-expect-error This doesn't seem to actually exist. Leaving it for now until I'm sure I'm not missing something.
 		function handleStyleLoad() {
 			if (!map()) return;
 

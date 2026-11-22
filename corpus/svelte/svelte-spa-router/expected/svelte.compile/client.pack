@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 647 examples/basic-routing/src/App.svelte	js
+=== 689 examples/basic-routing/src/App.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Router from 'svelte-spa-router';
@@ -19,7 +20,8 @@ export default function App($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 680 examples/basic-routing/src/routes/Home.svelte	js
+=== 722 examples/basic-routing/src/routes/Home.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -31,7 +33,8 @@ export default function Home($$anchor) {
 	$.next(6);
 	$.append($$anchor, fragment);
 }
-=== 1131 examples/basic-routing/src/routes/Name.svelte	js
+=== 1173 examples/basic-routing/src/routes/Name.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -68,7 +71,8 @@ export default function Name($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 291 examples/basic-routing/src/routes/NotFound.svelte	js
+=== 333 examples/basic-routing/src/routes/NotFound.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -80,7 +84,8 @@ export default function NotFound($$anchor) {
 	$.next(2);
 	$.append($$anchor, fragment);
 }
-=== 643 examples/basic-routing/src/routes/Wild.svelte	js
+=== 685 examples/basic-routing/src/routes/Wild.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -98,7 +103,8 @@ export default function Wild($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 742 examples/dynamic-imports/src/App.svelte	js
+=== 784 examples/dynamic-imports/src/App.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Router from 'svelte-spa-router';
@@ -118,7 +124,8 @@ export default function App($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 992 examples/dynamic-imports/src/routes/Home.svelte	js
+=== 1034 examples/dynamic-imports/src/routes/Home.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -130,7 +137,8 @@ export default function Home($$anchor) {
 	$.next(6);
 	$.append($$anchor, fragment);
 }
-=== 546 examples/dynamic-imports/src/routes/Loading.svelte	js
+=== 588 examples/dynamic-imports/src/routes/Loading.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -147,7 +155,8 @@ export default function Loading($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 833 examples/dynamic-imports/src/routes/Wild.svelte	js
+=== 875 examples/dynamic-imports/src/routes/Wild.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -166,7 +175,8 @@ export default function Wild($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 15950 src/Router.svelte	js
+=== 15992 src/Router.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import { tick, untrack } from 'svelte';
 import * as $ from 'svelte/internal/client';
@@ -817,7 +827,8 @@ a.inactive {
     color: gray;
 }
 
-=== 8293 test/app/src/App.svelte	js
+=== 8335 test/app/src/App.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Router, { link, push, pop, replace, router } from 'svelte-spa-router';
@@ -1154,7 +1165,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 910 test/app/src/routes/Catalog.svelte	js
+=== 952 test/app/src/routes/Catalog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { link } from 'svelte-spa-router';
@@ -1181,7 +1193,8 @@ export default function Catalog($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1274 test/app/src/routes/Foo.svelte	js
+=== 1316 test/app/src/routes/Foo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1229,7 +1242,8 @@ export default function Foo($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 751 test/app/src/routes/Home.svelte	js
+=== 793 test/app/src/routes/Home.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1246,7 +1260,8 @@ export default function Home($$anchor) {
 	$.next(6);
 	$.append($$anchor, fragment);
 }
-=== 809 test/app/src/routes/Loading.svelte	js
+=== 851 test/app/src/routes/Loading.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1277,7 +1292,8 @@ export default function Loading($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 428 test/app/src/routes/Lucky.svelte	js
+=== 470 test/app/src/routes/Lucky.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1293,7 +1309,8 @@ export default function Lucky($$anchor) {
 	$.next(2);
 	$.append($$anchor, fragment);
 }
-=== 1209 test/app/src/routes/Name.svelte	js
+=== 1251 test/app/src/routes/Name.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1367,7 +1384,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 760 test/app/src/routes/Nested.svelte	js
+=== 802 test/app/src/routes/Nested.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Router from 'svelte-spa-router';
@@ -1400,7 +1418,8 @@ export default function Nested($$anchor) {
 
 	$.append($$anchor, fragment);
 }
-=== 310 test/app/src/routes/NotFound.svelte	js
+=== 352 test/app/src/routes/NotFound.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1412,7 +1431,8 @@ export default function NotFound($$anchor) {
 	$.next(2);
 	$.append($$anchor, fragment);
 }
-=== 591 test/app/src/routes/Regex.svelte	js
+=== 633 test/app/src/routes/Regex.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1429,7 +1449,8 @@ export default function Regex($$anchor, $$props) {
 	$.template_effect(($0) => $.set_text(text, $0), [() => JSON.stringify(params())]);
 	$.append($$anchor, fragment);
 }
-=== 525 test/app/src/routes/Wild.svelte	js
+=== 567 test/app/src/routes/Wild.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 

@@ -29,7 +29,8 @@
 		background-color: #2f343c;
 	}
 
-=== 1460 site/src/Component.svelte	js
+=== 1502 site/src/Component.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "wx-svelte-grid";
@@ -250,7 +251,8 @@ export default function Component($$anchor, $$props) {
 		}
 	}
 
-=== 4696 site/src/Demo.svelte	js
+=== 4738 site/src/Demo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -483,7 +485,8 @@ export default function Demo($$anchor, $$props) {
 		background-color: #2f343c;
 	}
 
-=== 1745 site/src/Main.svelte	js
+=== 1787 site/src/Main.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "@svar-ui/svelte-grid";
@@ -589,7 +592,8 @@ export default function Main($$anchor, $$props) {
 		object-fit: cover;
 	}
 
-=== 1629 site/src/components/AssignCell.svelte	js
+=== 1671 site/src/components/AssignCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -652,7 +656,8 @@ export default function AssignCell($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1603 site/src/components/CheckboxCell.svelte	js
+=== 1645 site/src/components/CheckboxCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox } from "@svar-ui/svelte-core";
@@ -734,7 +739,8 @@ export default function CheckboxCell($$anchor, $$props) {
 	}
 ]
 
-=== 477 site/src/components/StatusCell.svelte	js
+=== 519 site/src/components/StatusCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import StatusStub from "./StatusStub.svelte";
@@ -807,7 +813,8 @@ export default function StatusCell($$anchor, $$props) {
 		color: var(--wx-color-font-alt);
 	}
 
-=== 684 site/src/components/StatusStub.svelte	js
+=== 726 site/src/components/StatusStub.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -852,7 +859,8 @@ export default function StatusStub($$anchor, $$props) {
 		height: 24px;
 	}
 
-=== 1479 site/src/components/TagsCell.svelte	js
+=== 1521 site/src/components/TagsCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data/index";
@@ -912,7 +920,8 @@ export default function TagsCell($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 679 svelte/demos/cases/AutoConfigColumns.svelte	js
+=== 721 svelte/demos/cases/AutoConfigColumns.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -944,7 +953,8 @@ export default function AutoConfigColumns($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 596 svelte/demos/cases/BasicInit.svelte	js
+=== 638 svelte/demos/cases/BasicInit.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -975,7 +985,8 @@ export default function BasicInit($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1151 svelte/demos/cases/CollapsibleColumns.svelte	js
+=== 1193 svelte/demos/cases/CollapsibleColumns.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -1033,7 +1044,8 @@ export default function CollapsibleColumns($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2459 svelte/demos/cases/ColumnsToContent.svelte	js
+=== 2501 svelte/demos/cases/ColumnsToContent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -1130,7 +1142,8 @@ export default function ColumnsToContent($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1167 svelte/demos/cases/ContextMenu.svelte	js
+=== 1209 svelte/demos/cases/ContextMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -1194,7 +1207,8 @@ export default function ContextMenu_1($$anchor, $$props) {
 		padding-top: 25px !important;
 	}
 
-=== 1870 svelte/demos/cases/CustomCells.svelte	js
+=== 1912 svelte/demos/cases/CustomCells.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -1269,7 +1283,8 @@ export default function CustomCells($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2033 svelte/demos/cases/CustomContextMenu.svelte	js
+=== 2075 svelte/demos/cases/CustomContextMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -1359,7 +1374,8 @@ export default function CustomContextMenu($$anchor, $$props) {
 		float: right;
 	}
 
-=== 3713 svelte/demos/cases/CustomEmbedingActions.svelte	js
+=== 3755 svelte/demos/cases/CustomEmbedingActions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -1523,7 +1539,8 @@ export default function CustomEmbedingActions($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2500 svelte/demos/cases/CustomRowHeight.svelte	js
+=== 2542 svelte/demos/cases/CustomRowHeight.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -1709,7 +1726,8 @@ export default function CustomRowHeight($$anchor, $$props) {
 		margin-top: 2px;
 	}
 
-=== 4102 svelte/demos/cases/DragFromGrid.svelte	js
+=== 4144 svelte/demos/cases/DragFromGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src/";
@@ -1924,7 +1942,8 @@ export default function DragFromGrid($$anchor, $$props) {
 		box-shadow: inset 0 0 0 2px var(--wx-color-primary);
 	}
 
-=== 4654 svelte/demos/cases/DragToGrid.svelte	js
+=== 4696 svelte/demos/cases/DragToGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src/";
@@ -2109,7 +2128,8 @@ export default function DragToGrid($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 4483 svelte/demos/cases/DynamicData.svelte	js
+=== 4525 svelte/demos/cases/DynamicData.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tick } from "svelte";
@@ -2298,7 +2318,8 @@ dataset rendering: ${$.get(stats).render ?? ''}ms`));
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3361 svelte/demos/cases/EventHandling.svelte	js
+=== 3403 svelte/demos/cases/EventHandling.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Field, Switch, Button } from "@svar-ui/svelte-core";
@@ -2451,7 +2472,8 @@ export default function EventHandling($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2140 svelte/demos/cases/ExportCSV.svelte	js
+=== 2182 svelte/demos/cases/ExportCSV.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -2555,7 +2577,8 @@ export default function ExportCSV($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3312 svelte/demos/cases/ExternalEditor.svelte	js
+=== 3354 svelte/demos/cases/ExternalEditor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { RichSelect, Switch, DatePicker, MultiCombo } from "@svar-ui/svelte-core";
@@ -2718,7 +2741,8 @@ export default function ExternalEditor($$anchor, $$props) {
 		text-align: center;
 	}
 
-=== 3713 svelte/demos/cases/ExternalEditorComments.svelte	js
+=== 3755 svelte/demos/cases/ExternalEditorComments.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { RichSelect } from "@svar-ui/svelte-core";
@@ -2883,7 +2907,8 @@ export default function ExternalEditorComments($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3998 svelte/demos/cases/ExternalEditorTasklist.svelte	js
+=== 4040 svelte/demos/cases/ExternalEditorTasklist.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { RichSelect } from "@svar-ui/svelte-core";
@@ -3084,7 +3109,8 @@ export default function ExternalEditorTasklist($$anchor, $$props) {
 		gap: 10px;
 	}
 
-=== 3232 svelte/demos/cases/ExternalFilters.svelte	js
+=== 3274 svelte/demos/cases/ExternalFilters.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Field, DateRangePicker, Text } from "@svar-ui/svelte-core";
@@ -3231,7 +3257,8 @@ export default function ExternalFilters($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 4978 svelte/demos/cases/ExternalToolbar.svelte	js
+=== 5020 svelte/demos/cases/ExternalToolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -3481,7 +3508,8 @@ export default function ExternalToolbar($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 941 svelte/demos/cases/FillspaceColumns.svelte	js
+=== 983 svelte/demos/cases/FillspaceColumns.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -3521,7 +3549,8 @@ export default function FillspaceColumns($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2433 svelte/demos/cases/FilterBar.svelte	js
+=== 2475 svelte/demos/cases/FilterBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Tabs } from "@svar-ui/svelte-core";
@@ -3636,7 +3665,8 @@ export default function FilterBar_1($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1881 svelte/demos/cases/FilterBuilder.svelte	js
+=== 1923 svelte/demos/cases/FilterBuilder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { FilterBuilder, createFilter, getOptions } from "@svar-ui/svelte-filter";
@@ -3740,7 +3770,8 @@ export default function FilterBuilder_1($$anchor, $$props) {
 		margin: 4px 0;
 	}
 
-=== 3497 svelte/demos/cases/FilterQuery.svelte	js
+=== 3539 svelte/demos/cases/FilterQuery.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -3864,7 +3895,8 @@ export default function FilterQuery_1($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1622 svelte/demos/cases/FilterSimpleFilterBuilder.svelte	js
+=== 1664 svelte/demos/cases/FilterSimpleFilterBuilder.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { FilterBuilder, createArrayFilter, getOptions } from "@svar-ui/svelte-filter";
@@ -3944,7 +3976,8 @@ export default function FilterSimpleFilterBuilder($$anchor, $$props) {
 		margin-bottom: 20px;
 	}
 
-=== 1499 svelte/demos/cases/FilterSimpleQuery.svelte	js
+=== 1541 svelte/demos/cases/FilterSimpleQuery.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getOptions } from "wx-query-store";
@@ -4025,7 +4058,8 @@ export default function FilterSimpleQuery($$anchor, $$props) {
 		justify-content: right;
 	}
 
-=== 4133 svelte/demos/cases/Filters.svelte	js
+=== 4175 svelte/demos/cases/Filters.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -4258,7 +4292,8 @@ export default function Filters($$anchor, $$props) {
 		padding: 1px 8px;
 	}
 
-=== 2214 svelte/demos/cases/FiltersCustom.svelte	js
+=== 2256 svelte/demos/cases/FiltersCustom.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -4369,7 +4404,8 @@ export default function FiltersCustom($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1936 svelte/demos/cases/FiltersCustomHandler.svelte	js
+=== 1978 svelte/demos/cases/FiltersCustomHandler.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -4470,7 +4506,8 @@ export default function FiltersCustomHandler($$anchor, $$props) {
 		margin-bottom: 10px;
 	}
 
-=== 1307 svelte/demos/cases/FixedColumns.svelte	js
+=== 1349 svelte/demos/cases/FixedColumns.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Field, Slider } from "@svar-ui/svelte-core";
@@ -4534,7 +4571,8 @@ export default function FixedColumns($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1795 svelte/demos/cases/HotkeysCustom.svelte	js
+=== 1837 svelte/demos/cases/HotkeysCustom.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -4628,7 +4666,8 @@ export default function HotkeysCustom($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1656 svelte/demos/cases/InlineEditors.svelte	js
+=== 1698 svelte/demos/cases/InlineEditors.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -4713,7 +4752,8 @@ export default function InlineEditors($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2228 svelte/demos/cases/InlineEditorsCells.svelte	js
+=== 2270 svelte/demos/cases/InlineEditorsCells.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid, registerInlineEditor } from "../../src";
@@ -4810,7 +4850,8 @@ export default function InlineEditorsCells($$anchor, $$props) {
 		color: #e63946;
 	}
 
-=== 1735 svelte/demos/cases/InlineEditorsDisabled.svelte	js
+=== 1777 svelte/demos/cases/InlineEditorsDisabled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -4887,7 +4928,8 @@ export default function InlineEditorsDisabled($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1569 svelte/demos/cases/InlineEditorsHandler.svelte	js
+=== 1611 svelte/demos/cases/InlineEditorsHandler.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -4967,7 +5009,8 @@ export default function InlineEditorsHandler($$anchor, $$props) {
 		gap: 20px;
 	}
 
-=== 3464 svelte/demos/cases/Localization.svelte	js
+=== 3506 svelte/demos/cases/Localization.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -5149,7 +5192,8 @@ export default function Localization($$anchor, $$props) {
 		height: calc(100% - 50px);
 	}
 
-=== 1762 svelte/demos/cases/MultilineRows.svelte	js
+=== 1804 svelte/demos/cases/MultilineRows.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -5236,7 +5280,8 @@ export default function MultilineRows($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1312 svelte/demos/cases/Overlay.svelte	js
+=== 1354 svelte/demos/cases/Overlay.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -5305,7 +5350,8 @@ export default function Overlay_1($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 960 svelte/demos/cases/Paging.svelte	js
+=== 1002 svelte/demos/cases/Paging.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Pager } from "@svar-ui/svelte-core";
@@ -5364,7 +5410,8 @@ export default function Paging($$anchor, $$props) {
 		background: #457b9d;
 	}
 
-=== 3087 svelte/demos/cases/Print.svelte	js
+=== 3129 svelte/demos/cases/Print.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -5529,7 +5576,8 @@ export default function Print($$anchor, $$props) {
 		width: fit-content;
 	}
 
-=== 2530 svelte/demos/cases/PrintWideGrid.svelte	js
+=== 2572 svelte/demos/cases/PrintWideGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -5655,7 +5703,8 @@ export default function PrintWideGrid($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1936 svelte/demos/cases/Reordering.svelte	js
+=== 1978 svelte/demos/cases/Reordering.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -5735,7 +5784,8 @@ export default function Reordering($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1013 svelte/demos/cases/Resize.svelte	js
+=== 1055 svelte/demos/cases/Resize.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -5795,7 +5845,8 @@ export default function Resize($$anchor, $$props) {
 		}
 	}
 
-=== 3696 svelte/demos/cases/ResponsiveMode.svelte	js
+=== 3738 svelte/demos/cases/ResponsiveMode.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -5963,7 +6014,8 @@ export default function ResponsiveMode($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2168 svelte/demos/cases/RestBackend.svelte	js
+=== 2210 svelte/demos/cases/RestBackend.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -6082,7 +6134,8 @@ export default function RestBackend($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1347 svelte/demos/cases/RowMultiSelection.svelte	js
+=== 1389 svelte/demos/cases/RowMultiSelection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -6140,7 +6193,8 @@ export default function RowMultiSelection($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1304 svelte/demos/cases/RowSelection.svelte	js
+=== 1346 svelte/demos/cases/RowSelection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -6197,7 +6251,8 @@ export default function RowSelection($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3105 svelte/demos/cases/ScrollTable.svelte	js
+=== 3147 svelte/demos/cases/ScrollTable.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -6347,7 +6402,8 @@ export default function ScrollTable($$anchor, $$props) {
 		--wx-checkbox-border-width: 1px;
 	}
 
-=== 1830 svelte/demos/cases/SelectionCheckboxes.svelte	js
+=== 1872 svelte/demos/cases/SelectionCheckboxes.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -6434,7 +6490,8 @@ export default function SelectionCheckboxes($$anchor, $$props) {
 		margin-bottom: 30px;
 	}
 
-=== 3304 svelte/demos/cases/SizeToContainer.svelte	js
+=== 3346 svelte/demos/cases/SizeToContainer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Slider, Field, Checkbox } from "@svar-ui/svelte-core";
@@ -6596,7 +6653,8 @@ export default function SizeToContainer($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1946 svelte/demos/cases/SizeToContent.svelte	js
+=== 1988 svelte/demos/cases/SizeToContent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -6699,7 +6757,8 @@ export default function SizeToContent($$anchor, $$props) {
 		margin-bottom: 16px;
 	}
 
-=== 1796 svelte/demos/cases/Sort.svelte	js
+=== 1838 svelte/demos/cases/Sort.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -6801,7 +6860,8 @@ export default function Sort($$anchor, $$props) {
 		margin-bottom: 16px;
 	}
 
-=== 2555 svelte/demos/cases/SortCustom.svelte	js
+=== 2597 svelte/demos/cases/SortCustom.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -6919,7 +6979,8 @@ export default function SortCustom($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3193 svelte/demos/cases/StaticData.svelte	js
+=== 3235 svelte/demos/cases/StaticData.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { tick } from "svelte";
@@ -7085,7 +7146,8 @@ dataset rendering: ${$.get(stats).render ?? ''}ms`));
 		background: rgba(82, 179, 163, 0.8);
 	}
 
-=== 1415 svelte/demos/cases/Styling.svelte	js
+=== 1457 svelte/demos/cases/Styling.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData, repeatColumns } from "../data";
@@ -7159,7 +7221,8 @@ export default function Styling($$anchor, $$props) {
 		padding: 6px 0;
 	}
 
-=== 3425 svelte/demos/cases/TableAPI.svelte	js
+=== 3467 svelte/demos/cases/TableAPI.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -7335,7 +7398,8 @@ export default function TableAPI($$anchor, $$props) {
 		justify-content: right;
 	}
 
-=== 963 svelte/demos/cases/TableHeaderFooterSpans.svelte	js
+=== 1005 svelte/demos/cases/TableHeaderFooterSpans.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -7391,7 +7455,8 @@ export default function TableHeaderFooterSpans($$anchor, $$props) {
 		justify-content: right;
 	}
 
-=== 1020 svelte/demos/cases/TableHeaderFooterVertical.svelte	js
+=== 1062 svelte/demos/cases/TableHeaderFooterVertical.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -7445,7 +7510,8 @@ export default function TableHeaderFooterVertical($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1331 svelte/demos/cases/Toolbar.svelte	js
+=== 1373 svelte/demos/cases/Toolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -7524,7 +7590,8 @@ export default function Toolbar_1($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2959 svelte/demos/cases/ToolbarCustom.svelte	js
+=== 3001 svelte/demos/cases/ToolbarCustom.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -7676,7 +7743,8 @@ export default function ToolbarCustom($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 2223 svelte/demos/cases/Tooltips.svelte	js
+=== 2265 svelte/demos/cases/Tooltips.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -7787,7 +7855,8 @@ export default function Tooltips($$anchor, $$props) {
 		margin-bottom: 10px;
 	}
 
-=== 1594 svelte/demos/cases/TreeTable.svelte	js
+=== 1636 svelte/demos/cases/TreeTable.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -7875,7 +7944,8 @@ export default function TreeTable($$anchor, $$props) {
 		gap: 10px;
 	}
 
-=== 2990 svelte/demos/cases/UndoRedo.svelte	js
+=== 3032 svelte/demos/cases/UndoRedo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -8029,7 +8099,8 @@ export default function UndoRedo($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2255 svelte/demos/cases/VisibilityColumns.svelte	js
+=== 2297 svelte/demos/cases/VisibilityColumns.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -8539,7 +8610,8 @@ export default function VisibilityColumns($$anchor, $$props) {
 		background-color: var(--demo-segmented-bg);
 	}
 
-=== 9416 svelte/demos/common/Index.svelte	js
+=== 9458 svelte/demos/common/Index.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Globals, popupContainer, Button, Segmented } from "@svar-ui/svelte-core";
@@ -8900,7 +8972,8 @@ $.delegate(['click']);
 		white-space: pre-wrap;
 	}
 
-=== 597 svelte/demos/common/ListRoutes.svelte	js
+=== 639 svelte/demos/common/ListRoutes.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8938,7 +9011,8 @@ export default function ListRoutes($$anchor, $$props) {
 		gap: 4px;
 	}
 
-=== 2318 svelte/demos/custom/AvatarCell.svelte	js
+=== 2360 svelte/demos/custom/AvatarCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Avatar } from "@svar-ui/svelte-core";
@@ -9050,7 +9124,8 @@ export default function AvatarCell($$anchor, $$props) {
 		text-overflow: ellipsis;
 	}
 
-=== 1066 svelte/demos/custom/ButtonCell.svelte	js
+=== 1108 svelte/demos/custom/ButtonCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -9096,7 +9171,8 @@ export default function ButtonCell($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 684 svelte/demos/custom/CheckboxCell.svelte	js
+=== 726 svelte/demos/custom/CheckboxCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox } from "@svar-ui/svelte-core";
@@ -9138,7 +9214,8 @@ export default function CheckboxCell($$anchor, $$props) {
 		padding-left: 26px;
 	}
 
-=== 853 svelte/demos/custom/ColorCell.svelte	js
+=== 895 svelte/demos/custom/ColorCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9185,7 +9262,8 @@ export default function ColorCell($$anchor, $$props) {
 		border: 1px solid var(--wx-color-primary);
 	}
 
-=== 1673 svelte/demos/custom/ColorEditor.svelte	js
+=== 1715 svelte/demos/custom/ColorEditor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from "svelte";
@@ -9277,7 +9355,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 1259 svelte/demos/custom/ComboCell.svelte	js
+=== 1301 svelte/demos/custom/ComboCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Combo } from "@svar-ui/svelte-core";
@@ -9364,7 +9443,8 @@ export default function ComboCell($$anchor, $$props) {
 		color: gold;
 	}
 
-=== 2245 svelte/demos/custom/CustomTooltip.svelte	js
+=== 2287 svelte/demos/custom/CustomTooltip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9448,7 +9528,8 @@ export default function CustomTooltip($$anchor, $$props) {
 		color: var(--wx-color-font-disabled);
 	}
 
-=== 1523 svelte/demos/custom/DestinationCell.svelte	js
+=== 1565 svelte/demos/custom/DestinationCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9521,7 +9602,8 @@ export default function DestinationCell($$anchor, $$props) {
 		color: var(--wx-color-font-disabled);
 	}
 
-=== 983 svelte/demos/custom/EditorDateCell.svelte	js
+=== 1025 svelte/demos/custom/EditorDateCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9586,7 +9668,8 @@ export default function EditorDateCell($$anchor, $$props) {
 		color: var(--wx-color-font-disabled);
 	}
 
-=== 2403 svelte/demos/custom/EditorDestinationsCell.svelte	js
+=== 2445 svelte/demos/custom/EditorDestinationsCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9697,7 +9780,8 @@ export default function EditorDestinationsCell($$anchor, $$props) {
 		color: var(--wx-color-font-disabled);
 	}
 
-=== 1197 svelte/demos/custom/EditorSelectCell.svelte	js
+=== 1239 svelte/demos/custom/EditorSelectCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9746,7 +9830,8 @@ export default function EditorSelectCell($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 652 svelte/demos/custom/FooterTextCell.svelte	js
+=== 694 svelte/demos/custom/FooterTextCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9774,7 +9859,8 @@ export default function FooterTextCell($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 706 svelte/demos/custom/HeaderButtonCell.svelte	js
+=== 748 svelte/demos/custom/HeaderButtonCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -9812,7 +9898,8 @@ export default function HeaderButtonCell($$anchor, $$props) {
 
 	$.pop();
 }
-=== 992 svelte/demos/custom/HeaderCheckboxCell.svelte	js
+=== 1034 svelte/demos/custom/HeaderCheckboxCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox } from "@svar-ui/svelte-core";
@@ -9875,7 +9962,8 @@ export default function HeaderCheckboxCell($$anchor, $$props) {
 	}
 ]
 
-=== 648 svelte/demos/custom/HeaderTextCell.svelte	js
+=== 690 svelte/demos/custom/HeaderTextCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -9912,7 +10000,8 @@ export default function HeaderTextCell($$anchor) {
 		text-align: center;
 	}
 
-=== 627 svelte/demos/custom/IconCell.svelte	js
+=== 669 svelte/demos/custom/IconCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -9937,7 +10026,8 @@ export default function IconCell($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 791 svelte/demos/custom/Overlay.svelte	js
+=== 833 svelte/demos/custom/Overlay.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button } from "@svar-ui/svelte-core";
@@ -9970,7 +10060,8 @@ export default function Overlay($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 473 svelte/demos/custom/SelectEditorCell.svelte	js
+=== 515 svelte/demos/custom/SelectEditorCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import EditorSelectCell from "./EditorSelectCell.svelte";
@@ -9992,7 +10083,8 @@ export default function SelectEditorCell($$anchor, $$props) {
 
 	$.pop();
 }
-=== 927 svelte/demos/custom/SelectionCheckboxBind.svelte	js
+=== 969 svelte/demos/custom/SelectionCheckboxBind.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox } from "@svar-ui/svelte-core";
@@ -10049,7 +10141,8 @@ export default function SelectionCheckboxBind($$anchor, $$props) {
 	}
 ]
 
-=== 578 svelte/demos/custom/SelectionCheckboxCell.svelte	js
+=== 620 svelte/demos/custom/SelectionCheckboxCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Checkbox } from "@svar-ui/svelte-core";
@@ -10118,7 +10211,8 @@ export default function SelectionCheckboxCell($$anchor, $$props) {
 		border-radius: 50%;
 	}
 
-=== 680 svelte/demos/custom/StatusCell.svelte	js
+=== 722 svelte/demos/custom/StatusCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10180,7 +10274,8 @@ export default function StatusCell($$anchor, $$props) {
 		background-color: #dfe2e6;
 	}
 
-=== 1284 svelte/demos/custom/UserCell.svelte	js
+=== 1326 svelte/demos/custom/UserCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -10296,7 +10391,8 @@ export default function UserCell($$anchor, $$props) {
 		background-color: #ffeb3b;
 	}
 
-=== 7455 svelte/src/components/Cell.svelte	js
+=== 7497 svelte/src/components/Cell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, untrack } from "svelte";
@@ -10634,7 +10730,8 @@ export default function Cell($$anchor, $$props) {
 		border-bottom: var(--wx-table-header-cell-border);
 	}
 
-=== 2485 svelte/src/components/FooterCell.svelte	js
+=== 2527 svelte/src/components/FooterCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -10730,7 +10827,8 @@ export default function FooterCell($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6652 svelte/src/components/Grid.svelte	js
+=== 6694 svelte/src/components/Grid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, setContext } from "svelte";
@@ -11215,7 +11313,8 @@ export default function Grid($$anchor, $$props) {
 		border-bottom: var(--wx-table-header-cell-border);
 	}
 
-=== 11376 svelte/src/components/HeaderCell.svelte	js
+=== 11418 svelte/src/components/HeaderCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -11599,7 +11698,8 @@ $.delegate(['keydown', 'click']);
 		border-top: var(--wx-table-header-border);
 	}
 
-=== 4656 svelte/src/components/HeaderFooter.svelte	js
+=== 4698 svelte/src/components/HeaderFooter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -11893,7 +11993,8 @@ export default function HeaderFooter($$anchor, $$props) {
 		border-right: var(--wx-table-cell-border);
 	}
 
-=== 28627 svelte/src/components/Layout.svelte	js
+=== 28669 svelte/src/components/Layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, tick, onMount, untrack } from "svelte";
@@ -12959,7 +13060,8 @@ $.delegate(['mousedown']);
 		gap: 8px;
 	}
 
-=== 6298 svelte/src/components/MultiSelect.svelte	js
+=== 6340 svelte/src/components/MultiSelect.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from "svelte";
@@ -13218,7 +13320,8 @@ $.delegate(['click', 'keydown']);
 		text-align: center;
 	}
 
-=== 1212 svelte/src/components/Overlay.svelte	js
+=== 1254 svelte/src/components/Overlay.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -13268,7 +13371,8 @@ export default function Overlay($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3353 svelte/src/components/Toolbar.svelte	js
+=== 3395 svelte/src/components/Toolbar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -13386,7 +13490,8 @@ export default function Toolbar_1($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1536 svelte/src/components/Tooltip.svelte	js
+=== 1578 svelte/src/components/Tooltip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getRenderValue } from "@svar-ui/grid-store";
@@ -13457,7 +13562,8 @@ export default function Tooltip_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 5390 svelte/src/components/editor/Editor.svelte	js
+=== 5432 svelte/src/components/editor/Editor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13690,7 +13796,8 @@ export default function Editor($$anchor, $$props) {
 		border: 1px solid var(--wx-color-primary);
 	}
 
-=== 3448 svelte/src/components/inlineEditors/Combo.svelte	js
+=== 3490 svelte/src/components/inlineEditors/Combo.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from "svelte";
@@ -13878,7 +13985,8 @@ $.delegate(['input', 'keydown']);
 		display: block;
 	}
 
-=== 2834 svelte/src/components/inlineEditors/Datepicker.svelte	js
+=== 2876 svelte/src/components/inlineEditors/Datepicker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from "svelte";
@@ -14041,7 +14149,8 @@ $.delegate(['click', 'keydown']);
 		box-shadow: var(--wx-table-editor-dropdown-shadow);
 	}
 
-=== 2855 svelte/src/components/inlineEditors/Editor.svelte	js
+=== 2897 svelte/src/components/inlineEditors/Editor.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -14163,7 +14272,8 @@ $.delegate(['click', 'dblclick', 'keydown']);
 		border: 1px solid var(--wx-color-primary);
 	}
 
-=== 1500 svelte/src/components/inlineEditors/MultiSelect.svelte	js
+=== 1542 svelte/src/components/inlineEditors/MultiSelect.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { clickOutside } from "@svar-ui/lib-dom";
@@ -14270,7 +14380,8 @@ $.delegate(['click']);
 		display: block;
 	}
 
-=== 4463 svelte/src/components/inlineEditors/Richselect.svelte	js
+=== 4505 svelte/src/components/inlineEditors/Richselect.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from "svelte";
@@ -14508,7 +14619,8 @@ $.delegate(['click', 'keydown']);
 		border: 1px solid var(--wx-color-primary);
 	}
 
-=== 1279 svelte/src/components/inlineEditors/Text.svelte	js
+=== 1321 svelte/src/components/inlineEditors/Text.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from "svelte";
@@ -14580,7 +14692,8 @@ $.delegate(['input', 'keydown']);
 		padding: 4px 8px;
 	}
 
-=== 661 svelte/src/components/inlineFilters/DatePicker.svelte	js
+=== 703 svelte/src/components/inlineFilters/DatePicker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { DatePicker } from "@svar-ui/svelte-core";
@@ -14608,7 +14721,8 @@ export default function DatePicker_1($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1052 svelte/src/components/inlineFilters/Filter.svelte	js
+=== 1094 svelte/src/components/inlineFilters/Filter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -14660,7 +14774,8 @@ export default function Filter($$anchor, $$props) {
 		padding: 4px 8px;
 	}
 
-=== 1592 svelte/src/components/inlineFilters/MultiSelect.svelte	js
+=== 1634 svelte/src/components/inlineFilters/MultiSelect.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -14740,7 +14855,8 @@ $.delegate(['keydown']);
 		padding: 0;
 	}
 
-=== 2301 svelte/src/components/inlineFilters/Richselect.svelte	js
+=== 2343 svelte/src/components/inlineFilters/Richselect.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -14851,7 +14967,8 @@ $.delegate(['keydown']);
 		text-overflow: ellipsis;
 	}
 
-=== 463 svelte/src/components/inlineFilters/Text.svelte	js
+=== 505 svelte/src/components/inlineFilters/Text.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Text } from "@svar-ui/svelte-core";
@@ -14882,7 +14999,8 @@ export default function Text_1($$anchor, $$props) {
 		color: var(--wx-color-font-disabled);
 	}
 
-=== 3344 svelte/src/components/menus/ContextMenu.svelte	js
+=== 3386 svelte/src/components/menus/ContextMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ContextMenu } from "@svar-ui/svelte-menu";
@@ -15030,7 +15148,8 @@ export default function ContextMenu_1($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1724 svelte/src/components/menus/HeaderMenu.svelte	js
+=== 1766 svelte/src/components/menus/HeaderMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ContextMenu, registerMenuItem } from "@svar-ui/svelte-menu";
@@ -15120,7 +15239,8 @@ export default function HeaderMenu($$anchor, $$props) {
 		color: var(--wx-color-font-disabled);
 	}
 
-=== 806 svelte/src/components/menus/HeaderMenuItem.svelte	js
+=== 848 svelte/src/components/menus/HeaderMenuItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15155,7 +15275,8 @@ export default function HeaderMenuItem($$anchor, $$props) {
 		width: 100%;
 	}
 
-=== 6378 svelte/src/components/print/Grid.svelte	js
+=== 6420 svelte/src/components/print/Grid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -15479,7 +15600,8 @@ export default function Grid($$anchor, $$props) {
 		vertical-align: bottom;
 	}
 
-=== 3049 svelte/src/components/print/HeaderFooter.svelte	js
+=== 3091 svelte/src/components/print/HeaderFooter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -15630,7 +15752,8 @@ export default function HeaderFooter($$anchor, $$props) {
 		}
 	}
 
-=== 1864 svelte/src/components/print/Print.svelte	js
+=== 1906 svelte/src/components/print/Print.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, onMount } from "svelte";
@@ -15742,7 +15865,8 @@ export default function Print($$anchor, $$props) {
 		outline: none;
 	}
 
-=== 942 svelte/src/themes/Material.svelte	js
+=== 984 svelte/src/themes/Material.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Material } from "@svar-ui/svelte-core";
@@ -15813,7 +15937,8 @@ export default function Material_1($$anchor, $$props) {
 		outline: 1px solid #e6e6e6;
 	}
 
-=== 934 svelte/src/themes/Willow.svelte	js
+=== 976 svelte/src/themes/Willow.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Willow } from "@svar-ui/svelte-core";
@@ -15885,7 +16010,8 @@ export default function Willow_1($$anchor, $$props) {
 		outline: var(--wx-border);
 	}
 
-=== 950 svelte/src/themes/WillowDark.svelte	js
+=== 992 svelte/src/themes/WillowDark.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { WillowDark } from "@svar-ui/svelte-core";
@@ -15967,7 +16093,8 @@ export default function WillowDark_1($$anchor, $$props) {
 		padding-left: 10px;
 	}
 
-=== 1908 svelte/tests/Index.svelte	js
+=== 1950 svelte/tests/Index.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Router, { push } from "svelte-spa-router";
@@ -16081,7 +16208,8 @@ export default function Index($$anchor, $$props) {
 		border-bottom: var(--wx-table-cell-border);
 	}
 
-=== 1576 svelte/tests/cases/CollapsibleColumns.svelte	js
+=== 1618 svelte/tests/cases/CollapsibleColumns.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -16153,7 +16281,8 @@ export default function CollapsibleColumns($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1553 svelte/tests/cases/ContextMenu.svelte	js
+=== 1595 svelte/tests/cases/ContextMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -16223,7 +16352,8 @@ export default function ContextMenu_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2771 svelte/tests/cases/CustomContextMenu.svelte	js
+=== 2813 svelte/tests/cases/CustomContextMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -16344,7 +16474,8 @@ export default function CustomContextMenu($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2910 svelte/tests/cases/FilterBar.svelte	js
+=== 2952 svelte/tests/cases/FilterBar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Willow, Locale, Tabs } from "@svar-ui/svelte-core";
@@ -16464,7 +16595,8 @@ export default function FilterBar_1($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2580 svelte/tests/cases/FilterQuery.svelte	js
+=== 2622 svelte/tests/cases/FilterQuery.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getOptions } from "@svar-ui/query-store";
@@ -16577,7 +16709,8 @@ export default function FilterQuery($$anchor, $$props) {
 		margin-bottom: 20px;
 	}
 
-=== 2684 svelte/tests/cases/FilterSimpleQuery.svelte	js
+=== 2726 svelte/tests/cases/FilterSimpleQuery.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getOptions } from "@svar-ui/query-store";
@@ -16693,7 +16826,8 @@ export default function FilterSimpleQuery($$anchor, $$props) {
 		margin-bottom: 10px;
 	}
 
-=== 1807 svelte/tests/cases/FixedColumns.svelte	js
+=== 1849 svelte/tests/cases/FixedColumns.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Field, Slider, Willow, Locale } from "@svar-ui/svelte-core";
@@ -16784,7 +16918,8 @@ export default function FixedColumns($$anchor, $$props) {
 		justify-content: right;
 	}
 
-=== 3138 svelte/tests/cases/FixedRightColumns.svelte	js
+=== 3180 svelte/tests/cases/FixedRightColumns.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Field, Slider } from "@svar-ui/svelte-core";
@@ -16951,7 +17086,8 @@ export default function FixedRightColumns($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1598 svelte/tests/cases/HeaderMenu.svelte	js
+=== 1640 svelte/tests/cases/HeaderMenu.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -17019,7 +17155,8 @@ export default function HeaderMenu_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2215 svelte/tests/cases/InlineEditors.svelte	js
+=== 2257 svelte/tests/cases/InlineEditors.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -17125,7 +17262,8 @@ export default function InlineEditors($$anchor, $$props) {
 
 	$.pop();
 }
-=== 866 svelte/tests/cases/LocalData.svelte	js
+=== 908 svelte/tests/cases/LocalData.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -17167,7 +17305,8 @@ export default function LocalData($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2389 svelte/tests/cases/MenuOptions.svelte	js
+=== 2431 svelte/tests/cases/MenuOptions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -17277,7 +17416,8 @@ export default function MenuOptions($$anchor, $$props) {
 		border-bottom: var(--wx-border);
 	}
 
-=== 2557 svelte/tests/cases/PivotTableConfig.svelte	js
+=== 2599 svelte/tests/cases/PivotTableConfig.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src/";
@@ -17388,7 +17528,8 @@ export default function PivotTableConfig($$anchor) {
 		$$slots: { default: true }
 	});
 }
-=== 1075 svelte/tests/cases/ReorderingBasic.svelte	js
+=== 1117 svelte/tests/cases/ReorderingBasic.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -17436,7 +17577,8 @@ export default function ReorderingBasic($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1130 svelte/tests/cases/ReorderingHandlers.svelte	js
+=== 1172 svelte/tests/cases/ReorderingHandlers.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -17514,7 +17656,8 @@ export default function ReorderingHandlers($$anchor, $$props) {
 		background-color: #a0995b;
 	}
 
-=== 5148 svelte/tests/cases/SearchRows.svelte	js
+=== 5190 svelte/tests/cases/SearchRows.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Text, Field, CheckboxGroup, Button } from "@svar-ui/svelte-core";
@@ -17734,7 +17877,8 @@ export default function SearchRows($$anchor, $$props) {
 		border-bottom: none;
 	}
 
-=== 2070 svelte/tests/cases/TableHeaderFooterSpans.svelte	js
+=== 2112 svelte/tests/cases/TableHeaderFooterSpans.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../data";
@@ -17844,7 +17988,8 @@ export default function TableHeaderFooterSpans($$anchor, $$props) {
 		height: 50%;
 	}
 
-=== 1307 svelte/tests/cases/TableHeaderFooterVertical.svelte	js
+=== 1349 svelte/tests/cases/TableHeaderFooterVertical.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -17908,7 +18053,8 @@ export default function TableHeaderFooterVertical($$anchor, $$props) {
 
 	$.pop();
 }
-=== 900 svelte/tests/cases/TreeMode.svelte	js
+=== 942 svelte/tests/cases/TreeMode.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Grid } from "../../src";
@@ -17966,7 +18112,8 @@ export default function TreeMode($$anchor, $$props) {
 		justify-content: right;
 	}
 
-=== 1219 svelte/tests/cases/headerFooterVerticalText/SpansVerticalText.svelte	js
+=== 1261 svelte/tests/cases/headerFooterVerticalText/SpansVerticalText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../../data";
@@ -18032,7 +18179,8 @@ export default function SpansVerticalText($$anchor, $$props) {
 		border-bottom: none;
 	}
 
-=== 2533 svelte/tests/cases/headerFooterVerticalText/SpansVerticalTextLong.svelte	js
+=== 2575 svelte/tests/cases/headerFooterVerticalText/SpansVerticalTextLong.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../../data";
@@ -18168,7 +18316,8 @@ export default function SpansVerticalTextLong($$anchor, $$props) {
 		border-bottom: none;
 	}
 
-=== 1182 svelte/tests/cases/headerFooterVerticalText/VerticalText.svelte	js
+=== 1224 svelte/tests/cases/headerFooterVerticalText/VerticalText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getData } from "../../data";
@@ -18262,7 +18411,8 @@ export default function VerticalText($$anchor, $$props) {
 		padding-left: 10px;
 	}
 
-=== 2232 svelte/tests/common/Index.svelte	js
+=== 2274 svelte/tests/common/Index.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Router, { push } from "svelte-spa-router";
@@ -18366,7 +18516,8 @@ export default function Index($$anchor, $$props) {
 		white-space: pre-wrap;
 	}
 
-=== 613 svelte/tests/common/ListRoutes.svelte	js
+=== 655 svelte/tests/common/ListRoutes.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 

@@ -4,6 +4,7 @@ use rsvelte_svelte_semantic::input::ComponentInput;
 pub struct CompileInput<'a> {
     pub component: ComponentInput<'a>,
     pub preserve_whitespace: bool,
+    pub renderer: Renderer,
 }
 
 impl<'a> From<ComponentInput<'a>> for CompileInput<'a> {
@@ -11,8 +12,18 @@ impl<'a> From<ComponentInput<'a>> for CompileInput<'a> {
         Self {
             component,
             preserve_whitespace: false,
+            renderer: Renderer::Dom,
         }
     }
+}
+
+/// What a client component renders with: the official `customRenderer` option, of which only its
+/// absence is ported.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Renderer {
+    /// No custom renderer: each component sets the DOM's operations up by importing a module.
+    #[default]
+    Dom,
 }
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]

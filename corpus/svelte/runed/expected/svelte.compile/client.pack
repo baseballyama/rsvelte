@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 3470 packages/runed/src/routes/(test)/test-search/[mode]/+page.svelte	js
+=== 3512 packages/runed/src/routes/(test)/test-search/[mode]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from "$app/state";
@@ -112,7 +113,8 @@ $.delegate(['click']);
 		margin: 1rem 0;
 	}
 
-=== 3600 packages/runed/src/routes/(test)/test-zod-codec/+page.svelte	js
+=== 3642 packages/runed/src/routes/(test)/test-zod-codec/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useSearchParams } from "$lib/utilities/use-search-params/use-search-params.svelte";
@@ -215,7 +217,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 442 sites/docs/src/lib/components/blueprint.svelte	js
+=== 484 sites/docs/src/lib/components/blueprint.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -249,7 +252,8 @@ export default function Blueprint($$anchor, $$props) {
 	$.snippet(node, () => $$props.children ?? $.noop);
 	$.append($$anchor, fragment);
 }
-=== 413 sites/docs/src/lib/components/demo-note.svelte	js
+=== 455 sites/docs/src/lib/components/demo-note.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -263,7 +267,8 @@ export default function Demo_note($$anchor, $$props) {
 	$.reset(div);
 	$.append($$anchor, div);
 }
-=== 721 sites/docs/src/lib/components/demos/active-element.svelte	js
+=== 763 sites/docs/src/lib/components/demos/active-element.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { activeElement } from "runed";
@@ -289,7 +294,8 @@ export default function Active_element($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3975 sites/docs/src/lib/components/demos/animation-frames.svelte	js
+=== 4017 sites/docs/src/lib/components/demos/animation-frames.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { AnimationFrames } from "runed";
@@ -430,7 +436,8 @@ export default function Animation_frames($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1527 sites/docs/src/lib/components/demos/debounced.svelte	js
+=== 1569 sites/docs/src/lib/components/demos/debounced.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Debounced } from "runed";
@@ -494,7 +501,8 @@ export default function Debounced_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 851 sites/docs/src/lib/components/demos/element-rect.svelte	js
+=== 893 sites/docs/src/lib/components/demos/element-rect.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ElementRect } from "runed";
@@ -529,7 +537,8 @@ export default function Element_rect($$anchor, $$props) {
 
 	$.pop();
 }
-=== 816 sites/docs/src/lib/components/demos/element-size.svelte	js
+=== 858 sites/docs/src/lib/components/demos/element-size.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ElementSize } from "runed";
@@ -578,7 +587,8 @@ export default function Element_size($$anchor, $$props) {
 		}
 	}
 
-=== 3731 sites/docs/src/lib/components/demos/finite-state-machine.svelte	js
+=== 3773 sites/docs/src/lib/components/demos/finite-state-machine.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { FiniteStateMachine } from "runed";
@@ -721,7 +731,8 @@ export default function Finite_state_machine($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1355 sites/docs/src/lib/components/demos/is-document-visible.svelte	js
+=== 1397 sites/docs/src/lib/components/demos/is-document-visible.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IsDocumentVisible } from "runed";
@@ -776,7 +787,8 @@ export default function Is_document_visible($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2828 sites/docs/src/lib/components/demos/is-focus-within.svelte	js
+=== 2870 sites/docs/src/lib/components/demos/is-focus-within.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IsFocusWithin } from "runed";
@@ -895,7 +907,8 @@ export default function Is_focus_within($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1908 sites/docs/src/lib/components/demos/is-idle.svelte	js
+=== 1950 sites/docs/src/lib/components/demos/is-idle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { AnimationFrames, IsIdle } from "runed";
@@ -965,7 +978,8 @@ export default function Is_idle($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1516 sites/docs/src/lib/components/demos/is-in-viewport.svelte	js
+=== 1558 sites/docs/src/lib/components/demos/is-in-viewport.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IsInViewport } from "runed";
@@ -1011,7 +1025,8 @@ export default function Is_in_viewport($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 678 sites/docs/src/lib/components/demos/is-mounted.svelte	js
+=== 720 sites/docs/src/lib/components/demos/is-mounted.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IsMounted } from "runed";
@@ -1039,7 +1054,8 @@ export default function Is_mounted($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2156 sites/docs/src/lib/components/demos/on-click-outside-dialog.svelte	js
+=== 2198 sites/docs/src/lib/components/demos/on-click-outside-dialog.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, DemoContainer } from "@svecodocs/kit";
@@ -1122,7 +1138,8 @@ export default function On_click_outside_dialog($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2772 sites/docs/src/lib/components/demos/on-click-outside.svelte	js
+=== 2814 sites/docs/src/lib/components/demos/on-click-outside.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, DemoContainer } from "@svecodocs/kit";
@@ -1227,7 +1244,8 @@ export default function On_click_outside($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1809 sites/docs/src/lib/components/demos/persisted-state.svelte	js
+=== 1851 sites/docs/src/lib/components/demos/persisted-state.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { PersistedState } from "runed";
@@ -1306,7 +1324,8 @@ export default function Persisted_state($$anchor, $$props) {
 
 	$.pop();
 }
-=== 4125 sites/docs/src/lib/components/demos/pressed-keys.svelte	js
+=== 4167 sites/docs/src/lib/components/demos/pressed-keys.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { PressedKeys, watch } from "runed";
@@ -1434,7 +1453,8 @@ export default function Pressed_keys($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1130 sites/docs/src/lib/components/demos/previous.svelte	js
+=== 1172 sites/docs/src/lib/components/demos/previous.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Previous } from "runed";
@@ -1478,7 +1498,8 @@ export default function Previous_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2896 sites/docs/src/lib/components/demos/resource.svelte	js
+=== 2938 sites/docs/src/lib/components/demos/resource.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { resource } from "runed";
@@ -1607,7 +1628,8 @@ export default function Resource($$anchor, $$props) {
 		--fg: #ffffff20;
 	}
 
-=== 8539 sites/docs/src/lib/components/demos/scroll-state.svelte	js
+=== 8581 sites/docs/src/lib/components/demos/scroll-state.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Button, Input, Label } from "@svecodocs/kit";
@@ -1895,7 +1917,8 @@ export default function Scroll_state($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 3527 sites/docs/src/lib/components/demos/state-history.svelte	js
+=== 3569 sites/docs/src/lib/components/demos/state-history.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { StateHistory } from "runed";
@@ -2042,7 +2065,8 @@ export default function State_history($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1156 sites/docs/src/lib/components/demos/textarea-autosize.svelte	js
+=== 1198 sites/docs/src/lib/components/demos/textarea-autosize.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { TextareaAutosize } from "runed";
@@ -2091,7 +2115,8 @@ export default function Textarea_autosize($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2546 sites/docs/src/lib/components/demos/throttled.svelte	js
+=== 2588 sites/docs/src/lib/components/demos/throttled.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { Throttled } from "runed";
@@ -2204,7 +2229,8 @@ export default function Throttled_1($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3133 sites/docs/src/lib/components/demos/use-debounce.svelte	js
+=== 3175 sites/docs/src/lib/components/demos/use-debounce.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useDebounce } from "runed";
@@ -2358,7 +2384,8 @@ export default function Use_debounce($$anchor, $$props) {
 
 	$.pop();
 }
-=== 764 sites/docs/src/lib/components/demos/use-event-listener.svelte	js
+=== 806 sites/docs/src/lib/components/demos/use-event-listener.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useEventListener } from "runed";
@@ -2387,7 +2414,8 @@ export default function Use_event_listener($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2210 sites/docs/src/lib/components/demos/use-geolocation.svelte	js
+=== 2252 sites/docs/src/lib/components/demos/use-geolocation.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useGeolocation } from "runed";
@@ -2483,7 +2511,8 @@ export default function Use_geolocation($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2475 sites/docs/src/lib/components/demos/use-intersection-observer.svelte	js
+=== 2517 sites/docs/src/lib/components/demos/use-intersection-observer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useIntersectionObserver } from "runed";
@@ -2578,7 +2607,8 @@ export default function Use_intersection_observer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3018 sites/docs/src/lib/components/demos/use-interval.svelte	js
+=== 3060 sites/docs/src/lib/components/demos/use-interval.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useInterval } from "runed";
@@ -2725,7 +2755,8 @@ export default function Use_interval($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1660 sites/docs/src/lib/components/demos/use-mutation-observer.svelte	js
+=== 1702 sites/docs/src/lib/components/demos/use-mutation-observer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useMutationObserver } from "runed";
@@ -2807,7 +2838,8 @@ export default function Use_mutation_observer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 938 sites/docs/src/lib/components/demos/use-resize-observer.svelte	js
+=== 980 sites/docs/src/lib/components/demos/use-resize-observer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useResizeObserver } from "runed";
@@ -2851,7 +2883,8 @@ export default function Use_resize_observer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 3216 sites/docs/src/lib/components/demos/use-search-params.svelte	js
+=== 3258 sites/docs/src/lib/components/demos/use-search-params.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useSearchParams, createSearchParamsSchema } from "runed/kit";
@@ -2996,7 +3029,8 @@ export default function Use_search_params($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2904 sites/docs/src/lib/components/demos/use-throttle.svelte	js
+=== 2946 sites/docs/src/lib/components/demos/use-throttle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useThrottle } from "runed";
@@ -3121,7 +3155,8 @@ export default function Use_throttle($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 6155 sites/docs/src/lib/components/logos/runed-dark.svelte	js
+=== 6197 sites/docs/src/lib/components/logos/runed-dark.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3143,7 +3178,8 @@ export default function Runed_dark($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 1609 sites/docs/src/lib/components/logos/runed-icon.svelte	js
+=== 1651 sites/docs/src/lib/components/logos/runed-icon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3165,7 +3201,8 @@ export default function Runed_icon($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 6160 sites/docs/src/lib/components/logos/runed-light.svelte	js
+=== 6202 sites/docs/src/lib/components/logos/runed-light.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -3187,7 +3224,8 @@ export default function Runed_light($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 1119 sites/docs/src/routes/(docs)/+layout.svelte	js
+=== 1161 sites/docs/src/routes/(docs)/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import RunedDark from "$lib/components/logos/runed-dark.svelte";
@@ -3228,7 +3266,8 @@ export default function _layout($$anchor, $$props) {
 		});
 	}
 }
-=== 1057 sites/docs/src/routes/(docs)/docs/+page.svelte	js
+=== 1099 sites/docs/src/routes/(docs)/docs/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { DocPage } from "@svecodocs/kit";
@@ -3272,7 +3311,8 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1129 sites/docs/src/routes/(docs)/docs/[...slug]/+page.svelte	js
+=== 1171 sites/docs/src/routes/(docs)/docs/[...slug]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { DocPage } from "@svecodocs/kit";
@@ -3320,7 +3360,8 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1058 sites/docs/src/routes/+layout.svelte	js
+=== 1100 sites/docs/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import "../app.css";

@@ -73,7 +73,8 @@
 		border-width: 0;
 	}
 
-=== 19988 src/lib/components/ColorPicker.svelte	js
+=== 20030 src/lib/components/ColorPicker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { defaultTexts } from '$lib/utils/texts.js';
@@ -812,7 +813,8 @@ export default function ColorPicker($$anchor, $$props) {
 		--track-width: calc(var(--picker-height, 200px) - 4px);
 	}
 
-=== 3899 src/lib/components/Picker.svelte	js
+=== 3941 src/lib/components/Picker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { colord } from 'colord';
@@ -1007,7 +1009,8 @@ $.delegate(['mousedown', 'touchstart', 'touchmove', 'touchend']);
 		z-index: var(--picker-z-index, 2);
 	}
 
-=== 949 src/lib/components/variant/accessibility/A11yHorizontalWrapper.svelte	js
+=== 991 src/lib/components/variant/accessibility/A11yHorizontalWrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1077,7 +1080,8 @@ export default function A11yHorizontalWrapper($$anchor, $$props) {
 		outline-offset: 2px;
 	}
 
-=== 3161 src/lib/components/variant/accessibility/A11yNotice.svelte	js
+=== 3203 src/lib/components/variant/accessibility/A11yNotice.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { defaultA11yTexts } from '$lib/utils/texts.js';
@@ -1218,7 +1222,8 @@ export default function A11yNotice($$anchor, $$props) {
 		margin: 0;
 	}
 
-=== 2184 src/lib/components/variant/accessibility/A11ySingleNotice.svelte	js
+=== 2226 src/lib/components/variant/accessibility/A11ySingleNotice.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { isGradeAchieved } from './grades.js';
@@ -1318,7 +1323,8 @@ export default function A11ySingleNotice($$anchor, $$props) {
 		flex-direction: column;
 	}
 
-=== 925 src/lib/components/variant/chrome-picker/Wrapper.svelte	js
+=== 967 src/lib/components/variant/chrome-picker/Wrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1405,7 +1411,8 @@ export default function Wrapper($$anchor, $$props) {
 		outline-offset: 2px;
 	}
 
-=== 1732 src/lib/components/variant/default/Input.svelte	js
+=== 1774 src/lib/components/variant/default/Input.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1497,7 +1504,8 @@ $.delegate(['click', 'mousedown']);
 		transform: translate(-50%, -50%);
 	}
 
-=== 1033 src/lib/components/variant/default/NullabilityCheckbox.svelte	js
+=== 1075 src/lib/components/variant/default/NullabilityCheckbox.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1544,7 +1552,8 @@ export default function NullabilityCheckbox($$anchor, $$props) {
 		transition: box-shadow 0.2s;
 	}
 
-=== 479 src/lib/components/variant/default/PickerIndicator.svelte	js
+=== 521 src/lib/components/variant/default/PickerIndicator.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1588,7 +1597,8 @@ export default function PickerIndicator($$anchor, $$props) {
 		outline-offset: 2px;
 	}
 
-=== 1187 src/lib/components/variant/default/Swatches.svelte	js
+=== 1229 src/lib/components/variant/default/Swatches.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1713,7 +1723,8 @@ $.delegate(['click']);
 		outline-offset: 2px;
 	}
 
-=== 7553 src/lib/components/variant/default/TextInput.svelte	js
+=== 7595 src/lib/components/variant/default/TextInput.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1973,7 +1984,8 @@ $.delegate(['input', 'click']);
 		z-index: var(--picker-z-index, 2);
 	}
 
-=== 924 src/lib/components/variant/default/Wrapper.svelte	js
+=== 966 src/lib/components/variant/default/Wrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2004,7 +2016,8 @@ export default function Wrapper($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 688 src/routes/+layout.svelte	js
+=== 730 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { bgColor } from './store.js';
@@ -2029,7 +2042,8 @@ export default function _layout($$anchor, $$props) {
 	$.append($$anchor, div);
 	$$cleanup();
 }
-=== 1385 src/routes/standalone/+page.svelte	js
+=== 1427 src/routes/standalone/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import ColorPicker, { A11yVariant } from '$lib';

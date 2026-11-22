@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 17346 docs/src/lib/components/logos/mode-watcher-dark.svelte	js
+=== 17388 docs/src/lib/components/logos/mode-watcher-dark.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -21,7 +22,8 @@ export default function Mode_watcher_dark($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 17369 docs/src/lib/components/logos/mode-watcher-light.svelte	js
+=== 17411 docs/src/lib/components/logos/mode-watcher-light.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -43,7 +45,8 @@ export default function Mode_watcher_light($$anchor, $$props) {
 
 	$.append($$anchor, svg);
 }
-=== 1158 docs/src/routes/(docs)/+layout.svelte	js
+=== 1200 docs/src/routes/(docs)/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { DocsLayout } from "@svecodocs/kit";
@@ -84,7 +87,8 @@ export default function _layout($$anchor, $$props) {
 		});
 	}
 }
-=== 359 docs/src/routes/(docs)/docs/+page.svelte	js
+=== 401 docs/src/routes/(docs)/docs/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { DocPage } from "@svecodocs/kit";
@@ -103,7 +107,8 @@ export default function _page($$anchor, $$props) {
 
 	$.pop();
 }
-=== 362 docs/src/routes/(landing)/+page.svelte	js
+=== 404 docs/src/routes/(landing)/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -115,7 +120,8 @@ export default function _page($$anchor) {
 	$.next(2);
 	$.append($$anchor, fragment);
 }
-=== 478 docs/src/routes/+layout.svelte	js
+=== 520 docs/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { siteConfig } from "$lib/site-config";
@@ -133,7 +139,8 @@ export default function _layout($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1010 packages/mode-watcher/src/lib/components/mode-watcher-full.svelte	js
+=== 1052 packages/mode-watcher/src/lib/components/mode-watcher-full.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setInitialMode } from "../mode.js";
@@ -171,7 +178,8 @@ export default function Mode_watcher_full($$anchor, $$props) {
 
 	$.pop();
 }
-=== 614 packages/mode-watcher/src/lib/components/mode-watcher-lite.svelte	js
+=== 656 packages/mode-watcher/src/lib/components/mode-watcher-lite.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -199,7 +207,8 @@ export default function Mode_watcher_lite($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 3971 packages/mode-watcher/src/lib/components/mode-watcher.svelte	js
+=== 4013 packages/mode-watcher/src/lib/components/mode-watcher.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from "svelte";
@@ -539,7 +548,8 @@ export default function Mode_watcher($$anchor, $$props) {
 	}
 ]
 
-=== 546 packages/mode-watcher/src/routes/+layout.svelte	js
+=== 588 packages/mode-watcher/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import "../app.postcss";
@@ -561,7 +571,8 @@ export default function _layout($$anchor, $$props) {
 	$.snippet(node_1, () => $$props.children);
 	$.append($$anchor, fragment);
 }
-=== 3493 packages/mode-watcher/src/routes/+page.svelte	js
+=== 3535 packages/mode-watcher/src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -681,7 +692,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 2499 packages/mode-watcher/src/tests/Mode.svelte	js
+=== 2541 packages/mode-watcher/src/tests/Mode.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -757,7 +769,8 @@ export default function Mode($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1159 packages/mode-watcher/src/tests/StealthMode.svelte	js
+=== 1201 packages/mode-watcher/src/tests/StealthMode.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { ModeWatcher, resetMode, setMode, toggleMode } from "$lib/index.js";
