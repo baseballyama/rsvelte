@@ -1,4 +1,4 @@
-# svelte.compile.comments/server: 31705 match
+# svelte.compile.comments/server: 31720 match
 svelte/appwrite-console/src/lib/components/filters/content.svelte	mismatch
 svelte/appwrite-console/src/lib/components/git/repositories.svelte	mismatch
 svelte/appwrite-console/src/lib/components/multiSelectTable.svelte	mismatch
@@ -31,7 +31,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/n
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang05-input.svelte	skipped
 svelte/flowbite-svelte/src/lib/forms/input-field/Input.svelte	mismatch
 svelte/gitlight/src/routes/+page.svelte	skipped
-svelte/kampsy-ui/src/lib/input/input.svelte	mismatch
 svelte/kener/src/lib/components/ui/chart/chart-tooltip.svelte	mismatch
 svelte/kener/src/routes/(docs)/docs/LandingStatusDemo.svelte	skipped
 svelte/kite-public/src/lib/components/ChaosIndex.svelte	mismatch
@@ -61,13 +60,6 @@ svelte/networking-toolbox/src/lib/components/tools/IPv6SolicitedNode.svelte	skip
 svelte/networking-toolbox/src/lib/components/tools/NSEC3Hash.svelte	skipped
 svelte/networking-toolbox/src/routes/+layout.svelte	mismatch
 svelte/networking-toolbox/src/routes/about/legal/+layout.svelte	skipped
-svelte/originui-svelte/src/lib/components/inputs/input-33.svelte	mismatch
-svelte/originui-svelte/src/lib/components/navbars/navbar-04.svelte	mismatch
-svelte/originui-svelte/src/lib/components/navbars/navbar-06.svelte	mismatch
-svelte/originui-svelte/src/lib/components/navbars/navbar-08.svelte	mismatch
-svelte/originui-svelte/src/lib/components/navbars/navbar-09.svelte	mismatch
-svelte/originui-svelte/src/lib/components/navbars/navbar-11.svelte	mismatch
-svelte/originui-svelte/src/lib/components/navbars/navbar-20.svelte	mismatch
 svelte/originui-svelte/src/lib/components/tables/table-13.svelte	mismatch
 svelte/originui-svelte/src/lib/components/tables/table-16.svelte	skipped
 svelte/primo/src/lib/builder/views/modal/SitePages/Item.svelte	skipped
@@ -1380,8 +1372,6 @@ svelte/rsvelte-tests-core-2/props_comment_text_does_not_steer_the_transform/a_tr
 svelte/rsvelte-tests-core-2/props_comment_text_does_not_steer_the_transform/a_trailing_comments_words_do_not_change_the_generated_code/ff3fb7805c17c07d.svelte	mismatch
 svelte/rsvelte-tests-core-2/props_id_trivia_3346/a_call_that_is_not_the_whole_initializer_is_rejected/2b7156bb719b84b4.svelte	official-rejected
 svelte/rsvelte-tests-core-2/props_id_trivia_3346/a_call_that_is_not_the_whole_initializer_is_rejected/41bbc188f8222feb.svelte	official-rejected
-svelte/rsvelte-tests-core-2/props_id_trivia_3346/trivia_around_props_id_never_duplicates_the_declaration/1b21ac6e36bedd7d.svelte	mismatch
-svelte/rsvelte-tests-core-2/props_id_trivia_3346/trivia_around_props_id_never_duplicates_the_declaration/ea57e0b799b83075.svelte	mismatch
 svelte/rsvelte-tests-core-3/real_world_false_positives/a_dollar_prefixed_import_specifier_is_not_a_store_read/ab861ac1c6324f8c.svelte	official-rejected
 svelte/rsvelte-tests-core-3/real_world_false_positives/a_free_dollar_reference_is_still_an_invalid_global/594ff5c5f155b227.svelte	official-rejected
 svelte/rsvelte-tests-core-3/real_world_false_positives/a_real_rune_still_flips_runes_mode/fefc7c0db10160a0.svelte	official-rejected
@@ -3709,7 +3699,6 @@ svelte/runed/sites/docs/src/lib/components/demos/finite-state-machine.svelte	ski
 svelte/shadcn-svelte-extras/src/lib/components/ui/chart/chart-tooltip.svelte	mismatch
 svelte/shadcn-svelte-extras/src/lib/components/ui/chat/loading-dots.svelte	skipped
 svelte/shadcn-svelte-extras/src/lib/components/ui/emoji-picker/emoji-picker-skin-tone-selector.svelte	mismatch
-svelte/shadcn-svelte-extras/src/lib/components/ui/tags-input/tags-input.svelte	missing
 svelte/shadcn-svelte/docs/src/lib/registry/blocks/sidebar-07/components/nav-main.svelte	missing
 svelte/shadcn-svelte/docs/src/lib/registry/blocks/sidebar-07/components/nav-projects.svelte	mismatch
 svelte/shadcn-svelte/docs/src/lib/registry/blocks/sidebar-08/components/nav-main.svelte	missing
@@ -3718,7 +3707,6 @@ svelte/shadcn-svelte/docs/src/lib/registry/blocks/sidebar-10/components/team-swi
 svelte/shadcn-svelte/docs/src/lib/registry/ui/chart/chart-tooltip.svelte	mismatch
 svelte/shadcn-svelte/docs/src/routes/(app)/(layout)/(root)/cards/analytics-card.svelte	skipped
 svelte/skeleton/sites/skeleton.dev/src/components/examples/framework-components/avatar/svelte/filter.svelte	skipped
-svelte/skeleton/sites/skeleton.dev/src/components/ui/header/search.svelte	missing
 svelte/svader/packages/test-site/src/invalid.svelte	missing
 svelte/svar-grid/svelte/src/components/Grid.svelte	mismatch
 svelte/svar-grid/svelte/src/components/Layout.svelte	mismatch
@@ -3726,7 +3714,6 @@ svelte/svelte-bits/src/lib/components/landing/Features/VariantTabs.svelte	skippe
 svelte/svelte-bits/src/lib/components/library/Animations/StarBorder/StarBorder.svelte	skipped
 svelte/svelte-bits/src/lib/components/library/Components/GooeyNav/GooeyNav.svelte	skipped
 svelte/svelte-bits/src/lib/components/library/TextAnimations/SplitText/SplitText.svelte	mismatch
-svelte/svelte-commerce/src/lib/components/form/textbox.svelte	missing
 svelte/svelte-commerce/src/lib/components/nav/nav.svelte	skipped
 svelte/svelte-commerce/src/lib/core/components/image/lazy-img-with-zoom.svelte	skipped
 svelte/svelte-commerce/src/lib/core/components/image/lazy-img.svelte	skipped
@@ -3741,8 +3728,6 @@ svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/generics01-snippet
 svelte/svelte-eslint-parser/tests/fixtures/parser/ast/svelte5/ts-event03-type-output.svelte	mismatch
 svelte/svelte-eslint-parser/tests/fixtures/parser/error/directive-style-with-expr-input.svelte	skipped
 svelte/svelte-eslint-parser/tests/fixtures/parser/error/shorthand02-input.svelte	skipped
-svelte/svelte-inspect-value/packages/svelte/src/lib/Panel.svelte	mismatch
-svelte/svelte-inspect-value/packages/svelte/src/lib/components/Search.svelte	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/HashtagPlugin.svelte	mismatch
 svelte/svelte-material-ui/packages/snackbar/src/kitchen/Kitchen.svelte	mismatch
 svelte/svelte-render-scan/src/routes/+page.svelte	skipped
