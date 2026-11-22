@@ -128,7 +128,6 @@ impl Conformance {
     }
 
     /// Runs, prints a summary to stderr and fails when a verdict moved.
-    #[must_use]
     pub fn run(self) -> ExitCode {
         if std::env::args().any(|a| a == "--list") {
             // libtest's listing, for runners such as nextest.

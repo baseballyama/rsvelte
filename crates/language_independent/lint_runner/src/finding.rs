@@ -104,7 +104,7 @@ impl Finding {
     pub fn reported(self) -> rsvelte_kernel::diagnostics::Finding {
         rsvelte_kernel::diagnostics::Finding {
             diagnostic: self.diagnostic,
-            fix: self.fix.map(|fix| fix.edits).unwrap_or_default(),
+            fix: self.fix.map_or_default(|fix| fix.edits),
         }
     }
 }

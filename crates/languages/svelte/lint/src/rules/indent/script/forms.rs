@@ -255,9 +255,7 @@ impl<'a> Script<'_, 'a> {
         } else {
             let name_start = function.id.as_ref().map(|n| n.span.start);
             let mut offset = 0;
-            let between: Vec<Token> = left
-                .map(|l| tokens.between(f, l).collect())
-                .unwrap_or_default();
+            let between: Vec<Token> = left.map_or_default(|l| tokens.between(f, l).collect());
             for t in between {
                 let tokens = self.tokens();
                 if tokens.text(t) == "<" {

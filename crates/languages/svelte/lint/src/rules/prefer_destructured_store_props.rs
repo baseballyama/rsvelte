@@ -58,8 +58,7 @@ impl SvelteRule for PreferDestructuredStoreProps {
         let top = TopLevel::new(file);
         let assigned = file
             .component()
-            .map(|_| ReactiveVariables::new(file))
-            .unwrap_or_default();
+            .map_or_default(|_| ReactiveVariables::new(file));
         for member in members {
             if self_scoped(file.semantic().scoping(), &top, member) {
                 continue;

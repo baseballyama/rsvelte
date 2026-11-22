@@ -71,8 +71,7 @@ impl SvelteRule for NoNavigationWithoutResolve {
             resolution: file.resolution(),
             items: file
                 .component()
-                .map(|component| each_items(component, script.tree))
-                .unwrap_or_default(),
+                .map_or_default(|component| each_items(component, script.tree)),
         };
         for (navigation, call) in script.navigation_calls() {
             let (ignored, message, empty) = match navigation {

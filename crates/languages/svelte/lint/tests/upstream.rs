@@ -392,8 +392,7 @@ fn run(case: &Case<'_>, deviation: Option<&Deviation>) -> Verdict {
     let settings: LintSettings = config
         .settings
         .and_then(|s| s.svelte)
-        .map(|raw| serde_json::from_str(raw.get()).expect("svelte settings"))
-        .unwrap_or_default();
+        .map_or_default(|raw| serde_json::from_str(raw.get()).expect("svelte settings"));
     let svelte_config = match svelte_config(case, config.language_options, javascript) {
         Ok(svelte_config) => svelte_config,
         Err(why) => return Verdict::Unmeasured(format!("a svelte.config.js {why}")),
