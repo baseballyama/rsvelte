@@ -3,19 +3,20 @@
 use std::borrow::Cow;
 
 use oxc_ast::AstType;
+use oxc_ast::ast::Expression;
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
-use oxc_span::SourceType;
+use oxc_span::{GetSpan, SourceType};
 
 use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
-use super::word::{keyword, misused};
+use super::word::{Home, home, keyword, misused};
 
 mod lexer;
 mod pattern;
 use lexer::regular_expression;
-use pattern::parenthesized_element;
+use pattern::{parenthesized_element, reparsed};
 
 /// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one
 /// of `unchecked`, the rules the host's parser does not check, nor, for a host that reads
@@ -163,7 +164,7 @@ pub(crate) fn acorn(
                 .start(),
         )),
         number if let Some(message) = unassignable_message(number) => {
-            unassignable(message, text, start, &read().collect::<Vec<_>>())
+            unassignable(message, (text, start, end), read(), visit)
         }
         "1127" => unexpected_character(text, start, end),
         // A word reserved in strict code, or `await` outside an async function, which acorn reads
@@ -203,6 +204,13 @@ pub(crate) fn acorn(
     }
 }
 
+/// Whether `error` is about a target that cannot be assigned, which acorn reports as such.
+pub(crate) fn unassignable_target(error: &OxcDiagnostic) -> bool {
+    error.code.scope.as_deref() == Some("TS")
+        && (error.code.number.as_deref())
+            .is_some_and(|number| unassignable_message(number).is_some())
+}
+
 /// Acorn's message for a target that tsc's code `number` says cannot be assigned, which names an
 /// optional chain apart.
 fn unassignable_message(number: &str) -> Option<&'static str> {
@@ -215,13 +223,48 @@ fn unassignable_message(number: &str) -> Option<&'static str> {
     }
 }
 
-/// What acorn reports for a target that cannot be assigned, which oxc labels from its outermost
-/// parentheses at `start`. In a destructuring pattern, acorn first checks the pattern as a whole:
-/// see [`parenthesized_element`]. Otherwise it reports `message` at the target inside the
-/// parentheses, or at them around an object or an array.
-fn unassignable(message: &'static str, text: &str, start: u32, tokens: &[Token]) -> Option<Acorn> {
-    if let Some(at) = parenthesized_element(text, start, tokens) {
-        return Some(fails("Assigning to rvalue", at));
+/// What acorn reports for a target that cannot be assigned, which oxc labels `start..end` with its
+/// outermost parentheses, in the part whose tokens are `tokens` and whose tree `visit` walks. In a
+/// destructuring pattern, acorn first checks the pattern as a whole: see [`parenthesized_element`].
+/// Otherwise it reports `message` where its node starts: at the expression inside the parentheses
+/// and type assertions, or at the outermost parenthesis around an object or an array, which it
+/// reads as a pattern. Both read the target where acorn does, which decides what `await` and
+/// `yield` are: where that is not known, the message stays, at the first token inside the
+/// parentheses or at them around a pattern.
+fn unassignable(
+    message: &'static str,
+    (text, start, end): (&str, u32, u32),
+    tokens: impl Iterator<Item = Token>,
+    visit: impl FnOnce(&mut Locator),
+) -> Option<Acorn> {
+    let tokens = &tokens.collect::<Vec<_>>();
+    let (home, _) = home(start, end, tokens.iter().copied(), visit);
+    // Without a tree, a part where no function can start is read at the top level.
+    let home = home.or_else(|| {
+        let mut before = tokens.iter().take_while(|token| token.start() < start);
+        let mut previous = Kind::Undetermined;
+        before
+            .all(|token| {
+                let opens = matches!(token.kind(), Kind::Function | Kind::Arrow | Kind::Class)
+                    || (previous == Kind::RParen && token.kind() == Kind::LCurly);
+                previous = token.kind();
+                !opens
+            })
+            .then_some(Home::TopLevel)
+    });
+    if let Some(home) = home {
+        if let Some(at) = parenthesized_element(text, start, tokens, home) {
+            return Some(fails("Assigning to rvalue", at));
+        }
+        let node = reparsed(text, (start, end), home, |target| {
+            match target.expression.get_inner_expression() {
+                Expression::ObjectExpression(_) | Expression::ArrayExpression(_) => start,
+                inner => target.at(inner.span().start),
+            }
+        });
+        if let Some(at) = node {
+            return Some(fails(message, at));
+        }
     }
     let mut after = tokens.iter().skip_while(|token| token.start() < start);
     let first = after.next()?;

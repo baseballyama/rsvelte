@@ -304,3 +304,69 @@ fn a_destructuring_pattern_fails_at_its_first_parenthesized_element() {
         2
     );
 }
+
+#[test]
+fn a_target_is_read_where_acorn_reads_it() {
+    // What svelte 5.57.3 reports, in bytes of each source: `await`, `yield` and `new.target` are
+    // what the function around them makes them, in a target and in a pattern's element.
+    for (source, at) in [
+        ("<script>async function f() { (await x) = 1; }</script>", 30),
+        ("<script>function* g() { (yield x) = 1; }</script>", 25),
+        ("<script>function* g() { (yield) = 1; }</script>", 25),
+        ("<script>function f() { (new.target) = 1; }</script>", 24),
+        ("<script>async function f() { (await x)++; }</script>", 30),
+        (
+            "<script>async function f() { for ((await x) of o); }</script>",
+            35,
+        ),
+        (
+            "<script>const f = async () => { (await x) = 1 };</script>",
+            33,
+        ),
+        (
+            "<script>async function f() { ((await x))() = 1; }</script>",
+            29,
+        ),
+        (
+            "<script>function* g() { [(yield), (f())] = o; }</script>",
+            25,
+        ),
+        (
+            "<script>async function f() { [(await x), (f())] = o; }</script>",
+            30,
+        ),
+        ("<script>function* g() { [(yield x)] = o; }</script>", 25),
+        ("<script>(await x) = 1;</script>", 9),
+        (
+            "<script>function f() { [(new.target), (g())] = o; }</script>",
+            24,
+        ),
+        (
+            "<script>class A { x = () => { (new.target) = 1; } }</script>",
+            31,
+        ),
+        (
+            "<script>async function* g() { (yield await x) = 1; }</script>",
+            31,
+        ),
+        ("<script>[(f())(), x] = o;</script>", 9),
+        (
+            "<script lang=\"ts\">async function f() { (await x as any) = 1; }</script>",
+            40,
+        ),
+        (
+            "<script lang=\"ts\">function* g() { ((yield) as any) = 1; }</script>",
+            36,
+        ),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(
+            (
+                error.message.lines().next().unwrap_or_default(),
+                error.span.start_offset
+            ),
+            ("Assigning to rvalue", at),
+            "{source}"
+        );
+    }
+}

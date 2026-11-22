@@ -1,34 +1,113 @@
 //! Acorn's check of a destructuring pattern as a whole, which it makes before it checks the
 //! elements.
 
-use oxc_ast::ast::{ArrayExpressionElement, ChainElement, Expression, ObjectPropertyKind};
+use oxc_ast::ast::{
+    ArrayExpressionElement, ChainElement, Expression, ObjectPropertyKind, Statement,
+};
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::{GetSpan, SourceType};
 
+use super::super::word::Home;
+
 /// Where acorn's check of a destructuring pattern around `start` fails, in `text` whose tokens are
-/// `tokens`: at the parenthesis it recorded while it read the pattern as an expression. The pattern
-/// is the outermost array or object around `start` that `=` or a `for` head assigns to and that oxc
-/// reads as an expression.
-pub(super) fn parenthesized_element(text: &str, start: u32, tokens: &[Token]) -> Option<u32> {
+/// `tokens` and where acorn reads as `home` says: at the parenthesis it recorded while it read the
+/// pattern as an expression. The pattern is the outermost array or object around `start` that `=`
+/// or a `for` head assigns to and that reads as an expression there.
+pub(super) fn parenthesized_element(
+    text: &str,
+    start: u32,
+    tokens: &[Token],
+    home: Home,
+) -> Option<u32> {
     assigned_patterns(start, tokens)
-        .find_map(|pattern| recorded(text, pattern))
-        .and_then(|record| record.at)
+        .find_map(|pattern| {
+            reparsed(text, pattern, home, |pattern| {
+                let mut record = Record::default();
+                record.atom(pattern.expression, pattern.source);
+                record.at.map(|at| pattern.at(at))
+            })
+        })
+        .flatten()
 }
 
-/// What acorn records in the pattern `open..close` of `text`, or none where oxc does not read it as
-/// an expression.
+/// An expression read again apart from the rest of the source, in a source of its own.
+pub(super) struct Reparsed<'r, 'a> {
+    pub(super) expression: &'r Expression<'a>,
+    /// The source the expression was read from, which its spans index.
+    pub(super) source: &'r str,
+    /// Where the expression starts in its own source, and in the original.
+    shift: (u32, u32),
+}
+
+impl Reparsed<'_, '_> {
+    /// The offset in the original source of `at` in the expression's own.
+    pub(super) const fn at(&self, at: u32) -> u32 {
+        at - self.shift.0 + self.shift.1
+    }
+}
+
+/// `text[start..end]` read as an expression where acorn reads it, which `home` says: that decides
+/// whether `await` and `yield` are keywords, so the expression is read inside a function like the
+/// one around it. `None` where it does not read as one expression there, or where `home` is a class
+/// static block, which no wrapper here reproduces.
 #[cold]
-fn recorded(text: &str, (open, close): (u32, u32)) -> Option<Record> {
-    let pattern = text.get(open as usize..close as usize)?;
+pub(super) fn reparsed<R>(
+    text: &str,
+    (start, end): (u32, u32),
+    home: Home,
+    read: impl FnOnce(&Reparsed<'_, '_>) -> R,
+) -> Option<R> {
+    let target = text.get(start as usize..end as usize)?;
+    let function = match home {
+        Home::TopLevel => "",
+        Home::Function {
+            is_async: false,
+            is_generator: false,
+        }
+        | Home::Initializer => "function _() {",
+        Home::Function {
+            is_async: true,
+            is_generator: false,
+        } => "async function _() {",
+        Home::Function {
+            is_async: false,
+            is_generator: true,
+        } => "function* _() {",
+        Home::Function {
+            is_async: true,
+            is_generator: true,
+        } => "async function* _() {",
+        Home::StaticBlock => return None,
+    };
+    let close = if function.is_empty() { "" } else { "}" };
+    let source = format!("{function}({target});{close}");
+    let open = u32::try_from(function.len()).ok()? + 1;
     crate::scratch::with_scratch_arena(|allocator| {
-        let parsed = Parser::new(allocator, pattern, SourceType::ts())
-            .parse_expression_at(0)
-            .ok()
-            .filter(|parsed| parsed.end == close - open)?;
-        let mut record = Record::default();
-        record.atom(&parsed.expression, pattern);
-        record.at = record.at.map(|at| open + at);
-        Some(record)
+        let parsed = Parser::new(allocator, &source, SourceType::ts()).parse();
+        if parsed.fatal_error {
+            return None;
+        }
+        let statement = match parsed.program.body.first()? {
+            Statement::FunctionDeclaration(function) => {
+                function.body.as_ref()?.statements.first()?
+            }
+            statement => statement,
+        };
+        let Statement::ExpressionStatement(statement) = statement else {
+            return None;
+        };
+        let Expression::ParenthesizedExpression(wrapper) = &statement.expression else {
+            return None;
+        };
+        let expression = &wrapper.expression;
+        let span = expression.span();
+        (span.start == open && span.end == open + (end - start)).then(|| {
+            read(&Reparsed {
+                expression,
+                source: &source,
+                shift: (open, start),
+            })
+        })
     })
 }
 

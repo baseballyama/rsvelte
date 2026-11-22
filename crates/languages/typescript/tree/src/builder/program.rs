@@ -8,7 +8,9 @@ use rsvelte_kernel::source::positions::Span;
 use super::{Part, TreeBuilder, parentheses};
 use crate::ProgramIdentifier;
 use crate::acorn_grammar::{rejection, whitespace};
-use crate::syntax_error::{SyntaxError, acorn, syntax_error, typescript_eslint_at};
+use crate::syntax_error::{
+    SyntaxError, acorn, syntax_error, typescript_eslint_at, unassignable_target,
+};
 
 impl<'a> TreeBuilder<'a> {
     /// Parses `range` of the document as a program, such as the body of a `<script>` element.
@@ -170,8 +172,16 @@ impl<'a> TreeBuilder<'a> {
             .with_start(start)
             .parse();
         if parsed.fatal_error {
-            let acorn = (parsed.diagnostics.first())
-                .and_then(|first| acorn(first, text, (&parsed.tokens, None), |_| {}));
+            let acorn = parsed.diagnostics.first().and_then(|first| {
+                crate::scratch::with_scratch_arena(|allocator| {
+                    let named = named_targets(allocator, (text, start), source_type, first);
+                    acorn(first, text, (&parsed.tokens, None), |locator| {
+                        if let Some(program) = &named {
+                            Part::Program(program).walk(locator);
+                        }
+                    })
+                })
+            });
             let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, &[], start, 0);
             error.acorn = acorn;
             let stop = (self.as_acorn)
@@ -403,4 +413,38 @@ struct Read {
     error: SyntaxError,
     diagnostics: Diagnostics,
     recovered: Option<ProgramIdentifier>,
+}
+
+/// The program oxc reads from `text[start..]` with each target it cannot assign, from `first` on,
+/// replaced by a name of the same length: its tree places those targets in the functions around
+/// them, where acorn reads `await` and `yield`. `None` where another error stops it.
+#[cold]
+fn named_targets<'b>(
+    allocator: &'b oxc_allocator::Allocator,
+    (text, start): (&str, u32),
+    source_type: SourceType,
+    first: &oxc_diagnostics::OxcDiagnostic,
+) -> Option<Program<'b>> {
+    let mut named = text.to_owned();
+    let mut error = first.clone();
+    loop {
+        let label = error
+            .labels
+            .first()
+            .filter(|_| unassignable_target(&error))?;
+        let range = label.offset() as usize..(label.offset() + label.len()) as usize;
+        let name = format!("_{}", " ".repeat(range.len().checked_sub(1)?));
+        if named.get(range.clone())? == name {
+            return None;
+        }
+        named.replace_range(range, &name);
+        let parsed = Parser::new(allocator, allocator.alloc_str(&named), source_type)
+            .with_options(parentheses::options(false))
+            .with_start(start)
+            .parse();
+        if !parsed.fatal_error {
+            return Some(parsed.program);
+        }
+        error = parsed.diagnostics.into_iter().next()?;
+    }
 }

@@ -179,7 +179,7 @@ fn misused_word(
 /// Where acorn reads the word oxc labels `start..end`, and the name oxc's tree reads there. A
 /// part oxc could not read has no tree, and there only a name outside every bracket and arrow
 /// before it is known to be at the top level.
-fn home(
+pub(super) fn home(
     start: u32,
     end: u32,
     tokens: impl Iterator<Item = Token>,
