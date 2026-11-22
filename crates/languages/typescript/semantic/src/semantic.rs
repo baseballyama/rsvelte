@@ -54,9 +54,11 @@ impl Semantic {
     /// and the tasks walk to parents.
     #[must_use]
     pub fn builder<'a>() -> SemanticBuilder<'a> {
+        // No task reads JSDoc, which `oxc_linter` turns on for the whole build.
         SemanticBuilder::new()
             .with_check_syntax_error(true)
             .with_build_nodes(true)
+            .with_build_jsdoc(false)
     }
 
     /// Analyzes what `build` reads of `tree`, which the analysis keeps alive. `build` may adjust
