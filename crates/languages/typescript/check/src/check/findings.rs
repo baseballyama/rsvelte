@@ -7,6 +7,7 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 
 use super::{Prepared, TypeScriptDiagnostic};
+use crate::CheckedDocument;
 
 const NO_OVERLOAD_MATCHES_CALL: u32 = 2769;
 const ARGUMENT_NOT_ASSIGNABLE: u32 = 2345;
@@ -61,6 +62,9 @@ pub(super) fn write_findings(
         }
         let bom = byte_order_mark(source_text);
         let content_mapped = d.env.mapped_extension.is_some();
+        if starts_ignored(d, span, bom) {
+            continue;
+        }
         let generated = if content_mapped {
             generated_offset(&d.projection, span.start_offset + bom)
         } else {
@@ -219,6 +223,20 @@ pub(super) fn byte_order_mark(source: &str) -> u32 {
     } else {
         0
     }
+}
+
+/// Whether the finding at `span` starts in an [`Emitter::ignored`] range, as svelte-check's
+/// `isInGeneratedCode` tests its start. The checker maps a content-mapped finding back, and only
+/// an ignored range maps from where it starts.
+fn starts_ignored(d: &CheckedDocument, span: Span, bom: u32) -> bool {
+    let content_mapped = d.env.mapped_extension.is_some();
+    d.projection.ignored.iter().any(|&range| {
+        if content_mapped {
+            d.projection.maps_into(range, span.start_offset + bom)
+        } else {
+            (range.start_offset..range.end_offset).contains(&span.start_offset)
+        }
+    })
 }
 
 /// The first generated offset copied from the original `offset`, or the end of the copy before
