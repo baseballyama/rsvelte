@@ -1,0 +1,2 @@
+error slot_element_invalid_attribute 7:7-7:20 `<slot>` can only receive attributes and (optionally) let directives
+    https://svelte.dev/e/slot_element_invalid_attribute
