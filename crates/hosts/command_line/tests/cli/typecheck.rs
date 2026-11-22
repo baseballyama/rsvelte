@@ -344,8 +344,8 @@ fn typecheck_reads_a_javascript_generics_list_after_the_ignore_start() {
         assert!(lines.contains(&oracle), "{oracle} missing from:\n{report}");
     }
     // Without the ignore start, TypeScript reads `</` and then a regular expression.
-    for code in ["TS1161", "TS2363"] {
-        assert!(!report.contains(code), "{code} in:\n{report}");
+    for text in ["TS1161", "TS2363", "Unterminated regular expression"] {
+        assert!(!report.contains(text), "{text} in:\n{report}");
     }
 }
 
