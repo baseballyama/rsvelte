@@ -148,7 +148,11 @@ impl<'a> Builder<'a> {
                     Forwarder::Other => return self.tree.push(Node::Identifier("undefined")),
                     &Forwarder::Component(component) => {
                         let instance = self.tree.push(Node::Identifier("__sveltets_2_instanceOf"));
+                        // svelte2tsx reads the component itself, where a finding such as
+                        // TS2454 maps nowhere and svelte-check drops it.
                         let component = self.tree.push(Node::UnmappedSource(component));
+                        let component = self.tree.push(Node::TypeQuery(component));
+                        let component = self.value_of(component);
                         let arguments = self.tree.list(&[component]);
                         let object = self.tree.push(Node::Call {
                             callee: instance,
