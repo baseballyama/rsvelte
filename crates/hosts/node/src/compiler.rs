@@ -47,8 +47,10 @@ pub struct Output {
 #[napi(object)]
 #[derive(Debug)]
 pub struct Compiled {
-    pub js: Output,
-    pub css: Option<Output>,
+    #[napi(js_name = "js")]
+    pub javascript: Output,
+    #[napi(js_name = "css")]
+    pub stylesheet: Option<Output>,
     pub warnings: Vec<Report>,
 }
 
@@ -107,11 +109,11 @@ fn outcome(source: &str, result: Result<CompileResult, Diagnostic>) -> Outcome {
     match result {
         Ok(result) => Outcome {
             compiled: Some(Compiled {
-                js: Output {
+                javascript: Output {
                     code: result.js.code,
                     map: Some(result.js.map),
                 },
-                css: result.css.map(|code| Output { code, map: None }),
+                stylesheet: result.css.map(|code| Output { code, map: None }),
                 warnings: result
                     .warnings
                     .iter()

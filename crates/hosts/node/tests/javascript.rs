@@ -4,8 +4,18 @@
 use std::path::{Path, PathBuf};
 use std::process::Command;
 
-/// The addon cargo built for this test, next to its `deps/` directory.
+/// The addon, built now: cargo builds a cdylib for no test, and an older one would pass stale code.
 fn addon() -> PathBuf {
+    let mut build = Command::new(env!("CARGO"));
+    build.args(["build", "--offline", "--package", "rsvelte_node"]);
+    if !cfg!(debug_assertions) {
+        build.arg("--release");
+    }
+    let status = build.status().expect("run cargo");
+    assert!(
+        status.success(),
+        "cargo build --package rsvelte_node failed"
+    );
     let name = if cfg!(windows) {
         "rsvelte_node.dll"
     } else if cfg!(target_os = "macos") {
