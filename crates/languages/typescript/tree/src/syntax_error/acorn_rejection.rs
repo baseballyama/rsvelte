@@ -44,7 +44,8 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
         "1047" => optional_rest(start, end, visit) == Some(Ok(())),
         // acorn-typescript reads a class accessor without a body as a signature.
         "1005" => locate(start, end, Find::BodilessAccessor, visit).is_some(),
-        // acorn-typescript checks no interface, and a type alias only against the types before it.
+        // acorn-typescript checks no interface nor public class member, and a type alias only
+        // against the types before it.
         "2300" => {
             let Some(second) = error.labels.get(1) else {
                 return false;
@@ -52,7 +53,13 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
             let second = (second.offset(), second.offset() + second.len());
             let locator = redeclared((start, end), second, visit);
             match locator.found {
-                Some((_, AstType::TSInterfaceDeclaration)) => true,
+                Some((
+                    _,
+                    AstType::TSInterfaceDeclaration
+                    | AstType::PropertyDefinition
+                    | AstType::MethodDefinition
+                    | AstType::AccessorProperty,
+                )) => true,
                 Some((_, AstType::TSTypeAliasDeclaration)) => !locator.first_is_type,
                 _ => false,
             }
@@ -256,8 +263,9 @@ fn early_error(
         )),
         "2524" => Some(fails("Await expression cannot be a default value", start)),
         "2523" => Some(fails("Yield expression cannot be a default value", start)),
-        // A second declaration: oxc labels the first one first, and acorn fails at this one.
-        "2300" => redeclaration((start, end), second_label()?, text, visit),
+        // A second declaration: oxc labels the first one first, and acorn fails at this one. A
+        // private name shared by a static and an instance member is one too.
+        "2300" | "2804" => redeclaration((start, end), second_label()?, text, visit),
         "1114" => {
             let (at, name) = second()?;
             Some(Acorn::Fails {

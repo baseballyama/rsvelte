@@ -1,7 +1,9 @@
 //! A script's top-level statements: each is kept, hoisted, dropped or lowered for its rune.
 
 use oxc_allocator::{CloneIn, GetAllocator};
-use oxc_ast::ast::{Declaration, Program, Statement, VariableDeclaration, VariableDeclarator};
+use oxc_ast::ast::{
+    BindingIdentifier, Declaration, Program, Statement, VariableDeclaration, VariableDeclarator,
+};
 use oxc_ast_visit::VisitMut;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_semantic::resolve::Resolution;
@@ -25,8 +27,11 @@ pub(in crate::lower) enum ScriptContext<'e, 't> {
     File,
 }
 
-/// Upstream `analysis.props_id`: the name `const id = $props.id()` declares.
-pub(in crate::lower) fn props_id(program: &Program<'_>, res: &Resolution) -> Option<String> {
+/// Upstream `analysis.props_id`: the identifier `const id = $props.id()` declares.
+pub(in crate::lower) fn props_id<'t>(
+    program: &'t Program<'t>,
+    res: &Resolution,
+) -> Option<&'t BindingIdentifier<'t>> {
     program.body.iter().find_map(|statement| {
         let d = match statement {
             Statement::VariableDeclaration(d) => d,
@@ -41,7 +46,6 @@ pub(in crate::lower) fn props_id(program: &Program<'_>, res: &Resolution) -> Opt
             (res.rune(init)?.0 == "$props.id")
                 .then(|| d.id.get_binding_identifier())
                 .flatten()
-                .map(|id| id.name.to_string())
         })
     })
 }

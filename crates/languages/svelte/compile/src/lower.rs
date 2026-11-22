@@ -37,7 +37,7 @@ pub(crate) use builder::Builder;
 pub use client::PASSIVE_EVENTS;
 pub(crate) use module::lower_module;
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{Program, Statement};
+use oxc_ast::ast::{BindingIdentifier, Expression, Program, Statement, VariableDeclarationKind};
 use oxc_ast_visit::VisitMut;
 use oxc_span::{SPAN, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -183,7 +183,7 @@ pub(crate) struct Prepared<'c, 'o> {
     hoisted: Vec<Statement<'o>>,
     instance: Vec<Statement<'o>>,
     /// Upstream `analysis.props_id`, which each target declares first in the component.
-    props_id: Option<String>,
+    props_id: Option<&'o BindingIdentifier<'o>>,
     /// The names the instance script exports, in source order.
     exports: Vec<script::Export<'o>>,
     custom_element: Option<&'c custom_element::CustomElement>,
@@ -199,6 +199,17 @@ fn takes_props(an: &Analysis, res: &Resolution, exports: bool, tree: &CompilerSy
         || exports
         || slot_element::has_slot_element(tree)
         || uses_slots(res)
+}
+
+/// Upstream `b.const(analysis.props_id, init)`, which declares the source's own identifier node
+/// and so keeps its position.
+fn props_id_declaration<'o>(
+    b: &Builder<'o>,
+    id: &BindingIdentifier<'_>,
+    init: Expression<'o>,
+) -> Statement<'o> {
+    let declarator = b.declarator(b.binding_at(&id.name, id.span), Some(init));
+    b.declaration(VariableDeclarationKind::Const, [declarator])
 }
 
 /// Upstream `analysis.uses_slots`: the component reads `$$slots`, which it declares from

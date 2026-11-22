@@ -29,7 +29,9 @@ mod title;
 use std::borrow::Cow;
 
 use oxc_allocator::ArenaBox;
-use oxc_ast::ast::{Expression, FormalParameters, Statement, VariableDeclarationKind};
+use oxc_ast::ast::{
+    BindingIdentifier, Expression, FormalParameters, Statement, VariableDeclarationKind,
+};
 use oxc_semantic::{ScopeId, SymbolId};
 use oxc_span::{SPAN, Span};
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -43,7 +45,7 @@ use super::attributes::lowercase;
 use super::builder::{Runtime, export_default, import};
 use super::names::Names;
 use super::script::Read;
-use super::{Builder, Prepared, takes_props, uses_slots};
+use super::{Builder, Prepared, props_id_declaration, takes_props, uses_slots};
 use crate::input::{Renderer, Target};
 use crate::render_plan::RenderPlan;
 
@@ -278,7 +280,7 @@ pub(super) fn lower_prepared<'c, 'o>(
         template,
         returned,
         stylesheet.is_some(),
-        props_id.as_deref(),
+        props_id,
     );
     let func = super::script::with_prologue(b, func);
     let registration = context.custom_element_registration(&exports);
@@ -340,7 +342,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         template: Vec<Statement<'o>>,
         exports: Vec<oxc_ast::ast::ObjectPropertyKind<'o>>,
         stylesheet: bool,
-        props_id: Option<&str>,
+        props_id: Option<&BindingIdentifier<'_>>,
     ) -> Statement<'o> {
         let b = self.b;
         let has_exports = !exports.is_empty();
@@ -384,7 +386,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             body.insert(0, b.const_("$$slots", slots));
         }
         if let Some(id) = props_id {
-            body.insert(0, b.const_(id, b.runtime("props_id", [])));
+            body.insert(0, props_id_declaration(b, id, b.runtime("props_id", [])));
         }
         let mut parameters = vec!["$$anchor"];
         if takes_props(self.an, self.res, has_exports, self.compiler_syntax_tree)
