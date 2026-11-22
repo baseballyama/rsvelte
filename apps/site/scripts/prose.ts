@@ -40,14 +40,12 @@ const visibleProperties = new Set(['title', 'label', 'message']);
 /** The source range of a script's body. Svelte's types omit the offsets that its parser sets on `content`. */
 export function contentRange(script: AST.Script): { start: number; end: number } {
 	const content = script.content;
-	if (
-		!(
-			'start' in content &&
-			typeof content.start === 'number' &&
-			'end' in content &&
-			typeof content.end === 'number'
-		)
-	) {
+	if (!(
+		'start' in content &&
+		typeof content.start === 'number' &&
+		'end' in content &&
+		typeof content.end === 'number'
+	)) {
 		throw new Error('The Svelte parser gave a script without offsets');
 	}
 	return { start: content.start, end: content.end };

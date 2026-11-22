@@ -46,9 +46,9 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
         "1047" => optional_rest(start, end, visit) == Some(Ok(())),
         // acorn-typescript reads a class accessor without a body as a signature.
         "1005" => locate(start, end, Find::BodilessAccessor, visit).is_some(),
-        // acorn-typescript checks no interface, no public class member, no parameter of a
-        // signature or of a function without a body, and a type alias only against the types
-        // before it.
+        // acorn-typescript checks no interface, public class member, enum member, nor parameter
+        // of a signature or of a function without a body, and a type alias only against the
+        // types before it.
         "2300" => {
             let Some(second) = error.labels.get(1) else {
                 return false;
@@ -62,6 +62,7 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
                     | AstType::PropertyDefinition
                     | AstType::MethodDefinition
                     | AstType::AccessorProperty
+                    | AstType::TSEnumMember
                     | AstType::Function
                     | AstType::TSFunctionType
                     | AstType::TSConstructorType
@@ -302,13 +303,12 @@ fn early_error(
             let name = text.get(start as usize..end as usize)?;
             let mut locator = Locator::new(start, end, Find::Binding);
             visit(&mut locator);
-            let message = if locator.found.is_some() && locator.declares {
-                format!("Binding {name} in strict mode")
-            } else {
-                format!("Assigning to {name} in strict mode")
-            };
+            if locator.found.is_some() && locator.declares {
+                let message = Cow::Owned(format!("Binding {name} in strict mode"));
+                return Some(locator.checked(message, start));
+            }
             Some(Acorn::Fails {
-                message: Cow::Owned(message),
+                message: Cow::Owned(format!("Assigning to {name} in strict mode")),
                 at: start,
             })
         }
@@ -482,7 +482,9 @@ fn redeclaration(
     let locator = redeclared(first, second, visit);
     let at = locator.redeclared_name()?.start;
     let message = match (locator.found, locator.first_is_type) {
-        (Some((_, AstType::FormalParameters)), _) => return Some(fails("Argument name clash", at)),
+        (Some((_, AstType::FormalParameters)), _) => {
+            return Some(locator.checked(Cow::Borrowed("Argument name clash"), at));
+        }
         (Some((_, AstType::TSTypeAliasDeclaration)), true) => {
             format!("type '{name}' has already been declared.")
         }
