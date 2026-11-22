@@ -209,12 +209,13 @@ fn source_offsets<'a>(
     })
 }
 
-/// The instance script's default exports, which the compiler rejects and svelte2tsx leaves in the
-/// render function as a `default` statement TypeScript refuses.
+/// The `export default` keywords of the instance script's default exports, which svelte2tsx leaves
+/// in the render function as written or without `export`, where TypeScript reports them. oxc's
+/// error there is fatal, so the invariant checks such a unit only up to the export.
 fn rejected_default_exports(
     component: &rsvelte_svelte_syntax::syntax_tree::Component,
     source: &str,
-) -> Vec<std::ops::Range<u32>> {
+) -> Vec<std::ops::RangeInclusive<u32>> {
     let Some(script) = &component.instance else {
         return Vec::new();
     };
@@ -225,7 +226,8 @@ fn rejected_default_exports(
     (parsed.program.body.iter())
         .filter_map(|statement| match statement {
             oxc_ast::ast::Statement::ExportDefaultDeclaration(export) => {
-                Some(start + export.span.start..start + export.span.end)
+                let at = start + export.span.start;
+                Some(at..=at + "export default".len() as u32)
             }
             _ => None,
         })
