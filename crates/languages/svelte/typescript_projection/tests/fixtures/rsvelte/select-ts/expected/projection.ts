@@ -33,7 +33,7 @@ function $$render() {
       }
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<globalThis.Record<string, never>, {}, "">();
 }
 const SelectTs__SvelteComponent_ = $$render();
 type SelectTs__SvelteComponent_ = ReturnType<typeof SelectTs__SvelteComponent_>;

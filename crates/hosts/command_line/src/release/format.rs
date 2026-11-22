@@ -31,7 +31,8 @@ pub(crate) fn format(arguments: &[String]) -> ExitCode {
     let tailwind = tailwind::Tailwind::default();
     let hosts = HostFormatters::default()
         .with(Language::Svelte, Svelte(tailwind.clone()))
-        .with_tailwind_sorter(tailwind);
+        .with_tailwind_sorter(tailwind)
+        .with_config_loader(configuration::Node);
     let result = oxfmt::cli::WalkRunner::new(command).with_hosts(hosts).run();
     ExitCode::from(result.exit_code())
 }
@@ -50,11 +51,6 @@ impl HostFormatter for Svelte {
         options.sort_imports.clone_from(&javascript.sort_imports);
         options.jsdoc.clone_from(&javascript.jsdoc);
         if let Some(sort) = &javascript.sort_tailwindcss {
-            if let Some(pattern) = sort.attributes.iter().find(|a| a.starts_with('/')) {
-                return Err(unprinted(&format!(
-                    "the classes of the attributes `sortTailwindcss` names by a pattern ({pattern})"
-                )));
-            }
             let sorter = tailwind::ForFile {
                 tailwind: self.0.clone(),
                 options: prettier.clone(),
@@ -130,6 +126,7 @@ fn panic_message(panic: &(dyn Any + Send)) -> &str {
         .unwrap_or("a payload that is not a string")
 }
 
+mod configuration;
 mod tailwind;
 
 #[cfg(test)]

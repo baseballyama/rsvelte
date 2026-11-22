@@ -4,22 +4,32 @@ declare function __rsvelte_each<T extends ArrayLike<unknown> | Iterable<unknown>
 declare function __rsvelte_component<C extends (new (options: any) => { $$prop_def: any }) | ((internals: Parameters<import('svelte').Component>[0], props: never) => unknown) | null | undefined>(component: C): NonNullable<C extends (new (options: any) => infer Instance extends { $$prop_def: any }) ? (internals: Parameters<import('svelte').Component>[0], props: Instance['$$prop_def']) => Instance : C>;
 declare const __rsvelte_children: () => any;
 declare const __rsvelte_any_component: (internals: any, props: any) => any;
+// The node of a directive on a component, which the compiler rejects; svelte2tsx passes `undefined.mapElementTag('undefined')`.
+declare const __rsvelte_any_node: any;
 declare function __rsvelte_slots<Slots = Record<string, Record<string, any>>>(): <Name extends keyof Slots>(name: Name, attributes: Slots[Name]) => void;
 declare const __rsvelte_snippet_return: any;
 declare function __rsvelte_slot_flags<Key extends string>(): Record<Key, boolean>;
 declare function __rsvelte_component_props<C extends (internals: any, props: any) => unknown>(component: C): Parameters<C>[1] & Record<string, any>;
-declare function __rsvelte_instance<C>(component: C): C extends ConstructorOfATypedSvelteComponent ? InstanceType<C> : C extends { __rsvelte_events: infer Events; __rsvelte_slot_def: infer Slots } & import('svelte').Component<infer Props extends Record<string, any>, any, any> ? import('svelte').SvelteComponent<Props, Events, Slots> : C extends import('svelte').Component<infer Props extends Record<string, any>, any, any> ? import('svelte').SvelteComponent<Props, { [event: string]: CustomEvent<any> }, any> : any;
+// The instance svelte2tsx constructs; a class component reaches here as the call `__rsvelte_component` makes of it.
+declare function __rsvelte_instance<C>(component: C): C extends ConstructorOfATypedSvelteComponent ? InstanceType<C> : C extends ((...args: any) => infer Instance extends ATypedSvelteComponent) ? Instance : C extends import('svelte').Component<infer Props extends Record<string, any>, any, any> ? import('svelte').SvelteComponent<Props, { [event: string]: CustomEvent<any> }, any> : any;
 // The props a component lets `bind:` pass, as svelte2tsx's `$$bindings`; a class component allows any.
 declare function __rsvelte_bindings<C>(component: C): { $$bindings: C extends import('svelte').Component<any, any, infer Bindings extends string> ? Bindings : string };
 declare function __rsvelte_internals(): Parameters<import('svelte').Component>[0];
 // As svelte2tsx's `__sveltets_2_fn_component`: `keyof Props` of a large union of props is too complex to represent.
 // @ts-ignore
 declare function __rsvelte_export_component<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string>(): import('svelte').Component<Props, Exports, Bindings>;
-// A component that declares `$$Events` or `$$Slots`, whose instance svelte2tsx types with exactly those.
+// As svelte2tsx's `__sveltets_2_isomorphic_component`: outside runes mode, or with events, a class and a function at once. The slots are a value, the object each `<slot>`'s attributes make.
 // @ts-ignore
-declare function __rsvelte_export_typed<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string, Events, Slots>(): import('svelte').Component<Props, Exports, Bindings> & { __rsvelte_events: Events; __rsvelte_slot_def: Slots };
-// A component that types its slots by its `<slot>` elements, with svelte2tsx's events of any name.
-declare function __rsvelte_with_slots<C, Slots>(component: C, slots: Slots): C & { __rsvelte_events: { [event: string]: CustomEvent<any> }; __rsvelte_slot_def: Slots };
+declare function __rsvelte_export_isomorphic<Props extends Record<string, any>, Events extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string>(): <Slots>(slots: Slots) => __sveltets_2_IsomorphicComponent<Props, Events, Slots, Exports, Bindings>;
+// As svelte2tsx's `__sveltets_2_isomorphic_component_slots`: a component with slots, whose default slot takes children.
+// @ts-ignore
+declare function __rsvelte_export_isomorphic_slots<Props extends Record<string, any>, Events extends Record<string, any>, Exports extends Record<string, any>, Bindings extends string>(): <Slots>(slots: Slots) => __sveltets_2_IsomorphicComponent<__sveltets_2_PropsWithChildren<Props, Slots>, Events, Slots, Exports, Bindings>;
+// What a render function returns, or `Unrendered` when a hole closes it before its return: svelte2tsx's helpers then make the component of their constraints.
+type __rsvelte_rendered<Rendered, Unrendered> = [Rendered] extends [void] ? Unrendered : Rendered;
+type __rsvelte_unrendered_component = import('svelte').Component<Record<string, any>, Record<string, any>, string>;
+type __rsvelte_unrendered_generic = import('svelte').Component<any, any, any> & { __rsvelte_bindings?: any; __rsvelte_exports?: any };
+type __rsvelte_unrendered_isomorphic = __sveltets_2_IsomorphicComponent<Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>, string>;
+declare function __rsvelte_value<T>(): T;
 // What `bind:this` assigns: a generic component's instance, or else what its call returns.
 declare function __rsvelte_bind_this<C>(component: C): C extends { __rsvelte_instance: infer Instance } ? Instance : C;
 // `__rsvelte_exports`: the exports without the `$on` and `$set` a call adds, as svelte2tsx's `exports()`.
@@ -29,8 +39,7 @@ declare function __rsvelte_untyped_prop(): any;
 declare function __rsvelte_array_prop(): any[];
 declare function __rsvelte_record_prop(): Record<string, any>;
 declare function __rsvelte_function_prop(): Function;
-type __rsvelte_no_props = Record<string, never>;
-type __rsvelte_props_with_children<Props> = Props extends __rsvelte_no_props ? any : Props & { children?: any };
+type __rsvelte_props_with_children<Props> = Props extends Record<string, never> ? any : Props & { children?: any };
 type __rsvelte_store<T> = { subscribe: (run: (value: T) => any, invalidate?: any) => any };
 type __rsvelte_store_value<Store> = Store extends __rsvelte_store<infer T> ? T : Store;
 // The run declares `untypedJavaScript` where an import of a JavaScript component is untyped.

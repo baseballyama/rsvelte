@@ -18,7 +18,7 @@ function $$render() {
   async () => {
     __rsvelte_ensure_snippet(s());
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, "">();
+  return __rsvelte_export_component<globalThis.Record<string, never>, {}, "">();
 }
 const SnippetDefaultTypescriptErased__SvelteComponent_ = $$render();
 type SnippetDefaultTypescriptErased__SvelteComponent_ = ReturnType<typeof SnippetDefaultTypescriptErased__SvelteComponent_>;

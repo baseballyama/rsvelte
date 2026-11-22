@@ -32,7 +32,8 @@ function $$render() {
       __rsvelte_instance(__rsvelte_component_0).$on("click", f);
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, "">} */ (__rsvelte_export_isomorphic))()({});
 }
-const ComponentEvents__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof ComponentEvents__SvelteComponent_>} */ (ComponentEvents__SvelteComponent_);
+export const ComponentEvents__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {InstanceType<typeof ComponentEvents__SvelteComponent_>} ComponentEvents__SvelteComponent_ */
+export default ComponentEvents__SvelteComponent_;

@@ -177,7 +177,7 @@ impl<'a> TreeBuilder<'a> {
             let stop = (self.as_acorn)
                 .then(|| whitespace(text, &parsed.irregular_whitespaces, 0))
                 .flatten();
-            if let Some(stop) = stop.filter(|stop| stop.0 <= error.acorn_at()) {
+            if let Some(stop) = stop.filter(|stop| stop.0 <= error.acorn_raised_at()) {
                 error = rejection(stop);
             }
             return Err(Box::new(Read {
@@ -303,8 +303,10 @@ fn skip<'t>(
 /// How TypeScript's scanner reads on past a token it cannot finish, by the error it reports.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 enum Unfinished {
-    /// A string or a regular expression ends at the line terminator.
+    /// A string ends at the line terminator.
     Line,
+    /// A regular expression ends at the first unbalanced bracket of its line.
+    RegularExpression,
     /// An invalid character is skipped alone.
     Character,
     /// A template or a block comment runs to the end of the text.
@@ -319,7 +321,8 @@ impl Unfinished {
                 return None;
             }
             let unfinished = match diagnostic.code.number.as_deref()? {
-                "1002" | "1161" => Self::Line,
+                "1002" => Self::Line,
+                "1161" => Self::RegularExpression,
                 "1127" => Self::Character,
                 "1160" | "1010" => Self::Script,
                 _ => return None,
@@ -336,6 +339,7 @@ impl Unfinished {
     fn resume(self, label: oxc_span::Span, text: &str, end: u32) -> u32 {
         match self {
             Self::Line => label.end.min(end),
+            Self::RegularExpression => unterminated_regular_expression_end(text, label.start, end),
             Self::Character => text[label.start as usize..]
                 .chars()
                 .next()
@@ -343,6 +347,55 @@ impl Unfinished {
             Self::Script => end,
         }
     }
+}
+
+/// Where TypeScript's `reScanSlashToken` ends a regular expression that starts with the `/` at
+/// `slash` and has no closing `/` before the line terminator: at the first `)`, `]` or `}` its
+/// groups, classes and quantifiers leave unbalanced, without the whitespace and `;` before it.
+fn unterminated_regular_expression_end(text: &str, slash: u32, end: u32) -> u32 {
+    let body = slash as usize + 1;
+    let line = &text[body..end as usize];
+    let line = &line[..line
+        .find(['\n', '\r', '\u{2028}', '\u{2029}'])
+        .unwrap_or(line.len())];
+    let (mut escaped, mut class_depth, mut in_quantifier, mut group_depth) =
+        (false, 0u32, false, 0u32);
+    let mut stop = line.len();
+    for (at, byte) in line.bytes().enumerate() {
+        if escaped {
+            escaped = false;
+        } else if byte == b'\\' {
+            escaped = true;
+        } else if byte == b'[' {
+            class_depth += 1;
+        } else if byte == b']' && class_depth > 0 {
+            class_depth -= 1;
+        } else if class_depth == 0 {
+            match byte {
+                b'{' => in_quantifier = true,
+                b'}' if in_quantifier => in_quantifier = false,
+                _ if in_quantifier => {}
+                b'(' => group_depth += 1,
+                b')' if group_depth > 0 => group_depth -= 1,
+                b')' | b']' | b'}' => {
+                    stop = at;
+                    break;
+                }
+                _ => {}
+            }
+        }
+    }
+    let kept = line[..stop].trim_end_matches(|c| c == ';' || is_typescript_white_space(c));
+    (body + kept.len()) as u32
+}
+
+/// TypeScript's `isWhiteSpaceSingleLine`; the line has no line terminator left to trim.
+const fn is_typescript_white_space(c: char) -> bool {
+    matches!(
+        c,
+        ' ' | '\t' | '\u{b}' | '\u{c}' | '\u{a0}' | '\u{85}' | '\u{1680}'
+    ) || matches!(c, '\u{2000}'..='\u{200b}')
+        || matches!(c, '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}')
 }
 
 /// [`TreeBuilder::read_program`]'s rejection.

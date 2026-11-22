@@ -4,11 +4,27 @@ use rsvelte_kernel::source::document::Document;
 
 /// The code, the first line of the message and the offset of the error compile reports first.
 fn first_error(source: &str) -> (String, String, u32) {
+    with_context(source, |context| {
+        super::fully_parsed(context).expect_err(source)
+    })
+}
+
+/// The code, the first line of the message and the offset of the first JavaScript error the
+/// parser raises in a component it reads to the end.
+fn first_javascript_error(source: &str) -> (String, String, u32) {
+    with_context(source, |context| {
+        super::of_document(context, |_| true).expect(source)
+    })
+}
+
+fn with_context(
+    source: &str,
+    error: impl FnOnce(&DocumentContext<'_>) -> rsvelte_kernel::diagnostics::Diagnostic,
+) -> (String, String, u32) {
     let mut registry = Registry::new();
     crate::register(&mut registry);
     let document = Document::new("App.svelte".to_owned(), source.to_owned()).expect("small");
-    let context = DocumentContext::new(&document, registry.artifacts());
-    let error = super::fully_parsed(&context).expect_err(source);
+    let error = error(&DocumentContext::new(&document, registry.artifacts()));
     let message = error.message.lines().next().unwrap_or_default().to_owned();
     (error.code.to_string(), message, error.span.start_offset)
 }
@@ -103,5 +119,132 @@ fn the_parsers_error_stands_where_acorn_throws_in_no_part_before_it() {
     ] {
         let (found, _, offset) = first_error(source);
         assert_eq!((found.as_str(), offset), (code, at), "{source}");
+    }
+}
+
+#[test]
+fn the_first_error_in_the_document_wins_over_every_later_one() {
+    let deleting = "Deleting local variable in strict mode";
+    // From svelte 5.57.3's `compile`: acorn reads the parts in the order of the document, and a
+    // name the template declares twice is raised only after the parser.
+    for (source, message, at) in [
+        ("{@const [a, a] = x}{delete y}", deleting, 20),
+        ("{#if 1}{@const [a, a] = x}{delete y}{/if}", deleting, 27),
+        ("{delete y}{@const [a, a] = x}", deleting, 1),
+        (
+            "{@const [a, a] = x}{(() => { with (o) {} })()}",
+            "'with' in strict mode",
+            29,
+        ),
+        (
+            "{@const [a, a] = x}{'\\07'}",
+            "Octal literal in strict mode",
+            21,
+        ),
+        ("{delete y}<script>delete x</script>", deleting, 1),
+        ("<script>delete x</script>{delete y}", deleting, 8),
+        ("{delete y}<script>let a; let a;</script>", deleting, 1),
+        ("{delete y}<script module>delete x</script>", deleting, 1),
+        ("{delete y}<script>'\\07'</script>", deleting, 1),
+        (
+            "<div title={delete y}></div><script>delete x</script>",
+            deleting,
+            12,
+        ),
+        (
+            "{(() => { with (o) {} })()}<script>delete x</script>",
+            "'with' in strict mode",
+            10,
+        ),
+        (
+            "<script>delete x</script><script module>delete y</script>",
+            deleting,
+            8,
+        ),
+        (
+            "<script module>delete y</script><script>delete x</script>",
+            deleting,
+            15,
+        ),
+    ] {
+        assert_eq!(
+            first_javascript_error(source),
+            ("js_parse_error".to_owned(), message.to_owned(), at),
+            "{source}"
+        );
+    }
+}
+
+#[test]
+fn acorn_checks_a_functions_parameters_only_when_it_reaches_the_body() {
+    let deleting = "Deleting local variable in strict mode";
+    let clash = "Argument name clash";
+    // From svelte 5.57.3's `compile`: a parameter's name at the start of a block body or after an
+    // expression body, and a function expression's own at the start of its body.
+    for (source, message, at) in [
+        ("{(a, a) => delete a}", deleting, 11),
+        ("{(a, a) => { delete a }}", clash, 5),
+        ("{(a, a) => (b) => delete b}", deleting, 18),
+        ("{(a, a = delete b) => {}}", deleting, 9),
+        ("{(eval) => delete a}", deleting, 11),
+        ("{(eval) => { delete a }}", "Binding eval in strict mode", 2),
+        ("{(a, a) => 0}{delete b}", clash, 5),
+        (
+            "<script>const f = (a, a) => delete a;</script>",
+            deleting,
+            28,
+        ),
+        (
+            "<script>const f = (a, a) => function () { with (a) {} };</script>",
+            "'with' in strict mode",
+            42,
+        ),
+        ("<script>function f(a, a) { delete a }</script>", clash, 22),
+        (
+            "<script>function f(a, a = delete b) {}</script>",
+            deleting,
+            26,
+        ),
+        (
+            "<script>const f = (a, a) => (b) => { delete c };</script>",
+            deleting,
+            37,
+        ),
+        (
+            "<script>const f = (b) => (a, a) => delete c;</script>",
+            deleting,
+            35,
+        ),
+        (
+            "<script>const f = (a = (eval) => 0, b = delete c) => 0;</script>",
+            "Binding eval in strict mode",
+            24,
+        ),
+        (
+            "<script lang=\"ts\">const f = (a: number, a: number) => delete a;</script>",
+            deleting,
+            54,
+        ),
+        (
+            "<script>const f = function eval(b = delete z) {};</script>",
+            deleting,
+            36,
+        ),
+        (
+            "<script>const f = function eval() { delete z };</script>",
+            "Binding eval in strict mode",
+            27,
+        ),
+        (
+            "<script>function eval(b = delete z) {}</script>",
+            "Binding eval in strict mode",
+            17,
+        ),
+    ] {
+        assert_eq!(
+            first_javascript_error(source),
+            ("js_parse_error".to_owned(), message.to_owned(), at),
+            "{source}"
+        );
     }
 }

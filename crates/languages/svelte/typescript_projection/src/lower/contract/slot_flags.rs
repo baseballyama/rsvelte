@@ -6,11 +6,16 @@ use super::super::{Builder, Node, Range, Span};
 use super::Edit;
 
 impl Builder<'_> {
+    /// Whether the component reads `$$slots`.
+    pub(super) fn reads_slot_flags(&self) -> bool {
+        (self.resolution)()
+            .is_some_and(|resolution| resolution.unresolved_names().any(|name| name == "$$slots"))
+    }
+
     /// `let $$slots = __rsvelte_slot_flags<"a" | "b">();` when the component reads `$$slots`,
     /// typed as svelte2tsx's `Record<"a" | "b", boolean>`.
     pub(super) fn slot_flags(&mut self, at: u32) -> Option<Edit> {
-        let resolution = (self.resolution)()?;
-        if !resolution.unresolved_names().any(|name| name == "$$slots") {
+        if !self.reads_slot_flags() {
             return None;
         }
         let mut seen: Vec<&str> = Vec::new();

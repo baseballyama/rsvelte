@@ -1,9 +1,13 @@
 //! The node around oxc's label that decides what acorn reports, found as the tree is walked.
 
+use std::borrow::Cow;
+
+use oxc_ast::ast::{ArrowFunctionBody, FormalParameters};
 use oxc_ast::{AstKind, AstType};
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 
+use super::Acorn;
 use super::word::{Home, Read, Word};
 
 /// What acorn reports about a node around oxc's label, found as the tree is walked.
@@ -19,12 +23,18 @@ pub struct Locator {
     pub(super) declares: bool,
     /// For [`Find::Redeclared`], whether the first declaration is a type alias or an interface.
     pub(super) first_is_type: bool,
+    /// For [`Find::Redeclared`], the symbol the first declaration's name binds.
+    first_symbol: Option<oxc_syntax::symbol::SymbolId>,
+    /// For [`Find::Redeclared`], where the name declared again is.
+    redeclared: Redeclared,
     /// For [`Find::Home`], where acorn reads the name the label is.
     pub(super) home: Option<Home>,
     /// For [`Find::Home`], the name the label is in the tree, and how acorn reads it.
     pub(super) word: Option<(Word, Read)>,
     /// For [`Find::Home`], the parameters around the label that acorn reads as expressions.
     cover: Cover,
+    /// Where acorn checks the label as a name the head of a function binds: at its body.
+    head_checked: Option<u32>,
     /// Whether the walk took in any node: a part oxc could not read has no tree.
     pub(super) walked: bool,
 }
@@ -42,6 +52,21 @@ enum Cover {
     },
     /// A plain arrow's one parameter without parentheses, an expression that `=>` ends.
     Bare,
+}
+
+/// The span of a class member's key, where it is a public name.
+fn public_key(key: &oxc_ast::ast::PropertyKey<'_>) -> Option<oxc_span::Span> {
+    (!key.is_private_identifier()).then(|| key.span())
+}
+
+/// Where the name a second declaration declares again is, which oxc labels.
+#[derive(Clone, Copy, Debug)]
+enum Redeclared {
+    /// The label is the name.
+    Label,
+    /// The label is a variable declarator, and the name the binding in it of the first
+    /// declaration's symbol, once the walk meets it.
+    Declarator(Option<oxc_span::Span>),
 }
 
 /// What decides how acorn reads an optional rest element, from the nodes around it.
@@ -99,8 +124,9 @@ pub(super) enum Find {
     SuperHome,
     /// The initializer of the class field whose key is the label.
     Initializer,
-    /// The type alias or interface whose name is the label, or the parameter list around it,
-    /// where the label redeclares the name the span is.
+    /// The type alias, interface, class member with a public name or enum member whose name is
+    /// the label, or the parameter list around it or the signature or function without a body
+    /// that holds it, where the label redeclares the name the span is.
     Redeclared(oxc_span::Span),
     /// Where acorn reads the name the label is: the innermost function, class static block or
     /// class field initializer around it.
@@ -115,9 +141,12 @@ impl Locator {
             found: None,
             declares: false,
             first_is_type: false,
+            first_symbol: None,
+            redeclared: Redeclared::Label,
             home: None,
             word: None,
             cover: Cover::None,
+            head_checked: None,
             walked: false,
             rest: AroundRest {
                 ambient: false,
@@ -166,15 +195,51 @@ impl Locator {
         around.holder = Holder::Parameters;
     }
 
+    /// For [`Find::Redeclared`], the name declared again, where acorn fails.
+    pub(super) const fn redeclared_name(&self) -> Option<oxc_span::Span> {
+        match self.redeclared {
+            Redeclared::Label => Some(self.label),
+            Redeclared::Declarator(binding) => binding,
+        }
+    }
+
     fn enter_redeclared(&mut self, first: oxc_span::Span, kind: AstKind<'_>, around: bool) {
+        match kind {
+            AstKind::VariableDeclarator(it) if it.span == self.label => {
+                self.redeclared = Redeclared::Declarator(None);
+            }
+            // The first declaration comes first in the walk, as oxc binds in source order.
+            AstKind::BindingIdentifier(it) if it.span == first => {
+                self.first_symbol = it.symbol_id.get();
+            }
+            AstKind::BindingIdentifier(it)
+                if matches!(self.redeclared, Redeclared::Declarator(None))
+                    && self.label.contains_inclusive(it.span)
+                    && it.symbol_id.get() == self.first_symbol =>
+            {
+                self.redeclared = Redeclared::Declarator(Some(it.span));
+            }
+            _ => {}
+        }
+        // The innermost holder of parameters around the label decides: a signature or a function
+        // without a body, whose parameter names acorn does not check, or the parameter list of
+        // one that has a body.
+        if let Some(checked) = parameters_checked(kind).filter(|_| around) {
+            self.found = (!checked).then(|| (kind.span().start, kind.ty()));
+        }
         let name = match kind {
-            AstKind::FormalParameters(it) if around => {
+            AstKind::FormalParameters(it) if around && self.found.is_none() => {
                 return self.found = Some((it.span.start, kind.ty()));
             }
-            AstKind::TSTypeAliasDeclaration(it) => it.id.span,
-            AstKind::TSInterfaceDeclaration(it) => it.id.span,
-            _ => return,
+            AstKind::TSTypeAliasDeclaration(it) => Some(it.id.span),
+            AstKind::TSInterfaceDeclaration(it) => Some(it.id.span),
+            AstKind::PropertyDefinition(it) => public_key(&it.key),
+            AstKind::MethodDefinition(it) => public_key(&it.key),
+            AstKind::AccessorProperty(it) => public_key(&it.key),
+            AstKind::TSEnumMember(it) => Some(it.id.span()),
+            _ => None,
         };
+        let Some(name) = name else { return };
         self.first_is_type |= name == first;
         if name == self.label {
             self.found = Some((name.start, kind.ty()));
@@ -223,10 +288,59 @@ impl Locator {
         }
     }
 
+    /// The spans whose nodes decide what the locator finds: those around each, those in each,
+    /// and no other node. The label, and for a second declaration the first one's name.
+    pub fn regions(&self) -> impl Iterator<Item = oxc_span::Span> {
+        let first = match self.find {
+            Find::Redeclared(first) => Some(first),
+            _ => None,
+        };
+        std::iter::once(self.label).chain(first)
+    }
+
+    /// acorn's failure at `at` with `message` for the name the label is, which it raises when it
+    /// checks the names a function's head binds.
+    pub(super) const fn checked(&self, message: Cow<'static, str>, at: u32) -> Acorn {
+        match self.head_checked {
+            Some(raised) => Acorn::FailsLater {
+                message,
+                at,
+                raised,
+            },
+            None => Acorn::Fails { message, at },
+        }
+    }
+
+    /// Where acorn checks the label as a name the head of a function around it binds: a
+    /// parameter's, at the start of its block body or the end of its expression body, or a
+    /// function expression's own, at the start of its body. The innermost function decides.
+    fn enter_head_check(&mut self, kind: AstKind<'_>) {
+        let names =
+            |parameters: &FormalParameters<'_>| parameters.span.contains_inclusive(self.label);
+        self.head_checked = match kind {
+            AstKind::Function(it) => {
+                // acorn checks a declaration's own name as it reads it.
+                let own =
+                    (it.id.as_ref()).filter(|id| !it.is_declaration() && id.span == self.label);
+                (it.body.as_ref())
+                    .filter(|_| names(&it.params) || own.is_some())
+                    .map(|body| body.span.start)
+            }
+            AstKind::ArrowFunctionExpression(it) => names(&it.params).then(|| match &it.body {
+                ArrowFunctionBody::FunctionBody(body) => body.span.start,
+                body => body.span().end,
+            }),
+            _ => self.head_checked,
+        };
+    }
+
     /// Takes in a node of the walk, outer nodes before inner ones.
     pub fn enter(&mut self, kind: AstKind<'_>) {
         self.walked = true;
         let around = kind.span().contains_inclusive(self.label);
+        if around {
+            self.enter_head_check(kind);
+        }
         if matches!(self.find, Find::Binding)
             && around
             && matches!(
@@ -297,6 +411,20 @@ impl Locator {
             _ => return,
         };
         self.found = Some((found, kind.ty()));
+    }
+}
+
+/// Whether acorn checks the names of the parameters `kind` holds, where it holds any.
+const fn parameters_checked(kind: AstKind<'_>) -> Option<bool> {
+    match kind {
+        AstKind::Function(it) => Some(it.body.is_some()),
+        AstKind::ArrowFunctionExpression(_) => Some(true),
+        AstKind::TSFunctionType(_)
+        | AstKind::TSConstructorType(_)
+        | AstKind::TSMethodSignature(_)
+        | AstKind::TSCallSignatureDeclaration(_)
+        | AstKind::TSConstructSignatureDeclaration(_) => Some(false),
+        _ => None,
     }
 }
 

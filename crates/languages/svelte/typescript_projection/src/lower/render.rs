@@ -15,7 +15,7 @@ use rsvelte_typescript_tree::{document_span, node_span};
 use super::contract::Edit;
 use super::hoistable::{Hoisted, hoisted};
 use super::{Buffer, Builder, Node, NodeIdentifier, Range, Refusal, Result, Span, refuse};
-use crate::syntax_tree::TypeParameters;
+use crate::syntax_tree::{Instance, TypeParameters};
 
 /// A generic component's type parameters and where its render function starts in the scratch.
 #[derive(Clone, Copy)]
@@ -59,11 +59,9 @@ impl Builder<'_> {
         edits: &mut Buffer<Edit>,
     ) -> Result<Generics> {
         let aliases = DollarGenerics::of(program);
-        // svelte2tsx reads `generics` only in a TypeScript script.
         let attribute = script
             .attributes
             .iter()
-            .filter(|_| !self.tree.javascript)
             .find(|(name, _)| name.text(self.source) == "generics");
         let mut exported = true;
         // From after the `<` of the start tag to the value's opening quote.
@@ -329,9 +327,14 @@ impl Builder<'_> {
     }
 
     /// Wraps the instance and the template, from `generics.start`, in the render function that
-    /// returns `contract`, and exports the component.
-    pub(super) fn render(&mut self, contract: NodeIdentifier, generics: Generics) {
-        self.scratch.push(self.tree.push(Node::Return(contract)));
+    /// returns `component`, and exports it.
+    pub(super) fn render(
+        &mut self,
+        component: NodeIdentifier,
+        instance: Instance,
+        generics: Generics,
+    ) {
+        self.scratch.push(self.tree.push(Node::Return(component)));
         let body = self.finish_list(generics.start);
         self.scratch.push(self.tree.push(Node::Render {
             type_parameters: generics.type_parameters,
@@ -359,7 +362,10 @@ impl Builder<'_> {
             } else {
                 component
             };
-            Node::ExportDefault(component)
+            Node::ExportDefault {
+                component,
+                instance,
+            }
         };
         self.scratch.push(self.tree.push(export));
     }

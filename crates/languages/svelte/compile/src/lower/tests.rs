@@ -190,3 +190,32 @@ fn a_component_name_has_a_position_only_where_upstream_lines_up_the_call() {
         "\tX($$renderer, {});\n\t$$renderer.push(`<!----></div>`);\n\t// c\n}",
     );
 }
+
+#[test]
+fn the_props_id_constant_is_declared_at_the_source_identifier() {
+    // The lines of svelte 5.57.3's output, without its blank lines: a script comment before the
+    // declaration goes to the identifier, which upstream declares first in the component's body.
+    let typed = "<script lang=\"ts\">\n\t// a\n\t// b\n\n\tconst uid = $props.id();\n</script>\n\
+        <div id={uid}></div>\n";
+    let comments = "\tconst // a\n\t// b\n\tuid = $.props_id(";
+    assert_lines(
+        typed,
+        Target::Client,
+        &format!("{comments});\n\tvar div = root();\n"),
+    );
+    assert_lines(typed, Target::Server, &format!("{comments}$$renderer);\n"));
+    let hoisted =
+        "<script>\n\tlet x = 1;\n\t// c\n\tconst uid = $props.id();\n</script>\n<p>{uid}{x}</p>\n";
+    assert_lines(
+        hoisted,
+        Target::Client,
+        "{\n\tconst // c\n\tuid = $.props_id();\n\tlet x = 1;\n",
+    );
+    let context = "<script>\n\t// c\n\tconst uid = $props.id();\n\tlet { a } = $props();\n\
+        \t$effect(() => {});\n</script>\n<p>{uid}{a}</p>\n";
+    assert_lines(
+        context,
+        Target::Server,
+        "\t\tconst // c\n\t\tuid = $.props_id($$renderer);\n\t\tlet { a } = $$props;\n",
+    );
+}

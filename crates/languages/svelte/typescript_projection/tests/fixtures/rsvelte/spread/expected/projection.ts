@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { children, ...rest } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { children, ...rest } = $props();
 
 ;
 
@@ -35,5 +35,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const Spread__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof Spread__SvelteComponent_>} */ (Spread__SvelteComponent_);
+export const Spread__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof Spread__SvelteComponent_>} Spread__SvelteComponent_ */
+export default Spread__SvelteComponent_;

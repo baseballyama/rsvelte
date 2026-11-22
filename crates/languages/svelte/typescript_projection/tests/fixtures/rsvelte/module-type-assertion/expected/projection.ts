@@ -20,8 +20,8 @@ function $$render() {
       kept;
     }
   };
-  return __rsvelte_export_component<__rsvelte_no_props, {}, string>();
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
 }
 const ModuleTypeAssertion__SvelteComponent_ = $$render();
-type ModuleTypeAssertion__SvelteComponent_ = ReturnType<typeof ModuleTypeAssertion__SvelteComponent_>;
+type ModuleTypeAssertion__SvelteComponent_ = InstanceType<typeof ModuleTypeAssertion__SvelteComponent_>;
 export default ModuleTypeAssertion__SvelteComponent_;

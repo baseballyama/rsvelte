@@ -22,9 +22,9 @@
 	<li>
 		A plugin, such as the Svelte linter, adds tasks. A task is one job that runs on each file. Its
 		name is the plugin's name and a kind:
-		<code>svelte.lint/default</code> is the lint task of the <code>svelte.lint</code> plugin. A task asks
-		the database for the results it needs. The database computes a missing result once and shares it with
-		the other tasks of that file.
+		<code>svelte.lint/default</code> is the lint task of the <code>svelte.lint</code> plugin. A task
+		asks the database for the results it needs. The database computes a missing result once and
+		shares it with the other tasks of that file.
 	</li>
 	<li>
 		Each worker thread takes one file at a time, so files run in parallel. A type check task also
@@ -77,8 +77,8 @@
 
 <p>
 	Each tool is a crate that registers its tasks, such as <code>svelte.compile/client</code>.
-	<code>rsvelte format</code> is the one command without tasks: it runs oxfmt's file handling, which calls
-	the Svelte formatter.
+	<code>rsvelte format</code> is the one command without tasks: it runs oxfmt's file handling, which
+	calls the Svelte formatter.
 </p>
 
 <h2 id="typecheck">Type checking</h2>
@@ -93,9 +93,9 @@
 <h2 id="correctness">Comparison with the official tools</h2>
 
 <p>
-	<code>corpus/</code> holds real Svelte 5 files from projects under permissive licenses, such as MIT,
-	and files written for this project. The official tools, such as svelte and svelte-check, produce the
-	expected output.
+	<code>corpus/</code> holds real Svelte 5 files from projects under permissive licenses, such as
+	MIT, and files written for this project. The official tools, such as svelte and svelte-check,
+	produce the expected output.
 </p>
 
 <p>

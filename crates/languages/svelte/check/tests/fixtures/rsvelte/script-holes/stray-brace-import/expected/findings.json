@@ -1,0 +1,14 @@
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './stray-brace-javascript.svelte'. 'rsvelte/script-holes/stray-brace-javascript.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 57
+		}
+	}
+]

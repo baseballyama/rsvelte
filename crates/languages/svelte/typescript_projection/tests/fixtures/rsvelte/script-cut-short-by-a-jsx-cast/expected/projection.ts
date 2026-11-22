@@ -7,7 +7,8 @@ function $$render() {
 
   async () => {
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, { [evt: string]: CustomEvent<any> }, {}, string>} */ (__rsvelte_export_isomorphic))()({});
 }
-const ScriptCutShortByAJsxCast__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof ScriptCutShortByAJsxCast__SvelteComponent_>} */ (ScriptCutShortByAJsxCast__SvelteComponent_);
+export const ScriptCutShortByAJsxCast__SvelteComponent_ = /** @type {__rsvelte_javascript_export<__rsvelte_rendered<Awaited<ReturnType<typeof $$render>>, __rsvelte_unrendered_isomorphic>>} */ (/** @type {unknown} */ ($$render()));
+/** @typedef {InstanceType<typeof ScriptCutShortByAJsxCast__SvelteComponent_>} ScriptCutShortByAJsxCast__SvelteComponent_ */
+export default ScriptCutShortByAJsxCast__SvelteComponent_;

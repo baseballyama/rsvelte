@@ -100,12 +100,16 @@ fn first_of<'s>(
     keep: impl Fn(&SyntaxError, Option<&Semantic>) -> bool,
 ) -> Option<SyntaxError> {
     let analyzed = semantics.into_iter().flat_map(|semantic| {
-        let checked = semantic.javascript_syntax_error().cloned().map(|error| {
-            let redeclared = error.typescript_code == Some(2300);
-            (error, redeclared.then_some(semantic))
-        });
+        // Every error: one upstream raises later than parsing can hide the next.
+        let checked = semantic
+            .javascript_syntax_errors()
+            .iter()
+            .map(move |error| {
+                let redeclared = error.typescript_code == Some(2300);
+                (error.clone(), redeclared.then_some(semantic))
+            });
         let redeclared = (semantic.acorn_redeclaration()).map(|error| (error, Some(semantic)));
-        checked.into_iter().chain(redeclared)
+        checked.chain(redeclared)
     });
     (tree
         .acorn_rejection()
@@ -113,7 +117,7 @@ fn first_of<'s>(
         .into_iter())
     .chain(analyzed)
     .filter(|(error, redeclared_by)| keep(error, *redeclared_by))
-    .min_by_key(|(error, _)| error.acorn_at())
+    .min_by_key(|(error, _)| error.acorn_raised_at())
     .map(|(error, _)| error)
 }
 
@@ -122,7 +126,8 @@ fn first_of<'s>(
 fn clashes(error: &SyntaxError) -> bool {
     matches!(
         &error.acorn,
-        Some(Acorn::Fails { message, .. }) if message == "Argument name clash"
+        Some(Acorn::Fails { message, .. } | Acorn::FailsLater { message, .. })
+            if message == "Argument name clash"
     )
 }
 

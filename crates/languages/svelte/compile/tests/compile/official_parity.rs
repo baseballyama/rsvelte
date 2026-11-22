@@ -6,13 +6,17 @@ use rsvelte_svelte_compile::{Target, compile_to_javascript};
 
 mod const_tags;
 mod derived;
+mod enums;
 mod errors;
 mod exports;
 mod keywords;
 mod lets;
+mod outcomes;
 mod patterns;
 mod props;
+mod redeclarations;
 mod runes;
+mod signatures;
 mod transitions;
 
 /// The output, or the code of the diagnostic that refuses the source.

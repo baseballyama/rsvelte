@@ -1,6 +1,7 @@
 //! A JavaScript projection's types, in `JSDoc`: TypeScript reads them in a `.js` file as it reads
 //! the TypeScript forms, without the errors that type syntax raises there.
 
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
 use super::Printer;
@@ -29,6 +30,12 @@ impl Printer<'_> {
         self.output.push("} */ ");
     }
 
+    /// `comment({})`.
+    pub(super) fn comment_cast(&mut self, comment: Span) {
+        self.output.copy(self.source, comment);
+        self.output.push("({})");
+    }
+
     /// `/** @typedef {value} name */`.
     pub(super) fn type_definition(&mut self, name: NodeIdentifier, value: NodeIdentifier) {
         self.output.push("/** @typedef {");
@@ -38,19 +45,38 @@ impl Printer<'_> {
         self.output.push(" */\n");
     }
 
-    /// The default export, which JavaScript cannot name as a type; an import of the component may
-    /// read it as `any`, as the run declares.
-    pub(super) fn javascript_export(&mut self, value: NodeIdentifier) {
-        self.output.push("const ");
+    /// svelte2tsx's default export in `JSDoc`, whose `@typedef` merges with the constant because
+    /// the constant is exported; an import of the component may read it as `any`, as the run
+    /// declares.
+    pub(super) fn javascript_export(
+        &mut self,
+        component: NodeIdentifier,
+        instance: &str,
+        unrendered: &str,
+    ) {
+        self.output.push("export const ");
         self.push_default_export();
-        self.output.push(" = ");
-        self.node(value);
         self.output
-            .push(";\nexport default /** @type {__rsvelte_javascript_export<typeof ");
-        self.push_default_export();
+            .push(" = /** @type {__rsvelte_javascript_export<");
+        self.render_result(|_| {}, unrendered);
         self.output.push(">} */ (");
+        // What a render function closed early returns converts to its component through `unknown`.
+        if self.tree.holes {
+            self.output.push("/** @type {unknown} */ (");
+        }
+        self.node(component);
+        if self.tree.holes {
+            self.output.push(")");
+        }
+        for part in [");\n/** @typedef {", instance, "<typeof "] {
+            self.output.push(part);
+        }
         self.push_default_export();
-        self.output.push(");\n");
+        self.output.push(">} ");
+        self.push_default_export();
+        self.output.push(" */\nexport default ");
+        self.push_default_export();
+        self.output.push(";\n");
     }
 
     fn in_type(&mut self, print: impl FnOnce(&mut Self)) {

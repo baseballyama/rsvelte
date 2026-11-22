@@ -1,5 +1,53 @@
 # @rsvelte/cli
 
+## 0.5.0
+
+### Minor Changes
+
+- 1c04c06: `format` reads `oxfmt.config.ts` with `node`. It formats Svelte files with every value that oxfmt takes for `quoteProps`, `trailingComma` and `bracketSpacing`. The same holds for `objectWrap`, `arrowParens` and `experimentalOperatorPosition`.
+
+### Patch Changes
+
+- b119ed1: `rsvelte check` no longer types a component as `void` when a stray `}` in its script closes the render function before its return. Like svelte2tsx, it types that component by the export helper's constraints, so an importer can pass any prop.
+- 717f866: `compile` now reports the first JavaScript error in the document, as svelte does, when the template and the scripts both carry one.
+- 4d94e22: `rsvelte typecheck` reads the `generics` attribute of a JavaScript component, as svelte-check does, instead of reporting `Cannot find name` for its type parameters.
+- e949791: Report a parenthesized element of a destructuring pattern at its parenthesis, before any element's own error, as Svelte does.
+- 268efc7: `compile` now raises what svelte raises for a TypeScript class member or block function declared again, instead of oxc's TypeScript errors.
+- 0855204: `compile` now accepts two parameters of one name in a TypeScript signature or a function without a body, as svelte does.
+
+## 0.4.0
+
+### Minor Changes
+
+- 6e69490: Add `rsvelte help <command>` and `rsvelte <command> --help`, which print what `lint` and `typecheck` read and print, how to configure them and their exit codes. For `format`, they print oxfmt's help.
+- 8927eb6: Run `lint`, `format` and `typecheck` in one command, as `rsvelte format lint typecheck --check`. `format` runs first, and the run exits with the worst exit code of its commands.
+- 01752cb: Add `rsvelte version`. For each command, it names the official tools and versions whose output the tests compare with. It also names the oxfmt and oxc inside rsvelte and the type checker that `typecheck` would run.
+- ad32b26: `format` sorts the imports and formats the `/** */` comments of a Svelte file's scripts when the configuration sets `sortImports` or `jsdoc`, as oxfmt does, instead of reporting an error. It also formats the `svelte` code blocks of a Markdown file.
+- fcd7c8e: `format` sorts the Tailwind CSS classes of a Svelte file with `sortTailwindcss`, as oxfmt does with prettier-plugin-svelte. It sorts `class` and the attributes `sortTailwindcss` names, the functions it names in the scripts, and `@apply`. It runs the `prettier-plugin-tailwindcss` installed in the file's project with `node`.
+- c224d76: `format` sorts Tailwind CSS classes with `sortTailwindcss`, as oxfmt does, in each file other than a Svelte file. It runs the `prettier-plugin-tailwindcss` installed in the file's project with `node`, and reports an error for each file whose classes it cannot sort.
+
+### Patch Changes
+
+- c974c57: Report a `$` catch parameter that a `var` in its clause declares again at the parameter, as Svelte does.
+- 2bcf59b: In `typecheck`, a bindable prop with a numeric or `BigInt` key now has the name the compiled component gives it. For example, `0x10` is `16` and `10n` is `10`.
+- 221b441: `rsvelte check` types a component outside runes mode, or one with `$$Events` or slots, as svelte2tsx's isomorphic component, so messages that print its type match svelte-check. A template `await` puts a component in runes mode, and an import can name a JavaScript component as a type.
+- ad518d8: `rsvelte check` types a JavaScript component's props by the `JSDoc` comment before `$props()`, as svelte2tsx does. It now reports a wrong prop from an importer and a default of the wrong type.
+- 2eeaef2: In `typecheck`, a regular expression with no closing slash now ends where TypeScript ends it, at the first unbalanced bracket of its line. The statements after it on that line, such as `$props()`, stay in the component.
+- 79bddb2: Read `<!-->` as an open HTML comment and `/*/` in a tag as an open block comment, as Svelte does, instead of panicking.
+- b592719: `compile` and `compileModule` now report acorn's error for `await` or `yield` as an arrow function's parameter, such as `(await) => 1`.
+- 39d95b2: The compiler now reports a keyword used as a name, or written with an escape, in the official compiler's words. For example, `let await = 1` gives "Cannot use keyword 'await' outside an async function".
+- 3069dfa: Reject a `$` name that a `var` declares again over a parameter, and report a `var` declared twice inside a function at its last declaration, as Svelte does.
+- 4491a40: Format a block pattern with a `BigInt` key, such as `{#each xs as { 10n: a }}`, as prettier-plugin-svelte does, instead of refusing the file.
+- 5a8666c: `format` sorts the classes of the Svelte attributes that `sortTailwindcss` names by a regular expression, as `prettier-plugin-tailwindcss` matches them, instead of reporting an error.
+- 67333ae: Format a file with a typed `{@const}` that spans more than one line, keeping the tag as written, instead of refusing the file.
+- f2a3985: Report a JavaScript error in a template expression such as `{delete x}` before an error the parser raises later in the component, as Svelte does.
+- a3df8af: `svelte/no-dom-manipulating`, `svelte/require-store-reactive-access` and the rules that skip components now tell a component from an HTML element as Svelte does: `<Foo-bar>` is an HTML element, and `<Ärger>` and `<Foo.>` are components.
+- a773ed0: Report an optional chain as the target of an assignment in Svelte's words: "Optional chaining cannot appear in left-hand side".
+- c197977: `compile` and `compileModule` now name and place the identifier, as acorn does, when a `var` declares again a name a function declared, such as `function a() {} var { a } = {}`.
+- 55ca8bc: The Svelte formatter no longer takes Prettier's `rangeStart` and `rangeEnd`, which oxfmt does not have either. `rsvelte format` never passed them on, so its output does not change.
+- 15b4a10: `rsvelte format` formats Svelte files with `semi: false` and `singleQuote: true` instead of reporting an error.
+- 689a5fa: Vue: an attribute name with a non-ASCII character no longer crashes the parser, and compiling it leaves the object key bare as `@vue/compiler-sfc` does (`ä: "1"`, not `"ä": "1"`).
+
 ## 0.3.0
 
 ### Minor Changes

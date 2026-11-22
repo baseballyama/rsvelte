@@ -33,7 +33,8 @@ function $$render() {
       foo;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const VarStateReads__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof VarStateReads__SvelteComponent_>} */ (VarStateReads__SvelteComponent_);
+export const VarStateReads__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof VarStateReads__SvelteComponent_>} VarStateReads__SvelteComponent_ */
+export default VarStateReads__SvelteComponent_;

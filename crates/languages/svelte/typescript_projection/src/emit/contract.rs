@@ -8,7 +8,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
 
 use super::Printer;
-use crate::syntax_tree::{Node, NodeIdentifier, TypeParameters};
+use crate::syntax_tree::{Instance, Node, NodeIdentifier, TypeParameters};
 
 impl Printer<'_> {
     pub(super) fn contract_node(&mut self, node: Node) {
@@ -60,6 +60,7 @@ impl Printer<'_> {
                 self.instantiated(callee, arguments);
             }
             Node::DeclaredType(value) => self.declared_type(value),
+            Node::CommentCast(comment) => self.comment_cast(comment),
             Node::TypeArguments { callee, arguments } => {
                 self.node(callee);
                 self.output.push("<");
@@ -71,12 +72,11 @@ impl Printer<'_> {
                 self.node(value);
             }
             Node::TypeLiteral(properties) => self.type_literal(properties),
-            Node::TypeProperty { name, value } => {
-                self.node(name);
-                self.output.push(": ");
-                self.node(value);
-                self.output.push(";\n");
-            }
+            Node::TypeProperty {
+                name,
+                value,
+                optional,
+            } => self.type_property(name, value, optional),
             Node::TypeUnion(parts) => self.separated(parts, " | "),
             Node::NamedProperty { name, value } => {
                 self.node(name);
@@ -103,7 +103,10 @@ impl Printer<'_> {
                 names,
                 declared,
             } => self.generic_export(type_parameters, names, declared),
-            Node::ExportDefault(value) => self.export_default(value),
+            Node::ExportDefault {
+                component,
+                instance,
+            } => self.export_default(component, instance),
             _ => unreachable!("ordinary nodes are printed by node"),
         }
     }
@@ -126,22 +129,52 @@ impl Printer<'_> {
         self.output.push(");\n");
     }
 
-    /// svelte2tsx's runes component: a type of the same name lets an import name its type.
-    fn export_default(&mut self, value: NodeIdentifier) {
+    /// svelte2tsx's `const X = component; type X = …; export default X;`: the type of the same
+    /// name lets an import name the component's instance.
+    fn export_default(&mut self, component: NodeIdentifier, instance: Instance) {
+        let unrendered = instance.unrendered();
+        let instance = match instance {
+            Instance::Returned => "ReturnType",
+            Instance::Constructed => "InstanceType",
+        };
         if self.tree.javascript {
-            return self.javascript_export(value);
+            return self.javascript_export(component, instance, unrendered);
         }
         self.output.push("const ");
         self.push_default_export();
         self.output.push(" = ");
-        self.node(value);
+        self.node(component);
+        if self.tree.holes {
+            self.output.push(" as unknown as ");
+            self.render_result(|_| {}, unrendered);
+        }
         self.output.push(";\ntype ");
         self.push_default_export();
-        self.output.push(" = ReturnType<typeof ");
+        for part in [" = ", instance, "<typeof "] {
+            self.output.push(part);
+        }
         self.push_default_export();
         self.output.push(">;\nexport default ");
         self.push_default_export();
         self.output.push(";\n");
+    }
+
+    /// The type of what `$$render` returns, instantiated with what `arguments` writes. svelte2tsx
+    /// makes the component outside the render function, so when a hole closes it before its
+    /// return, the component is `unrendered`, its helper's constraints.
+    pub(super) fn render_result(&mut self, arguments: impl FnOnce(&mut Self), unrendered: &str) {
+        let holes = self.tree.holes;
+        if holes {
+            self.output.push("__rsvelte_rendered<");
+        }
+        self.output.push("Awaited<ReturnType<typeof $$render");
+        arguments(self);
+        self.output.push(">>");
+        if holes {
+            for part in [", ", unrendered, ">"] {
+                self.output.push(part);
+            }
+        }
     }
 
     /// svelte2tsx's `function $$render<type parameters>() { body }`, async after a top-level
@@ -165,12 +198,27 @@ impl Printer<'_> {
         match type_parameters {
             Some(TypeParameters::Attribute(span)) => {
                 self.output.push("<");
-                self.output.copy(self.source, span);
                 // svelte2tsx maps the rest of the line to the character after the value, its
                 // closing quote.
                 let after = Span::new(span.end_offset, span.end_offset + 1);
-                self.output.atom(">() {", after);
-                self.output.push("\n");
+                if self.tree.javascript {
+                    // svelte2tsx writes the list and its `>` between its ignore comments: the start
+                    // keeps `</` from reading as a closing tag, and the end closes a comment the
+                    // list leaves open. The `>` maps to the opening quote, which nothing else maps
+                    // from.
+                    let start = self.output.out.len() as u32;
+                    self.output.push("/*\u{3a9}ignore_start\u{3a9}*/");
+                    self.output.copy(self.source, span);
+                    let before = Span::new(span.start_offset - 1, span.start_offset);
+                    self.output.atom(">", before);
+                    self.output.ignore_since(start);
+                    self.output
+                        .atom("/*\u{3a9}ignore_end\u{3a9}*/() {\n", after);
+                } else {
+                    self.output.copy(self.source, span);
+                    self.output.atom(">() {", after);
+                    self.output.push("\n");
+                }
             }
             Some(parameters @ TypeParameters::Declared(_)) => {
                 let parameters = self.type_parameters(parameters);
@@ -189,6 +237,14 @@ impl Printer<'_> {
         self.output.push(keyword);
         self.node(name);
         self.output.push(" = ");
+        self.node(value);
+        self.output.push(";\n");
+    }
+
+    /// `name: value;` or, when `optional`, `name?: value;`, on a line of its own.
+    fn type_property(&mut self, name: NodeIdentifier, value: NodeIdentifier, optional: bool) {
+        self.node(name);
+        self.output.push(if optional { "?: " } else { ": " });
         self.node(value);
         self.output.push(";\n");
     }

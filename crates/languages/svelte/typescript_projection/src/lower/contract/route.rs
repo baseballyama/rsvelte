@@ -112,6 +112,10 @@ impl Builder<'_> {
 
     fn route_prop(&mut self, name: &'static str, value: NodeIdentifier) -> NodeIdentifier {
         let name = self.tree.push(Node::Identifier(name));
-        self.tree.push(Node::TypeProperty { name, value })
+        self.tree.push(Node::TypeProperty {
+            name,
+            value,
+            optional: false,
+        })
     }
 }

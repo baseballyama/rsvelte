@@ -1,6 +1,6 @@
 ;
 function $$render() {
-  /** @type {typeof __rsvelte_public_props0} */ let {value: local}= $props();
+  let /** @type {typeof __rsvelte_public_props0} */ {value: local}= $props();
 ;
 
   const __rsvelte_public_props0 = __rsvelte_props({
@@ -19,5 +19,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const OptionsCustomPropsAlias__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof OptionsCustomPropsAlias__SvelteComponent_>} */ (OptionsCustomPropsAlias__SvelteComponent_);
+export const OptionsCustomPropsAlias__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof OptionsCustomPropsAlias__SvelteComponent_>} OptionsCustomPropsAlias__SvelteComponent_ */
+export default OptionsCustomPropsAlias__SvelteComponent_;
