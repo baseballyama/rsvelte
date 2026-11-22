@@ -127,3 +127,38 @@ fn typecheck_types_the_events_svelte2tsx_reads_from_edge_shapes() {
          \nFound 3 errors in 3 files.\n"
     );
 }
+
+/// A typed dispatcher's events are read from its type, so a name the typing cannot resolve is
+/// reported once, where it is written, as svelte-check reports it: svelte2tsx's copy of the
+/// typing maps nowhere. svelte-check 4.7.8 reports these four lines.
+#[cfg(unix)]
+#[test]
+fn typecheck_reports_a_typed_dispatchers_unresolved_name_once() {
+    let dispatcher = |declaration: &str| {
+        format!(
+            "<script lang=\"ts\">\n\timport {{ createEventDispatcher }} from 'svelte';\n\
+             \t{declaration}\n</script>\n<button onclick={{() => dispatch('go', 1)}}>x</button>\n"
+        )
+    };
+    let computed =
+        dispatcher("const dispatch = createEventDispatcher<{ [Z](): void; go: number }>();");
+    let exported =
+        dispatcher("export const dispatch = createEventDispatcher<{ go: number; bad: Nope }>();");
+    let app = "<script lang=\"ts\">\n\timport Computed from './Computed.svelte';\n\
+        \timport Exported from './Exported.svelte';\n</script>\n\
+        <Computed on:go={(e) => { const s: string = e.detail; }} />\n\
+        <Exported on:go={(e) => { const s: string = e.detail; }} />\n";
+    let report = check(&[
+        ("src/Computed.svelte", &computed),
+        ("src/Exported.svelte", &exported),
+        ("src/App.svelte", app),
+    ]);
+    assert_eq!(
+        report,
+        "src/Computed.svelte(3,44): error TS2304: Cannot find name 'Z'.\n\
+         src/Exported.svelte(3,67): error TS2304: Cannot find name 'Nope'.\n\
+         src/App.svelte(5,33): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+         src/App.svelte(6,33): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+         \nFound 4 errors in 3 files.\n"
+    );
+}
