@@ -241,8 +241,8 @@ importers:
         specifier: 6.0.0
         version: 6.0.0(@codemirror/autocomplete@6.20.4)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.12)(@codemirror/lang-javascript@6.2.5)(@codemirror/language@6.13.1)(@codemirror/state@6.7.6)(@codemirror/view@6.43.15)(@lezer/common@1.5.6)(@lezer/highlight@1.2.5)(@lezer/javascript@1.5.6)(@lezer/lr@1.4.12)
       '@rsvelte/cli':
-        specifier: 0.3.0
-        version: 0.3.0(tsrs@7.1.0-beta.tsrs4)
+        specifier: 0.4.0
+        version: 0.4.0(tsrs@7.1.0-beta.tsrs4)
       '@sveltejs/adapter-static':
         specifier: 4.0.1
         version: 4.0.1(@sveltejs/kit@3.1.1(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.3(@typescript-eslint/types@8.72.1))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))(svelte@5.57.3(@typescript-eslint/types@8.72.1))(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
@@ -1551,35 +1551,35 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
-  '@rsvelte/cli-darwin-arm64@0.3.0':
-    resolution: {integrity: sha512-t0hx3RNgwB+aaUhzHBcN+rxdeSMiObWWtwmZUj71JqzL39ChdW2kjngbcTg/G+aAT7fgPVDMhk4fC3ouw8XDWA==}
+  '@rsvelte/cli-darwin-arm64@0.4.0':
+    resolution: {integrity: sha512-dWTFNe0z3ZQqmnX2r8Jt14Lx/VkE1b8nmZKigUU8CDT9kktdYUTNaiaTU8jObdhHJFqdxyXUQpuag8OW11nRKA==}
     cpu: [arm64]
     os: [darwin]
 
-  '@rsvelte/cli-darwin-x64@0.3.0':
-    resolution: {integrity: sha512-+OFuOjlRQLgO6Z/+vj8Nahh9QILBRCkxug33vau1ufDBMvWvnRrrd9o8kR5HoHn2ViYN3WYwOiZUUU9qCiETLw==}
+  '@rsvelte/cli-darwin-x64@0.4.0':
+    resolution: {integrity: sha512-QdtAXkWvZOA+Nm7KNlTDIkk9lflI1bRlXDDgVXbTQUylTZvUlV8i9jUUX4qbdNaK8WPx2tMfeM6xDNnHg274Fg==}
     cpu: [x64]
     os: [darwin]
 
-  '@rsvelte/cli-linux-arm64-gnu@0.3.0':
-    resolution: {integrity: sha512-HhanHkW9bvODIYwjiN+tA9EmBXUM/a6lGWf9d50dtUHpYhyFvWUIx7eg2rpB4zqylDkmx3iSxFEWi39UwZ96KA==}
+  '@rsvelte/cli-linux-arm64-gnu@0.4.0':
+    resolution: {integrity: sha512-Zy/HHiDixUEA3QlGoWNOJG9FiwjK+EChlsUe3ZoWJdhUAt7SOLgB2ALo8drEh4NqMUPo1d8S/o3hbvxHztGqTQ==}
     cpu: [arm64]
     os: [linux]
     libc: [glibc]
 
-  '@rsvelte/cli-linux-x64-gnu@0.3.0':
-    resolution: {integrity: sha512-C7Wzz1ypoxr30+N6st3HnoVu8YMecEPr1SINHhR5lYrjzq/32SaB5GoslNjSkW9HZMHECP0PjEHJqE3qYZqm8A==}
+  '@rsvelte/cli-linux-x64-gnu@0.4.0':
+    resolution: {integrity: sha512-+GlUXfXzNT0Y91F0NxuhGotQ1QLhWb339o9rba2ygwiOVeADdF0GQY1KXHYNOKIgyHO5LxUBUOatToOTjyezIg==}
     cpu: [x64]
     os: [linux]
     libc: [glibc]
 
-  '@rsvelte/cli-win32-x64-msvc@0.3.0':
-    resolution: {integrity: sha512-vPZHqSgCyqhj35TS0irI9ECwy36yOScSN+ymxeo1wMv8yAkoyfWvNWo8EirvXzVRwt4VUdSVboV5Qo5KMazAvA==}
+  '@rsvelte/cli-win32-x64-msvc@0.4.0':
+    resolution: {integrity: sha512-Tg41FhlNiHqXgYAnf6l3dV9pYiqtZRn69GUcDs+8veWolsM1Aj2VMqi1SUS2MAqEOXlJkueauiMNBlD6XrZ5Cg==}
     cpu: [x64]
     os: [win32]
 
-  '@rsvelte/cli@0.3.0':
-    resolution: {integrity: sha512-xZP4/CYEoVuwpWQmBCGggFTADAjPT9YHLdsncNyyUT32Xe+HyWst1akFCPKkd5340dvYOAvJTLlOaUPj/wNeXg==}
+  '@rsvelte/cli@0.4.0':
+    resolution: {integrity: sha512-71hYX22qIkpYdoPLxVoPGlCyr4BCLx5P/LT1cTlhXtNUVKo0U2AHRhOGcmUFFrTrybFFHbggXV3YbhJvLrfGHw==}
     engines: {node: '>=18'}
     hasBin: true
     peerDependencies:
@@ -6103,28 +6103,28 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
-  '@rsvelte/cli-darwin-arm64@0.3.0':
+  '@rsvelte/cli-darwin-arm64@0.4.0':
     optional: true
 
-  '@rsvelte/cli-darwin-x64@0.3.0':
+  '@rsvelte/cli-darwin-x64@0.4.0':
     optional: true
 
-  '@rsvelte/cli-linux-arm64-gnu@0.3.0':
+  '@rsvelte/cli-linux-arm64-gnu@0.4.0':
     optional: true
 
-  '@rsvelte/cli-linux-x64-gnu@0.3.0':
+  '@rsvelte/cli-linux-x64-gnu@0.4.0':
     optional: true
 
-  '@rsvelte/cli-win32-x64-msvc@0.3.0':
+  '@rsvelte/cli-win32-x64-msvc@0.4.0':
     optional: true
 
-  '@rsvelte/cli@0.3.0(tsrs@7.1.0-beta.tsrs4)':
+  '@rsvelte/cli@0.4.0(tsrs@7.1.0-beta.tsrs4)':
     optionalDependencies:
-      '@rsvelte/cli-darwin-arm64': 0.3.0
-      '@rsvelte/cli-darwin-x64': 0.3.0
-      '@rsvelte/cli-linux-arm64-gnu': 0.3.0
-      '@rsvelte/cli-linux-x64-gnu': 0.3.0
-      '@rsvelte/cli-win32-x64-msvc': 0.3.0
+      '@rsvelte/cli-darwin-arm64': 0.4.0
+      '@rsvelte/cli-darwin-x64': 0.4.0
+      '@rsvelte/cli-linux-arm64-gnu': 0.4.0
+      '@rsvelte/cli-linux-x64-gnu': 0.4.0
+      '@rsvelte/cli-win32-x64-msvc': 0.4.0
       tsrs: 7.1.0-beta.tsrs4
 
   '@shikijs/core@4.6.0':

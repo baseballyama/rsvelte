@@ -20,7 +20,7 @@
 		"build:bundle": "vite build",
 		"preview": "vite preview",
 		"precheck": "pnpm run generate",
-		"check": "svelte-kit sync && rsvelte lint && rsvelte typecheck",
+		"check": "svelte-kit sync && rsvelte lint typecheck",
 		"test": "node --test 'scripts/*.test.ts' 'src/**/*.test.ts' && pnpm run lint"
 	},
 	"devDependencies": {
@@ -33,7 +33,7 @@
 		"@codemirror/view": "6.43.15",
 		"@lezer/highlight": "1.2.5",
 		"@replit/codemirror-lang-svelte": "6.0.0",
-		"@rsvelte/cli": "0.3.0",
+		"@rsvelte/cli": "0.4.0",
 		"@sveltejs/adapter-static": "4.0.1",
 		"@sveltejs/kit": "3.1.1",
 		"@sveltejs/vite-plugin-svelte": "7.3.1",
