@@ -1563,6 +1563,7 @@ dependencies = [
  "libc",
  "mimalloc",
  "oxc_allocator",
+ "oxc_ast",
  "oxc_formatter",
  "oxc_parser",
  "oxc_span",

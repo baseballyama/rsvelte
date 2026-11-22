@@ -1,0 +1,2 @@
+error js_parse_error 2:53-2:53 Identifier 'X' has already been declared
+    https://svelte.dev/e/js_parse_error
