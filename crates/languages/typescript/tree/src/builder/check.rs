@@ -45,7 +45,7 @@ impl<'a> TreeBuilder<'a> {
             // acorn throws where it stops first, before an error oxc reports later or at the same
             // place.
             return Err(match stop {
-                Some(stop) if stop.0 <= error.acorn_at() => rejection(stop),
+                Some(stop) if stop.0 <= error.acorn_raised_at() => rejection(stop),
                 _ => error,
             });
         }
@@ -75,7 +75,7 @@ impl<'a> TreeBuilder<'a> {
             .flatten();
         let syntax_error = syntax_error(error.diagnostics, text, &error.tokens, fallback, shift);
         match stop {
-            Some(stop) if stop.0 <= syntax_error.acorn_at() => rejection(stop),
+            Some(stop) if stop.0 <= syntax_error.acorn_raised_at() => rejection(stop),
             _ => syntax_error,
         }
     }

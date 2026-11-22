@@ -117,7 +117,7 @@ fn first_of<'s>(
         .into_iter())
     .chain(analyzed)
     .filter(|(error, redeclared_by)| keep(error, *redeclared_by))
-    .min_by_key(|(error, _)| error.acorn_at())
+    .min_by_key(|(error, _)| error.acorn_raised_at())
     .map(|(error, _)| error)
 }
 
@@ -126,7 +126,8 @@ fn first_of<'s>(
 fn clashes(error: &SyntaxError) -> bool {
     matches!(
         &error.acorn,
-        Some(Acorn::Fails { message, .. }) if message == "Argument name clash"
+        Some(Acorn::Fails { message, .. } | Acorn::FailsLater { message, .. })
+            if message == "Argument name clash"
     )
 }
 
