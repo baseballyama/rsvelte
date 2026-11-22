@@ -7,5 +7,6 @@
 	"privatePackages": {
 		"version": true,
 		"tag": false
-	}
+	},
+	"bumpVersionsWithWorkspaceProtocolOnly": true
 }
