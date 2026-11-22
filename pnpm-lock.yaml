@@ -240,6 +240,9 @@ importers:
       '@replit/codemirror-lang-svelte':
         specifier: 6.0.0
         version: 6.0.0(@codemirror/autocomplete@6.20.4)(@codemirror/lang-css@6.3.1)(@codemirror/lang-html@6.4.12)(@codemirror/lang-javascript@6.2.5)(@codemirror/language@6.13.1)(@codemirror/state@6.7.6)(@codemirror/view@6.43.15)(@lezer/common@1.5.6)(@lezer/highlight@1.2.5)(@lezer/javascript@1.5.6)(@lezer/lr@1.4.12)
+      '@rsvelte/cli':
+        specifier: 0.4.0
+        version: 0.4.0(tsrs@7.1.0-beta.tsrs4)
       '@sveltejs/adapter-static':
         specifier: 4.0.1
         version: 4.0.1(@sveltejs/kit@3.1.1(@sveltejs/vite-plugin-svelte@7.3.1(svelte@5.57.3(@typescript-eslint/types@8.72.1))(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))(svelte@5.57.3(@typescript-eslint/types@8.72.1))(typescript@6.0.3)(vite@8.3.5(@types/node@26.6.6)(esbuild@0.28.2)(jiti@2.7.0)(yaml@2.9.1)))
@@ -258,9 +261,9 @@ importers:
       svelte:
         specifier: 5.57.3
         version: 5.57.3(@typescript-eslint/types@8.72.1)
-      svelte-check:
-        specifier: 4.7.8
-        version: 4.7.8(picomatch@4.0.7)(svelte@5.57.3(@typescript-eslint/types@8.72.1))(typescript@6.0.3)
+      tsrs:
+        specifier: 7.1.0-beta.tsrs4
+        version: 7.1.0-beta.tsrs4
       typescript:
         specifier: 6.0.3
         version: 6.0.3
@@ -1548,6 +1551,43 @@ packages:
   '@rolldown/pluginutils@1.0.1':
     resolution: {integrity: sha512-2j9bGt5Jh8hj+vPtgzPtl72j0yRxHAyumoo6TNfAjsLB04UtpSvPbPcDcBMxz7n+9CYB0c1GxQFxYRg2jimqGw==}
 
+  '@rsvelte/cli-darwin-arm64@0.4.0':
+    resolution: {integrity: sha512-dWTFNe0z3ZQqmnX2r8Jt14Lx/VkE1b8nmZKigUU8CDT9kktdYUTNaiaTU8jObdhHJFqdxyXUQpuag8OW11nRKA==}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@rsvelte/cli-darwin-x64@0.4.0':
+    resolution: {integrity: sha512-QdtAXkWvZOA+Nm7KNlTDIkk9lflI1bRlXDDgVXbTQUylTZvUlV8i9jUUX4qbdNaK8WPx2tMfeM6xDNnHg274Fg==}
+    cpu: [x64]
+    os: [darwin]
+
+  '@rsvelte/cli-linux-arm64-gnu@0.4.0':
+    resolution: {integrity: sha512-Zy/HHiDixUEA3QlGoWNOJG9FiwjK+EChlsUe3ZoWJdhUAt7SOLgB2ALo8drEh4NqMUPo1d8S/o3hbvxHztGqTQ==}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rsvelte/cli-linux-x64-gnu@0.4.0':
+    resolution: {integrity: sha512-+GlUXfXzNT0Y91F0NxuhGotQ1QLhWb339o9rba2ygwiOVeADdF0GQY1KXHYNOKIgyHO5LxUBUOatToOTjyezIg==}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@rsvelte/cli-win32-x64-msvc@0.4.0':
+    resolution: {integrity: sha512-Tg41FhlNiHqXgYAnf6l3dV9pYiqtZRn69GUcDs+8veWolsM1Aj2VMqi1SUS2MAqEOXlJkueauiMNBlD6XrZ5Cg==}
+    cpu: [x64]
+    os: [win32]
+
+  '@rsvelte/cli@0.4.0':
+    resolution: {integrity: sha512-71hYX22qIkpYdoPLxVoPGlCyr4BCLx5P/LT1cTlhXtNUVKo0U2AHRhOGcmUFFrTrybFFHbggXV3YbhJvLrfGHw==}
+    engines: {node: '>=18'}
+    hasBin: true
+    peerDependencies:
+      tsrs: '>=7.1.0-beta.tsrs2 <7.2.0'
+    peerDependenciesMeta:
+      tsrs:
+        optional: true
+
   '@shikijs/core@4.6.0':
     resolution: {integrity: sha512-bfd4OKgvoyXYiYmMRuleA656P4V7M/Du9lcTl38Ngm6KszMj7bq4J1IGZwSYR4c95Tv5UQALtYNWUwaI9UT3xw==}
     engines: {node: '>=20'}
@@ -1694,6 +1734,58 @@ packages:
 
   '@textlint/utils@15.8.0':
     resolution: {integrity: sha512-waINJCI7sBVs1A3K05UFKe8QoNAsdJFCXr3PJ1QsgAf0BeEgCtyrLVcZUdbOtKxRkF4QB4NuClB0By1Ty4znpQ==}
+
+  '@tsrs/darwin-arm64@7.1.0-beta.tsrs4':
+    resolution: {integrity: sha512-Be1McQGyHipWIjnkvytZmh7Wi4YVATvTfiEuPX34kfk+W7QCtTdUUHnuLZ7bzwy8LgL9VDCmyvQtWiF3MENxBQ==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@tsrs/darwin-x64@7.1.0-beta.tsrs4':
+    resolution: {integrity: sha512-J9LM9ja4EGcA1/DNnWOo9smswK1Aa4xW+zbCubWdT/4z8SPwCmVwm5sn5KmvNBCHQHkke9KRrBl+zROqz6F74A==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@tsrs/linux-arm64-gnu@7.1.0-beta.tsrs4':
+    resolution: {integrity: sha512-RIbwlpYWflMDq9XosRHL7gpwSV5fnEaUvjr3ehzKCcc7E6ozo0mH4m/OgQE3ts/4euWKzZxsK7lN6r091W5mWg==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tsrs/linux-arm64-musl@7.1.0-beta.tsrs4':
+    resolution: {integrity: sha512-4RGERFCpPayJ74T2eA+ky3VdIS0r1BezKIclqGWRTx/RXnj9H/1NbtEt0aKhj3TrTMPDmInlPiCwRJUv7M9kFA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [linux]
+    libc: [musl]
+
+  '@tsrs/linux-x64-gnu@7.1.0-beta.tsrs4':
+    resolution: {integrity: sha512-YIqFRStXq5yURR+zYDwIKcV126KH+EibPMJ1ZbfT2ToJ0w5zmRUKV/A5z0kjmQu6A6wItLZxOzKjU1v+ad5blA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [linux]
+    libc: [glibc]
+
+  '@tsrs/linux-x64-musl@7.1.0-beta.tsrs4':
+    resolution: {integrity: sha512-TQeiFbrxowI26YDaUojRfV7DhDKjXlPWtz9DopyGtufFoKsv2efIzUiEAA8IVw689nUoi0CVl0aWTWio49lWMg==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [linux]
+    libc: [musl]
+
+  '@tsrs/win32-arm64@7.1.0-beta.tsrs4':
+    resolution: {integrity: sha512-0YRK8h3vCTtJM7j+GpWByK8ehWMdHPCETLEAeQiW6Xy4wrrJJ2Fso/1FeF6gfi6LyCq1mZMfydn2OiDoJmAu1A==}
+    engines: {node: '>=16.20.0'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@tsrs/win32-x64@7.1.0-beta.tsrs4':
+    resolution: {integrity: sha512-JW5JoAammbwL2pXkhC//p/9t7lxg34zHgtA6L5ixiCDw5s+hxxEc85h3sm9M3oYUqCOOi+W6Jw5PLDClN3nMHA==}
+    engines: {node: '>=16.20.0'}
+    cpu: [x64]
+    os: [win32]
 
   '@tybys/wasm-util@0.10.4':
     resolution: {integrity: sha512-W3c4gRigFS0T/Ma4qIYF3GDAc5AQdHb1yL5znJT1Zv1YaD9Kitx656wBjvr19qbiosmZT8lWDM5BEMynUqX65A==}
@@ -4694,6 +4786,11 @@ packages:
   tslib@2.8.1:
     resolution: {integrity: sha512-oJFu94HQb+KVduSUQL7wnpmqnfmLsOA/nAh6b6EH0wCEoK0/mPeXU6c3wKDV83MkOuHPRHtSXKKU99IBazS/2w==}
 
+  tsrs@7.1.0-beta.tsrs4:
+    resolution: {integrity: sha512-tPeUolNTUDJFk1Fc660PyFGUK/epGbuQVoo+2GnCIWkNDWp8i1DMI5n2X8pxxevi/3zbO8UvIKjWgE4T7OOCeA==}
+    engines: {node: '>=16.20.0'}
+    hasBin: true
+
   txt-ast-traverse@1.2.1:
     resolution: {integrity: sha512-rxih9n0dRqIiVSKlm4Rkdz4QH4f8RvX6rZiDVXgm3Je8vpvJ4LOUXxoRoBVXNkIVpA1x5wBlNDXtdLzpaxzFIg==}
     deprecated: See https://github.com/textlint/textlint/issues/455
@@ -6006,6 +6103,30 @@ snapshots:
 
   '@rolldown/pluginutils@1.0.1': {}
 
+  '@rsvelte/cli-darwin-arm64@0.4.0':
+    optional: true
+
+  '@rsvelte/cli-darwin-x64@0.4.0':
+    optional: true
+
+  '@rsvelte/cli-linux-arm64-gnu@0.4.0':
+    optional: true
+
+  '@rsvelte/cli-linux-x64-gnu@0.4.0':
+    optional: true
+
+  '@rsvelte/cli-win32-x64-msvc@0.4.0':
+    optional: true
+
+  '@rsvelte/cli@0.4.0(tsrs@7.1.0-beta.tsrs4)':
+    optionalDependencies:
+      '@rsvelte/cli-darwin-arm64': 0.4.0
+      '@rsvelte/cli-darwin-x64': 0.4.0
+      '@rsvelte/cli-linux-arm64-gnu': 0.4.0
+      '@rsvelte/cli-linux-x64-gnu': 0.4.0
+      '@rsvelte/cli-win32-x64-msvc': 0.4.0
+      tsrs: 7.1.0-beta.tsrs4
+
   '@shikijs/core@4.6.0':
     dependencies:
       '@shikijs/primitive': 4.6.0
@@ -6229,6 +6350,30 @@ snapshots:
       '@textlint/ast-node-types': 15.8.0
 
   '@textlint/utils@15.8.0': {}
+
+  '@tsrs/darwin-arm64@7.1.0-beta.tsrs4':
+    optional: true
+
+  '@tsrs/darwin-x64@7.1.0-beta.tsrs4':
+    optional: true
+
+  '@tsrs/linux-arm64-gnu@7.1.0-beta.tsrs4':
+    optional: true
+
+  '@tsrs/linux-arm64-musl@7.1.0-beta.tsrs4':
+    optional: true
+
+  '@tsrs/linux-x64-gnu@7.1.0-beta.tsrs4':
+    optional: true
+
+  '@tsrs/linux-x64-musl@7.1.0-beta.tsrs4':
+    optional: true
+
+  '@tsrs/win32-arm64@7.1.0-beta.tsrs4':
+    optional: true
+
+  '@tsrs/win32-x64@7.1.0-beta.tsrs4':
+    optional: true
 
   '@tybys/wasm-util@0.10.4':
     dependencies:
@@ -10028,6 +10173,17 @@ snapshots:
 
   tslib@2.8.1:
     optional: true
+
+  tsrs@7.1.0-beta.tsrs4:
+    optionalDependencies:
+      '@tsrs/darwin-arm64': 7.1.0-beta.tsrs4
+      '@tsrs/darwin-x64': 7.1.0-beta.tsrs4
+      '@tsrs/linux-arm64-gnu': 7.1.0-beta.tsrs4
+      '@tsrs/linux-arm64-musl': 7.1.0-beta.tsrs4
+      '@tsrs/linux-x64-gnu': 7.1.0-beta.tsrs4
+      '@tsrs/linux-x64-musl': 7.1.0-beta.tsrs4
+      '@tsrs/win32-arm64': 7.1.0-beta.tsrs4
+      '@tsrs/win32-x64': 7.1.0-beta.tsrs4
 
   txt-ast-traverse@1.2.1: {}
 

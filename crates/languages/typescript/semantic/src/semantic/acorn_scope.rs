@@ -30,14 +30,9 @@ impl Semantic {
             if declarations.is_empty() {
                 continue;
             }
-            // Functions are vars at the top of a function body and lexical everywhere else in a
-            // module.
-            let in_function = scoping
-                .scope_flags(scoping.symbol_scope_id(symbol))
-                .is_function();
             let (mut lexical, mut var) = (false, false);
             for declaration in declarations {
-                let binding = self.binding(declaration.flags, declaration.declaration, in_function);
+                let binding = self.binding(declaration.flags, declaration.declaration);
                 let twice = match binding {
                     Binding::Lexical => lexical || var,
                     Binding::Var => lexical,
@@ -87,12 +82,7 @@ impl Semantic {
         })
     }
 
-    fn binding(
-        &self,
-        flags: SymbolFlags,
-        declaration: oxc_semantic::NodeId,
-        in_function: bool,
-    ) -> Binding {
+    fn binding(&self, flags: SymbolFlags, declaration: oxc_semantic::NodeId) -> Binding {
         if flags.contains(SymbolFlags::Ambient) {
             Binding::None
         } else if flags.intersects(
@@ -105,9 +95,12 @@ impl Semantic {
         } else if flags.contains(SymbolFlags::FunctionScopedVariable) {
             Binding::Var
         } else if flags.contains(SymbolFlags::Function) {
+            // Functions are vars at the top of a function body and lexical everywhere else in a
+            // module, by where each is declared: a `var` hoists the symbol out of a block.
+            let declared_in = self.nodes().get_node(declaration).scope_id();
             match self.nodes().kind(declaration) {
                 AstKind::Function(function) if function.body.is_none() => Binding::None,
-                _ if in_function => Binding::Var,
+                _ if self.scoping().scope_flags(declared_in).is_function() => Binding::Var,
                 _ => Binding::Lexical,
             }
         } else {

@@ -28,6 +28,10 @@ pub struct Emitter {
     pub mappings: Vec<Mapping>,
     /// In output order, beside the copies and points, so a [`Mapping`] stays small.
     pub atoms: Vec<Atom>,
+    /// Generated ranges whose findings the projected language's own tool hides: a finding that
+    /// starts in one. The original text a range maps from is mapped from nowhere else, so a
+    /// finding already mapped back still tells whether it started in one ([`Emitter::maps_into`]).
+    pub ignored: Vec<Span>,
 }
 
 impl Emitter {
@@ -38,6 +42,7 @@ impl Emitter {
             out: String::with_capacity(out),
             mappings: Vec::with_capacity(mappings),
             atoms: Vec::with_capacity(atoms),
+            ignored: Vec::new(),
         }
     }
 
@@ -91,6 +96,25 @@ impl Emitter {
             .partition_point(|a| a.generated.start_offset <= span.start_offset);
         let atom = self.atoms.get(i.checked_sub(1)?)?;
         (span.end_offset <= atom.generated.end_offset).then_some(atom)
+    }
+
+    /// Marks the output written since `start` as [`Emitter::ignored`].
+    pub fn ignore_since(&mut self, start: u32) {
+        self.ignored.push(Span::new(start, self.out.len() as u32));
+    }
+
+    /// Whether a character inside `generated` maps from the original offset `original`: a copied
+    /// one, or the first of an atom.
+    #[must_use]
+    pub fn maps_into(&self, generated: Span, original: u32) -> bool {
+        let inside = |at: u32| (generated.start_offset..generated.end_offset).contains(&at);
+        let copied = self.mappings.iter().any(|m| {
+            (m.source_text..m.source_text + m.len).contains(&original)
+                && inside(m.generated + (original - m.source_text))
+        });
+        copied
+            || (self.atoms.iter())
+                .any(|a| a.original.start_offset == original && inside(a.generated.start_offset))
     }
 
     /// Copies `span` of `source` verbatim, with a 1:1 mapping.

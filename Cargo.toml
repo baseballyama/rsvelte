@@ -61,23 +61,23 @@ rsvelte_vue_compile = { path = "crates/languages/vue/compile" }
 # `ExpressionRoot::without_parent`, `SemanticBuilder::build_with_host` and oxfmt's
 # `HostFormatters` merge.
 # Every oxc crate stays on one revision; `oxc_formatter` is not on crates.io.
-oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_ast = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_linter = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxlint = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0", default-features = false }
-oxc_ast_visit = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_codegen = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_diagnostics = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_formatter = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_formatter_core = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_formatter_css = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_parser = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_semantic = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_span = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_str = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxc_transformer = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
-oxfmt = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0", default-features = false }
+oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_ast = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_linter = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxlint = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71", default-features = false }
+oxc_ast_visit = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_codegen = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_diagnostics = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_formatter = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_formatter_core = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_formatter_css = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_parser = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_semantic = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_span = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_str = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_syntax = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxc_transformer = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
+oxfmt = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71", default-features = false }
 bpaf = "0.9.26"
 self_cell = "1.2.0"
 rayon = "1.12.0"
@@ -207,7 +207,7 @@ unescaped_backticks = "deny"
 # oxc's CSS parser comes from crates.io and allocates in `oxc_allocator`'s arena, which must be
 # the one the rest of oxc uses.
 [patch.crates-io]
-oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "5532319593cf7c647b095ba10391ba246000d5f0" }
+oxc_allocator = { git = "https://github.com/baseballyama/oxc", rev = "1b25e50cc41f78c66b79e44eb4dc6843f4e98f71" }
 
 [profile.release]
 debug = "line-tables-only"

@@ -84,9 +84,10 @@
 	<code>format</code> is <a href="https://oxc.rs/docs/guide/usage/formatter">oxfmt</a>, the
 	formatter of the oxc project, with a built-in Svelte formatter. It accepts oxfmt's options (<code
 		>rsvelte format --help</code
-	>). It reads its settings from <code>.oxfmtrc.json</code> and <code>.editorconfig</code>, and the
-	files to skip from <code>.prettierignore</code>. With <code>--check</code>, it writes nothing and
-	lists the files that need formatting.
+	>). It reads its settings from <code>.oxfmtrc.json</code> or <code>oxfmt.config.ts</code>, which
+	it runs with <code>node</code>, and from <code>.editorconfig</code>. It reads the files to skip
+	from <code>.prettierignore</code>. With <code>--check</code>, it writes nothing and lists the
+	files that need formatting.
 </p>
 
 <p>
@@ -95,33 +96,11 @@
 	Prettier.
 </p>
 
-<p>For Svelte files:</p>
-
-<ul>
-	<li>
-		These options support only their default value:
-		<ul class="inline">
-			<li><code>semi</code></li>
-			<li><code>singleQuote</code></li>
-			<li><code>trailingComma</code></li>
-			<li><code>arrowParens</code></li>
-			<li><code>bracketSpacing</code></li>
-			<li><code>quoteProps</code></li>
-			<li><code>objectWrap</code></li>
-		</ul>
-	</li>
-	<li>
-		<code>sortImports</code> and <code>jsdoc</code> work in the scripts of Svelte files as they do
-		in oxfmt.
-		<code>sortTailwindcss</code> is not supported yet.
-	</li>
-	<li>
-		With another value of these options, or with <code>sortTailwindcss</code>, <code>format</code> formats
-		no Svelte file. It reports an error that names the option for each Svelte file, formats the other
-		files, and exits with 2.
-	</li>
-	<li><code>"svelte": false</code> in <code>.oxfmtrc.json</code> turns Svelte formatting off.</li>
-</ul>
+<p>
+	It formats Svelte files with every option that oxfmt gives prettier-plugin-svelte. It applies
+	<code>sortImports</code>, <code>jsdoc</code> and <code>sortTailwindcss</code> to them as oxfmt
+	does. <code>"svelte": false</code> in the configuration turns Svelte formatting off.
+</p>
 
 <h2 id="typecheck"><code>typecheck</code></h2>
 
