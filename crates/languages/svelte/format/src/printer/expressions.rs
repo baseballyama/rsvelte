@@ -226,12 +226,6 @@ impl Printer<'_, '_, '_> {
         // `(a: T = b)` is no expression: the plugin's parse fails and it prints the source.
         if declarator.type_annotation.is_some() {
             let source = span.text(self.source_text);
-            if source.contains(['\n', '\r']) {
-                return Err(Unsupported::at(
-                    "a typed {@const} on more than one line",
-                    span,
-                ));
-            }
             return Ok(self.d().text(source));
         }
         self.embed(span, Part::Expression, Adjust::default())

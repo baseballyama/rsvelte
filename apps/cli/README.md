@@ -86,8 +86,8 @@ the file's project, run by `node`. In a Svelte file, it sorts the classes of `cl
 attributes `sortTailwindcss` names, of the functions it names in the scripts, and of `@apply`.
 Install the plugin, version 0.8 or later, in the project: `format` does not ship one, so the
 project chooses its version. Without `node` or the plugin, `format` reports an error for each
-file whose classes it would sort and formats the others. It also reports an error for a Svelte
-file when `sortTailwindcss` names attributes by a pattern (`/…/`).
+file whose classes it would sort and formats the others. As with oxfmt, an attribute named by a
+regular expression (`/…/`) sorts only in a Svelte file, where the plugin matches it.
 
 `typecheck` checks the project of `tsconfig.json` in the current directory, or next to
 `rsvelte.config` when it gives `typescript.check` options, and reports the

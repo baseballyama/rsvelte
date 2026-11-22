@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { f, x, items } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { f, x, items } = $props();
 	let n = $state(1);
 
 ;
@@ -46,5 +46,6 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
 }
-const StyleQuotedCall__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof StyleQuotedCall__SvelteComponent_>} */ (StyleQuotedCall__SvelteComponent_);
+export const StyleQuotedCall__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof StyleQuotedCall__SvelteComponent_>} StyleQuotedCall__SvelteComponent_ */
+export default StyleQuotedCall__SvelteComponent_;

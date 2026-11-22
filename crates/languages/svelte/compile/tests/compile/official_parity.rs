@@ -2,7 +2,7 @@
 //! or rsvelte's documented deviation where the official output is an upstream bug. Printed code is
 //! compared without whitespace unless the whitespace is the point.
 
-use rsvelte_svelte_compile::{Target, compile_to_javascript};
+use rsvelte_svelte_compile::{CompileOptions, ModuleCompileOptions, Target, compile_to_javascript};
 
 mod const_tags;
 mod derived;
@@ -12,8 +12,31 @@ mod keywords;
 mod lets;
 mod patterns;
 mod props;
+mod redeclarations;
 mod runes;
 mod transitions;
+
+/// Asserts each `(module, message, at)`, acorn's error from svelte 5.57.3, in a component's script
+/// (offset by `<script>`) and in a `.svelte.js` module.
+fn assert_script_and_module_errors(cases: &[(&str, &str, u32)]) {
+    let raised = |error: rsvelte_kernel::diagnostics::Diagnostic| {
+        (
+            error.code.to_string(),
+            error.message.lines().next().map(str::to_owned),
+            error.span.start_offset,
+        )
+    };
+    for &(module, message, at) in cases {
+        let expected = |at| ("js_parse_error".to_owned(), Some(message.to_owned()), at);
+        let script = format!("<script>{module}</script>");
+        let component =
+            rsvelte_svelte_compile::compile(&script, &CompileOptions::default()).map(|_| ());
+        assert_eq!(component.map_err(raised), Err(expected(at + 8)), "{script}");
+        let module_options = ModuleCompileOptions::default();
+        let compiled = rsvelte_svelte_compile::compile_module(module, &module_options).map(|_| ());
+        assert_eq!(compiled.map_err(raised), Err(expected(at)), "{module}");
+    }
+}
 
 /// The output, or the code of the diagnostic that refuses the source.
 fn compile(source: &str, target: Target) -> Result<String, String> {

@@ -107,7 +107,7 @@
 
 <h2 id="contribute">Contributing</h2>
 
-<pre><code
+<pre><code class="language-sh"
 		>{`cargo test                                        # the Rust tests
 cargo test -p rsvelte_command_line --test corpus  # the comparison with the official tools
 pnpm install && pnpm run check                    # the TypeScript side`}</code

@@ -19,7 +19,8 @@ function $$render() {
       double;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<__rsvelte_no_props, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();
 }
-const Derived__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof Derived__SvelteComponent_>} */ (Derived__SvelteComponent_);
+export const Derived__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {ReturnType<typeof Derived__SvelteComponent_>} Derived__SvelteComponent_ */
+export default Derived__SvelteComponent_;

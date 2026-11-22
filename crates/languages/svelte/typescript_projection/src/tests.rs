@@ -208,12 +208,14 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "    }\n",
             "  };\n",
             // A component without a TypeScript script projects to JavaScript, its types in JSDoc.
-            "  return (/** @type {typeof __rsvelte_export_component<",
-            "__rsvelte_no_props, {}, string>} */ (__rsvelte_export_component))();\n",
+            "  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, ",
+            "{ [evt: string]: CustomEvent<any> }, {}, string>} */ ",
+            "(__rsvelte_export_isomorphic))()({});\n",
             "}\n",
-            "const $$Component = $$render();\n",
-            "export default /** @type {__rsvelte_javascript_export<typeof $$Component>} */ ",
-            "($$Component);\n",
+            "export const $$Component = /** @type {__rsvelte_javascript_export<",
+            "Awaited<ReturnType<typeof $$render>>>} */ ($$render());\n",
+            "/** @typedef {InstanceType<typeof $$Component>} $$Component */\n",
+            "export default $$Component;\n",
         )
     );
     for mapping in output.mappings.iter().filter(|mapping| mapping.len > 0) {
@@ -264,7 +266,7 @@ fn a_typed_each_context_drops_its_annotation_as_svelte2tsx_does() {
         "{}",
         output.out
     );
-    assert!(!output.out.contains(": string"), "{}", output.out);
+    assert!(!output.out.contains("letter: string"), "{}", output.out);
 }
 
 #[test]
@@ -347,18 +349,18 @@ fn component_content_passes_children_where_svelte2tsx_maps_them() {
 }
 
 #[test]
-fn a_default_slot_lets_the_component_take_children_as_svelte2tsx_does() {
-    let widened = "__rsvelte_props_with_children<__rsvelte_no_props>";
+fn a_component_with_slots_exports_svelte2tsx_s_component_with_slots() {
+    // svelte2tsx's `__sveltets_2_PropsWithChildren` lets a default slot take children.
+    let with_slots = "__rsvelte_export_isomorphic_slots<";
     for (source, expected) in [
         ("<div><slot /></div>", true),
         ("<slot name=\"default\" />", true),
-        ("<slot name=\"x\" />", false),
+        ("<slot name=\"x\" />", true),
         ("<div></div>", false),
     ] {
-        // The widened type is TypeScript's; JavaScript writes no type arguments.
         let (_, output) = project(&format!("<script lang=\"ts\"></script>{source}"));
         assert_eq!(
-            output.out.contains(widened),
+            output.out.contains(with_slots),
             expected,
             "{source}\n{}",
             output.out
@@ -489,7 +491,7 @@ fn a_const_type_parameter_stays_only_where_typescript_allows_it() {
         "{out}"
     );
     assert!(
-        out.contains("interface __rsvelte_generic_component { <T extends string>("),
+        out.contains("interface $$IsomorphicComponent { <T extends string>("),
         "{out}"
     );
     assert!(

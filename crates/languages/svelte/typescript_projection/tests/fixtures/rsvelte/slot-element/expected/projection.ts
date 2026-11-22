@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	/** @type {typeof __rsvelte_public_props0} */ let { items, rest } = $props();
+	let /** @type {typeof __rsvelte_public_props0} */ { items, rest } = $props();
 	let count = $state(0);
 
 ;
@@ -44,7 +44,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_with_slots((/** @type {typeof __rsvelte_export_component<__rsvelte_props_with_children<typeof __rsvelte_public_props0>, {}, "">} */ (__rsvelte_export_component))(), {
+  return (/** @type {typeof __rsvelte_export_isomorphic_slots<typeof __rsvelte_public_props0, { [evt: string]: CustomEvent<any> }, {}, "">} */ (__rsvelte_export_isomorphic_slots))()({
     "default": {},
     "header": {
       title: "",
@@ -58,5 +58,6 @@ function $$render() {
     },
   });
 }
-const SlotElement__SvelteComponent_ = $$render();
-export default /** @type {__rsvelte_javascript_export<typeof SlotElement__SvelteComponent_>} */ (SlotElement__SvelteComponent_);
+export const SlotElement__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
+/** @typedef {InstanceType<typeof SlotElement__SvelteComponent_>} SlotElement__SvelteComponent_ */
+export default SlotElement__SvelteComponent_;

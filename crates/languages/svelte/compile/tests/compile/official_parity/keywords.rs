@@ -1,9 +1,7 @@
 //! A keyword acorn reads as a name or an expression, or meets written with an escape, in a
 //! component's script and in a `.svelte.js` module.
 
-use rsvelte_svelte_compile::{CompileOptions, ModuleCompileOptions, compile, compile_module};
-
-/// A module's text, the first line of acorn's message and where it is, from svelte 5.57.3.
+/// A module's text, the first line of acorn's message and where it is.
 const CASES: &[(&str, &str, u32)] = &[
     (
         "\\u0061wait",
@@ -330,20 +328,5 @@ const CASES: &[(&str, &str, u32)] = &[
 
 #[test]
 fn a_misused_keyword_raises_acorns_error_in_a_script_and_in_a_module() {
-    let raised = |error: rsvelte_kernel::diagnostics::Diagnostic| {
-        (
-            error.code.to_string(),
-            error.message.lines().next().map(str::to_owned),
-            error.span.start_offset,
-        )
-    };
-    for &(module, message, at) in CASES {
-        let expected = |at| ("js_parse_error".to_owned(), Some(message.to_owned()), at);
-        let script = format!("<script>{module}</script>");
-        let component = compile(&script, &CompileOptions::default()).map(|_| ());
-        assert_eq!(component.map_err(raised), Err(expected(at + 8)), "{script}");
-        let module_options = ModuleCompileOptions::default();
-        let compiled = compile_module(module, &module_options).map(|_| ());
-        assert_eq!(compiled.map_err(raised), Err(expected(at)), "{module}");
-    }
+    super::assert_script_and_module_errors(CASES);
 }

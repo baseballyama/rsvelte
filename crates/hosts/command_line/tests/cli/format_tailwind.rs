@@ -267,25 +267,63 @@ fn format_drops_a_duplicate_svelte_class_with_the_whitespace_the_plugin_drops() 
 
 #[test]
 fn format_reports_each_svelte_file_whose_classes_it_cannot_sort() {
-    for (configuration, plugin, reason) in [
-        (CONFIGURATION, false, "prettier-plugin-tailwindcss"),
-        (
-            r#"{ "sortTailwindcss": { "attributes": ["/Class$/"] } }"#,
-            true,
-            "/Class$/",
-        ),
-    ] {
-        let svelte = "<p class=\"p-4 flex\">a</p>\n";
-        let project = project(&[("App.svelte", svelte)], plugin);
-        std::fs::write(project.join(".oxfmtrc.json"), configuration).expect("configuration");
-        let output = rsvelte_format(&project);
-        let report = format!("{}{}", text(&output.stdout), text(&output.stderr));
-        assert_eq!(output.status.code(), Some(2), "{report}");
-        assert!(
-            report.contains(reason) && report.contains("App.svelte"),
-            "{report}"
-        );
-        let formatted = std::fs::read_to_string(project.join("App.svelte")).expect("file");
-        assert_eq!(formatted, svelte);
-    }
+    let svelte = "<p class=\"p-4 flex\">a</p>\n";
+    let project = project(&[("App.svelte", svelte)], false);
+    let output = rsvelte_format(&project);
+    let report = format!("{}{}", text(&output.stdout), text(&output.stderr));
+    assert_eq!(output.status.code(), Some(2), "{report}");
+    assert!(
+        report.contains("prettier-plugin-tailwindcss") && report.contains("App.svelte"),
+        "{report}"
+    );
+    let formatted = std::fs::read_to_string(project.join("App.svelte")).expect("file");
+    assert_eq!(formatted, svelte);
+}
+
+const PATTERNS: &str = r#"{ "sortTailwindcss": { "stylesheet": "./app.css",
+    "attributes": ["/Class$/", "/[/", "exactAttr", "/^tw/i", "/Cls/g"] } }"#;
+
+const PATTERNED: &str = concat!(
+    "<div wrapperClass=\"p-4 flex\" buttonclass=\"p-4 flex\"",
+    " exactAttr=\"p-4 flex\" TWx=\"p-4 flex\" iconClass={\"p-4 flex\"}>a</div>\n",
+    "<Comp class=\"p-4 flex\" innerClass=\"p-4 flex\" />\n",
+    "<div aCls=\"p-4 flex\" bCls=\"p-4 flex\" cCls=\"p-4 flex\">b</div>\n",
+    "<div aCls=\"p-4 flex\" on:click={f} bCls=\"p-4 flex\">\n",
+    "  <span xCls=\"p-4 flex\">c</span>\n",
+    "</div>\n",
+    "<div yCls=\"p-4 flex\">d</div>\n",
+    "<div class:aCls={a} zCls=\"p-4 flex\" {...rest} wCls=\"p-4 flex\">e</div>\n",
+    "<div x=\"1\" class:qCls={a} rCls=\"p-4 flex\">f</div>\n",
+);
+
+const PATTERNED_SORTED: &str = r#"<div
+  wrapperClass="flex p-4"
+  buttonclass="p-4 flex"
+  exactAttr="flex p-4"
+  TWx="flex p-4"
+  iconClass={"flex p-4"}
+>
+  a
+</div>
+<Comp class="flex p-4" innerClass="flex p-4" />
+<div aCls="flex p-4" bCls="p-4 flex" cCls="flex p-4">b</div>
+<div aCls="p-4 flex" on:click={f} bCls="flex p-4">
+  <span xCls="p-4 flex">c</span>
+</div>
+<div yCls="flex p-4">d</div>
+<div class:aCls={a} zCls="flex p-4" {...rest} wCls="flex p-4">e</div>
+<div x="1" class:qCls={a} rCls="p-4 flex">f</div>
+"#;
+
+/// The plugin reads an attribute named by a regular expression as JavaScript does, so a `g` one
+/// keeps state from one tested name to the next, directives and spreads included: `class:qCls`
+/// leaves `rCls` unsorted.
+#[test]
+fn format_sorts_the_svelte_attributes_sort_tailwindcss_names_by_a_pattern_as_the_plugin_does() {
+    let project = project(&[("App.svelte", PATTERNED)], true);
+    std::fs::write(project.join(".oxfmtrc.json"), PATTERNS).expect("configuration");
+    let output = rsvelte_format(&project);
+    assert_eq!(output.status.code(), Some(0), "{}", text(&output.stderr));
+    let formatted = std::fs::read_to_string(project.join("App.svelte")).expect("file");
+    assert_eq!(formatted, PATTERNED_SORTED);
 }

@@ -1,11 +1,13 @@
 // Runs the Svelte tasks of the browser host's WebAssembly build on one component.
 
+/** A 1-based line and column, in UTF-16 code units. */
+type Position = { line: number; column: number };
 type Diagnostic = {
 	code: string;
 	message: string;
 	severity: string;
-	line: number;
-	column: number;
+	start: Position;
+	end: Position;
 };
 export type Step = {
 	id: string;
@@ -33,21 +35,28 @@ export const example = `<script>
 `;
 
 /** One problem, from a diagnostic or from a finding in a lint task's `lint.json`. */
-type Problem = { line: number; column: number; rule: string | null; message: string };
+export type Problem = {
+	start: Position;
+	end: Position;
+	rule: string | null;
+	message: string;
+	severity: 'error' | 'warning';
+};
 /** What a step shows: the files it wrote and the problems it found. */
 export type View = { files: { name: string; text: string }[]; problems: Problem[] };
 
 type LintFile = {
 	// A finding of no rule is a parse error or an unused directive comment.
-	findings: { rule: string | null; message: string; start: { line: number; column: number } }[];
+	findings: { rule: string | null; message: string; start: Position; end: Position }[];
 };
 
 export function view(step: Step): View {
 	const problems: Problem[] = step.diagnostics.map((d) => ({
-		line: d.line,
-		column: d.column,
+		start: d.start,
+		end: d.end,
 		rule: d.code,
 		message: d.message,
+		severity: d.severity === 'error' ? 'error' : 'warning',
 	}));
 	const files = [];
 	for (const file of step.files) {
@@ -57,7 +66,8 @@ export function view(step: Step): View {
 		}
 		const lint: LintFile = JSON.parse(file.text);
 		for (const finding of lint.findings)
-			problems.push({ ...finding.start, rule: finding.rule, message: finding.message });
+			// `lint.json` has no severity; a finding reads as a warning, a source error as an error.
+			problems.push({ ...finding, severity: 'warning' });
 	}
 	return { files, problems };
 }

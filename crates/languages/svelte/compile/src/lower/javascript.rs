@@ -1,9 +1,7 @@
-use std::borrow::Cow;
-
 use oxc_ast::ast::{Expression, IdentifierReference, ObjectPropertyKind, PropertyKey};
 use oxc_span::SPAN;
-use oxc_str::JSStr;
 use oxc_syntax::number::BigintBase;
+pub(crate) use rsvelte_typescript_semantic::property_key::{literal_key_name, string_value};
 
 use super::Builder;
 
@@ -17,28 +15,6 @@ pub(super) fn export_properties<'o>(
         .map(|export| b.init(export.alias, b.id(export.name)))
 }
 
-/// A key's name as upstream reads it: an identifier's name, or `String(key.value)` for any
-/// `ESTree` `Literal`, computed or not; `None` for a key only the running code can name.
-pub(crate) fn literal_key_name<'s>(key: &'s PropertyKey<'s>) -> Option<Cow<'s, str>> {
-    Some(match key {
-        PropertyKey::StaticIdentifier(identifier) => Cow::Borrowed(identifier.name.as_str()),
-        PropertyKey::StringLiteral(literal) => string_value(literal.value),
-        PropertyKey::NumericLiteral(literal) => {
-            Cow::Owned(rsvelte_typescript_semantic::number::number(literal.value))
-        }
-        PropertyKey::BigIntLiteral(literal) => Cow::Borrowed(literal.value.as_str()),
-        PropertyKey::BooleanLiteral(literal) => {
-            Cow::Borrowed(if literal.value { "true" } else { "false" })
-        }
-        PropertyKey::NullLiteral(_) => Cow::Borrowed("null"),
-        PropertyKey::RegExpLiteral(literal) => Cow::Owned(format!(
-            "/{}/{}",
-            literal.regex.pattern.text, literal.regex.flags
-        )),
-        _ => return None,
-    })
-}
-
 /// Upstream's `b.literal(key.value)` for a `$props()` key: its name, a number or `BigInt` kept as
 /// one.
 pub(crate) fn prop_key<'o>(b: &Builder<'o>, key: &PropertyKey<'_>) -> Option<Expression<'o>> {
@@ -50,13 +26,6 @@ pub(crate) fn prop_key<'o>(b: &Builder<'o>, key: &PropertyKey<'_>) -> Option<Exp
         }
         _ => b.string(&name),
     })
-}
-
-/// A string literal's value; a lone surrogate prints as the replacement character.
-pub(crate) fn string_value(value: JSStr<'_>) -> Cow<'_, str> {
-    value
-        .as_str()
-        .map_or_else(|| Cow::Owned(value.display().to_string()), Cow::Borrowed)
 }
 
 /// Upstream's `is_simple_expression`, on the expression with its types erased.
