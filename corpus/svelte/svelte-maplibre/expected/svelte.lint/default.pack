@@ -74,24 +74,22 @@
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 12:1 12:49 svelte/no-unused-class-name "Unused class \"maplibregl-ctrl-group\"."
 
-=== 764 src/lib/DeckGlLayer.svelte	lint.txt
+=== 659 src/lib/DeckGlLayer.svelte	lint.txt
 1:1 152:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:34 svelte/max-attributes-per-line "'generics=\"DATA\"' should be on a new line."
 1:19 1:34 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 29:16 29:36 no-unused-vars "'e' is defined but never used."
 30:20 30:40 no-unused-vars "'e' is defined but never used."
 31:21 31:41 no-unused-vars "'e' is defined but never used."
-43:5 43:12 no-useless-assignment "The value assigned to 'hovered' is not used in subsequent statements."
 65:19 65:21 svelte/valid-compile "This reference only captures the initial value of `id`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
-=== 977 src/lib/DefaultMarker.svelte	lint.txt
+=== 868 src/lib/DefaultMarker.svelte	lint.txt
 1:1 165:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:60 svelte/max-attributes-per-line "'generics=\"DATA extends Feature = Feature\"' should be on a new line."
 1:19 1:60 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 30:15 30:51 no-unused-vars "'e' is defined but never used."
 31:20 31:56 no-unused-vars "'e' is defined but never used."
 32:18 32:54 no-unused-vars "'e' is defined but never used."
-38:13 38:23 no-useless-assignment "The value assigned to 'markerProp' is not used in subsequent statements."
 95:7 95:16 svelte/prefer-const "'lngLatBox' is never reassigned. Use 'const' instead."
 115:9 115:15 svelte/prefer-const "'newPos' is never reassigned. Use 'const' instead."
 131:16 131:52 no-unused-vars "'e' is defined but never used."
@@ -210,11 +208,10 @@
 17:11 17:40 svelte/prefer-const "'seenIds' is never reassigned. Use 'const' instead."
 17:43 17:52 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 
-=== 2674 src/lib/Layer.svelte	lint.txt
+=== 2569 src/lib/Layer.svelte	lint.txt
 1:1 335:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:63 svelte/max-attributes-per-line "'generics=\"FEATURE extends Feature = Feature\"' should be on a new line."
 1:19 1:63 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
-42:5 42:12 no-useless-assignment "The value assigned to 'hovered' is not used in subsequent statements."
 85:9 85:17 svelte/prefer-const "'features' is never reassigned. Use 'const' instead."
 86:9 86:18 svelte/prefer-const "'clusterId' is never reassigned. Use 'const' instead."
 87:9 87:50 svelte/prefer-const "'eventData' is never reassigned. Use 'const' instead."
@@ -331,7 +328,7 @@
 533:3 533:30 svelte/sort-attributes "Attribute 'data-testid' should go before 'use:createMap'."
 540:9 540:64 svelte/sort-attributes "Attribute 'fitBoundsOptions' should go before 'position'."
 
-=== 2468 src/lib/Marker.svelte	lint.txt
+=== 2359 src/lib/Marker.svelte	lint.txt
 1:1 241:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:63 svelte/max-attributes-per-line "'generics=\"FEATURE extends Feature = Feature\"' should be on a new line."
 1:19 1:63 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
@@ -344,7 +341,6 @@
 45:21 45:63 no-unused-vars "'e' is defined but never used."
 46:21 46:63 no-unused-vars "'e' is defined but never used."
 47:20 47:62 no-unused-vars "'e' is defined but never used."
-51:13 51:23 no-useless-assignment "The value assigned to 'markerProp' is not used in subsequent statements."
 70:27 70:41 no-undef "'HTMLDivElement' is not defined."
 117:32 117:46 no-undef "'HTMLDivElement' is not defined."
 146:7 146:16 svelte/prefer-const "'lngLatBox' is never reassigned. Use 'const' instead."

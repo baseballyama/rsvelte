@@ -56,17 +56,17 @@
 <video src="a"><track kind="subtitles" /><track kind="captions" /></video>
 
 === 113 a11y_media_first_track_3353/a_caption_track_after_the_first_track_does_not_silence_the_warning/d26815b2fa1dc18a.svelte	svelte
-<video src="a"
-  ><track kind="descriptions" /><track kind="chapters" /><track
+<video src="a">
+  <track kind="descriptions" /><track kind="chapters" /><track
     kind="captions"
-  /></video
->
+  />
+</video>
 
 === 93 a11y_media_first_track_3353/a_track_nested_in_a_child_element_is_not_the_first_track/37fa28587ad0ed75.svelte	svelte
-<video src="a"
-  ><div><track kind="captions" /></div>
-  <track kind="subtitles" /></video
->
+<video src="a">
+  <div><track kind="captions" /></div>
+  <track kind="subtitles" />
+</video>
 
 === 81 a11y_media_first_track_3353/muted_and_srcless_video_stay_silent/1f0bff7251159f31.svelte	svelte
 <video src="a" muted><track kind="subtitles" /><track kind="captions" /></video>
@@ -162,9 +162,9 @@
   function f() {}
 </script>
 
-<svelte:element this={tag} role="button" onclick={f} onkeydown={f}
-  >x</svelte:element
->
+<svelte:element this={tag} role="button" onclick={f} onkeydown={f}>
+  x
+</svelte:element>
 
 === 135 a11y_svelte_element_2523/dynamic_element_reaches_every_tag_independent_rule/54bae628c72602e1.svelte	svelte
 <script>
@@ -209,9 +209,9 @@
   function f() {}
 </script>
 
-<svelte:element this={tag} role="article" onclick={f} onkeydown={f}
-  >x</svelte:element
->
+<svelte:element this={tag} role="article" onclick={f} onkeydown={f}>
+  x
+</svelte:element>
 
 === 129 a11y_svelte_element_2523/dynamic_element_reaches_every_tag_independent_rule/afa61581a5681462.svelte	svelte
 <script>
@@ -1394,7 +1394,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 143 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/1b85d617b7360330.svelte	svelte
+=== 147 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/1b85d617b7360330.svelte	svelte
 <script>
   let o = $state({});
   let g = Math.round(1.5);
@@ -1404,10 +1404,12 @@ https://svelte.dev/e/expected_token
   onclick={() => {
     g = 2;
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 126 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/20fd8d8c10e7c55c.svelte	svelte
+=== 130 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/20fd8d8c10e7c55c.svelte	svelte
 <script>
   let o = $state({});
   const g = () => 1;
@@ -1416,10 +1418,12 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 134 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/23b4d51d70926918.svelte	svelte
+=== 138 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/23b4d51d70926918.svelte	svelte
 <script>
   let o = $state({});
   const g = Math.round(1.5);
@@ -1428,10 +1432,12 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 129 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/253231749ff24c79.svelte	svelte
+=== 133 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/253231749ff24c79.svelte	svelte
 <script>
   let o = $state({});
   const g = new Date();
@@ -1440,8 +1446,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 137 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/28651d7af53e4258.svelte	svelte
 <script>
@@ -1477,7 +1485,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 124 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/387908cf874e3cca.svelte	svelte
+=== 128 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/387908cf874e3cca.svelte	svelte
 <script>
   let o = $state({});
   const g = 1 + 2;
@@ -1486,8 +1494,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 128 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/41a93dcba45c4289.svelte	svelte
 <script>
@@ -1500,7 +1510,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 136 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/483beb86499c2195.svelte	svelte
+=== 140 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/483beb86499c2195.svelte	svelte
 <script>
   let o = $state({});
   const h = {};
@@ -1510,10 +1520,12 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 135 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/58b6d245fc3be67d.svelte	svelte
+=== 139 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/58b6d245fc3be67d.svelte	svelte
 <script>
   let o = $state({});
   const h = 1;
@@ -1523,10 +1535,12 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 121 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/5e31c2dc051fedc2.svelte	svelte
+=== 125 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/5e31c2dc051fedc2.svelte	svelte
 <script>
   let o = $state({});
   const g = {};
@@ -1535,8 +1549,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 151 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/610b985cd7b5a3cd.svelte	svelte
 <script>
@@ -1550,7 +1566,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 132 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/64fb8d67223bbc03.svelte	svelte
+=== 136 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/64fb8d67223bbc03.svelte	svelte
 <script>
   let o = $state({});
   let g = Math.round(1.5);
@@ -1559,8 +1575,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 122 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/75230f0e42ae6247.svelte	svelte
 <script>
@@ -1596,7 +1614,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 126 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/976281a298aba21a.svelte	svelte
+=== 130 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/976281a298aba21a.svelte	svelte
 <script>
   let o = $state({});
   const g = `a${1}`;
@@ -1605,10 +1623,12 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 120 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/99d1d96743a86919.svelte	svelte
+=== 124 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/99d1d96743a86919.svelte	svelte
 <script>
   let o = $state({});
   const g = 7;
@@ -1617,8 +1637,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 148 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/9aa9ef01d370a275.svelte	svelte
 <script>
@@ -1642,7 +1664,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 128 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/9f3dc9a640c57ad4.svelte	svelte
+=== 132 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/9f3dc9a640c57ad4.svelte	svelte
 <script>
   let o = $state({});
   const g = 1 ? 2 : 3;
@@ -1651,8 +1673,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 156 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/afa8d03631be7e5c.svelte	svelte
 <script>
@@ -1667,7 +1691,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 141 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/b086d78b4edb5cc0.svelte	svelte
+=== 145 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/b086d78b4edb5cc0.svelte	svelte
 <script>
   let o = $state({});
   let g = Math.round(1.5);
@@ -1677,8 +1701,10 @@ https://svelte.dev/e/expected_token
   onclick={() => {
     g++;
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 141 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/b2394d1254f42ae9.svelte	svelte
 <script>
@@ -1692,7 +1718,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 133 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/b66366623e20db24.svelte	svelte
+=== 137 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/b66366623e20db24.svelte	svelte
 <script>
   let o = $state({});
   const g = 7;
@@ -1702,8 +1728,10 @@ https://svelte.dev/e/expected_token
   onclick={() => {
     g.x = 1;
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 134 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/b8951bbffe614300.svelte	svelte
 <script>
@@ -1716,7 +1744,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 148 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/bfe0d626d883210b.svelte	svelte
+=== 152 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/bfe0d626d883210b.svelte	svelte
 <script>
   let o = $state({});
   const h = 1;
@@ -1727,8 +1755,10 @@ https://svelte.dev/e/expected_token
   onclick={() => {
     h.x = 1;
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 129 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/c2691a17ce503d7f.svelte	svelte
 <script>
@@ -1741,7 +1771,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 140 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/c36dad9de75f5874.svelte	svelte
+=== 144 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/c36dad9de75f5874.svelte	svelte
 <script>
   let o = $state({});
   let g = $state(Math.round(1.5));
@@ -1750,8 +1780,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 149 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/c594bf1144b8be17.svelte	svelte
 <script>
@@ -1765,7 +1797,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 114 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/cd7a379421bd6b9b.svelte	svelte
+=== 118 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/cd7a379421bd6b9b.svelte	svelte
 <script>
   let o = $state({});
   let g;
@@ -1774,8 +1806,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 136 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/dc60a2d400e4f155.svelte	svelte
 <script>
@@ -1822,7 +1856,7 @@ https://svelte.dev/e/expected_token
 
 <button onclick={f}>x</button>
 
-=== 151 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/f93ebe21026dda81.svelte	svelte
+=== 155 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/f93ebe21026dda81.svelte	svelte
 <script>
   let o = $state({});
   let g = $state(Math.round(1.5));
@@ -1832,10 +1866,12 @@ https://svelte.dev/e/expected_token
   onclick={() => {
     g = 2;
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 121 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/fa2e286b7e287734.svelte	svelte
+=== 125 assign_dev_binding_initial/both_hosts_agree_with_upstream_on_which_right_hand_side_is_primitive/fa2e286b7e287734.svelte	svelte
 <script>
   let o = $state({});
   const g = [];
@@ -1844,8 +1880,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     o.a = o.b = g;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 121 assign_dev_function_declaration_initial/a_function_declaration_binding_folds_like_an_arrow/04f373598f1d1258.svelte	svelte
 <script module>
@@ -3869,7 +3907,7 @@ https://svelte.dev/e/expected_token
 {#await p then code}{code}{/await}
 {code}
 
-=== 181 await_catch_transform_conformance_4111/a_write_past_a_catch_block_keeps_the_outer_setter/d1af8001057a8bf0.svelte	svelte
+=== 185 await_catch_transform_conformance_4111/a_write_past_a_catch_block_keeps_the_outer_setter/d1af8001057a8bf0.svelte	svelte
 <script>
   let { code } = $props();
   const p = Promise.resolve(1);
@@ -3879,8 +3917,10 @@ https://svelte.dev/e/expected_token
 {code}<button
   onclick={() => {
     code = "W";
-  }}>b</button
+  }}
 >
+  b
+</button>
 
 === 118 await_comment_run_relocation/a_legacy_instance_script_relocates_the_run_too/9722898dbeb88c58.svelte	svelte
 <script>
@@ -5086,7 +5126,7 @@ https://svelte.dev/e/js_parse_error
   }
 />
 
-=== 302 bind_await_3242/await_in_a_get_set_pair_is_rejected_on_every_host/00e455d296ccb6fe.svelte	svelte
+=== 306 bind_await_3242/await_in_a_get_set_pair_is_rejected_on_every_host/00e455d296ccb6fe.svelte	svelte
 <script>
   import C from "./C.svelte";
   let v = $state("a");
@@ -5103,8 +5143,10 @@ https://svelte.dev/e/js_parse_error
     async (nv) => {
       await p;
     }
-  }>x</svelte:element
+  }
 >
+  x
+</svelte:element>
 
 === 286 bind_await_3242/await_in_a_get_set_pair_is_rejected_on_every_host/01d9578e1df8f053.svelte	svelte
 <script>
@@ -5175,7 +5217,7 @@ https://svelte.dev/e/js_parse_error
     }
   }></textarea>
 
-=== 301 bind_await_3242/await_in_a_get_set_pair_is_rejected_on_every_host/d6b2ea94dab73a8f.svelte	svelte
+=== 305 bind_await_3242/await_in_a_get_set_pair_is_rejected_on_every_host/d6b2ea94dab73a8f.svelte	svelte
 <script>
   import C from "./C.svelte";
   let v = $state("a");
@@ -5191,8 +5233,10 @@ https://svelte.dev/e/js_parse_error
     async (nv) => {
       await p;
     }
-  }><option value="a">a</option></select
+  }
 >
+  <option value="a">a</option>
+</select>
 
 === 296 bind_await_3242/await_in_a_get_set_pair_is_rejected_on_every_host/e0ee3daa985f50b4.svelte	svelte
 <script>
@@ -5247,7 +5291,7 @@ https://svelte.dev/e/js_parse_error
   }
 />
 
-=== 244 bind_await_3242/await_inside_a_nested_function_still_compiles/994bf197ada4ec48.svelte	svelte
+=== 248 bind_await_3242/await_inside_a_nested_function_still_compiles/994bf197ada4ec48.svelte	svelte
 <script>
   import C from "./C.svelte";
   let v = $state("a");
@@ -5260,8 +5304,10 @@ https://svelte.dev/e/js_parse_error
 <button
   onclick={async () => {
     await p;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 230 bind_await_3242/await_inside_a_nested_function_still_compiles/be761608c550c17e.svelte	svelte
 <script>
@@ -6619,9 +6665,9 @@ https://svelte.dev/e/js_parse_error
   let rest = $state({});
 </script>
 
-<svelte:element this={tag} bind:devicePixelContentBoxSize={o?.k}
-  >x</svelte:element
->
+<svelte:element this={tag} bind:devicePixelContentBoxSize={o?.k}>
+  x
+</svelte:element>
 
 === 278 bind_validation_host_product_3264/bind_invalid_expression_reaches_every_host/4ff4766804f3462d.svelte	svelte
 <script>
@@ -10666,12 +10712,14 @@ class C extends B { f = () => { super(); }; }
 
 <b>{a}{b}</b>
 
-=== 101 compiler/phases/phase2_analyze/tests/snippet_parameter_assignment_uses_the_assignment_or_binding_span/616b5b20e305a1bc.svelte	svelte
+=== 109 compiler/phases/phase2_analyze/tests/snippet_parameter_assignment_uses_the_assignment_or_binding_span/616b5b20e305a1bc.svelte	svelte
 {#snippet s(value)}<button
     onclick={() => {
       value = "next";
-    }}>x</button
-  >{/snippet}
+    }}
+  >
+    x
+  </button>{/snippet}
 
 === 50 compiler/phases/phase2_analyze/tests/snippet_parameter_assignment_uses_the_assignment_or_binding_span/db91063a0140ebb8.svelte	svelte
 {#snippet s(value)}<input bind:value />{/snippet}
@@ -11058,9 +11106,9 @@ class C extends B { f = () => { super(); }; }
   }
 </script>
 
-<svelte:head
-  ><meta name="description" content={is_dev ? "dev" : ctor.name} /></svelte:head
->
+<svelte:head>
+  <meta name="description" content={is_dev ? "dev" : ctor.name} />
+</svelte:head>
 
 === 380 compiler/phases/phase3_transform/client/tests/module_class_derived_only_rehomes_the_first_public_field_jsdoc/b5d9c106d55c9771.svelte	svelte
 <script module>
@@ -11648,7 +11696,7 @@ class C extends B { f = () => { super(); }; }
 
 <button onclick={() => count++}>{count}</button>
 
-=== 144 compiler/phases/phase3_transform/client/tests/retained_typescript_projection_reduces_fixture_reparses_from_five_to_one/0253f769d0428eb4.svelte	svelte
+=== 148 compiler/phases/phase3_transform/client/tests/retained_typescript_projection_reduces_fixture_reparses_from_five_to_one/0253f769d0428eb4.svelte	svelte
 <script lang="ts">
   let count = $state<number | null>(0);
 </script>
@@ -11656,8 +11704,10 @@ class C extends B { f = () => { super(); }; }
 <button
   onclick={() => {
     count = count! + 1;
-  }}>{count}</button
+  }}
 >
+  {count}
+</button>
 
 === 242 compiler/phases/phase3_transform/client/tests/retained_typescript_projection_reduces_fixture_reparses_from_five_to_one/5ef4b292ec023de7.svelte	svelte
 <script lang="ts">
@@ -11737,9 +11787,9 @@ class C extends B { f = () => { super(); }; }
   const obj = { a: 1 };
 </script>
 
-{#snippet s(a = obj.a ? (obj.a ? 1 : 2) : 3, b = (obj.a, obj.a))}<span
-    >{a}{b}</span
-  >{/snippet}{@render s()}
+{#snippet s(a = obj.a ? (obj.a ? 1 : 2) : 3, b = (obj.a, obj.a))}<span>
+    {a}{b}
+  </span>{/snippet}{@render s()}
 
 === 251 compiler/phases/phase3_transform/client/tests/store_getter_uses_the_state_bindings_actual_read_transform/b56224b22b71b4d5.svelte	svelte
 <script>
@@ -13236,13 +13286,14 @@ z<Foo {...spread} />
 
 <p>{x}</p>
 
-=== 144 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_dev_instrumentation/8f80670037c2079d.svelte	svelte
+=== 147 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_dev_instrumentation/8f80670037c2079d.svelte	svelte
 <script>
   let count = $state(0);
 </script>
 
-{#snippet item()}{count}{/snippet}<button onclick={() => (count += 1)}>x</button
->{@render item()}
+{#snippet item()}{count}{/snippet}<button onclick={() => (count += 1)}>
+  x
+</button>{@render item()}
 
 === 99 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_dev_instrumentation/981930b1d81c6e05.svelte	svelte
 <script>
@@ -13392,7 +13443,7 @@ unknown node type: CallExpression
 {/each}
 <button class="add" onclick={add}>add</button>
 
-=== 598 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_each_and_let_destructure/fe34e8c6a33d31ad.svelte	svelte
+=== 606 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_each_and_let_destructure/fe34e8c6a33d31ad.svelte	svelte
 <script>
   import Nested from "./Nested.svelte";
   let c = 0,
@@ -13410,8 +13461,10 @@ unknown node type: CallExpression
   <button
     on:click={() => {
       c += 1;
-    }}>Increment</button
+    }}
   >
+    Increment
+  </button>
 </div>
 <div>
   <Nested props={["hello", "world"]} let:value={[a, b]} let:data={foo}>
@@ -13537,7 +13590,7 @@ text{#if x}a{/if}text
 
 <button onclick={() => data.a++}>{data.a}</button>
 
-=== 147 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_inspect_dev_cluster/6227bb7fc578e2c5.svelte	svelte
+=== 151 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_inspect_dev_cluster/6227bb7fc578e2c5.svelte	svelte
 <script>
   let x = $state(0);
   let y = $state(0);
@@ -13548,8 +13601,10 @@ text{#if x}a{/if}text
   onclick={() => {
     x++;
     y++;
-  }}>{x}{y}</button
+  }}
 >
+  {x}{y}
+</button>
 
 === 122 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_inspect_dev_cluster/6dd32aafb4f464d8.svelte	svelte
 <script>
@@ -14119,10 +14174,10 @@ text{#if x}a{/if}text
   let v = "a";
 </script>
 
-<select bind:value={v}
-  ><div>rich</div>
-  <option value="a">A</option></select
->
+<select bind:value={v}>
+  <div>rich</div>
+  <option value="a">A</option>
+</select>
 
 === 31 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_simple_samples/29c45d27f42245b4.svelte	svelte
 <input type="text" disabled />
@@ -15195,10 +15250,10 @@ a<Foo a="x" />
 <div class="test" id="main">Content</div>
 
 === 68 compiler/tests/diagnostic_locates_default_slot_content_conflict/4b834b21886cb0b9.svelte	svelte
-<Component
-  ><div slot="default" />
-  <p>implicit</p></Component
->
+<Component>
+  <div slot="default" />
+  <p>implicit</p>
+</Component>
 
 === 128 compiler/tests/diagnostic_locates_dollar_binding_declarations/006355ef73142e17.svelte	svelte
 <svelte:options runes={false} />
@@ -15219,10 +15274,10 @@ a<Foo a="x" />
 </script>
 
 === 76 compiler/tests/diagnostic_locates_duplicate_component_slot_attributes/e5280b1a65fd62b7.svelte	svelte
-<Component
-  ><div slot="content" />
-  <span slot="content" /></Component
->
+<Component>
+  <div slot="content" />
+  <span slot="content" />
+</Component>
 
 === 16 compiler/tests/diagnostic_locates_invalid_svelte_self/ddd277fa500214de.svelte	svelte
 <svelte:self />
@@ -15397,7 +15452,7 @@ https://svelte.dev/e/attribute_duplicate
   <div>Hidden</div>
 {/if}
 
-=== 343 compiler/tests/test_compile_if_block_with_derived_server/3cc3a7e4fd2a4eb8.svelte	svelte
+=== 347 compiler/tests/test_compile_if_block_with_derived_server/3cc3a7e4fd2a4eb8.svelte	svelte
 <script>
   let first = $state(true);
   let second = $state(false);
@@ -15414,8 +15469,10 @@ https://svelte.dev/e/attribute_duplicate
 <button
   onclick={() => {
     second = true;
-  }}>Toggle</button
+  }}
 >
+  Toggle
+</button>
 
 {#if first || derivedSecond}
   first: {first}
@@ -15718,7 +15775,7 @@ https://svelte.dev/e/expected_token
 
 <Comp prop={f(() => (o.x = obj))} />
 
-=== 263 component_attribute_assign_exemption/an_assignment_in_a_call_argument_is_still_wrapped/0ed9b92935702a71.svelte	svelte
+=== 267 component_attribute_assign_exemption/an_assignment_in_a_call_argument_is_still_wrapped/0ed9b92935702a71.svelte	svelte
 <script>
   import Comp from "./Comp.svelte";
   let o = $state({}),
@@ -15735,8 +15792,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     f((o.x = obj));
-  }}>y</button
+  }}
 >
+  y
+</button>
 
 === 227 component_attribute_assign_exemption/an_assignment_that_is_the_attribute_expression_is_exempt/5635af19376c6355.svelte	svelte
 <script>
@@ -16882,9 +16941,9 @@ https://svelte.dev/e/expected_token
   let { v } = $props();
 </script>
 
-{#if v}{@const h = v}<svelte:element this={"div"}
-    >{#snippet s()}{h}{/snippet}{@render s()}</svelte:element
-  >{/if}
+{#if v}{@const h = v}<svelte:element this={"div"}>
+    {#snippet s()}{h}{/snippet}{@render s()}
+  </svelte:element>{/if}
 
 === 104 const_reexpands_into_a_snippet_wrapper/an_enclosing_const_is_re_expanded_into_an_elements_snippet_wrapper/26643e4c6d326949.svelte	svelte
 <script>
@@ -18207,10 +18266,10 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 <div class="foo">
-  <svelte:element this={tag}
-    ><div class="a"></div>
-    <div class="a"></div></svelte:element
-  >
+  <svelte:element this={tag}>
+    <div class="a"></div>
+    <div class="a"></div>
+  </svelte:element>
 </div>
 
 <style>
@@ -18227,10 +18286,10 @@ https://svelte.dev/e/js_parse_error
 </script>
 
 <div class="foo">
-  <svelte:element this={tag}
-    ><div class="z"></div>
-    <div class="b"></div></svelte:element
-  >
+  <svelte:element this={tag}>
+    <div class="z"></div>
+    <div class="b"></div>
+  </svelte:element>
 </div>
 
 <style>
@@ -18282,10 +18341,10 @@ https://svelte.dev/e/js_parse_error
 === 215 css_chain_ancestry_guard_1735/selectedcontent_ancestor_chain_kept/f2d1796fb88d00e5.svelte	svelte
 <select>
   <selectedcontent></selectedcontent>
-  <option
-    ><div class="a"></div>
-    <div class="a"></div></option
-  >
+  <option>
+    <div class="a"></div>
+    <div class="a"></div>
+  </option>
 </select>
 
 <style>

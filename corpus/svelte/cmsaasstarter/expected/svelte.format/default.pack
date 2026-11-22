@@ -1,5 +1,5 @@
 # rsvelte pack 1
-=== 8772 src/routes/(admin)/account/(menu)/+layout.svelte	svelte
+=== 8796 src/routes/(admin)/account/(menu)/+layout.svelte	svelte
 <script lang="ts">
   import "../../../../app.css";
   import { writable } from "svelte/store";
@@ -42,13 +42,14 @@
               fill="none"
               viewBox="0 0 24 24"
               stroke="currentColor"
-              ><path
+            >
+              <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
                 d="M4 6h16M4 12h16M4 18h7"
-              /></svg
-            >
+              />
+            </svg>
           </label>
         </div>
       </div>
@@ -83,13 +84,14 @@
             fill="none"
             viewBox="0 0 24 24"
             stroke="currentColor"
-            ><path
+          >
+            <path
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="2"
               d="M3 12l2-2m0 0l7-7 7 7M5 10v10a1 1 0 001 1h3m10-11l2 2m-2-2v10a1 1 0 01-1 1h-3m-6 0a1 1 0 001-1v-4a1 1 0 011-1h2a1 1 0 011 1v4a1 1 0 001 1m-6 0h6"
-            /></svg
-          >
+            />
+          </svg>
           Home
         </a>
       </li>
@@ -417,7 +419,7 @@
   ]}
 />
 
-=== 4945 src/routes/(admin)/account/(menu)/settings/settings_module.svelte	svelte
+=== 4958 src/routes/(admin)/account/(menu)/settings/settings_module.svelte	svelte
 <script lang="ts">
   import { enhance, applyAction } from "$app/forms";
   import { page } from "$app/stores";
@@ -498,13 +500,14 @@
               class="stroke-current shrink-0 h-6 w-6"
               fill="none"
               viewBox="0 0 24 24"
-              ><path
+            >
+              <path
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 stroke-width="2"
                 d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"
-              /></svg
-            >
+              />
+            </svg>
           {/if}
 
           <span>{message}</span>
@@ -752,7 +755,7 @@
   </div>
 </div>
 
-=== 614 src/routes/(admin)/account/select_plan/+page.svelte	svelte
+=== 625 src/routes/(admin)/account/select_plan/+page.svelte	svelte
 <script lang="ts">
   import PricingModule from "../../../(marketing)/pricing/pricing_module.svelte";
 </script>
@@ -768,8 +771,9 @@
     <div>
       <h1 class="text-2xl font-bold mb-2">Select a Plan</h1>
       <div class="mb-6">
-        View our <a href="/pricing" target="_blank" class="link">pricing page</a
-        > for details.
+        View our <a href="/pricing" target="_blank" class="link">
+          pricing page
+        </a> for details.
       </div>
       <PricingModule callToAction="Select Plan" />
     </div>
@@ -800,7 +804,7 @@
 
 <h1 class="text-2xl font-bold m-6 mx-auto my-auto">{message}</h1>
 
-=== 4128 src/routes/(marketing)/+layout.svelte	svelte
+=== 4208 src/routes/(marketing)/+layout.svelte	svelte
 <script lang="ts">
   import { WebsiteName } from "./../../config";
   import "../../app.css";
@@ -821,8 +825,10 @@
       <li class="md:mx-4">
         <a
           href="https://github.com/CriticalMoments/CMSaasStarter"
-          class="border border-primary">★ us on Github</a
+          class="border border-primary"
         >
+          ★ us on Github
+        </a>
       </li>
       <li class="md:mx-2"><a href="/blog">Blog</a></li>
       <li class="md:mx-2"><a href="/pricing">Pricing</a></li>
@@ -834,11 +840,12 @@
             class="w-6 h-6"
             viewBox="0 0 20 20"
             xmlns="http://www.w3.org/2000/svg"
-            ><path
+          >
+            <path
               d="M17.545 15.467l-3.779-3.779a6.15 6.15 0 0 0 .898-3.21c0-3.417-2.961-6.377-6.378-6.377A6.185 6.185 0 0 0 2.1 8.287c0 3.416 2.961 6.377 6.377 6.377a6.15 6.15 0 0 0 3.115-.844l3.799 3.801a.953.953 0 0 0 1.346 0l.943-.943c.371-.371.236-.84-.135-1.211zM4.004 8.287a4.282 4.282 0 0 1 4.282-4.283c2.366 0 4.474 2.107 4.474 4.474a4.284 4.284 0 0 1-4.283 4.283c-2.366-.001-4.473-2.109-4.473-4.474z"
               fill="currentColor"
-            /></svg
-          >
+            />
+          </svg>
         </a>
       </li>
     </ul>
@@ -852,13 +859,14 @@
           fill="none"
           viewBox="0 0 24 24"
           stroke="currentColor"
-          ><path
+        >
+          <path
             stroke-linecap="round"
             stroke-linejoin="round"
             stroke-width="2"
             d="M4 6h16M4 12h16M4 18h7"
-          /></svg
-        >
+          />
+        </svg>
       </label>
       <!-- svelte-ignore a11y_no_noninteractive_tabindex -->
       <ul
@@ -872,8 +880,10 @@
         <li>
           <a
             href="https://github.com/CriticalMoments/CMSaasStarter"
-            class="border border-primary">★ us on Github</a
+            class="border border-primary"
           >
+            ★ us on Github
+          </a>
         </li>
       </ul>
     </div>
@@ -899,8 +909,10 @@
       <a class="link link-hover my-1" href="/contact_us">Contact Us</a>
       <a
         class="link link-hover my-1"
-        href="https://github.com/CriticalMoments/CMSaasStarter">Github</a
+        href="https://github.com/CriticalMoments/CMSaasStarter"
       >
+        Github
+      </a>
     </nav>
     <aside>
       <span class="footer-title opacity-80">Sponsor</span>
@@ -917,7 +929,7 @@
   </footer>
 </div>
 
-=== 37865 src/routes/(marketing)/+page.svelte	svelte
+=== 38069 src/routes/(marketing)/+page.svelte	svelte
 <script lang="ts">
   import {
     WebsiteName,
@@ -1165,41 +1177,52 @@
         The
         <span
           class="underline decoration-secondary decoration-4 md:decoration-[6px]"
-          >open source</span
-        >,
-        <span
-          class="underline decoration-secondary decoration-4 md:decoration-[6px]"
-          >fast</span
-        >, and
-        <span
-          class="underline decoration-secondary decoration-4 md:decoration-[6px]"
-          >free to host</span
         >
+          open source
+        </span>,
+        <span
+          class="underline decoration-secondary decoration-4 md:decoration-[6px]"
+        >
+          fast
+        </span>, and
+        <span
+          class="underline decoration-secondary decoration-4 md:decoration-[6px]"
+        >
+          free to host
+        </span>
         <span> SaaS template</span>
       </div>
       <div class="mt-6 md:mt-10 text-sm md:text-lg">
         Built with <a
           href="https://kit.svelte.dev"
           class="link font-bold"
-          target="_blank">SvelteKit</a
-        >,
-        <a href="https://supabase.com" class="link font-bold" target="_blank"
-          >Supabase</a
-        >,
-        <a href="https://stripe.com" class="link font-bold" target="_blank"
-          >Stripe</a
-        >,
-        <a href="https://tailwindcss.com" class="link font-bold" target="_blank"
-          >Tailwind</a
-        >,
-        <a href="https://daisyui.com" class="link font-bold" target="_blank"
-          >DaisyUI</a
-        >, and
+          target="_blank"
+        >
+          SvelteKit
+        </a>,
+        <a href="https://supabase.com" class="link font-bold" target="_blank">
+          Supabase
+        </a>,
+        <a href="https://stripe.com" class="link font-bold" target="_blank">
+          Stripe
+        </a>,
+        <a
+          href="https://tailwindcss.com"
+          class="link font-bold"
+          target="_blank"
+        >
+          Tailwind
+        </a>,
+        <a href="https://daisyui.com" class="link font-bold" target="_blank">
+          DaisyUI
+        </a>, and
         <a
           href="https://www.postgresql.org"
           class="link font-bold"
-          target="_blank">Postgres</a
+          target="_blank"
         >
+          Postgres
+        </a>
       </div>
       <div
         class="mt-6 md:mt-4 flex flex-row flex-wrap gap-4 place-content-center"
@@ -1210,8 +1233,9 @@
         <a
           href="https://github.com/CriticalMoments/CMSaasStarter/tree/main#saas-starter"
         >
-          <button class="btn btn-outline btn-primary px-6">Read the Docs</button
-          >
+          <button class="btn btn-outline btn-primary px-6">
+            Read the Docs
+          </button>
         </a>
       </div>
     </div>
@@ -1268,8 +1292,9 @@
               >
                 <button
                   class="btn btn-xs btn-outline rounded-full btn-primary min-w-[100px]"
-                  >{feature.linkText ? feature.linkText : "Try It"}</button
                 >
+                  {feature.linkText ? feature.linkText : "Try It"}
+                </button>
               </a>
             {/if}
           </div>
@@ -1315,33 +1340,37 @@
                 class="aspect-2044/1242"
                 src="/images/example-home.png"
               />
-            </div></a
-          >
+            </div>
+          </a>
         </div>
         <div class="min-w-[270px] lg:min-w-[420px] flex mt-6 lg:mt-0">
           <div class="my-auto">
             <div class="px-4 text-lg md:text-xl">
-              <a href="https://criticalmoments.io" class="" target="_blank"
-                >SaaS Starter was created by <span
-                  class="font-bold whitespace-nowrap">Critical Moments</span
-                >: a SDK to to help mobile apps
-                <span class="underline decoration-secondary decoration-[3px]"
-                  >increase conversion rates and app-ratings.</span
-                ></a
-              >
+              <a href="https://criticalmoments.io" class="" target="_blank">
+                SaaS Starter was created by <span
+                  class="font-bold whitespace-nowrap"
+                >
+                  Critical Moments
+                </span>: a SDK to to help mobile apps
+                <span class="underline decoration-secondary decoration-[3px]">
+                  increase conversion rates and app-ratings.
+                </span>
+              </a>
             </div>
             <div class="px-4 mt-6 text-lg md:text-xl">
               Our <a
                 href="https://criticalmoments.io"
                 class="link font-bold"
-                target="_blank">webpage</a
-              > is the best example of SaaS Starter with style and real content.
+                target="_blank"
+              >
+                webpage
+              </a> is the best example of SaaS Starter with style and real content.
             </div>
             <div class="mt-4 text-large">
               <a href="https://criticalmoments.io" target="_blank">
-                <button class="btn btn-primary btn-wide mt-3"
-                  >See it in Action</button
-                >
+                <button class="btn btn-primary btn-wide mt-3">
+                  See it in Action
+                </button>
               </a>
             </div>
           </div>
@@ -1431,7 +1460,7 @@
   {@render children?.()}
 </article>
 
-=== 580 src/routes/(marketing)/blog/(posts)/awesome_post/+page.svelte	svelte
+=== 583 src/routes/(marketing)/blog/(posts)/awesome_post/+page.svelte	svelte
 <p class="lead">A sample post</p>
 
 <p>
@@ -1455,18 +1484,19 @@ npm install
 <p>
   Check out more formatting options like lists, headers, and more in <a
     href="https://play.tailwindcss.com/uj1vGACRJA?layout=preview"
-    >the tailwind/typograpy docs</a
-  >.
+  >
+    the tailwind/typograpy docs
+  </a>.
 </p>
 
-=== 1094 src/routes/(marketing)/blog/(posts)/how_we_built_our_41kb_saas_website/+page.svelte	svelte
+=== 1102 src/routes/(marketing)/blog/(posts)/how_we_built_our_41kb_saas_website/+page.svelte	svelte
 <p class="lead">How to use this template you to bootstrap your own site.</p>
 
 <p>
   We've written a detailed blog post about how we took this template, and
-  created a real <a href="https://criticalmoments.io" target="_blank"
-    >SaaS company website</a
-  >. Topics include:
+  created a real <a href="https://criticalmoments.io" target="_blank">
+    SaaS company website
+  </a>. Topics include:
 </p>
 
 <ul>
@@ -1484,17 +1514,19 @@ npm install
 </a>
 
 <p>
-  The blog post is over on <a href="https://criticalmoments.io" target="_blank"
-    >criticalmoments.io</a
-  >, a page which uses this boilerplate as a starting point.
+  The blog post is over on <a href="https://criticalmoments.io" target="_blank">
+    criticalmoments.io
+  </a>, a page which uses this boilerplate as a starting point.
 </p>
 
 <p>
   If you are looking for examples of blog posts with rich content rendered
   inside this template, checkout the other demo posts <a
     href="/blog"
-    class="link">here</a
-  >.
+    class="link"
+  >
+    here
+  </a>.
 </p>
 
 === 1450 src/routes/(marketing)/blog/+page.svelte	svelte
@@ -1703,9 +1735,9 @@ npm install
             </p>
           {/if}
 
-          <button class="btn btn-primary {loading ? 'btn-disabled' : ''}"
-            >{loading ? "Submitting" : "Submit"}</button
-          >
+          <button class="btn btn-primary {loading ? 'btn-disabled' : ''}">
+            {loading ? "Submitting" : "Submit"}
+          </button>
         </form>
       </div>
     {/if}
@@ -1740,25 +1772,24 @@ npm install
   </div>
 </div>
 
-=== 395 src/routes/(marketing)/login/+page.svelte	svelte
+=== 390 src/routes/(marketing)/login/+page.svelte	svelte
 <svelte:head>
   <title>Log In</title>
 </svelte:head>
 
 <div>
   <h1 class="text-xl font-bold">Get Started</h1>
-  <a href="/login/sign_up"
-    ><button class="btn btn-primary mt-3 btn-wide">Sign Up</button></a
-  >
+  <a href="/login/sign_up">
+    <button class="btn btn-primary mt-3 btn-wide">Sign Up</button>
+  </a>
 
   <h1 class="text-xl mt-6">Already have an account?</h1>
-  <a href="/login/sign_in"
-    ><button class="btn btn-outline btn-primary mt-3 btn-wide">Sign In</button
-    ></a
-  >
+  <a href="/login/sign_in">
+    <button class="btn btn-outline btn-primary mt-3 btn-wide">Sign In</button>
+  </a>
 </div>
 
-=== 492 src/routes/(marketing)/login/current_password_error/+page.svelte	svelte
+=== 497 src/routes/(marketing)/login/current_password_error/+page.svelte	svelte
 <svelte:head>
   <title>Current Password Incorrect</title>
 </svelte:head>
@@ -1770,16 +1801,17 @@ npm install
   been logged out.
 </p>
 <p class="mt-6">
-  If you remember your password <a href="/login/sign_in" class="link">sign in</a
-  > and try again.
+  If you remember your password <a href="/login/sign_in" class="link">
+    sign in
+  </a> and try again.
 </p>
 <p class="mt-6">
-  If you forget your password <a href="/login/forgot_password" class="link"
-    >reset it</a
-  >.
+  If you forget your password <a href="/login/forgot_password" class="link">
+    reset it
+  </a>.
 </p>
 
-=== 727 src/routes/(marketing)/login/forgot_password/+page.svelte	svelte
+=== 732 src/routes/(marketing)/login/forgot_password/+page.svelte	svelte
 <script lang="ts">
   import { Auth } from "@supabase/auth-ui-svelte";
   import { sharedAppearance, oauthProviders } from "../login_config";
@@ -1803,11 +1835,12 @@ npm install
   additionalData={undefined}
 />
 <div class="text-l text-slate-800 mt-4">
-  Remember your password? <a class="underline" href="/login/sign_in">Sign in</a
-  >.
+  Remember your password? <a class="underline" href="/login/sign_in">
+    Sign in
+  </a>.
 </div>
 
-=== 1939 src/routes/(marketing)/login/sign_in/+page.svelte	svelte
+=== 1944 src/routes/(marketing)/login/sign_in/+page.svelte	svelte
 <script lang="ts">
   import { Auth } from "@supabase/auth-ui-svelte";
   import { sharedAppearance, oauthProviders } from "../login_config";
@@ -1846,13 +1879,14 @@ npm install
       class="stroke-current shrink-0 h-6 w-6"
       fill="none"
       viewBox="0 0 24 24"
-      ><path
+    >
+      <path
         stroke-linecap="round"
         stroke-linejoin="round"
         stroke-width="2"
         d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z"
-      /></svg
-    >
+      />
+    </svg>
     <span>Email verified! Please sign in.</span>
   </div>
 {/if}
@@ -2006,9 +2040,9 @@ npm install
           </div>
           <div class="collapse-content">
             <p>
-              Our demo page <a href="https://saasstarter.work" class="link"
-                >SaasStarter.work</a
-              > has a functional demo page, using Stripe's test environment.
+              Our demo page <a href="https://saasstarter.work" class="link">
+                SaasStarter.work
+              </a> has a functional demo page, using Stripe's test environment.
             </p>
             <p class="mt-4">
               You can use the credit card number 4242 4242 4242 4242 with any

@@ -4291,7 +4291,7 @@ but can have other uses such as creating and removing map controls or other beha
 
 <CodeSample {code} />
 
-=== 1275 src/routes/examples/cooperative_gestures/+page.svelte	svelte
+=== 1278 src/routes/examples/cooperative_gestures/+page.svelte	svelte
 <script lang="ts">
   import * as maplibregl from "maplibre-gl";
   import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
@@ -4310,8 +4310,9 @@ but can have other uses such as creating and removing map controls or other beha
 <p>
   Scroll the map to see it in action. <a
     href="https://maplibre.org/maplibre-gl-js/docs/examples/cooperative-gestures/"
-    >MapLibre docs.</a
   >
+    MapLibre docs.
+  </a>
 </p>
 <br />
 
@@ -4596,8 +4597,8 @@ but can have other uses such as creating and removing map controls or other beha
     getWidth={mode === "showAll" ? 5 : 1}
     getHeight={clamp(3 / zoom, 0, 1)}
   >
-    <Popup openOn="click"
-      >{#snippet children({ data }: { data: ArcData | undefined })}
+    <Popup openOn="click">
+      {#snippet children({ data }: { data: ArcData | undefined })}
         {#if data}
           From {data.fromName} to {data.toName}
         {/if}
@@ -4841,7 +4842,7 @@ but can have other uses such as creating and removing map controls or other beha
 
 <CodeSample {code} />
 
-=== 3512 src/routes/examples/heatmap/+page.svelte	svelte
+=== 3515 src/routes/examples/heatmap/+page.svelte	svelte
 <script lang="ts">
   import * as maplibregl from "maplibre-gl";
   import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
@@ -4861,8 +4862,9 @@ but can have other uses such as creating and removing map controls or other beha
 <p>
   This is a map of earthquake frequency. Visualization styles and data from <a
     href="https://maplibre.org/maplibre-gl-js-docs/example/heatmap-layer/"
-    >the original MapLibre example.</a
   >
+    the original MapLibre example.
+  </a>
 </p>
 
 <MapLibre
@@ -5028,7 +5030,7 @@ but can have other uses such as creating and removing map controls or other beha
   }
 </style>
 
-=== 4985 src/routes/examples/image_symbols/+page.svelte	svelte
+=== 5009 src/routes/examples/image_symbols/+page.svelte	svelte
 <script lang="ts">
   import * as maplibregl from "maplibre-gl";
   import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
@@ -5052,9 +5054,9 @@ but can have other uses such as creating and removing map controls or other beha
 </script>
 
 <p>
-  Data from <a href="https://maplibre.org/maplibre-gl-js-docs/example/cluster/"
-    >MapLibre cluster Example.</a
-  >
+  Data from <a href="https://maplibre.org/maplibre-gl-js-docs/example/cluster/">
+    MapLibre cluster Example.
+  </a>
 </p>
 
 <MapLibre
@@ -5162,9 +5164,9 @@ but can have other uses such as creating and removing map controls or other beha
   {#if clickedFeature.cluster}
     <p>
       Number of Earthquakes:
-      <span class="font-bold text-gray-800"
-        >{clickedFeature["point_count"]}</span
-      >
+      <span class="font-bold text-gray-800">
+        {clickedFeature["point_count"]}
+      </span>
     </p>
     <p>
       Average Magnitude:
@@ -5174,9 +5176,9 @@ but can have other uses such as creating and removing map controls or other beha
     </p>
   {:else}
     <p>
-      Magnitude: <span class="font-bold text-gray-800"
-        >{clickedFeature.mag}</span
-      >
+      Magnitude: <span class="font-bold text-gray-800">
+        {clickedFeature.mag}
+      </span>
     </p>
   {/if}
 {/if}
@@ -5196,15 +5198,19 @@ but can have other uses such as creating and removing map controls or other beha
     <a
       class="text-sm"
       href="https://www.flaticon.com/free-icons/earthquake"
-      title="earthquake icons">Earthquake icons created by Freepik - Flaticon</a
+      title="earthquake icons"
     >
+      Earthquake icons created by Freepik - Flaticon
+    </a>
   </p>
   <p>
     <a
       class="text-sm"
       href="https://www.flaticon.com/free-icons/tsunami"
-      title="tsunami icons">Tsunami icons created by surang - Flaticon</a
+      title="tsunami icons"
     >
+      Tsunami icons created by surang - Flaticon
+    </a>
   </p>
 </footer>
 
@@ -5355,7 +5361,7 @@ but can have other uses such as creating and removing map controls or other beha
 
 <CodeSample {code} />
 
-=== 1181 src/routes/examples/pmtile_source/+page.svelte	svelte
+=== 1189 src/routes/examples/pmtile_source/+page.svelte	svelte
 <script lang="ts">
   import * as maplibregl from "maplibre-gl";
   import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
@@ -5372,8 +5378,10 @@ but can have other uses such as creating and removing map controls or other beha
 <p>
   This map shows how to use <a
     href="https://protomaps.com/docs/pmtiles"
-    target="__blank">PMTile</a
+    target="__blank"
   >
+    PMTile
+  </a>
   sources on a map.
 </p>
 
@@ -5500,7 +5508,7 @@ but can have other uses such as creating and removing map controls or other beha
   endBoundary=""
 />
 
-=== 1745 src/routes/examples/raster_source/+page.svelte	svelte
+=== 1753 src/routes/examples/raster_source/+page.svelte	svelte
 <script lang="ts">
   import * as maplibregl from "maplibre-gl";
   import maplibreWorkerUrl from "maplibre-gl/dist/maplibre-gl-worker.mjs?worker&url";
@@ -5523,21 +5531,23 @@ but can have other uses such as creating and removing map controls or other beha
 <p>
   This map shows how to use raster sources on the map. Data from <a
     href="https://uk-air.defra.gov.uk/data/wms-services"
-    target="_blank">UK-AIR</a
-  >.
+    target="_blank"
+  >
+    UK-AIR
+  </a>.
 </p>
 
 <fieldset class="flex gap-x-4">
   <legend>Pollution layer</legend>
-  <label
-    ><input type="radio" bind:group={pollutant} value="PM25_viridis" /> PM2.5</label
-  >
-  <label
-    ><input type="radio" bind:group={pollutant} value="PM10_viridis" /> PM10</label
-  >
-  <label
-    ><input type="radio" bind:group={pollutant} value="NOx_viridis" /> NO2</label
-  >
+  <label>
+    <input type="radio" bind:group={pollutant} value="PM25_viridis" /> PM2.5
+  </label>
+  <label>
+    <input type="radio" bind:group={pollutant} value="PM10_viridis" /> PM10
+  </label>
+  <label>
+    <input type="radio" bind:group={pollutant} value="NOx_viridis" /> NO2
+  </label>
 </fieldset>
 
 <MapLibre
@@ -5887,7 +5897,7 @@ but can have other uses such as creating and removing map controls or other beha
 
 <CodeSample {code} />
 
-=== 857 src/routes/tests/map-style-update/+page.svelte	svelte
+=== 861 src/routes/tests/map-style-update/+page.svelte	svelte
 <script lang="ts">
   import MapLibre from "$lib/MapLibre.svelte";
   import CodeSample from "$site/CodeSample.svelte";
@@ -5906,8 +5916,10 @@ but can have other uses such as creating and removing map controls or other beha
 <button
   class="bg-primary text-primary-foreground hover:bg-primary/90 mb-4 inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium shadow-xs transition-colors"
   type="button"
-  onclick={swapStyle}>Swap Style</button
+  onclick={swapStyle}
 >
+  Swap Style
+</button>
 
 <MapLibre
   style={styles[0]}
@@ -5917,7 +5929,7 @@ but can have other uses such as creating and removing map controls or other beha
 
 <CodeSample {code} startBoundary="let styles" endBoundary="/>" />
 
-=== 1321 src/routes/tests/marker-class-update/+page.svelte	svelte
+=== 1325 src/routes/tests/marker-class-update/+page.svelte	svelte
 <script lang="ts">
   import MapLibre from "$lib/MapLibre.svelte";
   import CodeSample from "$site/CodeSample.svelte";
@@ -5940,8 +5952,10 @@ but can have other uses such as creating and removing map controls or other beha
 <button
   class="bg-primary text-primary-foreground hover:bg-primary/90 mb-4 inline-flex h-9 items-center justify-center rounded-md px-4 py-2 text-sm font-medium shadow-xs transition-colors"
   type="button"
-  onclick={swapColor}>Cycle Color</button
+  onclick={swapColor}
 >
+  Cycle Color
+</button>
 
 <MapLibre
   style="https://basemaps.cartocdn.com/gl/positron-gl-style/style.json"

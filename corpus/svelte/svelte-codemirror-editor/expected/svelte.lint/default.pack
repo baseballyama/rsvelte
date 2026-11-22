@@ -326,7 +326,7 @@
 362:9 362:40 svelte/no-unused-class-name "Unused class \"cm-editor\"."
 363:1 363:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 2309 src/routes/+layout.svelte	lint.txt
+=== 2502 src/routes/+layout.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -354,6 +354,7 @@
 31:1 31:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 33:1 33:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 34:1 34:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+34:9 34:17 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 34:15 34:17 svelte/html-self-closing "Disallow self-closing on HTML elements."
 35:1 35:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 

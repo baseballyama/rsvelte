@@ -1,12 +1,12 @@
 # rsvelte pack 1
-=== 590 src/lib/components/common/DragRegion.svelte	lint.txt
-1:1 1:51 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
+=== 591 src/lib/components/common/DragRegion.svelte	lint.txt
 1:26 1:48 svelte/max-attributes-per-line "'data-tauri-drag-region' should be on a new line."
 1:49 1:51 svelte/html-self-closing "Disallow self-closing on HTML elements."
+1:51 1:51 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 3:1 10:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 4:2 4:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 7598 src/lib/components/dashboard/Banner.svelte	lint.txt
+=== 8455 src/lib/components/dashboard/Banner.svelte	lint.txt
 1:1 75:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -17,8 +17,10 @@
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:10 svelte/valid-compile "`show` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:6 13:17 svelte/valid-compile "`canDownload` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:17 15:31 no-unused-vars "'_' is defined but never used."
 15:20 15:31 no-undef "'HTMLElement' is not defined."
@@ -88,12 +90,14 @@
 80:1 80:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 80:4 80:51 svelte/button-has-type "Missing an explicit type attribute for button."
 80:28 80:50 svelte/max-attributes-per-line "'on:click' should be on a new line."
+80:28 80:50 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 81:1 81:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 82:1 82:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 83:1 83:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 84:1 84:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 84:4 84:49 svelte/button-has-type "Missing an explicit type attribute for button."
 84:26 84:48 svelte/max-attributes-per-line "'on:click' should be on a new line."
+84:26 84:48 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 85:1 85:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 86:1 86:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 87:1 87:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -882,7 +886,7 @@
 61:4 61:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
 65:4 65:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 5250 src/routes/(tray)/tray/+page.svelte	lint.txt
+=== 5469 src/routes/(tray)/tray/+page.svelte	lint.txt
 1:1 59:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -892,6 +896,7 @@
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:39 svelte/valid-compile "`notifications` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

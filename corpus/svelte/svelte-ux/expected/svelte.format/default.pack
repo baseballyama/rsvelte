@@ -425,7 +425,7 @@
   <AppBar title="Example" menuIcon={null} />
 </Preview>
 
-=== 1000 packages/svelte-ux/src/routes/docs/components/Avatar/+page.svelte	svelte
+=== 1010 packages/svelte-ux/src/routes/docs/components/Avatar/+page.svelte	svelte
 <script lang="ts">
   import { Avatar, Icon } from "svelte-ux";
   import { mdiAccount } from "@mdi/js";
@@ -456,13 +456,15 @@
 <h2>Size</h2>
 
 <Preview>
-  <Avatar class="bg-primary text-primary-content font-bold text-xs" size="sm"
-    >sm</Avatar
-  >
-  <Avatar class="bg-primary text-primary-content font-bold" size="md">md</Avatar
-  >
-  <Avatar class="bg-primary text-primary-content font-bold" size="lg">lg</Avatar
-  >
+  <Avatar class="bg-primary text-primary-content font-bold text-xs" size="sm">
+    sm
+  </Avatar>
+  <Avatar class="bg-primary text-primary-content font-bold" size="md">
+    md
+  </Avatar>
+  <Avatar class="bg-primary text-primary-content font-bold" size="lg">
+    lg
+  </Avatar>
 </Preview>
 
 <h2>Icon (prop)</h2>
@@ -915,7 +917,7 @@
   </BarStack>
 </Preview>
 
-=== 2761 packages/svelte-ux/src/routes/docs/components/Breadcrumb/+page.svelte	svelte
+=== 2770 packages/svelte-ux/src/routes/docs/components/Breadcrumb/+page.svelte	svelte
 <script lang="ts">
   import { Button, Breadcrumb, DividerDot, Icon } from "svelte-ux";
   import { mdiArrowRight } from "@mdi/js";
@@ -998,9 +1000,9 @@
 <Preview>
   <Breadcrumb items={labeledItems} class="gap-2">
     <span slot="item" let:item>
-      <span class="text-surface-content/50 text-sm font-extrabold"
-        >{item.label}:</span
-      >
+      <span class="text-surface-content/50 text-sm font-extrabold">
+        {item.label}:
+      </span>
       <span class="text-surface-content/50 text-sm">{item.value}</span>
     </span>
     <DividerDot slot="divider" class="text-surface-content/50" />
@@ -1049,13 +1051,14 @@
       items={["Example", "of", "really really really long text"]}
       class="flex-nowrap"
     >
-      <span slot="item" class="last:truncate" let:item title={item}>{item}</span
-      >
+      <span slot="item" class="last:truncate" let:item title={item}>
+        {item}
+      </span>
     </Breadcrumb>
   </div>
 </Preview>
 
-=== 10099 packages/svelte-ux/src/routes/docs/components/Button/+page.svelte	svelte
+=== 10236 packages/svelte-ux/src/routes/docs/components/Button/+page.svelte	svelte
 <script lang="ts">
   import { mdiHome, mdiMagnify, mdiMenu, mdiTrashCan } from "@mdi/js";
   import { faUser } from "@fortawesome/free-solid-svg-icons";
@@ -1118,29 +1121,34 @@
       <Button {loading} on:click={toggle}>Click me</Button>
     </Toggle>
     <Toggle let:on={loading} let:toggle>
-      <Button variant="outline" color="primary" {loading} on:click={toggle}
-        >Click me</Button
-      >
+      <Button variant="outline" color="primary" {loading} on:click={toggle}>
+        Click me
+      </Button>
     </Toggle>
     <Toggle let:on={loading} let:toggle>
-      <Button variant="fill" color="primary" {loading} on:click={toggle}
-        >Click me</Button
-      >
+      <Button variant="fill" color="primary" {loading} on:click={toggle}>
+        Click me
+      </Button>
     </Toggle>
     <Toggle let:on={loading} let:toggle>
-      <Button variant="fill-light" color="primary" {loading} on:click={toggle}
-        >Click me</Button
-      >
+      <Button variant="fill-light" color="primary" {loading} on:click={toggle}>
+        Click me
+      </Button>
     </Toggle>
     <Toggle let:on={loading} let:toggle>
-      <Button variant="fill-outline" color="primary" {loading} on:click={toggle}
-        >Click me</Button
+      <Button
+        variant="fill-outline"
+        color="primary"
+        {loading}
+        on:click={toggle}
       >
+        Click me
+      </Button>
     </Toggle>
     <Toggle let:on={loading} let:toggle>
-      <Button variant="text" color="primary" {loading} on:click={toggle}
-        >Click me</Button
-      >
+      <Button variant="text" color="primary" {loading} on:click={toggle}>
+        Click me
+      </Button>
     </Toggle>
   </div>
 
@@ -1154,8 +1162,10 @@
         variant="outline"
         color="primary"
         {loading}
-        on:click={toggle}>Click me</Button
+        on:click={toggle}
       >
+        Click me
+      </Button>
     </Toggle>
     <Toggle let:on={loading} let:toggle>
       <Button
@@ -1163,8 +1173,10 @@
         variant="fill"
         color="primary"
         {loading}
-        on:click={toggle}>Click me</Button
+        on:click={toggle}
       >
+        Click me
+      </Button>
     </Toggle>
     <Toggle let:on={loading} let:toggle>
       <Button
@@ -1172,8 +1184,10 @@
         variant="fill-light"
         color="primary"
         {loading}
-        on:click={toggle}>Click me</Button
+        on:click={toggle}
       >
+        Click me
+      </Button>
     </Toggle>
     <Toggle let:on={loading} let:toggle>
       <Button
@@ -1181,8 +1195,10 @@
         variant="fill-outline"
         color="primary"
         {loading}
-        on:click={toggle}>Click me</Button
+        on:click={toggle}
       >
+        Click me
+      </Button>
     </Toggle>
     <Toggle let:on={loading} let:toggle>
       <Button
@@ -1190,8 +1206,10 @@
         variant="text"
         color="primary"
         {loading}
-        on:click={toggle}>Click me</Button
+        on:click={toggle}
       >
+        Click me
+      </Button>
     </Toggle>
   </div>
 </Preview>
@@ -1275,17 +1293,19 @@
       <Button variant="fill-light" color="primary">default</Button>
       <Button variant="fill-light" color="primary" rounded>rounded</Button>
       <Button variant="fill-light" color="primary" rounded="full">full</Button>
-      <Button variant="fill-light" color="primary" rounded={false}>false</Button
-      >
+      <Button variant="fill-light" color="primary" rounded={false}>
+        false
+      </Button>
     </div>
     <div>
       <Button variant="fill-outline" color="primary">default</Button>
       <Button variant="fill-outline" color="primary" rounded>rounded</Button>
-      <Button variant="fill-outline" color="primary" rounded="full">full</Button
-      >
-      <Button variant="fill-outline" color="primary" rounded={false}
-        >false</Button
-      >
+      <Button variant="fill-outline" color="primary" rounded="full">
+        full
+      </Button>
+      <Button variant="fill-outline" color="primary" rounded={false}>
+        false
+      </Button>
     </div>
   </div>
 </Preview>
@@ -1296,12 +1316,12 @@
   <Button class="uppercase">default</Button>
   <Button class="uppercase" variant="outline" color="primary">outline</Button>
   <Button class="uppercase" variant="fill" color="primary">fill</Button>
-  <Button class="uppercase" variant="fill-light" color="primary"
-    >fill-light</Button
-  >
-  <Button class="uppercase" variant="fill-outline" color="primary"
-    >fill-outline</Button
-  >
+  <Button class="uppercase" variant="fill-light" color="primary">
+    fill-light
+  </Button>
+  <Button class="uppercase" variant="fill-outline" color="primary">
+    fill-outline
+  </Button>
   <Button class="uppercase" variant="text" color="primary">text</Button>
 </Preview>
 
@@ -1985,7 +2005,7 @@
   </Card>
 </Settings>
 
-=== 4194 packages/svelte-ux/src/routes/docs/components/Checkbox/+page.svelte	svelte
+=== 4201 packages/svelte-ux/src/routes/docs/components/Checkbox/+page.svelte	svelte
 <script lang="ts">
   import { Button, Checkbox, SectionDivider } from "svelte-ux";
   import Preview from "$lib/components/Preview.svelte";
@@ -2023,8 +2043,9 @@
   <div>{JSON.stringify(group)}</div>
   <div class="text-sm">
     <Button size="sm" on:click={() => (group = [])}>clear</Button>
-    <Button size="sm" on:click={() => (group = [1, 2, 3, 4])}>select all</Button
-    >
+    <Button size="sm" on:click={() => (group = [1, 2, 3, 4])}>
+      select all
+    </Button>
   </div>
 </Preview>
 
@@ -2059,9 +2080,9 @@
 <Preview>
   <div class="border w-[150px] overflow-auto p-1">
     {#each { length: 5 } as _}
-      <Checkbox classes={{ root: "truncate max-w-full", label: "truncate" }}
-        >This is a really long label</Checkbox
-      >
+      <Checkbox classes={{ root: "truncate max-w-full", label: "truncate" }}>
+        This is a really long label
+      </Checkbox>
     {/each}
   </div>
 </Preview>
@@ -2237,9 +2258,9 @@
     {/each}
   </Card>
   {#each Array(5) as _, i}
-    <Button on:click={() => (controlledOpen[i] = !controlledOpen[i])}
-      >Toggle {i + 1}</Button
-    >
+    <Button on:click={() => (controlledOpen[i] = !controlledOpen[i])}>
+      Toggle {i + 1}
+    </Button>
   {/each}
   <div></div>
 </Preview>
@@ -2955,7 +2976,7 @@
   <DateRangeField bind:value stepper rounded center />
 </Preview>
 
-=== 7868 packages/svelte-ux/src/routes/docs/components/Dialog/+page.svelte	svelte
+=== 7890 packages/svelte-ux/src/routes/docs/components/Dialog/+page.svelte	svelte
 <script lang="ts">
   import { mdiTrashCan } from "@mdi/js";
 
@@ -3085,9 +3106,9 @@
     let:toggleOn={toggleDeleteOn}
     let:toggleOff={toggleDeleteOff}
   >
-    <Button icon={mdiTrashCan} on:click={toggleDeleteOn} color="danger"
-      >Delete</Button
-    >
+    <Button icon={mdiTrashCan} on:click={toggleDeleteOn} color="danger">
+      Delete
+    </Button>
     <Dialog {open} on:close={toggleDeleteOff}>
       <div slot="title">Delete this item ?</div>
       <div class="px-6 py-3">This will permanently delete the item</div>
@@ -3158,9 +3179,9 @@
     <Dialog {open} persistent>
       <div slot="title">Are you sure you want to do that?</div>
       <div slot="actions">
-        <Button variant="fill" color="primary" on:click={toggleOff}
-          >Yes, close this dialog</Button
-        >
+        <Button variant="fill" color="primary" on:click={toggleOff}>
+          Yes, close this dialog
+        </Button>
         <Button>No, keep this dialog open</Button>
       </div>
     </Dialog>
@@ -3194,19 +3215,21 @@
         <div class="mb-4">
           The <span
             class="font-mono bg-primary-700/20 text-primary-500 font-medium px-1 py-0.5 rounded"
-            >close</span
-          > method is available on every slot.
+          >
+            close
+          </span> method is available on every slot.
         </div>
         <div class="grid gap-2">
-          <Button variant="fill" color="primary" on:click={() => close()}
-            >Attempt close: <code>close()</code></Button
-          >
+          <Button variant="fill" color="primary" on:click={() => close()}>
+            Attempt close: <code>close()</code>
+          </Button>
           <Button
             variant="fill"
             color="primary"
             on:click={() => close({ force: true })}
-            >Force close: <code>close({"{ force: true }"})</code></Button
           >
+            Force close: <code>close({"{ force: true }"})</code>
+          </Button>
         </div>
       </div>
     </Dialog>
@@ -3422,9 +3445,9 @@
           </div>
         </div>
         <div slot="actions">
-          <Button on:click={isChanged ? openConfirmation : closeDrawer}
-            >Close</Button
-          >
+          <Button on:click={isChanged ? openConfirmation : closeDrawer}>
+            Close
+          </Button>
         </div>
       </Drawer>
       <Button on:click={openDrawer}>Click me</Button>
@@ -3982,9 +4005,9 @@
         refresh();
       }}
     />
-    <Button on:click={() => commit()} disabled={current.name == null}
-      >Apply</Button
-    >
+    <Button on:click={() => commit()} disabled={current.name == null}>
+      Apply
+    </Button>
     <Button on:click={() => revert()}>Cancel</Button>
     <Button on:click={() => undo()}>Undo</Button>
     <Button on:click={() => revertAll()}>Reset</Button>
@@ -5032,9 +5055,9 @@
           let:toggleOff
           on:toggleOff={closeMenu}
         >
-          <MenuItem on:click={toggleDrawer}
-            >Open Drawer with another Menu...</MenuItem
-          >
+          <MenuItem on:click={toggleDrawer}>
+            Open Drawer with another Menu...
+          </MenuItem>
           <Drawer {open} on:close={toggleOff} class="w-[400px]">
             <Toggle let:on={open} let:toggle let:toggleOff>
               <span>
@@ -6246,7 +6269,7 @@
   </NumberStepper>
 </Preview>
 
-=== 1636 packages/svelte-ux/src/routes/docs/components/Overflow/+page.svelte	svelte
+=== 1649 packages/svelte-ux/src/routes/docs/components/Overflow/+page.svelte	svelte
 <script lang="ts">
   import { Button, Overflow, Tooltip } from "svelte-ux";
   import Preview from "$lib/components/Preview.svelte";
@@ -6260,12 +6283,15 @@
 <h2>Default</h2>
 
 <Preview>
-  <Button variant="outline" on:click={() => (overflowItems += 1)}>+ item</Button
-  >
+  <Button variant="outline" on:click={() => (overflowItems += 1)}>
+    + item
+  </Button>
   <Button
     variant="outline"
-    on:click={() => (overflowItems -= overflowItems > 1 ? 1 : 0)}>- item</Button
+    on:click={() => (overflowItems -= overflowItems > 1 ? 1 : 0)}
   >
+    - item
+  </Button>
   <Overflow class="w-1/2 h-[200px] overflow-hidden" let:overflowX let:overflowY>
     <div>overflowX: {overflowX}</div>
     <div>overflowY: {overflowY}</div>
@@ -6796,7 +6822,7 @@
   </div>
 </Preview>
 
-=== 2539 packages/svelte-ux/src/routes/docs/components/Radio/+page.svelte	svelte
+=== 2546 packages/svelte-ux/src/routes/docs/components/Radio/+page.svelte	svelte
 <script lang="ts">
   import { Radio } from "svelte-ux";
   import Preview from "$lib/components/Preview.svelte";
@@ -6843,9 +6869,9 @@
 <Preview>
   <div class="border w-[150px] overflow-auto p-1">
     {#each { length: 5 } as _, i}
-      <Radio name="long-label" bind:group value={i}
-        >This is a really long label {i}</Radio
-      >
+      <Radio name="long-label" bind:group value={i}>
+        This is a really long label {i}
+      </Radio>
     {/each}
   </div>
 </Preview>
@@ -6860,8 +6886,9 @@
         bind:group
         value={i}
         classes={{ root: "truncate max-w-full", label: "truncate" }}
-        >This is a really long label {i}</Radio
       >
+        This is a really long label {i}
+      </Radio>
     {/each}
   </div>
 </Preview>
@@ -7014,7 +7041,7 @@
   <RangeSlider disableTooltips />
 </Preview>
 
-=== 7123 packages/svelte-ux/src/routes/docs/components/ResponsiveMenu/+page.svelte	svelte
+=== 7135 packages/svelte-ux/src/routes/docs/components/ResponsiveMenu/+page.svelte	svelte
 <script lang="ts">
   import { mdiMagnify } from "@mdi/js";
 
@@ -7157,9 +7184,9 @@
           let:toggleOff
           on:toggleOff={closeMenu}
         >
-          <MenuItem on:click={toggleDrawer}
-            >Open Drawer with another Menu...</MenuItem
-          >
+          <MenuItem on:click={toggleDrawer}>
+            Open Drawer with another Menu...
+          </MenuItem>
           <Drawer {open} on:close={toggleOff} class="w-[400px]">
             <Toggle let:on={open} let:toggle let:toggleOff>
               <span>
@@ -7226,8 +7253,10 @@
   `env()`
   <a
     href="https://developer.mozilla.org/en-US/docs/Web/CSS/env#usage"
-    target="_blank">requires</a
+    target="_blank"
   >
+    requires
+  </a>
   setting `viewport-fit=cover` within `viewport` meta tag
 </Blockquote>
 
@@ -7236,8 +7265,10 @@ See also
   variant="text"
   color="primary"
   href="https://github.com/mvllow/tailwindcss-safe-area"
-  target="_blank">tailwind-css-safe-area</Button
+  target="_blank"
 >
+  tailwind-css-safe-area
+</Button>
 to add `pb-safe` util class
 
 <h2>Settings example</h2>
@@ -7266,7 +7297,7 @@ to add `pb-safe` util class
   </Settings>
 </Preview>
 
-=== 622 packages/svelte-ux/src/routes/docs/components/ScrollContainer/+page.svelte	svelte
+=== 634 packages/svelte-ux/src/routes/docs/components/ScrollContainer/+page.svelte	svelte
 <script lang="ts">
   import { Button, ScrollContainer } from "svelte-ux";
   import Preview from "$lib/components/Preview.svelte";
@@ -7281,14 +7312,16 @@ to add `pb-safe` util class
     <Button
       variant="fill"
       color="primary"
-      on:click={() => scrollIntoView({ block: "end" })}>Scroll to bottom</Button
+      on:click={() => scrollIntoView({ block: "end" })}
     >
+      Scroll to bottom
+    </Button>
     {#each { length: 100 } as _, i}
       <div>Item: {i + 1}</div>
     {/each}
-    <Button variant="fill" color="primary" on:click={() => scrollIntoView()}
-      >Scroll to top</Button
-    >
+    <Button variant="fill" color="primary" on:click={() => scrollIntoView()}>
+      Scroll to top
+    </Button>
   </ScrollContainer>
 </Preview>
 
@@ -7502,7 +7535,7 @@ to add `pb-safe` util class
   </Settings>
 </Preview>
 
-=== 2366 packages/svelte-ux/src/routes/docs/components/Shine/+page.svelte	svelte
+=== 2398 packages/svelte-ux/src/routes/docs/components/Shine/+page.svelte	svelte
 <script lang="ts">
   import { mdiHome, mdiMagnify, mdiTrashCan } from "@mdi/js";
 
@@ -7563,17 +7596,21 @@ to add `pb-safe` util class
         icon={mdiMagnify}
         variant="fill"
         color="success"
-        class="flex-row-reverse">Search</Button
+        class="flex-row-reverse"
       >
-      <Button icon={mdiHome} variant="fill" color="primary" class="flex-col"
-        >Home</Button
-      >
+        Search
+      </Button>
+      <Button icon={mdiHome} variant="fill" color="primary" class="flex-col">
+        Home
+      </Button>
       <Button
         icon={mdiHome}
         variant="fill"
         color="primary"
-        class="flex-col-reverse">Home</Button
+        class="flex-col-reverse"
       >
+        Home
+      </Button>
     </div>
   </Shine>
 </Preview>
@@ -7647,16 +7684,16 @@ to add `pb-safe` util class
     <Button on:click={() => increment(10)}>+10</Button>
     <Button on:click={() => increment(100)}>+100</Button>
   </ButtonGroup>
-  <Button variant="fill-light" on:click={() => (value = Math.random() * 10)}
-    >Random</Button
-  >
+  <Button variant="fill-light" on:click={() => (value = Math.random() * 10)}>
+    Random
+  </Button>
   <Button variant="fill-light" on:click={() => (value = null)}>Null</Button>
 </div>
 <div class="text-xs mt-1 ml-2 text-surface-content/50">
   Keyboard: <Kbd>↑</Kbd>
-  <Kbd>↓</Kbd> +/- 1. With <Kbd shift>shift</Kbd> +/- 10. With <Kbd option
-    >option</Kbd
-  >: +/- 100
+  <Kbd>↓</Kbd> +/- 1. With <Kbd shift>shift</Kbd> +/- 10. With <Kbd option>
+    option
+  </Kbd>: +/- 100
 </div>
 
 <h2>Basic</h2>
@@ -8126,7 +8163,7 @@ to add `pb-safe` util class
   </div>
 </Preview>
 
-=== 6174 packages/svelte-ux/src/routes/docs/components/Steps/+page.svelte	svelte
+=== 6206 packages/svelte-ux/src/routes/docs/components/Steps/+page.svelte	svelte
 <script lang="ts">
   import {
     mdiCheck,
@@ -8248,8 +8285,10 @@ to add `pb-safe` util class
     <Step
       point=""
       classes={{ completed: "bg-info text-info-content" }}
-      completed>Step 6</Step
+      completed
     >
+      Step 6
+    </Step>
     <Step
       point="●"
       classes={{ completed: "bg-success text-success-content" }}
@@ -8257,12 +8296,12 @@ to add `pb-safe` util class
     >
       Step 7
     </Step>
-    <Step classes={{ completed: "bg-success text-success-content" }} completed
-      >Step 8</Step
-    >
-    <Step classes={{ completed: "bg-danger text-danger-content" }} completed
-      >Step 9</Step
-    >
+    <Step classes={{ completed: "bg-success text-success-content" }} completed>
+      Step 8
+    </Step>
+    <Step classes={{ completed: "bg-danger text-danger-content" }} completed>
+      Step 9
+    </Step>
   </Steps>
 </Preview>
 
@@ -8270,18 +8309,18 @@ to add `pb-safe` util class
 
 <Preview>
   <Steps>
-    <Step completed classes={{ completed: "bg-success text-success-content" }}
-      >Fly to moon</Step
-    >
-    <Step completed classes={{ completed: "bg-success text-success-content" }}
-      >Shrink the moon</Step
-    >
-    <Step completed classes={{ completed: "bg-success text-success-content" }}
-      >Grab the moon</Step
-    >
-    <Step point="?" classes={{ point: "bg-danger text-danger-content" }}
-      >Sit on the toilet</Step
-    >
+    <Step completed classes={{ completed: "bg-success text-success-content" }}>
+      Fly to moon
+    </Step>
+    <Step completed classes={{ completed: "bg-success text-success-content" }}>
+      Shrink the moon
+    </Step>
+    <Step completed classes={{ completed: "bg-success text-success-content" }}>
+      Grab the moon
+    </Step>
+    <Step point="?" classes={{ point: "bg-danger text-danger-content" }}>
+      Sit on the toilet
+    </Step>
   </Steps>
 </Preview>
 
@@ -8391,15 +8430,17 @@ to add `pb-safe` util class
       </Steps>
 
       <div>
-        <Button on:click={pagination.prevPage} disabled={current.isFirst}
-          >Previous</Button
-        >
+        <Button on:click={pagination.prevPage} disabled={current.isFirst}>
+          Previous
+        </Button>
         <Button
           on:click={pagination.nextPage}
           color="primary"
           variant="fill"
-          disabled={current.isLast}>Next</Button
+          disabled={current.isLast}
         >
+          Next
+        </Button>
       </div>
     </div>
   </Paginate>
@@ -9575,9 +9616,9 @@ to add `pb-safe` util class
   <div class="grid gap-2 justify-start">
     <Button on:click={() => inputEl?.focus()}>Manually Focus</Button>
     <Toggle let:on={multiline} let:toggle>
-      <Button on:click={toggle}
-        >{multiline ? "To single line" : "To multiline"}</Button
-      >
+      <Button on:click={toggle}>
+        {multiline ? "To single line" : "To multiline"}
+      </Button>
       <TextField label="Name" {multiline} bind:inputEl />
     </Toggle>
   </div>
@@ -9852,9 +9893,9 @@ to add `pb-safe` util class
   <TextField label="Zip code" accept={/[0-9]{0,5}/} />
 </Preview>
 
-<Blockquote
-  >See <a href="./Input" class="font-semibold">Input</a> for more mask examples</Blockquote
->
+<Blockquote>
+  See <a href="./Input" class="font-semibold">Input</a> for more mask examples
+</Blockquote>
 
 <SectionDivider>Style</SectionDivider>
 
@@ -10067,9 +10108,9 @@ to add `pb-safe` util class
   </div>
 </Preview>
 
-<Blockquote
-  >Magic: The Gathering card images are copyright Wizards of the Coast, LLC.</Blockquote
->
+<Blockquote>
+  Magic: The Gathering card images are copyright Wizards of the Coast, LLC.
+</Blockquote>
 
 === 9877 packages/svelte-ux/src/routes/docs/components/Timeline/+page.svelte	svelte
 <script lang="ts">
@@ -10640,15 +10681,15 @@ to add `pb-safe` util class
     <Radio name="variant" value="default" bind:group={variant}>default</Radio>
     <Radio name="variant" value="outline" bind:group={variant}>outline</Radio>
     <Radio name="variant" value="fill" bind:group={variant}>fill</Radio>
-    <Radio name="variant" value="fill-light" bind:group={variant}
-      >fill-light</Radio
-    >
-    <Radio name="variant" value="fill-surface" bind:group={variant}
-      >fill-surface</Radio
-    >
-    <Radio name="variant" value="underline" bind:group={variant}
-      >underline</Radio
-    >
+    <Radio name="variant" value="fill-light" bind:group={variant}>
+      fill-light
+    </Radio>
+    <Radio name="variant" value="fill-surface" bind:group={variant}>
+      fill-surface
+    </Radio>
+    <Radio name="variant" value="underline" bind:group={variant}>
+      underline
+    </Radio>
   </Field>
 
   <div class="grid md:grid-cols-3 gap-2">
@@ -11081,16 +11122,16 @@ to add `pb-safe` util class
     <Button on:click={() => increment(10)}>+10</Button>
     <Button on:click={() => increment(100)}>+100</Button>
   </ButtonGroup>
-  <Button variant="fill-light" on:click={() => (value = Math.random() * 10)}
-    >Random</Button
-  >
+  <Button variant="fill-light" on:click={() => (value = Math.random() * 10)}>
+    Random
+  </Button>
   <Button variant="fill-light" on:click={() => (value = null)}>Null</Button>
 </div>
 <div class="text-xs mt-1 ml-2 text-surface-content/50">
   Keyboard: <Kbd>↑</Kbd>
-  <Kbd>↓</Kbd> +/- 1. With <Kbd shift>shift</Kbd> +/- 10. With <Kbd option
-    >option</Kbd
-  >: +/- 100
+  <Kbd>↓</Kbd> +/- 1. With <Kbd shift>shift</Kbd> +/- 10. With <Kbd option>
+    option
+  </Kbd>: +/- 100
 </div>
 
 <h2>Basic</h2>

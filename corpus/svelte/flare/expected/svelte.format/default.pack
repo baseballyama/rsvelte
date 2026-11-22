@@ -201,13 +201,13 @@
     </div>
     <div class="flex flex-col">
       <span class="font-medium">{app.name}</span>
-      <span class="text-muted-foreground text-sm"
-        >{app.comment || "No description"}</span
-      >
+      <span class="text-muted-foreground text-sm">
+        {app.comment || "No description"}
+      </span>
     </div>
-    <span class="text-muted-foreground ml-auto text-xs whitespace-nowrap"
-      >System App</span
-    >
+    <span class="text-muted-foreground ml-auto text-xs whitespace-nowrap">
+      System App
+    </span>
   </button>
 {/each}
 
@@ -877,9 +877,9 @@
       </Button>
       <AlertDialog.Cancel>
         {#snippet child({ props })}
-          <Button {...props} variant="ghost" class="w-full text-base" size="lg"
-            >Cancel</Button
-          >
+          <Button {...props} variant="ghost" class="w-full text-base" size="lg">
+            Cancel
+          </Button>
         {/snippet}
       </AlertDialog.Cancel>
     </AlertDialog.Footer>
@@ -1577,7 +1577,7 @@
   {/if}
 {/if}
 
-=== 5699 src/lib/components/ImportSnippets.svelte	svelte
+=== 5719 src/lib/components/ImportSnippets.svelte	svelte
 <script lang="ts">
   import { open } from "@tauri-apps/plugin-dialog";
   import { readTextFile } from "@tauri-apps/plugin-fs";
@@ -1699,8 +1699,10 @@
       <p class="mb-4 text-lg text-white/70">
         Learn more about supported JSON format <a
           href="https://manual.raycast.com/snippets/how-to-import-snippets"
-          class="font-medium text-white hover:underline">here</a
-        >.
+          class="font-medium text-white hover:underline"
+        >
+          here
+        </a>.
       </p>
     {:else if importState === "importing"}
       <p class="mb-4 text-lg text-white/70">Importing snippets...</p>
@@ -1911,7 +1913,7 @@
   </div>
 {/if}
 
-=== 2912 src/lib/components/OAuthView.svelte	svelte
+=== 2928 src/lib/components/OAuthView.svelte	svelte
 <script lang="ts">
   import { ArrowLeft, Check } from "@lucide/svelte";
   import { Button } from "$lib/components/ui/button";
@@ -1996,8 +1998,10 @@
     {#if status === "initial"}
       <Button
         class="mt-4 bg-white/10 px-8 py-3 text-base font-semibold text-white hover:bg-white/20"
-        onclick={onSignIn}>Sign in with {providerName}</Button
+        onclick={onSignIn}
       >
+        Sign in with {providerName}
+      </Button>
     {/if}
   </div>
 
@@ -2224,7 +2228,7 @@
   </MainLayout>
 {/if}
 
-=== 4873 src/lib/components/QuicklinkForm.svelte	svelte
+=== 4899 src/lib/components/QuicklinkForm.svelte	svelte
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { onMount } from "svelte";
@@ -2312,15 +2316,16 @@
     <div class="grow overflow-y-auto p-6">
       <div class="mx-auto max-w-xl space-y-6">
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <label for="name" class="text-right text-sm text-gray-400">Name</label
-          >
+          <label for="name" class="text-right text-sm text-gray-400">
+            Name
+          </label>
           <Input id="name" placeholder="Quicklink name" bind:value={name} />
         </div>
 
         <div class="grid grid-cols-[120px_1fr] items-start gap-4">
-          <label for="link" class="pt-2 text-right text-sm text-gray-400"
-            >Link</label
-          >
+          <label for="link" class="pt-2 text-right text-sm text-gray-400">
+            Link
+          </label>
           <div>
             <Textarea
               id="link"
@@ -2328,17 +2333,17 @@
               bind:value={link}
             />
             <p class="text-muted-foreground mt-1 text-xs">
-              Include <span class="text-foreground font-mono"
-                >{"{argument}"}</span
-              > for context like the selected or copied text in the link.
+              Include <span class="text-foreground font-mono">
+                {"{argument}"}
+              </span> for context like the selected or copied text in the link.
             </p>
           </div>
         </div>
 
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <label for="open-with" class="text-right text-sm text-gray-400"
-            >Open With</label
-          >
+          <label for="open-with" class="text-right text-sm text-gray-400">
+            Open With
+          </label>
           <Select.Root bind:value={application} type="single">
             <Select.Trigger id="open-with" class="w-full">
               {@const selectedApp = applications.find(
@@ -2356,8 +2361,9 @@
         </div>
 
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <label for="icon" class="text-right text-sm text-gray-400">Icon</label
-          >
+          <label for="icon" class="text-right text-sm text-gray-400">
+            Icon
+          </label>
           <Input id="icon" placeholder="link-16" bind:value={icon} />
         </div>
 
@@ -2370,9 +2376,9 @@
   {#snippet footer()}
     <ActionBar icon={quicklinkIcon} title="Create Quicklink">
       {#snippet primaryAction({ props })}
-        <Button {...props} onclick={handleSave}
-          ><Save class="mr-2 size-4" /> Save Quicklink</Button
-        >
+        <Button {...props} onclick={handleSave}>
+          <Save class="mr-2 size-4" /> Save Quicklink
+        </Button>
       {/snippet}
     </ActionBar>
   {/snippet}
@@ -2628,7 +2634,7 @@
   {/snippet}
 </MainLayout>
 
-=== 15779 src/lib/components/SettingsView.svelte	svelte
+=== 15839 src/lib/components/SettingsView.svelte	svelte
 <script lang="ts">
   import type { PluginInfo, Preference } from "@flare/protocol";
   import { Input } from "$lib/components/ui/input";
@@ -2907,8 +2913,9 @@
                       {#if pref.title}
                         <div class="text-sm font-medium">
                           {pref.title}
-                          {#if pref.required}<span class="text-red-500">*</span
-                            >{/if}
+                          {#if pref.required}<span class="text-red-500">
+                              *
+                            </span>{/if}
                         </div>
                       {/if}
                       {#if pref.description}
@@ -2929,8 +2936,9 @@
                     <div class="space-y-2">
                       <div class="text-sm font-medium">
                         {pref.title}
-                        {#if pref.required}<span class="text-red-500">*</span
-                          >{/if}
+                        {#if pref.required}<span class="text-red-500">
+                            *
+                          </span>{/if}
                       </div>
 
                       {#if pref.description}
@@ -2977,9 +2985,9 @@
                           </Select.Trigger>
                           <Select.Content>
                             {#each pref.data as option (option.value)}
-                              <Select.Item value={option.value}
-                                >{option.title}</Select.Item
-                              >
+                              <Select.Item value={option.value}>
+                                {option.title}
+                              </Select.Item>
                             {/each}
                           </Select.Content>
                         </Select.Root>
@@ -2999,9 +3007,9 @@
                           </Select.Trigger>
                           <Select.Content>
                             {#each apps as app (app.exec)}
-                              <Select.Item value={app.exec}
-                                >{app.name}</Select.Item
-                              >
+                              <Select.Item value={app.exec}>
+                                {app.name}
+                              </Select.Item>
                             {/each}
                           </Select.Content>
                         </Select.Root>
@@ -3057,7 +3065,7 @@
   </Tabs.Root>
 </main>
 
-=== 7741 src/lib/components/SnippetForm.svelte	svelte
+=== 7754 src/lib/components/SnippetForm.svelte	svelte
 <script lang="ts">
   import { invoke } from "@tauri-apps/api/core";
   import { Button } from "$lib/components/ui/button";
@@ -3251,21 +3259,22 @@
     <div class="grow overflow-y-auto p-6">
       <div class="mx-auto max-w-xl space-y-6">
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <label for="name" class="text-right text-sm text-gray-400">Name</label
-          >
+          <label for="name" class="text-right text-sm text-gray-400">
+            Name
+          </label>
           <Input id="name" placeholder="Snippet name" bind:value={name} />
         </div>
         <div class="grid grid-cols-[120px_1fr] items-center gap-4">
-          <label for="keyword" class="text-right text-sm text-gray-400"
-            >Keyword</label
-          >
+          <label for="keyword" class="text-right text-sm text-gray-400">
+            Keyword
+          </label>
           <Input id="keyword" placeholder="!email" bind:value={keyword} />
         </div>
 
         <div class="grid grid-cols-[120px_1fr] items-start gap-4">
-          <label for="content" class="pt-2 text-right text-sm text-gray-400"
-            >Snippet</label
-          >
+          <label for="content" class="pt-2 text-right text-sm text-gray-400">
+            Snippet
+          </label>
           <div class="grid w-full">
             <div
               aria-hidden="true"
@@ -3313,9 +3322,9 @@
       title="Create Snippet"
     >
       {#snippet primaryAction({ props })}
-        <Button {...props} onclick={handleSave}
-          ><Save class="mr-2 size-4" /> Create Snippet</Button
-        >
+        <Button {...props} onclick={handleSave}>
+          <Save class="mr-2 size-4" /> Create Snippet
+        </Button>
       {/snippet}
     </ActionBar>
   {/snippet}
@@ -3574,9 +3583,9 @@
           <div
             class="pointer-events-none absolute top-0 left-0 flex h-full w-full items-center pl-4"
           >
-            <span class="text-lg whitespace-pre text-transparent"
-              >{searchText || selectedQuicklinkForArgument.name}</span
-            >
+            <span class="text-lg whitespace-pre text-transparent">
+              {searchText || selectedQuicklinkForArgument.name}
+            </span>
             <span class="w-2"></span>
             <div class="pointer-events-auto">
               <div class="inline-grid items-center">
@@ -4152,7 +4161,7 @@
   {/snippet}
 </ActionBar>
 
-=== 2338 src/lib/components/extensions/ExtensionInstallConfirm.svelte	svelte
+=== 2349 src/lib/components/extensions/ExtensionInstallConfirm.svelte	svelte
 <script lang="ts">
   import * as AlertDialog from "$lib/components/ui/alert-dialog";
   import { Button } from "$lib/components/ui/button";
@@ -4182,8 +4191,9 @@
     <AlertDialog.Header>
       <div class="flex flex-col items-center gap-2 text-center">
         <TriangleAlert class="size-12 text-yellow-400" />
-        <AlertDialog.Title>Potential Incompatibility Detected</AlertDialog.Title
-        >
+        <AlertDialog.Title>
+          Potential Incompatibility Detected
+        </AlertDialog.Title>
       </div>
       <AlertDialog.Description class="text-center">
         This extension may not work as expected on your system. We recommend

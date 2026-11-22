@@ -98,7 +98,7 @@
 
 <Template options={$results} bind:search={$search} />
 
-=== 7736 src/lib/components/account/sendVerificationEmailModal.svelte	svelte
+=== 7797 src/lib/components/account/sendVerificationEmailModal.svelte	svelte
 <script lang="ts">
   import { invalidate, goto } from "$app/navigation";
   import { Submit, trackError, trackEvent } from "$lib/actions/analytics";
@@ -286,8 +286,9 @@
               variant="m-600"
               color="neutral-secondary"
               style="display: inline;"
-              >{email || get(user)?.email}</Typography.Text
             >
+              {email || get(user)?.email}
+            </Typography.Text>
           </Typography.Text>
 
           <Typography.Text>
@@ -296,10 +297,12 @@
               on:click={() => {
                 showUpdateEmail = true;
                 error = null;
-              }}>Update email address</Link
-            > or <Link variant="default" on:click={() => logout()}
-              >Switch account</Link
+              }}
             >
+              Update email address
+            </Link> or <Link variant="default" on:click={() => logout()}>
+              Switch account
+            </Link>
           </Typography.Text>
 
           {#if emailSent && resendTimer > 0}
@@ -357,8 +360,10 @@
           submit
           submissionLoader
           forceShowLoader={updating}
-          disabled={updating}>Update</Button
+          disabled={updating}
         >
+          Update
+        </Button>
       </svelte:fragment>
     </Modal>
   {/if}
@@ -625,7 +630,7 @@
   </HeaderAlert>
 {/if}
 
-=== 1357 src/lib/components/billing/emptyCardCloud.svelte	svelte
+=== 1366 src/lib/components/billing/emptyCardCloud.svelte	svelte
 <script lang="ts">
   import { Card } from "..";
   import type { Snippet } from "svelte";
@@ -655,8 +660,9 @@
     {@render children()}
   {:else}
     <Layout.Stack alignItems="center">
-      <Typography.Text variant="m-600">Upgrade to add {service}</Typography.Text
-      >
+      <Typography.Text variant="m-600">
+        Upgrade to add {service}
+      </Typography.Text>
       <Typography.Text>
         Upgrade to a {proPlanName} plan to add {service} to your organization
       </Typography.Text>
@@ -1716,7 +1722,7 @@
   </Layout.Stack>
 </Box>
 
-=== 994 src/lib/components/cardPlanLimit.svelte	svelte
+=== 1006 src/lib/components/cardPlanLimit.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/elements/forms";
   import { getChangePlanUrl } from "$lib/stores/billing";
@@ -1745,8 +1751,10 @@
         trackEvent(Click.OrganizationClickUpgrade, {
           source: "card_plan_limit",
         });
-      }}>Change plan</Button
+      }}
     >
+      Change plan
+    </Button>
   </div>
 </article>
 
@@ -2089,17 +2097,17 @@
                   alignItems="center"
                   style="padding-block-end: 0.5rem"
                 >
-                  <Button size="xs" icon extraCompact on:click={selectAll}
-                    >Select all</Button
-                  >
+                  <Button size="xs" icon extraCompact on:click={selectAll}>
+                    Select all
+                  </Button>
 
                   <div style:height="1rem">
                     <Divider vertical />
                   </div>
 
-                  <Button size="xs" icon extraCompact on:click={deselectAll}
-                    >Deselect all</Button
-                  >
+                  <Button size="xs" icon extraCompact on:click={deselectAll}>
+                    Deselect all
+                  </Button>
                 </Layout.Stack>
               {:else}
                 <div
@@ -2585,7 +2593,7 @@
   }
 </style>
 
-=== 10128 src/lib/components/csvImportBox.svelte	svelte
+=== 10153 src/lib/components/csvImportBox.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
   import { base } from "$app/paths";
@@ -2873,8 +2881,9 @@
                         <Link
                           style="color: inherit"
                           onclick={() => openDetails(value.errors)}
-                          >View details</Link
                         >
+                          View details
+                        </Link>
                       </Typography.Text>
                     </Layout.Stack>
                   {/if}
@@ -3772,7 +3781,7 @@
 
 <BottomSheet.Menu bind:isOpen={openBottomSheet} menu={filtersBottomSheet} />
 
-=== 9772 src/lib/components/filters/parsedTagList.svelte	svelte
+=== 9807 src/lib/components/filters/parsedTagList.svelte	svelte
 <script lang="ts">
   import {
     Icon,
@@ -3882,18 +3891,19 @@
                 <Menu>
                   <span>
                     {#if part.operator}
-                      <Typography.Text color="--fgcolor-neutral-secondary"
-                        >{part.text}</Typography.Text
-                      >
+                      <Typography.Text color="--fgcolor-neutral-secondary">
+                        {part.text}
+                      </Typography.Text>
                     {:else}
                       <Typography.Text
                         variant="m-500"
                         color="--fgcolor-neutral-secondary"
-                        >{part.text
+                      >
+                        {part.text
                           .split(" or ")
                           .map((t) => capitalize(t))
-                          .join(" or ")}</Typography.Text
-                      >
+                          .join(" or ")}
+                      </Typography.Text>
                     {/if}
                   </span>
                   <svelte:fragment slot="menu">
@@ -4038,8 +4048,10 @@
         queries.clearAll();
         queries.apply();
         parsedTags.set([]);
-      }}>Clear all</Button
+      }}
     >
+      Clear all
+    </Button>
   {/if}
 
   {#if filterCols?.length && !$isSmallViewport}
@@ -4137,7 +4149,7 @@
   </svelte:fragment>
 </Menu>
 
-=== 7459 src/lib/components/git/DirectoryItem.svelte	svelte
+=== 7498 src/lib/components/git/DirectoryItem.svelte	svelte
 <script lang="ts">
   import { getContext } from "svelte";
   import type { createTreeView } from "@melt-ui/svelte";
@@ -4286,15 +4298,18 @@
             class="title"
             style={containerWidth
               ? `max-width: ${containerWidth - 100 - level * 40}px`
-              : ""}>{title}</span
+              : ""}
           >
+            {title}
+          </span>
           {#if fileCount !== undefined}
             <div class="fileCount">
               <Typography.Text
                 variant="m-400"
                 color="--fgcolor-neutral-tertiary"
-                >({fileCount} files)</Typography.Text
               >
+                ({fileCount} files)
+              </Typography.Text>
             </div>
           {/if}
         </Layout.Stack>
@@ -5161,9 +5176,9 @@
         <EmptySearch hidePages hidePagination bind:search target="repositories">
           <svelte:fragment slot="actions">
             {#if search}
-              <Button secondary on:click={() => (search = "")}
-                >Clear search</Button
-              >
+              <Button secondary on:click={() => (search = "")}>
+                Clear search
+              </Button>
             {/if}
           </svelte:fragment>
         </EmptySearch>
@@ -6005,9 +6020,9 @@
 
       <Input.Helper state="default">
         <span>
-          Missing headers? Check the <Link variant="muted" {href} external
-            >docs</Link
-          > to see the supported data and how to log it.
+          Missing headers? Check the <Link variant="muted" {href} external>
+            docs
+          </Link> to see the supported data and how to log it.
         </span>
       </Input.Helper>
     {:else}
@@ -6154,9 +6169,9 @@
 
       <Input.Helper state="default">
         <span>
-          Missing headers? Check the <Link variant="muted" {href} external
-            >docs</Link
-          > to see the supported data and how to log it.
+          Missing headers? Check the <Link variant="muted" {href} external>
+            docs
+          </Link> to see the supported data and how to log it.
         </span>
       </Input.Helper>
     {:else}
@@ -6222,7 +6237,7 @@
   }
 </style>
 
-=== 6438 src/lib/components/multiSelectTable.svelte	svelte
+=== 6478 src/lib/components/multiSelectTable.svelte	svelte
 <script lang="ts" module>
   export type DeleteOperationState = {
     error?: Error;
@@ -6404,8 +6419,10 @@
           on:click={() => {
             onCancel?.();
             selectedRows = [];
-          }}>Cancel</Button
+          }}
         >
+          Cancel
+        </Button>
         <Button
           secondary
           on:click={async () => {
@@ -6414,8 +6431,10 @@
             } else {
               await consumeDeleteOperation();
             }
-          }}>Delete</Button
+          }}
         >
+          Delete
+        </Button>
       </svelte:fragment>
     </FloatingActionBar>
   {/if}
@@ -6980,7 +6999,7 @@
   }
 </style>
 
-=== 521 src/lib/components/roles/default.svelte	svelte
+=== 537 src/lib/components/roles/default.svelte	svelte
 <script lang="ts">
   import Base from "./base.svelte";
 </script>
@@ -6988,22 +7007,24 @@
 <Base>
   <div class="u-flex-vertical u-gap-8">
     <p>
-      By default, all members are assigned a <span class="u-bold"
-        >Developer</span
-      > role. You can change this at any time from your organization settings.
+      By default, all members are assigned a <span class="u-bold">
+        Developer
+      </span> role. You can change this at any time from your organization settings.
     </p>
     <p>
       <a
         class="link"
         target="_blank"
         rel="noopener noreferrer"
-        href="https://appwrite.io/docs/advanced/platform/roles">Learn more</a
-      > about roles.
+        href="https://appwrite.io/docs/advanced/platform/roles"
+      >
+        Learn more
+      </a> about roles.
     </p>
   </div>
 </Base>
 
-=== 558 src/lib/components/roles/roles.svelte	svelte
+=== 574 src/lib/components/roles/roles.svelte	svelte
 <script>
   import Base from "./base.svelte";
   const { isProjectSpecific = false } = $props();
@@ -7022,13 +7043,15 @@
         class="link"
         target="_blank"
         rel="noopener noreferrer"
-        href="https://appwrite.io/docs/advanced/platform/roles">Learn more</a
-      > about roles.
+        href="https://appwrite.io/docs/advanced/platform/roles"
+      >
+        Learn more
+      </a> about roles.
     </p>
   </div>
 </Base>
 
-=== 2656 src/lib/components/roles/upgrade.svelte	svelte
+=== 2731 src/lib/components/roles/upgrade.svelte	svelte
 <script>
   import Base from "./base.svelte";
   import { isCloud } from "$lib/system";
@@ -7043,16 +7066,17 @@
     {#if isCloud}
       {#if $organization?.billingPlanDetails.supportsOrganizationRoles}
         <Typography.Text variant="m-600">Roles</Typography.Text>
-        <Typography.Text
-          >Owner, Developer, Editor, Analyst and Billing.</Typography.Text
-        >
+        <Typography.Text>
+          Owner, Developer, Editor, Analyst and Billing.
+        </Typography.Text>
         <Typography.Text>
           <Link.Anchor
             target="_blank"
             rel="noopener noreferrer"
             href="https://appwrite.io/docs/advanced/platform/roles"
-            >Learn more</Link.Anchor
           >
+            Learn more
+          </Link.Anchor>
         </Typography.Text>
       {:else}
         <Layout.Stack direction="row" gap="s">
@@ -7072,14 +7096,17 @@
             text
             external
             href="https://appwrite.io/docs/advanced/platform/roles"
-            >Learn more</Button
           >
+            Learn more
+          </Button>
           <Button
             size="s"
             secondary
             external
-            href={getChangePlanUrl($organization?.$id)}>Upgrade plan</Button
+            href={getChangePlanUrl($organization?.$id)}
           >
+            Upgrade plan
+          </Button>
         </p>
       {/if}
     {:else}
@@ -7099,14 +7126,17 @@
           text
           external
           href="https://appwrite.io/docs/advanced/platform/roles"
-          >Learn more</Button
         >
+          Learn more
+        </Button>
         <Button
           size="s"
           secondary
           external
-          href={getChangePlanUrl($organization?.$id)}>Upgrade to Cloud</Button
+          href={getChangePlanUrl($organization?.$id)}
         >
+          Upgrade to Cloud
+        </Button>
       </p>
     {/if}
   </Layout.Stack>
@@ -7490,7 +7520,7 @@
   }
 </style>
 
-=== 4460 src/lib/components/variables/createVariableModal.svelte	svelte
+=== 4465 src/lib/components/variables/createVariableModal.svelte	svelte
 <script lang="ts">
   import { Button, InputPassword } from "$lib/elements/forms";
   import { Modal } from "$lib/components";
@@ -7590,8 +7620,9 @@
     Global variables can be set in <Link
       variant="muted"
       href={`${base}/project-${page.params.region}-${page.params.project}/settings`}
-      >project settings</Link
-    >.
+    >
+      project settings
+    </Link>.
   </span>
   <Layout.Stack gap="xxl">
     <Layout.Stack gap="xs">
@@ -7632,8 +7663,8 @@
           on:click={() =>
             (newVariables = [...newVariables, { key: "", value: "" }])}
         >
-          <Icon slot="start" icon={IconPlus} />Add variable</Button
-        >
+          <Icon slot="start" icon={IconPlus} />Add variable
+        </Button>
       </div>
     </Layout.Stack>
     <Selector.Checkbox
@@ -7650,7 +7681,7 @@
   </svelte:fragment>
 </Modal>
 
-=== 9874 src/lib/components/variables/environmentVariables.svelte	svelte
+=== 9894 src/lib/components/variables/environmentVariables.svelte	svelte
 <script lang="ts">
   import { Empty, Paginator } from "$lib/components";
   import { Button } from "$lib/elements/forms";
@@ -7814,9 +7845,9 @@
             >
               <svelte:fragment slot="header" let:root>
                 <Table.Header.Cell column="key" {root}>Key</Table.Header.Cell>
-                <Table.Header.Cell column="value" {root}
-                  >Value</Table.Header.Cell
-                >
+                <Table.Header.Cell column="value" {root}>
+                  Value
+                </Table.Header.Cell>
                 <Table.Header.Cell column="actions" {root}></Table.Header.Cell>
               </svelte:fragment>
               {#each paginatedItems as variable}
@@ -7898,8 +7929,10 @@
             trackEvent(Click.VariablesCreateClick, {
               source: createSource,
             });
-          }}>Create variables to get started</Empty
+          }}
         >
+          Create variables to get started
+        </Empty>
       {/if}
     </Layout.Stack>
   </Layout.Stack>
@@ -9119,7 +9152,7 @@
   }
 </style>
 
-=== 4027 src/lib/layout/createProject.svelte	svelte
+=== 4068 src/lib/layout/createProject.svelte	svelte
 <script lang="ts">
   import {
     Layout,
@@ -9207,8 +9240,9 @@
               on:click={() => {
                 showCustomId = true;
               }}
-              ><Icon icon={IconPencil} slot="start" size="s" /> Project ID</Tag
             >
+              <Icon icon={IconPencil} slot="start" size="s" /> Project ID
+            </Tag>
           </div>
         {/if}
         <CustomId bind:show={showCustomId} name="Project" isProject bind:id />
@@ -9224,9 +9258,9 @@
             options={filterRegions(regions)}
             label="Region"
           />
-          <Typography.Text
-            >Region cannot be changed after creation</Typography.Text
-          >
+          <Typography.Text>
+            Region cannot be changed after creation
+          </Typography.Text>
         </Layout.Stack>
       {/if}
 
@@ -9254,8 +9288,10 @@
               href={resolve("/(console)/organization-[organization]/billing", {
                 organization: page.params.organization,
               })}
-              external>Upgrade</Button
+              external
             >
+              Upgrade
+            </Button>
           </svelte:fragment>
         </Alert.Inline>
       {/if}
@@ -9953,9 +9989,9 @@
     <slot />
   </section>
   <footer>
-    <Typography.Eyebrow color="--fgcolor-neutral-secondary"
-      >POWERED BY</Typography.Eyebrow
-    >
+    <Typography.Eyebrow color="--fgcolor-neutral-secondary">
+      POWERED BY
+    </Typography.Eyebrow>
     {#if $app.themeInUse === "dark"}
       <img
         src="{base}/images/appwrite-logo-dark.svg"
@@ -10046,9 +10082,9 @@
     The deployment for pull request #{data.providerPullRequestId}
     is awaiting approval. When authorized, deployments will be started.
   </Typography.Title>
-  <Button on:click={approveDeployment} secondary disabled={loading}
-    >Approve Deployment</Button
-  >
+  <Button on:click={approveDeployment} secondary disabled={loading}>
+    Approve Deployment
+  </Button>
 </Layout.Stack>
 
 === 794 src/routes/(console)/(migration-wizard)/step2.svelte	svelte
@@ -10069,8 +10105,8 @@
       target="_blank"
       rel="noopener noreferrer"
     >
-      Learn about which resources are supported</a
-    >.
+      Learn about which resources are supported
+    </a>.
   </svelte:fragment>
   <ResourceForm
     {provider}
@@ -10127,9 +10163,9 @@
             {#if billingUrl}
               <Button href={billingUrl}>Go to billing</Button>
             {/if}
-            <Button secondary href="{base}/account/organizations"
-              >Change organization</Button
-            >
+            <Button secondary href="{base}/account/organizations">
+              Change organization
+            </Button>
           </Layout.Stack>
         </div>
       </Layout.Stack>
@@ -10138,11 +10174,11 @@
 {:else}
   <Container>
     <div>
-      <Typography.Title size="xl"
-        >{"status" in page.error
+      <Typography.Title size="xl">
+        {"status" in page.error
           ? page.error.status || "Invalid Argument"
-          : "Invalid Argument"}</Typography.Title
-      >
+          : "Invalid Argument"}
+      </Typography.Title>
       <Typography.Title>{page.error.message}</Typography.Title>
     </div>
     <div>
@@ -10702,9 +10738,9 @@
 <Form onSubmit={updatePassword}>
   <CardGrid>
     <svelte:fragment slot="title">Password</svelte:fragment>
-    Forgot your password? <Link.Anchor href={`${base}/recover`}
-      >Recover your password</Link.Anchor
-    >
+    Forgot your password? <Link.Anchor href={`${base}/recover`}>
+      Recover your password
+    </Link.Anchor>
 
     <svelte:fragment slot="aside">
       <InputPassword
@@ -10729,7 +10765,7 @@
   </CardGrid>
 </Form>
 
-=== 10463 src/routes/(console)/create-organization/+page.svelte	svelte
+=== 10491 src/routes/(console)/create-organization/+page.svelte	svelte
 <script lang="ts">
   import {
     afterNavigate,
@@ -10996,8 +11032,10 @@
             <Link.Anchor
               href="https://appwrite.io/pricing"
               target="_blank"
-              rel="noopener noreferrer">pricing page</Link.Anchor
-            >.
+              rel="noopener noreferrer"
+            >
+              pricing page
+            </Link.Anchor>.
           </Typography.Text>
 
           <PlanSelection
@@ -11059,9 +11097,9 @@
     {/if}
   </svelte:fragment>
   <svelte:fragment slot="footer">
-    <Button fullWidthMobile secondary on:click={() => (showExitModal = true)}
-      >Cancel</Button
-    >
+    <Button fullWidthMobile secondary on:click={() => (showExitModal = true)}>
+      Cancel
+    </Button>
     <Button
       fullWidthMobile
       on:click={() => formComponent.triggerSubmit()}
@@ -11348,9 +11386,9 @@
         <svelte:fragment slot="header" let:root>
           <Table.Header.Cell column="cc" {root}>Credit card</Table.Header.Cell>
           <Table.Header.Cell column="name" {root}>Name</Table.Header.Cell>
-          <Table.Header.Cell column="expiry" {root}
-            >Expiration</Table.Header.Cell
-          >
+          <Table.Header.Cell column="expiry" {root}>
+            Expiration
+          </Table.Header.Cell>
           <Table.Header.Cell column="status" {root} />
           <Table.Header.Cell column="actions" {root} />
         </svelte:fragment>
@@ -12126,19 +12164,19 @@
 {#if $organization}
   {#key aggregationKey}
     <EstimatedCard>
-      <Typography.Title size="s" gap="s"
-        >{currentPlan.name} plan</Typography.Title
-      >
+      <Typography.Title size="s" gap="s">
+        {currentPlan.name} plan
+      </Typography.Title>
 
       {#if totalAmount > 0}
         <Typography.Text color="--fgcolor-neutral-secondary">
-          Next payment of <span class="text --fgcolor-neutral-primary u-bold"
-            >{formatCurrency(totalAmount)}</span
-          >
+          Next payment of <span class="text --fgcolor-neutral-primary u-bold">
+            {formatCurrency(totalAmount)}
+          </span>
           will occur on
-          <span class="text --fgcolor-neutral-primary u-bold"
-            >{toLocaleDate($organization?.billingNextInvoiceDate)}</span
-          >.
+          <span class="text --fgcolor-neutral-primary u-bold">
+            {toLocaleDate($organization?.billingNextInvoiceDate)}
+          </span>.
         </Typography.Text>
       {/if}
       <Divider />
@@ -12317,9 +12355,9 @@
                 >
                   <Icon icon={IconTag} color="--fgcolor-success" size="s" />
 
-                  <Typography.Text color="--fgcolor-neutral-primary"
-                    >Credits</Typography.Text
-                  >
+                  <Typography.Text color="--fgcolor-neutral-primary">
+                    Credits
+                  </Typography.Text>
                 </Layout.Stack>
               </AccordionTable.Cell>
               <AccordionTable.Cell {root} column="usage">
@@ -12815,9 +12853,9 @@
     </svelte:fragment>
 
     <svelte:fragment slot="actions">
-      <Button disabled={$organization?.billingTaxId === taxId} submit
-        >Update</Button
-      >
+      <Button disabled={$organization?.billingTaxId === taxId} submit>
+        Update
+      </Button>
     </svelte:fragment>
   </CardGrid>
 </Form>
@@ -12991,7 +13029,7 @@
   </svelte:fragment>
 </Modal>
 
-=== 2843 src/routes/(console)/organization-[organization]/createProjectCloud.svelte	svelte
+=== 2855 src/routes/(console)/organization-[organization]/createProjectCloud.svelte	svelte
 <script lang="ts">
   import { resolve } from "$app/paths";
   import { onDestroy } from "svelte";
@@ -13101,12 +13139,14 @@
         projects &&
         projects >= currentPlan?.projects}
       forceShowLoader={showSubmissionLoader}
-      submissionLoader={showSubmissionLoader}>Create</Button
+      submissionLoader={showSubmissionLoader}
     >
+      Create
+    </Button>
   </svelte:fragment>
 </Modal>
 
-=== 8301 src/routes/(console)/organization-[organization]/domains/+page.svelte	svelte
+=== 8345 src/routes/(console)/organization-[organization]/domains/+page.svelte	svelte
 <script lang="ts">
   import { base } from "$app/paths";
   import { page } from "$app/state";
@@ -13304,8 +13344,10 @@
           on:click={() => {
             queries.clearAll();
             queries.apply();
-          }}>Clear filters</Button
+          }}
         >
+          Clear filters
+        </Button>
       </svelte:fragment>
     </EmptySearch>
   {:else}
@@ -13324,8 +13366,10 @@
             text
             event="empty_documentation"
             size="s"
-            ariaLabel="add domain">Documentation</Button
+            ariaLabel="add domain"
           >
+            Documentation
+          </Button>
 
           <Button
             secondary
@@ -13577,7 +13621,7 @@
   <DeleteDomain domain={data.domain} />
 </Container>
 
-=== 3336 src/routes/(console)/organization-[organization]/domains/retryDomainModal.svelte	svelte
+=== 3341 src/routes/(console)/organization-[organization]/domains/retryDomainModal.svelte	svelte
 <script lang="ts">
   import { Modal } from "$lib/components";
   import { Button } from "$lib/elements/forms";
@@ -13651,9 +13695,9 @@
 <Modal title="Retry verification" bind:show onSubmit={retryDomain} bind:error>
   <Layout.Stack gap="s">
     <Layout.Stack gap="s" direction="row" alignItems="center">
-      <Typography.Text variant="l-500" color="--fgcolor-neutral-primary"
-        >{selectedDomain.domain}</Typography.Text
-      >
+      <Typography.Text variant="l-500" color="--fgcolor-neutral-primary">
+        {selectedDomain.domain}
+      </Typography.Text>
     </Layout.Stack>
     <Typography.Text variant="m-400">
       Add the following nameservers on your DNS provider. Note that DNS changes
@@ -13680,8 +13724,9 @@
       variant="muted"
       external
       href="https://appwrite.io/docs/advanced/platform/custom-domains"
-      >here</Link
-    >.
+    >
+      here
+    </Link>.
   </Input.Helper>
   <svelte:fragment slot="footer">
     <Button text on:click={() => (show = false)}>Cancel</Button>
@@ -14557,7 +14602,7 @@
 
 {@render children?.()}
 
-=== 8490 src/routes/(console)/project-[region]-[project]/auth/+page.svelte	svelte
+=== 8497 src/routes/(console)/project-[region]-[project]/auth/+page.svelte	svelte
 <script lang="ts" module>
   export let showCreateUser = writable(false);
 </script>
@@ -14800,8 +14845,9 @@
         size="s"
         secondary
         href={`${base}/project-${page.params.region}-${page.params.project}/auth`}
-        >Clear Search</Button
       >
+        Clear Search
+      </Button>
     </EmptySearch>
   {:else}
     <Empty
@@ -14889,9 +14935,9 @@
   />
   {#if !showCustomId}
     <div>
-      <Tag size="s" on:click={() => (showCustomId = !showCustomId)}
-        ><Icon icon={IconPencil} /> Team ID</Tag
-      >
+      <Tag size="s" on:click={() => (showCustomId = !showCustomId)}>
+        <Icon icon={IconPencil} /> Team ID
+      </Tag>
     </div>
   {:else}
     <CustomId autofocus bind:show={showCustomId} name="Team" bind:id />
@@ -14950,9 +14996,9 @@
 
 <Cover>
   <svelte:fragment slot="header">
-    <Typography.Title color="--fgcolor-neutral-primary" size="xl"
-      >Auth</Typography.Title
-    >
+    <Typography.Title color="--fgcolor-neutral-primary" size="xl">
+      Auth
+    </Typography.Title>
   </svelte:fragment>
   <Tabs>
     {#each tabs as tab}
@@ -15030,7 +15076,7 @@
   />
 </Container>
 
-=== 6992 src/routes/(console)/project-[region]-[project]/auth/security/passwordPolicies.svelte	svelte
+=== 7005 src/routes/(console)/project-[region]-[project]/auth/security/passwordPolicies.svelte	svelte
 <script lang="ts">
   import { invalidate } from "$app/navigation";
   import { Submit, trackError, trackEvent } from "$lib/actions/analytics";
@@ -15199,8 +15245,9 @@
               rel="noopener noreferrer"
               class="link"
               href="https://github.com/danielmiessler/SecLists/blob/master/Passwords/Common-Credentials/10k-most-common.txt"
-              >10k most commonly used passwords.</Link.Anchor
             >
+              10k most commonly used passwords.
+            </Link.Anchor>
           </Typography.Text>
         </svelte:fragment>
       </InputSwitch>
@@ -15213,11 +15260,11 @@
         <svelte:fragment slot="description">
           <Typography.Text>
             Do not allow passwords that contain any part of the user's personal
-            data. This includes the user's <Typography.Code
-              >name</Typography.Code
-            >, <Typography.Code>email</Typography.Code>, or <Typography.Code
-              >phone</Typography.Code
-            >.
+            data. This includes the user's <Typography.Code>
+              name
+            </Typography.Code>, <Typography.Code>email</Typography.Code>, or <Typography.Code>
+              phone
+            </Typography.Code>.
           </Typography.Text>
         </svelte:fragment>
       </InputSwitch>
@@ -15332,7 +15379,7 @@
   </CardGrid>
 </Form>
 
-=== 17604 src/routes/(console)/project-[region]-[project]/auth/security/updateMockNumbers.svelte	svelte
+=== 17628 src/routes/(console)/project-[region]-[project]/auth/security/updateMockNumbers.svelte	svelte
 <script lang="ts">
   import {
     Click,
@@ -15648,8 +15695,8 @@
     target="_blank"
     rel="noopener noreferrer"
   >
-    Learn more</Link.Anchor
-  >
+    Learn more
+  </Link.Anchor>
   <svelte:fragment slot="aside">
     {#if isComponentDisabled}
       <EmptyCardImageCloud responsive source="email_signature_card">
@@ -15707,8 +15754,10 @@
                 from: "button",
                 source,
               });
-            }}>{cta}</Button
+            }}
           >
+            {cta}
+          </Button>
         </svelte:fragment>
       </EmptyCardImageCloud>
     {:else if isLoadingMockNumbers}
@@ -15888,9 +15937,9 @@
 >
   {#if getDeleteTargetRow()}
     <p>
-      Are you sure you want to delete <b
-        >{getDeleteTargetRow()?.initialNumber}</b
-      >?
+      Are you sure you want to delete <b>
+        {getDeleteTargetRow()?.initialNumber}
+      </b>?
     </p>
   {/if}
 </Confirm>
@@ -15944,9 +15993,9 @@
 <Form onSubmit={updateSessionsLimit}>
   <CardGrid>
     <svelte:fragment slot="title">Sessions limit</svelte:fragment>
-    <Typography.Text
-      >Maximum number of active sessions allowed per user</Typography.Text
-    >
+    <Typography.Text>
+      Maximum number of active sessions allowed per user
+    </Typography.Text>
 
     <svelte:fragment slot="aside">
       <InputNumber
@@ -15964,7 +16013,7 @@
   </CardGrid>
 </Form>
 
-=== 12277 src/routes/(console)/project-[region]-[project]/auth/settings/+page.svelte	svelte
+=== 12341 src/routes/(console)/project-[region]-[project]/auth/settings/+page.svelte	svelte
 <script lang="ts">
   import { invalidate } from "$app/navigation";
   import { Submit, trackError, trackEvent } from "$lib/actions/analytics";
@@ -16164,8 +16213,10 @@
                   showUpdateAuthMethodsDialog = true;
                   updateAuthMethodsEnabledMode = true;
                 }}
-                disabled={shouldDisableEnableAllButton}>Enable all</Button
+                disabled={shouldDisableEnableAllButton}
               >
+                Enable all
+              </Button>
               <span style:height="20px">
                 <Divider vertical />
               </span>
@@ -16175,8 +16226,10 @@
                   showUpdateAuthMethodsDialog = true;
                   updateAuthMethodsEnabledMode = false;
                 }}
-                disabled={shouldDisableDisableAllButton}>Disable all</Button
+                disabled={shouldDisableDisableAllButton}
               >
+                Disable all
+              </Button>
             </Layout.Stack>
             <Layout.Stack gap="l">
               <Divider class="auth-methods-divider" />
@@ -16260,9 +16313,9 @@
           </ul>
         {:else}
           <div class="oauth-providers-empty">
-            <Typography.Text
-              >No OAuth2 providers match your search.</Typography.Text
-            >
+            <Typography.Text>
+              No OAuth2 providers match your search.
+            </Typography.Text>
           </div>
         {/if}
       </Layout.Stack>
@@ -16288,9 +16341,9 @@
   <p class="text" data-private>{dialogDetails.message}</p>
   <svelte:fragment slot="footer">
     <Layout.Stack direction="row" gap="s" justifyContent="flex-end">
-      <Button text on:click={() => (showUpdateAuthMethodsDialog = false)}
-        >Cancel</Button
-      >
+      <Button text on:click={() => (showUpdateAuthMethodsDialog = false)}>
+        Cancel
+      </Button>
 
       <Button
         secondary
@@ -16778,9 +16831,9 @@
       >
         Documentation
       </Button>
-      <Button secondary on:click={() => (showCreate = true)}
-        >Create membership</Button
-      >
+      <Button secondary on:click={() => (showCreate = true)}>
+        Create membership
+      </Button>
     </EmptySearch>
   {:else}
     <Empty
@@ -16859,9 +16912,9 @@
     </svelte:fragment>
 
     <svelte:fragment slot="actions">
-      <Button submit disabled={teamName === $team.name || !teamName}
-        >Update</Button
-      >
+      <Button submit disabled={teamName === $team.name || !teamName}>
+        Update
+      </Button>
     </svelte:fragment>
   </CardGrid>
 </Form>
@@ -17040,7 +17093,7 @@
   {/if}
 </Container>
 
-=== 6688 src/routes/(console)/project-[region]-[project]/auth/templates/emailTemplate.svelte	svelte
+=== 6701 src/routes/(console)/project-[region]-[project]/auth/templates/emailTemplate.svelte	svelte
 <script lang="ts">
   import {
     Button,
@@ -17216,8 +17269,9 @@
             Click to copy variables for the fields below. Learn more <a
               class="link"
               href="https://appwrite.io/docs/advanced/platform/message-templates"
-              >here</a
-            >.
+            >
+              here
+            </a>.
           </p>
 
           <Layout.Stack direction="row" wrap="wrap">
@@ -17799,9 +17853,9 @@
           let:root
         >
           <svelte:fragment slot="header" let:root>
-            <Table.Header.Cell column="type" {root}
-              >Authenticator</Table.Header.Cell
-            >
+            <Table.Header.Cell column="type" {root}>
+              Authenticator
+            </Table.Header.Cell>
             <Table.Header.Cell column="actions" {root} />
           </svelte:fragment>
           <Table.Row.Base {root}>
@@ -18054,7 +18108,7 @@
 
 {@render children()}
 
-=== 4781 src/routes/(console)/project-[region]-[project]/databases/+page.svelte	svelte
+=== 4797 src/routes/(console)/project-[region]-[project]/databases/+page.svelte	svelte
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
@@ -18173,8 +18227,10 @@
           page.params,
         )}
         size="s"
-        secondary>Clear Search</Button
+        secondary
       >
+        Clear Search
+      </Button>
     </EmptySearch>
   {:else if isMultiDb}
     <EmptyDatabaseCloud
@@ -18551,9 +18607,9 @@
     <Alert.Inline title="This database won't be backed up" status="warning">
       Upgrade your plan to ensure your data stays safe and backed up.
       <svelte:fragment slot="actions">
-        <Button compact href={getChangePlanUrl(data?.project?.teamId)}
-          >Upgrade plan</Button
-        >
+        <Button compact href={getChangePlanUrl(data?.project?.teamId)}>
+          Upgrade plan
+        </Button>
       </svelte:fragment>
     </Alert.Inline>
   {/if}
@@ -18689,7 +18745,7 @@
 
 <Breadcrumbs {breadcrumbs} />
 
-=== 4225 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/create.svelte	svelte
+=== 4237 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/create.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { trackEvent, trackError } from "$lib/actions/analytics";
@@ -18864,15 +18920,17 @@
   {/if}
 
   <svelte:fragment slot="footer">
-    <Button secondary disabled={creatingEntity} on:click={() => (show = false)}
-      >Cancel</Button
-    >
+    <Button secondary disabled={creatingEntity} on:click={() => (show = false)}>
+      Cancel
+    </Button>
     <Button
       submit
       disabled={creatingEntity}
       submissionLoader
-      forceShowLoader={creatingEntity}>Create</Button
+      forceShowLoader={creatingEntity}
     >
+      Create
+    </Button>
   </svelte:fragment>
 </Modal>
 
@@ -19587,7 +19645,7 @@
   {/each}
 {/if}
 
-=== 13251 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/view.svelte	svelte
+=== 13387 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/view.svelte	svelte
 <script lang="ts">
   import { Container } from "$lib/layout";
   import Delete from "./delete.svelte";
@@ -19828,20 +19886,20 @@
           on:columnsResize={(resize) => saveColumnsWidth(resize.detail)}
         >
           <svelte:fragment slot="header" let:root>
-            <Spreadsheet.Header.Cell column="key" {root}
-              >Key</Spreadsheet.Header.Cell
-            >
-            <Spreadsheet.Header.Cell column="type" {root}
-              >Type</Spreadsheet.Header.Cell
-            >
-            <Spreadsheet.Header.Cell column="columns" {root}
-              >{terminology.field.title.singular}</Spreadsheet.Header.Cell
-            >
+            <Spreadsheet.Header.Cell column="key" {root}>
+              Key
+            </Spreadsheet.Header.Cell>
+            <Spreadsheet.Header.Cell column="type" {root}>
+              Type
+            </Spreadsheet.Header.Cell>
+            <Spreadsheet.Header.Cell column="columns" {root}>
+              {terminology.field.title.singular}
+            </Spreadsheet.Header.Cell>
             <!--<Spreadsheet.Header.Cell column="orders" {root}
                             >Orders</Spreadsheet.Header.Cell>-->
-            <Spreadsheet.Header.Cell column="lengths" {root}
-              >Lengths</Spreadsheet.Header.Cell
-            >
+            <Spreadsheet.Header.Cell column="lengths" {root}>
+              Lengths
+            </Spreadsheet.Header.Cell>
             <Spreadsheet.Header.Cell column="actions" {root} />
           </svelte:fragment>
 
@@ -19864,15 +19922,17 @@
                           e.preventDefault();
                           error = index.error;
                           showFailed = true;
-                        }}>Details</Link.Button
+                        }}
                       >
+                        Details
+                      </Link.Button>
                     {/if}
                   {/if}
                 </Layout.Stack>
               </Spreadsheet.Cell>
-              <Spreadsheet.Cell column="type" {root} isEditable={false}
-                >{index.type}</Spreadsheet.Cell
-              >
+              <Spreadsheet.Cell column="type" {root} isEditable={false}>
+                {index.type}
+              </Spreadsheet.Cell>
               <Spreadsheet.Cell column="columns" {root} isEditable={false}>
                 {index.fields.join(", ")}
               </Spreadsheet.Cell>
@@ -19899,8 +19959,10 @@
                         toggle();
                         selectedIndex = index;
                         showOverview = true;
-                      }}>Overview</ActionMenu.Item.Button
+                      }}
                     >
+                      Overview
+                    </ActionMenu.Item.Button>
 
                     <div style:padding-block="0.25rem">
                       <Divider />
@@ -19914,8 +19976,10 @@
                         showDelete = true;
                         selectedIndex = index;
                         trackEvent(Click.DatabaseIndexDelete);
-                      }}>Delete</ActionMenu.Item.Button
+                      }}
                     >
+                      Delete
+                    </ActionMenu.Item.Button>
                   </ActionMenu.Root>
                 </Popover>
               </Spreadsheet.Cell>
@@ -20290,7 +20354,7 @@
   }
 </style>
 
-=== 5987 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sidesheet.svelte	svelte
+=== 6023 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sidesheet.svelte	svelte
 <script lang="ts">
   import type { Snippet } from "svelte";
   import { Copy } from "$lib/components";
@@ -20457,8 +20521,10 @@
                     } else {
                       show = false;
                     }
-                  }}>{cancel?.text ?? "Cancel"}</Button
+                  }}
                 >
+                  {cancel?.text ?? "Cancel"}
+                </Button>
 
                 <Button
                   size="s"
@@ -20823,9 +20889,9 @@
     </svelte:fragment>
 
     <svelte:fragment slot="actions">
-      <Button disabled={entityName === entity.name || !entityName} submit
-        >Update</Button
-      >
+      <Button disabled={entityName === entity.name || !entityName} submit>
+        Update
+      </Button>
     </svelte:fragment>
   </CardGrid>
 </Form>
@@ -20902,9 +20968,9 @@
     {/if}
   </svelte:fragment>
   <svelte:fragment slot="actions">
-    <Button disabled={arePermsDisabled} on:click={updatePermissions}
-      >Update</Button
-    >
+    <Button disabled={arePermsDisabled} on:click={updatePermissions}>
+      Update
+    </Button>
   </svelte:fragment>
 </CardGrid>
 
@@ -20970,9 +21036,9 @@
   </svelte:fragment>
 
   <svelte:fragment slot="actions">
-    <Button disabled={enabled === entity.enabled} on:click={updateStatus}
-      >Update</Button
-    >
+    <Button disabled={enabled === entity.enabled} on:click={updateStatus}>
+      Update
+    </Button>
   </svelte:fragment>
 </CardGrid>
 
@@ -21266,9 +21332,9 @@
         <IconAI />
 
         <Layout.Stack direction="column" gap="none">
-          <Typography.Text variant="m-500" color="--fgcolor-neutral-primary"
-            >{title}</Typography.Text
-          >
+          <Typography.Text variant="m-500" color="--fgcolor-neutral-primary">
+            {title}
+          </Typography.Text>
 
           <Typography.Text color="--fgcolor-neutral-secondary">
             {subtitle}
@@ -21447,7 +21513,7 @@
   </SideSheet>
 {/if}
 
-=== 7224 src/routes/(console)/project-[region]-[project]/databases/database-[database]/+layout.svelte	svelte
+=== 7244 src/routes/(console)/project-[region]-[project]/databases/database-[database]/+layout.svelte	svelte
 <script lang="ts">
   import { goto, invalidate } from "$app/navigation";
   import { base } from "$app/paths";
@@ -21686,14 +21752,16 @@
             $randomDataModalState.show = false;
             await $randomDataModalState.onSubmit?.();
             resetSampleFieldsConfig();
-          }}>Create</Button
+          }}
         >
+          Create
+        </Button>
       </Layout.Stack>
     </svelte:fragment>
   </Modal>
 {/if}
 
-=== 4332 src/routes/(console)/project-[region]-[project]/databases/database-[database]/+page.svelte	svelte
+=== 4361 src/routes/(console)/project-[region]-[project]/databases/database-[database]/+page.svelte	svelte
 <script lang="ts">
   import {
     EmptySearch,
@@ -21799,8 +21867,10 @@
         href={resolveRoute(
           "/(console)/project-[region]-[project]/databases/database-[database]",
           page.params,
-        )}>Clear Search</Button
+        )}
       >
+        Clear Search
+      </Button>
     </EmptySearch>
   {:else}
     <Card.Base padding="none">
@@ -21818,8 +21888,9 @@
               text
               event="empty_documentation"
               ariaLabel="read {entityLower.singular} documentation"
-              >Documentation</Button
             >
+              Documentation
+            </Button>
 
             {#if $canWriteTables}
               <Button secondary on:click={() => ($showCreateEntity = true)}>
@@ -21999,7 +22070,7 @@
   }
 </style>
 
-=== 13122 src/routes/(console)/project-[region]-[project]/databases/database-[database]/backups/table.svelte	svelte
+=== 13147 src/routes/(console)/project-[region]-[project]/databases/database-[database]/backups/table.svelte	svelte
 <script lang="ts">
   import {
     Card,
@@ -22232,9 +22303,9 @@
 >
   {#snippet header(root)}
     {#each $columns as column}
-      <Table.Header.Cell column={column.id} {root}
-        >{column.title}</Table.Header.Cell
-      >
+      <Table.Header.Cell column={column.id} {root}>
+        {column.title}
+      </Table.Header.Cell>
     {/each}
   {/snippet}
 
@@ -22272,11 +22343,11 @@
               <span>
                 {policy?.name || "Manual"}
               </span>
-              <span slot="tooltip"
-                >{policy
+              <span slot="tooltip">
+                {policy
                   ? `Retained until: ${formattedRetainedUntil}`
-                  : `Retained forever`}</span
-              >
+                  : `Retained forever`}
+              </span>
             </Tooltip>
           </div>
         </Table.Cell>
@@ -22346,13 +22417,14 @@
   }}
 >
   <Typography.Text>
-    Are you sure you want to delete the <b
-      >{getCleanBackupName(selectedBackup)}</b
-    > backup?
+    Are you sure you want to delete the <b>
+      {getCleanBackupName(selectedBackup)}
+    </b> backup?
   </Typography.Text>
 
-  <Typography.Text variant="m-500">This action is irreversible.</Typography.Text
-  >
+  <Typography.Text variant="m-500">
+    This action is irreversible.
+  </Typography.Text>
 </Confirm>
 
 <Modal title="Restore backup" bind:show={showRestore} onSubmit={restoreBackup}>
@@ -22412,8 +22484,10 @@
           size="s"
           on:click={() => {
             showCustomId = true;
-          }}><Icon icon={IconPencil} /> Database ID</Tag
+          }}
         >
+          <Icon icon={IconPencil} /> Database ID
+        </Tag>
       {:else}
         <RestoreModal
           autofocus={false}
@@ -22484,7 +22558,7 @@
 
 <Breadcrumbs {breadcrumbs} />
 
-=== 2461 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/embeddingModal.svelte	svelte
+=== 2473 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/embeddingModal.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { Modal } from "$lib/components";
@@ -22560,21 +22634,23 @@
 
   <Layout.Stack direction="row" gap="xs" alignItems="center">
     <Icon icon={IconInfo} size="s" />
-    <span class="u-color-text-offline"
-      >Embeddings are generated using Embedding Gemma model</span
-    >
+    <span class="u-color-text-offline">
+      Embeddings are generated using Embedding Gemma model
+    </span>
   </Layout.Stack>
 
   <svelte:fragment slot="footer">
-    <Button secondary disabled={generating} on:click={() => (show = false)}
-      >Cancel</Button
-    >
+    <Button secondary disabled={generating} on:click={() => (show = false)}>
+      Cancel
+    </Button>
     <Button
       submit
       disabled={generating || !content.trim()}
       submissionLoader
-      forceShowLoader={generating}>Generate</Button
+      forceShowLoader={generating}
     >
+      Generate
+    </Button>
   </svelte:fragment>
 </Modal>
 
@@ -22832,9 +22908,9 @@
           {#if state === "saving"}
             <Spinner size="m" />
 
-            <Typography.Caption variant="500"
-              >Saving changes...</Typography.Caption
-            >
+            <Typography.Caption variant="500">
+              Saving changes...
+            </Typography.Caption>
           {:else}
             <CheckCircleDuotone />
 
@@ -22888,7 +22964,7 @@
   }
 </style>
 
-=== 15793 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/+page.svelte	svelte
+=== 15828 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/+page.svelte	svelte
 <script lang="ts">
   import { Filters, hasPageQueries, queries } from "$lib/components/filters";
   import ViewSelector from "$lib/components/viewSelector.svelte";
@@ -23373,16 +23449,22 @@
   />
 
   <svelte:fragment slot="footer">
-    <Button size="s" secondary on:click={() => (showCustomColumnsModal = false)}
-      >Cancel</Button
+    <Button
+      size="s"
+      secondary
+      on:click={() => (showCustomColumnsModal = false)}
     >
+      Cancel
+    </Button>
 
     <Button
       size="s"
       submit
       submissionLoader
-      disabled={columnDisplayNameInput?.hasChanged()}>Update</Button
+      disabled={columnDisplayNameInput?.hasChanged()}
     >
+      Update
+    </Button>
   </svelte:fragment>
 </Modal>
 
@@ -24173,9 +24255,9 @@
     </svelte:fragment>
 
     <svelte:fragment slot="actions">
-      <Button disabled={columnDisplayNameInput?.hasChanged()} submit
-        >Update</Button
-      >
+      <Button disabled={columnDisplayNameInput?.hasChanged()} submit>
+        Update
+      </Button>
     </svelte:fragment>
   </CardGrid>
 </Form>
@@ -24426,8 +24508,8 @@
       <svelte:fragment slot="status">
         {#if !table.enabled}
           <Badge variant="secondary" content="disabled" />
-        {/if}</svelte:fragment
-      >
+        {/if}
+      </svelte:fragment>
 
       <Id value={table.$id}>{table.$id}</Id>
     </GridItem1>
@@ -24508,7 +24590,7 @@
   </Tabs>
 </Cover>
 
-=== 4823 src/routes/(console)/project-[region]-[project]/databases/database-[database]/settings/+page.svelte	svelte
+=== 4854 src/routes/(console)/project-[region]-[project]/databases/database-[database]/settings/+page.svelte	svelte
 <script lang="ts">
   import { invalidate } from "$app/navigation";
   import { page } from "$app/state";
@@ -24627,7 +24709,8 @@
           <Button
             disabled={databaseName === database.name || !databaseName}
             submit
-            >Update
+          >
+            Update
           </Button>
         </svelte:fragment>
       </CardGrid>
@@ -24662,8 +24745,10 @@
           on:click={() => {
             showDelete = true;
             trackEvent(Click.DatabaseDatabaseDelete);
-          }}>Delete</Button
+          }}
         >
+          Delete
+        </Button>
       </svelte:fragment>
     </CardGrid>
   </Container>
@@ -24944,9 +25029,9 @@
     </p>
   {:else}
     <p>
-      Are you sure you want to delete <b data-private
-        >{selectedKeys.join(", ")}</b
-      >
+      Are you sure you want to delete <b data-private>
+        {selectedKeys.join(", ")}
+      </b>
       from
       <b data-private>{table.name}</b>?
     </p>
@@ -24964,7 +25049,7 @@
   {/if}
 </Confirm>
 
-=== 3182 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/encryptCheckbox.svelte	svelte
+=== 3210 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/encryptCheckbox.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { isCloud } from "$lib/system";
@@ -25049,8 +25134,10 @@
         <ActionMenu.Root width="180px" slot="tooltip">
           <Typography.Text variant="m-500">
             Available on Pro plan. <Link.Anchor
-              href={getChangePlanUrl(organizationId)}>Upgrade</Link.Anchor
+              href={getChangePlanUrl(organizationId)}
             >
+              Upgrade
+            </Link.Anchor>
             to enable encrypted columns.
           </Typography.Text>
         </ActionMenu.Root>
@@ -25658,7 +25745,7 @@
   </svelte:fragment>
 </Tooltip>
 
-=== 7313 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/createColumn.svelte	svelte
+=== 7333 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/createColumn.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { invalidate } from "$app/navigation";
@@ -25879,8 +25966,10 @@
           on:click={() => {
             $showCreateColumnSheet.show = false;
             $showColumnsSuggestionsModal = true;
-          }}>suggest columns</Link.Button
-        > based on your data
+          }}
+        >
+          suggest columns
+        </Link.Button> based on your data
       </Alert.Inline>
     </div>
   {/if}
@@ -27136,9 +27225,9 @@
   >
     <Layout.Stack direction="column" alignItems="flex-start" slot="end">
       {#if array || isSpatialType(column)}
-        <Link.Button on:click size="s" variant="quiet"
-          >Advanced edit</Link.Button
-        >
+        <Link.Button on:click size="s" variant="quiet">
+          Advanced edit
+        </Link.Button>
       {/if}
     </Layout.Stack>
   </InputTextarea>
@@ -27390,7 +27479,7 @@
   </div>
 {/if}
 
-=== 2969 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/editPermissions.svelte	svelte
+=== 2977 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/editPermissions.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { sdk } from "$lib/stores/sdk";
@@ -27468,8 +27557,10 @@
     href="https://appwrite.io/docs/products/databases/permissions"
     target="_blank"
     rel="noopener noreferrer"
-    class="link">Learn more about database permissions</a
-  >.
+    class="link"
+  >
+    Learn more about database permissions
+  </a>.
 </p>
 
 {#if table.recordSecurity}
@@ -27480,9 +27571,9 @@
       dismissible
       on:dismiss={() => (showPermissionAlert = false)}
     >
-      Users will be able to access this row if they have been granted <b
-        >either row or table permissions.</b
-      >
+      Users will be able to access this row if they have been granted <b>
+        either row or table permissions.
+      </b>
     </Alert.Inline>
   {/if}
   {#if permissions}
@@ -28415,9 +28506,9 @@
     >
       <Typography.Title>Create your first database</Typography.Title>
 
-      <Typography.Text variant="l-400"
-        >Store, organize, and manage your app data</Typography.Text
-      >
+      <Typography.Text variant="l-400">
+        Store, organize, and manage your app data
+      </Typography.Text>
     </Layout.Stack>
 
     <Layout.Grid columns={3} columnsS={2} columnsXS={1} gap="xl">
@@ -28622,9 +28713,9 @@
 
 <Cover>
   <svelte:fragment slot="header">
-    <Typography.Title color="--fgcolor-neutral-primary" size="xl"
-      >Databases</Typography.Title
-    >
+    <Typography.Title color="--fgcolor-neutral-primary" size="xl">
+      Databases
+    </Typography.Title>
   </svelte:fragment>
   <Tabs>
     {#each tabs as tab}
@@ -28950,10 +29041,10 @@
             {#if func.schedule}
               <Tooltip>
                 <Icon icon={IconClock} size="s" />
-                <span slot="tooltip"
-                  >{`Next execution:
-                                        ${getNextScheduledExecution(func)}`}</span
-                >
+                <span slot="tooltip">
+                  {`Next execution:
+                                        ${getNextScheduledExecution(func)}`}
+                </span>
               </Tooltip>
             {/if}
           </svelte:fragment>
@@ -29798,7 +29889,7 @@
   </svelte:fragment>
 </Wizard>
 
-=== 7844 src/routes/(console)/project-[region]-[project]/functions/function-[function]/(components)/deploymentCard.svelte	svelte
+=== 7880 src/routes/(console)/project-[region]-[project]/functions/function-[function]/(components)/deploymentCard.svelte	svelte
 <script lang="ts">
   import { Card, Id, SvgIcon } from "$lib/components/index.js";
   import { humanFileSize } from "$lib/helpers/sizeConvertion";
@@ -29935,8 +30026,10 @@
               >
                 Only the <Link
                   href={`${base}/project-${page.params.region}-${page.params.project}/functions/function-${$func.$id}/deployment-${$func.deploymentId}`}
-                  variant="default">active deployment</Link
-                > has a domain.
+                  variant="default"
+                >
+                  active deployment
+                </Link> has a domain.
               </Typography.Text>
             {/if}
           </Layout.Stack>
@@ -30043,7 +30136,7 @@
   </Layout.Stack>
 </Card>
 
-=== 7516 src/routes/(console)/project-[region]-[project]/functions/function-[function]/deployment-[deployment]/+page.svelte	svelte
+=== 7564 src/routes/(console)/project-[region]-[project]/functions/function-[function]/deployment-[deployment]/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/elements/forms";
   import { Container } from "$lib/layout";
@@ -30144,8 +30237,10 @@
             text
             on:click={() => {
               showCancel = true;
-            }}>Cancel</Button
+            }}
           >
+            Cancel
+          </Button>
         {/if}
 
         <Menu>
@@ -30209,8 +30304,10 @@
             disabled={data.activeDeployment}
             on:click={() => {
               showActivate = true;
-            }}>Activate</Button
+            }}
           >
+            Activate
+          </Button>
         {/if}
       </Layout.Stack>
     {/snippet}
@@ -30304,7 +30401,7 @@
 
 <slot />
 
-=== 4725 src/routes/(console)/project-[region]-[project]/functions/function-[function]/domains/+page.svelte	svelte
+=== 4769 src/routes/(console)/project-[region]-[project]/functions/function-[function]/domains/+page.svelte	svelte
 <script lang="ts">
   import { base } from "$app/paths";
   import { page } from "$app/state";
@@ -30389,8 +30486,10 @@
           secondary
           on:click={() => {
             data.search = "";
-          }}>Clear search</Button
+          }}
         >
+          Clear search
+        </Button>
       </svelte:fragment>
     </EmptySearch>
   {:else}
@@ -30409,8 +30508,10 @@
             text
             event="empty_documentation"
             size="s"
-            ariaLabel="add domain">Documentation</Button
+            ariaLabel="add domain"
           >
+            Documentation
+          </Button>
 
           <Tooltip
             disabled={!isDomainLimitReached}
@@ -31423,7 +31524,7 @@
 
 <slot />
 
-=== 3370 src/routes/(console)/project-[region]-[project]/functions/function-[function]/executions/+page.svelte	svelte
+=== 3390 src/routes/(console)/project-[region]-[project]/functions/function-[function]/executions/+page.svelte	svelte
 <script lang="ts">
   import { invalidate } from "$app/navigation";
   import { Empty, EmptyFilter, PaginationWithLimit } from "$lib/components";
@@ -31502,8 +31603,10 @@
           text
           event="empty_documentation"
           size="s"
-          ariaLabel="read execution documentation">Documentation</Button
+          ariaLabel="read execution documentation"
         >
+          Documentation
+        </Button>
         <Tooltip
           disabled={!!data.func?.deploymentId}
           maxWidth={BODY_TOOLTIP_MAX_WIDTH}
@@ -32022,9 +32125,9 @@
     </svelte:fragment>
 
     <svelte:fragment slot="actions">
-      <Button disabled={functionName === $func.name || !functionName} submit
-        >Update</Button
-      >
+      <Button disabled={functionName === $func.name || !functionName} submit>
+        Update
+      </Button>
     </svelte:fragment>
   </CardGrid>
 </Form>
@@ -32108,8 +32211,8 @@
       href="https://appwrite.io/docs/products/functions/execution#schedule"
       external
     >
-      Learn more</Link
-    >.
+      Learn more
+    </Link>.
     <svelte:fragment slot="aside">
       <InputCron
         bind:value={functionSchedule}
@@ -32119,9 +32222,9 @@
     </svelte:fragment>
 
     <svelte:fragment slot="actions">
-      <Button disabled={$func.schedule === functionSchedule} submit
-        >Update</Button
-      >
+      <Button disabled={$func.schedule === functionSchedule} submit>
+        Update
+      </Button>
     </svelte:fragment>
   </CardGrid>
 </Form>
@@ -32422,7 +32525,7 @@
   pingCount={page.data.project.pingCount}
 />
 
-=== 8587 src/routes/(console)/project-[region]-[project]/messaging/+page.svelte	svelte
+=== 8635 src/routes/(console)/project-[region]-[project]/messaging/+page.svelte	svelte
 <script lang="ts">
   import { base } from "$app/paths";
   import { page } from "$app/state";
@@ -32623,8 +32726,10 @@
                           e.preventDefault();
                           errors = message.deliveryErrors;
                           showFailed = true;
-                        }}>Details</Link.Button
+                        }}
                       >
+                        Details
+                      </Link.Button>
                     {/if}
                   </Layout.Stack>
                 {:else if column.type === "datetime"}
@@ -32808,9 +32913,9 @@
           ></InputText>
           {#if !showCustomId}
             <div>
-              <Tag size="s" on:click={() => (showCustomId = !showCustomId)}
-                ><Icon icon={IconPencil} /> Message ID</Tag
-              >
+              <Tag size="s" on:click={() => (showCustomId = !showCustomId)}>
+                <Icon icon={IconPencil} /> Message ID
+              </Tag>
             </div>
           {:else}
             <CustomId
@@ -32844,12 +32949,12 @@
     </Layout.Stack>
   </Form>
   <svelte:fragment slot="footer">
-    <Button fullWidthMobile secondary on:click={() => (showExitModal = true)}
-      >Cancel</Button
-    >
-    <Button fullWidthMobile secondary on:click={saveAsDraft}
-      >Save as draft</Button
-    >
+    <Button fullWidthMobile secondary on:click={() => (showExitModal = true)}>
+      Cancel
+    </Button>
+    <Button fullWidthMobile secondary on:click={saveAsDraft}>
+      Save as draft
+    </Button>
     <Button
       fullWidthMobile
       on:click={() => formComponent.triggerSubmit()}
@@ -32987,9 +33092,9 @@
           ></InputText>
           {#if !showCustomId}
             <div>
-              <Tag size="s" on:click={() => (showCustomId = !showCustomId)}
-                ><Icon icon={IconPencil} /> Message ID</Tag
-              >
+              <Tag size="s" on:click={() => (showCustomId = !showCustomId)}>
+                <Icon icon={IconPencil} /> Message ID
+              </Tag>
             </div>
           {:else}
             <CustomId
@@ -33075,12 +33180,12 @@
   </Form>
   <PushPhone {title} {body} slot="aside" />
   <svelte:fragment slot="footer">
-    <Button fullWidthMobile secondary on:click={() => (showExitModal = true)}
-      >Cancel</Button
-    >
-    <Button fullWidthMobile secondary on:click={saveAsDraft}
-      >Save as draft</Button
-    >
+    <Button fullWidthMobile secondary on:click={() => (showExitModal = true)}>
+      Cancel
+    </Button>
+    <Button fullWidthMobile secondary on:click={saveAsDraft}>
+      Save as draft
+    </Button>
     <Button
       fullWidthMobile
       on:click={() => formComponent.triggerSubmit()}
@@ -33198,9 +33303,9 @@
           ></InputTextarea>
           {#if !showCustomId}
             <div>
-              <Tag size="s" on:click={() => (showCustomId = !showCustomId)}
-                ><Icon icon={IconPencil} /> Message ID</Tag
-              >
+              <Tag size="s" on:click={() => (showCustomId = !showCustomId)}>
+                <Icon icon={IconPencil} /> Message ID
+              </Tag>
             </div>
           {:else}
             <CustomId
@@ -33224,12 +33329,12 @@
   <SmsPhone {content} slot="aside" />
 
   <svelte:fragment slot="footer">
-    <Button fullWidthMobile secondary on:click={() => (showExitModal = true)}
-      >Cancel</Button
-    >
-    <Button fullWidthMobile secondary on:click={saveAsDraft}
-      >Save as draft</Button
-    >
+    <Button fullWidthMobile secondary on:click={() => (showExitModal = true)}>
+      Cancel
+    </Button>
+    <Button fullWidthMobile secondary on:click={saveAsDraft}>
+      Save as draft
+    </Button>
     <Button
       fullWidthMobile
       on:click={() => formComponent.triggerSubmit()}
@@ -33465,9 +33570,9 @@
 
 <Cover>
   <svelte:fragment slot="header">
-    <Typography.Title color="--fgcolor-neutral-primary" size="xl"
-      >Messaging</Typography.Title
-    >
+    <Typography.Title color="--fgcolor-neutral-primary" size="xl">
+      Messaging
+    </Typography.Title>
   </svelte:fragment>
   <Tabs>
     {#each tabs as tab}
@@ -33514,7 +33619,7 @@
   </svelte:fragment>
 </Cover>
 
-=== 2741 src/routes/(console)/project-[region]-[project]/messaging/providers/+page.svelte	svelte
+=== 2765 src/routes/(console)/project-[region]-[project]/messaging/providers/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { Button } from "$lib/elements/forms";
@@ -33591,8 +33696,10 @@
             href="https://appwrite.io/docs/products/messaging/providers"
             text
             event="empty_documentation"
-            size="s">Documentation</Button
+            size="s"
           >
+            Documentation
+          </Button>
           {#if $canWriteProviders}
             <CreateProviderDropdown let:toggle>
               <Button on:click={toggle} event="create_provider" secondary>
@@ -34163,7 +34270,7 @@
   </CardGrid>
 </Form>
 
-=== 5062 src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/updateStatus.svelte	svelte
+=== 5078 src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/updateStatus.svelte	svelte
 <script lang="ts">
   import { invalidate } from "$app/navigation";
   import { Submit, trackError, trackEvent } from "$lib/actions/analytics";
@@ -34304,8 +34411,10 @@
     <div class="u-flex u-flex-wrap u-gap-12">
       <Button
         disabled={$providerData.enabled === enabled}
-        on:click={() => updateStatus()}>Update</Button
+        on:click={() => updateStatus()}
       >
+        Update
+      </Button>
     </div>
   </svelte:fragment>
 </CardGrid>
@@ -34577,7 +34686,7 @@
   <DangerZone />
 </Container>
 
-=== 990 src/routes/(console)/project-[region]-[project]/messaging/topics/topic-[topic]/settings/dangerZone.svelte	svelte
+=== 1002 src/routes/(console)/project-[region]-[project]/messaging/topics/topic-[topic]/settings/dangerZone.svelte	svelte
 <script lang="ts">
   import { CardGrid, BoxAvatar } from "$lib/components";
   import { Button } from "$lib/elements/forms";
@@ -34608,8 +34717,10 @@
     <Button
       secondary
       on:click={() => (showDelete = true)}
-      event="delete_messaging_topic">Delete</Button
+      event="delete_messaging_topic"
     >
+      Delete
+    </Button>
   </svelte:fragment>
 </CardGrid>
 
@@ -34820,7 +34931,7 @@
   {/snippet}
 </MultiSelectionTable>
 
-=== 6648 src/routes/(console)/project-[region]-[project]/messaging/topicsModal.svelte	svelte
+=== 6659 src/routes/(console)/project-[region]-[project]/messaging/topicsModal.svelte	svelte
 <script lang="ts">
   import { EmptySearch, Modal, PaginationInline } from "$lib/components";
   import { Button, InputSearch } from "$lib/elements/forms";
@@ -35043,8 +35154,9 @@
             secondary
             external
             href="https://appwrite.io/docs/products/messaging/topics"
-            >Documentation</Button
           >
+            Documentation
+          </Button>
         </Empty>
       </Card.Base>
     {/if}
@@ -35119,7 +35231,7 @@
   {/if}
 </WizardStep>
 
-=== 5238 src/routes/(console)/project-[region]-[project]/overview/(components)/table.svelte	svelte
+=== 5258 src/routes/(console)/project-[region]-[project]/overview/(components)/table.svelte	svelte
 <script lang="ts">
   import { base } from "$app/paths";
   import { page } from "$app/state";
@@ -35217,9 +35329,9 @@
   >
     {#snippet header(root)}
       {#each columns as column}
-        <Table.Header.Cell column={column.id} {root}
-          >{column.title}</Table.Header.Cell
-        >
+        <Table.Header.Cell column={column.id} {root}>
+          {column.title}
+        </Table.Header.Cell>
       {/each}
     {/snippet}
 
@@ -35294,8 +35406,10 @@
           href="https://appwrite.io/docs/advanced/platform/{slug}"
           text
           size="s"
-          ariaLabel="dev keys documentation">Documentation</Button
+          ariaLabel="dev keys documentation"
         >
+          Documentation
+        </Button>
       </svelte:fragment>
     </EmptyState>
   </Card.Base>
@@ -35307,7 +35421,7 @@
   bind:showDelete={showDeleteModal}
 />
 
-=== 5955 src/routes/(console)/project-[region]-[project]/overview/+layout.svelte	svelte
+=== 5983 src/routes/(console)/project-[region]-[project]/overview/+layout.svelte	svelte
 <script lang="ts" module>
   import { total } from "$lib/helpers/array";
   import { clampMin } from "$lib/helpers/numbers";
@@ -35497,8 +35611,10 @@
                 page.url.pathname,
                 path,
                 integrationTabs,
-              )}>{tab.title}</Tab
+              )}
             >
+              {tab.title}
+            </Tab>
           {/each}
         </Tabs>
         {#if $action}
@@ -35797,9 +35913,9 @@
 
 <Layout.Stack>
   {#if loadError}
-    <Alert.Inline status="error" title="Failed to load scopes"
-      >{loadError}</Alert.Inline
-    >
+    <Alert.Inline status="error" title="Failed to load scopes">
+      {loadError}
+    </Alert.Inline>
   {/if}
   <Layout.Stack direction="row" alignItems="center" gap="s">
     <Button compact on:click={selectAll}>Select all</Button>
@@ -35847,9 +35963,9 @@
                       alignItems="center"
                       gap="xxs"
                     >
-                      <Typography.Text variant="m-500"
-                        >{scope.scope}</Typography.Text
-                      >
+                      <Typography.Text variant="m-500">
+                        {scope.scope}
+                      </Typography.Text>
                       {#if scope.deprecated}
                         <Badge
                           size="xs"
@@ -36049,9 +36165,9 @@
           </span>
         </Typography.Title>
         <Layout.Stack direction="row" inline>
-          <Id value={page.params.project} copyText="Copy project ID"
-            >{page.params.project}</Id
-          >
+          <Id value={page.params.project} copyText="Copy project ID">
+            {page.params.project}
+          </Id>
           {#if $projectRegion}
             <RegionEndpoint region={$projectRegion} />
           {/if}
@@ -36069,16 +36185,16 @@
         gap="xl"
       >
         <Layout.Stack direction="column" gap={$isSmallViewport ? "s" : "xs"}>
-          <Typography.Title color="--fgcolor-neutral-primary" size="xl"
-            >{#if $user.name === $user.email}
+          <Typography.Title color="--fgcolor-neutral-primary" size="xl">
+            {#if $user.name === $user.email}
               Welcome to Appwrite
             {:else}
               Welcome, {$user.name}
-            {/if}</Typography.Title
-          >
-          <Typography.Text size="m" color="--fgcolor-neutral-secondary"
-            >Follow a few quick steps to get started with Appwrite</Typography.Text
-          >
+            {/if}
+          </Typography.Title>
+          <Typography.Text size="m" color="--fgcolor-neutral-secondary">
+            Follow a few quick steps to get started with Appwrite
+          </Typography.Text>
         </Layout.Stack>
         <div class="dashboard-header-button">
           {#if !hasOnboardingDismissed(page.params.project, $user)}
@@ -36106,7 +36222,7 @@
   }
 </style>
 
-=== 34125 src/routes/(console)/project-[region]-[project]/overview/onboard.svelte	svelte
+=== 34926 src/routes/(console)/project-[region]-[project]/overview/onboard.svelte	svelte
 <script lang="ts">
   import {
     Step,
@@ -36200,13 +36316,13 @@
     <div class="dashboard-content">
       {#if platforms.length === 0 || pingCount === 0}
         <Step.List>
-          <Step.Item state="previous"
-            ><div>
-              <Typography.Title color="--fgcolor-neutral-tertiary" size="s"
-                >Create project</Typography.Title
-              >
-            </div></Step.Item
-          >
+          <Step.Item state="previous">
+            <div>
+              <Typography.Title color="--fgcolor-neutral-tertiary" size="s">
+                Create project
+              </Typography.Title>
+            </div>
+          </Step.Item>
           <Step.Item state="current">
             <Layout.Stack
               direction={$isSmallViewport ? "column" : "row"}
@@ -36214,9 +36330,9 @@
             >
               <div class="step-info">
                 <Layout.Stack gap="m">
-                  <Typography.Title color="--fgcolor-neutral-primary" size="s"
-                    >Connect your platform</Typography.Title
-                  >
+                  <Typography.Title color="--fgcolor-neutral-primary" size="s">
+                    Connect your platform
+                  </Typography.Title>
                   <div class="build-info">
                     <span>
                       Start building with your preferred web, mobile, and native
@@ -36235,11 +36351,13 @@
                       openPlatformWizard(Platform.Web, platformMap.get("Web"));
                     }}
                     padding="s"
-                    ><Layout.Stack
+                  >
+                    <Layout.Stack
                       gap={platformMap.has("Web") ? "m" : "xl"}
                       height="100%"
                       justifyContent="space-between"
-                      ><div class="card-top-image web-image-light"></div>
+                    >
+                      <div class="card-top-image web-image-light"></div>
                       <div class="card-top-image web-image-dark"></div>
                       {#if platformMap.has("Web")}
                         <Layout.Stack alignItems="flex-start">
@@ -36265,16 +36383,16 @@
                         justifyContent="space-between"
                       >
                         <Typography.Title size="s">Web</Typography.Title>
-                        {#if platformMap.has("Web")}<Button.Button size="xs"
-                            >Continue</Button.Button
-                          >{:else}
+                        {#if platformMap.has("Web")}<Button.Button size="xs">
+                            Continue
+                          </Button.Button>{:else}
                           <div class="arrow-icon">
                             <Icon icon={IconArrowRight} size="s" />
                           </div>
                         {/if}
                       </Layout.Stack>
-                    </Layout.Stack></Card.Button
-                  >
+                    </Layout.Stack>
+                  </Card.Button>
                   <Card.Button
                     on:click={() => {
                       openPlatformWizard(
@@ -36283,7 +36401,8 @@
                       );
                     }}
                     padding="s"
-                    ><Layout.Stack
+                  >
+                    <Layout.Stack
                       gap={platformMap.has("React Native") ? "m" : "xl"}
                       height="100%"
                       justifyContent="space-between"
@@ -36313,19 +36432,21 @@
                         alignItems="center"
                         justifyContent="space-between"
                       >
-                        <Typography.Title size="s"
-                          >React Native</Typography.Title
-                        >
+                        <Typography.Title size="s">
+                          React Native
+                        </Typography.Title>
                         {#if platformMap.has("React Native")}<Button.Button
-                            size="xs">Continue</Button.Button
-                          >{:else}
+                            size="xs"
+                          >
+                            Continue
+                          </Button.Button>{:else}
                           <div class="arrow-icon">
                             <Icon icon={IconArrowRight} size="s" />
                           </div>
                         {/if}
                       </Layout.Stack>
-                    </Layout.Stack></Card.Button
-                  >
+                    </Layout.Stack>
+                  </Card.Button>
                 </Layout.Stack>
                 <Layout.Stack
                   gap="l"
@@ -36376,14 +36497,14 @@
                         justifyContent="space-between"
                       >
                         <Typography.Title size="s">Apple</Typography.Title>
-                        {#if platformMap.has("Apple")}<Button.Button size="xs"
-                            >Continue</Button.Button
-                          >{:else}
+                        {#if platformMap.has("Apple")}<Button.Button size="xs">
+                            Continue
+                          </Button.Button>{:else}
                           <div class="arrow-icon">
                             <Icon icon={IconArrowRight} size="s" />
                           </div>
-                        {/if}</Layout.Stack
-                      >
+                        {/if}
+                      </Layout.Stack>
                     </Layout.Stack>
                   </Card.Button>
                   <Card.Button
@@ -36431,14 +36552,16 @@
                         justifyContent="space-between"
                       >
                         <Typography.Title size="s">Android</Typography.Title>
-                        {#if platformMap.has("Android")}<Button.Button size="xs"
-                            >Continue</Button.Button
-                          >{:else}
+                        {#if platformMap.has("Android")}<Button.Button
+                            size="xs"
+                          >
+                            Continue
+                          </Button.Button>{:else}
                           <div class="arrow-icon">
                             <Icon icon={IconArrowRight} size="s" />
                           </div>
-                        {/if}</Layout.Stack
-                      >
+                        {/if}
+                      </Layout.Stack>
                     </Layout.Stack>
                   </Card.Button>
                   <Card.Button
@@ -36486,14 +36609,16 @@
                         justifyContent="space-between"
                       >
                         <Typography.Title size="s">Flutter</Typography.Title>
-                        {#if platformMap.has("Flutter")}<Button.Button size="xs"
-                            >Continue</Button.Button
-                          >{:else}
+                        {#if platformMap.has("Flutter")}<Button.Button
+                            size="xs"
+                          >
+                            Continue
+                          </Button.Button>{:else}
                           <div class="arrow-icon">
                             <Icon icon={IconArrowRight} size="s" />
                           </div>
-                        {/if}</Layout.Stack
-                      >
+                        {/if}
+                      </Layout.Stack>
                     </Layout.Stack>
                   </Card.Button>
                 </Layout.Stack>
@@ -36515,12 +36640,12 @@
                         justifyContent="space-between"
                       >
                         <Layout.Stack gap="xxs">
-                          <Typography.Title size="s"
-                            >Create API key</Typography.Title
-                          >
-                          <Typography.Text
-                            >Connect your server or backend to Appwrite</Typography.Text
-                          >
+                          <Typography.Title size="s">
+                            Create API key
+                          </Typography.Title>
+                          <Typography.Text>
+                            Connect your server or backend to Appwrite
+                          </Typography.Text>
                         </Layout.Stack>
                         <div class="arrow-icon">
                           <Icon icon={IconArrowRight} size="s" />
@@ -36530,32 +36655,32 @@
                   </Layout.Stack>
                 </Card.Button>
               </Layout.Stack>
-            </Layout.Stack></Step.Item
-          >
-          <Step.Item state="next"
-            ><div>
-              <Typography.Title color="--fgcolor-neutral-tertiary" size="s"
-                >Build your app</Typography.Title
-              >
-            </div></Step.Item
-          >
+            </Layout.Stack>
+          </Step.Item>
+          <Step.Item state="next">
+            <div>
+              <Typography.Title color="--fgcolor-neutral-tertiary" size="s">
+                Build your app
+              </Typography.Title>
+            </div>
+          </Step.Item>
         </Step.List>
       {:else}
         <Step.List>
-          <Step.Item state="previous"
-            ><div>
-              <Typography.Title color="--fgcolor-neutral-tertiary" size="s"
-                >Create project</Typography.Title
-              >
-            </div></Step.Item
-          >
-          <Step.Item state="previous"
-            ><div>
-              <Typography.Title color="--fgcolor-neutral-tertiary" size="s"
-                >Connect your platform</Typography.Title
-              >
-            </div></Step.Item
-          >
+          <Step.Item state="previous">
+            <div>
+              <Typography.Title color="--fgcolor-neutral-tertiary" size="s">
+                Create project
+              </Typography.Title>
+            </div>
+          </Step.Item>
+          <Step.Item state="previous">
+            <div>
+              <Typography.Title color="--fgcolor-neutral-tertiary" size="s">
+                Connect your platform
+              </Typography.Title>
+            </div>
+          </Step.Item>
           <Step.Item state="current">
             <Layout.Stack
               direction={$isSmallViewport ? "column" : "row"}
@@ -36563,9 +36688,9 @@
             >
               <div class="step-info">
                 <Layout.Stack gap="m">
-                  <Typography.Title color="--fgcolor-neutral-primary" size="s"
-                    >Build your app</Typography.Title
-                  >
+                  <Typography.Title color="--fgcolor-neutral-primary" size="s">
+                    Build your app
+                  </Typography.Title>
                   <div class="build-info">
                     <span>
                       Continue building your app by setting up services such as
@@ -36585,8 +36710,9 @@
                       goto(`${projectRoute}/databases`);
                     }}
                     padding="s"
-                    ><Layout.Stack gap="xl"
-                      ><div
+                  >
+                    <Layout.Stack gap="xl">
+                      <div
                         class="card-top-image database-card-image"
                         style:background-image={`url('${
                           $app.themeInUse === "dark"
@@ -36599,21 +36725,21 @@
                         alignItems="center"
                         justifyContent="space-between"
                       >
-                        <Typography.Title size="s"
-                          >Set up your database</Typography.Title
-                        >
+                        <Typography.Title size="s">
+                          Set up your database
+                        </Typography.Title>
                         <div class="arrow-icon">
                           <Icon icon={IconArrowRight} size="s" />
                         </div>
                       </Layout.Stack>
-                    </Layout.Stack></Card.Button
-                  >
-                  <Card.Base padding="s"
-                    ><div class="full-height-card">
+                    </Layout.Stack>
+                  </Card.Button>
+                  <Card.Base padding="s">
+                    <div class="full-height-card">
                       <Layout.Stack gap="xl" justifyContent="space-between">
-                        <Typography.Title size="s"
-                          >Discover our docs</Typography.Title
-                        >
+                        <Typography.Title size="s">
+                          Discover our docs
+                        </Typography.Title>
                         <Layout.Stack
                           direction="column"
                           gap="s"
@@ -36625,16 +36751,20 @@
                             on:click={() => {
                               trackEvent(Click.OnboardingApiReferencesClick);
                             }}
-                            target="_blank">API references</Link.Anchor
+                            target="_blank"
                           >
+                            API references
+                          </Link.Anchor>
                           <Link.Anchor
                             variant="quiet-muted"
                             href="https://appwrite.io/docs/tutorials"
                             on:click={() => {
                               trackEvent(Click.OnboardingTutorialsClick);
                             }}
-                            target="_blank">Tutorials</Link.Anchor
+                            target="_blank"
                           >
+                            Tutorials
+                          </Link.Anchor>
                           <Link.Anchor
                             variant="quiet-muted"
                             href="https://appwrite.io/docs/products/storage/quick-start"
@@ -36644,7 +36774,8 @@
                               );
                             }}
                             target="_blank"
-                            >Storage quick start
+                          >
+                            Storage quick start
                           </Link.Anchor>
                           <Link.Anchor
                             variant="quiet-muted"
@@ -36654,20 +36785,22 @@
                                 Click.OnboardingFunctionsQuickstartClick,
                               );
                             }}
-                            target="_blank">Functions quick start</Link.Anchor
+                            target="_blank"
                           >
+                            Functions quick start
+                          </Link.Anchor>
                         </Layout.Stack>
                       </Layout.Stack>
-                    </div></Card.Base
-                  >
+                    </div>
+                  </Card.Base>
                 </Layout.Stack>
                 <Layout.Stack
                   gap="l"
                   direction={$isSmallViewport ? "column" : "row"}
                 >
                   <div class="double-width-card">
-                    <Card.Base padding="s"
-                      ><div class="full-height-card">
+                    <Card.Base padding="s">
+                      <div class="full-height-card">
                         <Layout.Stack
                           direction={$isSmallViewport ? "column" : "row"}
                         >
@@ -36676,9 +36809,9 @@
                             justifyContent="space-between"
                             style={`flex: ${$isSmallViewport ? "1 1 auto" : "0 0 30%"}; min-width: ${$isSmallViewport ? "auto" : "240px"}`}
                           >
-                            <Typography.Title size="s"
-                              >Set up Auth</Typography.Title
-                            >
+                            <Typography.Title size="s">
+                              Set up Auth
+                            </Typography.Title>
                             <Layout.Stack
                               direction="column"
                               gap="s"
@@ -36692,15 +36825,18 @@
                                     Click.OnboardingAuthEmailPasswordClick,
                                   );
                                 }}
-                                >E-mail and password
+                              >
+                                E-mail and password
                               </Link.Anchor>
                               <Link.Anchor
                                 variant="quiet-muted"
                                 href={`${projectRoute}/auth/settings`}
                                 on:click={() => {
                                   trackEvent(Click.OnboardingAuthOauth2Click);
-                                }}>OAuth 2</Link.Anchor
+                                }}
                               >
+                                OAuth 2
+                              </Link.Anchor>
                               <Link.Anchor
                                 variant="quiet-muted"
                                 href={`${projectRoute}/auth/settings`}
@@ -36708,8 +36844,10 @@
                                   trackEvent(
                                     Click.OnboardingAuthAllMethodsClick,
                                   );
-                                }}>View all methods</Link.Anchor
+                                }}
                               >
+                                View all methods
+                              </Link.Anchor>
                             </Layout.Stack>
                           </Layout.Stack>
                           <div
@@ -36722,8 +36860,8 @@
                             }')`}
                           ></div>
                         </Layout.Stack>
-                      </div></Card.Base
-                    >
+                      </div>
+                    </Card.Base>
                   </div>
                 </Layout.Stack>
                 <Layout.Stack
@@ -36739,21 +36877,27 @@
                         <Layout.Stack gap="s">
                           <Typography.Title
                             color="--fgcolor-neutral-secondary"
-                            size="s">MCP server</Typography.Title
+                            size="s"
                           >
+                            MCP server
+                          </Typography.Title>
                           <Typography.Text color="--fgcolor-neutral-secondary">
                             Deploy the Appwrite MCP server with a single click,
                             or view the <Link.Anchor
                               href="https://appwrite.io/docs/tooling/ai/mcp-servers"
-                              target="_blank">docs</Link.Anchor
-                            > for instructions.
+                              target="_blank"
+                            >
+                              docs
+                            </Link.Anchor> for instructions.
                           </Typography.Text>
                         </Layout.Stack>
                         <Layout.Stack gap="s">
                           <Typography.Text
                             color="--fgcolor-neutral-tertiary"
-                            size="s">Quick install</Typography.Text
+                            size="s"
                           >
+                            Quick install
+                          </Typography.Text>
                           <Layout.Stack direction="row" gap="s" wrap="wrap">
                             {#each mcpTools as tool}
                               <Button.Anchor
@@ -36801,8 +36945,9 @@
                               class="discord"
                               alt=""
                             />
-                            <Typography.Title size="s">Discord</Typography.Title
-                            >
+                            <Typography.Title size="s">
+                              Discord
+                            </Typography.Title>
                           </Layout.Stack>
                           <div class="arrow-icon arrow-icon-discord">
                             <Icon icon={IconArrowRight} size="s" />
@@ -36818,16 +36963,16 @@
                             color="--fgcolor-neutral-secondary"
                           >
                             Join our Discord for support, tips and product
-                            updates</Typography.Text
-                          >
+                            updates
+                          </Typography.Text>
                         </Layout.Stack>
                       </Layout.Stack>
                     </div>
                   </Card.Link>
                 </Layout.Stack>
               </Layout.Stack>
-            </Layout.Stack></Step.Item
-          >
+            </Layout.Stack>
+          </Step.Item>
         </Step.List>
       {/if}
     </div>
@@ -37125,7 +37270,7 @@
 
 <Delete bind:showDelete />
 
-=== 1977 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/flutterLinux.svelte	svelte
+=== 1993 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/flutterLinux.svelte	svelte
 <script lang="ts">
   import { invalidate } from "$app/navigation";
   import { Submit, trackEvent, trackError } from "$lib/actions/analytics";
@@ -37192,13 +37337,15 @@
       <Button
         disabled={packageName ===
           ($platform as Models.PlatformLinux).packageName}
-        submit>Update</Button
+        submit
       >
+        Update
+      </Button>
     </svelte:fragment>
   </CardGrid>
 </Form>
 
-=== 2082 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/flutterWindows.svelte	svelte
+=== 2098 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/flutterWindows.svelte	svelte
 <script lang="ts">
   import { invalidate } from "$app/navigation";
   import { Submit, trackEvent, trackError } from "$lib/actions/analytics";
@@ -37266,8 +37413,10 @@
       <Button
         disabled={packageIdentifierName ===
           ($platform as Models.PlatformWindows).packageIdentifierName}
-        submit>Update</Button
+        submit
       >
+        Update
+      </Button>
     </svelte:fragment>
   </CardGrid>
 </Form>
@@ -37292,7 +37441,7 @@
   </svelte:fragment>
 </Cover>
 
-=== 1910 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/web.svelte	svelte
+=== 1926 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/web.svelte	svelte
 <script lang="ts">
   import { invalidate } from "$app/navigation";
   import { CardGrid } from "$lib/components";
@@ -37354,8 +37503,10 @@
     <svelte:fragment slot="actions">
       <Button
         disabled={hostname === ($platform as Models.PlatformWeb).hostname}
-        submit>Update</Button
+        submit
       >
+        Update
+      </Button>
     </svelte:fragment>
   </CardGrid>
 </Form>
@@ -37708,25 +37859,25 @@ const val APPWRITE_PUBLIC_ENDPOINT = "${sdk.forProject(page.params.region, page.
             <Code lang="bash" lineNumbers code={gitCloneCode} />
           </div>
 
-          <Typography.Text variant="m-500"
-            >2. Open the file <InlineCode
+          <Typography.Text variant="m-500">
+            2. Open the file <InlineCode
               size="s"
               code="constants/AppwriteConfig.kt"
             />
-            and update the configuration settings.</Typography.Text
-          >
+            and update the configuration settings.
+          </Typography.Text>
 
           <!-- Temporary fix: Remove this div once Code splitting issue with stack spacing is resolved -->
           <div class="pink2-code-margin-fix">
             <Code lang="kotlin" lineNumbers code={configCode} />
           </div>
 
-          <Typography.Text variant="m-500"
-            >3. Run the app on a connected device or emulator, then click the <InlineCode
+          <Typography.Text variant="m-500">
+            3. Run the app on a connected device or emulator, then click the <InlineCode
               size="s"
               code="Send a ping"
-            /> button to verify the setup.</Typography.Text
-          >
+            /> button to verify the setup.
+          </Typography.Text>
         </Layout.Stack>
       </Fieldset>
     {/if}
@@ -37759,9 +37910,9 @@ const val APPWRITE_PUBLIC_ENDPOINT = "${sdk.forProject(page.params.region, page.
             gap="l"
           >
             {#if !connectionSuccessful}
-              <Typography.Text variant="m-400"
-                >Waiting for connection...</Typography.Text
-              >
+              <Typography.Text variant="m-400">
+                Waiting for connection...
+              </Typography.Text>
             {:else}
               <!-- cannot apply fade on components -->
               <div
@@ -37770,9 +37921,9 @@ const val APPWRITE_PUBLIC_ENDPOINT = "${sdk.forProject(page.params.region, page.
               >
                 <Typography.Title size="m">Congratulations!</Typography.Title>
 
-                <Typography.Text variant="m-400"
-                  >You connected your app successfully.</Typography.Text
-                >
+                <Typography.Text variant="m-400">
+                  You connected your app successfully.
+                </Typography.Text>
               </div>
             {/if}
           </Layout.Stack>
@@ -37808,7 +37959,7 @@ const val APPWRITE_PUBLIC_ENDPOINT = "${sdk.forProject(page.params.region, page.
   }
 </style>
 
-=== 10734 src/routes/(console)/project-[region]-[project]/overview/platforms/createApple.svelte	svelte
+=== 10706 src/routes/(console)/project-[region]-[project]/overview/platforms/createApple.svelte	svelte
 <script lang="ts">
   import { Wizard } from "$lib/layout";
   import { invalidate } from "$app/navigation";
@@ -38066,24 +38217,22 @@ APPWRITE_PUBLIC_ENDPOINT: "${sdk.forProject(page.params.region, page.params.proj
             <Code lang="bash" lineNumbers code={gitCloneCode} />
           </div>
 
-          <Typography.Text variant="m-500"
-            >2. Open the file <InlineCode
-              size="s"
-              code="Sources/Config.plist"
-            /> and update the configuration settings.</Typography.Text
-          >
+          <Typography.Text variant="m-500">
+            2. Open the file <InlineCode size="s" code="Sources/Config.plist" /> and
+            update the configuration settings.
+          </Typography.Text>
 
           <!-- Temporary fix: Remove this div once Code splitting issue with stack spacing is resolved -->
           <div class="pink2-code-margin-fix">
             <Code lang="plaintext" lineNumbers code={configCode} />
           </div>
 
-          <Typography.Text variant="m-500"
-            >3. Run the app on a connected device or simulator, then click the <InlineCode
+          <Typography.Text variant="m-500">
+            3. Run the app on a connected device or simulator, then click the <InlineCode
               size="s"
               code="Send a ping"
-            /> button to verify the setup.</Typography.Text
-          >
+            /> button to verify the setup.
+          </Typography.Text>
         </Layout.Stack>
       </Fieldset>
     {/if}
@@ -38115,9 +38264,9 @@ APPWRITE_PUBLIC_ENDPOINT: "${sdk.forProject(page.params.region, page.params.proj
             gap="l"
           >
             {#if !connectionSuccessful}
-              <Typography.Text variant="m-400"
-                >Waiting for connection...</Typography.Text
-              >
+              <Typography.Text variant="m-400">
+                Waiting for connection...
+              </Typography.Text>
             {:else}
               <!-- cannot apply fade on components -->
               <div
@@ -38126,9 +38275,9 @@ APPWRITE_PUBLIC_ENDPOINT: "${sdk.forProject(page.params.region, page.params.proj
               >
                 <Typography.Title size="m">Congratulations!</Typography.Title>
 
-                <Typography.Text variant="m-400"
-                  >You connected your app successfully.</Typography.Text
-                >
+                <Typography.Text variant="m-400">
+                  You connected your app successfully.
+                </Typography.Text>
               </div>
             {/if}
           </Layout.Stack>
@@ -38164,7 +38313,7 @@ APPWRITE_PUBLIC_ENDPOINT: "${sdk.forProject(page.params.region, page.params.proj
   }
 </style>
 
-=== 17518 src/routes/(console)/project-[region]-[project]/overview/platforms/createWeb.svelte	svelte
+=== 17569 src/routes/(console)/project-[region]-[project]/overview/platforms/createWeb.svelte	svelte
 <script lang="ts">
   import { Wizard } from "$lib/layout";
   import { invalidate } from "$app/navigation";
@@ -38486,8 +38635,8 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
                     disabled={!selectedFramework}
                     on:click={() => (isChangingFramework = false)}
                   >
-                    Save</Button
-                  >
+                    Save
+                  </Button>
                 {/if}
               </Layout.Stack>
             </Layout.Stack>
@@ -38513,25 +38662,25 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
               </InputText>
             </Fieldset>
             <Layout.Stack direction="row" justifyContent="flex-end">
-              <Button submit disabled={!selectedFramework}
-                >Create platform</Button
-              >
+              <Button submit disabled={!selectedFramework}>
+                Create platform
+              </Button>
             </Layout.Stack>
           {/if}
         </Layout.Stack>
       </Form>
     {:else}
-      <Card.Base padding="s"
-        ><Layout.Stack
+      <Card.Base padding="s">
+        <Layout.Stack
           direction="row"
           justifyContent="space-between"
           alignItems="center"
         >
           <Layout.Stack gap="xxs" direction="row">
             <Icon icon={selectedFramework.smallIcon} />
-            <Typography.Text variant="m-500"
-              >{selectedFramework.label}</Typography.Text
-            >
+            <Typography.Text variant="m-500">
+              {selectedFramework.label}
+            </Typography.Text>
           </Layout.Stack>
           <Button
             size="s"
@@ -38539,10 +38688,12 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
             disabled={isConnectPlatform}
             on:click={() => {
               isChangingFramework = true;
-            }}>Change</Button
+            }}
           >
-        </Layout.Stack></Card.Base
-      >
+            Change
+          </Button>
+        </Layout.Stack>
+      </Card.Base>
     {/if}
 
     <!-- Step Three -->
@@ -38566,19 +38717,19 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
           </div>
 
           {#if selectedFramework.key === "angular"}
-            <Typography.Text variant="m-500"
-              >2. Replace <InlineCode
+            <Typography.Text variant="m-500">
+              2. Replace <InlineCode
                 size="s"
                 code="src/environments/environment.ts"
               />
-              to reflect the values below:</Typography.Text
-            >
+              to reflect the values below:
+            </Typography.Text>
           {:else}
-            <Typography.Text variant="m-500"
-              >2. Copy the file <InlineCode size="s" code=".env.example" />,
+            <Typography.Text variant="m-500">
+              2. Copy the file <InlineCode size="s" code=".env.example" />,
               rename it to <InlineCode size="s" code=".env" />
-              and update the configuration settings.</Typography.Text
-            >
+              and update the configuration settings.
+            </Typography.Text>
           {/if}
 
           <!-- Temporary fix: Remove this div once Code splitting issue with stack spacing is resolved -->
@@ -38590,30 +38741,30 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
             />
           </div>
 
-          <Typography.Text variant="m-500"
-            >3. Install project dependencies</Typography.Text
-          >
+          <Typography.Text variant="m-500">
+            3. Install project dependencies
+          </Typography.Text>
 
           <!-- Temporary fix: Remove this div once Code splitting issue with stack spacing is resolved -->
           <div class="pink2-code-margin-fix">
             <Code lang="bash" lineNumbers code={"npm install"} />
           </div>
 
-          <Typography.Text variant="m-500"
-            >4. Run the app, then click the <InlineCode
+          <Typography.Text variant="m-500">
+            4. Run the app, then click the <InlineCode
               size="s"
               code="Send a ping"
-            /> button to verify the setup.</Typography.Text
-          >
+            /> button to verify the setup.
+          </Typography.Text>
           <!-- Temporary fix: Remove this div once Code splitting issue with stack spacing is resolved -->
           <div class="pink2-code-margin-fix">
             <Code lang="bash" lineNumbers code={selectedFramework.runCommand} />
           </div>
         </Layout.Stack>
       </Fieldset>
-      <Card.Base padding="s"
-        ><Layout.Stack direction="row" justifyContent="space-between"
-          ><Layout.Stack direction="row" alignItems="center">
+      <Card.Base padding="s">
+        <Layout.Stack direction="row" justifyContent="space-between">
+          <Layout.Stack direction="row" alignItems="center">
             <Icon
               icon={IconInfo}
               color="--fgcolor-neutral-tertiary"
@@ -38621,22 +38772,23 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
               variant="m-500"
               color="--fgcolor-neutral-primary"
             >
-              Demo app runs on http://localhost:{selectedFramework.portNumber}</Typography.Text
-            ></Layout.Stack
-          >
+              Demo app runs on http://localhost:{selectedFramework.portNumber}
+            </Typography.Text>
+          </Layout.Stack>
           <Button
             external
             secondary
             href={`http://localhost:${selectedFramework.portNumber}`}
-            ><Layout.Stack direction="row" gap="xs"
-              >Open <Icon
+          >
+            <Layout.Stack direction="row" gap="xs">
+              Open <Icon
                 icon={IconExternalLink}
                 color="--fgcolor-neutral-tertiary"
-              /></Layout.Stack
-            ></Button
-          ></Layout.Stack
-        ></Card.Base
-      >
+              />
+            </Layout.Stack>
+          </Button>
+        </Layout.Stack>
+      </Card.Base>
     {/if}
   </Layout.Stack>
   <svelte:fragment slot="aside">
@@ -38665,9 +38817,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
             gap="l"
           >
             {#if !connectionSuccessful}
-              <Typography.Text variant="m-400"
-                >Waiting for connection...</Typography.Text
-              >
+              <Typography.Text variant="m-400">
+                Waiting for connection...
+              </Typography.Text>
             {:else}
               <!-- cannot apply fade on components -->
               <div
@@ -38676,9 +38828,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
               >
                 <Typography.Title size="m">Congratulations!</Typography.Title>
 
-                <Typography.Text variant="m-400"
-                  >You connected your app successfully.</Typography.Text
-                >
+                <Typography.Text variant="m-400">
+                  You connected your app successfully.
+                </Typography.Text>
               </div>
             {/if}
           </Layout.Stack>
@@ -38694,8 +38846,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
         secondary
         fullWidthMobile
         href={location.pathname}
-        disabled={isCreatingPlatform}>Skip, go to dashboard</Button
+        disabled={isCreatingPlatform}
       >
+        Skip, go to dashboard
+      </Button>
     {/if}
   </svelte:fragment>
 </Wizard>
@@ -38718,7 +38872,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   }
 </style>
 
-=== 6383 src/routes/(console)/project-[region]-[project]/overview/platforms/llmBanner.svelte	svelte
+=== 6455 src/routes/(console)/project-[region]-[project]/overview/platforms/llmBanner.svelte	svelte
 <script lang="ts">
   import { copy } from "$lib/helpers/copy";
   import { Button } from "$lib/elements/forms";
@@ -38888,8 +39042,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
                     <Layout.Stack gap="none">
                       <Typography.Text
                         color="--fgcolor-neutral-secondary"
-                        variant="m-500">{o.label}</Typography.Text
+                        variant="m-500"
                       >
+                        {o.label}
+                      </Typography.Text>
                       <Typography.Text color="--fgcolor-neutral-tertiary">
                         {o.description}
                       </Typography.Text>
@@ -38906,8 +39062,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
             size="s"
             class={validOpeners.length ? "btn-no-right-radius" : ""}
             on:click={copyPrompt}
-            disabled={!prompt || prompt.length === 0}>Copy setup prompt</Button
+            disabled={!prompt || prompt.length === 0}
           >
+            Copy setup prompt
+          </Button>
           {#if validOpeners.length}
             <Button
               secondary
@@ -39071,7 +39229,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   {/if}
 </Container>
 
-=== 1383 src/routes/(console)/project-[region]-[project]/settings/changeOrganization.svelte	svelte
+=== 1395 src/routes/(console)/project-[region]-[project]/settings/changeOrganization.svelte	svelte
 <script lang="ts">
   import { CardGrid } from "$lib/components";
   import { Button, InputSelect } from "$lib/elements/forms";
@@ -39108,8 +39266,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
     <Button
       secondary
       disabled={!$canWriteProjects || teamId === $project.teamId || !teamId}
-      on:click={() => (showTransfer = true)}>Move</Button
+      on:click={() => (showTransfer = true)}
     >
+      Move
+    </Button>
   </svelte:fragment>
 </CardGrid>
 
@@ -39148,7 +39308,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
 
 <slot />
 
-=== 4161 src/routes/(console)/project-[region]-[project]/settings/domains/+page.svelte	svelte
+=== 4201 src/routes/(console)/project-[region]-[project]/settings/domains/+page.svelte	svelte
 <script lang="ts">
   import { base } from "$app/paths";
   import { page } from "$app/state";
@@ -39229,8 +39389,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
         secondary
         on:click={() => {
           data.search = "";
-        }}>Clear search</Button
+        }}
       >
+        Clear search
+      </Button>
     </EmptySearch>
   {:else}
     <Card.Base padding="none">
@@ -39248,8 +39410,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
             text
             event="empty_documentation"
             size="s"
-            ariaLabel="add domain">Documentation</Button
+            ariaLabel="add domain"
           >
+            Documentation
+          </Button>
 
           <Tooltip
             disabled={!isDomainLimitReached}
@@ -40135,9 +40299,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
 
 <Cover>
   <svelte:fragment slot="header">
-    <Typography.Title color="--fgcolor-neutral-primary" size="xl"
-      >Settings</Typography.Title
-    >
+    <Typography.Title color="--fgcolor-neutral-primary" size="xl">
+      Settings
+    </Typography.Title>
   </svelte:fragment>
 
   <Tabs>
@@ -40214,9 +40378,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
 
   <svelte:fragment slot="footer">
     <Button text on:click={() => (show = false)}>Cancel</Button>
-    <Button secondary submit disabled={submitting}
-      >Disable Premium Geo DB</Button
-    >
+    <Button secondary submit disabled={submitting}>
+      Disable Premium Geo DB
+    </Button>
   </svelte:fragment>
 </Modal>
 
@@ -40297,9 +40461,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
     </svelte:fragment>
 
     <svelte:fragment slot="actions">
-      <Button disabled={!$canWriteProjects || name === $project.name} submit
-        >Update</Button
-      >
+      <Button disabled={!$canWriteProjects || name === $project.name} submit>
+        Update
+      </Button>
     </svelte:fragment>
   </CardGrid>
 </Form>
@@ -40333,7 +40497,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   <DangerZone />
 </Container>
 
-=== 1121 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/dangerZone.svelte	svelte
+=== 1133 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/dangerZone.svelte	svelte
 <script lang="ts">
   import { CardGrid } from "$lib/components";
   import { Button } from "$lib/elements/forms";
@@ -40352,9 +40516,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   <svelte:fragment slot="aside">
     <Card.Base variant="secondary" padding="s">
       <Typography.Text variant="m-600">{$webhook.name}</Typography.Text>
-      <Typography.Text
-        >Last updated: {toLocaleDateTime($webhook.$updatedAt)}</Typography.Text
-      >
+      <Typography.Text>
+        Last updated: {toLocaleDateTime($webhook.$updatedAt)}
+      </Typography.Text>
     </Card.Base>
   </svelte:fragment>
 
@@ -40364,14 +40528,16 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
       on:click={() => {
         showDelete = true;
         trackEvent(Click.SettingsWebhookDeleteClick);
-      }}>Delete</Button
+      }}
     >
+      Delete
+    </Button>
   </svelte:fragment>
 </CardGrid>
 
 <Delete bind:showDelete />
 
-=== 2667 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/details.svelte	svelte
+=== 2694 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/details.svelte	svelte
 <script lang="ts">
   import { invalidate } from "$app/navigation";
   import { page } from "$app/state";
@@ -40447,15 +40613,18 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   <svelte:fragment slot="actions">
     <div class="u-flex u-gap-16">
       {#if $webhook.logs.length > 0}
-        <Button on:click={() => (showFailed = true)} secondary>View logs</Button
-        >
+        <Button on:click={() => (showFailed = true)} secondary>
+          View logs
+        </Button>
       {/if}
 
       <Button
         on:click={setEnabled}
         disabled={enabled === $webhook.enabled}
-        submit>Update</Button
+        submit
       >
+        Update
+      </Button>
     </div>
   </svelte:fragment>
 </CardGrid>
@@ -40810,9 +40979,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
 </script>
 
 <Modal title="Open on mobile" bind:show hideFooter>
-  <span slot="description"
-    >Open the preview of your site on any mobile or tablet device.</span
-  >
+  <span slot="description">
+    Open the preview of your site on any mobile or tablet device.
+  </span>
   <Layout.Stack gap="l">
     <Layout.Stack gap="m" direction="row">
       <div style="width: 100%;max-width: 91.5%">
@@ -41732,7 +41901,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   </svelte:fragment>
 </Wizard>
 
-=== 2638 src/routes/(console)/project-[region]-[project]/sites/create-site/domain.svelte	svelte
+=== 2654 src/routes/(console)/project-[region]-[project]/sites/create-site/domain.svelte	svelte
 <script lang="ts">
   import { InputText } from "$lib/elements/forms";
   import Button from "$lib/elements/forms/button.svelte";
@@ -41820,8 +41989,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
       <Button
         secondary
         disabled={originalDomain === newDomain}
-        on:click={() => (newDomain = originalDomain)}>Reset</Button
+        on:click={() => (newDomain = originalDomain)}
       >
+        Reset
+      </Button>
     </Layout.Stack>
     {#if newDomain}
       <Status status={domainStatus} label={setDomainLabel(domainStatus)}
@@ -42024,9 +42195,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
           hideQRCode
         >
           {#snippet footer()}
-            <Button href={`${$regionalProtocol}${siteURL}`} external
-              >Visit site</Button
-            >
+            <Button href={`${$regionalProtocol}${siteURL}`} external>
+              Visit site
+            </Button>
           {/snippet}
         </SiteCard>
       </Layout.Stack>
@@ -42148,9 +42319,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   </Layout.Stack>
 
   <svelte:fragment slot="footer">
-    <Button size="s" fullWidthMobile secondary href={siteRedirectHref}
-      >Go to dashboard</Button
-    >
+    <Button size="s" fullWidthMobile secondary href={siteRedirectHref}>
+      Go to dashboard
+    </Button>
   </svelte:fragment>
 </Wizard>
 
@@ -42174,7 +42345,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   <AddCollaboratorModal bind:show={showInviteCollaborator} />
 {/if}
 
-=== 3463 src/routes/(console)/project-[region]-[project]/sites/create-site/repositories/+page.svelte	svelte
+=== 3547 src/routes/(console)/project-[region]-[project]/sites/create-site/repositories/+page.svelte	svelte
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
@@ -42250,8 +42421,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
               "/(console)/project-[region]-[project]/sites/create-site/templates",
               page.params,
             )}
-            secondary>View templates</Button
+            secondary
           >
+            View templates
+          </Button>
         {:else}
           <Layout.Stack gap="s">
             <Typography.Text
@@ -42270,14 +42443,18 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
             <Button
               href="https://appwrite.io/docs/products/sites/deploy-from-git"
               external
-              secondary>Docs</Button
+              secondary
             >
+              Docs
+            </Button>
             {#if $installation}
               <Button
                 href={`https://github.com/settings/installations/${$installation.providerInstallationId}`}
                 external
-                text>Go to GitHub</Button
+                text
               >
+                Go to GitHub
+              </Button>
             {/if}
           </Layout.Stack>
         {/if}
@@ -42788,7 +42965,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
 
 <slot />
 
-=== 4174 src/routes/(console)/project-[region]-[project]/sites/site-[site]/domains/+page.svelte	svelte
+=== 4214 src/routes/(console)/project-[region]-[project]/sites/site-[site]/domains/+page.svelte	svelte
 <script lang="ts">
   import { base } from "$app/paths";
   import { page } from "$app/state";
@@ -42866,8 +43043,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
         secondary
         on:click={() => {
           data.search = "";
-        }}>Clear search</Button
+        }}
       >
+        Clear search
+      </Button>
     </EmptySearch>
   {:else}
     <Card.Base padding="none">
@@ -42885,8 +43064,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
             text
             event="empty_documentation"
             size="s"
-            ariaLabel="add domain">Documentation</Button
+            ariaLabel="add domain"
           >
+            Documentation
+          </Button>
 
           <Tooltip
             disabled={!isDomainLimitReached}
@@ -44541,9 +44722,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
         ]}
       >
         {#snippet header(root)}
-          <Table.Header.Cell column="filename" {root}
-            >Filename</Table.Header.Cell
-          >
+          <Table.Header.Cell column="filename" {root}>
+            Filename
+          </Table.Header.Cell>
           <Table.Header.Cell column="type" {root}>Type</Table.Header.Cell>
           <Table.Header.Cell column="size" {root}>Size</Table.Header.Cell>
           <Table.Header.Cell column="created" {root}>Created</Table.Header.Cell>
@@ -44822,9 +45003,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
 
 <Cover>
   <svelte:fragment slot="header">
-    <Typography.Title color="--fgcolor-neutral-primary" size="xl"
-      >Storage</Typography.Title
-    >
+    <Typography.Title color="--fgcolor-neutral-primary" size="xl">
+      Storage
+    </Typography.Title>
   </svelte:fragment>
   <Tabs>
     {#each tabs as tab}
@@ -44839,7 +45020,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   </Tabs>
 </Cover>
 
-=== 7478 src/routes/(console)/supportWizard.svelte	svelte
+=== 7505 src/routes/(console)/supportWizard.svelte	svelte
 <script lang="ts">
   import { Wizard } from "$lib/layout";
   import {
@@ -44982,10 +45163,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   <Form onSubmit={handleSubmit}>
     <Layout.Stack gap="xl">
       <Layout.Stack gap="s">
-        <Typography.Text
-          >Please describe your request in detail. If applicable, include steps
-          for reproduction of any in-app issues.</Typography.Text
-        >
+        <Typography.Text>
+          Please describe your request in detail. If applicable, include steps
+          for reproduction of any in-app issues.
+        </Typography.Text>
       </Layout.Stack>
       <Input.ComboBox
         id="project"
@@ -45016,12 +45197,12 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
         maxSize={5 * 1024 * 1024}
       >
         <Layout.Stack alignItems="center" gap="s">
-          <Typography.Text variant="l-500"
-            >Drag and drop a file here or click to upload</Typography.Text
-          >
-          <Typography.Caption variant="400"
-            >Max file size: 5MB</Typography.Caption
-          >
+          <Typography.Text variant="l-500">
+            Drag and drop a file here or click to upload
+          </Typography.Text>
+          <Typography.Caption variant="400">
+            Max file size: 5MB
+          </Typography.Caption>
         </Layout.Stack>
       </Upload.Dropzone>
       {#if files}
@@ -45044,8 +45225,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
           secondary
           on:click={() => {
             wizard.hide();
-          }}>Cancel</Button
+          }}
         >
+          Cancel
+        </Button>
         <Button submit size="s">Submit</Button>
       </Layout.Stack>
     </Layout.Stack>
@@ -45055,24 +45238,24 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
     <Card.Base padding="m">
       <Layout.Stack gap="xl">
         <Typography.Title size="s">Contact the Appwrite Team</Typography.Title>
-        <Typography.Text
-          >If you found a bug or have questions, please reach out to the
-          Appwrite team. We try to respond to all messages within our office
-          hours.</Typography.Text
-        >
+        <Typography.Text>
+          If you found a bug or have questions, please reach out to the Appwrite
+          team. We try to respond to all messages within our office hours.
+        </Typography.Text>
         <Layout.Stack direction="row" gap="s">
           <Typography.Text>Available:</Typography.Text>
-          <Typography.Text variant="m-500"
-            >{supportWeekDays}, {supportTimings}</Typography.Text
-          >
+          <Typography.Text variant="m-500">
+            {supportWeekDays}, {supportTimings}
+          </Typography.Text>
         </Layout.Stack>
         <Layout.Stack direction="row" gap="s">
           <Typography.Text>Currently:</Typography.Text>
           {#if isSupportOnline()}
             <Layout.Stack direction="row" gap="xxxs" alignItems="center">
               <Icon icon={IconCheckCircle} color="--fgcolor-success" />
-              <Typography.Text color="--fgcolor-success">Online</Typography.Text
-              >
+              <Typography.Text color="--fgcolor-success">
+                Online
+              </Typography.Text>
             </Layout.Stack>{:else}
             <Layout.Stack direction="row" gap="xxxs" alignItems="center">
               <Icon icon={IconXCircle} />
@@ -45401,7 +45584,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   }
 </style>
 
-=== 4824 src/routes/(public)/(guest)/register/invite/[slug]/+page.svelte	svelte
+=== 4848 src/routes/(public)/(guest)/register/invite/[slug]/+page.svelte	svelte
 <script lang="ts">
   import { goto, invalidate } from "$app/navigation";
   import { base } from "$app/paths";
@@ -45552,16 +45735,18 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
             target="_blank"
             rel="noopener noreferrer"
           >
-            Privacy Policy</a
-          >
+            Privacy Policy
+          </a>
           and accept our
           <a
             class="link"
             href="https://appwrite.io/terms"
             target="_blank"
-            rel="noopener noreferrer">General Terms of Use</a
-          >.</InputChoice
-        >
+            rel="noopener noreferrer"
+          >
+            General Terms of Use
+          </a>.
+        </InputChoice>
         <Button fullWidth submit>Sign up</Button>
       </Layout.Stack>
     </Form>
@@ -45569,9 +45754,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   <svelte:fragment slot="links">
     <li class="inline-links-item">
       <span class="text">
-        Already got an account? <a class="link" href={`${base}/login`}
-          >Sign in</a
-        >
+        Already got an account? <a class="link" href={`${base}/login`}>
+          Sign in
+        </a>
       </span>
     </li>
   </svelte:fragment>
@@ -45594,9 +45779,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
     </div>
   </section>
   <footer>
-    <Typography.Eyebrow color="--fgcolor-neutral-secondary"
-      >POWERED BY</Typography.Eyebrow
-    >
+    <Typography.Eyebrow color="--fgcolor-neutral-secondary">
+      POWERED BY
+    </Typography.Eyebrow>
     {#if $app.themeInUse === "dark"}
       <img
         src="{base}/images/appwrite-logo-dark.svg"
@@ -45645,7 +45830,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   }
 </style>
 
-=== 1136 src/routes/(public)/auth/magic-url/+page.svelte	svelte
+=== 1139 src/routes/(public)/auth/magic-url/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { getApiEndpoint } from "$lib/stores/sdk";
@@ -45678,8 +45863,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   Your Magic URL login flow is missing a proper redirect URL. Please check the
   <a
     href="https://appwrite.io/docs/references/cloud/client-web/account#createMagicURLSession"
-    >Magic URL docs</a
   >
+    Magic URL docs
+  </a>
   and send request for new session with a valid redirect URL.
 </p>
 
@@ -45768,7 +45954,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   <Footer slot="footer" />
 </Shell>
 
-=== 7313 src/routes/(public)/hackathon/+page.svelte	svelte
+=== 7337 src/routes/(public)/hackathon/+page.svelte	svelte
 <script lang="ts">
   import Button from "$lib/elements/forms/button.svelte";
   import CloudDark from "./cloud-dark.svg";
@@ -45805,8 +45991,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
             class="link"
             href="https://builtwith.appwrite.io"
             target="_blank"
-            rel="noopener noreferrer">Built with Appwrite</a
+            rel="noopener noreferrer"
           >
+            Built with Appwrite
+          </a>
         </span>
       </li>
     </ol>
@@ -45859,9 +46047,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
         <span class=" u-uppercase eyebrow-heading-3">Grand winner</span>
       </div>
       <h4 class="u-flex u-cross-center u-gap-4 u-margin-block-start-20">
-        <span class="heading-level-4">5,000</span><span class="heading-level-7"
-          >USD</span
-        >
+        <span class="heading-level-4">5,000</span><span class="heading-level-7">
+          USD
+        </span>
       </h4>
 
       <div class="u-flex u-flex-vertical u-gap-8 u-margin-block-start-16">
@@ -45871,14 +46059,14 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
     </div>
     <div class="card ht-card u-flex u-flex-vertical">
       <div class="ht-tag u-cross-child-center">
-        <span class=" u-uppercase eyebrow-heading-3 u-bold"
-          >5 Runner-ups Each</span
-        >
+        <span class=" u-uppercase eyebrow-heading-3 u-bold">
+          5 Runner-ups Each
+        </span>
       </div>
       <h4 class="u-flex u-cross-center u-gap-4 u-margin-block-start-20">
-        <span class="heading-level-4">1,000</span><span class="heading-level-7"
-          >USD</span
-        >
+        <span class="heading-level-4">1,000</span><span class="heading-level-7">
+          USD
+        </span>
       </h4>
       <div class="u-flex u-flex-vertical u-gap-8 u-margin-block-start-16">
         <p class="ht-text">+ Appwrite swag</p>
@@ -46039,7 +46227,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   }
 </style>
 
-=== 3355 src/routes/(public)/invite/+page.svelte	svelte
+=== 3387 src/routes/(public)/invite/+page.svelte	svelte
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { base } from "$app/paths";
@@ -46125,17 +46313,19 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
               By accepting the invitation, you agree to the <Link.Anchor
                 href="https://appwrite.io/terms"
                 target="_blank"
-                rel="noopener noreferrer">Terms and Conditions</Link.Anchor
+                rel="noopener noreferrer"
               >
+                Terms and Conditions
+              </Link.Anchor>
               and
               <Link.Anchor
                 href="https://appwrite.io/privacy"
                 target="_blank"
                 rel="noopener noreferrer"
               >
-                Privacy Policy</Link.Anchor
-              >.</InputChoice
-            >
+                Privacy Policy
+              </Link.Anchor>.
+            </InputChoice>
 
             <Layout.Stack direction="row">
               <Button secondary href={`${base}/login`}>Cancel</Button>
@@ -46165,9 +46355,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
     </div>
   </section>
   <footer>
-    <Typography.Eyebrow color="--fgcolor-neutral-secondary"
-      >POWERED BY</Typography.Eyebrow
-    >
+    <Typography.Eyebrow color="--fgcolor-neutral-secondary">
+      POWERED BY
+    </Typography.Eyebrow>
     {#if $app.themeInUse === "dark"}
       <img
         src="{base}/images/appwrite-logo-dark.svg"
@@ -47242,7 +47432,7 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
   }
 </style>
 
-=== 13411 src/routes/(public)/oauth2/resource-selector.svelte	svelte
+=== 13491 src/routes/(public)/oauth2/resource-selector.svelte	svelte
 <script lang="ts">
   import { Badge, Icon, Spinner } from "@appwrite.io/pink-svelte";
   import {
@@ -47444,15 +47634,19 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
             class="seg"
             class:active={isAll}
             {disabled}
-            onclick={() => setAll(true)}>All {pluralLabel}</button
+            onclick={() => setAll(true)}
           >
+            All {pluralLabel}
+          </button>
           <button
             type="button"
             class="seg"
             class:active={!isAll}
             {disabled}
-            onclick={() => setAll(false)}>Specific {pluralLabel}</button
+            onclick={() => setAll(false)}
           >
+            Specific {pluralLabel}
+          </button>
         </div>
       {/if}
 
@@ -47470,8 +47664,10 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
                 class="chip-remove"
                 aria-label={`Remove ${r.name}`}
                 {disabled}
-                onclick={() => remove(id)}>×</button
+                onclick={() => remove(id)}
               >
+                ×
+              </button>
             </span>
           {/each}
         </div>
@@ -47884,9 +48080,9 @@ APPWRITE_ENDPOINT = "${sdk.forProject(page.params.region, page.params.project).c
       <div style:height="20px">
         <Divider vertical />
       </div>
-      <Link.Anchor href={`${base}/register`} variant="quiet"
-        >Sign up</Link.Anchor
-      >
+      <Link.Anchor href={`${base}/register`} variant="quiet">
+        Sign up
+      </Link.Anchor>
     </Layout.Stack>
   </svelte:fragment>
 </Unauthenticated>

@@ -1541,9 +1541,9 @@ bar
 </style>
 
 === 180 packages/svelte/tests/css/samples/general-siblings-combinator-nested-slots-flattened/input.svelte	svelte
-<slot><slot><h1>Heading 1</h1></slot></slot><span>Span 1</span><span
-  >Span 2</span
-><slot><slot><p>Paragraph 2</p></slot></slot>
+<slot><slot><h1>Heading 1</h1></slot></slot><span>Span 1</span><span>
+  Span 2
+</span><slot><slot><p>Paragraph 2</p></slot></slot>
 
 <style>
   h1 ~ p {
@@ -4267,9 +4267,9 @@ bar
 </style>
 
 === 153 packages/svelte/tests/css/samples/siblings-combinator-nested-slots-flattened/input.svelte	svelte
-<slot><slot><slot><h1>test</h1></slot></slot></slot><slot
-  ><slot><span>Hello</span></slot></slot
->
+<slot><slot><slot><h1>test</h1></slot></slot></slot><slot>
+  <slot><span>Hello</span></slot>
+</slot>
 
 <style>
   h1 + span {
@@ -5686,7 +5686,7 @@ Text
   <Nested />
 </main>
 
-=== 3829 packages/svelte/tests/manual/each-stress-test/main.svelte	svelte
+=== 3849 packages/svelte/tests/manual/each-stress-test/main.svelte	svelte
 <script lang="ts">
   import { tick } from "svelte";
 
@@ -5809,8 +5809,10 @@ Text
         partying = true;
         while (partying) await test(shuffle());
       }
-    }}>{partying ? "stop" : "party"}</button
+    }}
   >
+    {partying ? "stop" : "party"}
+  </button>
 </fieldset>
 
 <fieldset>
@@ -5822,8 +5824,10 @@ Text
         for (let i = 0; i < preset.length; i += 1) {
           await test(preset[i]);
         }
-      }}>{index + 1}</button
+      }}
     >
+      {index + 1}
+    </button>
   {/each}
 </fieldset>
 
@@ -6008,7 +6012,7 @@ Text
 
 <button onclick={() => count++}>increment</button>
 
-=== 2847 packages/svelte/tests/migrate/samples/event-handlers-with-alias/input.svelte	svelte
+=== 2871 packages/svelte/tests/migrate/samples/event-handlers-with-alias/input.svelte	svelte
 <script>
   let handlers;
   let stopPropagation;
@@ -6028,13 +6032,17 @@ Text
   on:click={function () {
     console.log("hi");
   }}
-  on:click>click me</button
+  on:click
 >
+  click me
+</button>
 <button
   on:click={() => console.log("before")}
   on:click
-  on:click={() => console.log("after")}>click me</button
+  on:click={() => console.log("after")}
 >
+  click me
+</button>
 <button on:click on:click={foo}>click me</button>
 <button on:click>click me</button>
 
@@ -6053,9 +6061,9 @@ Text
 <button on:click|once={() => ""}>click me</button>
 
 <button on:click|preventDefault|stopPropagation={() => ""}>click me</button>
-<button on:click|stopPropagation|stopImmediatePropagation={() => {}}
-  >click me</button
->
+<button on:click|stopPropagation|stopImmediatePropagation={() => {}}>
+  click me
+</button>
 <button on:click|stopImmediatePropagation|self={() => ""}>click me</button>
 <button on:click|self|trusted={() => ""}>click me</button>
 <button on:click|trusted|once={() => ""}>click me</button>
@@ -6070,13 +6078,13 @@ Text
 <button on:click|stopPropagation|passive={() => ""}>click me</button>
 <button on:click|trusted|nonpassive={() => ""}>click me</button>
 
-<button on:click|passive={() => ""} on:click on:click={() => ""}
-  >click me</button
->
+<button on:click|passive={() => ""} on:click on:click={() => ""}>
+  click me
+</button>
 
-<button on:click|nonpassive={() => ""} on:click on:click={() => ""}
-  >click me</button
->
+<button on:click|nonpassive={() => ""} on:click on:click={() => ""}>
+  click me
+</button>
 
 <button
   on:click
@@ -6095,17 +6103,21 @@ Text
   <button
     on:click={() => {
       console.log("hi");
-    }}>click me</button
+    }}
   >
+    click me
+  </button>
   <button
     on:click|preventDefault={() => {
       console.log("hi");
-    }}>click me</button
+    }}
   >
+    click me
+  </button>
   <button on:click|preventDefault={() => (count += 1)}>click me</button>
 </div>
 
-=== 3762 packages/svelte/tests/migrate/samples/event-handlers-with-alias/output.svelte	svelte
+=== 3803 packages/svelte/tests/migrate/samples/event-handlers-with-alias/output.svelte	svelte
 <script>
   import {
     createBubbler as createBubbler_1,
@@ -6134,29 +6146,34 @@ Text
   let nonpassive;
 </script>
 
-<button onclick={handlers_1(() => console.log("hi"), bubble_1("click"))}
-  >click me</button
->
+<button onclick={handlers_1(() => console.log("hi"), bubble_1("click"))}>
+  click me
+</button>
 <button
   onclick={handlers_1(function () {
     console.log("hi");
-  }, bubble_1("click"))}>click me</button
+  }, bubble_1("click"))}
 >
+  click me
+</button>
 <button
   onclick={handlers_1(
     () => console.log("before"),
     bubble_1("click"),
     () => console.log("after"),
-  )}>click me</button
+  )}
 >
+  click me
+</button>
 <button onclick={handlers_1(bubble_1("click"), foo)}>click me</button>
 <button onclick={bubble_1("click")}>click me</button>
 
 <button ondblclick={() => console.log("hi")}>click me</button>
 <button ontoggle={bubble_1("toggle")}>click me</button>
 <button oncustom-event={() => "hi"}>click me</button>
-<button oncustom-event-bubble={bubble_1("custom-event-bubble")}>click me</button
->
+<button oncustom-event-bubble={bubble_1("custom-event-bubble")}>
+  click me
+</button>
 
 <button onclick={preventDefault_1(() => (searching = true))}>click me</button>
 <button onclick={preventDefault_1(() => "")}>click me</button>
@@ -6167,11 +6184,12 @@ Text
 <button onclick={trusted_1(() => "")}>click me</button>
 <button onclick={once_1(() => "")}>click me</button>
 
-<button onclick={stopPropagation_1(preventDefault_1(() => ""))}>click me</button
->
-<button onclick={stopImmediatePropagation_1(stopPropagation_1(() => {}))}
-  >click me</button
->
+<button onclick={stopPropagation_1(preventDefault_1(() => ""))}>
+  click me
+</button>
+<button onclick={stopImmediatePropagation_1(stopPropagation_1(() => {}))}>
+  click me
+</button>
 <button onclick={self_1(stopImmediatePropagation_1(() => ""))}>click me</button>
 <button onclick={trusted_1(self_1(() => ""))}>click me</button>
 <button onclick={once_1(trusted_1(() => ""))}>click me</button>
@@ -6183,21 +6201,26 @@ Text
 <button use:nonpassive_1={["click", () => () => ""]}>click me</button>
 <button use:passive_1={["click", () => foo]}>click me</button>
 <button use:nonpassive_1={["click", () => foo]}>click me</button>
-<button use:passive_1={["click", () => stopPropagation_1(() => "")]}
-  >click me</button
->
-<button use:nonpassive_1={["click", () => trusted_1(() => "")]}>click me</button
->
+<button use:passive_1={["click", () => stopPropagation_1(() => "")]}>
+  click me
+</button>
+<button use:nonpassive_1={["click", () => trusted_1(() => "")]}>
+  click me
+</button>
 
 <button
   use:passive_1={["click", () => () => ""]}
-  onclick={handlers_1(bubble_1("click"), () => "")}>click me</button
+  onclick={handlers_1(bubble_1("click"), () => "")}
 >
+  click me
+</button>
 
 <button
   use:nonpassive_1={["click", () => () => ""]}
-  onclick={handlers_1(bubble_1("click"), () => "")}>click me</button
+  onclick={handlers_1(bubble_1("click"), () => "")}
 >
+  click me
+</button>
 
 <button
   onclick={handlers_1(
@@ -6220,29 +6243,37 @@ Text
   <button
     onclick={() => {
       console.log("hi");
-    }}>click me</button
+    }}
   >
+    click me
+  </button>
   <button
     onclick={preventDefault_1(() => {
       console.log("hi");
-    })}>click me</button
+    })}
   >
+    click me
+  </button>
   <button onclick={preventDefault_1(() => (count += 1))}>click me</button>
 </div>
 
-=== 2716 packages/svelte/tests/migrate/samples/event-handlers/input.svelte	svelte
+=== 2744 packages/svelte/tests/migrate/samples/event-handlers/input.svelte	svelte
 <button on:click={() => console.log("hi")} on:click>click me</button>
 <button
   on:click={function () {
     console.log("hi");
   }}
-  on:click>click me</button
+  on:click
 >
+  click me
+</button>
 <button
   on:click={() => console.log("before")}
   on:click
-  on:click={() => console.log("after")}>click me</button
+  on:click={() => console.log("after")}
 >
+  click me
+</button>
 <button on:click on:click={foo}>click me</button>
 <button on:click>click me</button>
 
@@ -6261,9 +6292,9 @@ Text
 <button on:click|once={() => ""}>click me</button>
 
 <button on:click|preventDefault|stopPropagation={() => ""}>click me</button>
-<button on:click|stopPropagation|stopImmediatePropagation={() => {}}
-  >click me</button
->
+<button on:click|stopPropagation|stopImmediatePropagation={() => {}}>
+  click me
+</button>
 <button on:click|stopImmediatePropagation|self={() => ""}>click me</button>
 <button on:click|self|trusted={() => ""}>click me</button>
 <button on:click|trusted|self={() => ""}>click me</button>
@@ -6279,17 +6310,19 @@ Text
 <button on:click|stopPropagation|passive={() => ""}>click me</button>
 <button on:click|trusted|nonpassive={() => ""}>click me</button>
 
-<button on:click|passive={() => ""} on:click on:click={() => ""}
-  >click me</button
->
+<button on:click|passive={() => ""} on:click on:click={() => ""}>
+  click me
+</button>
 
 <button
   on:click|nonpassive={() => ""}
   on:click
   on:click={() => {
     return "multiline";
-  }}>click me</button
+  }}
 >
+  click me
+</button>
 
 <button
   on:click
@@ -6308,17 +6341,21 @@ Text
   <button
     on:click={() => {
       console.log("hi");
-    }}>click me</button
+    }}
   >
+    click me
+  </button>
   <button
     on:click|preventDefault={() => {
       console.log("hi");
-    }}>click me</button
+    }}
   >
+    click me
+  </button>
   <button on:click|preventDefault={() => (count += 1)}>click me</button>
 </div>
 
-=== 3343 packages/svelte/tests/migrate/samples/event-handlers/output.svelte	svelte
+=== 3375 packages/svelte/tests/migrate/samples/event-handlers/output.svelte	svelte
 <script>
   import {
     createBubbler,
@@ -6336,21 +6373,25 @@ Text
   const bubble = createBubbler();
 </script>
 
-<button onclick={handlers(() => console.log("hi"), bubble("click"))}
-  >click me</button
->
+<button onclick={handlers(() => console.log("hi"), bubble("click"))}>
+  click me
+</button>
 <button
   onclick={handlers(function () {
     console.log("hi");
-  }, bubble("click"))}>click me</button
+  }, bubble("click"))}
 >
+  click me
+</button>
 <button
   onclick={handlers(
     () => console.log("before"),
     bubble("click"),
     () => console.log("after"),
-  )}>click me</button
+  )}
 >
+  click me
+</button>
 <button onclick={handlers(bubble("click"), foo)}>click me</button>
 <button onclick={bubble("click")}>click me</button>
 
@@ -6369,9 +6410,9 @@ Text
 <button onclick={once(() => "")}>click me</button>
 
 <button onclick={stopPropagation(preventDefault(() => ""))}>click me</button>
-<button onclick={stopImmediatePropagation(stopPropagation(() => {}))}
-  >click me</button
->
+<button onclick={stopImmediatePropagation(stopPropagation(() => {}))}>
+  click me
+</button>
 <button onclick={self(stopImmediatePropagation(() => ""))}>click me</button>
 <button onclick={trusted(self(() => ""))}>click me</button>
 <button onclick={trusted(self(() => ""))}>click me</button>
@@ -6384,22 +6425,26 @@ Text
 <button use:nonpassive={["click", () => () => ""]}>click me</button>
 <button use:passive={["click", () => foo]}>click me</button>
 <button use:nonpassive={["click", () => foo]}>click me</button>
-<button use:passive={["click", () => stopPropagation(() => "")]}
-  >click me</button
->
+<button use:passive={["click", () => stopPropagation(() => "")]}>
+  click me
+</button>
 <button use:nonpassive={["click", () => trusted(() => "")]}>click me</button>
 
 <button
   use:passive={["click", () => () => ""]}
-  onclick={handlers(bubble("click"), () => "")}>click me</button
+  onclick={handlers(bubble("click"), () => "")}
 >
+  click me
+</button>
 
 <button
   use:nonpassive={["click", () => () => ""]}
   onclick={handlers(bubble("click"), () => {
     return "multiline";
-  })}>click me</button
+  })}
 >
+  click me
+</button>
 
 <button
   onclick={handlers(
@@ -6419,13 +6464,17 @@ Text
   <button
     onclick={() => {
       console.log("hi");
-    }}>click me</button
+    }}
   >
+    click me
+  </button>
   <button
     onclick={preventDefault(() => {
       console.log("hi");
-    })}>click me</button
+    })}
   >
+    click me
+  </button>
   <button onclick={preventDefault(() => (count += 1))}>click me</button>
 </div>
 
@@ -7178,7 +7227,7 @@ what if i'm talking about `:has()` in my blog? ```css :has(.is_cool) ```
   </div>
 </MyInput>
 
-=== 1101 packages/svelte/tests/migrate/samples/single-assignment-labeled/output.svelte	svelte
+=== 1105 packages/svelte/tests/migrate/samples/single-assignment-labeled/output.svelte	svelte
 <script>
   import { run } from "svelte/legacy";
 
@@ -7234,8 +7283,10 @@ what if i'm talking about `:has()` in my blog? ```css :has(.is_cool) ```
     eight_times++;
     sixteen_times += 1;
     should_be_state_too++;
-  }}>click</button
+  }}
 >
+  click
+</button>
 
 === 59 packages/svelte/tests/migrate/samples/slot-dont-mess-with-attributes/input.svelte	svelte
 <MyComponent variant="outlined">
@@ -7617,8 +7668,8 @@ what if i'm talking about `:has()` in my blog? ```css :has(.is_cool) ```
   {/snippet}
 </Component>
 
-<Component
-  >{#snippet children({ monster })}
+<Component>
+  {#snippet children({ monster })}
     If you do mix slots like this you're a {monster}{/snippet}
   {#snippet foo()}
     <div>foo</div>
@@ -7633,8 +7684,8 @@ what if i'm talking about `:has()` in my blog? ```css :has(.is_cool) ```
 </Component>
 
 <Component>
-  <span
-    >{#snippet children({ with_prop })}
+  <span>
+    {#snippet children({ with_prop })}
       should be children {with_prop} too
     {/snippet}
   </span>
@@ -8722,7 +8773,7 @@ unknown node type: TemplateLiteral
 </template>
 <slot></slot>
 
-=== 181 packages/svelte/tests/parser-modern/samples/typescript-in-event-handler/input.svelte	svelte
+=== 185 packages/svelte/tests/parser-modern/samples/typescript-in-event-handler/input.svelte	svelte
 <script lang="ts">
   let count = $state(0);
 </script>
@@ -8731,8 +8782,10 @@ unknown node type: TemplateLiteral
   on:click={(e: MouseEvent) => {
     const next: number = count + 1;
     count = next;
-  }}>clicks: {count}</button
+  }}
 >
+  clicks: {count}
+</button>
 
 === 62 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/output.svelte	svelte
 <script generics="T extends Record<string, string>"></script>
@@ -9426,10 +9479,10 @@ unknown node type: TemplateLiteral
   liiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiine
 </button>
 
-<span
-  >hello very long
-  liiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiine</span
->
+<span>
+  hello very long
+  liiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiine
+</span>
 
 === 302 packages/svelte/tests/print/samples/element-content-wrapping/output.svelte	svelte
 <button asdasd asdioqwjdoiqwjd qowdjqwoidjqowijdoiqj>
@@ -9437,10 +9490,10 @@ unknown node type: TemplateLiteral
   liiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiine
 </button>
 
-<span
-  >hello very long
-  liiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiine</span
->
+<span>
+  hello very long
+  liiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiiine
+</span>
 
 === 45 packages/svelte/tests/print/samples/expression-tag/input.svelte	svelte
 <span>{name}</span>
@@ -9449,7 +9502,7 @@ unknown node type: TemplateLiteral
 === 45 packages/svelte/tests/print/samples/expression-tag/output.svelte	svelte
 <span>{name}</span> <span>{count + 1}</span>
 
-=== 1023 packages/svelte/tests/print/samples/formatting/input.svelte	svelte
+=== 1041 packages/svelte/tests/print/samples/formatting/input.svelte	svelte
 <script>
   import { setLocale } from "$lib/paraglide/runtime";
   import { m } from "$lib/paraglide/messages.js";
@@ -9458,38 +9511,44 @@ unknown node type: TemplateLiteral
 <h1>{m.hello_world({ name: "SvelteKit User" })}</h1>
 <div>
   <button onclick={() => setLocale("en")}>en</button><button
-    onclick={() => setLocale("es")}>es</button
+    onclick={() => setLocale("es")}
   >
+    es
+  </button>
 </div>
 <p>
   If you use VSCode, install the <a
     href="https://marketplace.visualstudio.com/items?itemName=inlang.vs-code-extension"
-    target="_blank">Sherlock i18n extension</a
-  >for a better i18n experience.
+    target="_blank"
+  >
+    Sherlock i18n extension
+  </a>for a better i18n experience.
 </p>
 
-<Component
-  ><div>
+<Component>
+  <div>
     <button>Hello, this is a test</button><button>Hello, this is a test</button>
-  </div></Component
->
-<Component
-  ><button>Hello, this is a test</button><button>Hello, this is a test</button
-  ></Component
->
-<button
-  class="foo bar"
-  aria-label="click"
-  onclick={() => console.log("clicked")}>Click me!</button
->
+  </div>
+</Component>
+<Component>
+  <button>Hello, this is a test</button><button>Hello, this is a test</button>
+</Component>
 <button
   class="foo bar"
   aria-label="click"
   onclick={() => console.log("clicked")}
-  ><span>some fancy looking</span><span>really long button text</span></button
 >
+  Click me!
+</button>
+<button
+  class="foo bar"
+  aria-label="click"
+  onclick={() => console.log("clicked")}
+>
+  <span>some fancy looking</span><span>really long button text</span>
+</button>
 
-=== 1040 packages/svelte/tests/print/samples/formatting/output.svelte	svelte
+=== 1052 packages/svelte/tests/print/samples/formatting/output.svelte	svelte
 <script>
   import { setLocale } from "$lib/paraglide/runtime";
   import { m } from "$lib/paraglide/messages.js";
@@ -9507,8 +9566,10 @@ unknown node type: TemplateLiteral
 
   <a
     href="https://marketplace.visualstudio.com/items?itemName=inlang.vs-code-extension"
-    target="_blank">Sherlock i18n extension</a
+    target="_blank"
   >
+    Sherlock i18n extension
+  </a>
 
   for a better i18n experience.
 </p>
@@ -9528,8 +9589,10 @@ unknown node type: TemplateLiteral
 <button
   class="foo bar"
   aria-label="click"
-  onclick={() => console.log("clicked")}>Click me!</button
+  onclick={() => console.log("clicked")}
 >
+  Click me!
+</button>
 
 <button
   class="foo bar"
@@ -11094,14 +11157,15 @@ unknown node type: TemplateLiteral
   <div {@attach state.attachment}></div>
 {/if}
 
-=== 160 packages/svelte/tests/runtime-legacy/samples/attribute-after-property/main.svelte	svelte
+=== 163 packages/svelte/tests/runtime-legacy/samples/attribute-after-property/main.svelte	svelte
 <script>
   let step = "any";
 </script>
 
 <input type="range" {...{ step }} />
-<button onclick={() => (step = step === "any" ? 10 : "any")}>change step</button
->
+<button onclick={() => (step = step === "any" ? 10 : "any")}>
+  change step
+</button>
 
 === 38 packages/svelte/tests/runtime-legacy/samples/attribute-boolean-case-insensitive/main.svelte	svelte
 <input READONLY={!0} REQUIRED={!1} />
@@ -12194,7 +12258,7 @@ Parent component "{value}"<br />
 === 60 packages/svelte/tests/runtime-legacy/samples/class-with-attribute/main.svelte	svelte
 <div class="one" class:two={true} class:three={true}></div>
 
-=== 226 packages/svelte/tests/runtime-legacy/samples/component-binding-accessors/main.svelte	svelte
+=== 230 packages/svelte/tests/runtime-legacy/samples/component-binding-accessors/main.svelte	svelte
 <script>
   import Nested from "./Nested.svelte";
   let value = "something";
@@ -12207,8 +12271,10 @@ Parent component "{value}"<br />
 <button
   on:click={() => {
     c.value = "Reset";
-  }}>Reset</button
+  }}
 >
+  Reset
+</button>
 
 === 60 packages/svelte/tests/runtime-legacy/samples/component-binding-aliased/Widget.svelte	svelte
 <script>
@@ -12397,15 +12463,15 @@ Parent component "{value}"<br />
   const dispatch = createEventDispatcher();
 </script>
 
-<button on:click={() => dispatch("select", { selection: "foo" })}
-  >select foo</button
->
-<button on:click={() => dispatch("select", { selection: "bar" })}
-  >select bar</button
->
-<button on:click={() => dispatch("select", { selection: "baz" })}
-  >select baz</button
->
+<button on:click={() => dispatch("select", { selection: "foo" })}>
+  select foo
+</button>
+<button on:click={() => dispatch("select", { selection: "bar" })}>
+  select bar
+</button>
+<button on:click={() => dispatch("select", { selection: "baz" })}>
+  select baz
+</button>
 
 === 247 packages/svelte/tests/runtime-legacy/samples/component-events-data/main.svelte	svelte
 <script>
@@ -12665,9 +12731,9 @@ Parent component "{value}"<br />
 </script>
 
 <Nested let:set let:key let:item>
-  <button type="button" on:click={() => set(`value-${key}-${item}`)}
-    >Set {key}-{item}</button
-  >
+  <button type="button" on:click={() => set(`value-${key}-${item}`)}>
+    Set {key}-{item}
+  </button>
 </Nested>
 
 === 214 packages/svelte/tests/runtime-legacy/samples/component-slot-context-props-each/Nested.svelte	svelte
@@ -12946,7 +13012,7 @@ Icon B
   <p>{bar}</p>
 </Nested>
 
-=== 753 packages/svelte/tests/runtime-legacy/samples/component-slot-let-destructured-2/main.svelte	svelte
+=== 777 packages/svelte/tests/runtime-legacy/samples/component-slot-let-destructured-2/main.svelte	svelte
 <script>
   import Nested from "./Nested.svelte";
   let c = 0,
@@ -12965,8 +13031,10 @@ Icon B
   <button
     on:click={() => {
       c += 1;
-    }}>Increment</button
+    }}
   >
+    Increment
+  </button>
 </div>
 
 <div>
@@ -12980,8 +13048,10 @@ Icon B
   <button
     on:click={() => {
       d += 1;
-    }}>Increment</button
+    }}
   >
+    Increment
+  </button>
 </div>
 
 <div>
@@ -12999,8 +13069,10 @@ Icon B
   <button
     on:click={() => {
       e += 1;
-    }}>Increment</button
+    }}
   >
+    Increment
+  </button>
 </div>
 
 === 91 packages/svelte/tests/runtime-legacy/samples/component-slot-let-e/Nested.svelte	svelte
@@ -13451,7 +13523,7 @@ Display:
   </svelte:fragment>
 </Nested>
 
-=== 933 packages/svelte/tests/runtime-legacy/samples/component-svelte-fragment-let-destructured-2/main.svelte	svelte
+=== 957 packages/svelte/tests/runtime-legacy/samples/component-svelte-fragment-let-destructured-2/main.svelte	svelte
 <script>
   import Nested from "./Nested.svelte";
   let c = 0,
@@ -13472,8 +13544,10 @@ Display:
   <button
     on:click={() => {
       c += 1;
-    }}>Increment</button
+    }}
   >
+    Increment
+  </button>
 </div>
 
 <div>
@@ -13489,8 +13563,10 @@ Display:
   <button
     on:click={() => {
       d += 1;
-    }}>Increment</button
+    }}
   >
+    Increment
+  </button>
 </div>
 
 <div>
@@ -13506,8 +13582,10 @@ Display:
   <button
     on:click={() => {
       e += 1;
-    }}>Increment</button
+    }}
   >
+    Increment
+  </button>
 </div>
 
 === 21 packages/svelte/tests/runtime-legacy/samples/component-svelte-fragment-let-in-slot/Inner.svelte	svelte
@@ -13589,9 +13667,9 @@ Display:
 <button id="button" on:click={toggle}>toggle</button> TAG={tag}
 
 <div id="container">
-  <svelte:element this={tag} transition:slide={{ duration: 500 }}
-    >CONTENT</svelte:element
-  >
+  <svelte:element this={tag} transition:slide={{ duration: 500 }}>
+    CONTENT
+  </svelte:element>
 </div>
 
 === 32 packages/svelte/tests/runtime-legacy/samples/component-yield-follows-element/Foo.svelte	svelte
@@ -14297,9 +14375,9 @@ Inner
 </script>
 
 <button on:click={toggleFoo}>{$foo}</button>
-<button on:click={() => (foo = null)}
-  >click handler marks foo as reactive</button
->
+<button on:click={() => (foo = null)}>
+  click handler marks foo as reactive
+</button>
 
 === 47 packages/svelte/tests/runtime-legacy/samples/dev-warning-each-block-require-arraylike/main.svelte	svelte
 {#each {} as item}
@@ -14337,9 +14415,9 @@ Inner
   let show = true;
 </script>
 
-<button on:click={() => (component = component ? null : Foo)}
-  >toggle component</button
->
+<button on:click={() => (component = component ? null : Foo)}>
+  toggle component
+</button>
 <button on:click={() => (show = !show)}>toggle show</button>
 
 {#if show}
@@ -14761,12 +14839,14 @@ Foo
   <span>inner</span>
 </div>
 
-=== 73 packages/svelte/tests/runtime-legacy/samples/event-handler-async/main.svelte	svelte
+=== 77 packages/svelte/tests/runtime-legacy/samples/event-handler-async/main.svelte	svelte
 <button
   on:click={async () => {
     await null;
-  }}>nothing</button
+  }}
 >
+  nothing
+</button>
 
 === 264 packages/svelte/tests/runtime-legacy/samples/event-handler-destructured/main.svelte	svelte
 <script>
@@ -15036,7 +15116,7 @@ Compile plz
   {#each message as char}<span>{char} </span>{/each}
 </div>
 
-=== 214 packages/svelte/tests/runtime-legacy/samples/function-expression-inline/main.svelte	svelte
+=== 218 packages/svelte/tests/runtime-legacy/samples/function-expression-inline/main.svelte	svelte
 <script>
   let list = [1, 2, 3];
 </script>
@@ -15046,8 +15126,10 @@ Compile plz
     list = list.map((item) => {
       return item * 2;
     });
-  }}>click me</button
+  }}
 >
+  click me
+</button>
 
 {#each list as number}
   <p>{number}</p>
@@ -15154,9 +15236,9 @@ B
 
 === 106 packages/svelte/tests/runtime-legacy/samples/html-entities-inside-elements/main.svelte	svelte
 <p>
-  this &lt;em&gt;should&lt;/em&gt; not be <span
-    >&lt;strong&gt;bold&lt;/strong&gt;</span
-  >
+  this &lt;em&gt;should&lt;/em&gt; not be <span>
+    &lt;strong&gt;bold&lt;/strong&gt;
+  </span>
 </p>
 
 === 431 packages/svelte/tests/runtime-legacy/samples/html-entities/main.svelte	svelte
@@ -15528,7 +15610,7 @@ Two
 
 <p>x: {x}</p>
 
-=== 170 packages/svelte/tests/runtime-legacy/samples/instrumentation-template-loop-scope/main.svelte	svelte
+=== 174 packages/svelte/tests/runtime-legacy/samples/instrumentation-template-loop-scope/main.svelte	svelte
 <script>
   let x = 0;
 </script>
@@ -15539,8 +15621,10 @@ Two
       for (let x = 0; x < 10; x++) {}
       x = 42;
     })();
-  }}>foo</button
+  }}
 >
+  foo
+</button>
 
 <p>x: {x}</p>
 
@@ -15961,7 +16045,7 @@ Child
   onDestroy(() => destroyed.push("C"));
 </script>
 
-=== 239 packages/svelte/tests/runtime-legacy/samples/ondestroy-prop-access-2/main.svelte	svelte
+=== 243 packages/svelte/tests/runtime-legacy/samples/ondestroy-prop-access-2/main.svelte	svelte
 <script>
   import Component from "./Component.svelte";
 
@@ -15971,8 +16055,10 @@ Child
 <button
   onclick={() => {
     value = undefined;
-  }}>Reset value</button
+  }}
 >
+  Reset value
+</button>
 
 {#if value !== undefined}
   <Component my_prop={value} />
@@ -17092,11 +17178,10 @@ Valid: {$validity.valid}
   <rect {...style} />
 </svg>
 
-=== 93 packages/svelte/tests/runtime-legacy/samples/svg-tspan-preserve-space/main.svelte	svelte
-<svg
-  ><text x="0" y="50"><tspan>foo</tspan> {"bar"}<tspan>foo</tspan> bar</text
-  ></svg
->
+=== 90 packages/svelte/tests/runtime-legacy/samples/svg-tspan-preserve-space/main.svelte	svelte
+<svg>
+  <text x="0" y="50"><tspan>foo</tspan> {"bar"}<tspan>foo</tspan> bar</text>
+</svg>
 
 === 122 packages/svelte/tests/runtime-legacy/samples/svg-xlink/main.svelte	svelte
 <svg>
@@ -17825,9 +17910,9 @@ multiple leading newlines</textarea
 </script>
 
 <button onclick={() => foo.count++}>mutate</button>
-<button onclick={() => (foo = { ...foo, count: foo.count + 1 })}
-  >reassign</button
->
+<button onclick={() => (foo = { ...foo, count: foo.count + 1 })}>
+  reassign
+</button>
 <div use:action={foo}>{count}</div>
 
 === 192 packages/svelte/tests/runtime-runes/samples/action-void-element/main.svelte	svelte
@@ -17841,7 +17926,7 @@ multiple leading newlines</textarea
 <input use:action />
 <svelte:element this={"input"} use:action />
 
-=== 230 packages/svelte/tests/runtime-runes/samples/ambiguous-source/main.svelte	svelte
+=== 234 packages/svelte/tests/runtime-runes/samples/ambiguous-source/main.svelte	svelte
 <script>
   import { setup } from "./utils.js";
 
@@ -17853,8 +17938,10 @@ multiple leading newlines</textarea
   on:click={() => {
     num++;
     num_frozen++;
-  }}>{num} / {num_frozen}</button
+  }}
 >
+  {num} / {num_frozen}
+</button>
 
 === 458 packages/svelte/tests/runtime-runes/samples/animate-no-transition-events/main.svelte	svelte
 <script>
@@ -17877,7 +17964,7 @@ multiple leading newlines</textarea
   </div>
 {/each}
 
-=== 132 packages/svelte/tests/runtime-runes/samples/array-delete-item/main.svelte	svelte
+=== 136 packages/svelte/tests/runtime-runes/samples/array-delete-item/main.svelte	svelte
 <script>
   const arr = [0, 1, 2];
 </script>
@@ -17886,8 +17973,10 @@ multiple leading newlines</textarea
   onclick={() => {
     delete arr[1];
     console.log(arr);
-  }}>del</button
+  }}
 >
+  del
+</button>
 
 === 130 packages/svelte/tests/runtime-runes/samples/array-lastindexof/main.svelte	svelte
 <script>
@@ -18082,7 +18171,7 @@ multiple leading newlines</textarea
 === 2 packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/B.svelte	svelte
 B
 
-=== 363 packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/main.svelte	svelte
+=== 371 packages/svelte/tests/runtime-runes/samples/async-block-effect-queueing/main.svelte	svelte
 <script lang="ts">
   import { fork } from "svelte";
   import A from "./A.svelte";
@@ -18097,13 +18186,17 @@ B
     f = fork(() => {
       open = !open;
     });
-  }}>fork</button
+  }}
 >
+  fork
+</button>
 <button
   onclick={() => {
     f.commit();
-  }}>commit</button
+  }}
 >
+  commit
+</button>
 
 {#if open}
   <A />
@@ -18146,7 +18239,7 @@ B
   {/snippet}
 </svelte:boundary>
 
-=== 180 packages/svelte/tests/runtime-runes/samples/async-component-exports/main.svelte	svelte
+=== 184 packages/svelte/tests/runtime-runes/samples/async-component-exports/main.svelte	svelte
 <script>
   import Child from "./Child.svelte";
 
@@ -18158,8 +18251,10 @@ B
   onclick={() => {
     child.foo();
     child.bar();
-  }}>log</button
+  }}
 >
+  log
+</button>
 
 === 163 packages/svelte/tests/runtime-runes/samples/async-derived-destructured/main.svelte	svelte
 <script>
@@ -18413,7 +18508,7 @@ Hi
   }
 </script>
 
-=== 754 packages/svelte/tests/runtime-runes/samples/async-fork-attributes/main.svelte	svelte
+=== 762 packages/svelte/tests/runtime-runes/samples/async-fork-attributes/main.svelte	svelte
 <script>
   import { fork } from "svelte";
   import { createAttachmentKey } from "svelte/attachments";
@@ -18435,21 +18530,25 @@ Hi
             return () => node.removeAttribute("data-attached");
           };
     });
-  }}>fork</button
+  }}
 >
+  fork
+</button>
 
 <button
   onclick={() => {
     forked.commit();
-  }}>commit</button
+  }}
 >
+  commit
+</button>
 
 <!-- force $.attribute_effect, which uses a block effect -->
 <p {...{ style }}>foo</p>
 <p {...{ style, [createAttachmentKey()]: attach }}>foo</p>
 <p {@attach attach}>foo</p>
 
-=== 584 packages/svelte/tests/runtime-runes/samples/async-fork-derived-writable/main.svelte	svelte
+=== 588 packages/svelte/tests/runtime-runes/samples/async-fork-derived-writable/main.svelte	svelte
 <script>
   import { fork } from "svelte";
 
@@ -18472,10 +18571,12 @@ Hi
     await f.commit();
     // Should be 99 (the value we wrote)
     console.log(d);
-  }}>++</button
+  }}
 >
+  ++
+</button>
 
-=== 264 packages/svelte/tests/runtime-runes/samples/async-fork-derived/main.svelte	svelte
+=== 268 packages/svelte/tests/runtime-runes/samples/async-fork-derived/main.svelte	svelte
 <script>
   import { fork } from "svelte";
 
@@ -18492,8 +18593,10 @@ Hi
     console.log(d);
     await f.commit();
     console.log(d);
-  }}>++</button
+  }}
 >
+  ++
+</button>
 
 === 342 packages/svelte/tests/runtime-runes/samples/async-fork-discard-derived-writable-uninitialized/main.svelte	svelte
 <script>
@@ -18534,7 +18637,7 @@ Hi
   {d_count}
 {/if}
 
-=== 335 packages/svelte/tests/runtime-runes/samples/async-fork-if/main.svelte	svelte
+=== 339 packages/svelte/tests/runtime-runes/samples/async-fork-if/main.svelte	svelte
 <script>
   import { fork } from "svelte";
   import Child from "./Child.svelte";
@@ -18548,14 +18651,16 @@ Hi
     });
     await new Promise((r) => setTimeout(r));
     f.commit();
-  }}>fork</button
+  }}
 >
+  fork
+</button>
 
 {#if x === "universe"}
   <Child {x} />
 {/if}
 
-=== 589 packages/svelte/tests/runtime-runes/samples/async-fork-snippet-dev/main.svelte	svelte
+=== 593 packages/svelte/tests/runtime-runes/samples/async-fork-snippet-dev/main.svelte	svelte
 <script>
   import { fork } from "svelte";
 
@@ -18570,8 +18675,10 @@ Hi
     fork(() => {
       condition = true;
     }).commit();
-  }}>fork</button
+  }}
 >
+  fork
+</button>
 
 {#if condition}
   <!-- in dev, snippet arguments are read eagerly, outside a tracking context -->
@@ -18585,7 +18692,7 @@ Hi
   </button>
 {/if}
 
-=== 522 packages/svelte/tests/runtime-runes/samples/async-fork-update-same-state/main.svelte	svelte
+=== 526 packages/svelte/tests/runtime-runes/samples/async-fork-update-same-state/main.svelte	svelte
 <script>
   import { fork } from "svelte";
 
@@ -18625,8 +18732,10 @@ Hi
 <button
   onclick={() => {
     forked?.commit();
-  }}>commit</button
+  }}
 >
+  commit
+</button>
 
 <p>{count}</p>
 
@@ -19431,7 +19540,7 @@ Hi
   <p>{b}</p>
 {/await}
 
-=== 719 packages/svelte/tests/runtime-runes/samples/await-immediate-fulfilled/main.svelte	svelte
+=== 735 packages/svelte/tests/runtime-runes/samples/await-immediate-fulfilled/main.svelte	svelte
 <script>
   let p = $state(null);
 </script>
@@ -19441,29 +19550,37 @@ Hi
     p = new Promise((resolve, reject) => {
       resolve("?");
     });
-  }}>Resolve (immediate)</button
+  }}
 >
+  Resolve (immediate)
+</button>
 <button
   onclick={() => {
     p = new Promise((resolve, reject) => {
       setTimeout(() => resolve("OK"), 1);
     });
-  }}>Resolve (timeout)</button
+  }}
 >
+  Resolve (timeout)
+</button>
 <button
   onclick={() => {
     p = new Promise((resolve, reject) => {
       reject("??");
     });
-  }}>Reject (immediate)</button
+  }}
 >
+  Reject (immediate)
+</button>
 <button
   onclick={() => {
     p = new Promise((resolve, reject) => {
       setTimeout(() => reject("Yeah"), 1);
     });
-  }}>Reject (timeout)</button
+  }}
 >
+  Reject (timeout)
+</button>
 
 <p>
   {#await p}
@@ -19557,9 +19674,9 @@ Hi
 
 <button onclick={() => (promise = null)}>Clear</button>
 <button onclick={() => (promise = Promise.resolve())}>Immediate</button>
-<button onclick={() => (promise = new Promise((r) => setTimeout(r, 100)))}
-  >Takes time</button
->
+<button onclick={() => (promise = new Promise((r) => setTimeout(r, 100)))}>
+  Takes time
+</button>
 
 {#if promise}
   <Await {promise} />
@@ -19588,7 +19705,7 @@ Hi
   {err.or}
 {/await}
 
-=== 726 packages/svelte/tests/runtime-runes/samples/await-resolve-2/main.svelte	svelte
+=== 742 packages/svelte/tests/runtime-runes/samples/await-resolve-2/main.svelte	svelte
 <script>
   const promise_a = Promise.resolve("a");
   const promise_b = Promise.resolve("b");
@@ -19609,23 +19726,31 @@ Hi
 <button
   onclick={() => {
     current_promise = promise_a;
-  }}>Show Promise A</button
+  }}
 >
+  Show Promise A
+</button>
 <button
   onclick={() => {
     current_promise = promise_b;
-  }}>Show Promise B</button
+  }}
 >
+  Show Promise B
+</button>
 <button
   onclick={() => {
     current_promise = promise_c;
-  }}>Show Promise C</button
+  }}
 >
+  Show Promise C
+</button>
 <button
   onclick={() => {
     current_promise = promise_d;
-  }}>Show Promise D</button
+  }}
 >
+  Show Promise D
+</button>
 
 === 403 packages/svelte/tests/runtime-runes/samples/await-resolve/main.svelte	svelte
 <script>
@@ -19950,7 +20075,7 @@ Checked: {checked}
 
 <button onclick={() => (value = undefined)}>clear</button>
 
-=== 457 packages/svelte/tests/runtime-runes/samples/bind-this-no-state/main.svelte	svelte
+=== 465 packages/svelte/tests/runtime-runes/samples/bind-this-no-state/main.svelte	svelte
 <script>
   import { tick } from "svelte";
 
@@ -19966,8 +20091,10 @@ Checked: {checked}
       selected = i;
       await tick();
       current = div?.textContent;
-    }}>{n}</button
+    }}
   >
+    {n}
+  </button>
 {/each}
 
 <hr />
@@ -20033,7 +20160,7 @@ Checked: {checked}
 
 <div>Hello world</div>
 
-=== 374 packages/svelte/tests/runtime-runes/samples/bind-this-proxy/main.svelte	svelte
+=== 378 packages/svelte/tests/runtime-runes/samples/bind-this-proxy/main.svelte	svelte
 <script>
   import Component from "./Component.svelte";
 
@@ -20052,8 +20179,10 @@ Checked: {checked}
     } else {
       type = false;
     }
-  }}>Toggle</button
+  }}
 >
+  Toggle
+</button>
 
 <svelte:component this={type} bind:this={elem}>Content</svelte:component>
 
@@ -20067,7 +20196,7 @@ Checked: {checked}
 === 13 packages/svelte/tests/runtime-runes/samples/bind-this-raw/ComponentB.svelte	svelte
 <div>b</div>
 
-=== 434 packages/svelte/tests/runtime-runes/samples/bind-this-raw/main.svelte	svelte
+=== 442 packages/svelte/tests/runtime-runes/samples/bind-this-raw/main.svelte	svelte
 <script>
   import ComponentA from "./ComponentA.svelte";
   import ComponentB from "./ComponentB.svelte";
@@ -20083,13 +20212,17 @@ Checked: {checked}
 <button
   onclick={() => {
     type = ComponentA;
-  }}>a</button
+  }}
 >
+  a
+</button>
 <button
   onclick={() => {
     type = ComponentB;
-  }}>b</button
+  }}
 >
+  b
+</button>
 
 <svelte:component this={type} bind:this={elem}>Content</svelte:component>
 
@@ -20138,7 +20271,7 @@ Checked: {checked}
 
 <button onclick={open}>{is_open}</button>
 
-=== 261 packages/svelte/tests/runtime-runes/samples/bindable-prop-and-export/main.svelte	svelte
+=== 265 packages/svelte/tests/runtime-runes/samples/bindable-prop-and-export/main.svelte	svelte
 <script>
   import Component from "./Component.svelte";
 
@@ -20151,8 +20284,10 @@ Checked: {checked}
 <button
   onclick={() => {
     comp.open();
-  }}>{open}</button
+  }}
 >
+  {open}
+</button>
 
 <input type="checkbox" bind:checked={open} />
 
@@ -20593,7 +20728,7 @@ Checked: {checked}
   <input type="checkbox" bind:checked={value} />
 </label>
 
-=== 519 packages/svelte/tests/runtime-runes/samples/checkbox-binding-derived/main.svelte	svelte
+=== 523 packages/svelte/tests/runtime-runes/samples/checkbox-binding-derived/main.svelte	svelte
 <script>
   import Checkbox from "./checkbox.svelte";
 
@@ -20618,8 +20753,10 @@ Checked: {checked}
 <button
   onclick={() => {
     foo[nextKey++] = true;
-  }}>Add</button
+  }}
 >
+  Add
+</button>
 
 {#each keys as key (key)}
   <Checkbox bind:value={foo[key]} />
@@ -20828,7 +20965,7 @@ Checked: {checked}
   $inspect(counter.count2);
 </script>
 
-=== 372 packages/svelte/tests/runtime-runes/samples/class-private-raw-state-object/main.svelte	svelte
+=== 376 packages/svelte/tests/runtime-runes/samples/class-private-raw-state-object/main.svelte	svelte
 <script>
   class Counter {
     #count = $state.raw();
@@ -20850,8 +20987,10 @@ Checked: {checked}
 <button
   on:click={() => {
     counter.count.a++;
-  }}>{counter.count.a}</button
+  }}
 >
+  {counter.count.a}
+</button>
 
 === 348 packages/svelte/tests/runtime-runes/samples/class-private-raw-state/main.svelte	svelte
 <script>
@@ -20973,7 +21112,7 @@ Checked: {checked}
 
 <button on:click={() => counter.count++}>{counter.count}</button>
 
-=== 193 packages/svelte/tests/runtime-runes/samples/class-raw-state-object/main.svelte	svelte
+=== 197 packages/svelte/tests/runtime-runes/samples/class-raw-state-object/main.svelte	svelte
 <script>
   class Counter {
     count = $state.raw({ a: 0 });
@@ -20984,8 +21123,10 @@ Checked: {checked}
 <button
   on:click={() => {
     counter.count.a++;
-  }}>{counter.count.a}</button
+  }}
 >
+  {counter.count.a}
+</button>
 
 === 168 packages/svelte/tests/runtime-runes/samples/class-raw-state/main.svelte	svelte
 <script>
@@ -21204,12 +21345,12 @@ Checked: {checked}
   const counter = new Counter(0);
 </script>
 
-<button on:click={() => counter.container.count++}
-  >{counter.container.count} / {counter.private_count}</button
->
-<button on:click={() => counter.increment()}
-  >{counter.container.count} / {counter.private_count}</button
->
+<button on:click={() => counter.container.count++}>
+  {counter.container.count} / {counter.private_count}
+</button>
+<button on:click={() => counter.increment()}>
+  {counter.container.count} / {counter.private_count}
+</button>
 
 === 241 packages/svelte/tests/runtime-runes/samples/class-state-derived-2/main.svelte	svelte
 <script>
@@ -21606,7 +21747,7 @@ Checked: {checked}
 
 <div class={cls}>child</div>
 
-=== 750 packages/svelte/tests/runtime-runes/samples/clsx/main.svelte	svelte
+=== 754 packages/svelte/tests/runtime-runes/samples/clsx/main.svelte	svelte
 <script>
   import Child from "./child.svelte";
 
@@ -21633,8 +21774,10 @@ Checked: {checked}
   onclick={() => {
     foo = null;
     bar = "bar";
-  }}>update</button
+  }}
 >
+  update
+</button>
 
 <style>
   .foo {
@@ -21739,9 +21882,9 @@ Checked: {checked}
 </script>
 
 <main>
-  <button onclick={() => (activeComp = activeComp === "Red" ? "Blue" : "Red")}
-    >toggle</button
-  >
+  <button onclick={() => (activeComp = activeComp === "Red" ? "Blue" : "Red")}>
+    toggle
+  </button>
   <svelte:component this={comps[activeComp]} />
 </main>
 
@@ -22075,7 +22218,7 @@ Checked: {checked}
   <span>{nested}</span>
 </div>
 
-=== 276 packages/svelte/tests/runtime-runes/samples/deferred-events-consistency-2/main.svelte	svelte
+=== 284 packages/svelte/tests/runtime-runes/samples/deferred-events-consistency-2/main.svelte	svelte
 <script>
   let action = $state("old url");
 </script>
@@ -22091,8 +22234,10 @@ Checked: {checked}
     type="submit"
     onclick={() => {
       action = "new url";
-    }}>Submit</button
+    }}
   >
+    Submit
+  </button>
 </form>
 
 === 362 packages/svelte/tests/runtime-runes/samples/deferred-events-consistency-3/main.svelte	svelte
@@ -22147,7 +22292,7 @@ Checked: {checked}
   click me
 </button>
 
-=== 208 packages/svelte/tests/runtime-runes/samples/deferred-events-consistency/main.svelte	svelte
+=== 212 packages/svelte/tests/runtime-runes/samples/deferred-events-consistency/main.svelte	svelte
 <script>
   let disabled = $state(false);
 </script>
@@ -22159,8 +22304,10 @@ Checked: {checked}
   }}
   onclick={() => {
     console.log("I should not be invoked");
-  }}>Click me!</button
+  }}
 >
+  Click me!
+</button>
 
 === 197 packages/svelte/tests/runtime-runes/samples/delete-proxy-key/main.svelte	svelte
 <script>
@@ -22273,7 +22420,7 @@ Checked: {checked}
   {a}/{x.c}/{x.c}
 {/if}
 
-=== 421 packages/svelte/tests/runtime-runes/samples/derived-dependencies/main.svelte	svelte
+=== 429 packages/svelte/tests/runtime-runes/samples/derived-dependencies/main.svelte	svelte
 <script>
   let data = $state({
     event: {
@@ -22292,8 +22439,10 @@ Checked: {checked}
 <button
   onclick={() => {
     data = {};
-  }}>hide</button
+  }}
 >
+  hide
+</button>
 
 <button
   onclick={() => {
@@ -22303,8 +22452,10 @@ Checked: {checked}
         body: "Body",
       },
     };
-  }}>show</button
+  }}
 >
+  show
+</button>
 
 === 419 packages/svelte/tests/runtime-runes/samples/derived-destructure/main.svelte	svelte
 <script>
@@ -22386,7 +22537,7 @@ Checked: {checked}
 
 <button on:click={() => count++}>{double}</button>
 
-=== 705 packages/svelte/tests/runtime-runes/samples/derived-disconnect/main.svelte	svelte
+=== 737 packages/svelte/tests/runtime-runes/samples/derived-disconnect/main.svelte	svelte
 <script>
   const items = [
     { id: 1, name: "a" },
@@ -22408,8 +22559,10 @@ Checked: {checked}
         <button
           onclick={() => {
             currentId = item.id;
-          }}>{item.name}</button
+          }}
         >
+          {item.name}
+        </button>
       </div>
     {/each}
   {/if}
@@ -22418,8 +22571,10 @@ Checked: {checked}
     <button
       onclick={() => {
         visible = !visible;
-      }}>Show / Hide</button
+      }}
     >
+      Show / Hide
+    </button>
   </div>
 </main>
 
@@ -22638,7 +22793,7 @@ Checked: {checked}
 <button on:click={() => count++}>{count} / {double.value}</button>
 <button on:click={() => (double.value += 2)}>{count} / {double.value}</button>
 
-=== 780 packages/svelte/tests/runtime-runes/samples/derived-read-outside-reaction/main.svelte	svelte
+=== 788 packages/svelte/tests/runtime-runes/samples/derived-read-outside-reaction/main.svelte	svelte
 <script lang="ts">
   class Item {
     product: number;
@@ -22658,8 +22813,10 @@ Checked: {checked}
 <button
   onclick={() => {
     multiplier += 1;
-  }}>+1</button
+  }}
 >
+  +1
+</button>
 
 <button
   onclick={() => {
@@ -22669,8 +22826,10 @@ Checked: {checked}
     // `products`, removing it as a reaction from `Item.product` dependencies,
     // but we don't add it as a reaction to the new `Item.product` dependencies
     products;
-  }}>add number</button
+  }}
 >
+  add number
+</button>
 
 <p>{products.join(", ")}</p>
 
@@ -23114,7 +23273,7 @@ Checked: {checked}
   prefix_minus_n: {prefix_minus_n}, count_n: {count_n}
 </p>
 
-=== 346 packages/svelte/tests/runtime-runes/samples/derived-write-read-write-read/main.svelte	svelte
+=== 350 packages/svelte/tests/runtime-runes/samples/derived-write-read-write-read/main.svelte	svelte
 <script>
   let x = $state(1);
   let y = $state(1);
@@ -23128,8 +23287,10 @@ Checked: {checked}
     // resulting in the same value should not prevent pending render effects from updating
     z;
     y = 0;
-  }}>{z}</button
+  }}
 >
+  {z}
+</button>
 
 === 363 packages/svelte/tests/runtime-runes/samples/deriveds-in-constructor/main.svelte	svelte
 <script>
@@ -23497,7 +23658,7 @@ Checked: {checked}
   <B>test</B>
 </B>
 
-=== 235 packages/svelte/tests/runtime-runes/samples/dynamic-component-transition/Component.svelte	svelte
+=== 243 packages/svelte/tests/runtime-runes/samples/dynamic-component-transition/Component.svelte	svelte
 <script>
   import { fade } from "svelte/transition";
   let show = $state(true);
@@ -23508,8 +23669,10 @@ Checked: {checked}
 {#if show}
   <button
     onclick={() => (show = false)}
-    transition:fade|global={{ duration: 100 }}>Hide</button
+    transition:fade|global={{ duration: 100 }}
   >
+    Hide
+  </button>
 {/if}
 
 === 104 packages/svelte/tests/runtime-runes/samples/dynamic-component-transition/main.svelte	svelte
@@ -23543,7 +23706,7 @@ Component2
 <Component />
 <Object.component />
 
-=== 318 packages/svelte/tests/runtime-runes/samples/dynamic-element-dynamic-namespace/main.svelte	svelte
+=== 322 packages/svelte/tests/runtime-runes/samples/dynamic-element-dynamic-namespace/main.svelte	svelte
 <script>
   let tag = $state("path");
   let xmlns = $state("http://www.w3.org/2000/svg");
@@ -23553,8 +23716,10 @@ Component2
   onclick={() => {
     tag = "div";
     xmlns = null;
-  }}>change</button
+  }}
 >
+  change
+</button>
 
 <!-- wrapper necessary or else jsdom says this is always an xhtml namespace -->
 <svg>
@@ -23585,9 +23750,9 @@ Component2
 <button onclick={() => (show = !show)}>Toggle</button>
 
 {#if show}
-  <svelte:element this={element} transition:fade={{ duration: 100 }}
-    >DIV</svelte:element
-  >
+  <svelte:element this={element} transition:fade={{ duration: 100 }}>
+    DIV
+  </svelte:element>
 {/if}
 
 === 550 packages/svelte/tests/runtime-runes/samples/dynamic-event-handler-2/main.svelte	svelte
@@ -23749,9 +23914,9 @@ Component2
 </script>
 
 <button on:click={() => (toggle = !toggle)}>{toggle}</button>
-<button on:click={() => (toggleTransition = !toggleTransition)}
-  >{toggleTransition}</button
->
+<button on:click={() => (toggleTransition = !toggleTransition)}>
+  {toggleTransition}
+</button>
 
 {#if toggle}<div transition:derived></div>{/if}
 
@@ -24068,7 +24233,7 @@ unknown node type: CallExpression
   <div>Item: {item.t}. Index: {index}</div>
 {/each}
 
-=== 474 packages/svelte/tests/runtime-runes/samples/each-updates-11/main.svelte	svelte
+=== 476 packages/svelte/tests/runtime-runes/samples/each-updates-11/main.svelte	svelte
 <script>
   let list = $state([
     { id: 1, text: "1" },
@@ -24079,13 +24244,15 @@ unknown node type: CallExpression
 
 <button
   onclick={() => (list = [list[0], { id: 4, text: "4" }, ...list.slice(1)])}
-  >add 4</button
 >
+  add 4
+</button>
 <button
   onclick={() =>
     (list = [list[0], list[1], { id: 5, text: "5" }, ...list.slice(2)])}
-  >add 5</button
 >
+  add 5
+</button>
 <button onclick={() => (list.at(-1).text = "updated")}>modify 3</button>
 
 {#each list as item (item.id)}
@@ -24320,7 +24487,7 @@ unknown node type: CallExpression
   <p>{msg.content}</p>
 {/each}
 
-=== 814 packages/svelte/tests/runtime-runes/samples/each-updates-9/main.svelte	svelte
+=== 818 packages/svelte/tests/runtime-runes/samples/each-updates-9/main.svelte	svelte
 <script>
   import { createSubscriber } from "svelte/reactivity";
 
@@ -24363,8 +24530,10 @@ unknown node type: CallExpression
 <button
   onclick={() => {
     storeOptions.someBoolean = !storeOptions.someBoolean;
-  }}>+</button
+  }}
 >
+  +
+</button>
 
 {#each myStore.data as _}{/each}
 
@@ -24388,7 +24557,7 @@ unknown node type: CallExpression
   }}
 ></button>
 
-=== 915 packages/svelte/tests/runtime-runes/samples/each-updates/main.svelte	svelte
+=== 927 packages/svelte/tests/runtime-runes/samples/each-updates/main.svelte	svelte
 <script>
   let data = $state({ items: [] });
 
@@ -24437,20 +24606,26 @@ unknown node type: CallExpression
       price: 3,
       name: "test 3",
     });
-  }}>add</button
+  }}
 >
+  add
+</button>
 
 <button
   onclick={() => {
     data.items[1].price = 2000;
-  }}>change</button
+  }}
 >
+  change
+</button>
 
 <button
   onclick={() => {
     fetchData();
-  }}>reload</button
+  }}
 >
+  reload
+</button>
 
 === 510 packages/svelte/tests/runtime-runes/samples/each-was-empty/main.svelte	svelte
 <script>
@@ -25093,7 +25268,7 @@ unknown node type: CallExpression
   <button on:click={() => (power = n)}>{n}</button>
 {/each}
 
-=== 297 packages/svelte/tests/runtime-runes/samples/effect-teardown-derived/Component.svelte	svelte
+=== 301 packages/svelte/tests/runtime-runes/samples/effect-teardown-derived/Component.svelte	svelte
 <script>
   let { message, count } = $props();
 
@@ -25110,8 +25285,10 @@ unknown node type: CallExpression
   onclick={() => {
     count += 1;
     message += "!";
-  }}>update</button
+  }}
 >
+  update
+</button>
 
 === 355 packages/svelte/tests/runtime-runes/samples/effect-teardown-derived/main.svelte	svelte
 <script>
@@ -25122,15 +25299,15 @@ unknown node type: CallExpression
 </script>
 
 <button onclick={() => count++}>{count}</button>
-<button onclick={() => (message = message === "hello" ? "goodbye" : "hello")}
-  >{message}</button
->
+<button onclick={() => (message = message === "hello" ? "goodbye" : "hello")}>
+  {message}
+</button>
 
 {#if count < 2 && message === "hello"}
   <Component {count} {message} />
 {/if}
 
-=== 424 packages/svelte/tests/runtime-runes/samples/effect-teardown-multiple-writes/main.svelte	svelte
+=== 428 packages/svelte/tests/runtime-runes/samples/effect-teardown-multiple-writes/main.svelte	svelte
 <script>
   let value = $state("one");
 
@@ -25152,8 +25329,10 @@ unknown node type: CallExpression
   onclick={() => {
     value = "two";
     value = "three";
-  }}>go</button
+  }}
 >
+  go
+</button>
 
 === 265 packages/svelte/tests/runtime-runes/samples/effect-teardown-stale-value/main.svelte	svelte
 <script>
@@ -25211,7 +25390,7 @@ unknown node type: CallExpression
   <div transition:customTransition>clicks</div>
 {/if}
 
-=== 355 packages/svelte/tests/runtime-runes/samples/effect-tracking-unowned/main.svelte	svelte
+=== 359 packages/svelte/tests/runtime-runes/samples/effect-tracking-unowned/main.svelte	svelte
 <script>
   import { writable, fromStore, toStore } from "svelte/store";
 
@@ -25226,8 +25405,10 @@ unknown node type: CallExpression
 <button
   onclick={() => {
     store.set("new");
-  }}>Change Store</button
+  }}
 >
+  Change Store
+</button>
 
 === 287 packages/svelte/tests/runtime-runes/samples/effect-tracking/main.svelte	svelte
 <script>
@@ -25335,11 +25516,11 @@ unknown node type: CallExpression
 </svelte:boundary>
 
 <button onclick={() => count++}>+</button>
-<button onclick={() => (onerror = () => console.log("error caught!!!"))}
-  >change error message</button
->
+<button onclick={() => (onerror = () => console.log("error caught!!!"))}>
+  change error message
+</button>
 
-=== 439 packages/svelte/tests/runtime-runes/samples/error-boundary-11/main.svelte	svelte
+=== 440 packages/svelte/tests/runtime-runes/samples/error-boundary-11/main.svelte	svelte
 <script>
   function throw_error() {
     throw new Error("test");
@@ -25356,8 +25537,9 @@ unknown node type: CallExpression
 <button onclick={() => count++}>+</button>
 <button
   onclick={() => (props = { onerror: () => console.log("error caught!!!") })}
-  >change error message</button
 >
+  change error message
+</button>
 
 === 318 packages/svelte/tests/runtime-runes/samples/error-boundary-12/main.svelte	svelte
 <script>
@@ -25946,7 +26128,7 @@ unknown node type: CallExpression
   throw new Error("unlucky");
 </script>
 
-=== 479 packages/svelte/tests/runtime-runes/samples/error-boundary-hydrate-1/main.svelte	svelte
+=== 483 packages/svelte/tests/runtime-runes/samples/error-boundary-hydrate-1/main.svelte	svelte
 <script>
   import Child from "./child.svelte";
 
@@ -25975,10 +26157,12 @@ unknown node type: CallExpression
   onclick={() => {
     recovered = true;
     reset_fn();
-  }}>reset</button
+  }}
 >
+  reset
+</button>
 
-=== 382 packages/svelte/tests/runtime-runes/samples/error-boundary-hydrate-2/main.svelte	svelte
+=== 394 packages/svelte/tests/runtime-runes/samples/error-boundary-hydrate-2/main.svelte	svelte
 <script>
   import Child from "./child.svelte";
 
@@ -25998,8 +26182,10 @@ unknown node type: CallExpression
       onclick={() => {
         recovered = true;
         reset();
-      }}>reset</button
+      }}
     >
+      reset
+    </button>
   {/snippet}
 </svelte:boundary>
 
@@ -26168,7 +26354,7 @@ unknown node type: CallExpression
 {changed}
 <input {...props} oninput={() => (changed = true)} class="hello" />
 
-=== 252 packages/svelte/tests/runtime-runes/samples/event-attribute-bubble/main.svelte	svelte
+=== 256 packages/svelte/tests/runtime-runes/samples/event-attribute-bubble/main.svelte	svelte
 <script>
   import Sub from "./sub.svelte";
 
@@ -26181,8 +26367,10 @@ unknown node type: CallExpression
 <button
   onclick={() => {
     onclick = () => count--;
-  }}>change handler</button
+  }}
 >
+  change handler
+</button>
 
 === 150 packages/svelte/tests/runtime-runes/samples/event-attribute-bubble/sub.svelte	svelte
 <script>
@@ -26298,7 +26486,7 @@ unknown node type: CallExpression
   {@render children()}
 </button>
 
-=== 397 packages/svelte/tests/runtime-runes/samples/event-attribute-delegation-5/main.svelte	svelte
+=== 409 packages/svelte/tests/runtime-runes/samples/event-attribute-delegation-5/main.svelte	svelte
 <script>
   import Component from "./Component.svelte";
   import Button from "./Button.svelte";
@@ -26308,8 +26496,10 @@ unknown node type: CallExpression
   <Component on:click={() => console.log("inner div on:click")}>
     <Button
       onclick={() => console.log("button onclick")}
-      on:click={() => console.log("button on:click")}>main</Button
+      on:click={() => console.log("button on:click")}
     >
+      main
+    </Button>
   </Component>
 </Component>
 
@@ -26560,19 +26750,21 @@ unknown node type: CallExpression
 </script>
 
 <button {...obj}>{count}</button>
-<button onclick={() => (obj = { onclick: () => count-- })}
-  >change handler</button
->
+<button onclick={() => (obj = { onclick: () => count-- })}>
+  change handler
+</button>
 
-=== 178 packages/svelte/tests/runtime-runes/samples/event-attribute-template/main.svelte	svelte
+=== 182 packages/svelte/tests/runtime-runes/samples/event-attribute-template/main.svelte	svelte
 <script>
   let a = $state(0);
   let b = $state(0);
 </script>
 
 {undefined}<button onclick={() => (a += 1)}>{a}</button>{undefined}<button
-  onclick={() => (b += 1)}>{b}</button
+  onclick={() => (b += 1)}
 >
+  {b}
+</button>
 
 === 102 packages/svelte/tests/runtime-runes/samples/event-attribute-window/main.svelte	svelte
 <script>
@@ -27083,9 +27275,9 @@ unknown node type: CallExpression
   let prop = $state({ count: 0 });
 </script>
 
-<button onclick={() => (prop = { ...prop, count: prop.count + 1 })}
-  >reassign</button
->
+<button onclick={() => (prop = { ...prop, count: prop.count + 1 })}>
+  reassign
+</button>
 <button onclick={() => prop.count++}>mutate</button>
 <Old {prop}></Old>
 
@@ -27129,7 +27321,7 @@ unknown node type: CallExpression
   }}
 ></div>
 
-=== 312 packages/svelte/tests/runtime-runes/samples/flush-sync-no-scheduled/main.svelte	svelte
+=== 316 packages/svelte/tests/runtime-runes/samples/flush-sync-no-scheduled/main.svelte	svelte
 <script>
   import { flushSync } from "svelte";
 
@@ -27144,8 +27336,10 @@ unknown node type: CallExpression
     });
 
     flag = !flag;
-  }}>switch</button
+  }}
 >
+  switch
+</button>
 
 <main>
   <div>{flag}</div>
@@ -27155,7 +27349,7 @@ unknown node type: CallExpression
   {/if}
 </main>
 
-=== 406 packages/svelte/tests/runtime-runes/samples/fork-derived-class-instance/main.svelte	svelte
+=== 418 packages/svelte/tests/runtime-runes/samples/fork-derived-class-instance/main.svelte	svelte
 <script>
   import { fork } from "svelte";
 
@@ -27172,19 +27366,23 @@ unknown node type: CallExpression
     fork(() => {
       condition = true;
     }).commit();
-  }}>fork</button
+  }}
 >
+  fork
+</button>
 
 {#if condition}
   <button
     onclick={() => {
       counter.count++;
-    }}>click</button
+    }}
   >
+    click
+  </button>
   <p>{counter.count}</p>
 {/if}
 
-=== 763 packages/svelte/tests/runtime-runes/samples/fork-derived-dependency-rollback/main.svelte	svelte
+=== 767 packages/svelte/tests/runtime-runes/samples/fork-derived-dependency-rollback/main.svelte	svelte
 <script>
   import { fork } from "svelte";
 
@@ -27207,8 +27405,10 @@ unknown node type: CallExpression
       show_count_1 = !show_count_1;
     });
     f.discard();
-  }}>fork toggle</button
+  }}
 >
+  fork toggle
+</button>
 
 <button onclick={() => (show_count_1 = !show_count_1)}>toggle</button>
 <button onclick={() => count_1++}>increment count 1</button>
@@ -27216,7 +27416,7 @@ unknown node type: CallExpression
 
 <p>{count}</p>
 
-=== 421 packages/svelte/tests/runtime-runes/samples/fork-derived-uncached-1/main.svelte	svelte
+=== 425 packages/svelte/tests/runtime-runes/samples/fork-derived-uncached-1/main.svelte	svelte
 <script>
   import { fork } from "svelte";
 
@@ -27231,8 +27431,10 @@ unknown node type: CallExpression
       clicks += 1;
       show = true;
     }).discard();
-  }}>fork</button
+  }}
 >
+  fork
+</button>
 
 <button onclick={() => (show = !show)}>toggle</button>
 
@@ -27242,7 +27444,7 @@ unknown node type: CallExpression
   <p>{derived}</p>
 {/if}
 
-=== 264 packages/svelte/tests/runtime-runes/samples/fork-derived-value-immediate/main.svelte	svelte
+=== 268 packages/svelte/tests/runtime-runes/samples/fork-derived-value-immediate/main.svelte	svelte
 <script>
   import { fork } from "svelte";
 
@@ -27258,10 +27460,12 @@ unknown node type: CallExpression
       state++;
       console.log(count);
     });
-  }}>fork</button
+  }}
 >
+  fork
+</button>
 
-=== 298 packages/svelte/tests/runtime-runes/samples/fork-derived-value/main.svelte	svelte
+=== 306 packages/svelte/tests/runtime-runes/samples/fork-derived-value/main.svelte	svelte
 <script>
   import { fork } from "svelte";
 
@@ -27274,14 +27478,18 @@ unknown node type: CallExpression
     fork(() => {
       state++;
     });
-  }}>fork</button
+  }}
 >
+  fork
+</button>
 
 <button
   onclick={() => {
     state++;
-  }}>update</button
+  }}
 >
+  update
+</button>
 
 {#if count === 1}
   <p>one</p>
@@ -27308,7 +27516,7 @@ unknown node type: CallExpression
 <input type="checkbox" {...checkbox} />
 <input value="b" {...text} />
 
-=== 2293 packages/svelte/tests/runtime-runes/samples/form-default-value-select/main.svelte	svelte
+=== 2324 packages/svelte/tests/runtime-runes/samples/form-default-value-select/main.svelte	svelte
 <script>
   let selected1 = $state();
   let selected2 = $state("c");
@@ -27382,19 +27590,27 @@ unknown node type: CallExpression
     onclick={() => {
       defaultValue = "a";
       props.defaultValue = "a";
-    }}>Update defaults</button
+    }}
   >
-  <button type="button" class="add" onclick={() => options.push("b")}
-    >Add option</button
+    Update defaults
+  </button>
+  <button type="button" class="add" onclick={() => options.push("b")}>
+    Add option
+  </button>
+  <button
+    type="button"
+    class="remove"
+    onclick={() => delete props.defaultValue}
   >
-  <button type="button" class="remove" onclick={() => delete props.defaultValue}
-    >Remove default</button
-  >
+    Remove default
+  </button>
   <button
     type="button"
     class="clear"
-    onclick={() => (multipleDefault = undefined)}>Clear defaults</button
+    onclick={() => (multipleDefault = undefined)}
   >
+    Clear defaults
+  </button>
 </form>
 
 <p>{selected1} {selected2} {selected3} {selected4.join(",")}</p>
@@ -27852,7 +28068,7 @@ unknown node type: CallExpression
 === 13 packages/svelte/tests/runtime-runes/samples/functional-templating/main.svelte	svelte
 <p>hello</p>
 
-=== 635 packages/svelte/tests/runtime-runes/samples/get-abort-signal/main.svelte	svelte
+=== 639 packages/svelte/tests/runtime-runes/samples/get-abort-signal/main.svelte	svelte
 <script>
   import { getAbortSignal } from "svelte";
 
@@ -27878,8 +28094,10 @@ unknown node type: CallExpression
     count += 1;
     await Promise.resolve();
     count += 1;
-  }}>increment</button
+  }}
 >
+  increment
+</button>
 
 {#await delayed_count}
   <p>loading...</p>
@@ -28167,7 +28385,7 @@ component
 <!-- svelte-ignore hydration_html_changed -->
 {@html browser ? "a" : "b"}
 
-=== 343 packages/svelte/tests/runtime-runes/samples/if-block-dependencies/main.svelte	svelte
+=== 347 packages/svelte/tests/runtime-runes/samples/if-block-dependencies/main.svelte	svelte
 <script>
   let first = $state(true);
   let second = $state(false);
@@ -28184,8 +28402,10 @@ component
 <button
   onclick={() => {
     second = true;
-  }}>Toggle</button
+  }}
 >
+  Toggle
+</button>
 
 {#if first || derivedSecond}
   first: {first}
@@ -28245,7 +28465,7 @@ component
   $effect(() => console.log(text));
 </script>
 
-=== 543 packages/svelte/tests/runtime-runes/samples/if-nested-template/main.svelte	svelte
+=== 551 packages/svelte/tests/runtime-runes/samples/if-nested-template/main.svelte	svelte
 <script>
   import Component from "./Component.svelte";
 
@@ -28272,13 +28492,17 @@ component
   onclick={() => {
     outer = false;
     inner = undefined;
-  }}>Set both to falsy</button
+  }}
 >
+  Set both to falsy
+</button>
 <button
   onclick={() => {
     outer = true;
-  }}>Set outer to truthy</button
+  }}
 >
+  Set outer to truthy
+</button>
 
 === 281 packages/svelte/tests/runtime-runes/samples/if-transition-inert/main.svelte	svelte
 <script>
@@ -28297,7 +28521,7 @@ component
   </div>
 {/if}
 
-=== 386 packages/svelte/tests/runtime-runes/samples/if-transition-undefined/main.svelte	svelte
+=== 390 packages/svelte/tests/runtime-runes/samples/if-transition-undefined/main.svelte	svelte
 <script>
   import { fade } from "svelte/transition";
 
@@ -28310,8 +28534,10 @@ component
 </script>
 
 <button onclick={() => (show = !show)}>show</button><button
-  onclick={() => (animate = !animate)}>animate</button
+  onclick={() => (animate = !animate)}
 >
+  animate
+</button>
 
 {#if show}
   <h1 transition:maybe={animate}>Hello {name}!</h1>
@@ -28678,7 +28904,7 @@ component
   $inspect(state2);
 </script>
 
-=== 667 packages/svelte/tests/runtime-runes/samples/inspect-recursive/main.svelte	svelte
+=== 671 packages/svelte/tests/runtime-runes/samples/inspect-recursive/main.svelte	svelte
 <script>
   class Rect {
     x = $state();
@@ -28714,8 +28940,10 @@ component
         y: Math.floor(Math.random() * 100),
       }),
     );
-  }}>add</button
+  }}
 >
+  add
+</button>
 <ul>
   {#each rects as rect}
     <li>{rect.x} - {rect.y}</li>
@@ -28825,7 +29053,7 @@ component
 
 <button onclick={() => count++}>{count}</button>
 
-=== 395 packages/svelte/tests/runtime-runes/samples/inspect-trace-reassignment/main.svelte	svelte
+=== 399 packages/svelte/tests/runtime-runes/samples/inspect-trace-reassignment/main.svelte	svelte
 <script>
   let count = $state(0);
   let checked = $state(false);
@@ -28845,8 +29073,10 @@ component
 <button
   onclick={() => {
     count++;
-  }}>{count}</button
+  }}
 >
+  {count}
+</button>
 
 === 228 packages/svelte/tests/runtime-runes/samples/inspect-trace-store/main.svelte	svelte
 <script>
@@ -28947,9 +29177,9 @@ component
   {entry.selected} <select bind:value={entry.selected}></select>
 {/each}
 
-<button on:click={() => (entries = [{ selected: "a" }, { selected: "b" }])}
-  >change</button
->
+<button on:click={() => (entries = [{ selected: "a" }, { selected: "b" }])}>
+  change
+</button>
 
 === 160 packages/svelte/tests/runtime-runes/samples/key-nan/main.svelte	svelte
 <script>
@@ -29297,7 +29527,7 @@ component
   {/each}
 </ul>
 
-=== 373 packages/svelte/tests/runtime-runes/samples/manual-mount/inner.svelte	svelte
+=== 376 packages/svelte/tests/runtime-runes/samples/manual-mount/inner.svelte	svelte
 <script>
   import { createEventDispatcher, getContext } from "svelte";
 
@@ -29308,8 +29538,9 @@ component
   const dispatch = createEventDispatcher();
 </script>
 
-<button onclick={() => dispatch("update", count + 1 * multiply)}>{count}</button
->
+<button onclick={() => dispatch("update", count + 1 * multiply)}>
+  {count}
+</button>
 
 === 534 packages/svelte/tests/runtime-runes/samples/manual-mount/main.svelte	svelte
 <script>
@@ -29403,7 +29634,7 @@ component
   <Table.Row id={item.id} />
 {/each}
 
-=== 334 packages/svelte/tests/runtime-runes/samples/member-mutation/main.svelte	svelte
+=== 342 packages/svelte/tests/runtime-runes/samples/member-mutation/main.svelte	svelte
 <script>
   let people = $state([{ name: { first: "rob" } }]);
 </script>
@@ -29413,8 +29644,10 @@ component
     on:click={() => {
       person.name.first = "dave";
       people = people;
-    }}>person.name.first = "dave"</button
+    }}
   >
+    person.name.first = "dave"
+  </button>
 {/each}
 
 <h3>JSON output</h3>
@@ -29461,7 +29694,7 @@ component
 <button onclick={() => intro()}>mount with intro transition</button>
 <button onclick={() => intro(false)}>mount without intro transition</button>
 
-=== 255 packages/svelte/tests/runtime-runes/samples/mount-props-updates/component.svelte	svelte
+=== 259 packages/svelte/tests/runtime-runes/samples/mount-props-updates/component.svelte	svelte
 <script>
   let {
     foo,
@@ -29477,15 +29710,17 @@ component
     bar = "2";
     baz = "3";
     buz = "4";
-  }}>update</button
+  }}
 >
+  update
+</button>
 
 {foo}
 {bar}
 {baz}
 {buz}
 
-=== 770 packages/svelte/tests/runtime-runes/samples/mount-props-updates/main.svelte	svelte
+=== 774 packages/svelte/tests/runtime-runes/samples/mount-props-updates/main.svelte	svelte
 <script>
   import { createClassComponent } from "svelte/legacy";
   import Component from "./component.svelte";
@@ -29512,8 +29747,10 @@ component
     props.bar = "bar";
     props.baz = "baz";
     props.buz = "buz";
-  }}>reset</button
+  }}
 >
+  reset
+</button>
 {props.foo}
 {props.bar}
 {props.baz}
@@ -29708,7 +29945,7 @@ component
 <p>{f.w}</p>
 <p>{f.v}</p>
 
-=== 417 packages/svelte/tests/runtime-runes/samples/nested-effect-conflict/main.svelte	svelte
+=== 421 packages/svelte/tests/runtime-runes/samples/nested-effect-conflict/main.svelte	svelte
 <script>
   let c = $state({ a: 0 });
 
@@ -29730,8 +29967,10 @@ component
   onclick={() => {
     c.a = 1;
     c = null;
-  }}>toggle</button
+  }}
 >
+  toggle
+</button>
 
 === 61 packages/svelte/tests/runtime-runes/samples/nested-script-tag/main.svelte	svelte
 <div>
@@ -29961,7 +30200,7 @@ component
 <button {onclick}>First click here</button>
 <Child item={found} />
 
-=== 154 packages/svelte/tests/runtime-runes/samples/non-local-mutation-ok/child.svelte	svelte
+=== 158 packages/svelte/tests/runtime-runes/samples/non-local-mutation-ok/child.svelte	svelte
 <script>
   let { klass, getter_setter } = $props();
 </script>
@@ -29970,8 +30209,10 @@ component
   onclick={() => {
     klass.y = 2;
     getter_setter.y = 2;
-  }}>mutate</button
+  }}
 >
+  mutate
+</button>
 
 === 287 packages/svelte/tests/runtime-runes/samples/non-local-mutation-ok/main.svelte	svelte
 <script>
@@ -30261,7 +30502,7 @@ component
   <Component />
 {/key}
 
-=== 595 packages/svelte/tests/runtime-runes/samples/optgroup-rich-content/main.svelte	svelte
+=== 599 packages/svelte/tests/runtime-runes/samples/optgroup-rich-content/main.svelte	svelte
 <script>
   let fruit = $state("apple");
   let vegetable = $state("carrot");
@@ -30284,8 +30525,10 @@ component
   onclick={() => {
     fruit = "orange";
     vegetable = "broccoli";
-  }}>Change</button
+  }}
 >
+  Change
+</button>
 
 === 402 packages/svelte/tests/runtime-runes/samples/option-rich-content/main.svelte	svelte
 <script>
@@ -30729,7 +30972,7 @@ component
 
 <Counter />
 
-=== 371 packages/svelte/tests/runtime-runes/samples/props-default-value-behavior/inner.svelte	svelte
+=== 379 packages/svelte/tests/runtime-runes/samples/props-default-value-behavior/inner.svelte	svelte
 <script>
   let { readonly, readonlyWithDefault = 1, binding = $bindable() } = $props();
 </script>
@@ -30743,16 +30986,20 @@ component
 <button
   on:click={() => {
     binding = 5;
-  }}>set bindings to 5</button
+  }}
 >
+  set bindings to 5
+</button>
 
 <button
   on:click={() => {
     binding = undefined;
-  }}>set bindings to undefined</button
+  }}
 >
+  set bindings to undefined
+</button>
 
-=== 2440 packages/svelte/tests/runtime-runes/samples/props-default-value-behavior/main.svelte	svelte
+=== 2448 packages/svelte/tests/runtime-runes/samples/props-default-value-behavior/main.svelte	svelte
 <script>
   import Inner from "./inner.svelte";
 
@@ -30821,8 +31068,10 @@ component
     bind_binding_undefined = 10;
     bind_readonly_defined = 10;
     bind_binding_defined = 10;
-  }}>set everything to 10</button
+  }}
 >
+  set everything to 10
+</button>
 
 <button
   on:click={() => {
@@ -30836,8 +31085,10 @@ component
     bind_binding_undefined = undefined;
     bind_readonly_defined = undefined;
     bind_binding_defined = undefined;
-  }}>set everything to undefined</button
+  }}
 >
+  set everything to undefined
+</button>
 
 === 67 packages/svelte/tests/runtime-runes/samples/props-default-value-function/inner.svelte	svelte
 <script>
@@ -30911,7 +31162,7 @@ Inner: {getter()}
 <p>props: {p0} {p1} {p2} {p3} {p4} {p5} {p6} {p7}</p>
 <p>log: {log}</p>
 
-=== 499 packages/svelte/tests/runtime-runes/samples/props-default-value-lazy/main.svelte	svelte
+=== 503 packages/svelte/tests/runtime-runes/samples/props-default-value-lazy/main.svelte	svelte
 <script>
   import Sub from "./sub.svelte";
 
@@ -30937,8 +31188,10 @@ Inner: {getter()}
     p5 = undefined;
     p6 = undefined;
     p7 = undefined;
-  }}>Set all to undefined</button
+  }}
 >
+  Set all to undefined
+</button>
 
 === 200 packages/svelte/tests/runtime-runes/samples/props-default-value-reactivity/main.svelte	svelte
 <script>
@@ -30968,7 +31221,7 @@ Inner: {getter()}
 
 {options}
 
-=== 392 packages/svelte/tests/runtime-runes/samples/props-default-value-rest/main.svelte	svelte
+=== 400 packages/svelte/tests/runtime-runes/samples/props-default-value-rest/main.svelte	svelte
 <script>
   import Inner from "./inner.svelte";
 
@@ -30982,8 +31235,10 @@ Inner: {getter()}
     testProps = {
       color: "blue",
     };
-  }}>set color</button
+  }}
 >
+  set color
+</button>
 
 <button
   onclick={() => {
@@ -30991,8 +31246,10 @@ Inner: {getter()}
       color: "pink",
       options: "baz",
     };
-  }}>set options</button
+  }}
 >
+  set options
+</button>
 
 <Inner {...testProps} />
 
@@ -31241,7 +31498,7 @@ Inner: {getter()}
 
 <p>{propA} {propB}</p>
 
-=== 359 packages/svelte/tests/runtime-runes/samples/props-spread-fallback/main.svelte	svelte
+=== 367 packages/svelte/tests/runtime-runes/samples/props-spread-fallback/main.svelte	svelte
 <script>
   import Component from "./Component.svelte";
 
@@ -31254,13 +31511,17 @@ Inner: {getter()}
 <button
   on:click={() => {
     props.propA = !props.propA;
-  }}>change propA</button
+  }}
 >
+  change propA
+</button>
 <button
   on:click={() => {
     props.propB = props.propB ? undefined : "defined";
-  }}>change propB</button
+  }}
 >
+  change propB
+</button>
 <Component {...props} />
 
 === 71 packages/svelte/tests/runtime-runes/samples/props-spread-operator/Child.svelte	svelte
@@ -31406,9 +31667,9 @@ Child: {settings.showInRgb}
 })}
 
 <button onclick={(e) => fixed(e.currentTarget)}>change opacity (fixed)</button>
-<button onclick={(e) => unknown(e.currentTarget)}
-  >change opacity (unknown)</button
->
+<button onclick={(e) => unknown(e.currentTarget)}>
+  change opacity (unknown)
+</button>
 
 === 150 packages/svelte/tests/runtime-runes/samples/proxy-coercive-assignment/main.svelte	svelte
 <script>
@@ -31542,7 +31803,7 @@ Child: {settings.showInRgb}
 <p>{(Math.random() * m).toFixed(10)}</p>
 <p>{(Math.random() * m).toFixed(10)}</p>
 
-=== 620 packages/svelte/tests/runtime-runes/samples/reactive-date/main.svelte	svelte
+=== 632 packages/svelte/tests/runtime-runes/samples/reactive-date/main.svelte	svelte
 <script>
   import { SvelteDate } from "svelte/reactivity";
 
@@ -31558,18 +31819,24 @@ Child: {settings.showInRgb}
 <button
   onclick={() => {
     date.setSeconds(date.getSeconds() + 1);
-  }}>1 second</button
+  }}
 >
+  1 second
+</button>
 <button
   onclick={() => {
     date.setMinutes(date.getMinutes() + 1);
-  }}>1 minute</button
+  }}
 >
+  1 minute
+</button>
 <button
   onclick={() => {
     date.setHours(date.getHours() + 1);
-  }}>1 hour</button
+  }}
 >
+  1 hour
+</button>
 
 === 171 packages/svelte/tests/runtime-runes/samples/reactive-identifier/main.svelte	svelte
 <script>
@@ -31586,7 +31853,7 @@ Child: {settings.showInRgb}
   {object}
 </button>
 
-=== 638 packages/svelte/tests/runtime-runes/samples/reactive-map/main.svelte	svelte
+=== 650 packages/svelte/tests/runtime-runes/samples/reactive-map/main.svelte	svelte
 <script>
   import { SvelteMap } from "svelte/reactivity";
 
@@ -31616,20 +31883,26 @@ Child: {settings.showInRgb}
 <button
   onclick={() => {
     state.set(state.size + 1, state.size + 1);
-  }}>add</button
+  }}
 >
+  add
+</button>
 
 <button
   onclick={() => {
     state.delete(state.size);
-  }}>delete</button
+  }}
 >
+  delete
+</button>
 
 <button
   onclick={() => {
     state.clear();
-  }}>clear</button
+  }}
 >
+  clear
+</button>
 
 {#each state as [key, value]}
   <div>{key}:{value}</div>
@@ -31670,7 +31943,7 @@ Child: {settings.showInRgb}
 <div>{rmap.entries()} {rmap.keys()} {rmap.values()}</div>
 <div>{map.entries()} {map.keys()} {map.values()}</div>
 
-=== 753 packages/svelte/tests/runtime-runes/samples/reactive-url/main.svelte	svelte
+=== 769 packages/svelte/tests/runtime-runes/samples/reactive-url/main.svelte	svelte
 <script>
   import { SvelteURL } from "svelte/reactivity";
 
@@ -31687,23 +31960,31 @@ Child: {settings.showInRgb}
 <button
   onclick={() => {
     url.hostname = "kit.svelte.dev";
-  }}>update hostname</button
+  }}
 >
+  update hostname
+</button>
 <button
   onclick={() => {
     url.pathname = "docs/introduction";
-  }}>update pathname</button
+  }}
 >
+  update pathname
+</button>
 <button
   onclick={() => {
     url.search = "?t=123";
-  }}>update search</button
+  }}
 >
+  update search
+</button>
 <button
   onclick={() => {
     url.href = "https://google.com/search?version=3";
-  }}>update href</button
+  }}
 >
+  update href
+</button>
 
 === 131 packages/svelte/tests/runtime-runes/samples/read-version-previous-reaction/Component.svelte	svelte
 <script>
@@ -32721,12 +33002,12 @@ Child: {settings.showInRgb}
 {#snippet counter(c = count)}
   <p id="count">Count: {count.value}</p>
   <p id="fallback-count">Fallback count: {fallback_count.value}</p>
-  <button id="increment" on:click={() => (c.value += 1)}
-    >Click to change referenced state value</button
-  >
-  <button id="change-ref" on:click={() => (toggle_state = !toggle_state)}
-    >Click to change state reference</button
-  >
+  <button id="increment" on:click={() => (c.value += 1)}>
+    Click to change referenced state value
+  </button>
+  <button id="change-ref" on:click={() => (toggle_state = !toggle_state)}>
+    Click to change state reference
+  </button>
 {/snippet}
 
 {@render counter(toggle_state ? fallback_count : undefined)}
@@ -32884,7 +33165,7 @@ Child: {settings.showInRgb}
 <hr />
 {@render getOptional()?.()}
 
-=== 368 packages/svelte/tests/runtime-runes/samples/snippet-expressions/main.svelte	svelte
+=== 372 packages/svelte/tests/runtime-runes/samples/snippet-expressions/main.svelte	svelte
 <script>
   import Child from "./child.svelte";
   let snippet = $state("foo");
@@ -32905,8 +33186,10 @@ Child: {settings.showInRgb}
   on:click={() => {
     snippet = "bar";
     show = true;
-  }}>toggle</button
+  }}
 >
+  toggle
+</button>
 
 === 160 packages/svelte/tests/runtime-runes/samples/snippet-hoisted-module-2/Child.svelte	svelte
 <script module>
@@ -33570,7 +33853,7 @@ D
 
 {JSON.stringify(checkboxes)}
 
-=== 265 packages/svelte/tests/runtime-runes/samples/state-delete-property/main.svelte	svelte
+=== 273 packages/svelte/tests/runtime-runes/samples/state-delete-property/main.svelte	svelte
 <script>
   let numbers = $state({ a: 1, b: 2, c: 3 });
 </script>
@@ -33578,13 +33861,17 @@ D
 <button
   onclick={() => {
     numbers.b = 2;
-  }}>set</button
+  }}
 >
+  set
+</button>
 <button
   onclick={() => {
     delete numbers.b;
-  }}>delete</button
+  }}
 >
+  delete
+</button>
 <p>{Object.keys(numbers)}</p>
 <p>{JSON.stringify(numbers)}</p>
 
@@ -33657,26 +33944,26 @@ D
   let array = $state([primitive, object]);
 </script>
 
-<button onclick={() => array.includes(primitive)}
-  >array.includes(primitive)</button
->
+<button onclick={() => array.includes(primitive)}>
+  array.includes(primitive)
+</button>
 <button onclick={() => array.includes(object)}>array.includes(object)</button>
 
 <hr />
 
-<button onclick={() => array.indexOf(primitive)}
-  >array.indexOf(primitive)</button
->
+<button onclick={() => array.indexOf(primitive)}>
+  array.indexOf(primitive)
+</button>
 <button onclick={() => array.indexOf(object)}>array.indexOf(object)</button>
 
 <hr />
 
-<button onclick={() => array.lastIndexOf(primitive)}
-  >array.lastIndexOf(primitive)</button
->
-<button onclick={() => array.lastIndexOf(object)}
-  >array.lastIndexOf(object)</button
->
+<button onclick={() => array.lastIndexOf(primitive)}>
+  array.lastIndexOf(primitive)
+</button>
+<button onclick={() => array.lastIndexOf(object)}>
+  array.lastIndexOf(object)
+</button>
 
 <hr />
 
@@ -33855,9 +34142,9 @@ D
 </script>
 
 {JSON.stringify(start)}
-<button on:click={() => items.push({ a: items.length })}
-  >{JSON.stringify(structuredClone($state.snapshot(items)))}</button
->
+<button on:click={() => items.push({ a: items.length })}>
+  {JSON.stringify(structuredClone($state.snapshot(items)))}
+</button>
 
 === 184 packages/svelte/tests/runtime-runes/samples/state-space/main.svelte	svelte
 <script>
@@ -34797,7 +35084,7 @@ B
 
 {showCount``} <button onclick={() => count++}></button>
 
-=== 181 packages/svelte/tests/runtime-runes/samples/text-effect-multi-deps/main.svelte	svelte
+=== 185 packages/svelte/tests/runtime-runes/samples/text-effect-multi-deps/main.svelte	svelte
 <script>
   let x = $state({ a: 0, b: 0 });
   let count = 0;
@@ -34809,8 +35096,10 @@ B
   onclick={() => {
     const a = ++count;
     x = { a, b: a };
-  }}>+</button
+  }}
 >
+  +
+</button>
 
 === 287 packages/svelte/tests/runtime-runes/samples/text-multiple-call-expression/main.svelte	svelte
 <script>
@@ -35293,7 +35582,7 @@ B
   {/if}
 {/if}
 
-=== 383 packages/svelte/tests/runtime-runes/samples/transition-if/main.svelte	svelte
+=== 391 packages/svelte/tests/runtime-runes/samples/transition-if/main.svelte	svelte
 <script>
   function foo(node) {
     return {
@@ -35311,13 +35600,17 @@ B
 <button
   onclick={() => {
     x = !x;
-  }}>toggle x</button
+  }}
 >
+  toggle x
+</button>
 <button
   onclick={() => {
     y = !y;
-  }}>toggle y</button
+  }}
 >
+  toggle y
+</button>
 
 {#if x && y}
   <p transition:foo>hello</p>
@@ -35433,7 +35726,7 @@ B
 
 <input type="number" bind:value={binding!} />
 
-=== 1426 packages/svelte/tests/runtime-runes/samples/typescript/main.svelte	svelte
+=== 1430 packages/svelte/tests/runtime-runes/samples/typescript/main.svelte	svelte
 <script module lang="ts">
   interface Hello {
     message: "hello";
@@ -35505,8 +35798,10 @@ B
   on:click={(e: MouseEvent) => {
     const next: number = count + 1;
     count = next! as number;
-  }}>clicks: {count}</button
+  }}
 >
+  clicks: {count}
+</button>
 
 === 43 packages/svelte/tests/runtime-runes/samples/undefined-event-handler/main.svelte	svelte
 <button onmouseenter={undefined}></button>
@@ -35541,7 +35836,7 @@ B
 
 <button onclick={() => count++}>{count} {mirrored} {double}</button>
 
-=== 497 packages/svelte/tests/runtime-runes/samples/untrack-own-deriveds/main.svelte	svelte
+=== 501 packages/svelte/tests/runtime-runes/samples/untrack-own-deriveds/main.svelte	svelte
 <script>
   class Foo {
     value = $state(0);
@@ -35569,8 +35864,10 @@ B
   onclick={() => {
     foo.increment();
     bar.increment();
-  }}>increment</button
+  }}
 >
+  increment
+</button>
 
 {#if foo}
   <p>{foo.value}/{foo.double}</p>
@@ -35903,9 +36200,9 @@ B
 <ruby><rp></rp><rt></rt><rt></rt></ruby>
 <select><option></option><optgroup></optgroup><optgroup></optgroup></select>
 <table>
-  <thead></thead><tbody></tbody><tfoot></tfoot><tbody
-    ><tr><td></td><th></th></tr><tr></tr></tbody
-  >
+  <thead></thead><tbody></tbody><tfoot></tfoot><tbody>
+    <tr><td></td><th></th></tr><tr></tr>
+  </tbody>
 </table>
 
 === 26 packages/svelte/tests/runtime-xhtml/samples/boolean-attributes/main.svelte	svelte
@@ -36485,7 +36782,7 @@ B
   <svelte:element this={"p"}></svelte:element>
 </svelte:element>
 
-=== 3383 packages/svelte/tests/server-side-rendering/samples/legacy-imports/main.svelte	svelte
+=== 3415 packages/svelte/tests/server-side-rendering/samples/legacy-imports/main.svelte	svelte
 <script>
   import Button from "./Button.svelte";
   import {
@@ -36504,21 +36801,25 @@ B
   const bubble = createBubbler();
 </script>
 
-<button onclick={handlers(() => console.log("hi"), bubble("click"))}
-  >click me</button
->
+<button onclick={handlers(() => console.log("hi"), bubble("click"))}>
+  click me
+</button>
 <button
   onclick={handlers(function () {
     console.log("hi");
-  }, bubble("click"))}>click me</button
+  }, bubble("click"))}
 >
+  click me
+</button>
 <button
   onclick={handlers(
     () => console.log("before"),
     bubble("click"),
     () => console.log("after"),
-  )}>click me</button
+  )}
 >
+  click me
+</button>
 <button onclick={handlers(bubble("click"), foo)}>click me</button>
 <button onclick={bubble("click")}>click me</button>
 
@@ -36537,9 +36838,9 @@ B
 <button onclick={once(() => "")}>click me</button>
 
 <button onclick={stopPropagation(preventDefault(() => ""))}>click me</button>
-<button onclick={stopImmediatePropagation(stopPropagation(() => {}))}
-  >click me</button
->
+<button onclick={stopImmediatePropagation(stopPropagation(() => {}))}>
+  click me
+</button>
 <button onclick={self(stopImmediatePropagation(() => ""))}>click me</button>
 <button onclick={trusted(self(() => ""))}>click me</button>
 <button onclick={trusted(self(() => ""))}>click me</button>
@@ -36552,22 +36853,26 @@ B
 <button use:nonpassive={["click", () => () => ""]}>click me</button>
 <button use:passive={["click", () => foo]}>click me</button>
 <button use:nonpassive={["click", () => foo]}>click me</button>
-<button use:passive={["click", () => stopPropagation(() => "")]}
-  >click me</button
->
+<button use:passive={["click", () => stopPropagation(() => "")]}>
+  click me
+</button>
 <button use:nonpassive={["click", () => trusted(() => "")]}>click me</button>
 
 <button
   use:passive={["click", () => () => ""]}
-  onclick={handlers(bubble("click"), () => "")}>click me</button
+  onclick={handlers(bubble("click"), () => "")}
 >
+  click me
+</button>
 
 <button
   use:nonpassive={["click", () => () => ""]}
   onclick={handlers(bubble("click"), () => {
     return "multiline";
-  })}>click me</button
+  })}
 >
+  click me
+</button>
 
 <button
   onclick={handlers(
@@ -36587,13 +36892,17 @@ B
   <button
     onclick={() => {
       console.log("hi");
-    }}>click me</button
+    }}
   >
+    click me
+  </button>
   <button
     onclick={preventDefault(() => {
       console.log("hi");
-    })}>click me</button
+    })}
   >
+    click me
+  </button>
   <button onclick={preventDefault(() => (count += 1))}>click me</button>
 </div>
 
@@ -36930,7 +37239,7 @@ value: {value}
   <p class="x">hello</p>
 {/if}
 
-=== 246 packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/index.svelte	svelte
+=== 254 packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/index.svelte	svelte
 <script lang="ts"></script>
 
 {#each { length: 1 }, index}
@@ -36940,8 +37249,10 @@ value: {value}
     onclick={(e) => {
       const index = Number(e.currentTarget.dataset.index)!;
       console.log(index);
-    }}>B</button
+    }}
   >
+    B
+  </button>
 {/each}
 
 === 434 packages/svelte/tests/snapshot/samples/dynamic-attributes-casing/main.svelte	svelte
@@ -37923,9 +38234,9 @@ value: {value}
 <label>C <input type="text" /></label>
 <label>D <button>D</button></label>
 <label>E <span></span></label>
-<label
-  >F {#if true}<input type="text" />{/if}</label
->
+<label>
+  F {#if true}<input type="text" />{/if}
+</label>
 <LabelComponent>G <input type="text" /></LabelComponent>
 <label {...forMightBeInHere}>E <span></span></label>
 
@@ -39013,7 +39324,7 @@ value: {value}
 
 <input bind:this={foo} type={inputType} />
 
-=== 216 packages/svelte/tests/validator/samples/catch-declares-error-variable/input.svelte	svelte
+=== 220 packages/svelte/tests/validator/samples/catch-declares-error-variable/input.svelte	svelte
 <script>
   let value = null;
 </script>
@@ -39025,8 +39336,10 @@ value: {value}
     } catch (error) {
       value = error;
     }
-  }}>Click to create error</button
+  }}
 >
+  Click to create error
+</button>
 
 {String(value)}
 
@@ -39135,7 +39448,7 @@ value: {value}
 Usage when no explicit runes/legacy mode should be ok
 {const foo = world}
 
-=== 348 packages/svelte/tests/validator/samples/declaration-tag-state-referenced-locally/input.svelte	svelte
+=== 352 packages/svelte/tests/validator/samples/declaration-tag-state-referenced-locally/input.svelte	svelte
 <!-- `$derived` reads happen inside a closure, so these should _not_ warn -->
 {let a = $state(0),
   b = $derived(a * 2)}
@@ -39151,8 +39464,10 @@ Usage when no explicit runes/legacy mode should be ok
 <button
   onclick={() => {
     console.log(a);
-  }}>a</button
+  }}
 >
+  a
+</button>
 
 === 72 packages/svelte/tests/validator/samples/export-not-defined-module-with-source/input.svelte	svelte
 <script module>
@@ -39487,9 +39802,9 @@ Usage when no explicit runes/legacy mode should be ok
 </script>
 
 <Bla>
-  <button slot="foo" class:bar on:click={clickFn} let:bar let:clickFn
-    >{bar}</button
-  >
+  <button slot="foo" class:bar on:click={clickFn} let:bar let:clickFn>
+    {bar}
+  </button>
 </Bla>
 
 === 81 packages/svelte/tests/validator/samples/no-runes-mode/input.svelte	svelte
@@ -39645,75 +39960,75 @@ Usage when no explicit runes/legacy mode should be ok
 === 2776 packages/svelte/tests/validator/samples/security-anchor-rel-noreferer/input.svelte	svelte
 <a href="https://svelte.dev" target="_blank">svelte website (invalid)</a>
 <a href="https://svelte.dev" target="_blank" rel="">svelte website (invalid)</a>
-<a href="https://svelte.dev" target="_blank" rel="noopener"
-  >svelte website (invalid)</a
->
+<a href="https://svelte.dev" target="_blank" rel="noopener">
+  svelte website (invalid)
+</a>
 <a href={"https://svelte.dev"} target="_blank">svelte website (invalid)</a>
-<a href={"https://svelte.dev"} target="_blank" rel=""
-  >svelte website (invalid)</a
->
-<a href={"https://svelte.dev"} target="_blank" rel="noopener"
-  >svelte website (invalid)</a
->
+<a href={"https://svelte.dev"} target="_blank" rel="">
+  svelte website (invalid)
+</a>
+<a href={"https://svelte.dev"} target="_blank" rel="noopener">
+  svelte website (invalid)
+</a>
 <a href="//svelte.dev" target="_blank">svelte website (invalid)</a>
 <a href="//svelte.dev" target="_blank" rel="">svelte website (invalid)</a>
-<a href="//svelte.dev" target="_blank" rel="noopener"
-  >svelte website (invalid)</a
->
+<a href="//svelte.dev" target="_blank" rel="noopener">
+  svelte website (invalid)
+</a>
 <a href="http://svelte.dev" target="_blank">svelte website (invalid)</a>
 <a href="http://svelte.dev" target="_blank" rel="">svelte website (invalid)</a>
-<a href="http://svelte.dev" target="_blank" rel="noopener"
-  >svelte website (invalid)</a
->
+<a href="http://svelte.dev" target="_blank" rel="noopener">
+  svelte website (invalid)
+</a>
 <a href="HTTP://svelte.dev" target="_blank">svelte website (invalid)</a>
 <a href="HTTP://svelte.dev" target="_blank" rel="">svelte website (invalid)</a>
-<a href="HTTP://svelte.dev" target="_blank" rel="noopener"
-  >svelte website (invalid)</a
->
+<a href="HTTP://svelte.dev" target="_blank" rel="noopener">
+  svelte website (invalid)
+</a>
 <a href={"HTTPS://svelte.dev"} target="_blank">svelte website (invalid)</a>
-<a href={"HTTPS://svelte.dev"} target="_blank" rel=""
-  >svelte website (invalid)</a
->
-<a href={"HTTPS://svelte.dev"} target="_blank" rel="noopener"
-  >svelte website (invalid)</a
->
+<a href={"HTTPS://svelte.dev"} target="_blank" rel="">
+  svelte website (invalid)
+</a>
+<a href={"HTTPS://svelte.dev"} target="_blank" rel="noopener">
+  svelte website (invalid)
+</a>
 <a href="same-host" target="_blank">Same host (valid)</a>
 <a href="same-host" target="_blank" rel="">Same host (valid)</a>
 <a href="same-host" target="_blank" rel="noopener">Same host (valid)</a>
-<a href="http://svelte.dev" target="_blank" rel="noreferrer"
-  >svelte website (valid)</a
->
-<a href="http://svelte.dev" target="_blank" rel="noreferrer noopener"
-  >svelte website (valid)</a
->
-<a href="HTTP://svelte.dev" target="_blank" rel="noreferrer"
-  >svelte website (valid)</a
->
-<a href="HTTP://svelte.dev" target="_blank" rel="noreferrer noopener"
-  >svelte website (valid)</a
->
-<a href="https://svelte.dev" target="_blank" rel="noreferrer"
-  >svelte website (valid)</a
->
-<a href="https://svelte.dev" target="_blank" rel="noreferrer noopener"
-  >svelte website (valid)</a
->
-<a href="HTTPS://svelte.dev" target="_blank" rel="noreferrer"
-  >svelte website (valid)</a
->
-<a href="HTTPS://svelte.dev" target="_blank" rel="noreferrer noopener"
-  >svelte website (valid)</a
->
-<a href="//svelte.dev" target="_blank" rel="noreferrer"
-  >svelte website (valid)</a
->
-<a href="//svelte.dev" target="_blank" rel="noreferrer noopener"
-  >svelte website (valid)</a
->
+<a href="http://svelte.dev" target="_blank" rel="noreferrer">
+  svelte website (valid)
+</a>
+<a href="http://svelte.dev" target="_blank" rel="noreferrer noopener">
+  svelte website (valid)
+</a>
+<a href="HTTP://svelte.dev" target="_blank" rel="noreferrer">
+  svelte website (valid)
+</a>
+<a href="HTTP://svelte.dev" target="_blank" rel="noreferrer noopener">
+  svelte website (valid)
+</a>
+<a href="https://svelte.dev" target="_blank" rel="noreferrer">
+  svelte website (valid)
+</a>
+<a href="https://svelte.dev" target="_blank" rel="noreferrer noopener">
+  svelte website (valid)
+</a>
+<a href="HTTPS://svelte.dev" target="_blank" rel="noreferrer">
+  svelte website (valid)
+</a>
+<a href="HTTPS://svelte.dev" target="_blank" rel="noreferrer noopener">
+  svelte website (valid)
+</a>
+<a href="//svelte.dev" target="_blank" rel="noreferrer">
+  svelte website (valid)
+</a>
+<a href="//svelte.dev" target="_blank" rel="noreferrer noopener">
+  svelte website (valid)
+</a>
 <!-- dynamic rel value should not warn-->
-<a href="//svelte.dev" target="_blank" rel={`${Math.random()}`}
-  >svelte website (valid)</a
->
+<a href="//svelte.dev" target="_blank" rel={`${Math.random()}`}>
+  svelte website (valid)
+</a>
 
 === 93 packages/svelte/tests/validator/samples/select-multiple/input.svelte	svelte
 <script>

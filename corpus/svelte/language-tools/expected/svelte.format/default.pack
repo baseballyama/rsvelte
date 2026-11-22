@@ -3173,9 +3173,9 @@ display: block"
 >
   <p slot="sub1" let:subthing>{thing}{subthing}</p>
   <!-- subthing prop is defined by let:subthing on "Sub" -->
-  <Sub slot="sub2" {subthing} let:subthing let:othersubthing
-    >{thing}{subthing}</Sub
-  >
+  <Sub slot="sub2" {subthing} let:subthing let:othersubthing>
+    {thing}{subthing}
+  </Sub>
   <!-- subthing prop is defined by let:subthing on "Component" -->
   <Sub {subthing} let:subthing let:othersubthing>{thing}{subthing}</Sub>
 </Component>
@@ -4161,9 +4161,9 @@ radius of the selected circle.
 
 <div class="controls">
   <button on:click={() => travel(-1)} disabled={i === 0}>undo</button>
-  <button on:click={() => travel(+1)} disabled={i === undoStack.length - 1}
-    >redo</button
-  >
+  <button on:click={() => travel(+1)} disabled={i === undoStack.length - 1}>
+    redo
+  </button>
 </div>
 
 <svg on:click={handleClick}>
@@ -4790,7 +4790,7 @@ type Type = 'type'
   export { name as name3, name2 as name4 };
 </script>
 
-=== 601 packages/svelte2tsx/test/svelte2tsx/samples/rewrite-imports/input.svelte	svelte
+=== 605 packages/svelte2tsx/test/svelte2tsx/samples/rewrite-imports/input.svelte	svelte
 <script context="module">
   import foo1 from "../../foo";
   import("../../bar");
@@ -4818,8 +4818,10 @@ type Type = 'type'
     let mhm = true;
     /** @param {import('../../mhm').mhm} mhm */
     function f(mhm) {}
-  }}>click</button
+  }}
 >
+  click
+</button>
 
 === 218 packages/svelte2tsx/test/svelte2tsx/samples/runes-best-effort-types.v5/input.svelte	svelte
 <script>

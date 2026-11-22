@@ -1,11 +1,14 @@
 # rsvelte pack 1
-=== 1645 src/examples/docs/SvelteTweakpaneEventExample.svelte	lint.txt
+=== 2302 src/examples/docs/SvelteTweakpaneEventExample.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/valid-compile "`speed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:25 svelte/valid-compile "`internalChangeCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:6 10:25 svelte/valid-compile "`externalChangeCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -21,10 +24,11 @@
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 325 src/examples/docs/SvelteTweakpaneRange.svelte	lint.txt
+=== 534 src/examples/docs/SvelteTweakpaneRange.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/valid-compile "`speed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:19 7:26 svelte/max-attributes-per-line "'min' should be on a new line."
 
 === 246 src/examples/docs/SvelteTweakpaneThemeBasic.svelte	lint.txt
@@ -85,21 +89,24 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:39 5:74 svelte/max-attributes-per-line "'theme' should be on a new line."
 
-=== 486 src/examples/docs/SvelteTweakpaneThemePicker.svelte	lint.txt
+=== 698 src/examples/docs/SvelteTweakpaneThemePicker.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:47 svelte/valid-compile "`themeKey` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:25 7:61 svelte/max-attributes-per-line "'theme' should be on a new line."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:22 8:63 svelte/max-attributes-per-line "'options' should be on a new line."
 
-=== 1379 src/examples/docs/SvelteTweakpaneWideSlideExample.svelte	lint.txt
+=== 1796 src/examples/docs/SvelteTweakpaneWideSlideExample.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:11 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:10 svelte/valid-compile "`wide` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:24 10:41 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 12:24 12:29 svelte/max-attributes-per-line "'max' should be on a new line."
 13:26 13:31 svelte/max-attributes-per-line "'max' should be on a new line."
@@ -112,11 +119,12 @@
 22:22 22:27 svelte/max-attributes-per-line "'max' should be on a new line."
 23:20 23:25 svelte/max-attributes-per-line "'max' should be on a new line."
 
-=== 1973 src/examples/docs/VanillaTweakpaneRange.svelte	lint.txt
+=== 2183 src/examples/docs/VanillaTweakpaneRange.svelte	lint.txt
 1:1 30:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:12 svelte/valid-compile "`params` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -138,14 +146,19 @@
 28:1 28:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 29:1 29:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4091 src/examples/tests/TestAutoObject.svelte	lint.txt
+=== 5221 src/examples/tests/TestAutoObject.svelte	lint.txt
 1:1 39:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:12 svelte/valid-compile "`object` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -189,11 +202,12 @@
 58:1 58:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 59:1 59:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1165 src/examples/tests/TestAutoObjectNesting.svelte	lint.txt
+=== 1375 src/examples/tests/TestAutoObjectNesting.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:12 svelte/valid-compile "`object` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 8:1 8:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -205,30 +219,51 @@
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 8037 src/examples/tests/TestAutoValue.svelte	lint.txt
+=== 12767 src/examples/tests/TestAutoValue.svelte	lint.txt
 1:1 26:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:12 svelte/valid-compile "`number` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:11 svelte/valid-compile "`color` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:16 svelte/valid-compile "`colorArray` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:11 svelte/valid-compile "`point` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:10 svelte/valid-compile "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:6 10:31 svelte/valid-compile "`number1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:31 svelte/valid-compile "`number1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:6 12:31 svelte/valid-compile "`number2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:6 13:31 svelte/valid-compile "`number2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:6 14:30 svelte/valid-compile "`color1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+15:6 15:30 svelte/valid-compile "`color1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+16:6 16:30 svelte/valid-compile "`color2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+17:6 17:30 svelte/valid-compile "`color2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+18:6 18:30 svelte/valid-compile "`point1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+19:6 19:30 svelte/valid-compile "`point1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+20:6 20:30 svelte/valid-compile "`point2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+21:6 21:30 svelte/valid-compile "`point2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+22:6 22:29 svelte/valid-compile "`text1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 23:1 23:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+23:6 23:29 svelte/valid-compile "`text1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+24:6 24:29 svelte/valid-compile "`text2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 25:1 25:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+25:6 25:29 svelte/valid-compile "`text2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 29:1 29:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 31:1 31:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -303,15 +338,20 @@
 117:1 117:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 122:32 122:55 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 
-=== 2329 src/examples/tests/TestBinding.svelte	lint.txt
+=== 3461 src/examples/tests/TestBinding.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:6 10:27 svelte/valid-compile "`object` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -333,14 +373,19 @@
 34:1 34:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 35:1 35:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2461 src/examples/tests/TestCheckbox.svelte	lint.txt
+=== 3590 src/examples/tests/TestCheckbox.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:20 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:3 12:10 no-undef "'console' is not defined."
@@ -365,7 +410,7 @@
 36:1 36:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 37:1 37:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 24269 src/examples/tests/TestCls.svelte	lint.txt
+=== 28565 src/examples/tests/TestCls.svelte	lint.txt
 1:1 183:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -410,16 +455,22 @@
 42:1 42:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 43:1 43:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 44:1 44:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+44:6 44:10 svelte/valid-compile "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 45:1 45:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+45:6 45:14 svelte/valid-compile "`waveData` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 47:1 47:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 47:2 47:13 no-undef "'setInterval' is not defined."
 48:1 48:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 49:1 49:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 51:1 51:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+51:6 51:23 svelte/valid-compile "`selection` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 52:1 52:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 54:1 54:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+54:6 54:22 svelte/valid-compile "`booleanToMonitor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 55:1 55:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+55:6 55:21 svelte/valid-compile "`stringToMonitor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 56:1 56:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+56:6 56:21 svelte/valid-compile "`numberToMonitor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 58:1 58:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 58:2 58:13 no-undef "'setInterval' is not defined."
 59:1 59:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -433,9 +484,13 @@
 65:1 65:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 66:1 66:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 68:1 68:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+68:6 68:35 svelte/valid-compile "`rev` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 69:1 69:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+69:6 69:41 svelte/valid-compile "`rev2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 70:1 70:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+70:6 70:11 svelte/valid-compile "`text2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 71:1 71:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+71:6 71:12 svelte/valid-compile "`object` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 72:1 72:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 73:1 73:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 74:1 74:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -458,12 +513,18 @@
 91:1 91:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 92:1 92:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 93:1 93:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+93:6 93:16 svelte/valid-compile "`startColor` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 94:1 94:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+94:6 94:17 svelte/valid-compile "`startColorA` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 96:1 96:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+96:6 96:34 svelte/valid-compile "`bindingObject` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 98:1 98:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+98:6 98:14 svelte/valid-compile "`expanded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 100:1 100:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+100:6 100:27 svelte/valid-compile "`point2d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 102:1 102:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 103:1 103:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+103:6 103:27 svelte/valid-compile "`point3d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 105:1 105:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 106:1 106:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 108:1 108:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -472,6 +533,7 @@
 112:1 112:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 113:1 113:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 115:1 115:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+115:6 115:37 svelte/valid-compile "`callback` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 117:1 117:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 118:1 118:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 119:1 119:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -480,10 +542,13 @@
 122:1 122:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 123:1 123:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 125:1 125:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+125:6 125:8 svelte/valid-compile "`rv` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 126:1 126:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 132:1 132:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+132:6 132:27 svelte/valid-compile "`point4d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 134:1 134:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 136:1 136:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+136:6 136:30 svelte/valid-compile "`measure` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 138:1 138:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 140:1 140:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 141:1 141:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -658,10 +723,11 @@
 430:1 430:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 431:1 431:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4393 src/examples/tests/TestCollapseExpand.svelte	lint.txt
+=== 4605 src/examples/tests/TestCollapseExpand.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:14 svelte/valid-compile "`expanded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -713,19 +779,29 @@
 96:1 96:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 96:29 96:50 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 
-=== 3999 src/examples/tests/TestColor.svelte	lint.txt
+=== 6268 src/examples/tests/TestColor.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:32 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:33 svelte/valid-compile "`value2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:6 10:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:32 svelte/valid-compile "`binding3InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:6 12:32 svelte/valid-compile "`binding3ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:6 13:32 svelte/valid-compile "`binding4InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:6 14:32 svelte/valid-compile "`binding4ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -763,14 +839,19 @@
 58:1 58:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 59:1 59:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2080 src/examples/tests/TestCubicBezier.svelte	lint.txt
+=== 3209 src/examples/tests/TestCubicBezier.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:35 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -790,13 +871,16 @@
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1413 src/examples/tests/TestElementIfStatement.svelte	lint.txt
+=== 2039 src/examples/tests/TestElementIfStatement.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:11 svelte/valid-compile "`text2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:11 svelte/valid-compile "`check` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:32 12:50 svelte/max-attributes-per-line "'bind:value' should be on a new line."
@@ -809,14 +893,19 @@
 17:19 17:37 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2080 src/examples/tests/TestFile.svelte	lint.txt
+=== 3208 src/examples/tests/TestFile.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:21 svelte/valid-compile "`file` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -836,10 +925,11 @@
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 327 src/examples/tests/TestFormat.svelte	lint.txt
+=== 536 src/examples/tests/TestFormat.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:19 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:34 6:47 svelte/max-attributes-per-line "'label' should be on a new line."
 
 === 709 src/examples/tests/TestFpsEvent.svelte	lint.txt
@@ -853,13 +943,17 @@
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:24 11:31 no-undef "'console' is not defined."
 
-=== 1637 src/examples/tests/TestGridLayoutPane.svelte	lint.txt
+=== 2481 src/examples/tests/TestGridLayoutPane.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:12 svelte/valid-compile "`colors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:14 svelte/valid-compile "`darkMode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:13 svelte/valid-compile "`numbers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:13 svelte/valid-compile "`oneMore` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:25 10:61 svelte/max-attributes-per-line "'theme' should be on a new line."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:25 11:32 svelte/max-attributes-per-line "'max' should be on a new line."
@@ -874,12 +968,15 @@
 27:5 27:20 svelte/consistent-selector-style "Selector should select by element type instead of class"
 32:5 32:20 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 2037 src/examples/tests/TestGridLayoutWrapper.svelte	lint.txt
+=== 2670 src/examples/tests/TestGridLayoutWrapper.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:12 svelte/valid-compile "`colors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:14 svelte/valid-compile "`darkMode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:13 svelte/valid-compile "`numbers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -900,10 +997,11 @@
 29:5 29:18 svelte/consistent-selector-style "Selector should select by element type instead of class"
 35:5 35:18 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 3209 src/examples/tests/TestImage.svelte	lint.txt
+=== 4347 src/examples/tests/TestImage.svelte	lint.txt
 1:1 17:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:12 svelte/valid-compile "`source` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:25 7:30 no-undef "'fetch' is not defined."
@@ -912,9 +1010,13 @@
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:6 13:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:6 14:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+15:6 15:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+16:6 16:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -941,14 +1043,19 @@
 47:1 47:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 48:1 48:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2412 src/examples/tests/TestIntervalSlider.svelte	lint.txt
+=== 3541 src/examples/tests/TestIntervalSlider.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:19 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -972,20 +1079,25 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 487 src/examples/tests/TestIntervalSliderWide.svelte	lint.txt
+=== 904 src/examples/tests/TestIntervalSliderWide.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:29 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`wide` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:52 8:61 svelte/max-attributes-per-line "'max' should be on a new line."
 9:24 9:41 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 
-=== 1160 src/examples/tests/TestInvisibleFolder.svelte	lint.txt
+=== 1795 src/examples/tests/TestInvisibleFolder.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:14 svelte/valid-compile "`expanded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:14 svelte/valid-compile "`darkMode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:13 svelte/valid-compile "`numbers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:16 8:38 svelte/max-attributes-per-line "'userExpandable' should be on a new line."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:29 9:50 svelte/max-attributes-per-line "'bind:value' should be on a new line."
@@ -996,15 +1108,20 @@
 12:29 12:49 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2329 src/examples/tests/TestList.svelte	lint.txt
+=== 3464 src/examples/tests/TestList.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:23 svelte/valid-compile "`selection` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:6 10:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1026,7 +1143,7 @@
 34:1 34:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 35:1 35:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4966 src/examples/tests/TestOrder.svelte	lint.txt
+=== 5615 src/examples/tests/TestOrder.svelte	lint.txt
 1:1 30:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -1052,8 +1169,11 @@
 24:1 24:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 25:1 25:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 27:1 27:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+27:6 27:17 svelte/valid-compile "`showNumbers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 28:1 28:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+28:6 28:16 svelte/valid-compile "`folderWrap` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 29:1 29:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+29:6 29:16 svelte/valid-compile "`someNumber` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 33:1 33:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 34:1 34:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 35:1 35:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -1088,12 +1208,13 @@
 55:1 55:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 56:1 56:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1202 src/examples/tests/TestPane.svelte	lint.txt
+=== 1623 src/examples/tests/TestPane.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:20 svelte/valid-compile "`tpPane` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -1102,20 +1223,26 @@
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+15:6 15:11 svelte/valid-compile "`speed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:20 19:27 svelte/max-attributes-per-line "'min' should be on a new line."
 
-=== 3918 src/examples/tests/TestPaneAdvanced.svelte	lint.txt
+=== 5196 src/examples/tests/TestPaneAdvanced.svelte	lint.txt
 1:1 34:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:21 svelte/valid-compile "`tpPane1` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:21 svelte/valid-compile "`tpPane2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:21 svelte/valid-compile "`tpPane3` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:14 svelte/valid-compile "`expanded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:6 12:20 svelte/valid-compile "`userExpandable` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -1144,6 +1271,7 @@
 30:1 30:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 31:1 31:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 33:1 33:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+33:6 33:11 svelte/valid-compile "`speed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 36:28 36:44 svelte/max-attributes-per-line "'userExpandable' should be on a new line."
 37:1 37:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 37:29 37:50 svelte/max-attributes-per-line "'bind:value' should be on a new line."
@@ -1158,14 +1286,19 @@
 45:1 45:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 45:20 45:27 svelte/max-attributes-per-line "'min' should be on a new line."
 
-=== 2959 src/examples/tests/TestPoint.svelte	lint.txt
+=== 4090 src/examples/tests/TestPoint.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:27 svelte/valid-compile "`point2d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:3 12:10 no-undef "'console' is not defined."
@@ -1196,14 +1329,19 @@
 42:1 42:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 43:1 43:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2246 src/examples/tests/TestRadioGrid.svelte	lint.txt
+=== 3375 src/examples/tests/TestRadioGrid.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1225,7 +1363,7 @@
 33:1 33:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3162 src/examples/tests/TestRing.svelte	lint.txt
+=== 4301 src/examples/tests/TestRing.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1234,10 +1372,15 @@
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:6 10:11 svelte/valid-compile "`angle` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:6 12:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:6 13:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:6 14:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+15:6 15:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1265,22 +1408,29 @@
 45:1 45:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 46:1 46:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 488 src/examples/tests/TestRingWide.svelte	lint.txt
+=== 905 src/examples/tests/TestRingWide.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`wide` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:22 8:28 svelte/max-attributes-per-line "'wide' should be on a new line."
 9:24 9:41 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 
-=== 2412 src/examples/tests/TestRotationEuler.svelte	lint.txt
+=== 3541 src/examples/tests/TestRotationEuler.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:37 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1304,14 +1454,19 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2412 src/examples/tests/TestRotationQuaternion.svelte	lint.txt
+=== 3541 src/examples/tests/TestRotationQuaternion.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:41 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1335,14 +1490,19 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2080 src/examples/tests/TestSlider.svelte	lint.txt
+=== 3209 src/examples/tests/TestSlider.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:19 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1362,11 +1522,13 @@
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1907 src/examples/tests/TestSliderWide.svelte	lint.txt
+=== 2324 src/examples/tests/TestSliderWide.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`wide` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1387,14 +1549,19 @@
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 32:24 32:41 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 
-=== 2080 src/examples/tests/TestStepper.svelte	lint.txt
+=== 3209 src/examples/tests/TestStepper.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:19 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1414,11 +1581,12 @@
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 657 src/examples/tests/TestStepperValue.svelte	lint.txt
+=== 872 src/examples/tests/TestStepperValue.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:17 svelte/valid-compile "`linearValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1444,12 +1612,14 @@
 33:18 33:25 svelte/max-attributes-per-line "'min' should be on a new line."
 35:19 35:26 svelte/max-attributes-per-line "'min' should be on a new line."
 
-=== 2914 src/examples/tests/TestTabIndexBinding.svelte	lint.txt
+=== 3334 src/examples/tests/TestTabIndexBinding.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`mode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:22 svelte/valid-compile "`tabIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1481,12 +1651,14 @@
 37:1 37:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 39:1 39:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1570 src/examples/tests/TestTabIndexBindingAlt.svelte	lint.txt
+=== 1995 src/examples/tests/TestTabIndexBindingAlt.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:15 svelte/valid-compile "`draggable` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:22 svelte/valid-compile "`tabIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1502,13 +1674,16 @@
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4347 src/examples/tests/TestTabsNested.svelte	lint.txt
+=== 4981 src/examples/tests/TestTabsNested.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`mode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:23 svelte/valid-compile "`tabIndexA` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:23 svelte/valid-compile "`tabIndexB` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1556,12 +1731,14 @@
 53:1 53:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 55:1 55:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1393 src/examples/tests/TestTabsSort.svelte	lint.txt
+=== 1817 src/examples/tests/TestTabsSort.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:22 svelte/valid-compile "`tabIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:14 svelte/valid-compile "`tabPages` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1575,15 +1752,21 @@
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2412 src/examples/tests/TestText.svelte	lint.txt
+=== 3750 src/examples/tests/TestText.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:10 svelte/valid-compile "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`live` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:6 10:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:24 13:41 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1606,11 +1789,12 @@
 36:1 36:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 37:1 37:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3214 src/examples/tests/TestTextStringDetection.svelte	lint.txt
+=== 3427 src/examples/tests/TestTextStringDetection.svelte	lint.txt
 1:1 37:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:6 10:37 svelte/valid-compile "`strings` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -1647,15 +1831,21 @@
 56:1 56:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 56:21 56:46 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 
-=== 2578 src/examples/tests/TestTextarea.svelte	lint.txt
+=== 3916 src/examples/tests/TestTextarea.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:10 svelte/valid-compile "`text` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`live` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:6 10:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:24 13:41 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1680,11 +1870,13 @@
 38:1 38:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 39:1 39:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 821 src/examples/tests/TestTitlelessDraggable.svelte	lint.txt
+=== 1240 src/examples/tests/TestTitlelessDraggable.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:11 svelte/valid-compile "`title` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:12 svelte/valid-compile "`title2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:28 9:35 svelte/max-attributes-per-line "'title' should be on a new line."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:27 10:45 svelte/max-attributes-per-line "'bind:value' should be on a new line."
@@ -1692,14 +1884,19 @@
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:27 14:46 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 
-=== 2578 src/examples/tests/TestWheel.svelte	lint.txt
+=== 3707 src/examples/tests/TestWheel.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/valid-compile "`angle` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "`binding1InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:32 svelte/valid-compile "`binding1ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:32 svelte/valid-compile "`binding2InternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:32 svelte/valid-compile "`binding2ExternalEventCount` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1725,11 +1922,13 @@
 37:1 37:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 38:1 38:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 488 src/examples/tests/TestWheelWide.svelte	lint.txt
+=== 905 src/examples/tests/TestWheelWide.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`wide` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:24 8:30 svelte/max-attributes-per-line "'wide' should be on a new line."
 9:24 9:41 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 

@@ -456,12 +456,12 @@
 <button onclick={() => setMode("dark")} data-testid="dark">dark</button>
 <button onclick={() => resetMode()} data-testid="reset">reset</button>
 
-<button onclick={() => setTheme("dracula")} data-testid="theme-dracula"
-  >dracula</button
->
-<button onclick={() => setTheme("retro")} data-testid="theme-retro"
-  >retro</button
->
+<button onclick={() => setTheme("dracula")} data-testid="theme-dracula">
+  dracula
+</button>
+<button onclick={() => setTheme("retro")} data-testid="theme-retro">
+  retro
+</button>
 <button onclick={() => setTheme("")} data-testid="theme-clear">clear</button>
 
 === 552 packages/mode-watcher/src/tests/StealthMode.svelte	svelte

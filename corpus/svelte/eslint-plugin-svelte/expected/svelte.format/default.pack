@@ -1,5 +1,5 @@
 # rsvelte pack 1
-=== 5917 docs-svelte-kit/src/lib/header/Header.svelte	svelte
+=== 5924 docs-svelte-kit/src/lib/header/Header.svelte	svelte
 <script>
   import { createEventDispatcher } from "svelte";
   import { isActive } from "../utils.js";
@@ -68,8 +68,8 @@
     </ul>
     <div class="nav-title">
       <a href={resolve("/")}>
-        <img src={logo} alt="Logo" />eslint-plugin-svelte</a
-      >
+        <img src={logo} alt="Logo" />eslint-plugin-svelte
+      </a>
     </div>
     <svg viewBox="0 0 2 3" aria-hidden="true">
       <path d="M0,0 L0,3 C0.5,3 0.5,3 1,2 L2,0 Z" />
@@ -91,7 +91,8 @@
         viewBox="0 0 16 16"
         class="octicon octicon-mark-github"
         aria-hidden="true"
-        ><path
+      >
+        <path
           style:fill="#2c3e50"
           fill-rule="evenodd"
           d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"
@@ -11206,7 +11207,7 @@ on:click={click}
 
 <span class="div-class">World!</span>
 
-=== 279 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/invalid/multiline-class-names01-input.svelte	svelte
+=== 283 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/invalid/multiline-class-names01-input.svelte	svelte
 <!-- eslint-disable prettier/prettier -->
 <div class="div-class div-class-two">Hello</div>
 
@@ -11215,8 +11216,10 @@ on:click={click}
     span-class
     span-class-two
     span-class-three
-  ">World!</span
+  "
 >
+  World!
+</span>
 
 <style>
   .div-class {
@@ -13156,25 +13159,31 @@ Text goes here`}
 
 <!-- test01-input.svelte -->
 
-=== 481 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/simple-test01-input.svelte	svelte
+=== 493 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/simple-test01-input.svelte	svelte
 <script>
   let current = "foo";
 </script>
 
 <button
   class={current === "foo" ? "selected" : ""}
-  on:click={() => (current = "foo")}>foo</button
+  on:click={() => (current = "foo")}
 >
+  foo
+</button>
 
 <button
   class={current === "bar" ? "selected" : ""}
-  on:click={() => (current = "bar")}>bar</button
+  on:click={() => (current = "bar")}
 >
+  bar
+</button>
 
 <button
   class={current === "baz" ? "selected" : ""}
-  on:click={() => (current = "baz")}>baz</button
+  on:click={() => (current = "baz")}
 >
+  baz
+</button>
 
 <style>
   button {
@@ -13192,17 +13201,17 @@ Text goes here`}
   let current = "foo";
 </script>
 
-<button class:selected={current === "foo"} on:click={() => (current = "foo")}
-  >foo</button
->
+<button class:selected={current === "foo"} on:click={() => (current = "foo")}>
+  foo
+</button>
 
-<button class:selected={current === "bar"} on:click={() => (current = "bar")}
-  >bar</button
->
+<button class:selected={current === "bar"} on:click={() => (current = "bar")}>
+  bar
+</button>
 
-<button class:selected={current === "baz"} on:click={() => (current = "baz")}
-  >baz</button
->
+<button class:selected={current === "baz"} on:click={() => (current = "baz")}>
+  baz
+</button>
 
 <style>
   button {
@@ -13253,7 +13262,7 @@ Text goes here`}
 
 <!-- test01-input.svelte -->
 
-=== 190 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test02-input.svelte	svelte
+=== 191 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test02-input.svelte	svelte
 <script>
   let a = true;
   let b = true;
@@ -13263,10 +13272,11 @@ Text goes here`}
 
 <button
   class="{a ? ' a ' : b ? ' b ' : ''}{c ? 'c' : 'no-c'}{d === true ? ' d' : ''}"
-  >foo</button
 >
+  foo
+</button>
 
-=== 198 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test02-output.svelte	svelte
+=== 202 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test02-output.svelte	svelte
 <script>
   let a = true;
   let b = true;
@@ -13277,8 +13287,10 @@ Text goes here`}
 <button
   class="{a ? ' a ' : b ? ' b ' : ''} {d === true ? ' d' : ''}"
   class:c
-  class:no-c={!c}>foo</button
+  class:no-c={!c}
 >
+  foo
+</button>
 
 === 202 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/invalid/test03-input.svelte	svelte
 <script>
@@ -13356,9 +13368,9 @@ Text goes here`}
   let active = true;
 </script>
 
-<button class="{active ? 'active' : ''} {current === 'foo' ? 'selected' : ''}"
-  >foo</button
->
+<button class="{active ? 'active' : ''} {current === 'foo' ? 'selected' : ''}">
+  foo
+</button>
 
 <!-- trim-test01-input.svelte -->
 
@@ -13452,7 +13464,7 @@ Text goes here`}
 <button class={a && b && c ? "a b c" : " "}>foo</button>
 <button class={d ? "??" : " "}>foo</button>
 
-=== 189 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/valid/ignore-test04-input.svelte	svelte
+=== 190 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-class-directive/valid/ignore-test04-input.svelte	svelte
 <script>
   let a = true;
   let b = true;
@@ -13462,8 +13474,9 @@ Text goes here`}
 
 <button
   class="{a ? ' a' : b ? ' b' : ' '}{c ? 'c' : 'no-c'}{d === true ? ' d' : ''}"
-  >foo</button
 >
+  foo
+</button>
 
 === 153 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-const/invalid/option1/test01-input.svelte	svelte
 <script>

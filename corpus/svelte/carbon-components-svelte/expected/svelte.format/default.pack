@@ -3251,9 +3251,9 @@ export function subtract(a: number, b: number) {
   let popover = null;
 </script>
 
-<Button type="button" on:click={() => popover?.showPopover()}
-  >Open popover</Button
->
+<Button type="button" on:click={() => popover?.showPopover()}>
+  Open popover
+</Button>
 
 <div
   bind:this={popover}
@@ -4381,9 +4381,9 @@ export function subtract(a: number, b: number) {
   let popover = null;
 </script>
 
-<Button type="button" on:click={() => popover?.showPopover()}
-  >Open popover</Button
->
+<Button type="button" on:click={() => popover?.showPopover()}>
+  Open popover
+</Button>
 
 <div
   bind:this={popover}
@@ -4931,9 +4931,9 @@ export function subtract(a: number, b: number) {
   <MenuItem on:click={() => console.log("Copy")}>Copy</MenuItem>
   <MenuItem on:click={() => console.log("Paste")}>Paste</MenuItem>
   <MenuDivider />
-  <MenuItem kind="danger" on:click={() => console.log("Delete")}
-    >Delete</MenuItem
-  >
+  <MenuItem kind="danger" on:click={() => console.log("Delete")}>
+    Delete
+  </MenuItem>
 </Menu>
 
 === 524 docs/src/pages/framed/Menu/MenuItemIcons.svelte	svelte
@@ -7842,15 +7842,15 @@ Selected: <strong>{selected}</strong>
 -->
 <SearchMenu bind:value {match} labelText="Search" placeholder="Search...">
   {#each resources as text (text)}
-    <SearchMenuItem {text} let:segments
-      >{#each segments as segment}
+    <SearchMenuItem {text} let:segments>
+      {#each segments as segment}
         {#if segment.match}
           <mark>{segment.text}</mark>
         {:else}
           {segment.text}
         {/if}
-      {/each}</SearchMenuItem
-    >
+      {/each}
+    </SearchMenuItem>
   {/each}
 </SearchMenu>
 
@@ -12571,9 +12571,9 @@ Selected: <strong>{selected.join(", ") || "None"}</strong>
         <HeaderPanelDivider>Switch product</HeaderPanelDivider>
         <HeaderPanelLink href="/cloud">Cloud console</HeaderPanelLink>
         <HeaderPanelLink href="/watson-studio">Watson Studio</HeaderPanelLink>
-        <HeaderPanelLink href="/maximo"
-          >Maximo Application Suite</HeaderPanelLink
-        >
+        <HeaderPanelLink href="/maximo">
+          Maximo Application Suite
+        </HeaderPanelLink>
         <HeaderPanelDivider>Resources</HeaderPanelDivider>
         <HeaderPanelLink href="/docs">Documentation</HeaderPanelLink>
         <HeaderPanelLink href="/status">Status page</HeaderPanelLink>
@@ -13291,9 +13291,9 @@ Selected: <strong>{selected.join(", ") || "None"}</strong>
     <Grid>
       <Row>
         <Column>
-          <Text tag="div" type="caption-02" color="secondary"
-            >GitHub repositories</Text
-          >
+          <Text tag="div" type="caption-02" color="secondary">
+            GitHub repositories
+          </Text>
         </Column>
       </Row>
       <Row class="ecosystem-row">
@@ -15084,9 +15084,9 @@ Selected: <strong>{selected.join(", ") || "None"}</strong>
       type="alphanumeric"
       bind:value={alphanumericValue}
     />
-    <span data-testid="pin-code-input-alphanumeric-value"
-      >{alphanumericValue}</span
-    >
+    <span data-testid="pin-code-input-alphanumeric-value">
+      {alphanumericValue}
+    </span>
   </div>
 
   <div data-testid="pin-code-input-invalid">
@@ -15112,9 +15112,9 @@ Selected: <strong>{selected.join(", ") || "None"}</strong>
       labelText="Verification code"
       bind:value={programmaticValue}
     />
-    <span data-testid="pin-code-input-programmatic-value"
-      >{programmaticValue}</span
-    >
+    <span data-testid="pin-code-input-programmatic-value">
+      {programmaticValue}
+    </span>
     <Button
       data-testid="pin-code-input-clear"
       kind="tertiary"
@@ -15350,12 +15350,12 @@ Selected: <strong>{selected.join(", ") || "None"}</strong>
   legendText="Choose one or more"
   bind:selected
 >
-  <SelectableTile value="x" data-testid="selectable-tile-x"
-    >Option X</SelectableTile
-  >
-  <SelectableTile value="y" data-testid="selectable-tile-y"
-    >Option Y</SelectableTile
-  >
+  <SelectableTile value="x" data-testid="selectable-tile-x">
+    Option X
+  </SelectableTile>
+  <SelectableTile value="y" data-testid="selectable-tile-y">
+    Option Y
+  </SelectableTile>
 </SelectableTileGroup>
 <div data-testid="selected-values">{selected.join(",") || "none"}</div>
 
@@ -15785,7 +15785,7 @@ Selected: <strong>{selected.join(", ") || "None"}</strong>
   />
 </div>
 
-=== 818 e2e/fixtures/TooltipNarrowContainerFixture.svelte	svelte
+=== 841 e2e/fixtures/TooltipNarrowContainerFixture.svelte	svelte
 <script>
   import Link from "carbon-components-svelte/Link/Link.svelte";
   import Tooltip from "carbon-components-svelte/Tooltip/Tooltip.svelte";
@@ -15802,9 +15802,12 @@ Selected: <strong>{selected.join(", ") || "None"}</strong>
   <Tooltip triggerText="Round robin">
     <p>
       Distributes requests evenly across servers.
-      <Link href="https://en.wikipedia.org/wiki/Round-robin_DNS" target="_blank"
-        >Read more on Wikipedia</Link
+      <Link
+        href="https://en.wikipedia.org/wiki/Round-robin_DNS"
+        target="_blank"
       >
+        Read more on Wikipedia
+      </Link>
     </p>
   </Tooltip>
 </div>
@@ -16360,9 +16363,9 @@ Selected: <strong>{selected.join(", ") || "None"}</strong>
 <Box margin={4}>Margin scale</Box>
 <Box fullWidth maxWidth={480}>Full width capped</Box>
 <Box width="12rem" minWidth="8rem">Custom width</Box>
-<Box fill="layer-02" padding={6} border="subtle" class="combined"
-  >Combined modifiers</Box
->
+<Box fill="layer-02" padding={6} border="subtle" class="combined">
+  Combined modifiers
+</Box>
 
 === 452 tests/Breadcrumb/Breadcrumb.ariaCurrent.test.svelte	svelte
 <script lang="ts">
@@ -18141,7 +18144,7 @@ kubectl version`}
   />
 </div>
 
-=== 570 tests/InlineNotification/InlineNotificationActionHref.test.svelte	svelte
+=== 582 tests/InlineNotification/InlineNotificationActionHref.test.svelte	svelte
 <script lang="ts">
   import InlineNotification from "carbon-components-svelte/Notification/InlineNotification.svelte";
   import NotificationActionButton from "carbon-components-svelte/Notification/NotificationActionButton.svelte";
@@ -18155,8 +18158,10 @@ kubectl version`}
   <svelte:fragment slot="actions">
     <NotificationActionButton
       href="https://example.com/releases"
-      target="_blank">View release notes</NotificationActionButton
+      target="_blank"
     >
+      View release notes
+    </NotificationActionButton>
   </svelte:fragment>
 </InlineNotification>
 
@@ -18823,19 +18828,19 @@ kubectl version`}
 
 <ProgressIndicator currentIndex={1}>
   <ProgressStep complete label="Step 1" description="Completed">
-    <span slot="icon" data-testid="icon-1" let:complete let:current let:invalid
-      >c:{complete}|cur:{current}|inv:{invalid}</span
-    >
+    <span slot="icon" data-testid="icon-1" let:complete let:current let:invalid>
+      c:{complete}|cur:{current}|inv:{invalid}
+    </span>
   </ProgressStep>
   <ProgressStep label="Step 2" description="Current">
-    <span slot="icon" data-testid="icon-2" let:complete let:current let:invalid
-      >c:{complete}|cur:{current}|inv:{invalid}</span
-    >
+    <span slot="icon" data-testid="icon-2" let:complete let:current let:invalid>
+      c:{complete}|cur:{current}|inv:{invalid}
+    </span>
   </ProgressStep>
   <ProgressStep invalid label="Step 3" description="Invalid">
-    <span slot="icon" data-testid="icon-3" let:complete let:current let:invalid
-      >c:{complete}|cur:{current}|inv:{invalid}</span
-    >
+    <span slot="icon" data-testid="icon-3" let:complete let:current let:invalid>
+      c:{complete}|cur:{current}|inv:{invalid}
+    </span>
   </ProgressStep>
 </ProgressIndicator>
 
@@ -19165,7 +19170,7 @@ kubectl version`}
   <span slot="labelChildren">Custom label content</span>
 </ShapeIndicator>
 
-=== 5776 tests/Snippets/Snippets.test.svelte	svelte
+=== 5829 tests/Snippets/Snippets.test.svelte	svelte
 <script lang="ts">
   import Button from "carbon-components-svelte/Button/Button.svelte";
   import ComboBox from "carbon-components-svelte/ComboBox/ComboBox.svelte";
@@ -19223,9 +19228,10 @@ kubectl version`}
       data-testid="dropdown-item-{index}"
       data-selected={selected}
       data-highlighted={highlighted}
-      >{item.text}
-      (#{index})</span
     >
+      {item.text}
+      (#{index})
+    </span>
   {/snippet}
 </Dropdown>
 
@@ -19260,18 +19266,18 @@ kubectl version`}
     <span data-testid="dropdown-icon-{item.id}">L</span>
   {/snippet}
   {#snippet iconRight({ item, selected })}
-    <span data-testid="dropdown-icon-right-{item.id}" data-selected={selected}
-      >R</span
-    >
+    <span data-testid="dropdown-icon-right-{item.id}" data-selected={selected}>
+      R
+    </span>
   {/snippet}
 </Dropdown>
 
 <ComboBox data-testid="combobox-snippet" {items} selectedId="2">
   {#snippet children({ item, index, selected })}
-    <span data-testid="combobox-item-{index}" data-selected={selected}
-      >{item.text}
-      - index {index}</span
-    >
+    <span data-testid="combobox-item-{index}" data-selected={selected}>
+      {item.text}
+      - index {index}
+    </span>
   {/snippet}
 </ComboBox>
 
@@ -19305,8 +19311,10 @@ kubectl version`}
         data-testid="progress-step-icon-1"
         data-complete={complete}
         data-current={current}
-        data-invalid={invalid}>1</span
+        data-invalid={invalid}
       >
+        1
+      </span>
     {/snippet}
   </ProgressStep>
   <ProgressStep label="Step 2" description="Current">
@@ -19315,8 +19323,10 @@ kubectl version`}
         data-testid="progress-step-icon-2"
         data-complete={complete}
         data-current={current}
-        data-invalid={invalid}>2</span
+        data-invalid={invalid}
       >
+        2
+      </span>
     {/snippet}
   </ProgressStep>
   <ProgressStep invalid label="Step 3" description="Invalid">
@@ -19325,8 +19335,10 @@ kubectl version`}
         data-testid="progress-step-icon-3"
         data-complete={complete}
         data-current={current}
-        data-invalid={invalid}>3</span
+        data-invalid={invalid}
       >
+        3
+      </span>
     {/snippet}
   </ProgressStep>
 </ProgressIndicator>
@@ -19661,7 +19673,7 @@ kubectl version`}
   </svelte:fragment>
 </TagSet>
 
-=== 1110 tests/Text/Text.test.svelte	svelte
+=== 1114 tests/Text/Text.test.svelte	svelte
 <script lang="ts">
   import Text from "carbon-components-svelte/Text/Text.svelte";
 </script>
@@ -19686,8 +19698,10 @@ kubectl version`}
   weight="semibold"
   color="primary"
   maxWidth="42ch"
-  class="combined">Combined modifiers</Text
+  class="combined"
 >
+  Combined modifiers
+</Text>
 <Text type="body-long-01" lines={3}>Truncated text</Text>
 
 === 307 tests/TextArea/TextArea.fluidForm.test.svelte	svelte
@@ -20603,9 +20617,9 @@ kubectl version`}
   Log out
 </ProfileMenuItem>
 
-<ProfileMenuItem data-testid="no-icon" href="/settings"
-  >Settings</ProfileMenuItem
->
+<ProfileMenuItem data-testid="no-icon" href="/settings">
+  Settings
+</ProfileMenuItem>
 
 === 388 tests/UIShell/ProfileMenuList.test.svelte	svelte
 <script lang="ts">
