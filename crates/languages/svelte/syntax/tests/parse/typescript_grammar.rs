@@ -43,3 +43,26 @@ fn an_unchecked_rule_does_not_hide_a_later_error() {
     let class = source.find("class").expect("class");
     assert!(error.span.start_offset as usize > class);
 }
+
+// svelte 5.59.1 reads `?:` in a block's type annotation and an arrow type in a snippet's type
+// parameters; the verdicts and the offset are its `compile`'s.
+#[test]
+fn template_type_annotations_read_as_svelte_reads_them() {
+    for source in [
+        "<script lang=\"ts\">let items: any[] = [];</script>{#each items as item: { id: number; a?: string } (item.id)}{item.a}{/each}",
+        "<script lang=\"ts\">let items: any[] = [];</script>{#each items as item: { a?: string }, i (i)}{i}{/each}",
+        "<script lang=\"ts\">let items: any[] = [];</script>{#each items as { id }: { id?: number } (id)}{id}{/each}",
+        "<script lang=\"ts\">let rows: any[] = [];</script>{#each rows as row}{@const first: { a?: string } = row[0]}{first.a}{/each}",
+        "<script lang=\"ts\">let p: any;</script>{#await p then v: { a?: string }}{v.a}{/await}",
+        "<script lang=\"ts\"></script>{#snippet s<T extends () => void>(x: T)}{typeof x}{/snippet}",
+        "<script lang=\"ts\"></script>{#snippet s<T extends (a: number) => string, U = Array<T>>(x: T, y: U)}{x}{y}{/snippet}",
+    ] {
+        assert!(parse(source).is_ok(), "{source}");
+    }
+    let source = "<script lang=\"ts\"></script>{#snippet s<T extends a >= b>(x: T)}{x}{/snippet}";
+    let error = parse(source).expect_err(source);
+    assert_eq!(
+        (&*error.code, error.span.start_offset),
+        ("expected_token", 52)
+    );
+}
