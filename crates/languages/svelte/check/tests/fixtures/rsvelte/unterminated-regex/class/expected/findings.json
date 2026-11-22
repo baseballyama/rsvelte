@@ -1,0 +1,14 @@
+[
+	{
+		"code": 1161,
+		"message": "Unterminated regular expression literal.",
+		"start": {
+			"line": 2,
+			"character": 5
+		},
+		"end": {
+			"line": 2,
+			"character": 11
+		}
+	}
+]

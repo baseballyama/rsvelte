@@ -175,12 +175,27 @@ impl Printer<'_> {
         match type_parameters {
             Some(TypeParameters::Attribute(span)) => {
                 self.output.push("<");
-                self.output.copy(self.source, span);
                 // svelte2tsx maps the rest of the line to the character after the value, its
                 // closing quote.
                 let after = Span::new(span.end_offset, span.end_offset + 1);
-                self.output.atom(">() {", after);
-                self.output.push("\n");
+                if self.tree.javascript {
+                    // svelte2tsx writes the list and its `>` between its ignore comments: the start
+                    // keeps `</` from reading as a closing tag, and the end closes a comment the
+                    // list leaves open. The `>` maps to the opening quote, which nothing else maps
+                    // from.
+                    let start = self.output.out.len() as u32;
+                    self.output.push("/*\u{3a9}ignore_start\u{3a9}*/");
+                    self.output.copy(self.source, span);
+                    let before = Span::new(span.start_offset - 1, span.start_offset);
+                    self.output.atom(">", before);
+                    self.output.ignore_since(start);
+                    self.output
+                        .atom("/*\u{3a9}ignore_end\u{3a9}*/() {\n", after);
+                } else {
+                    self.output.copy(self.source, span);
+                    self.output.atom(">() {", after);
+                    self.output.push("\n");
+                }
             }
             Some(parameters @ TypeParameters::Declared(_)) => {
                 let parameters = self.type_parameters(parameters);

@@ -206,3 +206,35 @@ fn a_components_snippets_compile_in_time_linear_in_their_number() {
         "1500 snippets took {short_time:?}, 6000 took {long_time:?}"
     );
 }
+
+#[cfg(unix)]
+#[test]
+fn a_scripts_errors_are_located_in_time_linear_in_their_number() {
+    let script = |errors: usize| {
+        let lines = (0..errors).map(|n| format!("let v{n}; delete v{n};"));
+        format!("<script>{}</script>", lines.collect::<Vec<_>>().join("\n"))
+    };
+    let (short, long) = (script(2000), script(8000));
+    // Every error is located against the tree as the analysis builds.
+    let time = |source: &str| {
+        let start = thread_time();
+        analyzed(source, "App.svelte", |_, resolution, _| {
+            assert!(
+                resolution.javascript_syntax_error().is_some(),
+                "{} errors",
+                source.len()
+            );
+        })
+        .expect("parses");
+        thread_time().saturating_sub(start)
+    };
+    let (mut short_time, mut long_time) = (std::time::Duration::MAX, std::time::Duration::MAX);
+    for _ in 0..3 {
+        short_time = short_time.min(time(&short));
+        long_time = long_time.min(time(&long));
+    }
+    assert!(
+        long_time < 8 * short_time,
+        "2000 errors took {short_time:?}, 8000 took {long_time:?}"
+    );
+}

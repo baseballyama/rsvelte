@@ -48,6 +48,15 @@ enum Cover {
     Bare,
 }
 
+/// The span of a class member's key, where it is a public name: an empty span for a private one.
+fn public_key(key: &oxc_ast::ast::PropertyKey<'_>) -> oxc_span::Span {
+    if key.is_private_identifier() {
+        oxc_span::Span::default()
+    } else {
+        key.span()
+    }
+}
+
 /// Where the name a second declaration declares again is, which oxc labels.
 #[derive(Clone, Copy, Debug)]
 enum Redeclared {
@@ -113,8 +122,8 @@ pub(super) enum Find {
     SuperHome,
     /// The initializer of the class field whose key is the label.
     Initializer,
-    /// The type alias or interface whose name is the label, or the parameter list around it,
-    /// where the label redeclares the name the span is.
+    /// The type alias, interface or class member with a public name whose name is the label, or
+    /// the parameter list around it, where the label redeclares the name the span is.
     Redeclared(oxc_span::Span),
     /// Where acorn reads the name the label is: the innermost function, class static block or
     /// class field initializer around it.
@@ -214,6 +223,9 @@ impl Locator {
             }
             AstKind::TSTypeAliasDeclaration(it) => it.id.span,
             AstKind::TSInterfaceDeclaration(it) => it.id.span,
+            AstKind::PropertyDefinition(it) => public_key(&it.key),
+            AstKind::MethodDefinition(it) => public_key(&it.key),
+            AstKind::AccessorProperty(it) => public_key(&it.key),
             _ => return,
         };
         self.first_is_type |= name == first;
@@ -262,6 +274,16 @@ impl Locator {
             self.home = Some(home);
             self.cover = Cover::None;
         }
+    }
+
+    /// The spans whose nodes decide what the locator finds: those around each, those in each,
+    /// and no other node. The label, and for a second declaration the first one's name.
+    pub fn regions(&self) -> impl Iterator<Item = oxc_span::Span> {
+        let first = match self.find {
+            Find::Redeclared(first) => Some(first),
+            _ => None,
+        };
+        std::iter::once(self.label).chain(first)
     }
 
     /// Takes in a node of the walk, outer nodes before inner ones.
