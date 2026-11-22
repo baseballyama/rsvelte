@@ -7,17 +7,42 @@ use super::{R, ServerCompilationContext};
 use crate::lower::builder::Runtime;
 use crate::lower::unsupported;
 
+/// Which of a fragment's hoisted nodes a pass lowers. Upstream's `Fragment` sets a `<title>` after
+/// the rest of the fragment, as the client does, where an element lowers every one first.
+#[derive(Clone, Copy, PartialEq, Eq)]
+pub(super) enum Hoisted {
+    All,
+    BeforeChildren,
+    AfterChildren,
+}
+
+impl Hoisted {
+    const fn lowers(self, title: bool) -> bool {
+        match self {
+            Self::All => true,
+            Self::BeforeChildren => !title,
+            Self::AfterChildren => title,
+        }
+    }
+}
+
 impl<'o> ServerCompilationContext<'_, 'o> {
-    /// The snippets and special elements of a fragment, but the snippets named so that `skipped`
-    /// holds.
+    /// The snippets and special elements of a fragment that the `pass` lowers, but the snippets
+    /// named so that `skipped` holds.
     pub(super) fn hoisted_elements(
         &mut self,
         identifiers: &[CompilerNodeIdentifier],
-        skipped: fn(&str) -> bool,
+        (pass, skipped): (Hoisted, fn(&str) -> bool),
         template: &mut Template<'_, 'o>,
     ) -> R<()> {
         for &identifier in identifiers {
-            match &self.compiler_syntax_tree.node(identifier).kind {
+            let kind = &self.compiler_syntax_tree.node(identifier).kind;
+            let title =
+                matches!(kind, NodeKind::Element(element) if element.kind == ElementKind::Title);
+            if !pass.lowers(title) {
+                continue;
+            }
+            match kind {
                 NodeKind::Snippet(snippet) if skipped(self.snippet_name(snippet)) => {}
                 NodeKind::Snippet(_) => self.snippet(identifier)?,
                 NodeKind::Const { .. } => self.const_tag(identifier),
@@ -74,8 +99,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 let body = title.finish();
                 let callback = b.arrow_block(b.parameters(["$$renderer"]), body, false);
                 let call = b.call(b.member(b.id("$$renderer"), "title"), [callback]);
-                // Upstream puts it in `state.init`, which comes before the template.
-                self.snippets.push(b.statement(call));
+                template.statement(b.statement(call));
             }
             ElementKind::Metadata(Some(
                 MetadataTag::Window

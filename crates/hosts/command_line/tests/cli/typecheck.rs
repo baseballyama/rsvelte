@@ -563,8 +563,8 @@ fn typecheck_reads_a_replaced_package_file_as_one_text() {
     };
     let es5 = format!(
         "{}{}\nFound 2 errors in 1 file.\n",
-        es5("BigInt64Array", 3349),
-        es5("BigUint64Array", 3350)
+        es5("BigInt64Array", 3569),
+        es5("BigUint64Array", 3570)
     );
     let cases = [("esnext", Some(0), String::new()), ("es5", Some(1), es5)];
     for (lib, code, expected) in cases {
@@ -622,7 +622,7 @@ fn a_run_on_a_replaced_file_reads_the_replaced_text() {
     };
     assert_eq!(
         found,
-        [error("BigInt64Array", 3348), error("BigUint64Array", 3349)],
+        [error("BigInt64Array", 3568), error("BigUint64Array", 3569)],
         "{stdout}"
     );
 }

@@ -1,0 +1,140 @@
+{
+	"rules": [
+		"no-unused-vars",
+		"svelte/button-has-type"
+	],
+	"findings": [
+		{
+			"rule": "no-unused-vars",
+			"message": "'n' is assigned a value but never used.",
+			"start": {
+				"line": 2,
+				"column": 7
+			},
+			"end": {
+				"line": 2,
+				"column": 16
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'a' is defined but never used.",
+			"start": {
+				"line": 3,
+				"column": 12
+			},
+			"end": {
+				"line": 3,
+				"column": 13
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'node' is defined but never used.",
+			"start": {
+				"line": 3,
+				"column": 14
+			},
+			"end": {
+				"line": 3,
+				"column": 31
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'p' is defined but never used.",
+			"start": {
+				"line": 3,
+				"column": 33
+			},
+			"end": {
+				"line": 3,
+				"column": 42
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'f' is defined but never used.",
+			"start": {
+				"line": 4,
+				"column": 12
+			},
+			"end": {
+				"line": 4,
+				"column": 13
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'node' is defined but never used.",
+			"start": {
+				"line": 4,
+				"column": 14
+			},
+			"end": {
+				"line": 4,
+				"column": 27
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'p' is defined but never used.",
+			"start": {
+				"line": 4,
+				"column": 29
+			},
+			"end": {
+				"line": 4,
+				"column": 45
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'g' is defined but never used.",
+			"start": {
+				"line": 5,
+				"column": 12
+			},
+			"end": {
+				"line": 5,
+				"column": 13
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'node' is defined but never used.",
+			"start": {
+				"line": 5,
+				"column": 14
+			},
+			"end": {
+				"line": 5,
+				"column": 27
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'p' is defined but never used.",
+			"start": {
+				"line": 5,
+				"column": 29
+			},
+			"end": {
+				"line": 5,
+				"column": 62
+			}
+		},
+		{
+			"rule": "no-unused-vars",
+			"message": "'q' is defined but never used.",
+			"start": {
+				"line": 5,
+				"column": 64
+			},
+			"end": {
+				"line": 5,
+				"column": 80
+			}
+		}
+	]
+}

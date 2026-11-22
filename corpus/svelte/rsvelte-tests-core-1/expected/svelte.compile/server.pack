@@ -20579,13 +20579,13 @@ export default function _f094109a0faeeaf($$renderer) {
 
 	$$renderer.push(`<p>1</p>`);
 }
-=== 160 compile_script_directive_4133/a_string_statement_that_is_not_first_survives_on_both_targets/f03fdb307e0196e8.svelte	js
+=== 162 compile_script_directive_4133/a_string_statement_that_is_not_first_survives_on_both_targets/f03fdb307e0196e8.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function F03fdb307e0196e8($$renderer) {
 	let a = 1;
 
-	"use strict";
+	("use strict");
 	$$renderer.push(`<p>1</p>`);
 }
 === 173 compile_script_directive_4133/every_statement_of_a_multi_directive_prologue_survives/c5d80bc894050841.svelte	js

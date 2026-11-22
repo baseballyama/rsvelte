@@ -455,11 +455,11 @@ export default function _page($$renderer, $$props) {
 		const start = $.derived(() => 1 + (page() - 1) * PAGE_SIZE);
 
 		$.head('1n9hwi2', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description"${$.attr('content', `Latest Hacker News stories in the ${$.stringify(list())} category`)}/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>Svelte Hacker News</title>`);
 			});
-
-			$$renderer.push(`<meta name="description"${$.attr('content', `Latest Hacker News stories in the ${$.stringify(list())} category`)}/>`);
 		});
 
 		$$renderer.push(`<!--[-->`);

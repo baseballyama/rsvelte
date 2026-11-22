@@ -150,7 +150,8 @@
 		background-color: #454553; /* primary-100 - matches design spec */
 	}
 
-=== 36210 src/lib/components/AppNavigation.svelte	js
+=== 36252 src/lib/components/AppNavigation.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -473,7 +474,8 @@ export default function AppNavigation($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 4778 src/lib/components/BackToTop.svelte	js
+=== 4820 src/lib/components/BackToTop.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconArrowUp } from '@tabler/icons-svelte';
@@ -631,7 +633,8 @@ $.delegate(['click']);
     }
   }
 
-=== 7850 src/lib/components/BaseModal.svelte	js
+=== 7892 src/lib/components/BaseModal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useOverlayScrollbars } from 'overlayscrollbars-svelte';
@@ -880,7 +883,8 @@ export default function BaseModal($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 624 src/lib/components/BetaLabel.svelte	js
+=== 666 src/lib/components/BetaLabel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -993,7 +997,8 @@ export default function BetaLabel($$anchor, $$props) {
     background-color: rgba(59, 130, 246, 0.1);
   }
 
-=== 13792 src/lib/components/CategoryNavigation.svelte	js
+=== 13834 src/lib/components/CategoryNavigation.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount, tick, untrack } from 'svelte';
@@ -1424,7 +1429,8 @@ export default function CategoryNavigation($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown', 'dblclick']);
-=== 30671 src/lib/components/ChaosIndex.svelte	js
+=== 30713 src/lib/components/ChaosIndex.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Chart from 'chart.js/auto';
@@ -2336,7 +2342,8 @@ $.delegate(['click', 'keydown']);
 		.label-a.svelte-1up4f39, .label-b.svelte-1up4f39 { opacity: 0.8; }
 	}
 
-=== 9954 src/lib/components/ClusteringExplainerModal.svelte	js
+=== 9996 src/lib/components/ClusteringExplainerModal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconBrandGithub, IconExternalLink, IconX } from '@tabler/icons-svelte';
@@ -2521,7 +2528,8 @@ export default function ClusteringExplainerModal($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 24069 src/lib/components/DataLoader.svelte	js
+=== 24111 src/lib/components/DataLoader.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -3214,7 +3222,8 @@ export default function DataLoader($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 5128 src/lib/components/Footer.svelte	js
+=== 5170 src/lib/components/Footer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -3346,7 +3355,8 @@ $.delegate(['click']);
     50% { opacity: 0.6; }
   }
 
-=== 36522 src/lib/components/Header.svelte	js
+=== 36564 src/lib/components/Header.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconClock, IconSearch, IconSettings, IconTextSize } from '@tabler/icons-svelte';
@@ -4415,7 +4425,8 @@ export default function Header($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 8520 src/lib/components/HistoryManager.svelte	js
+=== 8562 src/lib/components/HistoryManager.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { browser } from '$app/environment';
@@ -4657,7 +4668,8 @@ export default function HistoryManager($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
-=== 7558 src/lib/components/IntroScreen.svelte	js
+=== 7600 src/lib/components/IntroScreen.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useOverlayScrollbars } from 'overlayscrollbars-svelte';
@@ -4877,7 +4889,8 @@ export default function IntroScreen($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 6527 src/lib/components/KeyboardNavigationHandler.svelte	js
+=== 6569 src/lib/components/KeyboardNavigationHandler.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -5159,7 +5172,8 @@ export default function KeyboardNavigationHandler($$anchor, $$props) {
 		color: rgb(24, 24, 26);
 	}
 
-=== 4231 src/lib/components/KeyboardShortcutsHelp.svelte	js
+=== 4273 src/lib/components/KeyboardShortcutsHelp.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fade } from 'svelte/transition';
@@ -5284,7 +5298,8 @@ export default function KeyboardShortcutsHelp($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1838 src/lib/components/LottieAnimation.svelte	js
+=== 1880 src/lib/components/LottieAnimation.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import lottie from 'lottie-web';
@@ -5349,7 +5364,8 @@ export default function LottieAnimation($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 812 src/lib/components/MapView.svelte	js
+=== 854 src/lib/components/MapView.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -5379,7 +5395,8 @@ export default function MapView($$anchor, $$props) {
 
 	$.append($$anchor, fragment);
 }
-=== 2983 src/lib/components/OnThisDay.svelte	js
+=== 3025 src/lib/components/OnThisDay.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import OnThisDayEventTimeline from './onthisday/OnThisDayEventTimeline.svelte';
@@ -5492,7 +5509,8 @@ export default function OnThisDay($$anchor, $$props) {
 }
 
 $.delegate(['mouseover', 'click', 'keydown']);
-=== 7110 src/lib/components/OnboardingModal.svelte	js
+=== 7152 src/lib/components/OnboardingModal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { useOverlayScrollbars } from 'overlayscrollbars-svelte';
@@ -5734,7 +5752,8 @@ $.delegate(['click']);
     -webkit-tap-highlight-color: transparent;
   }
 
-=== 18459 src/lib/components/ReportButton.svelte	js
+=== 18501 src/lib/components/ReportButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconAlertTriangle, IconLoader2, IconPlus, IconX } from '@tabler/icons-svelte';
@@ -6278,7 +6297,8 @@ $.delegate(['click', 'keydown', 'input']);
     overflow: hidden;
   }
 
-=== 35169 src/lib/components/Select.svelte	js
+=== 35211 src/lib/components/Select.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconCheck, IconChevronDown, IconChevronUp, IconSearch, IconX } from '@tabler/icons-svelte';
@@ -7278,7 +7298,8 @@ export default function Select($$anchor, $$props) {
 }
 
 $.delegate(['mousedown', 'keydown']);
-=== 22558 src/lib/components/Settings.svelte	js
+=== 22600 src/lib/components/Settings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -7968,7 +7989,8 @@ $.delegate(['click', 'keydown']);
     -webkit-tap-highlight-color: transparent;
   }
 
-=== 8744 src/lib/components/ShareButton.svelte	js
+=== 8786 src/lib/components/ShareButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { flip, offset, shift, useFloating } from '@skeletonlabs/floating-ui-svelte';
@@ -8274,7 +8296,8 @@ export default function ShareButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 23084 src/lib/components/SourceOverlay.svelte	js
+=== 23126 src/lib/components/SourceOverlay.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -8920,7 +8943,8 @@ export default function SourceOverlay($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 5276 src/lib/components/SplashScreen.svelte	js
+=== 5318 src/lib/components/SplashScreen.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -9093,7 +9117,8 @@ export default function SplashScreen($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 23068 src/lib/components/StoryList.svelte	js
+=== 23110 src/lib/components/StoryList.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconClock, IconInfoCircle } from '@tabler/icons-svelte';
@@ -9782,7 +9807,8 @@ export default function StoryList($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 3710 src/lib/components/TemporaryCategoryTooltip.svelte	js
+=== 3752 src/lib/components/TemporaryCategoryTooltip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { flip, offset, shift, useFloating } from '@skeletonlabs/floating-ui-svelte';
@@ -9909,7 +9935,8 @@ export default function TemporaryCategoryTooltip($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 26172 src/lib/components/TimeTravel.svelte	js
+=== 26214 src/lib/components/TimeTravel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fade } from 'svelte/transition';
@@ -10620,7 +10647,8 @@ $.delegate(['click', 'keydown', 'change']);
 	animation: svelte-1cpok13-slide-in 0.2s ease-out;
 }
 
-=== 4000 src/lib/components/Toast.svelte	js
+=== 4042 src/lib/components/Toast.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconAlertTriangle, IconCheck, IconInfoCircle, IconX } from '@tabler/icons-svelte';
@@ -10752,7 +10780,8 @@ $.delegate(['click']);
     transform-origin: center bottom;
   }
 
-=== 10451 src/lib/components/Tooltip.svelte	js
+=== 10493 src/lib/components/Tooltip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onDestroy, onMount } from 'svelte';
@@ -11124,7 +11153,8 @@ export default function Tooltip($$anchor, $$props) {
 }
 
 $.delegate(['click', 'touchstart', 'touchend', 'keydown']);
-=== 2302 src/lib/components/ViewModeToggle.svelte	js
+=== 2344 src/lib/components/ViewModeToggle.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -11180,7 +11210,8 @@ export default function ViewModeToggle($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1613 src/lib/components/WikipediaPopup.svelte	js
+=== 1655 src/lib/components/WikipediaPopup.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BaseModal from './BaseModal.svelte';
@@ -11245,7 +11276,8 @@ export default function WikipediaPopup($$anchor, $$props) {
 		$$slots: { default: true }
 	});
 }
-=== 17765 src/lib/components/WikipediaTooltip.svelte	js
+=== 17807 src/lib/components/WikipediaTooltip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { arrow, flip, offset, shift, size, useFloating } from '@skeletonlabs/floating-ui-svelte';
@@ -11791,7 +11823,8 @@ export default function WikipediaTooltip($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 605 src/lib/components/__tests__/TestModalWithContent.svelte	js
+=== 647 src/lib/components/__tests__/TestModalWithContent.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import BaseModal from '../BaseModal.svelte';
@@ -11841,7 +11874,8 @@ export default function TestModalWithContent($$anchor, $$props) {
     filter: invert(1) hue-rotate(180deg) contrast(1.05);
   }
 
-=== 4068 src/lib/components/common/FaviconImage.svelte	js
+=== 4110 src/lib/components/common/FaviconImage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fetchFavicon, getImmediateFaviconUrl } from '$lib/services/faviconService';
@@ -11981,7 +12015,8 @@ export default function FaviconImage($$anchor, $$props) {
 	$.append($$anchor, img_1);
 	$.pop();
 }
-=== 12068 src/lib/components/common/GlobePreview.svelte	js
+=== 12110 src/lib/components/common/GlobePreview.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import * as THREE from 'three';
@@ -12416,7 +12451,8 @@ export default function GlobePreview($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 19683 src/lib/components/contribute/ContributeCategoryStep.svelte	js
+=== 19725 src/lib/components/contribute/ContributeCategoryStep.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13044,7 +13080,8 @@ export default function ContributeCategoryStep($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 14604 src/lib/components/contribute/ContributeFeedStep.svelte	js
+=== 14646 src/lib/components/contribute/ContributeFeedStep.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13527,7 +13564,8 @@ export default function ContributeFeedStep($$anchor, $$props) {
 }
 
 $.delegate(['keydown', 'click']);
-=== 15013 src/lib/components/contribute/ContributeHistory.svelte	js
+=== 15055 src/lib/components/contribute/ContributeHistory.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14134,7 +14172,8 @@ $.delegate(['click']);
 		.blabel.svelte-cvsk4a { opacity: 0.6; }
 	}
 
-=== 26608 src/lib/components/contribute/ContributeOnboarding.svelte	js
+=== 26650 src/lib/components/contribute/ContributeOnboarding.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -14760,7 +14799,8 @@ export default function ContributeOnboarding($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 15733 src/lib/components/contribute/ContributeSubmitStep.svelte	js
+=== 15775 src/lib/components/contribute/ContributeSubmitStep.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -15285,7 +15325,8 @@ export default function ContributeSubmitStep($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 8263 src/lib/components/crypto/CryptoGrid.svelte	js
+=== 8305 src/lib/components/crypto/CryptoGrid.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconRefresh, IconTrendingDown, IconTrendingUp } from '@tabler/icons-svelte';
@@ -15571,7 +15612,8 @@ export default function CryptoGrid($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 8541 src/lib/components/crypto/CryptoPrice.svelte	js
+=== 8583 src/lib/components/crypto/CryptoPrice.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconRefresh, IconTrendingDown, IconTrendingUp } from '@tabler/icons-svelte';
@@ -15884,7 +15926,8 @@ export default function CryptoPrice($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 15100 src/lib/components/f1/F1Schedule.svelte	js
+=== 15142 src/lib/components/f1/F1Schedule.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16375,7 +16418,8 @@ export default function F1Schedule($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 14403 src/lib/components/f1/F1Standings.svelte	js
+=== 14445 src/lib/components/f1/F1Standings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -16798,7 +16842,8 @@ export default function F1Standings($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 27272 src/lib/components/nfl/NFLScores.svelte	js
+=== 27314 src/lib/components/nfl/NFLScores.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -17672,7 +17717,8 @@ export default function NFLScores($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 21639 src/lib/components/nfl/NFLStandings.svelte	js
+=== 21681 src/lib/components/nfl/NFLStandings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18294,7 +18340,8 @@ export default function NFLStandings($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 27511 src/lib/components/nhl/NHLScores.svelte	js
+=== 27553 src/lib/components/nhl/NHLScores.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -19172,7 +19219,8 @@ export default function NHLScores($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 19877 src/lib/components/nhl/NHLStandings.svelte	js
+=== 19919 src/lib/components/nhl/NHLStandings.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -19748,7 +19796,8 @@ export default function NHLStandings($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1627 src/lib/components/onboarding/OnboardingStepAppearance.svelte	js
+=== 1669 src/lib/components/onboarding/OnboardingStepAppearance.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -19802,7 +19851,8 @@ export default function OnboardingStepAppearance($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1304 src/lib/components/onboarding/OnboardingStepCategories.svelte	js
+=== 1346 src/lib/components/onboarding/OnboardingStepCategories.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -19849,7 +19899,8 @@ export default function OnboardingStepCategories($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1133 src/lib/components/onboarding/OnboardingStepSections.svelte	js
+=== 1175 src/lib/components/onboarding/OnboardingStepSections.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -19888,7 +19939,8 @@ export default function OnboardingStepSections($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 1971 src/lib/components/onthisday/OnThisDayEventTimeline.svelte	js
+=== 2013 src/lib/components/onthisday/OnThisDayEventTimeline.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -19933,7 +19985,8 @@ export default function OnThisDayEventTimeline($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 9832 src/lib/components/onthisday/OnThisDayPeopleCarousel.svelte	js
+=== 9874 src/lib/components/onthisday/OnThisDayPeopleCarousel.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { browser } from '$app/environment';
@@ -20222,7 +20275,8 @@ $.delegate(['click', 'keydown']);
     content: none !important;
   }
 
-=== 4038 src/lib/components/onthisday/OnThisDaySkeleton.svelte	js
+=== 4080 src/lib/components/onthisday/OnThisDaySkeleton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -20325,7 +20379,8 @@ export default function OnThisDaySkeleton($$anchor, $$props) {
     opacity: 0.5;
   }
 
-=== 8322 src/lib/components/search/SearchInput.svelte	js
+=== 8364 src/lib/components/search/SearchInput.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconLoader2 } from '@tabler/icons-svelte';
@@ -20567,7 +20622,8 @@ export default function SearchInput($$anchor, $$props) {
 }
 
 $.delegate(['click', 'input', 'keydown', 'beforeinput']);
-=== 18122 src/lib/components/search/SearchModal.svelte	js
+=== 18164 src/lib/components/search/SearchModal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconLoader2 } from '@tabler/icons-svelte';
@@ -21278,7 +21334,8 @@ $.delegate(['touchmove', 'click']);
     animation: svelte-1hmd7l3-fill-progress 3s linear;
   }
 
-=== 30197 src/lib/components/search/SearchResults.svelte	js
+=== 30239 src/lib/components/search/SearchResults.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -22218,7 +22275,8 @@ export default function SearchResults($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 11665 src/lib/components/settings/ContributeCategoryModal.svelte	js
+=== 11707 src/lib/components/settings/ContributeCategoryModal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -22524,7 +22582,8 @@ Guidelines:
 }
 
 $.delegate(['click', 'keydown']);
-=== 9464 src/lib/components/settings/SettingsAbout.svelte	js
+=== 9506 src/lib/components/settings/SettingsAbout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconKeyboard } from '@tabler/icons-svelte';
@@ -22729,7 +22788,8 @@ export default function SettingsAbout($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 27569 src/lib/components/settings/SettingsAccount.svelte	js
+=== 27611 src/lib/components/settings/SettingsAccount.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -23486,7 +23546,8 @@ export default function SettingsAccount($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 10539 src/lib/components/settings/SettingsAppearance.svelte	js
+=== 10581 src/lib/components/settings/SettingsAppearance.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -23792,7 +23853,8 @@ export default function SettingsAppearance($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 33789 src/lib/components/settings/SettingsCategories.svelte	js
+=== 33831 src/lib/components/settings/SettingsCategories.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconCheck, IconSearch, IconWorld } from '@tabler/icons-svelte';
@@ -24802,7 +24864,8 @@ export default function SettingsCategories($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown', 'mousedown']);
-=== 28749 src/lib/components/settings/SettingsContentFilter.svelte	js
+=== 28791 src/lib/components/settings/SettingsContentFilter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -25588,7 +25651,8 @@ export default function SettingsContentFilter($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown', 'change']);
-=== 9124 src/lib/components/settings/SettingsExperimental.svelte	js
+=== 9166 src/lib/components/settings/SettingsExperimental.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -25794,7 +25858,8 @@ export default function SettingsExperimental($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 29011 src/lib/components/settings/SettingsFilters.svelte	js
+=== 29053 src/lib/components/settings/SettingsFilters.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -26588,7 +26653,8 @@ export default function SettingsFilters($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown', 'change']);
-=== 12563 src/lib/components/settings/SettingsGeneral.svelte	js
+=== 12605 src/lib/components/settings/SettingsGeneral.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -27068,7 +27134,8 @@ export default function SettingsGeneral($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 6529 src/lib/components/settings/SettingsImagePreloading.svelte	js
+=== 6571 src/lib/components/settings/SettingsImagePreloading.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { imagePreloadingService } from '$lib/services/imagePreloadingService';
@@ -27198,7 +27265,8 @@ export default function SettingsImagePreloading($$anchor, $$props) {
 }
 
 $.delegate(['change', 'input', 'click']);
-=== 17297 src/lib/components/settings/SettingsLanguage.svelte	js
+=== 17339 src/lib/components/settings/SettingsLanguage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconInfoCircle, IconSparkles } from '@tabler/icons-svelte';
@@ -27670,7 +27738,8 @@ export default function SettingsLanguage($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 9725 src/lib/components/settings/SettingsSections.svelte	js
+=== 9767 src/lib/components/settings/SettingsSections.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { flip } from 'svelte/animate';
@@ -27944,7 +28013,8 @@ export default function SettingsSections($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 11189 src/lib/components/settings/SettingsStories.svelte	js
+=== 11231 src/lib/components/settings/SettingsStories.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconX } from '@tabler/icons-svelte';
@@ -28321,7 +28391,8 @@ export default function SettingsStories($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 23434 src/lib/components/settings/SettingsSyncPrivacy.svelte	js
+=== 23476 src/lib/components/settings/SettingsSyncPrivacy.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconArrowLeft, IconDownload, IconLoader2, IconTrash } from '@tabler/icons-svelte';
@@ -28924,7 +28995,8 @@ export default function SettingsSyncPrivacy($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 11726 src/lib/components/settings/SyncSetupModal.svelte	js
+=== 11768 src/lib/components/settings/SyncSetupModal.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconArrowUp, IconArrowDown, IconArrowsExchange, IconLoader2 } from '@tabler/icons-svelte';
@@ -29251,7 +29323,8 @@ export default function SyncSetupModal($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 17631 src/lib/components/settings/snippets/DataLanguageSelector.svelte	js
+=== 17673 src/lib/components/settings/snippets/DataLanguageSelector.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconInfoCircle, IconX } from '@tabler/icons-svelte';
@@ -29800,7 +29873,8 @@ export default function DataLanguageSelector($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 5531 src/lib/components/settings/snippets/LanguageSelector.svelte	js
+=== 5573 src/lib/components/settings/snippets/LanguageSelector.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconInfoCircle } from '@tabler/icons-svelte';
@@ -29979,7 +30053,8 @@ export default function LanguageSelector($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 10187 src/lib/components/settings/snippets/SectionsList.svelte	js
+=== 10229 src/lib/components/settings/snippets/SectionsList.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { flip } from 'svelte/animate';
@@ -30274,7 +30349,8 @@ export default function SectionsList($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 1757 src/lib/components/settings/snippets/StoryCountSlider.svelte	js
+=== 1799 src/lib/components/settings/snippets/StoryCountSlider.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -30324,7 +30400,8 @@ export default function StoryCountSlider($$anchor, $$props) {
 }
 
 $.delegate(['input']);
-=== 3757 src/lib/components/settings/snippets/ThemeSelector.svelte	js
+=== 3799 src/lib/components/settings/snippets/ThemeSelector.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconMoon, IconSun } from '@tabler/icons-svelte';
@@ -30421,7 +30498,8 @@ $.delegate(['click']);
     overflow: hidden;
   }
 
-=== 6193 src/lib/components/story/CitationItem.svelte	js
+=== 6235 src/lib/components/story/CitationItem.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -30621,7 +30699,8 @@ export default function CitationItem($$anchor, $$props) {
     margin-bottom: 0.25rem;
   }
 
-=== 27543 src/lib/components/story/CitationText.svelte	js
+=== 27585 src/lib/components/story/CitationText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -31464,7 +31543,8 @@ export default function CitationText($$anchor, $$props) {
 }
 
 $.delegate(['mouseover', 'click', 'keydown', 'touchstart']);
-=== 19103 src/lib/components/story/CitationTooltip.svelte	js
+=== 19145 src/lib/components/story/CitationTooltip.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { flip, offset, shift, size, useFloating } from '@skeletonlabs/floating-ui-svelte';
@@ -32073,7 +32153,8 @@ export default function CitationTooltip($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 908 src/lib/components/story/SectionWrapper.svelte	js
+=== 950 src/lib/components/story/SectionWrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -32127,7 +32208,8 @@ export default function SectionWrapper($$anchor, $$props) {
 		animation: svelte-5uclpr-jiggle 0.2s ease;
 	}
 
-=== 10902 src/lib/components/story/SelectableText.svelte	js
+=== 10944 src/lib/components/story/SelectableText.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -32441,7 +32523,8 @@ export default function SelectableText($$anchor, $$props) {
 }
 
 $.delegate(['mousedown']);
-=== 4219 src/lib/components/story/SimplifyButton.svelte	js
+=== 4261 src/lib/components/story/SimplifyButton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -32557,7 +32640,8 @@ export default function SimplifyButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 3170 src/lib/components/story/StoryActionItems.svelte	js
+=== 3212 src/lib/components/story/StoryActionItems.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -32669,7 +32753,8 @@ export default function StoryActionItems($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 3900 src/lib/components/story/StoryActions.svelte	js
+=== 3942 src/lib/components/story/StoryActions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { page } from '$app/state';
@@ -32813,7 +32898,8 @@ export default function StoryActions($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 15735 src/lib/components/story/StoryCard.svelte	js
+=== 15777 src/lib/components/story/StoryCard.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { browser } from '$app/environment';
@@ -33361,7 +33447,8 @@ export default function StoryCard($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
-=== 1370 src/lib/components/story/StoryCardSkeleton.svelte	js
+=== 1412 src/lib/components/story/StoryCardSkeleton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -33388,7 +33475,8 @@ export default function StoryCardSkeleton($$anchor, $$props) {
 	$.template_effect(() => $.set_class(div_3, 1, `h-6 ${$.get(titleWidth) ?? ''} bg-gray-200 dark:bg-gray-700 rounded`));
 	$.append($$anchor, article);
 }
-=== 4162 src/lib/components/story/StoryContentSkeleton.svelte	js
+=== 4204 src/lib/components/story/StoryContentSkeleton.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -33447,7 +33535,8 @@ export default function StoryContentSkeleton($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 2630 src/lib/components/story/StoryDidYouKnow.svelte	js
+=== 2672 src/lib/components/story/StoryDidYouKnow.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -33604,7 +33693,8 @@ export default function StoryDidYouKnow($$anchor, $$props) {
     color: #ffb74d;
   } /* amber */
 
-=== 29880 src/lib/components/story/StoryHeader.svelte	js
+=== 29922 src/lib/components/story/StoryHeader.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconCards, IconDownload, IconSparkles, IconVolume } from '@tabler/icons-svelte';
@@ -34450,7 +34540,8 @@ $.delegate(['click', 'keydown']);
     text-transform: uppercase;
   }
 
-=== 7532 src/lib/components/story/StoryHighlights.svelte	js
+=== 7574 src/lib/components/story/StoryHighlights.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -34722,7 +34813,8 @@ export default function StoryHighlights($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 6878 src/lib/components/story/StoryImage.svelte	js
+=== 6920 src/lib/components/story/StoryImage.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -34957,7 +35049,8 @@ export default function StoryImage($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 5980 src/lib/components/story/StoryInternationalReactions.svelte	js
+=== 6022 src/lib/components/story/StoryInternationalReactions.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -35175,7 +35268,8 @@ export default function StoryInternationalReactions($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 4906 src/lib/components/story/StoryListSection.svelte	js
+=== 4948 src/lib/components/story/StoryListSection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getCitedArticlesForText } from '$lib/utils/citationAggregator';
@@ -35363,7 +35457,8 @@ export default function StoryListSection($$anchor, $$props) {
 	$.append($$anchor, section_1);
 	$.pop();
 }
-=== 13377 src/lib/components/story/StoryPerspectives.svelte	js
+=== 13419 src/lib/components/story/StoryPerspectives.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { fade } from 'svelte/transition';
@@ -35830,7 +35925,8 @@ $.delegate(['touchstart', 'touchend', 'click']);
     text-transform: uppercase;
   }
 
-=== 7239 src/lib/components/story/StoryQuote.svelte	js
+=== 7281 src/lib/components/story/StoryQuote.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -36098,7 +36194,8 @@ export default function StoryQuote($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 34915 src/lib/components/story/StorySectionManager.svelte	js
+=== 34957 src/lib/components/story/StorySectionManager.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -37589,7 +37686,8 @@ export default function StorySectionManager($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 11405 src/lib/components/story/StorySources.svelte	js
+=== 11447 src/lib/components/story/StorySources.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconLock } from '@tabler/icons-svelte';
@@ -37911,7 +38009,8 @@ export default function StorySources($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 4608 src/lib/components/story/StorySuggestedQnA.svelte	js
+=== 4650 src/lib/components/story/StorySuggestedQnA.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -38086,7 +38185,8 @@ export default function StorySuggestedQnA($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 9816 src/lib/components/story/StorySummary.svelte	js
+=== 9858 src/lib/components/story/StorySummary.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -38465,7 +38565,8 @@ $.delegate(['click', 'keydown']);
 	}
 ]
 
-=== 2415 src/lib/components/story/StoryTextSection.svelte	js
+=== 2457 src/lib/components/story/StoryTextSection.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { replaceWithNumberedCitations } from '$lib/utils/citationContext';
@@ -38645,7 +38746,8 @@ export default function StoryTextSection($$anchor, $$props) {
     color: #d1d5db;
   }
 
-=== 5071 src/lib/components/story/StoryTimeline.svelte	js
+=== 5113 src/lib/components/story/StoryTimeline.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { s } from '$lib/client/localization.svelte';
@@ -38814,7 +38916,8 @@ export default function StoryTimeline($$anchor, $$props) {
 	$.append($$anchor, section);
 	$.pop();
 }
-=== 6422 src/lib/components/weather/Weather.svelte	js
+=== 6464 src/lib/components/weather/Weather.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { IconWind } from '@tabler/icons-svelte';
@@ -38989,7 +39092,8 @@ export default function Weather($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
-=== 402 src/routes/+error.svelte	js
+=== 444 src/routes/+error.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from 'svelte';
@@ -39006,7 +39110,8 @@ export default function _error($$anchor, $$props) {
 
 	$.pop();
 }
-=== 4380 src/routes/+layout.svelte	js
+=== 4422 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { browser } from '$app/environment';
@@ -39146,7 +39251,8 @@ export default function _layout($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 43460 src/routes/+page.svelte	js
+=== 43502 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -40881,7 +40987,8 @@ export default function _page($$anchor, $$props) {
 }
 
 $.delegate(['touchstart', 'touchmove', 'touchend', 'click']);
-=== 189 src/routes/[batchId=batchId]/+page.svelte	js
+=== 231 src/routes/[batchId=batchId]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Page from '../+page.svelte';
@@ -40889,7 +40996,8 @@ import Page from '../+page.svelte';
 export default function _page($$anchor) {
 	Page($$anchor, {});
 }
-=== 192 src/routes/[batchId=batchId]/[categoryId=categoryId]/+page.svelte	js
+=== 234 src/routes/[batchId=batchId]/[categoryId=categoryId]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Page from '../../+page.svelte';
@@ -40897,7 +41005,8 @@ import Page from '../../+page.svelte';
 export default function _page($$anchor) {
 	Page($$anchor, {});
 }
-=== 195 src/routes/[batchId=batchId]/[categoryId=categoryId]/[storyIndex]/+page.svelte	js
+=== 237 src/routes/[batchId=batchId]/[categoryId=categoryId]/[storyIndex]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Page from '../../../+page.svelte';
@@ -40905,7 +41014,8 @@ import Page from '../../../+page.svelte';
 export default function _page($$anchor) {
 	Page($$anchor, {});
 }
-=== 192 src/routes/[categoryId=categoryId]/[encodedId=encodedId]/+page.svelte	js
+=== 234 src/routes/[categoryId=categoryId]/[encodedId=encodedId]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Page from '../../+page.svelte';
@@ -40913,7 +41023,8 @@ import Page from '../../+page.svelte';
 export default function _page($$anchor) {
 	Page($$anchor, {});
 }
-=== 195 src/routes/[categoryId=categoryId]/[encodedId=encodedId]/[slug]/+page.svelte	js
+=== 237 src/routes/[categoryId=categoryId]/[encodedId=encodedId]/[slug]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Page from '../../../+page.svelte';
@@ -40921,7 +41032,8 @@ import Page from '../../../+page.svelte';
 export default function _page($$anchor) {
 	Page($$anchor, {});
 }
-=== 192 src/routes/[categoryId=categoryId]/latest/+page.svelte	js
+=== 234 src/routes/[categoryId=categoryId]/latest/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Page from '../../+page.svelte';
@@ -40929,7 +41041,8 @@ import Page from '../../+page.svelte';
 export default function _page($$anchor) {
 	Page($$anchor, {});
 }
-=== 189 src/routes/about/+page.svelte	js
+=== 231 src/routes/about/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Page from '../+page.svelte';
@@ -40937,7 +41050,8 @@ import Page from '../+page.svelte';
 export default function _page($$anchor) {
 	Page($$anchor, {});
 }
-=== 17559 src/routes/contribute/+page.svelte	js
+=== 17601 src/routes/contribute/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -41600,7 +41714,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 189 src/routes/latest/+page.svelte	js
+=== 231 src/routes/latest/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Page from '../+page.svelte';
@@ -41608,7 +41723,8 @@ import Page from '../+page.svelte';
 export default function _page($$anchor) {
 	Page($$anchor, {});
 }
-=== 192 src/routes/latest/[categoryId]/+page.svelte	js
+=== 234 src/routes/latest/[categoryId]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Page from '../../+page.svelte';
@@ -41616,7 +41732,8 @@ import Page from '../../+page.svelte';
 export default function _page($$anchor) {
 	Page($$anchor, {});
 }
-=== 195 src/routes/latest/[categoryId]/[storyIndex]/+page.svelte	js
+=== 237 src/routes/latest/[categoryId]/[storyIndex]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Page from '../../../+page.svelte';

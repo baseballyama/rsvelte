@@ -10783,14 +10783,12 @@ export default function _e0312ca6ae0968e($$renderer, $$props) {
 	}
 }
 
-=== 238 rsvelte_projection/svelte2tsx/script/runes/tests/test_runes_effect_in_function_body/ae5d1cc8f4e4c3f9.svelte	js
+=== 223 rsvelte_projection/svelte2tsx/script/runes/tests/test_runes_effect_in_function_body/ae5d1cc8f4e4c3f9.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Ae5d1cc8f4e4c3f9($$renderer, $$props) {
 	$$renderer.component(($$renderer) => {
-		function myaction(node) {
-			// setup
-		}
+		function myaction(node) {}
 
 		$$renderer.push(`<div>...</div>`);
 	});

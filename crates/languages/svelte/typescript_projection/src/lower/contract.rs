@@ -1,7 +1,7 @@
 use mode::ComponentMode;
 use oxc_ast::ast::{
-    BindingPattern, Declaration, Expression, PropertyKey, Statement, VariableDeclaration,
-    VariableDeclarationKind,
+    BindingPattern, Declaration, ExportDefaultDeclarationKind, Expression, PropertyKey, Statement,
+    VariableDeclaration, VariableDeclarationKind,
 };
 use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::Script;
@@ -166,11 +166,24 @@ impl Builder<'_> {
         let export = match statement {
             Statement::VariableDeclaration(declaration) => return Ok(Some(&**declaration)),
             Statement::ExportDeclaration(export) => export,
+            // svelte2tsx's `handleExportFunctionOrClass` removes the `export` of a default function
+            // or class, which TypeScript then refuses at `default`, and exports it by its name;
+            // it leaves an interface or an expression as written.
             Statement::ExportDefaultDeclaration(export) => {
-                return Err(refuse(
-                    "instance default exports",
-                    document_span(export.span),
-                ));
+                let name = match &export.declaration {
+                    ExportDefaultDeclarationKind::FunctionDeclaration(function) => &function.id,
+                    ExportDefaultDeclarationKind::ClassDeclaration(class) => &class.id,
+                    // An interface or one of the expressions.
+                    _ => return Ok(None),
+                };
+                if let Some(name) = name {
+                    self.export_property(name.span, exports);
+                }
+                edits.push(Edit::removal(Span::new(
+                    export.span.start,
+                    export.span.start + "export".len() as u32,
+                )));
+                return Ok(None);
             }
             // svelte2tsx's `handleExportDeclaration`: `export { a, b as c }` exports `a` and `c`.
             Statement::ExportNamedDeclaration(named) if named.export_kind.is_value() => {

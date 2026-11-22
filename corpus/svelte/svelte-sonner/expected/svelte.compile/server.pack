@@ -63,7 +63,7 @@
 		opacity: 1;
 	}
 
-=== 2390 src/components/CodeBlock.svelte	js
+=== 2333 src/components/CodeBlock.svelte	js
 import * as $ from 'svelte/internal/server';
 import hljs from 'highlight.js/lib/core';
 import javascript from 'highlight.js/lib/languages/javascript';
@@ -98,7 +98,6 @@ export default function CodeBlock($$renderer, $$props) {
 		const cannotDetectLanguage = $.derived(() => !autodetect && !hljs.getLanguage(language));
 		const className = $.derived(() => cannotDetectLanguage() ? '' : `hljs ${language} ${restProps.class ?? ''}`);
 
-		// eslint-disable-next-line svelte/no-dom-manipulating
 		function onCopy() {
 			if (!code) return;
 
@@ -923,7 +922,7 @@ export default function Loader($$renderer, $$props) {
 		$$renderer.push(`<!--]--></div></div>`);
 	});
 }
-=== 19321 src/lib/Toast.svelte	js
+=== 18869 src/lib/Toast.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, untrack } from 'svelte';
 import { isAction } from './types.js';
@@ -1071,8 +1070,6 @@ export default function Toast($$renderer, $$props) {
 		let lastCloseTimerStartTime = 0;
 		const offset = $.derived(() => Math.round(heightIndex() * gap + toastsHeightBefore()));
 
-		// use scaledRectHeight as it's more precise
-		// toast was transitioning its scale, so scaledRectHeight isn't accurate
 		function deleteToast() {
 			removed = true;
 
@@ -1116,9 +1113,6 @@ export default function Toast($$renderer, $$props) {
 			lastCloseTimerStartTime = new Date().getTime();
 		}
 
-		// if the toast has been updated after the initial render,
-		// we want to reset the timer and set the remaining time to the
-		// new duration
 		onMount(() => {
 			mounted = true;
 
@@ -1138,9 +1132,6 @@ export default function Toast($$renderer, $$props) {
 			};
 		});
 
-		// `markDismissed` flips `delete` for dismissals that already ran
-		// `deleteToast` themselves (close button, swipe, auto-close), so
-		// don't re-enter and double-fire `onDismiss`.
 		// The toast was recreated with the same id while this instance's exit animation
 		// was running (`create` cancelled the pending removal). The keyed each reuses
 		// this component instance, so revive its local exit state.
@@ -2334,7 +2325,7 @@ export default function Toast($$renderer, $$props) {
 		}
 	/*}*/
 
-=== 12391 src/lib/Toaster.svelte	js
+=== 12354 src/lib/Toaster.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, untrack } from 'svelte';
 import { SonnerState, toastState } from './toast-state.svelte';
@@ -2505,7 +2496,6 @@ export default function Toaster($$renderer, $$props) {
 			return on(document, 'keydown', handleKeydown);
 		});
 
-		// @ts-expect-error deprecated API
 		const handleBlur = (event) => {
 			onblur?.(event);
 
@@ -2840,11 +2830,11 @@ export default function _page($$renderer, $$props) {
 
 		function $$render_inner($$renderer) {
 			$.head('1uha8ag', $$renderer, ($$renderer) => {
+				$$renderer.push(`<meta content="width=device-width, initial-scale=1" name="viewport"/> <meta name="description" content="An opinionated toast component for Svelte."/> <meta name="keywords" content="svelte, toast, notification, web"/> <meta name="author" content="Robert Soriano"/> <meta name="og:title" content="Svelte Sonner"/> <meta name="og:description" content="An opinionated toast component for Svelte."/> <meta property="og:site_name" content="Svelte Sonner"/> <meta property="og:url" content="https://svelte-sonner.vercel.app"/> <meta property="og:image" content="https://og-image.vercel.app/Svelte%20Sonner"/> <link rel="icon" href="/favicon.png"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="twitter:site" content="@wobsoriano"/> <meta name="twitter:description" content="An opinionated toast component for Svelte."/> <meta name="twitter:title" content="Svelte Sonner"/> <meta name="twitter:image" content="https://og-image.vercel.app/Svelte%20Sonner"/>`);
+
 				$$renderer.title(($$renderer) => {
 					$$renderer.push(`<title>Svelte Sonner</title>`);
 				});
-
-				$$renderer.push(`<meta content="width=device-width, initial-scale=1" name="viewport"/> <meta name="description" content="An opinionated toast component for Svelte."/> <meta name="keywords" content="svelte, toast, notification, web"/> <meta name="author" content="Robert Soriano"/> <meta name="og:title" content="Svelte Sonner"/> <meta name="og:description" content="An opinionated toast component for Svelte."/> <meta property="og:site_name" content="Svelte Sonner"/> <meta property="og:url" content="https://svelte-sonner.vercel.app"/> <meta property="og:image" content="https://og-image.vercel.app/Svelte%20Sonner"/> <link rel="icon" href="/favicon.png"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="twitter:site" content="@wobsoriano"/> <meta name="twitter:description" content="An opinionated toast component for Svelte."/> <meta name="twitter:title" content="Svelte Sonner"/> <meta name="twitter:image" content="https://og-image.vercel.app/Svelte%20Sonner"/>`);
 			});
 
 			Toaster($$renderer, { expand, position, richColors, closeButton });

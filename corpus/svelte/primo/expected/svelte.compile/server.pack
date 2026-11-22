@@ -39,7 +39,7 @@
 		font-size: 10px;
 	}
 
-=== 6317 src/lib/builder/Primo.svelte	js
+=== 6260 src/lib/builder/Primo.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onDestroy } from 'svelte';
 import * as _ from 'lodash-es';
@@ -156,8 +156,7 @@ export default function Primo($$renderer, $$props) {
 
 		$$renderer.push(`<div class="h-screen flex flex-col">`);
 
-		if (// Skip recompilation if data is effectively unchanged
-		$.store_get($$store_subs ??= {}, '$author_mode', author_mode) === 'files') {
+		if ($.store_get($$store_subs ??= {}, '$author_mode', author_mode) === 'files') {
 			$$renderer.push(`<!--[0--><div class="files-mode-banner svelte-1v59ayk" role="status"><strong>Read-only.</strong> <span>Files are authoritative this session — edits made here will be discarded on the next sync. Restart with</span> <code class="svelte-1v59ayk">primo dev --author cms</code> <span>to author from the CMS.</span></div>`);
 		} else {
 			$$renderer.push('<!--[-1-->');
@@ -1649,7 +1648,7 @@ export default function MarkdownCodeMirror($$renderer, $$props) {
 		}
 	}
 
-=== 17956 src/lib/builder/components/ComponentPreview.svelte	js
+=== 17921 src/lib/builder/components/ComponentPreview.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount, tick } from 'svelte';
 import { slide, fade } from 'svelte/transition';
@@ -2107,7 +2106,6 @@ export default function ComponentPreview($$renderer, $$props) {
 			}
 		);
 
-		// open clicked links in browser
 		watch(() => [componentApp, iframe_loaded], () => {
 			if (!componentApp || !iframe_loaded) return;
 
@@ -2899,7 +2897,7 @@ export default function EntryContent($$renderer, $$props) {
 		}
 	}
 
-=== 21270 src/lib/builder/components/Fields/FieldItem.svelte	js
+=== 21114 src/lib/builder/components/Fields/FieldItem.svelte	js
 import * as $ from 'svelte/internal/server';
 import FieldItem from './FieldItem.svelte';
 import { tick } from 'svelte';
@@ -2949,8 +2947,6 @@ export default function FieldItem_1($$renderer, $$props) {
 		// Workaround for derived being lazy:
 		// Ensure page types list begins loading as soon as the editor renders,
 		// so switching to Page/Page List has data available.
-		// Accessing the link in an effect triggers the CollectionMapping list loader.
-		// We intentionally ignore the return; we just want to kick off loading.
 		let visible_field_types = $.derived(() => {
 			let list = $.store_get($$store_subs ??= {}, '$fieldTypes', fieldTypes);
 
@@ -5349,7 +5345,7 @@ export default function IconPicker($$renderer, $$props) {
 		}
 	}
 
-=== 3184 src/lib/builder/components/ImageEditorOverlay.svelte	js
+=== 3150 src/lib/builder/components/ImageEditorOverlay.svelte	js
 import * as $ from 'svelte/internal/server';
 import Icon from '@iconify/svelte';
 
@@ -5379,7 +5375,6 @@ export default function ImageEditorOverlay($$renderer, $$props) {
 		}
 
 		// Add/remove iframe/body mouse move listener when visible state changes
-		// Cleanup on component destroy
 		// Position the overlay over the target image_element
 		function positionOverlay() {
 			if (!overlay_element || !image_element) return;
@@ -6862,7 +6857,7 @@ export default function Page_Sidebar($$renderer, $$props) {
 		}
 	}
 
-=== 15301 src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte	js
+=== 15191 src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as _ from 'lodash-es';
 import { fade } from 'svelte/transition';
@@ -7013,8 +7008,6 @@ export default function Sidebar_Symbol($$renderer, $$props) {
 
 		let element = void 0;
 
-		// Backwards-compatible alias for external listeners
-		// Backwards-compatible alias for external listeners
 		// move cursor to end of name
 		// Export symbol
 		const exportSymbol = $.derived(() => useExportSiteSymbol(symbol.id));
@@ -15956,7 +15949,7 @@ export default function Page($$renderer, $$props) {
 		border-color: rgba(255, 152, 0, 0.3);
 	}
 
-=== 25901 src/lib/builder/views/editor/PageType.svelte	js
+=== 25864 src/lib/builder/views/editor/PageType.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as _ from 'lodash-es';
 import { tick } from 'svelte';
@@ -16311,7 +16304,6 @@ export default function PageType($$renderer, $$props) {
 		let dragging = { id: null, position: null };
 
 		// Clean up when global drag ends
-		// Drag ended, clean up everything
 		// Empty zone drop handler
 		function empty_zone_drop(element, zone) {
 			dropTargetForElements({
@@ -21931,7 +21923,7 @@ export default function BlockPickerPanel($$renderer, $$props) {
 		$.bind_props($$props, { selected });
 	});
 }
-=== 19550 src/lib/components/ConnectDomain.svelte	js
+=== 19061 src/lib/components/ConnectDomain.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as Dialog from '$lib/components/ui/dialog';
 import { Input } from '$lib/components/ui/input';
@@ -21988,13 +21980,6 @@ export default function ConnectDomain($$renderer, $$props) {
 		// it re-runs whenever that record changes — hence the `dirty` guard on the
 		// input-bound field, and the auto-poll for a domain that's already pending
 		// (e.g. reopening the dialog on a site attached in a prior session).
-		// Both call sites mount this component unconditionally, so only seed
-		// state and poll while the dialog is actually open — otherwise every
-		// site with a pending domain would poll (and pb.Save) in the background
-		// forever, and reactive site updates would clobber state off-screen.
-		// A domain that's attached but not yet live needs the poll running to
-		// advance to live on its own — otherwise reopening shows a spinner that
-		// never resolves without a manual refresh.
 		// The entered host matches the attached one (vs. the user typing a new
 		// domain to switch to).
 		const on_attached_host = $.derived(() => new_site_host.trim().toLowerCase() === attached_host.toLowerCase());
@@ -22498,7 +22483,7 @@ export default function ConnectDomain($$renderer, $$props) {
 		$.bind_props($$props, { open });
 	});
 }
-=== 32452 src/lib/components/CreateSite.svelte	js
+=== 32329 src/lib/components/CreateSite.svelte	js
 import * as $ from 'svelte/internal/server';
 
 import {
@@ -22704,10 +22689,7 @@ export default function CreateSite($$renderer, $$props) {
 		}
 
 		const starter_snapshots = $.derived(() => SiteSnapshots.from(marketplace).list({ sort: '-created' }));
-
-		// Ensure that snapshots get loaded
 		let completed = $.derived(() => Boolean(site_name && (selected_starter_id || uploaded_snapshot)));
-
 		let loading = false;
 		let progress_message = '';
 		let error_message = '';
@@ -22848,9 +22830,7 @@ export default function CreateSite($$renderer, $$props) {
 
 		let finalized = false;
 
-		function // Copy optional blocks if any were selected
-		// No blocks to copy, just finish
-		StarterButton($$renderer, site, source = 'local') {
+		function StarterButton($$renderer, site, source = 'local') {
 			$$renderer.push(`<button class="group relative w-full aspect-[.69] rounded-lg border bg-background overflow-hidden text-left"><div class="relative h-full">`);
 
 			SitePreview($$renderer, {
@@ -24637,7 +24617,7 @@ export default function StarterButton($$renderer, $$props) {
 		$.bind_props($$props, { preview });
 	});
 }
-=== 2389 src/lib/components/SymbolButton.svelte	js
+=== 2331 src/lib/components/SymbolButton.svelte	js
 import * as $ from 'svelte/internal/server';
 import IFrame from '$lib/builder/components/IFrame.svelte';
 import { LibrarySymbols } from '$lib/pocketbase/collections';
@@ -24658,8 +24638,6 @@ export default function SymbolButton($$renderer, $$props) {
 		const data = $.derived(() => _data() && (_data()[$.store_get($$store_subs ??= {}, '$locale', locale)] ?? {}));
 		let last_input;
 		let generated_code = void 0;
-
-		// Skip recompilation if data is effectively unchanged
 		const showing_footer = $.derived(() => symbol?.name || children || show_price);
 
 		$$renderer.push(`<div class="relative w-full bg-gray-900 rounded-bl rounded-br"><button${$.attr_class('w-full rounded-tl rounded-tr overflow-hidden', void 0, { 'rounded': !showing_footer() })}>`);

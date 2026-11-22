@@ -31,6 +31,7 @@ pub(crate) fn compile_input<'a>(
         preserve_whitespace: context
             .facet::<CompileConfiguration>()
             .is_some_and(|configuration| configuration.preserve_whitespace),
+        renderer: crate::Renderer::Dom,
     })
 }
 

@@ -1,5 +1,6 @@
 # rsvelte pack 1
-=== 655 src/lib/PivotTable.svelte	js
+=== 697 src/lib/PivotTable.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import TableRenderers from "./TableRenderers";
@@ -22,7 +23,8 @@ export default function PivotTable($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 6834 src/lib/PivotTableUI.svelte	js
+=== 6876 src/lib/PivotTableUI.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { setContext } from "svelte";
@@ -313,7 +315,8 @@ export default function PivotTableUI($$anchor, $$props) {
 
 	$.pop();
 }
-=== 4146 src/lib/PlotlyRenderer.svelte	js
+=== 4188 src/lib/PlotlyRenderer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import PivotData from "./PivotData";
@@ -490,7 +493,8 @@ export default function PlotlyRenderer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 2133 src/lib/ScatterRenderer.svelte	js
+=== 2175 src/lib/ScatterRenderer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import PivotData from "./PivotData";
@@ -594,7 +598,8 @@ export default function ScatterRenderer($$anchor, $$props) {
 
 	$.pop();
 }
-=== 1715 src/lib/TSVExportRenderer.svelte	js
+=== 1757 src/lib/TSVExportRenderer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import PivotData from "./PivotData";
@@ -664,7 +669,8 @@ export default function TSVExportRenderer($$anchor, $$props) {
 	$.append($$anchor, textarea);
 	$.pop();
 }
-=== 17371 src/lib/TableRenderer.svelte	js
+=== 17413 src/lib/TableRenderer.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import "./grouping.css";
@@ -1237,7 +1243,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 2117 src/lib/UI/Aggregators.svelte	js
+=== 2159 src/lib/UI/Aggregators.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import Dropdown from "./Dropdown.svelte";
@@ -1332,7 +1339,8 @@ export default function Aggregators($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
-=== 1678 src/lib/UI/DnDCell.svelte	js
+=== 1720 src/lib/UI/DnDCell.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { onMount } from "svelte";
@@ -1418,7 +1426,8 @@ export default function DnDCell($$anchor, $$props) {
         position: relative;
     }
 
-=== 1390 src/lib/UI/Draggable.svelte	js
+=== 1432 src/lib/UI/Draggable.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1475,7 +1484,8 @@ export default function Draggable($$anchor, $$props) {
 	$.template_effect(() => $.set_style(section, `left: ${$.get(left) ?? ''}px; top: ${$.get(top) ?? ''}px;`));
 	$.append($$anchor, section);
 }
-=== 1789 src/lib/UI/DraggableAttribute.svelte	js
+=== 1831 src/lib/UI/DraggableAttribute.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -1550,7 +1560,8 @@ export default function DraggableAttribute($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 2477 src/lib/UI/Dropdown.svelte	js
+=== 2519 src/lib/UI/Dropdown.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { clickOutside } from "./utils";
@@ -1648,7 +1659,8 @@ export default function Dropdown($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 4914 src/lib/UI/FilterBox.svelte	js
+=== 4956 src/lib/UI/FilterBox.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from "svelte";
@@ -1838,7 +1850,8 @@ $.delegate(['click']);
 	}
 ]
 
-=== 3247 src/lib/UI/MainTable.svelte	js
+=== 3289 src/lib/UI/MainTable.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -1953,7 +1966,8 @@ export default function MainTable($$anchor, $$props) {
 
 	$.append($$anchor, fragment);
 }
-=== 1092 src/lib/UI/Plotly.svelte	js
+=== 1134 src/lib/UI/Plotly.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -2077,7 +2091,8 @@ export default function Plotly_1($$anchor, $$props) {
         border: 2px dashed red;
     } */
 
-=== 5287 src/routes/+page.svelte	js
+=== 5329 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import PivotTableUI from "$lib/PivotTableUI.svelte";

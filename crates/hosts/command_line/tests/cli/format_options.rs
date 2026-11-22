@@ -340,3 +340,24 @@ fn format_sorts_each_scripts_imports_and_formats_jsdoc_as_oxfmt_does() {
     assert_eq!(read("B.svelte"), TEMPLATE_FORMATTED);
     assert_eq!(read("a.md"), MARKDOWN_FORMATTED);
 }
+
+/// Files finish on parallel workers, and the report still prints the same on every run.
+#[test]
+fn format_reports_the_files_it_cannot_format_in_file_order() {
+    let names: Vec<String> = (0..40).map(|i| format!("src/E{i:02}.svelte")).collect();
+    let files: Vec<(&str, &str)> = (names.iter())
+        .map(|name| (name.as_str(), "<svelte:options>x</svelte:options>\n"))
+        .collect();
+    let project = Project::new(&files);
+    let output = project.rsvelte(&["format", "--check", "--threads=8"]);
+    assert_eq!(output.status.code(), Some(2));
+    let stderr = text(&output.stderr);
+    let at: Vec<usize> = (names.iter())
+        .map(|name| {
+            stderr
+                .find(&format!("/{name}]"))
+                .unwrap_or_else(|| panic!("{name}: {stderr}"))
+        })
+        .collect();
+    assert!(at.is_sorted(), "{stderr}");
+}

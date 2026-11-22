@@ -1,0 +1,2 @@
+error module_illegal_default_export 2:1-2:39 A component cannot have a default export
+    https://svelte.dev/e/module_illegal_default_export

@@ -1833,7 +1833,7 @@ export default function Thumbnails($$renderer, $$props) {
 		$.bind_props($$props, { index });
 	});
 }
-=== 17114 src/lib/clipboard-manager/ClipboardManager.svelte	js
+=== 17029 src/lib/clipboard-manager/ClipboardManager.svelte	js
 import * as $ from 'svelte/internal/server';
 import { Badge, Modal } from "$lib";
 import { formatDistanceToNow } from "date-fns";
@@ -1883,9 +1883,7 @@ export default function ClipboardManager($$renderer, $$props) {
 		// Save to localStorage whenever items change (but skip the initial load)
 		let isFirstLoad = true;
 
-		// First load: use initial items and save them
 		// --- Selection Menu Logic ---
-		// Close menu if clicking outside
 		// --- Sensitive data detection ---
 		const defaultContainsSensitiveData = (text) => {
 			if (!filterSensitive) return false;
@@ -5001,7 +4999,7 @@ export default function CheckIcon($$renderer, $$props) {
 		)}><polyline points="20 6 9 17 4 12"></polyline></svg>`);
 	});
 }
-=== 3458 src/lib/forms/checkbox/Checkbox.svelte	js
+=== 3264 src/lib/forms/checkbox/Checkbox.svelte	js
 import * as $ from 'svelte/internal/server';
 import { checkbox } from "./theme";
 import clsx from "clsx";
@@ -5048,10 +5046,7 @@ export default function Checkbox($$renderer, $$props) {
 			base = $.derived(() => $$d().base),
 			divStyle = $.derived(() => $$d().div);
 
-		if (// There's a bug in Svelte and bind:group is not working with wrapped checkbox
-		// This workaround is taken from:
-		// https://svelte.dev/repl/de117399559f4e7e9e14e2fc9ab243cc?version=3.12.1
-		choices.length > 0) {
+		if (choices.length > 0) {
 			$$renderer.push(`<!--[0--><!--[-->`);
 
 			const each_array = $.ensure_array_like(choices);
@@ -12333,7 +12328,7 @@ export default function Pane($$renderer, $$props) {
 		$$renderer.push(`<!--]-->`);
 	});
 }
-=== 7728 src/lib/split-pane/SplitPane.svelte	js
+=== 7177 src/lib/split-pane/SplitPane.svelte	js
 import * as $ from 'svelte/internal/server';
 import { setSplitPaneContext } from "$lib/context";
 import { splitpane } from "./theme";
@@ -12363,9 +12358,7 @@ export default function SplitPane($$renderer, $$props) {
 		// Validate numeric props
 		let transition = $.derived(() => transitionProp);
 
-		// syncing local transition state with prop changes
 		const theme = $.derived(() => getTheme("splitpane"));
-
 		let isDragging = false;
 		let startPos = 0;
 		let sizes = [];
@@ -12419,17 +12412,7 @@ export default function SplitPane($$renderer, $$props) {
 
 		// Track container size changes
 		// Initialize and maintain sizes
-		// If container not ready yet, use equal distribution
-		// Check if minSize is achievable for all panes
-		// Check if current sizes violate minSize constraints
-		// small tolerance
-		// Recalculate sizes to respect minSize
-		// Convert back to percentages
-		// If we can't fit all panes at minSize, distribute proportionally
-		// Handle initialSizes (only on first initialization)
-		// Default: equal distribution respecting minSize
 		// Responsive direction handling
-		// deferring the direction switch until the drag completes
 		// Notify parent of size changes
 		function startResize(e, index) {
 			e.preventDefault();
@@ -16046,7 +16029,7 @@ export default function Span($$renderer, $$props) {
     clip-path: polygon(0 0, 0% 100%, 100% 100%, 100% 85%, 15% 0);
   }
 
-=== 1260 src/lib/utils/Arrow.svelte	js
+=== 1036 src/lib/utils/Arrow.svelte	js
 import * as $ from 'svelte/internal/server';
 import { getOppositePlacement, getSide } from "@floating-ui/utils";
 
@@ -16073,11 +16056,7 @@ export default function Arrow($$renderer, $$props) {
 			bottom: " -rotate-45"
 		};
 
-		function positioning(node) {
-			// node.style[arrowSide] = px(-node.offsetWidth / 2 - (border ? 1 : 0) + 1);
-			// node.classList.remove("border-t", "border-b", "border-s", "border-e");
-			// border && (node.className += arrowBordersMap[arrowSide]);
-		}
+		function positioning(node) {}
 
 		$$renderer.push(`<div${$.attr_class(`popover-arrow clip pointer-events-none absolute block h-[10px] w-[10px] border-b border-l border-inherit bg-inherit text-inherit ${$.stringify(className)}`)}></div>`);
 	});
@@ -16172,7 +16151,7 @@ export default function CloseButton($$renderer, $$props) {
 		$$renderer.push(`<!--]-->`);
 	});
 }
-=== 6600 src/lib/utils/Popper.svelte	js
+=== 6511 src/lib/utils/Popper.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as dom from "@floating-ui/dom";
 import clsx from "clsx";
@@ -16315,7 +16294,6 @@ export default function Popper($$renderer, $$props) {
 			onbeforetoggle?.(evWithTrigger);
 		}
 
-		// Floating UI instance when it's closed we need to keep a autoUpdate destroy function
 		function on_toggle(ev) {
 			if (!invoker) return;
 
@@ -22589,7 +22567,7 @@ export default function ExampleRTL($$renderer, $$props) {
 		$.bind_props($$props, { rtl });
 	});
 }
-=== 11733 src/routes/blocks/utils/ExampleWrapper.svelte	js
+=== 11649 src/routes/blocks/utils/ExampleWrapper.svelte	js
 import * as $ from 'svelte/internal/server';
 import { Button, Tooltip } from "flowbite-svelte";
 import { DesktopPcOutline, MobilePhoneOutline, TabletOutline } from "flowbite-svelte-icons";
@@ -22614,8 +22592,6 @@ export default function ExampleWrapper($$renderer, $$props) {
 		} = $$props;
 
 		// suppress vite-plugin-svelte warning about unused props by using them in $effect
-		// the source of the example, if you want it
-		// all meta tags of the code block
 		/* eslint-disable  @typescript-eslint/no-explicit-any */
 		let browserSupport = false;
 
@@ -36905,7 +36881,7 @@ export default function DynamicCodeBlockHighlight($$renderer, $$props) {
 		$$renderer.push(`<!--]--></div></div>`);
 	});
 }
-=== 1393 src/routes/builder/utils/DynamicCodeBlockStyle.svelte	js
+=== 1320 src/routes/builder/utils/DynamicCodeBlockStyle.svelte	js
 import * as $ from 'svelte/internal/server';
 import { browser } from "$app/environment";
 import { toUpperSnakeCase } from "./helpers";
@@ -36928,11 +36904,7 @@ export default function DynamicCodeBlockStyle($$renderer, $$props) {
 		$$renderer.select(
 			{
 				'aria-label': 'Code block style',
-				class: `w-48 border border-gray-200 p-1 text-gray-800 dark:text-gray-800 ${$.stringify(
-					// get selected style from localStorage
-					// clean up
-					className
-				)}`,
+				class: `w-48 border border-gray-200 p-1 text-gray-800 dark:text-gray-800 ${$.stringify(className)}`,
 				value: selected
 			},
 			($$renderer) => {
@@ -99994,7 +99966,7 @@ export default function Section($$renderer, $$props) {
 	children?.($$renderer);
 	$$renderer.push(`<!----></div></section>`);
 }
-=== 9229 src/routes/layouts/ComponentsLayout.svelte	js
+=== 9161 src/routes/layouts/ComponentsLayout.svelte	js
 import * as $ from 'svelte/internal/server';
 import { afterNavigate } from "$app/navigation";
 import { page } from "$app/state";
@@ -100035,9 +100007,6 @@ export default function ComponentsLayout($$renderer, $$props) {
 		let dropdownStates = {};
 
 		// Update dropdown states based on current route
-		// Check each post category
-		// Check builders
-		// Check blocks
 		afterNavigate(() => {
 			// this fixes https://github.com/themesberg/flowbite-svelte/issues/364
 			document.getElementById("svelte")?.scrollTo({ top: 0 });
@@ -100567,7 +100536,7 @@ export default function FlowbiteSvelteLayout($$renderer, $$props) {
 		$$renderer.subsume($$inner_renderer);
 	});
 }
-=== 2268 src/routes/layouts/component/+page.svelte	js
+=== 2204 src/routes/layouts/component/+page.svelte	js
 import * as $ from 'svelte/internal/server';
 import Footer from "../../utils/Footer.svelte";
 import MetaTag from "../../utils/MetaTag.svelte";
@@ -100596,7 +100565,6 @@ export default function _page($$renderer, $$props) {
 		} = $$props;
 
 		// calm down `unused export property` warning - use them in $effect
-		/* eslint-disable @typescript-eslint/no-unused-expressions */
 		const blockDirs = new Set(["application", "marketing", "publisher", "quickstart"]);
 
 		const pageWidth = $.derived(() => blockDirs.has(dir) ? "max-w-8xl" : "max-w-4xl");
@@ -101734,7 +101702,7 @@ export default function Footer_1($$renderer, $$props) {
 		});
 	});
 }
-=== 2531 src/routes/utils/GitHubCompoLinks.svelte	js
+=== 2491 src/routes/utils/GitHubCompoLinks.svelte	js
 import * as $ from 'svelte/internal/server';
 import { page } from "$app/state";
 import { getFilteredFileNames } from "./helpers";
@@ -101806,7 +101774,6 @@ export default function GitHubCompoLinks($$renderer, $$props) {
 		let fileNames = getFilteredFileNames(dirName || "");
 
 		// if components are given in docs/forms, typography etc use it
-		// Split the components into an array
 		function getComponentPath(compo) {
 			// Check for special cases first
 			if (specialCases[compo]) {

@@ -1,13 +1,13 @@
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{
-    Comment, Expression, FormalParameter, FormalParameters, Program, Statement,
+    AssignmentTarget, Comment, Expression, FormalParameter, FormalParameters, Program, Statement,
     TSTypeParameterDeclaration, VariableDeclaration,
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut};
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
-use oxc_span::SourceType;
+use oxc_span::{GetSpan, SourceType};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::source::positions::Span;
@@ -303,6 +303,34 @@ impl<'a> TreeBuilder<'a> {
         let parameters = self.read_parameters(range, source_type)?;
         let identifier = self.parameters.push(parameters);
         Ok(identifier)
+    }
+
+    /// Where the type that starts at `start` ends, read as upstream reads a type annotation: the
+    /// type of `_ as …`, with the document up to `limit` after it, before a `=` or a `,` that would
+    /// make it an assignment or a sequence. `None` where that does not read.
+    #[must_use]
+    pub fn type_end(&self, start: u32, limit: u32, source_type: SourceType) -> Option<u32> {
+        const PREFIX: &str = "_ as ";
+        let rest = self.source_text.get(start as usize..limit as usize)?;
+        crate::scratch::with_scratch_arena(|allocator| {
+            let text = allocator.alloc_concat_strs_array([PREFIX, rest]);
+            let parsed = Parser::new(allocator, text, source_type)
+                .parse_expression_at(0)
+                .ok()?;
+            let operand = match &parsed.expression {
+                Expression::SequenceExpression(sequence) => sequence.expressions.first()?,
+                expression => expression,
+            };
+            let annotation = match operand {
+                Expression::TSAsExpression(cast) => &cast.type_annotation,
+                Expression::AssignmentExpression(assignment) => match &assignment.left {
+                    AssignmentTarget::TSAsExpression(cast) => &cast.type_annotation,
+                    _ => return None,
+                },
+                _ => return None,
+            };
+            Some(start + annotation.span().end - PREFIX.len() as u32)
+        })
     }
 
     /// Parses `range` of the document as a type parameter list without its angle brackets, such

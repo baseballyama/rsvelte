@@ -5,7 +5,8 @@
 		position: absolute;
 	}
 
-=== 1981 src/_components/Annotations.html.svelte	js
+=== 2023 src/_components/Annotations.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -76,7 +77,8 @@ export default function Annotations_html($$anchor, $$props) {
 		position: absolute;
 	}
 
-=== 3458 src/_components/AnnotationsData.html.svelte	js
+=== 3500 src/_components/AnnotationsData.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -165,7 +167,8 @@ export default function AnnotationsData_html($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1608 src/_components/Area-D3.svelte	js
+=== 1650 src/_components/Area-D3.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -209,7 +212,8 @@ export default function Area_D3($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1675 src/_components/Area.svelte	js
+=== 1717 src/_components/Area.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -257,7 +261,8 @@ export default function Area($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1197 src/_components/AreaStacked.svelte	js
+=== 1239 src/_components/AreaStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -297,7 +302,8 @@ export default function AreaStacked($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 822 src/_components/ArrowheadMarker.svelte	js
+=== 864 src/_components/ArrowheadMarker.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -336,7 +342,8 @@ export default function ArrowheadMarker($$anchor, $$props) {
 		stroke-width: 1;
 	}
 
-=== 5420 src/_components/Arrows.svelte	js
+=== 5462 src/_components/Arrows.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, onMount, tick } from 'svelte';
@@ -491,7 +498,8 @@ export default function Arrows($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 3349 src/_components/AxisRadial.svelte	js
+=== 3391 src/_components/AxisRadial.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -622,7 +630,8 @@ export default function AxisRadial($$anchor, $$props) {
 		transform: translateX(40%);
 	}
 
-=== 5739 src/_components/AxisX.percent-range.html.svelte	js
+=== 5781 src/_components/AxisX.percent-range.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -799,7 +808,8 @@ export default function AxisX_percent_range_html($$anchor, $$props) {
 		transform: translateX(-3px);
 	}
 
-=== 6012 src/_components/AxisX.svelte	js
+=== 6054 src/_components/AxisX.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -1014,7 +1024,8 @@ export default function AxisX($$anchor, $$props) {
 		transform: translateX(40%);
 	}
 
-=== 5719 src/_components/AxisXTop.percent-range.html.svelte	js
+=== 5761 src/_components/AxisXTop.percent-range.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -1191,7 +1202,8 @@ export default function AxisXTop_percent_range_html($$anchor, $$props) {
 		transform: translateX(-3px);
 	}
 
-=== 5820 src/_components/AxisXTop.svelte	js
+=== 5862 src/_components/AxisXTop.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -1388,7 +1400,8 @@ export default function AxisXTop($$anchor, $$props) {
 		color: #666;
 	}
 
-=== 6531 src/_components/AxisY.percent-range.html.svelte	js
+=== 6573 src/_components/AxisY.percent-range.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -1559,7 +1572,8 @@ export default function AxisY_percent_range_html($$anchor, $$props) {
 		stroke-dasharray: 0;
 	}
 
-=== 6147 src/_components/AxisY.svelte	js
+=== 6189 src/_components/AxisY.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -1741,7 +1755,8 @@ export default function AxisY($$anchor, $$props) {
 		color: #666;
 	}
 
-=== 6455 src/_components/AxisYRight.percent-range.html.svelte	js
+=== 6497 src/_components/AxisYRight.percent-range.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -1914,7 +1929,8 @@ export default function AxisYRight_percent_range_html($$anchor, $$props) {
 		stroke-dasharray: 0;
 	}
 
-=== 6112 src/_components/AxisYRight.svelte	js
+=== 6154 src/_components/AxisYRight.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -2060,7 +2076,8 @@ export default function AxisYRight($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1661 src/_components/Bar.svelte	js
+=== 1703 src/_components/Bar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -2117,7 +2134,8 @@ export default function Bar($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1711 src/_components/BarStacked.svelte	js
+=== 1753 src/_components/BarStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -2205,7 +2223,8 @@ export default function BarStacked($$anchor, $$props) {
 		display: block;
 	}
 
-=== 3790 src/_components/Beeswarm.html.svelte	js
+=== 3832 src/_components/Beeswarm.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -2336,7 +2355,8 @@ export default function Beeswarm_html($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 3749 src/_components/Beeswarm.svelte	js
+=== 3791 src/_components/Beeswarm.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -2490,7 +2510,8 @@ export default function Beeswarm($$anchor, $$props) {
 		display: block;
 	}
 
-=== 3944 src/_components/BeeswarmForce.html.svelte	js
+=== 3986 src/_components/BeeswarmForce.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, untrack } from 'svelte';
@@ -2601,7 +2622,8 @@ export default function BeeswarmForce_html($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 3743 src/_components/BeeswarmForce.svelte	js
+=== 3785 src/_components/BeeswarmForce.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, untrack } from 'svelte';
@@ -2745,7 +2767,8 @@ export default function BeeswarmForce($$anchor, $$props) {
 		background: transparent;
 	}
 
-=== 4159 src/_components/Brush.html.svelte	js
+=== 4201 src/_components/Brush.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { clamp } from 'yootils';
@@ -2898,7 +2921,8 @@ $.delegate(['mousedown', 'touchstart']);
 		fill: #fff;
 	}
 
-=== 3556 src/_components/CalendarMonth.svelte	js
+=== 3598 src/_components/CalendarMonth.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -3077,7 +3101,8 @@ export default function CalendarMonth($$anchor, $$props) {
 		left: 0;
 	}
 
-=== 6164 src/_components/CirclePack.html.svelte	js
+=== 6206 src/_components/CirclePack.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { stratify, pack, hierarchy } from 'd3-hierarchy';
@@ -3220,7 +3245,8 @@ export default function CirclePack_html($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 3930 src/_components/CirclePackForce.svelte	js
+=== 3972 src/_components/CirclePackForce.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -3329,7 +3355,8 @@ export default function CirclePackForce($$anchor, $$props) {
 		transform: translate(-50%, -50%);
 	}
 
-=== 2289 src/_components/ClevelandDotPlot.percent-range.html.svelte	js
+=== 2331 src/_components/ClevelandDotPlot.percent-range.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -3417,7 +3444,8 @@ export default function ClevelandDotPlot_percent_range_html($$anchor, $$props) {
 		stroke-width: 1px;
 	}
 
-=== 2269 src/_components/ClevelandDotPlot.svelte	js
+=== 2311 src/_components/ClevelandDotPlot.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -3500,7 +3528,8 @@ export default function ClevelandDotPlot($$anchor, $$props) {
 		font-size: 12px;
 	}
 
-=== 3452 src/_components/Column.svelte	js
+=== 3494 src/_components/Column.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -3603,7 +3632,8 @@ export default function Column($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1684 src/_components/ColumnStacked.svelte	js
+=== 1726 src/_components/ColumnStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -3668,7 +3698,8 @@ export default function ColumnStacked($$anchor, $$props) {
 		font-size: 13px;
 	}
 
-=== 1931 src/_components/GroupLabels.html.svelte	js
+=== 1973 src/_components/GroupLabels.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -3766,7 +3797,8 @@ export default function GroupLabels_html($$anchor, $$props) {
 			1px 1px 0 #fff;
 	}
 
-=== 2568 src/_components/Key.html.svelte	js
+=== 2610 src/_components/Key.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -3848,7 +3880,8 @@ export default function Key_html($$anchor, $$props) {
 		font-size: 12px;
 	}
 
-=== 1525 src/_components/Labels.html.svelte	js
+=== 1567 src/_components/Labels.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -3911,7 +3944,8 @@ export default function Labels_html($$anchor, $$props) {
 		stroke-width: 2;
 	}
 
-=== 1587 src/_components/Line-D3.svelte	js
+=== 1629 src/_components/Line-D3.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -3964,7 +3998,8 @@ export default function Line_D3($$anchor, $$props) {
 		stroke-width: 2;
 	}
 
-=== 1180 src/_components/Line.svelte	js
+=== 1222 src/_components/Line.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4002,7 +4037,8 @@ export default function Line($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2650 src/_components/Map.canvas.svelte	js
+=== 2692 src/_components/Map.canvas.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4088,7 +4124,8 @@ export default function Map_canvas($$anchor, $$props) {
 		outline: none;
 	}
 
-=== 3966 src/_components/Map.svg.svelte	js
+=== 4008 src/_components/Map.svg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4202,7 +4239,8 @@ $.delegate(['mouseout', 'mouseover', 'mousemove']);
 		transform: translate(-50%, -50%);
 	}
 
-=== 2547 src/_components/MapLabels.html.svelte	js
+=== 2589 src/_components/MapLabels.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4278,7 +4316,8 @@ export default function MapLabels_html($$anchor, $$props) {
 		text-anchor: middle;
 	}
 
-=== 2286 src/_components/MapLabels.svg.svelte	js
+=== 2328 src/_components/MapLabels.svg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4333,7 +4372,8 @@ export default function MapLabels_svg($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2490 src/_components/MapPoints.canvas.svelte	js
+=== 2532 src/_components/MapPoints.canvas.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4404,7 +4444,8 @@ export default function MapPoints_canvas($$anchor, $$props) {
 		border-style: solid;
 	}
 
-=== 2383 src/_components/MapPoints.html.svelte	js
+=== 2425 src/_components/MapPoints.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4469,7 +4510,8 @@ export default function MapPoints_html($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2481 src/_components/MapPoints.svelte	js
+=== 2523 src/_components/MapPoints.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4545,7 +4587,8 @@ export default function MapPoints($$anchor, $$props) {
 		stroke-width: 3px;
 	}
 
-=== 1630 src/_components/MultiLine.svelte	js
+=== 1672 src/_components/MultiLine.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4609,7 +4652,8 @@ export default function MultiLine($$anchor, $$props) {
 		left: 0;
 	}
 
-=== 3070 src/_components/QuadTree.html.svelte	js
+=== 3112 src/_components/QuadTree.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4693,7 +4737,8 @@ $.delegate(['mousemove', 'mouseout']);
 		left: 0;
 	}
 
-=== 3236 src/_components/QuadTree.percent-range.html.svelte	js
+=== 3278 src/_components/QuadTree.percent-range.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4776,7 +4821,8 @@ $.delegate(['mousemove', 'mouseout']);
 		stroke-linecap: round;
 	}
 
-=== 4525 src/_components/Radar.svelte	js
+=== 4567 src/_components/Radar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -4896,7 +4942,8 @@ export default function Radar($$anchor, $$props) {
 		pointer-events: none;
 	}
 
-=== 5143 src/_components/Sankey.svelte	js
+=== 5185 src/_components/Sankey.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -5019,7 +5066,8 @@ export default function Sankey_1($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 2172 src/_components/Scatter.canvas.svelte	js
+=== 2214 src/_components/Scatter.canvas.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -5093,7 +5141,8 @@ export default function Scatter_canvas($$anchor, $$props) {
 		border-radius: 50%;
 	}
 
-=== 1913 src/_components/Scatter.html.svelte	js
+=== 1955 src/_components/Scatter.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -5153,7 +5202,8 @@ export default function Scatter_html($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1928 src/_components/Scatter.svg.svelte	js
+=== 1970 src/_components/Scatter.svg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -5213,7 +5263,8 @@ export default function Scatter_svg($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 6288 src/_components/Scatter.webgl.svelte	js
+=== 6330 src/_components/Scatter.webgl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import reglWrapper from 'regl';
@@ -5472,7 +5523,8 @@ export default function Scatter_webgl($$anchor, $$props) {
 		color: #999;
 	}
 
-=== 4449 src/_components/SharedTooltip.html.svelte	js
+=== 4491 src/_components/SharedTooltip.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -5646,7 +5698,8 @@ export default function SharedTooltip_html($$anchor, $$props) {
 		color: #999;
 	}
 
-=== 4507 src/_components/SharedTooltip.percent-range.html.svelte	js
+=== 4549 src/_components/SharedTooltip.percent-range.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -5787,7 +5840,8 @@ export default function SharedTooltip_percent_range_html($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 1551 src/_components/SmallMultipleWrapper.percent-range.svelte	js
+=== 1593 src/_components/SmallMultipleWrapper.percent-range.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, calcExtents } from 'layercake';
@@ -5936,7 +5990,8 @@ export default function SmallMultipleWrapper_percent_range($$anchor, $$props) {
 	}
 ]
 
-=== 1490 src/_components/SmallMultipleWrapper.svelte	js
+=== 1532 src/_components/SmallMultipleWrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, calcExtents } from 'layercake';
@@ -6104,7 +6159,8 @@ export default function SmallMultipleWrapper($$anchor, $$props) {
 		height: 20%;
 	}
 
-=== 4562 src/_components/SyncedBrushWrapper.percent-range.svelte	js
+=== 4604 src/_components/SyncedBrushWrapper.percent-range.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Html } from 'layercake';
@@ -6342,7 +6398,8 @@ export default function SyncedBrushWrapper_percent_range($$anchor, $$props) {
 		height: 20%;
 	}
 
-=== 4153 src/_components/SyncedBrushWrapper.svelte	js
+=== 4195 src/_components/SyncedBrushWrapper.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -6555,7 +6612,8 @@ export default function SyncedBrushWrapper($$anchor, $$props) {
 		z-index: 15;
 	}
 
-=== 1173 src/_components/Tooltip.html.svelte	js
+=== 1215 src/_components/Tooltip.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -6615,7 +6673,8 @@ export default function Tooltip_html($$anchor, $$props) {
 		stroke-width: 3px;
 	}
 
-=== 2395 src/_components/Voronoi.svelte	js
+=== 2437 src/_components/Voronoi.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -6689,7 +6748,8 @@ export default function Voronoi($$anchor, $$props) {
 }
 
 $.delegate(['mouseover']);
-=== 3716 src/lib/layouts/Canvas.svelte	js
+=== 3758 src/lib/layouts/Canvas.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, onMount, setContext } from 'svelte';
@@ -6799,7 +6859,8 @@ export default function Canvas($$anchor, $$props) {
 		left: 0;
 	}
 
-=== 3040 src/lib/layouts/Html.svelte	js
+=== 3082 src/lib/layouts/Html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -6877,7 +6938,8 @@ export default function Html($$anchor, $$props) {
 		vector-effect: non-scaling-stroke;
 	}
 
-=== 4854 src/lib/layouts/ScaledSvg.svelte	js
+=== 4896 src/lib/layouts/ScaledSvg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -7005,7 +7067,8 @@ export default function ScaledSvg($$anchor, $$props) {
 		overflow: visible;
 	}
 
-=== 4811 src/lib/layouts/Svg.svelte	js
+=== 4853 src/lib/layouts/Svg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext } from 'svelte';
@@ -7125,7 +7188,8 @@ export default function Svg($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 3963 src/lib/layouts/Webgl.svelte	js
+=== 4005 src/lib/layouts/Webgl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { getContext, onMount, setContext } from 'svelte';
@@ -7239,7 +7303,8 @@ export default function Webgl($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
-=== 622 src/routes/+layout.svelte	js
+=== 664 src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '../app.css';
@@ -7391,7 +7456,8 @@ export default function _layout($$anchor, $$props) {
 		font-weight: bold;
 	}
 
-=== 7030 src/routes/+page.svelte	js
+=== 7072 src/routes/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import hljs from 'highlight.js';
@@ -7563,7 +7629,8 @@ export default function _page($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 957 src/routes/_components/Annotations.html.svelte	js
+=== 999 src/routes/_components/Annotations.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -7617,7 +7684,8 @@ export default function Annotations_html($$anchor) {
 		height: 250px;
 	}
 
-=== 1900 src/routes/_components/AnnotationsData.html.svelte	js
+=== 1942 src/routes/_components/AnnotationsData.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -7708,7 +7776,8 @@ export default function AnnotationsData_html($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1061 src/routes/_components/Area-D3.svelte	js
+=== 1103 src/routes/_components/Area-D3.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -7766,7 +7835,8 @@ export default function Area_D3($$anchor) {
 		height: 250px;
 	}
 
-=== 949 src/routes/_components/Area.svelte	js
+=== 991 src/routes/_components/Area.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -7818,7 +7888,8 @@ export default function Area_1($$anchor) {
 		height: 250px;
 	}
 
-=== 1937 src/routes/_components/AreaStacked.svelte	js
+=== 1979 src/routes/_components/AreaStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, flatten } from 'layercake';
@@ -7914,7 +7985,8 @@ export default function AreaStacked_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1808 src/routes/_components/Arrows.svelte	js
+=== 1850 src/routes/_components/Arrows.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -8010,7 +8082,8 @@ export default function Arrows_1($$anchor) {
 		height: 250px;
 	}
 
-=== 1281 src/routes/_components/AxisRadial.svelte	js
+=== 1323 src/routes/_components/AxisRadial.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -8109,7 +8182,8 @@ export default function AxisRadial_1($$anchor, $$props) {
 		pointer-events: none;
 	}
 
-=== 4777 src/routes/_components/AxisX.svelte	js
+=== 4819 src/routes/_components/AxisX.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -8314,7 +8388,8 @@ export default function AxisX_1($$anchor) {
 		pointer-events: none;
 	}
 
-=== 4769 src/routes/_components/AxisXTop.svelte	js
+=== 4811 src/routes/_components/AxisXTop.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -8519,7 +8594,8 @@ export default function AxisXTop_1($$anchor) {
 		pointer-events: none;
 	}
 
-=== 5391 src/routes/_components/AxisY.svelte	js
+=== 5433 src/routes/_components/AxisY.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -8738,7 +8814,8 @@ export default function AxisY_1($$anchor) {
 		pointer-events: none;
 	}
 
-=== 5432 src/routes/_components/AxisYRight.svelte	js
+=== 5474 src/routes/_components/AxisYRight.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -8918,7 +8995,8 @@ export default function AxisYRight_1($$anchor) {
 		height: 250px;
 	}
 
-=== 1223 src/routes/_components/Bar.svelte	js
+=== 1265 src/routes/_components/Bar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -8983,7 +9061,8 @@ export default function Bar_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1851 src/routes/_components/BarStacked.svelte	js
+=== 1893 src/routes/_components/BarStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, flatten } from 'layercake';
@@ -9074,7 +9153,8 @@ export default function BarStacked_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1828 src/routes/_components/Beeswarm.html.svelte	js
+=== 1870 src/routes/_components/Beeswarm.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -9170,7 +9250,8 @@ export default function Beeswarm_html($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1810 src/routes/_components/Beeswarm.svelte	js
+=== 1852 src/routes/_components/Beeswarm.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -9266,7 +9347,8 @@ export default function Beeswarm_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1944 src/routes/_components/BeeswarmForce.html.svelte	js
+=== 1986 src/routes/_components/BeeswarmForce.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -9369,7 +9451,8 @@ export default function BeeswarmForce_html($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1925 src/routes/_components/BeeswarmForce.svelte	js
+=== 1967 src/routes/_components/BeeswarmForce.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -9476,7 +9559,8 @@ export default function BeeswarmForce($$anchor, $$props) {
 		height: 20%;
 	}
 
-=== 3108 src/routes/_components/Brush.svelte	js
+=== 3150 src/routes/_components/Brush.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -9632,7 +9716,8 @@ export default function Brush_1($$anchor, $$props) {
 		transform: translate(0, -100%);
 	}
 
-=== 2334 src/routes/_components/Calendar.svelte	js
+=== 2376 src/routes/_components/Calendar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -9739,7 +9824,8 @@ export default function Calendar($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1144 src/routes/_components/CirclePack.svelte	js
+=== 1186 src/routes/_components/CirclePack.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -9803,7 +9889,8 @@ export default function CirclePack_1($$anchor) {
 		margin-right: 7px;
 	}
 
-=== 2798 src/routes/_components/CirclePackForce.svelte	js
+=== 2840 src/routes/_components/CirclePackForce.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -9930,7 +10017,8 @@ export default function CirclePackForce($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1643 src/routes/_components/ClevelandDotPlot.html.svelte	js
+=== 1685 src/routes/_components/ClevelandDotPlot.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -10012,7 +10100,8 @@ export default function ClevelandDotPlot_html($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1583 src/routes/_components/ClevelandDotPlot.svelte	js
+=== 1625 src/routes/_components/ClevelandDotPlot.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -10092,7 +10181,8 @@ export default function ClevelandDotPlot_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1236 src/routes/_components/Column.svelte	js
+=== 1278 src/routes/_components/Column.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -10157,7 +10247,8 @@ export default function Column_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1933 src/routes/_components/ColumnStacked.svelte	js
+=== 1975 src/routes/_components/ColumnStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, flatten, uniques } from 'layercake';
@@ -10253,7 +10344,8 @@ export default function ColumnStacked_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2732 src/routes/_components/GroupLabels.html.svelte	js
+=== 2774 src/routes/_components/GroupLabels.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -10378,7 +10470,8 @@ export default function GroupLabels_html($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1178 src/routes/_components/Labels.html.svelte	js
+=== 1220 src/routes/_components/Labels.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -10443,7 +10536,8 @@ export default function Labels_html($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1043 src/routes/_components/Line-D3.svelte	js
+=== 1085 src/routes/_components/Line-D3.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -10500,7 +10594,8 @@ export default function Line_D3($$anchor) {
 		height: 250px;
 	}
 
-=== 953 src/routes/_components/Line.svelte	js
+=== 995 src/routes/_components/Line.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -10552,7 +10647,8 @@ export default function Line_1($$anchor) {
 		height: 250px;
 	}
 
-=== 1245 src/routes/_components/Map.canvas.svelte	js
+=== 1287 src/routes/_components/Map.canvas.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Canvas } from 'layercake';
@@ -10613,7 +10709,8 @@ export default function Map_canvas($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2126 src/routes/_components/Map.svg.svelte	js
+=== 2168 src/routes/_components/Map.svg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -10713,7 +10810,8 @@ export default function Map_svg($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1539 src/routes/_components/MapLabels.html.svelte	js
+=== 1581 src/routes/_components/MapLabels.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -10785,7 +10883,8 @@ export default function MapLabels_html($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1512 src/routes/_components/MapLabels.svelte	js
+=== 1554 src/routes/_components/MapLabels.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -10856,7 +10955,8 @@ export default function MapLabels_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1374 src/routes/_components/MapPoints.canvas.svelte	js
+=== 1416 src/routes/_components/MapPoints.canvas.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Canvas } from 'layercake';
@@ -10927,7 +11027,8 @@ export default function MapPoints_canvas($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1363 src/routes/_components/MapPoints.html.svelte	js
+=== 1405 src/routes/_components/MapPoints.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -10998,7 +11099,8 @@ export default function MapPoints_html($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1345 src/routes/_components/MapPoints.svelte	js
+=== 1387 src/routes/_components/MapPoints.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -11069,7 +11171,8 @@ export default function MapPoints_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2327 src/routes/_components/MultiLine.svelte	js
+=== 2369 src/routes/_components/MultiLine.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -11187,7 +11290,8 @@ export default function MultiLine_1($$anchor, $$props) {
 		height: 10px;
 	}
 
-=== 1951 src/routes/_components/QuadTree.html.svelte	js
+=== 1993 src/routes/_components/QuadTree.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -11272,7 +11376,8 @@ export default function QuadTree_html($$anchor) {
 		height: 250px;
 	}
 
-=== 1162 src/routes/_components/Radar.svelte	js
+=== 1204 src/routes/_components/Radar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -11330,7 +11435,8 @@ export default function Radar_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 804 src/routes/_components/Sankey.svelte	js
+=== 846 src/routes/_components/Sankey.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -11376,7 +11482,8 @@ export default function Sankey_1($$anchor) {
 		height: 250px;
 	}
 
-=== 1092 src/routes/_components/Scatter.canvas.svelte	js
+=== 1134 src/routes/_components/Scatter.canvas.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Canvas } from 'layercake';
@@ -11432,7 +11539,8 @@ export default function Scatter_canvas($$anchor) {
 		height: 250px;
 	}
 
-=== 1096 src/routes/_components/Scatter.svg.svelte	js
+=== 1138 src/routes/_components/Scatter.svg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -11489,7 +11597,8 @@ export default function Scatter_svg($$anchor) {
 		height: 250px;
 	}
 
-=== 1069 src/routes/_components/ScatterWebgl.svelte	js
+=== 1111 src/routes/_components/ScatterWebgl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, WebGL } from 'layercake';
@@ -11545,7 +11654,8 @@ export default function ScatterWebgl($$anchor) {
 		height: 250px;
 	}
 
-=== 2934 src/routes/_components/SharedTooltip.html.svelte	js
+=== 2976 src/routes/_components/SharedTooltip.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -11679,7 +11789,8 @@ export default function SharedTooltip_html($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 4489 src/routes/_components/Tooltip.html.svelte	js
+=== 4531 src/routes/_components/Tooltip.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -11863,7 +11974,8 @@ export default function Tooltip_html($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1131 src/routes/_components/Voronoi.svelte	js
+=== 1173 src/routes/_components/Voronoi.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -11964,7 +12076,8 @@ export default function Voronoi_1($$anchor) {
 		pointer-events: none;
 	}
 
-=== 5114 src/routes/_components_ssr/AxisX.html.svelte	js
+=== 5156 src/routes/_components_ssr/AxisX.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -12185,7 +12298,8 @@ export default function AxisX_html($$anchor) {
 		pointer-events: none;
 	}
 
-=== 5111 src/routes/_components_ssr/AxisXTop.html.svelte	js
+=== 5153 src/routes/_components_ssr/AxisXTop.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -12405,7 +12519,8 @@ export default function AxisXTop_html($$anchor) {
 		pointer-events: none;
 	}
 
-=== 5708 src/routes/_components_ssr/AxisY.html.svelte	js
+=== 5750 src/routes/_components_ssr/AxisY.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -12639,7 +12754,8 @@ export default function AxisY_html($$anchor) {
 		pointer-events: none;
 	}
 
-=== 5749 src/routes/_components_ssr/AxisYRight.html.svelte	js
+=== 5791 src/routes/_components_ssr/AxisYRight.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -12836,7 +12952,8 @@ export default function AxisYRight_html($$anchor) {
 		margin: 13px 0;
 	}
 
-=== 2040 src/routes/_components_ssr/Key.html.svelte	js
+=== 2082 src/routes/_components_ssr/Key.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -12945,7 +13062,8 @@ export default function Key_html($$anchor, $$props) {
 		height: 10px;
 	}
 
-=== 1939 src/routes/_components_ssr/QuadTree.percent-range.html.svelte	js
+=== 1981 src/routes/_components_ssr/QuadTree.percent-range.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -13027,7 +13145,8 @@ export default function QuadTree_percent_range_html($$anchor) {
 		height: 250px;
 	}
 
-=== 1194 src/routes/_components_ssr/Scatter.html.svelte	js
+=== 1236 src/routes/_components_ssr/Scatter.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -13088,7 +13207,8 @@ export default function Scatter_html($$anchor) {
 		height: 250px;
 	}
 
-=== 3058 src/routes/_components_ssr/SharedTooltip.percent-range.html.svelte	js
+=== 3100 src/routes/_components_ssr/SharedTooltip.percent-range.html.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Html } from 'layercake';
@@ -13243,7 +13363,8 @@ export default function SharedTooltip_percent_range_html($$anchor, $$props) {
 		}
 	}
 
-=== 1469 src/routes/_error.svelte	js
+=== 1511 src/routes/_error.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -13318,7 +13439,8 @@ export default function _error($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2634 src/routes/_examples/AreaStacked.svelte	js
+=== 2676 src/routes/_examples/AreaStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, flatten, stack } from 'layercake';
@@ -13439,7 +13561,8 @@ export default function AreaStacked_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1666 src/routes/_examples/Bar.svelte	js
+=== 1708 src/routes/_examples/Bar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -13518,7 +13641,8 @@ export default function Bar_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2351 src/routes/_examples/BarStacked.svelte	js
+=== 2393 src/routes/_examples/BarStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, flatten, stack } from 'layercake';
@@ -13624,7 +13748,8 @@ export default function BarStacked_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2612 src/routes/_examples/Beeswarm.svelte	js
+=== 2654 src/routes/_examples/Beeswarm.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -13750,7 +13875,8 @@ export default function Beeswarm_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2264 src/routes/_examples/BeeswarmForce.svelte	js
+=== 2306 src/routes/_examples/BeeswarmForce.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -13867,7 +13993,8 @@ export default function BeeswarmForce($$anchor, $$props) {
 		height: 20%;
 	}
 
-=== 3569 src/routes/_examples/Brush.svelte	js
+=== 3611 src/routes/_examples/Brush.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -14043,7 +14170,8 @@ export default function Brush_1($$anchor, $$props) {
 		transform: translate(0, -100%);
 	}
 
-=== 2359 src/routes/_examples/Calendar.svelte	js
+=== 2401 src/routes/_examples/Calendar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -14150,7 +14278,8 @@ export default function Calendar($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1190 src/routes/_examples/CirclePack.svelte	js
+=== 1232 src/routes/_examples/CirclePack.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -14217,7 +14346,8 @@ export default function CirclePack_1($$anchor) {
 		margin-right: 7px;
 	}
 
-=== 2451 src/routes/_examples/CirclePackForce.svelte	js
+=== 2493 src/routes/_examples/CirclePackForce.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -14325,7 +14455,8 @@ export default function CirclePackForce($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1148 src/routes/_examples/CirclePackNested.svelte	js
+=== 1190 src/routes/_examples/CirclePackNested.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -14382,7 +14513,8 @@ export default function CirclePackNested($$anchor) {
 		height: 250px;
 	}
 
-=== 2042 src/routes/_examples/ClevelandDotPlot.svelte	js
+=== 2084 src/routes/_examples/ClevelandDotPlot.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -14479,7 +14611,8 @@ export default function ClevelandDotPlot_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 3405 src/routes/_examples/Column.svelte	js
+=== 3447 src/routes/_examples/Column.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -14638,7 +14771,8 @@ export default function Column_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2381 src/routes/_examples/ColumnStacked.svelte	js
+=== 2423 src/routes/_examples/ColumnStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, flatten, stack } from 'layercake';
@@ -14747,7 +14881,8 @@ export default function ColumnStacked_1($$anchor, $$props) {
 		height: auto;
 	}
 
-=== 2975 src/routes/_examples/Histogram.svelte	js
+=== 3017 src/routes/_examples/Histogram.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, bin, takeEvery } from 'layercake';
@@ -14859,7 +14994,8 @@ export default function Histogram($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1509 src/routes/_examples/Line.svelte	js
+=== 1551 src/routes/_examples/Line.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -14932,7 +15068,8 @@ export default function Line_1($$anchor) {
 		height: 250px;
 	}
 
-=== 3900 src/routes/_examples/MapLayered.svelte	js
+=== 3942 src/routes/_examples/MapLayered.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Canvas, Html } from 'layercake';
@@ -15094,7 +15231,8 @@ export default function MapLayered($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 4670 src/routes/_examples/MapSvg.svelte	js
+=== 4712 src/routes/_examples/MapSvg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html } from 'layercake';
@@ -15278,7 +15416,8 @@ export default function MapSvg_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 3690 src/routes/_examples/MultiLine.svelte	js
+=== 3732 src/routes/_examples/MultiLine.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Html, groupLonger, flatten } from 'layercake';
@@ -15437,7 +15576,8 @@ export default function MultiLine_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1502 src/routes/_examples/Radar.svelte	js
+=== 1544 src/routes/_examples/Radar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -15506,7 +15646,8 @@ export default function Radar_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 781 src/routes/_examples/Sankey.svelte	js
+=== 823 src/routes/_examples/Sankey.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg } from 'layercake';
@@ -15551,7 +15692,8 @@ export default function Sankey_1($$anchor) {
 		height: 250px;
 	}
 
-=== 2446 src/routes/_examples/Scatter.svelte	js
+=== 2488 src/routes/_examples/Scatter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, Canvas } from 'layercake';
@@ -15667,7 +15809,8 @@ export default function Scatter($$anchor) {
 		height: 10px;
 	}
 
-=== 2532 src/routes/_examples/ScatterWebgl.svelte	js
+=== 2574 src/routes/_examples/ScatterWebgl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, WebGL, Html } from 'layercake';
@@ -15787,7 +15930,8 @@ export default function ScatterWebgl($$anchor) {
 		height: 30%;
 	}
 
-=== 2356 src/routes/_examples/SmallMultiples.svelte	js
+=== 2398 src/routes/_examples/SmallMultiples.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { calcExtents, flatten } from 'layercake';
@@ -15887,7 +16031,8 @@ export default function SmallMultiples($$anchor, $$props) {
 		align-content: space-between;
 	}
 
-=== 1457 src/routes/_examples/SyncedBrush.svelte	js
+=== 1499 src/routes/_examples/SyncedBrush.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SyncedBrushWrapper from '../../_components/SyncedBrushWrapper.svelte';
@@ -15960,7 +16105,8 @@ export default function SyncedBrush($$anchor) {
 		height: 250px;
 	}
 
-=== 3069 src/routes/_examples/Timeplot.svelte	js
+=== 3111 src/routes/_examples/Timeplot.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, calcExtents } from 'layercake';
@@ -16082,7 +16228,8 @@ export default function Timeplot($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2948 src/routes/_examples_ssr/AreaStacked.svelte	js
+=== 2990 src/routes/_examples_ssr/AreaStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Html, flatten } from 'layercake';
@@ -16214,7 +16361,8 @@ export default function AreaStacked_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2004 src/routes/_examples_ssr/Bar.svelte	js
+=== 2046 src/routes/_examples_ssr/Bar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Html } from 'layercake';
@@ -16304,7 +16452,8 @@ export default function Bar_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2726 src/routes/_examples_ssr/BarStacked.svelte	js
+=== 2768 src/routes/_examples_ssr/BarStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Html, flatten } from 'layercake';
@@ -16428,7 +16577,8 @@ export default function BarStacked_1($$anchor, $$props) {
 		height: 20%;
 	}
 
-=== 3968 src/routes/_examples_ssr/Brush.svelte	js
+=== 4010 src/routes/_examples_ssr/Brush.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Html } from 'layercake';
@@ -16621,7 +16771,8 @@ export default function Brush_1($$anchor, $$props) {
 		transform: translate(0, -100%);
 	}
 
-=== 2440 src/routes/_examples_ssr/Calendar.svelte	js
+=== 2482 src/routes/_examples_ssr/Calendar.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg } from 'layercake';
@@ -16732,7 +16883,8 @@ export default function Calendar($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2136 src/routes/_examples_ssr/ClevelandDotPlot.svelte	js
+=== 2178 src/routes/_examples_ssr/ClevelandDotPlot.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -16826,7 +16978,8 @@ export default function ClevelandDotPlot_1($$anchor, $$props) {
 		position: relative;
 	}
 
-=== 4028 src/routes/_examples_ssr/Column.svelte	js
+=== 4070 src/routes/_examples_ssr/Column.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Svg, ScaledSvg, Html } from 'layercake';
@@ -17012,7 +17165,8 @@ export default function Column_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 2734 src/routes/_examples_ssr/ColumnStacked.svelte	js
+=== 2776 src/routes/_examples_ssr/ColumnStacked.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Html, flatten } from 'layercake';
@@ -17136,7 +17290,8 @@ export default function ColumnStacked_1($$anchor, $$props) {
 		height: auto;
 	}
 
-=== 3275 src/routes/_examples_ssr/Histogram.svelte	js
+=== 3317 src/routes/_examples_ssr/Histogram.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Html, takeEvery } from 'layercake';
@@ -17261,7 +17416,8 @@ export default function Histogram($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1920 src/routes/_examples_ssr/Line.svelte	js
+=== 1962 src/routes/_examples_ssr/Line.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Html } from 'layercake';
@@ -17351,7 +17507,8 @@ export default function Line_1($$anchor) {
 		width: 100%;
 	}
 
-=== 4099 src/routes/_examples_ssr/MapLayered.svelte	js
+=== 4141 src/routes/_examples_ssr/MapLayered.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Canvas, Html } from 'layercake';
@@ -17532,7 +17689,8 @@ export default function MapLayered($$anchor, $$props) {
 		width: 100%;
 	}
 
-=== 2370 src/routes/_examples_ssr/MapSvg.svelte	js
+=== 2412 src/routes/_examples_ssr/MapSvg.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg } from 'layercake';
@@ -17638,7 +17796,8 @@ export default function MapSvg_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 4206 src/routes/_examples_ssr/MultiLine.svelte	js
+=== 4248 src/routes/_examples_ssr/MultiLine.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, ScaledSvg, Html, flatten } from 'layercake';
@@ -17812,7 +17971,8 @@ export default function MultiLine_1($$anchor, $$props) {
 		height: 250px;
 	}
 
-=== 1654 src/routes/_examples_ssr/Scatter.svelte	js
+=== 1696 src/routes/_examples_ssr/Scatter.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html } from 'layercake';
@@ -17899,7 +18059,8 @@ export default function Scatter_1($$anchor) {
 		height: 10px;
 	}
 
-=== 2923 src/routes/_examples_ssr/ScatterWebgl.svelte	js
+=== 2965 src/routes/_examples_ssr/ScatterWebgl.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, WebGL, Html } from 'layercake';
@@ -18041,7 +18202,8 @@ export default function ScatterWebgl($$anchor) {
 		height: 30%;
 	}
 
-=== 2374 src/routes/_examples_ssr/SmallMultiples.svelte	js
+=== 2416 src/routes/_examples_ssr/SmallMultiples.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { calcExtents, flatten } from 'layercake';
@@ -18141,7 +18303,8 @@ export default function SmallMultiples($$anchor, $$props) {
 		align-content: space-between;
 	}
 
-=== 1480 src/routes/_examples_ssr/SyncedBrush.svelte	js
+=== 1522 src/routes/_examples_ssr/SyncedBrush.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import SyncedBrushWrapper from '../../_components/SyncedBrushWrapper.percent-range.svelte';
@@ -18214,7 +18377,8 @@ export default function SyncedBrush($$anchor) {
 		height: 250px;
 	}
 
-=== 3209 src/routes/_examples_ssr/Timeplot.svelte	js
+=== 3251 src/routes/_examples_ssr/Timeplot.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { LayerCake, Html, calcExtents } from 'layercake';
@@ -18378,7 +18542,8 @@ export default function Timeplot($$anchor, $$props) {
 		}
 	}
 
-=== 1271 src/routes/_site-components/CopyBtn.svelte	js
+=== 1313 src/routes/_site-components/CopyBtn.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import CopyIcon from './CopyIcon.svelte';
@@ -18432,7 +18597,8 @@ export default function CopyBtn($$anchor, $$props) {
 }
 
 $.delegate(['click']);
-=== 805 src/routes/_site-components/CopyIcon.svelte	js
+=== 847 src/routes/_site-components/CopyIcon.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -18512,7 +18678,8 @@ export default function CopyIcon($$anchor) {
 		}
 	}
 
-=== 4348 src/routes/_site-components/DownloadBtn.svelte	js
+=== 4390 src/routes/_site-components/DownloadBtn.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { toAuto } from 'do-not-zip';
@@ -18714,7 +18881,8 @@ $.delegate(['click']);
 		}
 	}
 
-=== 3861 src/routes/_site-components/DownloadComponentBtn.svelte	js
+=== 3903 src/routes/_site-components/DownloadComponentBtn.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { toAuto } from 'do-not-zip';
@@ -18865,7 +19033,8 @@ $.delegate(['click']);
 		color: #ff3e00;
 	}
 
-=== 2163 src/routes/_site-components/GuideContents.svelte	js
+=== 2205 src/routes/_site-components/GuideContents.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
@@ -19247,7 +19416,8 @@ $.delegate(['click']);
 		}
 	}
 
-=== 7109 src/routes/_site-components/Nav.svelte	js
+=== 7151 src/routes/_site-components/Nav.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { goto } from '$app/navigation';
@@ -19702,7 +19872,8 @@ $.delegate(['click', 'change']);
 		}
 	}
 
-=== 9167 src/routes/components/+page.svelte	js
+=== 9209 src/routes/components/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import { groupBy, sortBy } from 'underscore';
@@ -20185,7 +20356,8 @@ export default function _page($$anchor, $$props) {
 		}
 	}
 
-=== 8924 src/routes/components/[slug]/+page.svelte	js
+=== 8966 src/routes/components/[slug]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MarkdownIt from 'markdown-it';
@@ -20641,7 +20813,8 @@ $.delegate(['click']);
 		}
 	}
 
-=== 5246 src/routes/example-ssr/[slug]/+page.svelte	js
+=== 5288 src/routes/example-ssr/[slug]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MarkdownIt from 'markdown-it';
@@ -20960,7 +21133,8 @@ $.delegate(['click']);
 		}
 	}
 
-=== 5285 src/routes/example/[slug]/+page.svelte	js
+=== 5327 src/routes/example/[slug]/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import MarkdownIt from 'markdown-it';
@@ -21438,7 +21612,8 @@ $.delegate(['click']);
 		text-decoration: underline;
 	}
 
-=== 4130 src/routes/guide/+page.svelte	js
+=== 4172 src/routes/guide/+page.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import GuideContents from '../_site-components/GuideContents.svelte';
@@ -21605,7 +21780,8 @@ export default function _page($$anchor, $$props) {
 		height: 100%;
 	}
 
-=== 368 src/scripts/svelte-app/src/routes/+layout.svelte	js
+=== 410 src/scripts/svelte-app/src/routes/+layout.svelte	js
+import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 import '../app.css';

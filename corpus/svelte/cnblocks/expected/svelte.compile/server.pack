@@ -34252,11 +34252,11 @@ import SiteHero from "$lib/web/layouts/SiteHero.svelte";
 
 export default function _page($$renderer) {
 	$.head('h7bcrl', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description" content="Svelte Shadcn Blocks offers 150+ UI &amp; marketing components for building responsive landing pages."/> <meta property="og:title" content="Svelte Shadcn Blocks - 50+ UI &amp; Marketing Blocks"/> <meta property="og:description" content="Svelte Shadcn Blocks offers 150+ UI &amp; marketing components for building responsive landing pages."/> <meta property="og:image" content="https://sv-blocks.vercel.app/og.png"/> <meta property="og:url" content="https://sv-blocks.vercel.app"/> <meta property="og:type" content="website"/> <meta name="twitter:title" content="Svelte Shadcn Blocks - 50+ UI &amp; Marketing Blocks"/> <meta name="twitter:description" content="Svelte Shadcn Blocks offers 150+ UI &amp; marketing components for building responsive landing pages."/> <meta name="twitter:image" content="https://sv-blocks.vercel.app/og.png"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="keywords" content="Svelte UI components, Blocks, Svelte blocks,  Svelte marketing blocks, ShadCN-Svelte, responsive UI, landing page builder, Svelte 5, Tailwind v4, Svelte Shadcn Blocks, Svelte marketing components, Svelte UI library, Svelte templates, Svelte components, Svelte UI kit"/> <meta name="author" content="Sikandar_Bhide"/> <link rel="canonical" href="https://sv-blocks.vercel.app"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Svelte Shadcn Blocks - 150+ UI &amp; Marketing Blocks</title>`);
 		});
-
-		$$renderer.push(`<meta name="description" content="Svelte Shadcn Blocks offers 150+ UI &amp; marketing components for building responsive landing pages."/> <meta property="og:title" content="Svelte Shadcn Blocks - 50+ UI &amp; Marketing Blocks"/> <meta property="og:description" content="Svelte Shadcn Blocks offers 150+ UI &amp; marketing components for building responsive landing pages."/> <meta property="og:image" content="https://sv-blocks.vercel.app/og.png"/> <meta property="og:url" content="https://sv-blocks.vercel.app"/> <meta property="og:type" content="website"/> <meta name="twitter:title" content="Svelte Shadcn Blocks - 50+ UI &amp; Marketing Blocks"/> <meta name="twitter:description" content="Svelte Shadcn Blocks offers 150+ UI &amp; marketing components for building responsive landing pages."/> <meta name="twitter:image" content="https://sv-blocks.vercel.app/og.png"/> <meta name="twitter:card" content="summary_large_image"/> <meta name="keywords" content="Svelte UI components, Blocks, Svelte blocks,  Svelte marketing blocks, ShadCN-Svelte, responsive UI, landing page builder, Svelte 5, Tailwind v4, Svelte Shadcn Blocks, Svelte marketing components, Svelte UI library, Svelte templates, Svelte components, Svelte UI kit"/> <meta name="author" content="Sikandar_Bhide"/> <link rel="canonical" href="https://sv-blocks.vercel.app"/>`);
 	});
 
 	SiteHero($$renderer, {});
@@ -34312,11 +34312,11 @@ You can use these blocks to build landing pages, marketing sites, dashboards, an
   `;
 
 		$.head('c4aoil', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description" content="Welcome to Shadcn Marketing Blocks! This is a collection of marketing components built with Svelte 5, Tailwind CSS v4 and Shadcn Svelte."/> <meta name="keywords" content="svelte, shadcn, marketing blocks, installation, jsrepo"/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>Shadcn Marketing Blocks</title>`);
 			});
-
-			$$renderer.push(`<meta name="description" content="Welcome to Shadcn Marketing Blocks! This is a collection of marketing components built with Svelte 5, Tailwind CSS v4 and Shadcn Svelte."/> <meta name="keywords" content="svelte, shadcn, marketing blocks, installation, jsrepo"/>`);
 		});
 
 		$$renderer.push(`<main class="space-y-6 xl:mb-24"><div class="space-y-4">`);
@@ -34446,11 +34446,11 @@ import * as Breadcrumb from "$lib/components/ui/breadcrumb/index";
 
 export default function _page($$renderer) {
 	$.head('rh6xum', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description" content="Install &amp; configure Marketing Blocks in your Svelte project using the CLI."/> <meta name="keywords" content="svelte, shadcn, marketing blocks, installation, jsrepo"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Installation | Shadcn Marketing Blocks</title>`);
 		});
-
-		$$renderer.push(`<meta name="description" content="Install &amp; configure Marketing Blocks in your Svelte project using the CLI."/> <meta name="keywords" content="svelte, shadcn, marketing blocks, installation, jsrepo"/>`);
 	});
 
 	$$renderer.push(`<main class="space-y-10 xl:mb-24"><div class="space-y-4">`);
@@ -34615,11 +34615,11 @@ import * as Breadcrumb from "$lib/components/ui/breadcrumb/index";
 
 export default function _page($$renderer) {
 	$.head('1uks004', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description" content="Install &amp; configure Marketing Blocks in your Svelte project using the CLI."/> <meta name="keywords" content="svelte, shadcn, marketing blocks, installation, jsrepo, mcp"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>MCP Server | Shadcn Marketing Blocks</title>`);
 		});
-
-		$$renderer.push(`<meta name="description" content="Install &amp; configure Marketing Blocks in your Svelte project using the CLI."/> <meta name="keywords" content="svelte, shadcn, marketing blocks, installation, jsrepo, mcp"/>`);
 	});
 
 	$$renderer.push(`<main class="space-y-10 xl:mb-24"><div class="space-y-4">`);
@@ -34864,11 +34864,11 @@ export default function _page($$renderer) {
 	];
 
 	$.head('eulf21', $$renderer, ($$renderer) => {
+		$$renderer.push(`<meta name="description" content="Welcome to Shadcn Marketing Blocks! This is a collection of marketing components built with Svelte 5, Tailwind CSS v4 and Shadcn Svelte."/> <meta name="keywords" content="svelte, shadcn, marketing blocks, installation, jsrepo"/>`);
+
 		$$renderer.title(($$renderer) => {
 			$$renderer.push(`<title>Sponsors | Shadcn Marketing Blocks</title>`);
 		});
-
-		$$renderer.push(`<meta name="description" content="Welcome to Shadcn Marketing Blocks! This is a collection of marketing components built with Svelte 5, Tailwind CSS v4 and Shadcn Svelte."/> <meta name="keywords" content="svelte, shadcn, marketing blocks, installation, jsrepo"/>`);
 	});
 
 	$$renderer.push(`<main class="space-y-6 xl:mb-24"><div class="space-y-3"><h1 class="text-3xl font-bold -tracking-wide text-primary">Sponsors</h1> <div class="grid grid-cols-2 gap-4 border-t py-4 md:grid-cols-6"><!--[-->`);
@@ -35328,11 +35328,11 @@ export default function _page($$renderer, $$props) {
 		];
 
 		$.head('12pq51', $$renderer, ($$renderer) => {
+			$$renderer.push(`<meta name="description" content="The Ultimate Landing Page for your Startup. This is a landing page template for a SaaS product. The template is built with Svelte 5, TailwindCSS V4, and Shadcn Svelte."/>`);
+
 			$$renderer.title(($$renderer) => {
 				$$renderer.push(`<title>Startup Template - The Ultimate Landing Page for your Startup</title>`);
 			});
-
-			$$renderer.push(`<meta name="description" content="The Ultimate Landing Page for your Startup. This is a landing page template for a SaaS product. The template is built with Svelte 5, TailwindCSS V4, and Shadcn Svelte."/>`);
 		});
 
 		$$renderer.push(`<div class="relative mx-auto mb-16 max-w-7xl overflow-hidden rounded-b-2xl border-x border-b px-4 pt-2 sm:pt-16 md:px-8 md:pt-4">`);
