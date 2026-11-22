@@ -348,3 +348,75 @@ fn a_root_dir_the_project_sets_still_holds_its_files() {
         ["src/App.svelte TS6059", "src/lib/util.ts TS2322"]
     );
 }
+
+/// svelte2tsx reads `generics` in a JavaScript component too, and writes it between its ignore
+/// comments. svelte-check 4.7.8 reports only `G2`'s type alias and the two wrong props.
+#[test]
+fn a_javascript_component_reads_its_generics_and_hides_their_findings() {
+    let project = Project::new(&[
+        (
+            "tsconfig.json",
+            r#"{"compilerOptions":{"module":"esnext","moduleResolution":"bundler","strict":true,
+"allowJs":true,"checkJs":true,"skipLibCheck":true,"noEmit":true,"types":[]},"include":["src"]}"#,
+        ),
+        (
+            "src/G1.svelte",
+            concat!(
+                "<script generics=\"T extends string\">\n",
+                "  /** @type {{ value: T, all: T[] }} */\n",
+                "  let { value, all } = $props();\n",
+                "  /** @type {T} */\n",
+                "  const first = all[0];\n",
+                "</script>\n",
+                "<p>{value}{first}</p>\n",
+            ),
+        ),
+        (
+            "src/G2.svelte",
+            concat!(
+                "<script generics=\"T extends string\">\n",
+                "  let { v }: { v: T } = $props();\n",
+                "</script>\n",
+                "<p>{v}</p>\n",
+            ),
+        ),
+        // A list that does not parse.
+        (
+            "src/G5.svelte",
+            concat!(
+                "<script generics=\"T extends\">\n",
+                "  /** @type {{ v: string }} */\n",
+                "  let { v } = $props();\n",
+                "</script>\n",
+                "<p>{v}</p>\n",
+            ),
+        ),
+        (
+            "src/G7.svelte",
+            "<script generics=\"T\">\n  let { n = 1 } = $props();\n</script>\n<p>{n}</p>\n",
+        ),
+        (
+            "src/Use.svelte",
+            concat!(
+                "<script lang=\"ts\">\n",
+                "  import G1 from \"./G1.svelte\";\n",
+                "  import G2 from \"./G2.svelte\";\n",
+                "  import G5 from \"./G5.svelte\";\n",
+                "  import G7 from \"./G7.svelte\";\n",
+                "</script>\n",
+                "<G1 value=\"a\" all={[\"a\"]} />\n",
+                "<G2 v={1} />\n",
+                "<G5 v=\"ok\" />\n",
+                "<G7 n=\"s\" />\n",
+            ),
+        ),
+    ]);
+    assert_eq!(
+        project.check(),
+        [
+            "src/G2.svelte TS8008",
+            "src/Use.svelte TS2322",
+            "src/Use.svelte TS2322"
+        ]
+    );
+}
