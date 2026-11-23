@@ -24,8 +24,9 @@ export default {
 			ignoreDependencies: ['svelte-check', 'vue-tsc', 'prettier-plugin-tailwindcss', 'tailwindcss'],
 		},
 		'apps/cli': {
-			// The command of the npm package, which a release copies there, not an import.
-			entry: ['launcher.js'],
+			// The command of the npm package and the lookup the VS Code extension imports from a
+			// project, which a release copies there.
+			entry: ['launcher.js', 'program.js'],
 		},
 		'apps/rsvelte': {
 			// crates/hosts/node's test runs it with the addon it builds, not a package script.
