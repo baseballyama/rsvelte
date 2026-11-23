@@ -4,12 +4,13 @@
 use std::borrow::Cow;
 
 use oxc_ast::ast::{
-    Argument, BindingIdentifier, CallExpression, Expression, ImportDeclarationSpecifier, Program,
-    Statement, TSInterfaceDeclaration, TSPropertySignature, TSSignature, TSType,
-    TSTypeAliasDeclaration, VariableDeclarator,
+    Argument, CallExpression, Expression, ImportDeclarationSpecifier, Program, Statement,
+    TSInterfaceDeclaration, TSPropertySignature, TSSignature, TSType, TSTypeAliasDeclaration,
+    VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
 use oxc_span::GetSpan;
+use oxc_syntax::symbol::SymbolId;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, TemplateNode};
 use rsvelte_typescript_tree::node_span;
 
@@ -109,17 +110,16 @@ impl<'a> Builder<'a> {
                 .push(Node::Identifier("__sveltets_2_toEventTypings"));
             // svelte2tsx copies the typing, and svelte-check drops the copy's findings, which map
             // nowhere. The dispatcher's type names the typing without resolving it a second time.
-            let typing = match dispatcher {
-                Some(dispatcher) => {
-                    let dispatcher = self.tree.push(Node::UnmappedSource(dispatcher));
-                    let dispatcher = self.tree.push(Node::TypeQuery(dispatcher));
-                    let arguments = self.tree.list(&[dispatcher]);
-                    let callee = self
-                        .tree
-                        .push(Node::Identifier("__rsvelte_dispatcher_events"));
-                    self.tree.push(Node::TypeArguments { callee, arguments })
-                }
-                None => self.tree.push(Node::UnmappedSource(written)),
+            let typing = if self.typed_by_its_call(dispatcher) {
+                let dispatcher = self.tree.push(Node::UnmappedSource(dispatcher.name));
+                let dispatcher = self.tree.push(Node::TypeQuery(dispatcher));
+                let arguments = self.tree.list(&[dispatcher]);
+                let callee = self
+                    .tree
+                    .push(Node::Identifier("__rsvelte_dispatcher_events"));
+                self.tree.push(Node::TypeArguments { callee, arguments })
+            } else {
+                self.tree.push(Node::UnmappedSource(written))
             };
             let arguments = self.tree.list(&[typing]);
             let callee = self.tree.push(Node::TypeArguments { callee, arguments });
@@ -345,12 +345,33 @@ fn dispatcher_import<'p>(program: &'p Program<'_>) -> Option<&'p str> {
 }
 
 /// svelte2tsx's `ComponentEventsFromEventsMap`, filled in the order it walks the instance.
-/// A typed dispatcher's type argument, and the name of the dispatcher where the render function's
-/// return can read its type.
+/// A typed dispatcher's type argument, and the variable it is assigned to.
 #[derive(Clone, Copy)]
 struct Typing {
     written: Span,
-    dispatcher: Option<Span>,
+    dispatcher: Dispatcher,
+}
+
+/// The variable a typed dispatcher is assigned to.
+#[derive(Clone, Copy)]
+struct Dispatcher {
+    name: Span,
+    symbol: Option<SymbolId>,
+    annotated: bool,
+}
+
+impl Builder<'_> {
+    /// Whether the dispatcher's type at the render function's return is its call's: the variable's
+    /// only declaration, unannotated, in the instance's top-level scope.
+    fn typed_by_its_call(&self, dispatcher: Dispatcher) -> bool {
+        let (Some(symbol), Some(resolution)) = (dispatcher.symbol, (self.resolution)()) else {
+            return false;
+        };
+        let scoping = resolution.scoping();
+        !dispatcher.annotated
+            && scoping.symbol_scope_id(symbol) == resolution.instance_scope()
+            && scoping.symbol_redeclarations(symbol).is_empty()
+    }
 }
 
 #[derive(Default)]
@@ -358,8 +379,7 @@ struct Found<'a, 't> {
     /// The property signatures of the first `$$Events`.
     declared: Option<usize>,
     dispatcher: Option<&'a str>,
-    /// The instance's top-level statements, where a bracketed key's variable is looked up and
-    /// whose names the render function's return reads.
+    /// The instance's top-level statements, where a bracketed key's variable is looked up.
     top_level: &'t [Statement<'a>],
     /// The first key svelte2tsx's `getName` cannot name an event by, where it throws.
     thrown: Option<UnnamedKey>,
@@ -422,12 +442,12 @@ impl<'a: 't, 't> Visit<'a> for Found<'a, 't> {
                     if matches!(&call.callee, Expression::Identifier(callee)
                         if Some(callee.name.as_str()) == self.dispatcher) =>
                 {
-                    // The return reads the dispatcher's type where its name is in scope and
-                    // its type is the call's.
-                    let in_scope = it.type_annotation.is_none()
-                        && names::top_level_declarators(self.top_level)
-                            .any(|declarator| declarator.span == it.span);
-                    self.dispatcher_created(local.name.as_str(), in_scope.then_some(local), call);
+                    let dispatcher = Dispatcher {
+                        name: node_span(local),
+                        symbol: local.symbol_id.get(),
+                        annotated: it.type_annotation.is_some(),
+                    };
+                    self.dispatcher_created(local.name.as_str(), dispatcher, call);
                 }
                 _ => {}
             }
@@ -463,7 +483,7 @@ impl<'a: 't, 't> Found<'a, 't> {
     fn dispatcher_created(
         &mut self,
         local: &'a str,
-        binding: Option<&BindingIdentifier<'a>>,
+        dispatcher: Dispatcher,
         call: &CallExpression<'a>,
     ) {
         match &call.type_arguments {
@@ -481,7 +501,7 @@ impl<'a: 't, 't> Found<'a, 't> {
                 };
                 self.typings.push(Typing {
                     written: node_span(typing),
-                    dispatcher: binding.map(node_span),
+                    dispatcher,
                 });
                 let TSType::TSTypeLiteral(literal) = typing else {
                     return;

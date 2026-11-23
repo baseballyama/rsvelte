@@ -1,8 +1,6 @@
 //! svelte2tsx's `getName`: the event a key of `$$Events` or of a typed dispatcher names.
 
-use oxc_ast::ast::{
-    Declaration, Expression, PropertyKey, Statement, TSPropertySignature, VariableDeclarator,
-};
+use oxc_ast::ast::{Declaration, Expression, PropertyKey, Statement, TSPropertySignature};
 use oxc_parser::Kind;
 use rsvelte_svelte_syntax::syntax_tree::TokenType;
 use rsvelte_typescript_tree::node_span;
@@ -48,23 +46,6 @@ pub(super) fn event_name<'a>(
 /// The string a top-level variable is initialized to, from its first declaration, as
 /// svelte2tsx's `getVariableAtTopLevel` finds it.
 fn top_level_string<'a>(statements: &[Statement<'a>], name: &str) -> Option<&'a str> {
-    top_level_declarators(statements)
-        .find(|declarator| {
-            declarator
-                .id
-                .get_binding_identifier()
-                .is_some_and(|binding| binding.name == name)
-        })
-        .and_then(|declarator| match &declarator.init {
-            Some(Expression::StringLiteral(value)) => value.value.as_str(),
-            _ => None,
-        })
-}
-
-/// The declarators of the top-level variable declarations among `statements`, exported or not.
-pub(super) fn top_level_declarators<'p, 'a>(
-    statements: &'p [Statement<'a>],
-) -> impl Iterator<Item = &'p VariableDeclarator<'a>> {
     statements
         .iter()
         .filter_map(|statement| match statement {
@@ -76,6 +57,16 @@ pub(super) fn top_level_declarators<'p, 'a>(
             _ => None,
         })
         .flat_map(|declaration| &declaration.declarations)
+        .find(|declarator| {
+            declarator
+                .id
+                .get_binding_identifier()
+                .is_some_and(|binding| binding.name == name)
+        })
+        .and_then(|declarator| match &declarator.init {
+            Some(Expression::StringLiteral(value)) => value.value.as_str(),
+            _ => None,
+        })
 }
 
 impl Builder<'_> {
