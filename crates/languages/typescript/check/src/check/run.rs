@@ -174,7 +174,7 @@ impl Tsc {
         )
         .map_err(failed)?;
         // The session ends when it drops, which frees the snapshot with the process.
-        let diagnostics = self.findings(req, checked, &root, &paths)?;
+        let diagnostics = self.findings(req, checked, &paths)?;
         Ok(Report { diagnostics, root })
     }
 
@@ -183,7 +183,6 @@ impl Tsc {
         &self,
         req: &CheckRequest<'_>,
         checked: Checked,
-        root: &Path,
         paths: &[PathBuf],
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
         let [program, syntactic, semantic] = checked.found;
@@ -205,8 +204,7 @@ impl Tsc {
             // The command line reports errors only; svelte-check's errors are the oracle.
             .filter(|(_, d)| d.is_error())
             .map(|(syntactic, d)| {
-                located(&d, root, &index, &lines, syntactic)
-                    .ok_or_else(|| unlocated(&self.checker, &d))
+                located(&d, &index, &lines, syntactic).ok_or_else(|| unlocated(&self.checker, &d))
             })
             .filter(|found| {
                 !found.as_ref().is_ok_and(|found| {
@@ -526,11 +524,9 @@ fn path_index(paths: &[PathBuf]) -> HashMap<&Path, usize> {
 }
 
 /// The document and byte range of a diagnostic in the document `index` names, whose texts
-/// `lines` index. A path below `root` in the message drops that root, so the message does not
-/// depend on where the project is.
+/// `lines` index.
 fn located(
     d: &rsvelte_typescript_api::Diagnostic,
-    root: &Path,
     index: &HashMap<&Path, usize>,
     lines: &[LineIndex],
     syntactic: bool,
@@ -540,10 +536,7 @@ fn located(
         let p = p?;
         lines[file].offset(p.line + 1, p.character)
     };
-    let message = d.flattened_message().replace(
-        &format!("{}{}", root.display(), std::path::MAIN_SEPARATOR),
-        "",
-    );
+    let message = d.flattened_message();
     // A finding in synthesized code may still carry a nearby position, beside this note.
     let span = offset(d.start_position)
         .zip(offset(d.end_position))

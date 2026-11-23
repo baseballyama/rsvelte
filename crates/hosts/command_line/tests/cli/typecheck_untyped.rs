@@ -119,3 +119,35 @@ fn typecheck_does_not_check_a_javascript_component_only_javascript_reaches() {
         )
     );
 }
+
+/// TypeScript's own TS7016 for a JavaScript module names the module by its absolute path, as
+/// svelte-check 4.7.8 prints it.
+#[cfg(unix)]
+#[test]
+fn typecheck_names_an_untyped_javascript_module_by_its_absolute_path() {
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let project = Project::new(&[
+        ("app/rsvelte.config.json", &config),
+        (
+            "app/tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"types":[]},"include":["src"]}"#,
+        ),
+        ("app/src/s.js", "export const sj = 1;\n"),
+        (
+            "app/src/Page.svelte",
+            "<script lang=\"ts\">\n\timport { sj } from \"./s.js\";\n</script>\n\n{sj}\n",
+        ),
+    ]);
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    let module = project.0.join("app/src/s.js");
+    assert_eq!(
+        format!("{}{}", text(&output.stdout), text(&output.stderr)),
+        format!(
+            "src/Page.svelte(2,21): error TS7016: Could not find a declaration file for module \
+             './s.js'. '{}' implicitly has an 'any' type.\n\
+             \nFound 1 error in 1 file.\n",
+            module.display()
+        )
+    );
+}
