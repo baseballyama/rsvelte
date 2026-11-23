@@ -20,6 +20,7 @@ mod release;
 mod svelte_kit;
 mod tool_plugins;
 mod typecheck;
+mod typecheck_checker;
 mod typecheck_events;
 mod typecheck_javascript;
 mod typecheck_slot_attribute;
