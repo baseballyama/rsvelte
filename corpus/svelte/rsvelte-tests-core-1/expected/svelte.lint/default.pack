@@ -3457,8 +3457,9 @@
 1:4 1:11 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
 1:5 1:10 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 59 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/41c8d31d26ba9ffe.svelte	lint.txt
+=== 353 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/41c8d31d26ba9ffe.svelte	lint.txt
 1:1 1:20 svelte/no-unused-class-name "Unused class \"x\"."
+1:13 1:18 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
 === 361 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/af2abd9d841725d0.svelte	lint.txt
 1:1 1:14 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
@@ -12924,7 +12925,8 @@
 1:13 1:14 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 1:25 1:30 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 0 computed_property_key_span_3345/a_template_expression_keeps_its_positions/743e8de38eab5c63.svelte	lint.txt
+=== 294 computed_property_key_span_3345/a_template_expression_keeps_its_positions/743e8de38eab5c63.svelte	lint.txt
+1:10 1:15 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
 === 439 computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/189c320cdfee9248.svelte	lint.txt
 1:13 1:14 no-unused-vars "'v' is assigned a value but never used."

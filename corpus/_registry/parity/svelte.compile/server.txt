@@ -1,3 +1,1 @@
-# svelte.compile/server: 35165 match
-svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/41c8d31d26ba9ffe.svelte	unexpected
-svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_template_expression_keeps_its_positions/743e8de38eab5c63.svelte	unexpected
+# svelte.compile/server: 35167 match

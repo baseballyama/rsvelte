@@ -9301,6 +9301,24 @@ import * as $ from 'svelte/internal/server';
 export default function _1c8d31d26ba9ffe($$renderer) {
 	$$renderer.push(`<b${$.attr_class('', void 0, { 'x': "a‮b" })}>y</b>`);
 }
+=== 432 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/41c8d31d26ba9ffe.svelte	warnings.json
+[
+	{
+		"code": "bidirectional_control_characters",
+		"message": "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters",
+		"start": {
+			"line": 1,
+			"column": 12,
+			"character": 12
+		},
+		"end": {
+			"line": 1,
+			"column": 17,
+			"character": 17
+		}
+	}
+]
+
 === 142 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/af2abd9d841725d0.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -31147,6 +31165,24 @@ export default function _43e8de38eab5c63($$renderer, $$props) {
 		$$renderer.push(`<b>${$.escape(({})["a‮b"])}</b>`);
 	});
 }
+=== 430 computed_property_key_span_3345/a_template_expression_keeps_its_positions/743e8de38eab5c63.svelte	warnings.json
+[
+	{
+		"code": "bidirectional_control_characters",
+		"message": "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters",
+		"start": {
+			"line": 1,
+			"column": 9,
+			"character": 9
+		},
+		"end": {
+			"line": 1,
+			"column": 14,
+			"character": 14
+		}
+	}
+]
+
 === 181 computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/189c320cdfee9248.svelte	js
 import * as $ from 'svelte/internal/server';
 

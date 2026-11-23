@@ -1,6 +1,4 @@
-# svelte.lint/default: 37556 match
-svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/41c8d31d26ba9ffe.svelte	mismatch
-svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_template_expression_keeps_its_positions/743e8de38eab5c63.svelte	mismatch
+# svelte.lint/default: 37558 match
 svelte/rsvelte/lint/no-dupe-on-directives/16-cr-only-lineno.svelte	unexpected
 svelte/rsvelte/pattern/issues/ts-bodiless-constructor-alone.svelte	mismatch
 svelte/svelte-material-ui/packages/data-table/src/Pagination.svelte	unexpected
