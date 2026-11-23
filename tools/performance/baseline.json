@@ -24,7 +24,7 @@
 		]
 	},
 	"allocs": 25456370,
-	"alloc_bytes": 4074248048,
+	"alloc_bytes": 4074554926,
 	"peak_live_growth_bytes": 3262587,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -35,7 +35,7 @@
 		"js.print": {
 			"calls": 69343,
 			"allocs": 237199,
-			"alloc_bytes": 147716502
+			"alloc_bytes": 148023188
 		},
 		"no-unused-vars": {
 			"calls": 34929,
@@ -170,7 +170,7 @@
 		"svelte.typescript_projection.ast": {
 			"calls": 36899,
 			"allocs": 125508,
-			"alloc_bytes": 10135411
+			"alloc_bytes": 10135603
 		},
 		"svelte.typescript_projection.emit": {
 			"calls": 36899,
