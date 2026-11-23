@@ -3,7 +3,7 @@ use std::path::{Path, PathBuf};
 use rsvelte_configuration_loading::{JsonLoader, LoadedConfiguration, Loader};
 use rsvelte_plugin_interface::CallError;
 
-#[derive(Debug, Default)]
+#[derive(Clone, Debug, Default)]
 pub(crate) struct Options {
     path: Option<PathBuf>,
     loader: Option<String>,
@@ -22,6 +22,19 @@ impl Options {
                 | "--config-runtime"
                 | "--config-runtime-arg"
         )
+    }
+
+    /// Whether `--config` names the file, so that none is discovered.
+    pub(crate) const fn names_file(&self) -> bool {
+        self.path.is_some()
+    }
+
+    /// These options with the file at `path`, found by [`discover`].
+    pub(crate) fn with_file(&self, path: PathBuf) -> Self {
+        Self {
+            path: Some(path),
+            ..self.clone()
+        }
     }
 
     pub(crate) fn argument(&mut self, name: &str, value: &str) {
@@ -103,7 +116,8 @@ impl Options {
     }
 }
 
-fn discover(directory: &Path) -> Result<Option<PathBuf>, CallError> {
+/// The configuration file in `directory` or the nearest parent that has one.
+pub(crate) fn discover(directory: &Path) -> Result<Option<PathBuf>, CallError> {
     const NAMES: &[&str] = &[
         "rsvelte.config.json",
         "rsvelte.config.js",

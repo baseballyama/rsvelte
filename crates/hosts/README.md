@@ -20,8 +20,11 @@ artifact's `Debug`.
 
 The command line is two programs. `rsvelte`, which a [release](../../tools/release/README.md)
 publishes to npm, runs `lint`, `format` and `typecheck` over Svelte and TypeScript files; its
-[README](../../apps/cli/README.md) is the user guide. `rsvelte-dev` runs every task of
-every language, and the development commands below. Run these examples from the repository root
+[README](../../apps/cli/README.md) is the user guide. `rsvelte lsp` lints, fixes and formats the
+text in an editor over the Language Server Protocol, for example for
+[the Visual Studio Code extension](../../apps/vscode/README.md). It runs on
+[`oxc_language_server`](command_line/src/release/language_server.rs), as oxlint and oxfmt do.
+`rsvelte-dev` runs every task of every language, and the development commands below. Run these examples from the repository root
 with the pinned Rust toolchain:
 
 ```sh

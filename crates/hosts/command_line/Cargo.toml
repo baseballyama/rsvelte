@@ -49,6 +49,9 @@ rayon.workspace = true
 libc.workspace = true
 ignore.workspace = true
 oxfmt.workspace = true
+oxc_language_server.workspace = true
+tower-lsp-server.workspace = true
+tokio.workspace = true
 oxc_formatter.workspace = true
 bpaf.workspace = true
 

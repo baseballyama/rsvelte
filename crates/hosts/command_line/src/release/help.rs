@@ -11,6 +11,7 @@ Commands:
   lint [<path>...]               Lint the files below the paths (default: .)
   format [<oxfmt arguments>...]  Format files as oxfmt does, Svelte files included
   typecheck                      Type check the project of a tsconfig.json
+  lsp                            Serve an editor: lint, fixes and format, as a language server
   version                        Print the versions of the tools rsvelte matches and is built on
   help [<command>]               Print this help, or the guide to one command
 
@@ -22,7 +23,7 @@ Options:
   -h, --help                     Print this help, or with a command, its guide
   -V, --version                  Print the version
 
-Options of lint and typecheck, which read rsvelte.config:
+Options of lint, typecheck and lsp, which read rsvelte.config:
   --config <file>                The configuration file (default: rsvelte.config.* found upward)
   --config-runtime <program>     The program that evaluates a JavaScript or TypeScript one
                                  (default: node)
@@ -77,10 +78,23 @@ To check another tsconfig, name it, relative to rsvelte.config, in rsvelte.confi
 Exits with 1 when it finds an error, and with 2 when it cannot run.
 ";
 
+pub(super) const LSP: &str = "\
+Usage: rsvelte lsp [options]
+
+Serves an editor over the Language Server Protocol, on standard input and output. For the text
+in the editor, it reports what rsvelte lint reports, with the configuration found from the
+file's directory; it offers each finding's fix and a fix of all of them (source.fixAll.rsvelte);
+and it formats as rsvelte format formats the file when run in the workspace folder. It does not
+lint files below the folder's node_modules, and it does not type check.
+
+Without --config, it reads the rsvelte.config of each file's directory or nearest parent
+directory, and reloads it when it changes. --stdio, which language clients add, is accepted.
+";
+
 pub(super) const HELP: &str = "\
 Usage: rsvelte help [<command>]
 
-Prints the overview of rsvelte, or the guide to one command: lint, format, typecheck or
+Prints the overview of rsvelte, or the guide to one command: lint, format, typecheck, lsp or
 version.
 ";
 

@@ -11,6 +11,7 @@ use crate::{Installation, configuration, configured_registry, usage};
 mod combined;
 mod format;
 mod help;
+mod language_server;
 mod version;
 
 /// The plugins `rsvelte` installs for `lint` and `typecheck`, in installation order.
@@ -35,6 +36,7 @@ const TYPECHECK_DEFAULTS: &[&str] = &["typescript.check", "svelte.check"];
 const COMMANDS: &[(&str, &[&str], &str)] = &[
     ("lint", LINT, help::LINT),
     ("typecheck", TYPECHECK, help::TYPECHECK),
+    ("lsp", &[], help::LSP),
     ("version", &[], help::VERSION),
 ];
 
@@ -67,6 +69,8 @@ pub fn release() -> ExitCode {
             "-h" | "--help" => help = true,
             "-V" | "--version" => version = true,
             "--check" => check = true,
+            // What language clients add to say the server talks on standard input and output.
+            "--stdio" if positional.first() == Some(&"lsp") => {}
             name if configuration::Options::accepts(name) => match it.next() {
                 Some(value) => config.argument(name, value),
                 None => _ = mistake.get_or_insert_with(|| format!("{name} needs a value")),
@@ -112,6 +116,12 @@ pub fn release() -> ExitCode {
     };
     if name == "typecheck" && !paths.is_empty() {
         return usage("typecheck takes no paths: it checks the files its tsconfig.json selects");
+    }
+    if name == "lsp" {
+        if let Some(extra) = paths.first() {
+            return usage(&format!("lsp takes no paths, not `{extra}`"));
+        }
+        return language_server::language_server(config);
     }
     if name == "version" {
         if let Some(extra) = paths.first() {

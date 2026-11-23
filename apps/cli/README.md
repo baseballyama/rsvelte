@@ -86,6 +86,13 @@ file once. Each prints what it prints alone. The run exits with the worst exit c
 commands. rsvelte reads each leading `lint`, `format` or `typecheck` as a command, so write a
 directory named `lint` as `./lint`.
 
+## Editors
+
+`rsvelte lsp` is a language server on standard input and output. For the text in the editor, it
+reports what `lint` reports, offers its fixes, and formats as `format` does. The
+[Visual Studio Code extension](../vscode/README.md) runs the project's `rsvelte lsp`. Another editor can run
+`npx rsvelte lsp` in the project directory. It does not type check.
+
 ## Svelte 5 runes mode only
 
 rsvelte supports Svelte 5 components in runes mode. It does not support Svelte 4 projects or
