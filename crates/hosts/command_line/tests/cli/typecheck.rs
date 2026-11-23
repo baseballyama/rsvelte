@@ -13,7 +13,7 @@ impl Project {
         Self(Scratch::new(files))
     }
 
-    fn rsvelte(&self, arguments: &[&str]) -> Output {
+    pub(crate) fn rsvelte(&self, arguments: &[&str]) -> Output {
         self.rsvelte_in("", arguments)
     }
 

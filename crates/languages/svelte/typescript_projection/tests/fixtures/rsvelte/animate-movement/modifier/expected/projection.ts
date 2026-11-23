@@ -16,7 +16,7 @@ function $$render() {
       }
     }
   };
-  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, {}, string>()(__rsvelte_any_event({}), {});
 }
 const Modifier__SvelteComponent_ = $$render();
 type Modifier__SvelteComponent_ = InstanceType<typeof Modifier__SvelteComponent_>;

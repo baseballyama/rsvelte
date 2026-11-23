@@ -10,7 +10,7 @@ function $$render() {
       svelteHTML.createElement("p", {});
     }
   };
-  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()(__rsvelte_value<$$Slots>());
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, {}, string>()(__rsvelte_any_event({}), __rsvelte_value<$$Slots>());
 }
 const LegacySlotsInterface__SvelteComponent_ = $$render();
 type LegacySlotsInterface__SvelteComponent_ = InstanceType<typeof LegacySlotsInterface__SvelteComponent_>;

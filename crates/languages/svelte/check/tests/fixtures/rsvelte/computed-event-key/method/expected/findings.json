@@ -1,0 +1,14 @@
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Z'.",
+		"start": {
+			"line": 3,
+			"character": 36
+		},
+		"end": {
+			"line": 3,
+			"character": 37
+		}
+	}
+]

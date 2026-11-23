@@ -1,0 +1,14 @@
+[
+	{
+		"code": -1,
+		"message": "The ComponentEvents interface can only have properties of type Identifier, StringLiteral or ComputedPropertyName. In case of ComputedPropertyName, it must be a const declared within the component and initialized with a string.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 22
+		}
+	}
+]

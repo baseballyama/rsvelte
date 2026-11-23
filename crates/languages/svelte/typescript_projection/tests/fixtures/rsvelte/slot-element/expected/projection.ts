@@ -44,7 +44,7 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_isomorphic_slots<typeof __rsvelte_public_props0, { [evt: string]: CustomEvent<any> }, {}, "">} */ (__rsvelte_export_isomorphic_slots))()({
+  return (/** @type {typeof __rsvelte_export_isomorphic_slots<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_isomorphic_slots))()(__rsvelte_any_event({}), {
     "default": {},
     "header": {
       title: "",
