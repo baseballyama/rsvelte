@@ -3,9 +3,10 @@
 1:2 1:3 no-undef "'z' is not defined."
 1:11 1:151 no-undef "'ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ' is not defined."
 
-=== 747 adjacent_expression_tags/a_hugged_run_separated_by_spaces_stays_on_one_line_when_it_fits/061bda1bdc52b400.svelte	lint.txt
+=== 959 adjacent_expression_tags/a_hugged_run_separated_by_spaces_stays_on_one_line_when_it_fits/061bda1bdc52b400.svelte	lint.txt
 1:1 2:4 svelte/button-has-type "Missing an explicit type attribute for button."
 1:1 2:4 svelte/no-unused-class-name "Unused class \"a-fairly-long-class-name-here\"."
+1:9 1:51 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:25 1:45 no-undef "'onContactButtonClick' is not defined."
 1:46 1:49 no-undef "'row' is not defined."
 1:52 1:89 svelte/max-attributes-per-line "'class' should be on a new line."
@@ -16,8 +17,9 @@
 2:11 2:12 no-undef "'a' is not defined."
 2:15 2:16 no-undef "'b' is not defined."
 
-=== 206 adjacent_expression_tags/a_hugged_run_with_no_edge_whitespace_is_unchanged/ee07350c1c91b4f3.svelte	lint.txt
+=== 418 adjacent_expression_tags/a_hugged_run_with_no_edge_whitespace_is_unchanged/ee07350c1c91b4f3.svelte	lint.txt
 1:1 1:22 svelte/button-has-type "Missing an explicit type attribute for button."
+1:9 1:21 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:19 1:20 no-undef "'f' is not defined."
 1:23 1:26 no-undef "'key' is not defined."
 1:29 1:30 no-undef "'a' is not defined."
@@ -316,7 +318,8 @@
 
 === 0 blank_lines/strips_trailing_blank_inside_element/bc7dfc8d9c13f779.svelte	lint.txt
 
-=== 524 blank_lines/two_adjacent_sections_answer_from_the_gap_after_the_last_one/ebd2687139fef56d.svelte	lint.txt
+=== 702 blank_lines/two_adjacent_sections_answer_from_the_gap_after_the_last_one/ebd2687139fef56d.svelte	lint.txt
+2:9 2:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 no-unused-vars "'m' is assigned a value but never used."
 3:6 3:7 svelte/prefer-const "'m' is never reassigned. Use 'const' instead."
@@ -336,14 +339,16 @@
 1:29 1:33 no-undef "'Star' is not defined."
 1:68 1:75 no-undef "'product' is not defined."
 
-=== 206 block_body_hug/a_block_display_body_takes_the_block_form_not_the_hug/673a75c091da2203.svelte	lint.txt
+=== 398 block_body_hug/a_block_display_body_takes_the_block_form_not_the_hug/673a75c091da2203.svelte	lint.txt
 1:6 1:7 no-undef "'a' is not defined."
 1:8 1:54 svelte/no-unused-class-name "Unused class \"cccccccccccccccccccccccccccccccc\"."
+1:54 1:71 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:69 1:71 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 202 block_body_hug/a_block_display_body_that_fits_is_left_alone/06aadd335c695665.svelte	lint.txt
+=== 394 block_body_hug/a_block_display_body_that_fits_is_left_alone/06aadd335c695665.svelte	lint.txt
 1:6 1:7 no-undef "'a' is not defined."
 1:8 1:50 svelte/no-unused-class-name "Unused class \"cccccccccccccccccccccccccccc\"."
+1:50 1:67 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:65 1:67 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 124 block_body_hug/a_body_that_fits_is_left_alone/de9b4ded096fc734.svelte	lint.txt
@@ -358,9 +363,10 @@
 1:15 1:19 no-undef "'Star' is not defined."
 1:54 1:61 no-undef "'product' is not defined."
 
-=== 206 block_body_hug/an_inline_body_at_the_same_width_still_hugs/53a6e1096b4cc2e8.svelte	lint.txt
+=== 398 block_body_hug/an_inline_body_at_the_same_width_still_hugs/53a6e1096b4cc2e8.svelte	lint.txt
 1:6 1:7 no-undef "'a' is not defined."
 1:8 1:55 svelte/no-unused-class-name "Unused class \"cccccccccccccccccccccccccccccccc\"."
+1:55 1:72 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:70 1:72 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 197 block_body_hug/the_same_body_with_an_attribute_hugs/457591fe92bc671b.svelte	lint.txt
@@ -920,9 +926,10 @@
 === 42 class_attribute_whitespace/a_component_class_is_not_normalized/3f55a1e3791f567c.svelte	lint.txt
 1:2 1:6 no-undef "'Comp' is not defined."
 
-=== 118 class_attribute_whitespace/a_slot_class_is_not_normalized/45cbc758e1ea1d3d.svelte	lint.txt
+=== 309 class_attribute_whitespace/a_slot_class_is_not_normalized/45cbc758e1ea1d3d.svelte	lint.txt
 1:1 1:22 svelte/no-unused-class-name "Unused class \"a\"."
 1:1 1:22 svelte/no-unused-class-name "Unused class \"b\"."
+1:1 1:29 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 
 === 390 class_attribute_whitespace/a_svelte_element_class_is_not_normalized/21fab1554e6230f5.svelte	lint.txt
 1:17 1:27 svelte/valid-compile "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this(svelte_element_invalid_this)"
@@ -962,7 +969,8 @@
 
 === 0 collapse/tests/collapse_candidate_gate_predicate/02170c9e1b7b8945.svelte	lint.txt
 
-=== 0 collapse/tests/collapse_candidate_gate_predicate/5afb6f9df5ab118e.svelte	lint.txt
+=== 191 collapse/tests/collapse_candidate_gate_predicate/5afb6f9df5ab118e.svelte	lint.txt
+1:1 1:29 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 
 === 0 collapse/tests/collapse_candidate_gate_predicate/73347e9552ea7042.svelte	lint.txt
 
@@ -978,7 +986,8 @@
 
 === 0 collapse/tests/collapse_candidate_gate_predicate/fc6bbc1c5470f7e8.svelte	lint.txt
 
-=== 244 collapse/tests/collapse_runs_for_candidate_under_svelte_head_and_slot/10d301008d1c5bc6.svelte	lint.txt
+=== 434 collapse/tests/collapse_runs_for_candidate_under_svelte_head_and_slot/10d301008d1c5bc6.svelte	lint.txt
+1:1 5:8 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1119,7 +1128,7 @@
 10:19 10:61 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
 10:49 10:57 no-undef "'selected' is not defined."
 
-=== 755 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/9b1a1e9399ace50d.svelte	lint.txt
+=== 970 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/9b1a1e9399ace50d.svelte	lint.txt
 1:1 1:16 svelte/no-unused-class-name "Unused class \"a\"."
 2:3 2:18 svelte/no-unused-class-name "Unused class \"b\"."
 3:5 3:20 svelte/no-unused-class-name "Unused class \"c\"."
@@ -1131,6 +1140,7 @@
 8:22 8:26 no-undef "'list' is not defined."
 9:17 11:18 svelte/button-has-type "Missing an explicit type attribute for button."
 10:19 10:90 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+10:19 10:90 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 10:40 10:54 no-undef "'selectCategory' is not defined."
 
 === 238 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/ded6d87fc816239b.svelte	lint.txt
@@ -1179,7 +1189,7 @@
 11:58 11:58 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 11:68 12:17 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 
-=== 909 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/776305726a26b9f2.svelte	lint.txt
+=== 1124 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/776305726a26b9f2.svelte	lint.txt
 1:1 1:16 svelte/no-unused-class-name "Unused class \"a\"."
 2:3 2:18 svelte/no-unused-class-name "Unused class \"b\"."
 3:5 3:20 svelte/no-unused-class-name "Unused class \"c\"."
@@ -1190,6 +1200,7 @@
 8:15 8:39 svelte/require-each-key "Each block should have a key"
 8:22 8:26 no-undef "'list' is not defined."
 9:17 11:72 svelte/button-has-type "Missing an explicit type attribute for button."
+10:19 11:71 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 11:21 11:35 no-undef "'selectCategory' is not defined."
 11:71 11:71 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 11:81 12:17 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
@@ -1219,7 +1230,8 @@
 
 === 0 edge_whitespace/a_pre_keeps_everything/12e9ad248e396c68.svelte	lint.txt
 
-=== 0 edge_whitespace/a_slot_drops_it_too/43890bd228fa6da4.svelte	lint.txt
+=== 191 edge_whitespace/a_slot_drops_it_too/43890bd228fa6da4.svelte	lint.txt
+1:1 1:37 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 
 === 39 edge_whitespace/an_edge_run_holding_a_newline_is_left_alone/f4c6bb9e8f9404e7.svelte	lint.txt
 1:2 1:3 no-undef "'A' is not defined."
@@ -2447,9 +2459,8 @@
 5:21 5:28 no-undef "'sources' is not defined."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 166 indent/adjacent_comments_stay_glued_in_a_broken_fragment/36acd3b0cdf0bb3d.svelte	lint.txt
+=== 77 indent/adjacent_comments_stay_glued_in_a_broken_fragment/36acd3b0cdf0bb3d.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:53 2:75 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 
 === 127 indent/block_body_inline_child_fit_uses_display_width/70d8f56897941cba.svelte	lint.txt
 2:8 2:9 no-undef "'v' is not defined."
@@ -9889,9 +9900,11 @@
 === 41 markup_expressions/each_key_sequence_and_redundant_parens_are_idempotent/9eff84072baaad15.svelte	lint.txt
 1:8 1:10 no-undef "'xs' is not defined."
 
-=== 762 markup_expressions/end_to_end_mix/2466c2847d293607.svelte	lint.txt
+=== 1184 markup_expressions/end_to_end_mix/2466c2847d293607.svelte	lint.txt
+1:13 1:18 svelte/valid-compile "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:1 2:57 svelte/button-has-type "Missing an explicit type attribute for button."
 2:1 2:57 svelte/no-unused-class-name "Unused class \"active\"."
+2:9 2:32 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 2:33 2:56 svelte/max-attributes-per-line "'class:active' should be on a new line."
 2:33 2:56 svelte/sort-attributes "Attribute 'class:active' should go before 'on:click'."
 3:1 3:3 svelte/mustache-spacing "Expected no space after '{', but found."
@@ -9925,12 +9938,14 @@
 === 39 markup_expressions/non_sequence_redundant_parens_still_strip/6a1df553f4b16aa1.svelte	lint.txt
 1:6 1:7 no-undef "'a' is not defined."
 
-=== 126 markup_expressions/on_directive_with_handler/a075d628bfdc5594.svelte	lint.txt
+=== 338 markup_expressions/on_directive_with_handler/a075d628bfdc5594.svelte	lint.txt
 1:1 1:33 svelte/button-has-type "Missing an explicit type attribute for button."
+1:9 1:32 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:24 1:29 no-undef "'count' is not defined."
 
-=== 81 markup_expressions/on_directive_without_handler/28ba1ebaf2b28fc6.svelte	lint.txt
+=== 293 markup_expressions/on_directive_without_handler/28ba1ebaf2b28fc6.svelte	lint.txt
 1:1 1:18 svelte/button-has-type "Missing an explicit type attribute for button."
+1:9 1:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
 === 125 markup_expressions/render_tag/48694876fe1e1bb6.svelte	lint.txt
 1:10 1:13 no-undef "'foo' is not defined."
@@ -9961,7 +9976,8 @@
 1:20 1:26 no-undef "'active' is not defined."
 1:39 1:41 svelte/mustache-spacing "Expected no space before '}', but found."
 
-=== 245 markup_expressions/svelte_component_this/cdd6222006c667cc.svelte	lint.txt
+=== 443 markup_expressions/svelte_component_this/cdd6222006c667cc.svelte	lint.txt
+1:1 1:46 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 1:24 1:26 svelte/mustache-spacing "Expected no space after '{', but found."
 1:26 1:30 no-undef "'Comp' is not defined."
 1:33 1:41 no-undef "'Fallback' is not defined."
@@ -10098,9 +10114,11 @@
 1:33 1:36 no-undef "'foo' is not defined."
 1:38 1:40 svelte/mustache-spacing "Expected no space before '}', but found."
 
-=== 479 markup_open_tag/end_to_end_realistic_component/6f7c1b5a772a01f4.svelte	lint.txt
+=== 902 markup_open_tag/end_to_end_realistic_component/6f7c1b5a772a01f4.svelte	lint.txt
+1:13 1:18 svelte/valid-compile "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:1 2:82 svelte/button-has-type "Missing an explicit type attribute for button."
 2:1 2:82 svelte/no-unused-class-name "Unused class \"active\"."
+2:10 2:33 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 2:35 2:58 svelte/max-attributes-per-line "'class:active' should be on a new line."
 2:35 2:58 svelte/sort-attributes "Attribute 'class:active' should go before 'on:click'."
 2:60 2:81 svelte/sort-attributes "Attribute 'disabled' should go before 'on:click'."
@@ -10156,9 +10174,10 @@
 === 87 markup_open_tag/no_attributes_open_tag_stays_minimal/af8e5c5dd8c7324e.svelte	lint.txt
 1:5 1:8 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
 
-=== 345 markup_open_tag/on_directive_preserves_modifiers/0fd2a40470ff12ef.svelte	lint.txt
+=== 557 markup_open_tag/on_directive_preserves_modifiers/0fd2a40470ff12ef.svelte	lint.txt
 1:1 1:54 svelte/button-has-type "Missing an explicit type attribute for button."
 1:1 1:63 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
+1:9 1:53 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:50 1:52 no-undef "'fn' is not defined."
 
 === 362 markup_open_tag/self_closing_with_attributes/f7651a19ae4d42c1.svelte	lint.txt
@@ -10190,7 +10209,8 @@
 1:11 1:15 no-undef "'rest' is not defined."
 1:18 1:27 svelte/max-attributes-per-line "'class' should be on a new line."
 
-=== 472 markup_open_tag/svelte_component_this_renders_in_open_tag/156f38a6ee48c4d7.svelte	lint.txt
+=== 670 markup_open_tag/svelte_component_this_renders_in_open_tag/156f38a6ee48c4d7.svelte	lint.txt
+1:1 1:54 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 1:25 1:27 svelte/mustache-spacing "Expected no space after '{', but found."
 1:27 1:33 no-undef "'MyComp' is not defined."
 1:33 1:35 svelte/mustache-spacing "Expected no space before '}', but found."
@@ -10460,10 +10480,11 @@
 1:42 1:74 no-undef "'formatDateInOrganizationTimezone' is not defined."
 1:75 1:79 no-undef "'user' is not defined."
 
-=== 303 markup_wrap/directive_with_modifiers_wraps_as_one_attr/03e3b95c07d30921.svelte	lint.txt
+=== 516 markup_wrap/directive_with_modifiers_wraps_as_one_attr/03e3b95c07d30921.svelte	lint.txt
 1:1 1:75 svelte/button-has-type "Missing an explicit type attribute for button."
 1:1 1:75 svelte/no-unused-class-name "Unused class \"primary\"."
 1:25 1:74 svelte/max-attributes-per-line "'on:click|preventDefault' should be on a new line."
+1:25 1:74 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:50 1:73 no-undef "'handleClickWithLongName' is not defined."
 
 === 192 markup_wrap/else_if_branch_dangles_the_first_title_close/cb5d7513e02673bd.svelte	lint.txt
@@ -10538,8 +10559,9 @@
 2:19 2:27 svelte/max-attributes-per-line "'id' should be on a new line."
 2:19 2:27 svelte/sort-attributes "Attribute 'id' should go before 'class'."
 
-=== 301 markup_wrap/on_directive_arrow_handler_breaks_by_prefix/35df7310d26381af.svelte	lint.txt
+=== 513 markup_wrap/on_directive_arrow_handler_breaks_by_prefix/35df7310d26381af.svelte	lint.txt
 1:1 1:93 svelte/button-has-type "Missing an explicit type attribute for button."
+1:9 1:92 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:25 1:45 no-undef "'doSomethingQuiteLong' is not defined."
 1:46 1:60 no-undef "'withAnArgument' is not defined."
 1:62 1:72 no-undef "'andAnother' is not defined."
@@ -10596,7 +10618,8 @@
 1:32 1:57 svelte/sort-attributes "Attribute 'placeholder' should go before 'type'."
 1:57 1:59 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
 
-=== 619 markup_wrap/wraps_svelte_component_with_this_first/b70419859a680223.svelte	lint.txt
+=== 817 markup_wrap/wraps_svelte_component_with_this_first/b70419859a680223.svelte	lint.txt
+1:1 1:77 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 1:24 1:26 svelte/mustache-spacing "Expected no space after '{', but found."
 1:26 1:30 no-undef "'Comp' is not defined."
 1:30 1:32 svelte/mustache-spacing "Expected no space before '}', but found."
@@ -11445,7 +11468,8 @@
 1:13 1:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 1:28 1:29 no-unused-vars "'f' is defined but never used."
 
-=== 78 smoke/formats_module_and_instance_independently/63a2237e9dfaf3ac.svelte	lint.txt
+=== 256 smoke/formats_module_and_instance_independently/63a2237e9dfaf3ac.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:13 2:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
 === 0 smoke/passes_through_empty_script/a1470ed896869a97.svelte	lint.txt
@@ -11832,9 +11856,10 @@
 1:47 1:52 no-undef "'value' is not defined."
 1:47 1:52 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
 
-=== 218 typescript/directive_values_preserve_ts_casts/f03bcfe48d1bf318.svelte	lint.txt
+=== 431 typescript/directive_values_preserve_ts_casts/f03bcfe48d1bf318.svelte	lint.txt
 1:1 1:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:28 1:62 svelte/button-has-type "Missing an explicit type attribute for button."
+1:36 1:61 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:46 1:53 no-undef "'handler' is not defined."
 
 === 172 typescript/mustache_generic_call_is_not_a_comparison/2b8cd287fa69d697.svelte	lint.txt
@@ -12113,10 +12138,12 @@
 2:25 2:73 svelte/sort-attributes "Attribute 'color' should go before 'variant'."
 2:73 2:81 svelte/html-self-closing "Require self-closing on Svelte custom components."
 
-=== 80 whitespace_body_close_break/a_slot_with_a_whitespace_body_is_the_empty_hug/0eff461a4385b773.svelte	lint.txt
+=== 271 whitespace_body_close_break/a_slot_with_a_whitespace_body_is_the_empty_hug/0eff461a4385b773.svelte	lint.txt
+2:3 5:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 4:5 4:65 svelte/sort-attributes "Attribute 'color' should go before 'variant'."
 
-=== 157 whitespace_body_close_break/a_slot_with_a_whitespace_body_is_the_empty_hug/e0833974934ea794.svelte	lint.txt
+=== 348 whitespace_body_close_break/a_slot_with_a_whitespace_body_is_the_empty_hug/e0833974934ea794.svelte	lint.txt
+2:3 2:94 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:25 2:85 svelte/max-attributes-per-line "'color' should be on a new line."
 2:25 2:85 svelte/sort-attributes "Attribute 'color' should go before 'variant'."
 

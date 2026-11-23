@@ -142,12 +142,12 @@
       bind:value={paramsObj.filter}
       placeholder="Filter..."
     />
-    <button data-testid="setCreatedAt" onclick={setCreatedAt}
-      >Set createdAt</button
-    >
-    <button data-testid="setUpdatedAt" onclick={setUpdatedAt}
-      >Set updatedAt</button
-    >
+    <button data-testid="setCreatedAt" onclick={setCreatedAt}>
+      Set createdAt
+    </button>
+    <button data-testid="setUpdatedAt" onclick={setUpdatedAt}>
+      Set updatedAt
+    </button>
     <button data-testid="reset" onclick={resetParams}>Reset</button>
   </div>
 
@@ -210,7 +210,7 @@
   </p>
 </DemoContainer>
 
-=== 2133 sites/docs/src/lib/components/demos/animation-frames.svelte	svelte
+=== 2145 sites/docs/src/lib/components/demos/animation-frames.svelte	svelte
 <script lang="ts">
   import { AnimationFrames } from "runed";
   import { DemoContainer, Slider, Button } from "@svecodocs/kit";
@@ -280,8 +280,10 @@
     Mouse sprite extracted from <a
       class="hover:text-foreground"
       target="_blank"
-      href="https://www.animalwell.net/">Animal Well</a
+      href="https://www.animalwell.net/"
     >
+      Animal Well
+    </a>
   </p>
 </DemoNote>
 
@@ -500,7 +502,7 @@
   </p>
 </DemoContainer>
 
-=== 875 sites/docs/src/lib/components/demos/is-idle.svelte	svelte
+=== 887 sites/docs/src/lib/components/demos/is-idle.svelte	svelte
 <script lang="ts">
   import { AnimationFrames, IsIdle } from "runed";
   import { DemoContainer } from "@svecodocs/kit";
@@ -520,8 +522,10 @@
     Idle: <span
       class="font-medium {idle.current
         ? 'text-green-600 dark:text-green-500'
-        : 'text-destructive'}">{idle.current}</span
+        : 'text-destructive'}"
     >
+      {idle.current}
+    </span>
   </p>
   <p>
     Last active: <span class="font-medium">{secondsElapsed}s ago</span>
@@ -619,14 +623,14 @@
         perferendis.
       </p>
 
-      <Button size="sm" variant="outline" onclick={closeDialog}
-        >Close Dialog</Button
-      >
+      <Button size="sm" variant="outline" onclick={closeDialog}>
+        Close Dialog
+      </Button>
     </div>
   </dialog>
 </DemoContainer>
 
-=== 1392 sites/docs/src/lib/components/demos/on-click-outside.svelte	svelte
+=== 1431 sites/docs/src/lib/components/demos/on-click-outside.svelte	svelte
 <script lang="ts">
   import { Button, DemoContainer } from "@svecodocs/kit";
   import { onClickOutside } from "runed";
@@ -654,20 +658,25 @@
     <p class="mb-3 font-mono">
       Status: <span
         class={clickOutside.enabled ? "text-green-500" : "text-destructive"}
-        >{clickOutside.enabled ? "Enabled" : "Disabled"}</span
       >
+        {clickOutside.enabled ? "Enabled" : "Disabled"}
+      </span>
     </p>
     <div class="flex items-center gap-3">
       <Button
         disabled={clickOutside.enabled}
         size="sm"
-        onclick={clickOutside.start}>Start</Button
+        onclick={clickOutside.start}
       >
+        Start
+      </Button>
       <Button
         disabled={!clickOutside.enabled}
         size="sm"
-        onclick={clickOutside.stop}>Stop</Button
+        onclick={clickOutside.stop}
       >
+        Stop
+      </Button>
       <Button
         size="sm"
         onclick={() => (containerText = "Has not clicked outside yet.")}
@@ -688,15 +697,15 @@
 
 <DemoContainer class="flex flex-col gap-4">
   <div class="flex items-center gap-3">
-    <Button variant="brand" size="sm" onclick={() => count.current++}
-      >Increment</Button
-    >
-    <Button variant="brand" size="sm" onclick={() => count.current--}
-      >Decrement</Button
-    >
-    <Button variant="ghost" size="sm" onclick={() => (count.current = 0)}
-      >Reset</Button
-    >
+    <Button variant="brand" size="sm" onclick={() => count.current++}>
+      Increment
+    </Button>
+    <Button variant="brand" size="sm" onclick={() => count.current--}>
+      Decrement
+    </Button>
+    <Button variant="ghost" size="sm" onclick={() => (count.current = 0)}>
+      Reset
+    </Button>
   </div>
   <pre class="bg-transparent p-0 font-mono">Count: {`${count.current}`}</pre>
 </DemoContainer>
@@ -1007,7 +1016,7 @@
   }
 </style>
 
-=== 1498 sites/docs/src/lib/components/demos/state-history.svelte	svelte
+=== 1511 sites/docs/src/lib/components/demos/state-history.svelte	svelte
 <script lang="ts">
   import { StateHistory } from "runed";
   import { Button, DemoContainer } from "@svecodocs/kit";
@@ -1055,8 +1064,9 @@
     <div class="bg-background-secondary mt-2 rounded-md border px-3 py-2">
       {#each history.log.toReversed() as event, i (`${event}-${i}`)}
         <div class="flex items-center gap-4 font-mono">
-          <span class="text-muted-foreground/75">{format(event.timestamp)}</span
-          >
+          <span class="text-muted-foreground/75">
+            {format(event.timestamp)}
+          </span>
           <span>{`{ value: ${event.snapshot} }`}</span>
         </div>
       {/each}
@@ -1126,7 +1136,7 @@
   </p>
 </DemoContainer>
 
-=== 1339 sites/docs/src/lib/components/demos/use-debounce.svelte	svelte
+=== 1351 sites/docs/src/lib/components/demos/use-debounce.svelte	svelte
 <script lang="ts">
   import { useDebounce } from "runed";
   import { Input, Label, Button, DemoContainer } from "@svecodocs/kit";
@@ -1166,8 +1176,10 @@
       variant="ghost"
       size="sm"
       onclick={logCount.runScheduledNow}
-      disabled={!logCount.pending}>Run now</Button
+      disabled={!logCount.pending}
     >
+      Run now
+    </Button>
     <Button
       variant="ghost"
       size="sm"
@@ -1211,12 +1223,12 @@
   <pre>Error: {JSON.stringify(location.error, null, 2)}</pre>
   <pre>Is Supported: {location.isSupported}</pre>
   <div class="mt-4 flex items-center gap-2">
-    <Button size="sm" onclick={location.pause} disabled={location.isPaused}
-      >Pause</Button
-    >
-    <Button size="sm" onclick={location.resume} disabled={!location.isPaused}
-      >Resume</Button
-    >
+    <Button size="sm" onclick={location.pause} disabled={location.isPaused}>
+      Pause
+    </Button>
+    <Button size="sm" onclick={location.resume} disabled={!location.isPaused}>
+      Resume
+    </Button>
   </div>
 </DemoContainer>
 
@@ -1285,7 +1297,7 @@
   </div>
 </DemoContainer>
 
-=== 1115 sites/docs/src/lib/components/demos/use-interval.svelte	svelte
+=== 1139 sites/docs/src/lib/components/demos/use-interval.svelte	svelte
 <script lang="ts">
   import { useInterval } from "runed";
   import { Input, Label, Button, DemoContainer } from "@svecodocs/kit";
@@ -1312,17 +1324,21 @@
       variant="brand"
       size="sm"
       onclick={interval.pause}
-      disabled={!interval.isActive}>Pause</Button
+      disabled={!interval.isActive}
     >
+      Pause
+    </Button>
     <Button
       variant="brand"
       size="sm"
       onclick={interval.resume}
-      disabled={interval.isActive}>Resume</Button
+      disabled={interval.isActive}
     >
-    <Button variant="ghost" size="sm" onclick={interval.reset}
-      >Reset Counter</Button
-    >
+      Resume
+    </Button>
+    <Button variant="ghost" size="sm" onclick={interval.reset}>
+      Reset Counter
+    </Button>
   </div>
 
   <div class="flex flex-col gap-2">
@@ -1440,9 +1456,9 @@
         bind:value={params.fields[key]}
         placeholder="Value"
       />
-      <Button class="shrink-0" variant="brand" onclick={() => removeField(key)}
-        >Remove</Button
-      >
+      <Button class="shrink-0" variant="brand" onclick={() => removeField(key)}>
+        Remove
+      </Button>
     </div>
   {/each}
   <form

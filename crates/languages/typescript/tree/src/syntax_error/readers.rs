@@ -22,7 +22,7 @@ pub enum Reader {
 }
 
 /// tsc's codes of errors oxc or the analysis reports, and whether `babel-ts` throws on each, as
-/// Prettier 3.9.10 does. Where that depends on a pair of modifiers, the pair is in source order.
+/// Prettier 3.10.1 does. Where that depends on a pair of modifiers, the pair is in source order.
 const BABEL_TYPESCRIPT: [(u32, Option<[Kind; 2]>, bool); 65] = [
     (1015, None, false),
     (1016, None, false),
@@ -43,9 +43,9 @@ const BABEL_TYPESCRIPT: [(u32, Option<[Kind; 2]>, bool); 65] = [
     (1100, None, false),
     (1101, None, false),
     (1102, None, false),
-    (1104, None, true),
-    (1105, None, true),
-    (1107, None, true),
+    (1104, None, false),
+    (1105, None, false),
+    (1107, None, false),
     (1108, None, false),
     (1111, None, false),
     (1114, None, true),
@@ -71,8 +71,8 @@ const BABEL_TYPESCRIPT: [(u32, Option<[Kind; 2]>, bool); 65] = [
     (1244, None, false),
     (1253, None, false),
     (1257, None, true),
-    (1263, None, false),
-    (1264, None, false),
+    (1263, None, true),
+    (1264, None, true),
     (1267, None, true),
     (1275, None, true),
     (1276, None, true),

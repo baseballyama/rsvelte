@@ -228,8 +228,8 @@
 
 <img src="./dev.png" alt="non-enhanced test" />
 
-<picture
-  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+<picture>
+  <source srcset="/1 1440w, /2 960w" type="image/avif" /><source
     srcset="/3 1440w, /4 960w"
     type="image/webp"
   /><source srcset="5 1440w, /6 960w" type="image/png" /><img
@@ -237,12 +237,12 @@
     alt="dev test"
     width="1440"
     height="1440"
-  /></picture
->
+  />
+</picture>
 
 <div>
-  <picture
-    ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+  <picture>
+    <source srcset="/1 1440w, /2 960w" type="image/avif" /><source
       srcset="/3 1440w, /4 960w"
       type="image/webp"
     /><source srcset="5 1440w, /6 960w" type="image/png" /><img
@@ -250,12 +250,12 @@
       alt="nested test"
       width="1440"
       height="1440"
-    /></picture
-  >
+    />
+  </picture>
 </div>
 
-<picture
-  ><source
+<picture>
+  <source
     srcset={"__VITE_ASSET__2AM7_y_a__ 1440w, __VITE_ASSET__2AM7_y_b__ 960w"}
     type="image/avif"
   /><source
@@ -269,11 +269,11 @@
     alt="production test"
     width="1440"
     height="1440"
-  /></picture
->
+  />
+</picture>
 
-<picture
-  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+<picture>
+  <source srcset="/1 1440w, /2 960w" type="image/avif" /><source
     srcset="/3 1440w, /4 960w"
     type="image/webp"
   /><source srcset="5 1440w, /6 960w" type="image/png" /><img
@@ -281,11 +281,11 @@
     width="5"
     height="10"
     alt="dimensions test"
-  /></picture
->
+  />
+</picture>
 
-<picture
-  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+<picture>
+  <source srcset="/1 1440w, /2 960w" type="image/avif" /><source
     srcset="/3 1440w, /4 960w"
     type="image/webp"
   /><source srcset="5 1440w, /6 960w" type="image/png" /><img
@@ -293,11 +293,11 @@
     alt="directive test"
     width="1440"
     height="1440"
-  /></picture
->
+  />
+</picture>
 
-<picture
-  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+<picture>
+  <source srcset="/1 1440w, /2 960w" type="image/avif" /><source
     srcset="/3 1440w, /4 960w"
     type="image/webp"
   /><source srcset="5 1440w, /6 960w" type="image/png" /><img
@@ -306,11 +306,11 @@
     alt="spread attributes test"
     width="1440"
     height="1440"
-  /></picture
->
+  />
+</picture>
 
-<picture
-  ><source
+<picture>
+  <source
     srcset="/1 1440w, /2 960w"
     sizes="(min-width: 60rem) 80vw, (min-width: 40rem) 90vw, 100vw"
     type="image/avif"
@@ -322,11 +322,11 @@
     srcset="5 1440w, /6 960w"
     sizes="(min-width: 60rem) 80vw, (min-width: 40rem) 90vw, 100vw"
     type="image/png"
-  /><img src="/7" alt="sizes test" width="1440" height="1440" /></picture
->
+  /><img src="/7" alt="sizes test" width="1440" height="1440" />
+</picture>
 
-<picture
-  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+<picture>
+  <source srcset="/1 1440w, /2 960w" type="image/avif" /><source
     srcset="/3 1440w, /4 960w"
     type="image/webp"
   /><source srcset="5 1440w, /6 960w" type="image/png" /><img
@@ -335,11 +335,11 @@
     alt="event handler test"
     width="1440"
     height="1440"
-  /></picture
->
+  />
+</picture>
 
-<picture
-  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+<picture>
+  <source srcset="/1 1440w, /2 960w" type="image/avif" /><source
     srcset="/3 1440w, /4 960w"
     type="image/webp"
   /><source srcset="5 1440w, /6 960w" type="image/png" /><img
@@ -347,11 +347,11 @@
     alt="alias test"
     width="1440"
     height="1440"
-  /></picture
->
+  />
+</picture>
 
-<picture
-  ><source srcset="/1 1440w, /2 960w" type="image/avif" /><source
+<picture>
+  <source srcset="/1 1440w, /2 960w" type="image/avif" /><source
     srcset="/3 1440w, /4 960w"
     type="image/webp"
   /><source srcset="5 1440w, /6 960w" type="image/png" /><img
@@ -359,8 +359,8 @@
     alt="absolute path test"
     width="1440"
     height="1440"
-  /></picture
->
+  />
+</picture>
 
 {#if typeof src === "string"}
   {#if import.meta.env.DEV && false}
@@ -699,9 +699,9 @@ export function load() &lcub;&rcub;
   import { resolve } from "$app/paths";
 </script>
 
-<a href={resolve("/remote/dev/preload")} data-sveltekit-preload-data="hover"
-  >preload</a
->
+<a href={resolve("/remote/dev/preload")} data-sveltekit-preload-data="hover">
+  preload
+</a>
 
 === 176 packages/kit/test/apps/async/src/routes/remote/error-hydration/+page.svelte	svelte
 <script>
@@ -742,8 +742,8 @@ export function load() &lcub;&rcub;
 
   <input {...form.fields.range_field.as("range", value.range_field)} />
 
-  <label
-    >Checkbox
+  <label>
+    Checkbox
     <input
       {...form.fields.checkbox_field.as("checkbox", value.checkbox_field)}
     />
@@ -1014,12 +1014,12 @@ export function load() &lcub;&rcub;
 </script>
 
 <form {...reset_form}>
-  <button id="return" {...reset_form.fields.action.as("submit", "return")}
-    >Return</button
-  >
-  <button id="redirect" {...reset_form.fields.action.as("submit", "redirect")}
-    >Redirect</button
-  >
+  <button id="return" {...reset_form.fields.action.as("submit", "return")}>
+    Return
+  </button>
+  <button id="redirect" {...reset_form.fields.action.as("submit", "redirect")}>
+    Redirect
+  </button>
 </form>
 
 <div id="result">{reset_form.result}</div>
@@ -1207,9 +1207,9 @@ export function load() &lcub;&rcub;
     {...set_message.fields.test_name.as("hidden", "throwing-error-page")}
   />
 
-  <button {...set_message.fields.action.as("submit", "normal")}
-    >set message</button
-  >
+  <button {...set_message.fields.action.as("submit", "normal")}>
+    set message
+  </button>
 </form>
 
 === 651 packages/kit/test/apps/async/src/routes/remote/form/touched/+page.svelte	svelte
@@ -1503,18 +1503,18 @@ export function load() &lcub;&rcub;
   }
 </script>
 
-<button id="trigger-error" onclick={() => trigger("error")}
-  >trigger error</button
->
-<button id="trigger-redirect" onclick={() => trigger("redirect")}
-  >trigger redirect</button
->
-<button id="trigger-yield" onclick={() => trigger("yield")}
-  >trigger yield</button
->
-<button id="refresh-connections" onclick={refresh_connections}
-  >refresh connections</button
->
+<button id="trigger-error" onclick={() => trigger("error")}>
+  trigger error
+</button>
+<button id="trigger-redirect" onclick={() => trigger("redirect")}>
+  trigger redirect
+</button>
+<button id="trigger-yield" onclick={() => trigger("yield")}>
+  trigger yield
+</button>
+<button id="refresh-connections" onclick={refresh_connections}>
+  refresh connections
+</button>
 
 <p id="value">{live.current}</p>
 <p id="error">
@@ -1614,9 +1614,9 @@ export function load() &lcub;&rcub;
 <button id="reset" onclick={() => reset()}>reset</button>
 <button id="notify-only" onclick={() => notify_only()}>notify only</button>
 <button id="drop" onclick={() => drop()}>drop connection</button>
-<button id="reconnect-live" onclick={() => reconnect_live()}
-  >reconnect live query</button
->
+<button id="reconnect-live" onclick={() => reconnect_live()}>
+  reconnect live query
+</button>
 <button
   id="reconnect-live-requested"
   onclick={() => reconnect_requested_live().updates(get_count)}
@@ -1628,13 +1628,13 @@ export function load() &lcub;&rcub;
     await submit();
   })}
 >
-  <button id="reconnect-live-form" type="submit"
-    >reconnect live query (form)</button
-  >
+  <button id="reconnect-live-form" type="submit">
+    reconnect live query (form)
+  </button>
 </form>
-<button id="toggle-live" onclick={() => (show_live = !show_live)}
-  >toggle live query</button
->
+<button id="toggle-live" onclick={() => (show_live = !show_live)}>
+  toggle live query
+</button>
 <button id="stats" onclick={refresh_stats}>refresh stats</button>
 
 {#if show_live}
@@ -1648,9 +1648,9 @@ export function load() &lcub;&rcub;
 <p id="for-await-count">{for_await_count}</p>
 <p id="for-await-values">{for_await_values}</p>
 
-<button id="start-stream-log" onclick={start_stream_log}
-  >start stream log</button
->
+<button id="start-stream-log" onclick={start_stream_log}>
+  start stream log
+</button>
 <p id="stream-log">{stream_log}</p>
 <button id="run-refresh-all" onclick={run_refresh_all}>refresh all</button>
 <p id="refresh-state">{refresh_state}</p>
@@ -1709,20 +1709,22 @@ export function load() &lcub;&rcub;
   let result = $state("none");
 </script>
 
-<button id="reveal" onclick={async () => (result = await reveal())}
-  >reveal</button
->
+<button id="reveal" onclick={async () => (result = await reveal())}>
+  reveal
+</button>
 <p id="result">{result}</p>
 
-=== 277 packages/kit/test/apps/async/src/routes/remote/query-redirect/+page.svelte	svelte
+=== 281 packages/kit/test/apps/async/src/routes/remote/query-redirect/+page.svelte	svelte
 <!-- TODO can remove this when preloading doesn't eagerly redirect -->
-<a data-sveltekit-preload-data={false} href="/remote/query-redirect/from-page"
-  >from page</a
->
+<a data-sveltekit-preload-data={false} href="/remote/query-redirect/from-page">
+  from page
+</a>
 <a
   data-sveltekit-preload-data={false}
-  href="/remote/query-redirect/from-common-layout">from layout</a
+  href="/remote/query-redirect/from-common-layout"
 >
+  from layout
+</a>
 
 === 29 packages/kit/test/apps/async/src/routes/remote/query-redirect/from-common-layout/+page.svelte	svelte
 <p>should never see this</p>
@@ -1881,7 +1883,7 @@ export function load() &lcub;&rcub;
 
 <p>{data.result}</p>
 
-=== 518 packages/kit/test/apps/async/src/routes/remote/transport-status/+page.svelte	svelte
+=== 526 packages/kit/test/apps/async/src/routes/remote/transport-status/+page.svelte	svelte
 <script>
   import { get_data } from "./data.remote.js";
 
@@ -1893,15 +1895,19 @@ export function load() &lcub;&rcub;
   onclick={() => {
     document.cookie = "deny-remote=1; path=/";
     result.refresh();
-  }}>Deny and refresh</button
+  }}
 >
+  Deny and refresh
+</button>
 
 <button
   id="clear-btn"
   onclick={() => {
     document.cookie = "deny-remote=0; path=/; max-age=0";
-  }}>Clear cookie</button
+  }}
 >
+  Clear cookie
+</button>
 
 {#if result.error}
   <p id="status">{result.error.status}</p>
@@ -2387,10 +2393,11 @@ export function load() &lcub;&rcub;
   <button>Submit</button>
 </form>
 
-=== 281 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/+page.svelte	svelte
+=== 284 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/+page.svelte	svelte
 <h1>Welcome to a test project</h1>
-<a href="/anchor-with-manual-scroll/anchor-onmount#go-to-element">Anchor demo</a
->
+<a href="/anchor-with-manual-scroll/anchor-onmount#go-to-element">
+  Anchor demo
+</a>
 
 <style>
   :global(body) {
@@ -2426,9 +2433,9 @@ export function load() &lcub;&rcub;
 </p>
 <div></div>
 
-<a href="/anchor-with-manual-scroll/anchor-afternavigate?x=y#go-to-element"
-  >reload me</a
->
+<a href="/anchor-with-manual-scroll/anchor-afternavigate?x=y#go-to-element">
+  reload me
+</a>
 
 === 529 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/anchor-onmount/+page.svelte	svelte
 <script>
@@ -2455,26 +2462,26 @@ export function load() &lcub;&rcub;
 === 1123 packages/kit/test/apps/basics/src/routes/anchor/+page.svelte	svelte
 <h1>Welcome to a test project</h1>
 <a id="scroll-anchor" href="#last-anchor-2">Bottom of this page</a>
-<a id="non-ascii-anchor" href="/anchor/anchor#go-to-encöded"
-  >Anchor demo (non-ASCII)</a
->
-<a id="special-char-anchor" href="/anchor/anchor#go-to-.="
-  >Anchor demo (special characters)</a
->
+<a id="non-ascii-anchor" href="/anchor/anchor#go-to-encöded">
+  Anchor demo (non-ASCII)
+</a>
+<a id="special-char-anchor" href="/anchor/anchor#go-to-.=">
+  Anchor demo (special characters)
+</a>
 <a id="first-anchor" href="/anchor/anchor#go-to-element">Anchor demo (first)</a>
 <div>Spacing</div>
-<a id="second-anchor" href="/anchor/anchor#go-to-element"
-  >Anchor demo (second)</a
->
+<a id="second-anchor" href="/anchor/anchor#go-to-element">
+  Anchor demo (second)
+</a>
 <div>Spacing</div>
 <a id="third-anchor" href="/anchor/anchor">Anchor demo (third)</a>
 <div>Spacing</div>
 <a id="last-anchor" href="/anchor/anchor#go-to-element">Anchor demo (last)</a>
 <a id="last-anchor-2" href="/anchor/anchor">Anchor demo (last 2)</a>
 <a id="routing-page" href="/routing/hashes/target">Different page</a>
-<a id="to-scroll-margin" href="/anchor/anchor#scroll-margin"
-  >Scroll margin anchor</a
->
+<a id="to-scroll-margin" href="/anchor/anchor#scroll-margin">
+  Scroll margin anchor
+</a>
 
 <style>
   :global(body) {
@@ -2669,7 +2676,7 @@ export function load() &lcub;&rcub;
   }
 </style>
 
-=== 268 packages/kit/test/apps/basics/src/routes/css/dynamic/+page.svelte	svelte
+=== 272 packages/kit/test/apps/basics/src/routes/css/dynamic/+page.svelte	svelte
 <script>
   /** @type {typeof import('./Dynamic.svelte').default}*/
   let Dynamic;
@@ -2678,8 +2685,10 @@ export function load() &lcub;&rcub;
 <button
   onclick={async () => {
     Dynamic = (await import("./Dynamic.svelte")).default;
-  }}>load component</button
+  }}
 >
+  load component
+</button>
 
 <svelte:component this={Dynamic}></svelte:component>
 
@@ -2714,32 +2723,40 @@ export function load() &lcub;&rcub;
   });
 </script>
 
-=== 504 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-code/+page.svelte	svelte
+=== 520 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-code/+page.svelte	svelte
 <a
   id="eager"
   href="/data-sveltekit/preload-code/target/eager"
-  data-sveltekit-preload-code="eager">eager</a
+  data-sveltekit-preload-code="eager"
 >
+  eager
+</a>
 
 <div style="height: 200vh"></div>
 
 <a
   id="viewport"
   href="/data-sveltekit/preload-code/target/viewport"
-  data-sveltekit-preload-code="viewport">viewport</a
+  data-sveltekit-preload-code="viewport"
 >
+  viewport
+</a>
 <a
   id="hover"
   href="/data-sveltekit/preload-code/target/hover"
-  data-sveltekit-preload-code="hover">hover</a
+  data-sveltekit-preload-code="hover"
 >
+  hover
+</a>
 <a
   id="tap"
   href="/data-sveltekit/preload-code/target/tap"
-  data-sveltekit-preload-code="tap">tap</a
+  data-sveltekit-preload-code="tap"
 >
+  tap
+</a>
 
-=== 857 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/+page.svelte	svelte
+=== 881 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/+page.svelte	svelte
 <script>
   let x = 0;
 </script>
@@ -2747,52 +2764,66 @@ export function load() &lcub;&rcub;
 <a
   id="one"
   href="/data-sveltekit/preload-data/target"
-  data-sveltekit-preload-data>one</a
+  data-sveltekit-preload-data
 >
+  one
+</a>
 
 <div data-sveltekit-preload-data>
   <a id="two" href="/data-sveltekit/preload-data/target">two</a>
   <a
     id="three"
     href="/data-sveltekit/preload-data/target"
-    data-sveltekit-preload-data={false}>three</a
+    data-sveltekit-preload-data={false}
   >
+    three
+  </a>
 </div>
 
 <a
   id="tap"
   href="/data-sveltekit/preload-data/target"
-  data-sveltekit-preload-data="tap">tap</a
+  data-sveltekit-preload-data="tap"
 >
+  tap
+</a>
 
 <a
   id="hover-then-tap"
   href="/data-sveltekit/preload-data/target"
   data-sveltekit-preload-code="hover"
-  data-sveltekit-preload-data="tap">hover for code then tap for data</a
+  data-sveltekit-preload-data="tap"
 >
+  hover for code then tap for data
+</a>
 
 <a
   id="dynamic"
   data-sveltekit-preload-data="hover"
-  href="/data-sveltekit/preload-data/target?x={x}">dynamic</a
+  href="/data-sveltekit/preload-data/target?x={x}"
 >
-<button id="change_dynamic" type="button" onclick={() => x++}
-  >change dynamic</button
->
+  dynamic
+</a>
+<button id="change_dynamic" type="button" onclick={() => x++}>
+  change dynamic
+</button>
 
-=== 249 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/+page.svelte	svelte
+=== 257 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/+page.svelte	svelte
 <a
   id="one"
   href="/data-sveltekit/preload-data/offline/target"
-  data-sveltekit-preload-data>target</a
+  data-sveltekit-preload-data
 >
+  target
+</a>
 
 <a
   id="slow-navigation"
   href="/data-sveltekit/preload-data/offline/slow-navigation"
-  data-sveltekit-preload-data>slow-navigation</a
+  data-sveltekit-preload-data
 >
+  slow-navigation
+</a>
 
 === 23 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/slow-navigation/+page.svelte	svelte
 <p>slow navigation</p>
@@ -2800,7 +2831,7 @@ export function load() &lcub;&rcub;
 === 14 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/target/+page.svelte	svelte
 <p>target</p>
 
-=== 387 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/+layout.svelte	svelte
+=== 399 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/+layout.svelte	svelte
 <script>
   import { resolve } from "$app/paths";
 
@@ -2815,8 +2846,10 @@ export function load() &lcub;&rcub;
     <a
       id="target"
       href={resolve("/data-sveltekit/preload-data/repeat/target")}
-      data-sveltekit-preload-data="hover">target</a
+      data-sveltekit-preload-data="hover"
     >
+      target
+    </a>
   </li>
 </ul>
 
@@ -2831,7 +2864,7 @@ export function load() &lcub;&rcub;
 === 63 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/target/+page.svelte	svelte
 <h1>this string should only appear in this preloaded file</h1>
 
-=== 282 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/+page.svelte	svelte
+=== 290 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/+page.svelte	svelte
 <a id="one" href="/data-sveltekit/reload/target" data-sveltekit-reload>one</a>
 
 <div data-sveltekit-reload>
@@ -2839,8 +2872,10 @@ export function load() &lcub;&rcub;
   <a
     id="three"
     href="/data-sveltekit/reload/target"
-    data-sveltekit-reload={false}>three</a
+    data-sveltekit-reload={false}
   >
+    three
+  </a>
 </div>
 
 === 129 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/hash/+page.svelte	svelte
@@ -2854,12 +2889,14 @@ export function load() &lcub;&rcub;
 === 16 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/target/+page.svelte	svelte
 <h1>target</h1>
 
-=== 333 packages/kit/test/apps/basics/src/routes/data-sveltekit/replacestate/+page.svelte	svelte
+=== 337 packages/kit/test/apps/basics/src/routes/data-sveltekit/replacestate/+page.svelte	svelte
 <a
   id="one"
   href="/data-sveltekit/replacestate/target"
-  data-sveltekit-replacestate>one</a
+  data-sveltekit-replacestate
 >
+  one
+</a>
 
 <div data-sveltekit-replacestate>
   <a id="two" href="/data-sveltekit/replacestate/target">two</a>
@@ -2875,15 +2912,15 @@ export function load() &lcub;&rcub;
 === 344 packages/kit/test/apps/basics/src/routes/data-sveltekit/reset/+page.svelte	svelte
 <div style="height: 2000px; background: palegoldenrod"></div>
 
-<a id="one" href="/data-sveltekit/reset/target" data-sveltekit-reset="false"
-  >one</a
->
+<a id="one" href="/data-sveltekit/reset/target" data-sveltekit-reset="false">
+  one
+</a>
 
 <div data-sveltekit-reset="false">
   <a id="two" href="/data-sveltekit/reset/target">two</a>
-  <a id="three" href="/data-sveltekit/reset/target" data-sveltekit-reset
-    >three</a
-  >
+  <a id="three" href="/data-sveltekit/reset/target" data-sveltekit-reset>
+    three
+  </a>
 </div>
 
 === 79 packages/kit/test/apps/basics/src/routes/data-sveltekit/reset/target/+page.svelte	svelte
@@ -3104,11 +3141,13 @@ export function load() &lcub;&rcub;
     "  ",
   )}</pre>
 
-=== 452 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+page.svelte	svelte
-<a id="get-implicit" href="/errors/page-endpoint/get-implicit">GET (implicit)</a
->
-<a id="get-explicit" href="/errors/page-endpoint/get-explicit">GET (explicit)</a
->
+=== 458 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+page.svelte	svelte
+<a id="get-implicit" href="/errors/page-endpoint/get-implicit">
+  GET (implicit)
+</a>
+<a id="get-explicit" href="/errors/page-endpoint/get-explicit">
+  GET (explicit)
+</a>
 
 <form action="/errors/page-endpoint/post-implicit" method="post">
   <button type="submit" id="post-implicit">POST (implicit)</button>
@@ -3160,7 +3199,7 @@ export function load() &lcub;&rcub;
   <button>submit</button>
 </form>
 
-=== 306 packages/kit/test/apps/basics/src/routes/goto/+page.svelte	svelte
+=== 310 packages/kit/test/apps/basics/src/routes/goto/+page.svelte	svelte
 <script>
   import { goto } from "$app/navigation";
 
@@ -3174,12 +3213,14 @@ export function load() &lcub;&rcub;
     } catch (e) {
       message = e instanceof Error ? e.message : "unknown error message";
     }
-  }}>goto</button
+  }}
 >
+  goto
+</button>
 
 <p>{message}</p>
 
-=== 321 packages/kit/test/apps/basics/src/routes/goto/no-such-route/+page.svelte	svelte
+=== 325 packages/kit/test/apps/basics/src/routes/goto/no-such-route/+page.svelte	svelte
 <script>
   import { goto } from "$app/navigation";
 
@@ -3193,8 +3234,10 @@ export function load() &lcub;&rcub;
     } catch (e) {
       message = e instanceof Error ? e.message : "unknown error message";
     }
-  }}>goto</button
+  }}
 >
+  goto
+</button>
 
 <p>{message}</p>
 
@@ -4048,9 +4091,9 @@ slug
 <p>{window.location.origin}</p>
 
 === 90 packages/kit/test/apps/basics/src/routes/prerendering/prerendered-endpoint/+page.svelte	svelte
-<a href="/prerendering/prerendered-endpoint/from-handle-hook"
-  >through handle hook</a
->
+<a href="/prerendering/prerendered-endpoint/from-handle-hook">
+  through handle hook
+</a>
 
 === 339 packages/kit/test/apps/basics/src/routes/query/echo/+page.svelte	svelte
 <script>
@@ -4095,9 +4138,9 @@ slug
 
 === 173 packages/kit/test/apps/basics/src/routes/reroute/async/+page.svelte	svelte
 <a href="/reroute/async/a">Go to url that should be rewritten</a>
-<a href="/reroute/async/c"
-  >Go to url that should be rewritten and its reroute api call prerendered</a
->
+<a href="/reroute/async/c">
+  Go to url that should be rewritten and its reroute api call prerendered
+</a>
 
 === 69 packages/kit/test/apps/basics/src/routes/reroute/async/a/+page.svelte	svelte
 <h1>Should have been rewritten to <code>/reroute/async/b</code></h1>
@@ -4127,12 +4170,12 @@ slug
 <h1>Successfully rewritten</h1>
 
 === 190 packages/kit/test/apps/basics/src/routes/reroute/error-handling/+page.svelte	svelte
-<a href="/reroute/error-handling/client-error" id="client-error"
-  >Url with client error</a
->
-<a href="/reroute/error-handling/server-error" id="server-error"
-  >Url with server error</a
->
+<a href="/reroute/error-handling/client-error" id="client-error">
+  Url with client error
+</a>
+<a href="/reroute/error-handling/server-error" id="server-error">
+  Url with server error
+</a>
 
 === 25 packages/kit/test/apps/basics/src/routes/reroute/error-handling/client-error-rewritten/+page.svelte	svelte
 <h1>Full Navigation</h1>
@@ -4179,9 +4222,9 @@ slug
 <h1>reroute that points to prerendered page works</h1>
 
 === 88 packages/kit/test/apps/basics/src/routes/reset-focus/+page.svelte	svelte
-<button id="an:invalid+selector"
-  >I have a weird ID but I should be focused</button
->
+<button id="an:invalid+selector">
+  I have a weird ID but I should be focused
+</button>
 
 === 459 packages/kit/test/apps/basics/src/routes/routing/+page.svelte	svelte
 <script>
@@ -4246,14 +4289,16 @@ slug
 === 16 packages/kit/test/apps/basics/src/routes/routing/dirs/foo/[b]/+page.svelte	svelte
 <h1>B page</h1>
 
-=== 182 packages/kit/test/apps/basics/src/routes/routing/external-popstate/+page.svelte	svelte
+=== 186 packages/kit/test/apps/basics/src/routes/routing/external-popstate/+page.svelte	svelte
 <h1>hello</h1>
 
 <button
   onclick={() => {
     history.pushState({}, "", "/routing/external-popstate/does-not-exist");
-  }}>go to /routing/external-popstate/does-not-exist</button
+  }}
 >
+  go to /routing/external-popstate/does-not-exist
+</button>
 
 === 43 packages/kit/test/apps/basics/src/routes/routing/focus/+page.svelte	svelte
 <a href="/routing/focus/a#p">click me!</a>
@@ -4447,7 +4492,7 @@ slug
 === 18 packages/kit/test/apps/basics/src/routes/routing/next-paint/+page.svelte	svelte
 <p>next-paint</p>
 
-=== 440 packages/kit/test/apps/basics/src/routes/routing/preloading/error/+page.svelte	svelte
+=== 448 packages/kit/test/apps/basics/src/routes/routing/preloading/error/+page.svelte	svelte
 <script>
   import { preloadData } from "$app/navigation";
 
@@ -4459,15 +4504,19 @@ slug
   type="button"
   onclick={async () => {
     data = await preloadData("/routing/preloading/error/404");
-  }}>404</button
+  }}
 >
+  404
+</button>
 
 <button
   type="button"
   onclick={async () => {
     data = await preloadData("/routing/preloading/error/500");
-  }}>500</button
+  }}
 >
+  500
+</button>
 
 <p>{`${data?.type}`} {`${data?.status}`} {`${data?.error?.message}`}</p>
 
@@ -4603,9 +4652,9 @@ slug
 <a href="/routing/">/routing/</a>
 <a href="/routing/?">/routing/?</a>
 <a href="/routing/?foo=bar">/routing/?foo=bar</a>
-<a href="http://localhost:{page.url.searchParams.get('port')}/with-slash/"
-  >external</a
->
+<a href="http://localhost:{page.url.searchParams.get('port')}/with-slash/">
+  external
+</a>
 
 === 70 packages/kit/test/apps/basics/src/routes/routing/split-params/+page.svelte	svelte
 <a href="/routing/split-params/x-y-z">/routing/split-params/x-y-z</a>
@@ -4686,15 +4735,15 @@ slug
 <button id="shallow-button" type="button" onclick={handleClick}>Shallow</button>
 
 {#if page.state.active}
-  <button id="back-button" type="button" onclick={() => history.back()}
-    >Back</button
-  >
+  <button id="back-button" type="button" onclick={() => history.back()}>
+    Back
+  </button>
 {/if}
 
 === 88 packages/kit/test/apps/basics/src/routes/scroll/push-state/a/+page.svelte	svelte
-<button id="back-button" type="button" onclick={() => history.back()}
-  >Back</button
->
+<button id="back-button" type="button" onclick={() => history.back()}>
+  Back
+</button>
 
 === 177 packages/kit/test/apps/basics/src/routes/scroll/top/+page.svelte	svelte
 <div style="width:100%; height: 200vh; background-color: goldenrod"></div>
@@ -4760,9 +4809,9 @@ slug
 <a href="/shadowed/simple">simple</a>
 <a href="/shadowed/redirect-get">redirect-get</a>
 <a href="/shadowed/redirect-get-with-cookie">redirect-get-with-cookie</a>
-<a href="/shadowed/redirect-get-with-cookie-from-fetch"
-  >redirect-get-with-cookie-from-fetch</a
->
+<a href="/shadowed/redirect-get-with-cookie-from-fetch">
+  redirect-get-with-cookie-from-fetch
+</a>
 <a href="/shadowed/error-get">error-get</a>
 <a href="/shadowed/no-get">no-get</a>
 <a href="/shadowed/dynamic/foo">dynamic/foo</a>
@@ -4877,7 +4926,7 @@ slug
 
 <slot />
 
-=== 2808 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+page.svelte	svelte
+=== 2827 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+page.svelte	svelte
 <script>
   import { goto, refreshAll } from "$app/navigation";
   import { page } from "$app/state";
@@ -4910,25 +4959,28 @@ slug
 
 <button data-id="one" onclick={one}>add state on current page</button>
 <button data-id="two" onclick={two}>shallow navigate to child page</button>
-<button data-id="params" onclick={params}
-  >shallow navigate to parameterized page</button
->
+<button data-id="params" onclick={params}>
+  shallow navigate to parameterized page
+</button>
 <button
   data-id="cancel"
   onclick={() => goto("?cancel", { shallow: true, state: { active: true } })}
-  >cancel</button
 >
+  cancel
+</button>
 <button
   data-id="state-only"
   onclick={() => goto("", { shallow: true, state: { active: true } })}
-  >state only</button
 >
+  state only
+</button>
 <button
   data-id="state-only-persist"
   onclick={() =>
     goto("", { shallow: true, state: { active: true }, persistState: true })}
-  >persist state only</button
 >
+  persist state only
+</button>
 <button
   data-id="shallow-persist"
   onclick={() =>
@@ -4936,41 +4988,49 @@ slug
       shallow: true,
       state: { active: true },
       persistState: true,
-    })}>persist shallow state</button
+    })}
 >
+  persist shallow state
+</button>
 <button
   data-id="goto-state"
   onclick={() =>
     goto("/shallow-routing/push-state", { state: { active: true } })}
-  >goto with state</button
 >
+  goto with state
+</button>
 <button
   data-id="goto-persist"
   onclick={() =>
     goto("/shallow-routing/push-state", {
       state: { active: true },
       persistState: true,
-    })}>persist goto state</button
+    })}
 >
+  persist goto state
+</button>
 <button
   data-id="end-shallow"
   onclick={() =>
     goto("/shallow-routing/push-state", { state: { active: true } })}
-  >end shallow</button
 >
+  end shallow
+</button>
 <button data-id="refresh" onclick={refreshAll}>refresh all</button>
 <div style="position: fixed; right: 0; bottom: 0">
   <input data-id="options-focus" aria-label="focus target" />
   <button
     data-id="options-default"
     onclick={() => goto("?options=default", { shallow: true })}
-    >default options</button
   >
+    default options
+  </button>
   <button
     data-id="options-false"
     onclick={() => goto("?options=false", { shallow: true, reset: true })}
-    >disabled options</button
   >
+    disabled options
+  </button>
 </div>
 
 <p>active: {page.state.active ?? false}</p>
@@ -4986,7 +5046,7 @@ slug
 === 29 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/[param]/+page.svelte	svelte
 <h1>parameterized child</h1>
 
-=== 417 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/a/+page.svelte	svelte
+=== 421 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/a/+page.svelte	svelte
 <script>
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
@@ -4995,9 +5055,9 @@ slug
 <h1>a</h1>
 
 <p>active: {page.state.active ?? false}</p>
-<span data-id="shallow"
-  >{page.shallow ? page.shallow.url.pathname : "null"}</span
->
+<span data-id="shallow">
+  {page.shallow ? page.shallow.url.pathname : "null"}
+</span>
 
 <button
   data-id="shallow-b"
@@ -5005,8 +5065,10 @@ slug
     goto("/shallow-routing/push-state/b", {
       shallow: true,
       state: { active: true },
-    })}>shallow to b</button
+    })}
 >
+  shallow to b
+</button>
 
 === 113 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/b/+page.svelte	svelte
 <script>
@@ -5031,7 +5093,7 @@ slug
 <p>count: {count}</p>
 <button onclick={() => count++}>Increment</button>
 
-=== 722 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/foo/+page.svelte	svelte
+=== 730 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/foo/+page.svelte	svelte
 <script>
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
@@ -5043,25 +5105,29 @@ slug
   onclick={() => {
     const state = $state({ foo: new Foo("it works?"), count: 0 });
     void goto("", { shallow: true, state });
-  }}>add state</button
+  }}
 >
+  add state
+</button>
 
 <button
   data-id="full"
   onclick={() => {
     const state = $state({ foo: new Foo("it works?"), count: 0 });
     void goto("", { state });
-  }}>add state with navigation</button
+  }}
 >
+  add state with navigation
+</button>
 
-<button onclick={() => (page.state.count = (page.state.count ?? 0) + 1)}
-  >bump count</button
->
+<button onclick={() => (page.state.count = (page.state.count ?? 0) + 1)}>
+  bump count
+</button>
 
 <p data-testid="foo">foo: {page.state.foo?.bar() ?? "nope"}</p>
 <p data-testid="count">count: {page.state.count ?? "nope"}</p>
 
-=== 735 packages/kit/test/apps/basics/src/routes/shallow-routing/refresh/+page.svelte	svelte
+=== 740 packages/kit/test/apps/basics/src/routes/shallow-routing/refresh/+page.svelte	svelte
 <script>
   import { goto, invalidate, invalidateAll, refreshAll } from "$app/navigation";
   import { page } from "$app/state";
@@ -5076,18 +5142,21 @@ slug
 <h1>refresh</h1>
 
 <button data-id="activate" onclick={activate}>add state</button>
-<button data-id="refreshAll" onclick={() => (window.promise = refreshAll())}
-  >refreshAll</button
->
+<button data-id="refreshAll" onclick={() => (window.promise = refreshAll())}>
+  refreshAll
+</button>
 <button
   data-id="invalidate"
   onclick={() => (window.promise = invalidate("refresh:now"))}
-  >invalidate</button
 >
+  invalidate
+</button>
 <button
   data-id="invalidateAll"
-  onclick={() => (window.promise = invalidateAll())}>invalidateAll</button
+  onclick={() => (window.promise = invalidateAll())}
 >
+  invalidateAll
+</button>
 
 <p>active: {page.state.active ?? false}</p>
 <span>{data.now}</span>
@@ -5138,7 +5207,7 @@ slug
 
 <slot />
 
-=== 1045 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+page.svelte	svelte
+=== 1053 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+page.svelte	svelte
 <script>
   import { goto } from "$app/navigation";
   import { page } from "$app/state";
@@ -5166,8 +5235,10 @@ slug
     goto("/shallow-routing/replace-state", {
       replace: true,
       state: { active: true },
-    })}>end shallow</button
+    })}
 >
+  end shallow
+</button>
 <button
   data-id="state-only"
   onclick={() =>
@@ -5176,13 +5247,15 @@ slug
       replace: true,
       state: { active: true },
       persistState: true,
-    })}>persist state only</button
+    })}
 >
+  persist state only
+</button>
 
 <p>active: {page.state.active ?? false}</p>
-<span data-id="shallow"
-  >{page.shallow ? page.shallow.url.pathname : "null"}</span
->
+<span data-id="shallow">
+  {page.shallow ? page.shallow.url.pathname : "null"}
+</span>
 
 === 113 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/a/+page.svelte	svelte
 <script>
@@ -5300,9 +5373,9 @@ slug
 >
   shallow
 </button>
-<button onclick={() => (foo = new Foo("restored"))}
-  >change transport value</button
->
+<button onclick={() => (foo = new Foo("restored"))}>
+  change transport value
+</button>
 
 <a href="/snapshot/helper/b">b</a>
 
@@ -5369,7 +5442,7 @@ slug
 
 <a href="/snapshot/stale/a">a</a>
 
-=== 193 packages/kit/test/apps/basics/src/routes/state/client-access/+page.svelte	svelte
+=== 197 packages/kit/test/apps/basics/src/routes/state/client-access/+page.svelte	svelte
 <script>
   import { page } from "$app/state";
 
@@ -5381,8 +5454,10 @@ slug
 <button
   onclick={() => {
     pathname = page.url.pathname;
-  }}>click</button
+  }}
 >
+  click
+</button>
 
 === 188 packages/kit/test/apps/basics/src/routes/state/data/+error.svelte	svelte
 <script>
@@ -5390,9 +5465,9 @@ slug
   import { goto } from "$app/navigation";
 </script>
 
-<button id="reload-button" onclick={() => goto(page.url.toString())}
-  >Reload</button
->
+<button id="reload-button" onclick={() => goto(page.url.toString())}>
+  Reload
+</button>
 
 === 367 packages/kit/test/apps/basics/src/routes/state/data/+layout.svelte	svelte
 <script>
@@ -5472,7 +5547,7 @@ Page B
 === 9 packages/kit/test/apps/basics/src/routes/state/navigating/c/+page.svelte	svelte
 <p>c</p>
 
-=== 447 packages/kit/test/apps/basics/src/routes/state/url/+page.svelte	svelte
+=== 451 packages/kit/test/apps/basics/src/routes/state/url/+page.svelte	svelte
 <script>
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
@@ -5487,8 +5562,10 @@ Page B
     page.url.searchParams.set("q", "test");
     // @ts-expect-error
     goto(page.url);
-  }}>test</button
+  }}
 >
+  test
+</button>
 
 <p>{`${q}`}</p>
 
@@ -5724,7 +5801,7 @@ Page B
 
 <h2 data-testid="b">b ({browser ? "browser" : "server"})</h2>
 
-=== 709 packages/kit/test/apps/hash-based-routing/src/routes/+layout.svelte	svelte
+=== 710 packages/kit/test/apps/hash-based-routing/src/routes/+layout.svelte	svelte
 <script>
   import { goto } from "$app/navigation";
   import { setup } from "../../../../setup.js";
@@ -5743,14 +5820,15 @@ Page B
 <a href="/#/reroute-a">/#/reroute-a</a>
 <a href="/#/reroute-b">/#/reroute-b</a>
 <button data-goto onclick={() => goto("/#/b")}>goto /#/b</button>
-<button data-shallow onclick={() => goto("/#/b", { shallow: true })}
-  >shallow /#/b</button
->
+<button data-shallow onclick={() => goto("/#/b", { shallow: true })}>
+  shallow /#/b
+</button>
 <button
   data-shallow-replace
   onclick={() => goto("/#/a#b", { shallow: true, replace: true })}
-  >shallow replace /#/a#b</button
 >
+  shallow replace /#/a#b
+</button>
 
 {@render children()}
 
@@ -5976,9 +6054,9 @@ Page B
 
 <button onclick={async () => (count = await get_count())}>get count</button>
 
-<button onclick={async () => (count = await set_count(0))} id="reset-btn"
-  >reset</button
->
+<button onclick={async () => (count = await set_count(0))} id="reset-btn">
+  reset
+</button>
 
 <form
   {...set_count_form.enhance(async ({ submit }) => {
@@ -6004,9 +6082,9 @@ Page B
   import { resolve } from "$app/paths";
 </script>
 
-<a href={resolve("/trailing-slash-server/prerender")}
-  >{resolve("/trailing-slash-server/prerender")}</a
->
+<a href={resolve("/trailing-slash-server/prerender")}>
+  {resolve("/trailing-slash-server/prerender")}
+</a>
 
 === 86 packages/kit/test/apps/options-2/src/routes/trailing-slash-server/prerender/+page.svelte	svelte
 <script>
@@ -6309,9 +6387,9 @@ Page B
 <img src={Image} alt="svelte logo" />
 
 === 167 packages/kit/test/apps/options/source/pages/preloading/+page.svelte	svelte
-<a data-sveltekit-preload-data href="/path-base/preloading/preloaded"
-  >click me</a
->
+<a data-sveltekit-preload-data href="/path-base/preloading/preloaded">
+  click me
+</a>
 <a data-sveltekit-preload-code href="/path-base/preloading/code">click me 2</a>
 
 === 32 packages/kit/test/apps/options/source/pages/preloading/code/+page.svelte	svelte
@@ -6575,9 +6653,9 @@ Page B
 
 <!-- https://github.com/sveltejs/kit/issues/10735 — crawler must not fail reaching a
 	non-prerendered page that has a POST-only +server.js sibling -->
-<a href="/path-base/non-prerendered-page-and-endpoint/"
-  >page with a POST-only endpoint sibling</a
->
+<a href="/path-base/non-prerendered-page-and-endpoint/">
+  page with a POST-only endpoint sibling
+</a>
 
 === 92 packages/kit/test/prerendering/options/src/routes/+layout.svelte	svelte
 <svelte:head>

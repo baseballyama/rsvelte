@@ -611,9 +611,11 @@
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4199 svelte/demos/cases/Area.svelte	lint.txt
+=== 4611 svelte/demos/cases/Area.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:8 svelte/valid-compile "`v1` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+3:10 3:12 svelte/valid-compile "`v2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:23 svelte/no-unused-class-name "Unused class \"demo-box\"."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

@@ -365,8 +365,8 @@
       <h4 class="alert-heading text-capitalize">Heading</h4>
       This is the contents of a&nbsp;<b><u>{color}</u></b> alert message.&nbsp;
 
-      <a href="#todo" class="alert-link"
-        >Also, links are colored to match the assigned alert color!
+      <a href="#todo" class="alert-link">
+        Also, links are colored to match the assigned alert color!
       </a>
     </Alert>
   {/each}
@@ -379,9 +379,9 @@
 </Story>
 
 <Story name="Header">
-  <Alert color="primary" heading="Hey here's header text"
-    >Lorem ipsum lorem dolor sit amet.</Alert
-  >
+  <Alert color="primary" heading="Hey here's header text">
+    Lorem ipsum lorem dolor sit amet.
+  </Alert>
 </Story>
 
 <Story name="Dismissible">
@@ -581,9 +581,9 @@
 <Story name="Positioned">
   <div class="mb-3">
     <Button color="primary" class="position-relative">
-      Inbox <Badge color="danger" pill positioned ariaLabel="Unread messages"
-        >100+</Badge
-      >
+      Inbox <Badge color="danger" pill positioned ariaLabel="Unread messages">
+        100+
+      </Badge>
     </Button>
   </div>
   <div>
@@ -1715,9 +1715,9 @@
   <div class="dropdown-example">
     <div class="drop-height">
       <Dropdown {...args}>
-        <DropdownToggle color="primary" caret
-          >Drop{args.direction}</DropdownToggle
-        >
+        <DropdownToggle color="primary" caret>
+          Drop{args.direction}
+        </DropdownToggle>
         <DropdownMenu>
           <DropdownItem header>Header</DropdownItem>
           <DropdownItem>Some Action</DropdownItem>
@@ -1738,9 +1738,9 @@
   <div class="dropdown-example">
     <div class="drop-height">
       <Dropdown>
-        <DropdownToggle color="primary" caret
-          >Dropdown's menu is right-aligned</DropdownToggle
-        >
+        <DropdownToggle color="primary" caret>
+          Dropdown's menu is right-aligned
+        </DropdownToggle>
         <DropdownMenu end>
           <DropdownItem header>Header</DropdownItem>
           <DropdownItem disabled>Action</DropdownItem>
@@ -1831,9 +1831,9 @@
       <ButtonToolbar>
         <div class="horizontal">
           <Dropdown autoClose={true}>
-            <DropdownToggle color="primary" caret
-              >Default dropdown</DropdownToggle
-            >
+            <DropdownToggle color="primary" caret>
+              Default dropdown
+            </DropdownToggle>
             <DropdownMenu>
               <DropdownItem>Menu item</DropdownItem>
               <DropdownItem>Menu item</DropdownItem>
@@ -1841,9 +1841,9 @@
             </DropdownMenu>
           </Dropdown>
           <Dropdown autoClose="outside">
-            <DropdownToggle color="success" caret
-              >Clickable inside</DropdownToggle
-            >
+            <DropdownToggle color="success" caret>
+              Clickable inside
+            </DropdownToggle>
             <DropdownMenu>
               <DropdownItem>Menu item</DropdownItem>
               <DropdownItem>Menu item</DropdownItem>
@@ -1851,9 +1851,9 @@
             </DropdownMenu>
           </Dropdown>
           <Dropdown autoClose="inside">
-            <DropdownToggle color="warning" caret
-              >Clickable outside</DropdownToggle
-            >
+            <DropdownToggle color="warning" caret>
+              Clickable outside
+            </DropdownToggle>
             <DropdownMenu>
               <DropdownItem>Menu item</DropdownItem>
               <DropdownItem>Menu item</DropdownItem>
@@ -1939,9 +1939,9 @@
 
 <Template let:args>
   <div class="fade-example">
-    <Button color="primary" on:click={() => (isOpen = !isOpen)} class="mb-3"
-      >Toggle</Button
-    >
+    <Button color="primary" on:click={() => (isOpen = !isOpen)} class="mb-3">
+      Toggle
+    </Button>
     <Fade {isOpen}>
       <div class="card-width">
         <Card body>
@@ -1959,9 +1959,9 @@
 <Story name="Events">
   <div class="fade-example">
     <div class="text-content">
-      <Button color="primary" on:click={() => (isOpen = !isOpen)} class="mb-3"
-        >Toggle</Button
-      >
+      <Button color="primary" on:click={() => (isOpen = !isOpen)} class="mb-3">
+        Toggle
+      </Button>
 
       <h5>Current state: {status}</h5>
     </div>
@@ -3158,21 +3158,21 @@
     <div class="listgroup-item-size">
       <h4 class="text-content">Anchors</h4>
       <ListGroup>
-        <ListGroupItem active tag="a" href="https://svelte.dev" action
-          >Active</ListGroupItem
-        >
-        <ListGroupItem tag="a" href="https://svelte.dev" action
-          >Bravo</ListGroupItem
-        >
-        <ListGroupItem tag="a" href="https://svelte.dev" action
-          >Charlie</ListGroupItem
-        >
-        <ListGroupItem tag="a" href="https://svelte.dev" action
-          >Delta</ListGroupItem
-        >
-        <ListGroupItem disabled tag="a" href="https://svelte.dev" action
-          >Disabled</ListGroupItem
-        >
+        <ListGroupItem active tag="a" href="https://svelte.dev" action>
+          Active
+        </ListGroupItem>
+        <ListGroupItem tag="a" href="https://svelte.dev" action>
+          Bravo
+        </ListGroupItem>
+        <ListGroupItem tag="a" href="https://svelte.dev" action>
+          Charlie
+        </ListGroupItem>
+        <ListGroupItem tag="a" href="https://svelte.dev" action>
+          Delta
+        </ListGroupItem>
+        <ListGroupItem disabled tag="a" href="https://svelte.dev" action>
+          Disabled
+        </ListGroupItem>
       </ListGroup>
 
       <h4 class="mt-3 text-content">Buttons</h4>
@@ -3255,7 +3255,7 @@
   </div>
 </Story>
 
-=== 12878 src/Modal/Modal.stories.svelte	svelte
+=== 12900 src/Modal/Modal.stories.svelte	svelte
 <script context="module">
   import Modal from "./Modal.svelte";
 
@@ -3547,8 +3547,9 @@
         <Button color="success" on:click={toggleSm}>Open Small Modal</Button>
         <Button color="warning" on:click={toggle}>Open Default Modal</Button>
         <Button color="danger" on:click={toggleLg}>Open Large Modal</Button>
-        <Button color="light" on:click={toggleXl}>Open Extra Large Modal</Button
-        >
+        <Button color="light" on:click={toggleXl}>
+          Open Extra Large Modal
+        </Button>
       </ButtonGroup>
 
       <Modal isOpen={open} {toggle} {size}>
@@ -3568,9 +3569,9 @@
 
 <Story name="Fullscreen">
   <div>
-    <Button color="primary" on:click={toggleAlways}
-      >Open Fullscreen Modal</Button
-    >
+    <Button color="primary" on:click={toggleAlways}>
+      Open Fullscreen Modal
+    </Button>
 
     <Modal isOpen={open} {toggle} {fullscreen}>
       <ModalHeader {toggle}>Modal title</ModalHeader>
@@ -3589,9 +3590,9 @@
 <Story name="Scrolling">
   <div>
     <Button color="primary" on:click={toggle}>Default scrolling</Button>
-    <Button color="success" on:click={toggleScrollable}
-      >Scrollable modal body</Button
-    >
+    <Button color="success" on:click={toggleScrollable}>
+      Scrollable modal body
+    </Button>
     <Modal isOpen={open} {toggle}>
       <ModalHeader {toggle}>Modal title</ModalHeader>
       <ModalBody>
@@ -3623,8 +3624,9 @@
         </p>
       </ModalBody>
       <ModalFooter>
-        <Button color="primary" on:click={toggleScrollable}>Do Something</Button
-        >
+        <Button color="primary" on:click={toggleScrollable}>
+          Do Something
+        </Button>
         <Button color="secondary" on:click={toggleScrollable}>Cancel</Button>
       </ModalFooter>
     </Modal>
@@ -3653,9 +3655,9 @@
     <Button color="danger" on:click={toggle}>Modal with Static Backdrop</Button>
     <Modal isOpen={open} backdrop="static" {toggle}>
       <ModalHeader {toggle}>Modal title</ModalHeader>
-      <ModalBody
-        >Clicking outside modal or hitting Escape does not dismiss.</ModalBody
-      >
+      <ModalBody>
+        Clicking outside modal or hitting Escape does not dismiss.
+      </ModalBody>
       <ModalFooter>
         <Button color="primary" on:click={toggle}>Do Something</Button>
         <Button color="secondary" on:click={toggle}>Cancel</Button>
@@ -4212,9 +4214,9 @@
           <NavLink href="#components/">Components</NavLink>
         </NavItem>
         <NavItem>
-          <NavLink href="https://github.com/sveltestrap/sveltestrap"
-            >GitHub</NavLink
-          >
+          <NavLink href="https://github.com/sveltestrap/sveltestrap">
+            GitHub
+          </NavLink>
         </NavItem>
         <Dropdown nav inNavbar>
           <DropdownToggle nav caret>Options</DropdownToggle>
@@ -4254,9 +4256,9 @@
             <NavLink href="#components/">Components</NavLink>
           </NavItem>
           <NavItem>
-            <NavLink href="https://github.com/sveltestrap/sveltestrap"
-              >GitHub</NavLink
-            >
+            <NavLink href="https://github.com/sveltestrap/sveltestrap">
+              GitHub
+            </NavLink>
           </NavItem>
           <Dropdown nav inNavbar>
             <DropdownToggle nav caret>Options</DropdownToggle>
@@ -4283,9 +4285,9 @@
           <NavLink href="#components/">Components</NavLink>
         </NavItem>
         <NavItem>
-          <NavLink href="https://github.com/sveltestrap/sveltestrap"
-            >GitHub</NavLink
-          >
+          <NavLink href="https://github.com/sveltestrap/sveltestrap">
+            GitHub
+          </NavLink>
         </NavItem>
       </Nav>
     </Collapse>
@@ -4302,9 +4304,9 @@
           <NavLink href="#components/">Components</NavLink>
         </NavItem>
         <NavItem>
-          <NavLink href="https://github.com/sveltestrap/sveltestrap"
-            >GitHub</NavLink
-          >
+          <NavLink href="https://github.com/sveltestrap/sveltestrap">
+            GitHub
+          </NavLink>
         </NavItem>
       </Nav>
     </Collapse>
@@ -4319,9 +4321,9 @@
           <NavLink href="#components/">Components</NavLink>
         </NavItem>
         <NavItem>
-          <NavLink href="https://github.com/sveltestrap/sveltestrap"
-            >GitHub</NavLink
-          >
+          <NavLink href="https://github.com/sveltestrap/sveltestrap">
+            GitHub
+          </NavLink>
         </NavItem>
       </Nav>
     </Collapse>
@@ -4701,9 +4703,9 @@
     <div class="text-content">Stripes and Animations</div>
     <Progress multi>
       <Progress bar striped value={15}>Stripes</Progress>
-      <Progress bar animated color="success" value={30}
-        >Animated Stripes</Progress
-      >
+      <Progress bar animated color="success" value={30}>
+        Animated Stripes
+      </Progress>
       <Progress bar color="info" value={25}>Plain</Progress>
     </Progress>
   </div>
@@ -5496,9 +5498,9 @@
 
 <Story name="Toggler">
   <ThemeToggler let:currentColorMode let:toggleColorMode>
-    <Button color="primary" on:click={() => toggleColorMode()}
-      >Toggle Theme: {currentColorMode}</Button
-    >
+    <Button color="primary" on:click={() => toggleColorMode()}>
+      Toggle Theme: {currentColorMode}
+    </Button>
   </ThemeToggler>
 
   <Card class="mt-3">
@@ -5820,9 +5822,9 @@
 </Story>
 
 <Story name="Autohide">
-  <Button color="primary" on:click={startCount} disabled={isOpen}
-    >Show Toast that autohides</Button
-  >
+  <Button color="primary" on:click={startCount} disabled={isOpen}>
+    Show Toast that autohides
+  </Button>
   <Toast
     autohide
     body
@@ -5841,9 +5843,9 @@
   <div class="toast-events">
     <h5>Current state: {status}</h5>
 
-    <Button color="danger" on:click={toggle}
-      >{isOpen ? "Close" : "Open"} Toast</Button
-    >
+    <Button color="danger" on:click={toggle}>
+      {isOpen ? "Close" : "Open"} Toast
+    </Button>
 
     <Toast
       body
@@ -5891,7 +5893,7 @@
   </div>
 </Story>
 
-=== 4130 src/Tooltip/Tooltip.stories.svelte	svelte
+=== 4150 src/Tooltip/Tooltip.stories.svelte	svelte
 <script context="module">
   import Tooltip from "./Tooltip.svelte";
 
@@ -5993,12 +5995,12 @@
 <Template let:args>
   {#key args}
     <div class="mt-3">
-      <Button id={`btn-${args.placement}`} color="primary"
-        >Show {args.placement}</Button
-      >
-      <Tooltip {...args} target={`btn-${args.placement}`} args.placement
-        >{args.placement} tooltip!</Tooltip
-      >
+      <Button id={`btn-${args.placement}`} color="primary">
+        Show {args.placement}
+      </Button>
+      <Tooltip {...args} target={`btn-${args.placement}`} args.placement>
+        {args.placement} tooltip!
+      </Tooltip>
     </div>
   {/key}
 </Template>
@@ -6023,8 +6025,10 @@
           bind:isOpen
           placement="right"
           target="controlledBtn"
-          delay="500">This is a Tooltip controlled externally.</Tooltip
+          delay="500"
         >
+          This is a Tooltip controlled externally.
+        </Tooltip>
         <hr />
         <label>
           <input type="checkbox" bind:checked={isOpen} />
@@ -6115,9 +6119,9 @@
           type="email"
         />
       </FormGroup>
-      <Button type="submit" on:click={() => (validated = true)}
-        >Fake Submit</Button
-      >
+      <Button type="submit" on:click={() => (validated = true)}>
+        Fake Submit
+      </Button>
     </div>
   </Form>
 </Story>

@@ -1,6 +1,6 @@
 # Upstream issues
 
-These are the behaviors of eslint-plugin-svelte 3.23.1 rules that this crate does not reproduce.
+These are the behaviors of eslint-plugin-svelte 3.24.1 rules that this crate does not reproduce.
 Each entry is a candidate issue for eslint-plugin-svelte and names the test that holds this crate's
 behavior. ESLint with svelte-eslint-parser gave the upstream output (`oracle lint-cases`), and
 `svelte/compiler`'s `parse` gave the decoded values. Issue
@@ -462,6 +462,37 @@ no value too. This crate takes `p.base + '/x'` as a path that starts with the ba
 without a value names no external link, so this crate reports `<a href="/x" rel>`.
 Tests in `svelte_kit.rs`: `base_through_the_namespace_prefixes_a_url`,
 `an_empty_link_is_not_checked` and `rel_without_a_value_is_not_external`.
+
+## `svelte/no-navigation-without-resolve`: values read through array and object literals
+
+Not filed.
+
+In eslint-plugin-svelte 3.24.1, without type information, each `<a {href}>` or `<a href={…}>`
+below is in a `+page.svelte` of a Kit 2 project whose `<script>` imports `resolve`:
+
+| Input                                                                            | Upstream | This crate |
+| -------------------------------------------------------------------------------- | -------- | ---------- |
+| `const links = [resolve('/')]; links.push('/x');` and `{#each links as href}`    | allows   | reports    |
+| `let links = [resolve('/')]; links = ['/x'];` and `{#each links as href}`        | allows   | reports    |
+| `const nav = { href: resolve('/') }; nav.href = '/x';` and `nav.href`            | allows   | reports    |
+| `const home = resolve('/'); const paths = [home];` and `c ? paths[0] : paths[0]` | reports  | allows     |
+| `const o = { 0: resolve('/') };` and `o[0]`                                      | reports  | allows     |
+| `{#each [...front, resolve('/b')] as href}` with `const front = [resolve('/a')]` | reports  | allows     |
+| `{#each nav.groups as group}{#each group.links as { href }}` over literals       | reports  | allows     |
+
+Upstream reads the value a variable starts with, whatever the code writes to it later, so the
+first three miss `/x`. This crate reads a literal only when nothing reassigns the variable, writes
+through a member or passes it to a call other than a navigation or `resolve()`. Upstream marks
+each identifier node it resolves and never resolves it again in the same link address.
+So upstream does not resolve a value it reaches twice, as through both branches of the
+conditional, the second time. It also takes a canonical index only on an array literal, rejects
+a spread in the array an `{#each}` iterates and does not resolve an `{#each}` item's members.
+This crate reads all four.
+Tests in `rules/no_navigation_without_resolve/tests.rs`:
+`an_href_whose_values_are_not_all_known_to_come_from_resolve_is_reported`,
+`values_that_refer_to_themselves_end`,
+`elements_and_properties_are_read_through_indexes_spreads_and_computed_keys` and
+`an_href_an_each_item_takes_from_resolve_is_accepted`.
 
 ## `svelte/no-export-load-in-svelte-module-in-kit-pages` misses `<script module>`
 

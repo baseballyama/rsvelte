@@ -891,9 +891,10 @@
 48:1 48:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 50:1 50:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2882 src/routes/examples/elements-of-equal-height/+page.svelte	lint.txt
+=== 3094 src/routes/examples/elements-of-equal-height/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:14 svelte/valid-compile "`itemSize` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:65 svelte/no-unused-class-name "Unused class \"example-page\"."
 11:44 11:64 svelte/max-attributes-per-line "'class' should be on a new line."

@@ -1216,9 +1216,9 @@
 </script>
 
 <span class="flex items-center justify-center rounded-lg bg-yellow px-2 py-0.5">
-  <span class="text-graphite-1000 text-sm font-bold uppercase"
-    >{s("app.beta")}</span
-  >
+  <span class="text-graphite-1000 text-sm font-bold uppercase">
+    {s("app.beta")}
+  </span>
 </span>
 
 === 16275 src/lib/components/CategoryNavigation.svelte	svelte
@@ -1753,7 +1753,7 @@
   }
 </style>
 
-=== 16636 src/lib/components/ClusteringExplainerModal.svelte	svelte
+=== 16700 src/lib/components/ClusteringExplainerModal.svelte	svelte
 <script lang="ts">
   import {
     IconBrandGithub,
@@ -2014,8 +2014,10 @@
                 text-anchor="middle"
                 font-size="9"
                 fill="#6366f1"
-                opacity="0">story</text
+                opacity="0"
               >
+                story
+              </text>
               <text
                 class="cluster-label label-b"
                 x="228"
@@ -2023,8 +2025,10 @@
                 text-anchor="middle"
                 font-size="9"
                 fill="#10b981"
-                opacity="0">story</text
+                opacity="0"
               >
+                story
+              </text>
             </svg>
           </div>
 
@@ -3208,7 +3212,7 @@
   />
 {/if}
 
-=== 4147 src/lib/components/Footer.svelte	svelte
+=== 4158 src/lib/components/Footer.svelte	svelte
 <script lang="ts">
   import { s } from "$lib/client/localization.svelte";
   import {
@@ -3287,9 +3291,9 @@
           d="M12 0c-6.626 0-12 5.373-12 12 0 5.302 3.438 9.8 8.207 11.387.599.111.793-.261.793-.577v-2.234c-3.338.726-4.033-1.416-4.033-1.416-.546-1.387-1.333-1.756-1.333-1.756-1.089-.745.083-.729.083-.729 1.205.084 1.839 1.237 1.839 1.237 1.07 1.834 2.807 1.304 3.492.997.107-.775.418-1.305.762-1.604-2.665-.305-5.467-1.334-5.467-5.931 0-1.311.469-2.381 1.236-3.221-.124-.303-.535-1.524.117-3.176 0 0 1.008-.322 3.301 1.23.957-.266 1.983-.399 3.003-.404 1.02.005 2.047.138 3.006.404 2.291-1.552 3.297-1.23 3.297-1.23.653 1.653.242 2.874.118 3.176.77.84 1.235 1.911 1.235 3.221 0 4.609-2.807 5.624-5.479 5.921.43.372.823 1.102.823 2.222v3.293c0 .319.192.694.801.576 4.765-1.589 8.199-6.086 8.199-11.386 0-6.627-5.373-12-12-12z"
         />
       </svg>
-      <span class="text-xs sm:text-sm"
-        >{s("footer.contribute") || "Contribute"}</span
-      >
+      <span class="text-xs sm:text-sm">
+        {s("footer.contribute") || "Contribute"}
+      </span>
     </a>
 
     <button
@@ -3304,9 +3308,9 @@
       />
       <span class="text-xs sm:text-sm">
         <span class="sm:hidden">{s("footer.aboutMobile") || "About"}</span>
-        <span class="hidden sm:inline"
-          >{s("footer.about") || "About Kagi News"}</span
-        >
+        <span class="hidden sm:inline">
+          {s("footer.about") || "About Kagi News"}
+        </span>
       </span>
     </button>
 
@@ -3319,8 +3323,9 @@
       <img src="/svg/rss.svg" alt="" class="h-5 w-5 dark:invert" />
       <span class="text-xs sm:text-sm">
         <span class="sm:hidden">{s("footer.rssFeedMobile") || "RSS"}</span>
-        <span class="hidden sm:inline">{s("footer.rssFeed") || "RSS Feed"}</span
-        >
+        <span class="hidden sm:inline">
+          {s("footer.rssFeed") || "RSS Feed"}
+        </span>
       </span>
     </a>
   </div>
@@ -3687,9 +3692,9 @@
       <div
         class="animate-spin h-4 w-4 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400 rounded-full"
       ></div>
-      <span class="text-sm"
-        >{s("timeTravel.returningToLive") || "Returning to live..."}</span
-      >
+      <span class="text-sm">
+        {s("timeTravel.returningToLive") || "Returning to live..."}
+      </span>
     </div>
   {:else if timeTravel.selectedDate}
     <div
@@ -3790,9 +3795,9 @@
             <div
               class="animate-spin h-4 w-4 border-2 border-gray-300 dark:border-gray-600 border-t-blue-500 dark:border-t-blue-400 rounded-full"
             ></div>
-            <span class="text-sm"
-              >{s("timeTravel.returningToLive") || "Returning to live..."}</span
-            >
+            <span class="text-sm">
+              {s("timeTravel.returningToLive") || "Returning to live..."}
+            </span>
           </div>
         {:else}
           <div
@@ -5557,9 +5562,9 @@
               disabled={isSubmitting || isSuccess}
               class="me-2 text-amber-600 focus:ring-amber-500"
             />
-            <span class="text-sm text-gray-700 dark:text-gray-300"
-              >{s("article.reportModal.issueType.factualError")}</span
-            >
+            <span class="text-sm text-gray-700 dark:text-gray-300">
+              {s("article.reportModal.issueType.factualError")}
+            </span>
           </label>
           <label class="flex items-center">
             <input
@@ -5570,9 +5575,9 @@
               disabled={isSubmitting || isSuccess}
               class="me-2 text-amber-600 focus:ring-amber-500"
             />
-            <span class="text-sm text-gray-700 dark:text-gray-300"
-              >{s("article.reportModal.issueType.misleading")}</span
-            >
+            <span class="text-sm text-gray-700 dark:text-gray-300">
+              {s("article.reportModal.issueType.misleading")}
+            </span>
           </label>
           <label class="flex items-center">
             <input
@@ -5583,9 +5588,9 @@
               disabled={isSubmitting || isSuccess}
               class="me-2 text-amber-600 focus:ring-amber-500"
             />
-            <span class="text-sm text-gray-700 dark:text-gray-300"
-              >{s("article.reportModal.issueType.outdated")}</span
-            >
+            <span class="text-sm text-gray-700 dark:text-gray-300">
+              {s("article.reportModal.issueType.outdated")}
+            </span>
           </label>
           <label class="flex items-center">
             <input
@@ -5596,9 +5601,9 @@
               disabled={isSubmitting || isSuccess}
               class="me-2 text-amber-600 focus:ring-amber-500"
             />
-            <span class="text-sm text-gray-700 dark:text-gray-300"
-              >{s("article.reportModal.issueType.other")}</span
-            >
+            <span class="text-sm text-gray-700 dark:text-gray-300">
+              {s("article.reportModal.issueType.other")}
+            </span>
           </label>
         </div>
       </fieldset>
@@ -5623,12 +5628,12 @@
       <div
         class="mt-1 flex justify-between text-xs text-gray-500 dark:text-gray-400"
       >
-        <span
-          >{s("article.reportModal.characterCount", {
+        <span>
+          {s("article.reportModal.characterCount", {
             count: description.length.toString(),
             max: MAX_DESCRIPTION_LENGTH.toString(),
-          })}</span
-        >
+          })}
+        </span>
       </div>
     </div>
 
@@ -11688,9 +11693,9 @@
                 class="mb-3 p-2.5 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-md"
               >
                 <p class="text-xs text-red-700 dark:text-red-300">
-                  <span class="font-medium"
-                    >{s("contribute.history.declineReason")}:</span
-                  >
+                  <span class="font-medium">
+                    {s("contribute.history.declineReason")}:
+                  </span>
                   {contribution.declineReason}
                 </p>
               </div>
@@ -11802,7 +11807,7 @@
   {/if}
 </div>
 
-=== 29248 src/lib/components/contribute/ContributeOnboarding.svelte	svelte
+=== 29318 src/lib/components/contribute/ContributeOnboarding.svelte	svelte
 <script lang="ts">
   import {
     IconBrandGithub,
@@ -12177,8 +12182,10 @@
             text-anchor="middle"
             font-size="9"
             fill="#6366f1"
-            opacity="0">story</text
+            opacity="0"
           >
+            story
+          </text>
           <text
             class="cluster-label label-b"
             x="228"
@@ -12186,8 +12193,10 @@
             text-anchor="middle"
             font-size="9"
             fill="#10b981"
-            opacity="0">story</text
+            opacity="0"
           >
+            story
+          </text>
         </svg>
       </div>
 
@@ -12291,8 +12300,9 @@
             font-size="8"
             fill="#6b7280"
             opacity="0"
-            >{s("contribute.onboarding.community.networkLabelStories")}</text
           >
+            {s("contribute.onboarding.community.networkLabelStories")}
+          </text>
           <text
             class="blabel blabel-you"
             x={BIP_YOU.x + 12}
@@ -12301,8 +12311,9 @@
             font-size="8"
             fill={BIP_YOU.color}
             opacity="0"
-            >{s("contribute.onboarding.community.networkLabelYou")}</text
           >
+            {s("contribute.onboarding.community.networkLabelYou")}
+          </text>
         </svg>
       </div>
 
@@ -13380,11 +13391,11 @@
               {:else}
                 <IconTrendingDown class="h-3 w-3" />
               {/if}
-              <span
-                >{isPositive
+              <span>
+                {isPositive
                   ? "+"
-                  : ""}{priceData.priceChangePercentage24h.toFixed(2)}%</span
-              >
+                  : ""}{priceData.priceChangePercentage24h.toFixed(2)}%
+              </span>
             </div>
           {/if}
         </div>
@@ -13393,7 +13404,7 @@
   </div>
 </div>
 
-=== 6988 src/lib/components/crypto/CryptoPrice.svelte	svelte
+=== 6955 src/lib/components/crypto/CryptoPrice.svelte	svelte
 <script lang="ts">
   import {
     IconRefresh,
@@ -13572,9 +13583,9 @@
       <div class="flex flex-col">
         <div class="flex items-baseline gap-2">
           {#if !loading && data}
-            <span class="text-xs font-medium text-gray-600 dark:text-gray-400"
-              >{data.symbol}</span
-            >
+            <span class="text-xs font-medium text-gray-600 dark:text-gray-400">
+              {data.symbol}
+            </span>
           {/if}
           <span class="text-2xl font-bold text-gray-900 dark:text-gray-100">
             {loading ? "..." : formatPrice(data?.price ?? 0)}
@@ -13590,21 +13601,19 @@
               {:else}
                 <IconTrendingDown class="h-4 w-4" />
               {/if}
-              <span
-                >{isPositive ? "+" : ""}{data.priceChangePercentage24h.toFixed(
+              <span>
+                {isPositive ? "+" : ""}{data.priceChangePercentage24h.toFixed(
                   2,
-                )}%</span
-              >
+                )}%
+              </span>
             </div>
           {/if}
         </div>
         <div class="flex gap-3 text-xs text-gray-600 dark:text-gray-400">
           {#if !loading && data}
-            <span
-              >24h: {formatPrice(data.low24h)} - {formatPrice(
-                data.high24h,
-              )}</span
-            >
+            <span>
+              24h: {formatPrice(data.low24h)} - {formatPrice(data.high24h)}
+            </span>
           {/if}
         </div>
       </div>
@@ -13635,7 +13644,7 @@
   </div>
 </div>
 
-=== 9359 src/lib/components/f1/F1Schedule.svelte	svelte
+=== 9368 src/lib/components/f1/F1Schedule.svelte	svelte
 <script lang="ts">
   import {
     IconChevronDown,
@@ -13751,11 +13760,12 @@
       class="flex flex-1 items-center gap-2 text-left transition-colors hover:opacity-80"
     >
       <IconFlag class="h-4 w-4 text-gray-600 dark:text-gray-400" />
-      <span class="text-sm font-medium text-gray-900 dark:text-gray-100"
-        >{s("f1.schedule.title")}</span
-      >
-      <span class="text-xs text-gray-600 dark:text-gray-400">{summaryText}</span
-      >
+      <span class="text-sm font-medium text-gray-900 dark:text-gray-100">
+        {s("f1.schedule.title")}
+      </span>
+      <span class="text-xs text-gray-600 dark:text-gray-400">
+        {summaryText}
+      </span>
       {#if expanded}
         <IconChevronUp
           class="ml-auto h-5 w-5 text-gray-600 dark:text-gray-400"
@@ -13794,9 +13804,9 @@
                   {s("f1.nextRace")}
                 </span>
               {/if}
-              <span class="font-medium text-gray-900 dark:text-gray-100"
-                >{race.name}</span
-              >
+              <span class="font-medium text-gray-900 dark:text-gray-100">
+                {race.name}
+              </span>
             </div>
             <div
               class="flex items-center gap-2 text-gray-600 dark:text-gray-400"
@@ -13876,9 +13886,9 @@
                       >
                         <span class="font-medium">{s("f1.winner")}:</span>
                         {race.winner.name}
-                        <span class="text-gray-500 dark:text-gray-500"
-                          >({race.winner.constructor})</span
-                        >
+                        <span class="text-gray-500 dark:text-gray-500">
+                          ({race.winner.constructor})
+                        </span>
                       </div>
                     {/if}
                   </div>
@@ -13917,7 +13927,7 @@
   {/if}
 </div>
 
-=== 10104 src/lib/components/f1/F1Standings.svelte	svelte
+=== 10203 src/lib/components/f1/F1Standings.svelte	svelte
 <script lang="ts">
   import {
     IconChevronDown,
@@ -14020,11 +14030,12 @@
       class="flex flex-1 items-center gap-2 text-left transition-colors hover:opacity-80"
     >
       <IconTrophy class="h-4 w-4 text-gray-600 dark:text-gray-400" />
-      <span class="text-sm font-medium text-gray-900 dark:text-gray-100"
-        >{s("f1.standings.title")}</span
-      >
-      <span class="text-xs text-gray-600 dark:text-gray-400">{summaryText}</span
-      >
+      <span class="text-sm font-medium text-gray-900 dark:text-gray-100">
+        {s("f1.standings.title")}
+      </span>
+      <span class="text-xs text-gray-600 dark:text-gray-400">
+        {summaryText}
+      </span>
       {#if expanded}
         <IconChevronUp
           class="ml-auto h-5 w-5 text-gray-600 dark:text-gray-400"
@@ -14055,21 +14066,24 @@
           <div class="flex items-center justify-between text-xs">
             <div class="flex items-center gap-2">
               <span class="text-gray-600 dark:text-gray-400">{index + 1}.</span>
-              <span class="font-medium text-gray-900 dark:text-gray-100"
-                >{driver.driver.name}</span
-              >
-              <span class="text-gray-500 dark:text-gray-500"
-                >{driver.driver.code}</span
-              >
+              <span class="font-medium text-gray-900 dark:text-gray-100">
+                {driver.driver.name}
+              </span>
+              <span class="text-gray-500 dark:text-gray-500">
+                {driver.driver.code}
+              </span>
             </div>
             <div class="flex items-center gap-3">
-              <span class="text-gray-600 dark:text-gray-400"
-                >{driver.wins} {s("f1.wins")}</span
-              >
+              <span class="text-gray-600 dark:text-gray-400">
+                {driver.wins}
+                {s("f1.wins")}
+              </span>
               <span
                 class="min-w-[2rem] text-right font-bold text-gray-900 dark:text-gray-100"
-                >{driver.points} {s("f1.points")}</span
               >
+                {driver.points}
+                {s("f1.points")}
+              </span>
             </div>
           </div>
         {/each}
@@ -14142,9 +14156,11 @@
                     >
                       {driver.points}
                     </td>
-                    <td class="py-2 text-right text-gray-600 dark:text-gray-400"
-                      >{driver.wins}</td
+                    <td
+                      class="py-2 text-right text-gray-600 dark:text-gray-400"
                     >
+                      {driver.wins}
+                    </td>
                   </tr>
                 {/each}
               </tbody>
@@ -14210,7 +14226,7 @@
   {/if}
 </div>
 
-=== 20070 src/lib/components/nfl/NFLScores.svelte	svelte
+=== 20079 src/lib/components/nfl/NFLScores.svelte	svelte
 <script lang="ts">
   import {
     IconBallFootball,
@@ -14532,11 +14548,12 @@
         : s("nfl.expand") || "Expand NFL scores"}
     >
       <IconBallFootball class="size-4 text-gray-600 dark:text-gray-400" />
-      <span class="text-sm font-medium text-gray-900 dark:text-gray-100"
-        >{s("nfl.title")}</span
-      >
-      <span class="text-xs text-gray-600 dark:text-gray-400">{summaryText}</span
-      >
+      <span class="text-sm font-medium text-gray-900 dark:text-gray-100">
+        {s("nfl.title")}
+      </span>
+      <span class="text-xs text-gray-600 dark:text-gray-400">
+        {summaryText}
+      </span>
       {#if expanded}
         <IconChevronUp
           class="ml-auto h-5 w-5 text-gray-600 dark:text-gray-400"
@@ -14579,20 +14596,20 @@
                       class="h-4 w-4 object-contain"
                     />
                   {/if}
-                  <span class="font-medium text-gray-900 dark:text-gray-100"
-                    >{game.awayTeam.abbrev}</span
-                  >
+                  <span class="font-medium text-gray-900 dark:text-gray-100">
+                    {game.awayTeam.abbrev}
+                  </span>
                 </div>
                 {#if odds?.moneyline}
                   <Tooltip text={getOddsTooltip(odds)} position="top">
-                    <span class="text-[10px] text-gray-600 dark:text-gray-400"
-                      >{formatOdds(odds.moneyline.away)}</span
-                    >
+                    <span class="text-[10px] text-gray-600 dark:text-gray-400">
+                      {formatOdds(odds.moneyline.away)}
+                    </span>
                   </Tooltip>
                 {:else}
-                  <span class="text-gray-900 dark:text-gray-100"
-                    >{game.awayTeam.score ?? "-"}</span
-                  >
+                  <span class="text-gray-900 dark:text-gray-100">
+                    {game.awayTeam.score ?? "-"}
+                  </span>
                 {/if}
               </div>
               <div class="flex items-center justify-between gap-1">
@@ -14604,20 +14621,20 @@
                       class="h-4 w-4 object-contain"
                     />
                   {/if}
-                  <span class="font-medium text-gray-900 dark:text-gray-100"
-                    >{game.homeTeam.abbrev}</span
-                  >
+                  <span class="font-medium text-gray-900 dark:text-gray-100">
+                    {game.homeTeam.abbrev}
+                  </span>
                 </div>
                 {#if odds?.moneyline}
                   <Tooltip text={getOddsTooltip(odds)} position="top">
-                    <span class="text-[10px] text-gray-600 dark:text-gray-400"
-                      >{formatOdds(odds.moneyline.home)}</span
-                    >
+                    <span class="text-[10px] text-gray-600 dark:text-gray-400">
+                      {formatOdds(odds.moneyline.home)}
+                    </span>
                   </Tooltip>
                 {:else}
-                  <span class="text-gray-900 dark:text-gray-100"
-                    >{game.homeTeam.score ?? "-"}</span
-                  >
+                  <span class="text-gray-900 dark:text-gray-100">
+                    {game.homeTeam.score ?? "-"}
+                  </span>
                 {/if}
               </div>
               <div
@@ -14801,7 +14818,7 @@
   {/if}
 </div>
 
-=== 15322 src/lib/components/nfl/NFLStandings.svelte	svelte
+=== 15602 src/lib/components/nfl/NFLStandings.svelte	svelte
 <script lang="ts">
   import {
     IconChevronDown,
@@ -14944,11 +14961,12 @@
         : s("nfl.standings.expand") || "Expand NFL standings"}
     >
       <IconMedal class="size-4 text-gray-600 dark:text-gray-400" />
-      <span class="text-sm font-medium text-gray-900 dark:text-gray-100"
-        >{s("nfl.standings.title")}</span
-      >
-      <span class="text-xs text-gray-600 dark:text-gray-400">{summaryText}</span
-      >
+      <span class="text-sm font-medium text-gray-900 dark:text-gray-100">
+        {s("nfl.standings.title")}
+      </span>
+      <span class="text-xs text-gray-600 dark:text-gray-400">
+        {summaryText}
+      </span>
       {#if expanded}
         <IconChevronUp
           class="ml-auto h-5 w-5 text-gray-600 dark:text-gray-400"
@@ -14986,20 +15004,19 @@
                   class="h-4 w-4 object-contain"
                 />
               {/if}
-              <span class="font-medium text-gray-900 dark:text-gray-100"
-                >{team.abbrev}</span
-              >
+              <span class="font-medium text-gray-900 dark:text-gray-100">
+                {team.abbrev}
+              </span>
             </div>
             <div class="flex items-center gap-3">
-              <span class="text-gray-600 dark:text-gray-400"
-                >{team.wins}-{team.losses}{team.ties > 0
-                  ? `-${team.ties}`
-                  : ""}</span
-              >
+              <span class="text-gray-600 dark:text-gray-400">
+                {team.wins}-{team.losses}{team.ties > 0 ? `-${team.ties}` : ""}
+              </span>
               <span
                 class="min-w-[2.5rem] text-right font-bold text-gray-900 dark:text-gray-100"
-                >{team.winPercent.toFixed(3)}</span
               >
+                {team.winPercent.toFixed(3)}
+              </span>
             </div>
           </div>
         {/each}
@@ -15050,39 +15067,42 @@
                       class="border-b border-gray-200 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
                     >
                       <tr>
-                        <th class="px-3 py-2 text-left font-medium"
-                          >{s("nfl.standings.header.rank")}</th
-                        >
-                        <th class="px-3 py-2 text-left font-medium"
-                          >{s("nfl.standings.header.team")}</th
-                        >
-                        <th class="px-2 py-2 text-center font-medium"
-                          >{s("nfl.standings.header.w")}</th
-                        >
-                        <th class="px-2 py-2 text-center font-medium"
-                          >{s("nfl.standings.header.l")}</th
-                        >
-                        <th class="px-2 py-2 text-center font-medium"
-                          >{s("nfl.standings.header.t")}</th
-                        >
-                        <th class="px-2 py-2 text-center font-medium"
-                          >{s("nfl.standings.header.pct")}</th
-                        >
+                        <th class="px-3 py-2 text-left font-medium">
+                          {s("nfl.standings.header.rank")}
+                        </th>
+                        <th class="px-3 py-2 text-left font-medium">
+                          {s("nfl.standings.header.team")}
+                        </th>
+                        <th class="px-2 py-2 text-center font-medium">
+                          {s("nfl.standings.header.w")}
+                        </th>
+                        <th class="px-2 py-2 text-center font-medium">
+                          {s("nfl.standings.header.l")}
+                        </th>
+                        <th class="px-2 py-2 text-center font-medium">
+                          {s("nfl.standings.header.t")}
+                        </th>
+                        <th class="px-2 py-2 text-center font-medium">
+                          {s("nfl.standings.header.pct")}
+                        </th>
                         <th
                           class="px-2 py-2 text-center font-medium hidden sm:table-cell"
-                          >{s("nfl.standings.header.pf")}</th
                         >
+                          {s("nfl.standings.header.pf")}
+                        </th>
                         <th
                           class="px-2 py-2 text-center font-medium hidden sm:table-cell"
-                          >{s("nfl.standings.header.pa")}</th
                         >
+                          {s("nfl.standings.header.pa")}
+                        </th>
                         <th
                           class="px-2 py-2 text-center font-medium hidden sm:table-cell"
-                          >{s("nfl.standings.header.diff")}</th
                         >
-                        <th class="px-2 py-2 text-center font-medium"
-                          >{s("nfl.standings.header.strk")}</th
-                        >
+                          {s("nfl.standings.header.diff")}
+                        </th>
+                        <th class="px-2 py-2 text-center font-medium">
+                          {s("nfl.standings.header.strk")}
+                        </th>
                       </tr>
                     </thead>
                     <tbody class="bg-white dark:bg-gray-800">
@@ -15091,9 +15111,11 @@
                         <tr
                           class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
                         >
-                          <td class="px-3 py-2 text-gray-700 dark:text-gray-300"
-                            >{index + 1}</td
+                          <td
+                            class="px-3 py-2 text-gray-700 dark:text-gray-300"
                           >
+                            {index + 1}
+                          </td>
                           <td class="px-3 py-2">
                             <div class="flex items-center gap-2">
                               {#if team.logo}
@@ -15112,28 +15134,34 @@
                           </td>
                           <td
                             class="px-2 py-2 text-center text-gray-700 dark:text-gray-300"
-                            >{team.wins}</td
                           >
+                            {team.wins}
+                          </td>
                           <td
                             class="px-2 py-2 text-center text-gray-700 dark:text-gray-300"
-                            >{team.losses}</td
                           >
+                            {team.losses}
+                          </td>
                           <td
                             class="px-2 py-2 text-center text-gray-700 dark:text-gray-300"
-                            >{team.ties}</td
                           >
+                            {team.ties}
+                          </td>
                           <td
                             class="px-2 py-2 text-center font-bold text-gray-900 dark:text-gray-100"
-                            >{team.winPercent.toFixed(3)}</td
                           >
+                            {team.winPercent.toFixed(3)}
+                          </td>
                           <td
                             class="px-2 py-2 text-center text-gray-700 dark:text-gray-300 hidden sm:table-cell"
-                            >{team.pointsFor}</td
                           >
+                            {team.pointsFor}
+                          </td>
                           <td
                             class="px-2 py-2 text-center text-gray-700 dark:text-gray-300 hidden sm:table-cell"
-                            >{team.pointsAgainst}</td
                           >
+                            {team.pointsAgainst}
+                          </td>
                           <td
                             class="px-2 py-2 text-center text-gray-700 dark:text-gray-300 hidden sm:table-cell"
                           >
@@ -15174,38 +15202,38 @@
           class="border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400"
         >
           <div class="flex flex-wrap gap-x-3 gap-y-1">
-            <span
-              ><strong>{s("nfl.standings.header.w")}:</strong>
-              {s("nfl.standings.legend.w")}</span
-            >
-            <span
-              ><strong>{s("nfl.standings.header.l")}:</strong>
-              {s("nfl.standings.legend.l")}</span
-            >
-            <span
-              ><strong>{s("nfl.standings.header.t")}:</strong>
-              {s("nfl.standings.legend.t")}</span
-            >
-            <span
-              ><strong>{s("nfl.standings.header.pct")}:</strong>
-              {s("nfl.standings.legend.pct")}</span
-            >
-            <span class="hidden sm:inline"
-              ><strong>{s("nfl.standings.header.pf")}:</strong>
-              {s("nfl.standings.legend.pf")}</span
-            >
-            <span class="hidden sm:inline"
-              ><strong>{s("nfl.standings.header.pa")}:</strong>
-              {s("nfl.standings.legend.pa")}</span
-            >
-            <span class="hidden sm:inline"
-              ><strong>{s("nfl.standings.header.diff")}:</strong>
-              {s("nfl.standings.legend.diff")}</span
-            >
-            <span
-              ><strong>{s("nfl.standings.header.strk")}:</strong>
-              {s("nfl.standings.legend.strk")}</span
-            >
+            <span>
+              <strong>{s("nfl.standings.header.w")}:</strong>
+              {s("nfl.standings.legend.w")}
+            </span>
+            <span>
+              <strong>{s("nfl.standings.header.l")}:</strong>
+              {s("nfl.standings.legend.l")}
+            </span>
+            <span>
+              <strong>{s("nfl.standings.header.t")}:</strong>
+              {s("nfl.standings.legend.t")}
+            </span>
+            <span>
+              <strong>{s("nfl.standings.header.pct")}:</strong>
+              {s("nfl.standings.legend.pct")}
+            </span>
+            <span class="hidden sm:inline">
+              <strong>{s("nfl.standings.header.pf")}:</strong>
+              {s("nfl.standings.legend.pf")}
+            </span>
+            <span class="hidden sm:inline">
+              <strong>{s("nfl.standings.header.pa")}:</strong>
+              {s("nfl.standings.legend.pa")}
+            </span>
+            <span class="hidden sm:inline">
+              <strong>{s("nfl.standings.header.diff")}:</strong>
+              {s("nfl.standings.legend.diff")}
+            </span>
+            <span>
+              <strong>{s("nfl.standings.header.strk")}:</strong>
+              {s("nfl.standings.legend.strk")}
+            </span>
           </div>
         </div>
       {/if}
@@ -15213,7 +15241,7 @@
   {/if}
 </div>
 
-=== 13929 src/lib/components/nhl/NHLStandings.svelte	svelte
+=== 14117 src/lib/components/nhl/NHLStandings.svelte	svelte
 <script lang="ts">
   import {
     IconChevronDown,
@@ -15344,11 +15372,12 @@
         : s("nhl.standings.expand") || "Expand NHL standings"}
     >
       <IconMedal class="size-4 text-gray-600 dark:text-gray-400" />
-      <span class="text-sm font-medium text-gray-900 dark:text-gray-100"
-        >{s("nhl.standings.title")}</span
-      >
-      <span class="text-xs text-gray-600 dark:text-gray-400">{summaryText}</span
-      >
+      <span class="text-sm font-medium text-gray-900 dark:text-gray-100">
+        {s("nhl.standings.title")}
+      </span>
+      <span class="text-xs text-gray-600 dark:text-gray-400">
+        {summaryText}
+      </span>
       {#if expanded}
         <IconChevronUp
           class="ml-auto h-5 w-5 text-gray-600 dark:text-gray-400"
@@ -15386,18 +15415,20 @@
                   class="h-4 w-4 object-contain"
                 />
               {/if}
-              <span class="font-medium text-gray-900 dark:text-gray-100"
-                >{team.teamId}</span
-              >
+              <span class="font-medium text-gray-900 dark:text-gray-100">
+                {team.teamId}
+              </span>
             </div>
             <div class="flex items-center gap-3">
-              <span class="text-gray-600 dark:text-gray-400"
-                >{team.wins}-{team.losses}-{team.otLosses}</span
-              >
+              <span class="text-gray-600 dark:text-gray-400">
+                {team.wins}-{team.losses}-{team.otLosses}
+              </span>
               <span
                 class="min-w-[2rem] text-right font-bold text-gray-900 dark:text-gray-100"
-                >{team.points} {s("nhl.standings.points")}</span
               >
+                {team.points}
+                {s("nhl.standings.points")}
+              </span>
             </div>
           </div>
         {/each}
@@ -15447,34 +15478,35 @@
                     class="border-b border-gray-200 bg-white text-gray-700 dark:border-gray-600 dark:bg-gray-800 dark:text-gray-300"
                   >
                     <tr>
-                      <th class="px-3 py-2 text-left font-medium"
-                        >{s("nhl.standings.header.rank")}</th
-                      >
-                      <th class="px-3 py-2 text-left font-medium"
-                        >{s("nhl.standings.header.team")}</th
-                      >
-                      <th class="px-2 py-2 text-center font-medium"
-                        >{s("nhl.standings.header.gp")}</th
-                      >
-                      <th class="px-2 py-2 text-center font-medium"
-                        >{s("nhl.standings.header.w")}</th
-                      >
-                      <th class="px-2 py-2 text-center font-medium"
-                        >{s("nhl.standings.header.l")}</th
-                      >
-                      <th class="px-2 py-2 text-center font-medium"
-                        >{s("nhl.standings.header.ot")}</th
-                      >
-                      <th class="px-2 py-2 text-center font-medium"
-                        >{s("nhl.standings.header.pts")}</th
-                      >
+                      <th class="px-3 py-2 text-left font-medium">
+                        {s("nhl.standings.header.rank")}
+                      </th>
+                      <th class="px-3 py-2 text-left font-medium">
+                        {s("nhl.standings.header.team")}
+                      </th>
+                      <th class="px-2 py-2 text-center font-medium">
+                        {s("nhl.standings.header.gp")}
+                      </th>
+                      <th class="px-2 py-2 text-center font-medium">
+                        {s("nhl.standings.header.w")}
+                      </th>
+                      <th class="px-2 py-2 text-center font-medium">
+                        {s("nhl.standings.header.l")}
+                      </th>
+                      <th class="px-2 py-2 text-center font-medium">
+                        {s("nhl.standings.header.ot")}
+                      </th>
+                      <th class="px-2 py-2 text-center font-medium">
+                        {s("nhl.standings.header.pts")}
+                      </th>
                       <th
                         class="px-2 py-2 text-center font-medium hidden sm:table-cell"
-                        >{s("nhl.standings.header.diff")}</th
                       >
-                      <th class="px-2 py-2 text-center font-medium"
-                        >{s("nhl.standings.header.strk")}</th
-                      >
+                        {s("nhl.standings.header.diff")}
+                      </th>
+                      <th class="px-2 py-2 text-center font-medium">
+                        {s("nhl.standings.header.strk")}
+                      </th>
                     </tr>
                   </thead>
                   <tbody class="bg-white dark:bg-gray-800">
@@ -15483,9 +15515,9 @@
                       <tr
                         class="border-t border-gray-200 hover:bg-gray-50 dark:border-gray-700 dark:hover:bg-gray-700"
                       >
-                        <td class="px-3 py-2 text-gray-700 dark:text-gray-300"
-                          >{index + 1}</td
-                        >
+                        <td class="px-3 py-2 text-gray-700 dark:text-gray-300">
+                          {index + 1}
+                        </td>
                         <td class="px-3 py-2">
                           <div class="flex items-center gap-2">
                             {#if team.teamLogo}
@@ -15504,24 +15536,29 @@
                         </td>
                         <td
                           class="px-2 py-2 text-center text-gray-700 dark:text-gray-300"
-                          >{team.gamesPlayed}</td
                         >
+                          {team.gamesPlayed}
+                        </td>
                         <td
                           class="px-2 py-2 text-center text-gray-700 dark:text-gray-300"
-                          >{team.wins}</td
                         >
+                          {team.wins}
+                        </td>
                         <td
                           class="px-2 py-2 text-center text-gray-700 dark:text-gray-300"
-                          >{team.losses}</td
                         >
+                          {team.losses}
+                        </td>
                         <td
                           class="px-2 py-2 text-center text-gray-700 dark:text-gray-300"
-                          >{team.otLosses}</td
                         >
+                          {team.otLosses}
+                        </td>
                         <td
                           class="px-2 py-2 text-center font-bold text-gray-900 dark:text-gray-100"
-                          >{team.points}</td
                         >
+                          {team.points}
+                        </td>
                         <td
                           class="px-2 py-2 text-center text-gray-700 dark:text-gray-300 hidden sm:table-cell"
                         >
@@ -15561,34 +15598,34 @@
           class="border-t border-gray-200 bg-gray-50 px-4 py-2 text-xs text-gray-600 dark:border-gray-700 dark:bg-gray-800/50 dark:text-gray-400"
         >
           <div class="flex flex-wrap gap-x-3 gap-y-1">
-            <span
-              ><strong>{s("nhl.standings.header.gp")}:</strong>
-              {s("nhl.standings.legend.gp")}</span
-            >
-            <span
-              ><strong>{s("nhl.standings.header.w")}:</strong>
-              {s("nhl.standings.legend.w")}</span
-            >
-            <span
-              ><strong>{s("nhl.standings.header.l")}:</strong>
-              {s("nhl.standings.legend.l")}</span
-            >
-            <span
-              ><strong>{s("nhl.standings.header.ot")}:</strong>
-              {s("nhl.standings.legend.ot")}</span
-            >
-            <span
-              ><strong>{s("nhl.standings.header.pts")}:</strong>
-              {s("nhl.standings.legend.pts")}</span
-            >
-            <span class="hidden sm:inline"
-              ><strong>{s("nhl.standings.header.diff")}:</strong>
-              {s("nhl.standings.legend.diff")}</span
-            >
-            <span
-              ><strong>{s("nhl.standings.header.strk")}:</strong>
-              {s("nhl.standings.legend.strk")}</span
-            >
+            <span>
+              <strong>{s("nhl.standings.header.gp")}:</strong>
+              {s("nhl.standings.legend.gp")}
+            </span>
+            <span>
+              <strong>{s("nhl.standings.header.w")}:</strong>
+              {s("nhl.standings.legend.w")}
+            </span>
+            <span>
+              <strong>{s("nhl.standings.header.l")}:</strong>
+              {s("nhl.standings.legend.l")}
+            </span>
+            <span>
+              <strong>{s("nhl.standings.header.ot")}:</strong>
+              {s("nhl.standings.legend.ot")}
+            </span>
+            <span>
+              <strong>{s("nhl.standings.header.pts")}:</strong>
+              {s("nhl.standings.legend.pts")}
+            </span>
+            <span class="hidden sm:inline">
+              <strong>{s("nhl.standings.header.diff")}:</strong>
+              {s("nhl.standings.legend.diff")}
+            </span>
+            <span>
+              <strong>{s("nhl.standings.header.strk")}:</strong>
+              {s("nhl.standings.legend.strk")}
+            </span>
           </div>
         </div>
       {/if}
@@ -16366,7 +16403,7 @@
   }
 </style>
 
-=== 18271 src/lib/components/search/SearchModal.svelte	svelte
+=== 18316 src/lib/components/search/SearchModal.svelte	svelte
 <script lang="ts">
   import { IconLoader2 } from "@tabler/icons-svelte";
   import { browser } from "$app/environment";
@@ -16924,22 +16961,25 @@
             <span class="flex items-center gap-1">
               <kbd
                 class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs"
-                >↑↓</kbd
               >
+                ↑↓
+              </kbd>
               {s("search.navigate") || "navigate"}
             </span>
             <span class="flex items-center gap-1">
               <kbd
                 class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs"
-                >Enter</kbd
               >
+                Enter
+              </kbd>
               {s("search.select") || "select"}
             </span>
             <span class="flex items-center gap-1">
               <kbd
                 class="px-1.5 py-0.5 bg-gray-200 dark:bg-gray-700 rounded text-xs"
-                >Esc</kbd
               >
+                Esc
+              </kbd>
               {s("search.close") || "close"}
             </span>
           </div>
@@ -17499,12 +17539,12 @@
               {/if}
 
               {#if result.story.unique_domains}
-                <span
-                  >{result.story.unique_domains}
+                <span>
+                  {result.story.unique_domains}
                   {result.story.unique_domains === 1
                     ? s("search.source_single") || "source"
-                    : s("search.source_plural") || "sources"}</span
-                >
+                    : s("search.source_plural") || "sources"}
+                </span>
                 {#if result.batchDate && !isToday(result.batchDate)}
                   <span class="mx-2">•</span>
                 {/if}
@@ -17572,15 +17612,15 @@
             <div class="text-sm text-gray-400 dark:text-gray-500 space-y-1">
               <p>{s("search.try_searching_for") || "Try searching for:"}</p>
               <div class="flex flex-wrap gap-2 justify-center">
-                <code class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded"
-                  >category:World</code
-                >
-                <code class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded"
-                  >from:yesterday</code
-                >
-                <code class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded"
-                  >to:today</code
-                >
+                <code class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
+                  category:World
+                </code>
+                <code class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
+                  from:yesterday
+                </code>
+                <code class="px-2 py-1 bg-gray-100 dark:bg-gray-700 rounded">
+                  to:today
+                </code>
               </div>
             </div>
           {/if}
@@ -17788,10 +17828,10 @@ Guidelines:
               >
                 <IconRss size={18} class="shrink-0 mt-0.5 text-blue-500" />
                 <span>
-                  <strong class="text-gray-900 dark:text-gray-200"
-                    >{s("settings.categories.contribute.req1Title") ||
-                      "25+ RSS feeds (more is better)"}</strong
-                  >
+                  <strong class="text-gray-900 dark:text-gray-200">
+                    {s("settings.categories.contribute.req1Title") ||
+                      "25+ RSS feeds (more is better)"}
+                  </strong>
                   {" "}{s("settings.categories.contribute.req1Desc") ||
                     "\u2014 the more high-quality feeds, the better the coverage"}
                 </span>
@@ -17801,10 +17841,10 @@ Guidelines:
               >
                 <IconCheck size={18} class="shrink-0 mt-0.5 text-green-500" />
                 <span>
-                  <strong class="text-gray-900 dark:text-gray-200"
-                    >{s("settings.categories.contribute.req2Title") ||
-                      'No need for "balance"'}</strong
-                  >
+                  <strong class="text-gray-900 dark:text-gray-200">
+                    {s("settings.categories.contribute.req2Title") ||
+                      'No need for "balance"'}
+                  </strong>
                   {" "}{s("settings.categories.contribute.req2Desc") ||
                     "\u2014 a left-wing source doesn\u2019t need a right-wing counterpart. State media, partisan outlets, all fine. Our system corroborates facts across multiple sources, so outliers can\u2019t skew the output. This is also why more sources = better"}
                 </span>
@@ -17817,10 +17857,10 @@ Guidelines:
                   class="shrink-0 mt-0.5 text-amber-500"
                 />
                 <span>
-                  <strong class="text-gray-900 dark:text-gray-200"
-                    >{s("settings.categories.contribute.req3Title") ||
-                      "No conspiracy content"}</strong
-                  >
+                  <strong class="text-gray-900 dark:text-gray-200">
+                    {s("settings.categories.contribute.req3Title") ||
+                      "No conspiracy content"}
+                  </strong>
                   {" "}{s("settings.categories.contribute.req3Desc") ||
                     "\u2014 no fabricated claims, event denial, or hoax content"}
                 </span>
@@ -17889,7 +17929,7 @@ Guidelines:
   </Portal>
 {/if}
 
-=== 8453 src/lib/components/settings/SettingsAbout.svelte	svelte
+=== 8450 src/lib/components/settings/SettingsAbout.svelte	svelte
 <script lang="ts">
   import { IconKeyboard } from "@tabler/icons-svelte";
   import { s } from "$lib/client/localization.svelte";
@@ -18054,14 +18094,14 @@ Guidelines:
         class="inline-flex items-center gap-2 rounded-lg border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 px-4 py-2 text-sm font-medium text-gray-700 dark:text-gray-300 transition-colors duration-200 hover:bg-gray-50 dark:hover:bg-gray-700 focus-visible-ring"
       >
         <IconKeyboard size={18} />
-        <span
-          >{s("settings.about.viewShortcuts") ||
-            "View Keyboard Shortcuts"}</span
-        >
+        <span>
+          {s("settings.about.viewShortcuts") || "View Keyboard Shortcuts"}
+        </span>
         <kbd
           class="ms-2 px-1.5 py-0.5 text-xs font-semibold bg-gray-100 dark:bg-gray-700 rounded"
-          >?</kbd
         >
+          ?
+        </kbd>
       </button>
     </div>
   </div>
@@ -18096,9 +18136,9 @@ Guidelines:
             d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4"
           />
         </svg>
-        <span
-          >{s("settings.about.viewApiDocs") || "View API Documentation"}</span
-        >
+        <span>
+          {s("settings.about.viewApiDocs") || "View API Documentation"}
+        </span>
       </a>
     </div>
   </div>
@@ -20494,10 +20534,10 @@ Guidelines:
 
 <div class="space-y-6">
   <p class="mb-6 text-sm text-gray-600 dark:text-gray-400">
-    ⚠️ <span class="ms-1"
-      >{s("settings.experimental.warning") ||
-        "These features are experimental and may change or be removed in future versions."}</span
-    >
+    ⚠️ <span class="ms-1">
+      {s("settings.experimental.warning") ||
+        "These features are experimental and may change or be removed in future versions."}
+    </span>
   </p>
 
   <!-- Article Icons -->
@@ -20636,10 +20676,10 @@ Guidelines:
         aria-checked={experimental.showChaosIndex}
         aria-labelledby="label-chaos-index"
       >
-        <span class="sr-only"
-          >{s("settings.experimental.chaosIndex.label") ||
-            "Show World Tension Index"}</span
-        >
+        <span class="sr-only">
+          {s("settings.experimental.chaosIndex.label") ||
+            "Show World Tension Index"}
+        </span>
         <span
           class="inline-block h-4 w-4 transform rounded-full bg-white transition"
           class:ltr:translate-x-6={experimental.showChaosIndex}
@@ -21818,7 +21858,7 @@ Guidelines:
   </div>
 </div>
 
-=== 13445 src/lib/components/settings/SettingsLanguage.svelte	svelte
+=== 13482 src/lib/components/settings/SettingsLanguage.svelte	svelte
 <script lang="ts">
   import { IconInfoCircle, IconSparkles } from "@tabler/icons-svelte";
   import { getContext } from "svelte";
@@ -22080,10 +22120,10 @@ Guidelines:
                         <IconSparkles size={12} class="me-1" />
                         {getLevelLabel(effectiveLevel)}
                         {#if currentOverride === "use-global"}
-                          <span class="ms-1 opacity-70"
-                            >({s("settings.readingLevel.fromGlobal") ||
-                              "global"})</span
-                          >
+                          <span class="ms-1 opacity-70">
+                            ({s("settings.readingLevel.fromGlobal") ||
+                              "global"})
+                          </span>
                         {/if}
                       </span>
                     {/if}
@@ -22127,9 +22167,11 @@ Guidelines:
                   "Clear language at an intermediate level (B1). Good for general readers."}
               </p>
               <p>
-                <strong
-                  >{s("story.simplify.verySimple") || "Very Simple"}</strong
-                >: {s("settings.readingLevel.info.verySimpleDescription") ||
+                <strong>
+                  {s("story.simplify.verySimple") || "Very Simple"}
+                </strong>: {s(
+                  "settings.readingLevel.info.verySimpleDescription",
+                ) ||
                   "Basic vocabulary and short sentences (A2). Ideal for language learners."}
               </p>
             </div>
@@ -23428,7 +23470,7 @@ Guidelines:
   </div>
 </BaseModal>
 
-=== 14137 src/lib/components/settings/snippets/DataLanguageSelector.svelte	svelte
+=== 14125 src/lib/components/settings/snippets/DataLanguageSelector.svelte	svelte
 <script lang="ts">
   import { IconInfoCircle, IconX } from "@tabler/icons-svelte";
   import { browser } from "$app/environment";
@@ -23819,10 +23861,9 @@ Guidelines:
         target="_blank"
         class="flex items-center hover:text-gray-700 dark:hover:text-gray-300"
       >
-        <span
-          >{s("settings.language.poweredBy") ||
-            "Translated with Kagi Translate"}</span
-        >
+        <span>
+          {s("settings.language.poweredBy") || "Translated with Kagi Translate"}
+        </span>
         <img
           src="/svg/translate.svg"
           alt="Kagi Translate"
@@ -25423,9 +25464,9 @@ Guidelines:
             d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
           ></path>
         </svg>
-        <span class="text-sm text-gray-600 dark:text-gray-400"
-          >Simplifying...</span
-        >
+        <span class="text-sm text-gray-600 dark:text-gray-400">
+          Simplifying...
+        </span>
       </div>
     {:else}
       <div class="py-1">
@@ -26719,9 +26760,9 @@ Guidelines:
                   ></path>
                 </svg>
                 {#if showAssistantInput}
-                  <span class="text-xs font-medium"
-                    >{s("story.assistant.tooltip")}</span
-                  >
+                  <span class="text-xs font-medium">
+                    {s("story.assistant.tooltip")}
+                  </span>
                 {/if}
               </button>
             </Tooltip>
@@ -27807,7 +27848,7 @@ Guidelines:
   </div>
 </section>
 
-=== 4613 src/lib/components/story/StoryQuote.svelte	svelte
+=== 4620 src/lib/components/story/StoryQuote.svelte	svelte
 <script lang="ts">
   import { s } from "$lib/client/localization.svelte";
   import type { Article } from "$lib/types";
@@ -27899,7 +27940,8 @@ Guidelines:
         rel="noopener noreferrer"
         aria-label={`Read full quote${author ? ` from ${author}` : ""}${attribution ? ` - ${attribution}` : ""} at ${sourceDomain || "source"}`}
         class="underline text-black dark:text-white hover:text-[#183FDC] dark:hover:text-[#5B89FF] transition-colors focus-visible-ring rounded"
-        >{#if flashcardMode}<SelectableText
+      >
+        {#if flashcardMode}<SelectableText
             text={displayQuote}
             {flashcardMode}
             {selectedWords}
@@ -27913,9 +27955,9 @@ Guidelines:
             showNumbers={false}
             {articles}
             {citationMapping}
-          />{/if}</a
-      >{:else}<span class="underline"
-        >{#if flashcardMode}<SelectableText
+          />{/if}
+      </a>{:else}<span class="underline">
+        {#if flashcardMode}<SelectableText
             text={displayQuote}
             {flashcardMode}
             {selectedWords}
@@ -27929,8 +27971,8 @@ Guidelines:
             showNumbers={false}
             {articles}
             {citationMapping}
-          />{/if}</span
-      >{/if}<span class="italic" aria-hidden="true">"</span>
+          />{/if}
+      </span>{/if}<span class="italic" aria-hidden="true">"</span>
   </blockquote>
 
   <!-- Attribution information on second line -->
@@ -29595,9 +29637,9 @@ Guidelines:
             class="h-16 w-16"
           />
           <div class="flex flex-col">
-            <span class="text-sm text-gray-600 dark:text-gray-400"
-              >{s("weather.loading")}</span
-            >
+            <span class="text-sm text-gray-600 dark:text-gray-400">
+              {s("weather.loading")}
+            </span>
           </div>
         </div>
       </div>
@@ -29606,9 +29648,9 @@ Guidelines:
         <div class="flex items-center gap-3">
           <img src="/weather-icons/cloudy.svg" alt="Error" class="h-16 w-16" />
           <div class="flex flex-col">
-            <span class="text-sm text-gray-600 dark:text-gray-400"
-              >{s("weather.error")}</span
-            >
+            <span class="text-sm text-gray-600 dark:text-gray-400">
+              {s("weather.error")}
+            </span>
           </div>
         </div>
       </div>
@@ -29624,15 +29666,15 @@ Guidelines:
             class="h-16 w-16"
           />
           <div class="flex flex-col">
-            <span class="text-xs text-gray-600 dark:text-gray-400"
-              >{s(`weather.location.${data.locationKey}`)}</span
-            >
-            <span class="text-2xl font-bold text-gray-900 dark:text-gray-100"
-              >{data.data.temperature}°{s("weather.fahrenheit")}</span
-            >
-            <span class="text-sm text-gray-600 dark:text-gray-400"
-              >{weatherInfo.description}</span
-            >
+            <span class="text-xs text-gray-600 dark:text-gray-400">
+              {s(`weather.location.${data.locationKey}`)}
+            </span>
+            <span class="text-2xl font-bold text-gray-900 dark:text-gray-100">
+              {data.data.temperature}°{s("weather.fahrenheit")}
+            </span>
+            <span class="text-sm text-gray-600 dark:text-gray-400">
+              {weatherInfo.description}
+            </span>
           </div>
         </div>
 
@@ -30614,9 +30656,9 @@ Guidelines:
 
         {#if state.isLoadingCategory}
           <div class="min-h-[300px]" aria-live="polite" aria-busy="true">
-            <span class="sr-only"
-              >{s("loading.stories") || "Loading stories..."}</span
-            >
+            <span class="sr-only">
+              {s("loading.stories") || "Loading stories..."}
+            </span>
             {#each Array(10) as _, i}
               <StoryCardSkeleton variant={i} />
             {/each}

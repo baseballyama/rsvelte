@@ -10884,7 +10884,7 @@
   </TreeView.Tree>
 </TreeView>
 
-=== 1522 playgrounds/skeleton-svelte/src/routes/+layout.svelte	svelte
+=== 1542 playgrounds/skeleton-svelte/src/routes/+layout.svelte	svelte
 <script lang="ts">
   import { resolve } from "$app/paths";
   import "./layout.css";
@@ -10913,8 +10913,10 @@
       <header class="flex justify-between items-center">
         <a
           class="inline-block text-sm bg-orange-500 p-2 font-mono font-bold text-white"
-          href={resolve("/")}>skeleton-svelte</a
+          href={resolve("/")}
         >
+          skeleton-svelte
+        </a>
         <LightSwitch />
       </header>
       <hr class="hr" />
@@ -10937,9 +10939,9 @@
 <div class="flex h-full w-full items-center justify-center">
   <div class="max-w-[600px] text-balance text-center">
     <p>
-      This is a sandbox for <code class="code"
-        >@skeletonlabs/skeleton-svelte</code
-      >. Select a feature from the list to preview.
+      This is a sandbox for <code class="code">
+        @skeletonlabs/skeleton-svelte
+      </code>. Select a feature from the list to preview.
     </p>
   </div>
 </div>
@@ -10988,23 +10990,23 @@ j
     <AppBar>
       <AppBar.Toolbar class="grid-cols-[auto_1fr_auto]">
         <AppBar.Lead>
-          <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal"
-            ><MenuIcon /></button
-          >
+          <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal">
+            <MenuIcon />
+          </button>
         </AppBar.Lead>
         <AppBar.Headline>
           <p class="text-2xl">Headline</p>
         </AppBar.Headline>
         <AppBar.Trail>
-          <button type="button" class="btn-icon hover:preset-tonal"
-            ><SearchIcon class="size-6" /></button
-          >
-          <button type="button" class="btn-icon hover:preset-tonal"
-            ><CalendarIcon class="size-6" /></button
-          >
-          <button type="button" class="btn-icon hover:preset-tonal"
-            ><CircleUserIcon class="size-6" /></button
-          >
+          <button type="button" class="btn-icon hover:preset-tonal">
+            <SearchIcon class="size-6" />
+          </button>
+          <button type="button" class="btn-icon hover:preset-tonal">
+            <CalendarIcon class="size-6" />
+          </button>
+          <button type="button" class="btn-icon hover:preset-tonal">
+            <CircleUserIcon class="size-6" />
+          </button>
         </AppBar.Trail>
       </AppBar.Toolbar>
     </AppBar>
@@ -11014,23 +11016,23 @@ j
     <AppBar>
       <AppBar.Toolbar class="grid-cols-[1fr_2fr_1fr]">
         <AppBar.Lead>
-          <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal"
-            ><MenuIcon /></button
-          >
+          <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal">
+            <MenuIcon />
+          </button>
         </AppBar.Lead>
         <AppBar.Headline class="flex justify-center">
           <p>Headline</p>
         </AppBar.Headline>
         <AppBar.Trail class="justify-end">
-          <button type="button" class="btn-icon hover:preset-tonal"
-            ><SearchIcon class="size-6" /></button
-          >
-          <button type="button" class="btn-icon hover:preset-tonal"
-            ><CalendarIcon class="size-6" /></button
-          >
-          <button type="button" class="btn-icon hover:preset-tonal"
-            ><CircleUserIcon class="size-6" /></button
-          >
+          <button type="button" class="btn-icon hover:preset-tonal">
+            <SearchIcon class="size-6" />
+          </button>
+          <button type="button" class="btn-icon hover:preset-tonal">
+            <CalendarIcon class="size-6" />
+          </button>
+          <button type="button" class="btn-icon hover:preset-tonal">
+            <CircleUserIcon class="size-6" />
+          </button>
         </AppBar.Trail>
       </AppBar.Toolbar>
     </AppBar>
@@ -11040,20 +11042,20 @@ j
     <AppBar>
       <AppBar.Toolbar class="grid-cols-[auto_auto]">
         <AppBar.Lead>
-          <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal"
-            ><MenuIcon /></button
-          >
+          <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal">
+            <MenuIcon />
+          </button>
         </AppBar.Lead>
         <AppBar.Trail>
-          <button type="button" class="btn-icon hover:preset-tonal"
-            ><SearchIcon class="size-6" /></button
-          >
-          <button type="button" class="btn-icon hover:preset-tonal"
-            ><CalendarIcon class="size-6" /></button
-          >
-          <button type="button" class="btn-icon hover:preset-tonal"
-            ><CircleUserIcon class="size-6" /></button
-          >
+          <button type="button" class="btn-icon hover:preset-tonal">
+            <SearchIcon class="size-6" />
+          </button>
+          <button type="button" class="btn-icon hover:preset-tonal">
+            <CalendarIcon class="size-6" />
+          </button>
+          <button type="button" class="btn-icon hover:preset-tonal">
+            <CircleUserIcon class="size-6" />
+          </button>
         </AppBar.Trail>
       </AppBar.Toolbar>
       <AppBar.Headline>
@@ -11104,9 +11106,9 @@ j
           <span>&larr;</span>
           <span>Back</span>
         </Carousel.PrevTrigger>
-        <Carousel.AutoplayTrigger class="btn preset-tonal"
-          >Toggle Autoplay</Carousel.AutoplayTrigger
-        >
+        <Carousel.AutoplayTrigger class="btn preset-tonal">
+          Toggle Autoplay
+        </Carousel.AutoplayTrigger>
         <Carousel.NextTrigger class="btn preset-filled">
           <span>Next</span>
           <span>&rarr;</span>
@@ -11195,9 +11197,9 @@ j
           <span>&larr;</span>
           <span>Back</span>
         </Carousel.PrevTrigger>
-        <Carousel.AutoplayTrigger class="btn preset-tonal"
-          >Toggle Autoplay</Carousel.AutoplayTrigger
-        >
+        <Carousel.AutoplayTrigger class="btn preset-tonal">
+          Toggle Autoplay
+        </Carousel.AutoplayTrigger>
         <Carousel.NextTrigger class="btn preset-filled">
           <span>Next</span>
           <span>&rarr;</span>
@@ -11331,7 +11333,7 @@ j
   </Portal>
 </Combobox>
 
-=== 794 playgrounds/skeleton-svelte/src/routes/components/dialog/+page.svelte	svelte
+=== 805 playgrounds/skeleton-svelte/src/routes/components/dialog/+page.svelte	svelte
 <script lang="ts">
   import { Dialog, Portal } from "@skeletonlabs/skeleton-svelte";
 </script>
@@ -11347,11 +11349,12 @@ j
         class="card bg-surface-100-900 w-md p-4 space-y-2 shadow-xl"
       >
         <Dialog.Title class="text-2xl font-bold">Hello World</Dialog.Title>
-        <Dialog.Description
-          >This is an example of a basic dialog.</Dialog.Description
-        >
-        <Dialog.CloseTrigger class="btn preset-tonal">Close</Dialog.CloseTrigger
-        >
+        <Dialog.Description>
+          This is an example of a basic dialog.
+        </Dialog.Description>
+        <Dialog.CloseTrigger class="btn preset-tonal">
+          Close
+        </Dialog.CloseTrigger>
       </Dialog.Content>
     </Dialog.Positioner>
   </Portal>
@@ -11395,9 +11398,9 @@ j
 </script>
 
 <FloatingPanel>
-  <FloatingPanel.Trigger class="btn preset-filled"
-    >Open Panel</FloatingPanel.Trigger
-  >
+  <FloatingPanel.Trigger class="btn preset-filled">
+    Open Panel
+  </FloatingPanel.Trigger>
   <Portal>
     <FloatingPanel.Positioner class="z-50">
       <FloatingPanel.Content>
@@ -11579,7 +11582,7 @@ j
   </Portal>
 </Menu>
 
-=== 7644 playgrounds/skeleton-svelte/src/routes/components/navigation/+page.svelte	svelte
+=== 7667 playgrounds/skeleton-svelte/src/routes/components/navigation/+page.svelte	svelte
 <script lang="ts">
   import ArrowLeftRightIcon from "@lucide/svelte/icons/arrow-left-right";
   import BedDoubleIcon from "@lucide/svelte/icons/bed-double";
@@ -11726,9 +11729,9 @@ j
           </Navigation.Group>
           {#each Object.entries(linksSidebar) as [category, links]}
             <Navigation.Group>
-              <Navigation.Label class="capitalize pl-2"
-                >{category}</Navigation.Label
-              >
+              <Navigation.Label class="capitalize pl-2">
+                {category}
+              </Navigation.Label>
               <Navigation.Menu>
                 {#each links as link (link)}
                   {@const Icon = link.icon}
@@ -11738,8 +11741,9 @@ j
                     aria-label={link.label}
                   >
                     <Icon class="size-4" />
-                    <Navigation.TriggerText>{link.label}</Navigation.TriggerText
-                    >
+                    <Navigation.TriggerText>
+                      {link.label}
+                    </Navigation.TriggerText>
                   </Navigation.TriggerAnchor>
                 {/each}
               </Navigation.Menu>
@@ -11842,9 +11846,9 @@ j
           magni distinctio explicabo quisquam. Rerum impedit culpa nesciunt
           enim.
         </Popover.Description>
-        <Popover.CloseTrigger class="btn preset-tonal"
-          >Close</Popover.CloseTrigger
-        >
+        <Popover.CloseTrigger class="btn preset-tonal">
+          Close
+        </Popover.CloseTrigger>
         <Popover.Arrow
           class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-100-900)]"
         >
@@ -11973,9 +11977,9 @@ j
     <QrCode.Pattern />
   </QrCode.Frame>
   <QrCode.Overlay>Overlay</QrCode.Overlay>
-  <QrCode.DownloadTrigger mimeType="image/png" fileName="skeleton-qr-code"
-    >Download</QrCode.DownloadTrigger
-  >
+  <QrCode.DownloadTrigger mimeType="image/png" fileName="skeleton-qr-code">
+    Download
+  </QrCode.DownloadTrigger>
 </QrCode>
 
 === 428 playgrounds/skeleton-svelte/src/routes/components/rating-group/+page.svelte	svelte
@@ -12203,7 +12207,7 @@ j
   </Toast.Group>
 {/key}
 
-=== 3397 playgrounds/skeleton-svelte/src/routes/components/toggle-group/+page.svelte	svelte
+=== 3406 playgrounds/skeleton-svelte/src/routes/components/toggle-group/+page.svelte	svelte
 <script lang="ts">
   import BoldIcon from "@lucide/svelte/icons/bold";
   import CodeIcon from "@lucide/svelte/icons/code";
@@ -12238,8 +12242,9 @@ j
   <section class="space-y-4">
     <h3 class="h3">Normalized</h3>
     <div class="grid grid-cols-[auto_auto_1fr] items-center gap-4">
-      <button type="button" class="btn preset-filled-primary-500">Button</button
-      >
+      <button type="button" class="btn preset-filled-primary-500">
+        Button
+      </button>
       <ToggleGroup defaultValue={["center"]} multiple>
         <ToggleGroup.Item value="left">
           <BoldIcon class="size-4" />
@@ -12691,7 +12696,7 @@ j
   }
 </style>
 
-=== 2571 sites/plus.skeleton.dev/src/lib/components/layout/footer.svelte	svelte
+=== 2587 sites/plus.skeleton.dev/src/lib/components/layout/footer.svelte	svelte
 <script lang="ts">
   import { resolve } from "$app/paths";
   import Skeleton from "$lib/components/branding/skeleton.svelte";
@@ -12764,8 +12769,10 @@ j
       <a
         href="https://www.skeletonlabs.co/"
         target="_blank"
-        class="text-xs hover:underline">Skeleton Labs</a
+        class="text-xs hover:underline"
       >
+        Skeleton Labs
+      </a>
     </div>
     <div class="flex items-center gap-4">
       {#each routes.legal as { label, href } (label)}
@@ -12850,9 +12857,9 @@ j
                 {#if crumb.current}
                   <span aria-current="page">{crumb.label}</span>
                 {:else}
-                  <a class="opacity-60 hover:underline" href={crumb.href}
-                    >{crumb.label}</a
-                  >
+                  <a class="opacity-60 hover:underline" href={crumb.href}>
+                    {crumb.label}
+                  </a>
                 {/if}
               </li>
             {/each}
@@ -13375,15 +13382,15 @@ j
         <SegmentedControl.Control class="p-1">
           <SegmentedControl.Indicator />
           <SegmentedControl.Item value="light" class="btn-xs">
-            <SegmentedControl.ItemText
-              ><SunIcon class="size-elem-xs" /></SegmentedControl.ItemText
-            >
+            <SegmentedControl.ItemText>
+              <SunIcon class="size-elem-xs" />
+            </SegmentedControl.ItemText>
             <SegmentedControl.ItemHiddenInput />
           </SegmentedControl.Item>
           <SegmentedControl.Item value="dark" class="btn-xs">
-            <SegmentedControl.ItemText
-              ><MoonIcon class="size-elem-xs" /></SegmentedControl.ItemText
-            >
+            <SegmentedControl.ItemText>
+              <MoonIcon class="size-elem-xs" />
+            </SegmentedControl.ItemText>
             <SegmentedControl.ItemHiddenInput />
           </SegmentedControl.Item>
         </SegmentedControl.Control>
@@ -13662,7 +13669,7 @@ j
   </div>
 </div>
 
-=== 4414 sites/plus.skeleton.dev/src/routes/(app)/account/billing/+page.svelte	svelte
+=== 4438 sites/plus.skeleton.dev/src/routes/(app)/account/billing/+page.svelte	svelte
 <script lang="ts">
   import { resolve } from "$app/paths";
   import PageHeader from "$lib/components/layout/page-header.svelte";
@@ -13722,9 +13729,9 @@ j
         <p class="text-xs uppercase opacity-60">Current plan</p>
         <div class="flex items-center gap-2 text-sm">
           <h2 class="h3">{currentPlan.tier}</h2>
-          <span class="badge preset-filled-primary-500"
-            >{currentPlan.badge}</span
-          >
+          <span class="badge preset-filled-primary-500">
+            {currentPlan.badge}
+          </span>
         </div>
         <p class="opacity-60">{currentPlan.summary}</p>
         <button type="button" class="btn preset-filled">Upgrade to Team</button>
@@ -13746,9 +13753,9 @@ j
               <p class="text-xs opacity-60">Exp {paymentMethod.expiry}</p>
             </div>
           </div>
-          <button type="button" class="btn preset-outlined-surface-200-800"
-            >Update</button
-          >
+          <button type="button" class="btn preset-outlined-surface-200-800">
+            Update
+          </button>
         </div>
         <hr class="hr" />
         <div class="flex justify-between items-center gap-4">
@@ -13758,8 +13765,10 @@ j
           </div>
           <a
             href={resolve("/account/billing")}
-            class="btn preset-outlined-surface-200-800">Add</a
+            class="btn preset-outlined-surface-200-800"
           >
+            Add
+          </a>
         </div>
       </section>
     </div>
@@ -13770,9 +13779,9 @@ j
     >
       <div class="flex items-center justify-between gap-4">
         <h2 class="h3">Purchases</h2>
-        <button type="button" class="btn preset-outlined-surface-200-800"
-          >Download all</button
-        >
+        <button type="button" class="btn preset-outlined-surface-200-800">
+          Download all
+        </button>
       </div>
       <div class="table-wrap">
         <table class="table caption-bottom">
@@ -14143,7 +14152,7 @@ j
 
 {@render children()}
 
-=== 1582 sites/plus.skeleton.dev/src/routes/auth/+layout.svelte	svelte
+=== 1602 sites/plus.skeleton.dev/src/routes/auth/+layout.svelte	svelte
 <script lang="ts">
   import { resolve } from "$app/paths";
   import AuthCarousel from "$lib/components/auth/auth-carousel.svelte";
@@ -14177,8 +14186,10 @@ j
         By <a
           href="https://www.skeletonlabs.co/"
           target="_blank"
-          class="hover:underline">Skeleton Labs</a
+          class="hover:underline"
         >
+          Skeleton Labs
+        </a>
       </p>
       <nav class="flex items-center gap-2">
         <a href={resolve("/legal/terms")} class="hover:underline">Terms</a>
@@ -14277,7 +14288,7 @@ j
   <SwordsIcon class="size-12" />
 </div>
 
-=== 2095 sites/skeleton.dev/src/components/examples/design/spacing/default.svelte	svelte
+=== 2104 sites/skeleton.dev/src/components/examples/design/spacing/default.svelte	svelte
 <script lang="ts">
   const spacing = [
     { value: "0.5", height: "h-0.5" },
@@ -14337,8 +14348,9 @@ j
       <div class="flex flex-col items-center gap-2">
         <span
           class="hidden md:block font-bold text-[10px] -rotate-90 whitespace-nowrap"
-          >{option.height.replace("h-", "")}</span
         >
+          {option.height.replace("h-", "")}
+        </span>
         <div
           class="{option.height} w-[5px] bg-primary-500"
           style:--spacing={`${value}rem`}
@@ -14812,23 +14824,23 @@ j
 <AppBar>
   <AppBar.Toolbar class="grid-cols-[1fr_2fr_1fr]">
     <AppBar.Lead>
-      <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal"
-        ><MenuIcon /></button
-      >
+      <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal">
+        <MenuIcon />
+      </button>
     </AppBar.Lead>
     <AppBar.Headline class="flex justify-center">
       <p>Headline</p>
     </AppBar.Headline>
     <AppBar.Trail class="justify-end">
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><SearchIcon class="size-6" /></button
-      >
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><CalendarIcon class="size-6" /></button
-      >
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><CircleUserIcon class="size-6" /></button
-      >
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <SearchIcon class="size-6" />
+      </button>
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <CalendarIcon class="size-6" />
+      </button>
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <CircleUserIcon class="size-6" />
+      </button>
     </AppBar.Trail>
   </AppBar.Toolbar>
 </AppBar>
@@ -14845,23 +14857,23 @@ j
 <AppBar>
   <AppBar.Toolbar class="grid-cols-[auto_1fr_auto]">
     <AppBar.Lead>
-      <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal"
-        ><MenuIcon /></button
-      >
+      <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal">
+        <MenuIcon />
+      </button>
     </AppBar.Lead>
     <AppBar.Headline>
       <p class="text-2xl">Skeleton</p>
     </AppBar.Headline>
     <AppBar.Trail>
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><SearchIcon class="size-6" /></button
-      >
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><CalendarIcon class="size-6" /></button
-      >
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><CircleUserIcon class="size-6" /></button
-      >
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <SearchIcon class="size-6" />
+      </button>
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <CalendarIcon class="size-6" />
+      </button>
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <CircleUserIcon class="size-6" />
+      </button>
     </AppBar.Trail>
   </AppBar.Toolbar>
 </AppBar>
@@ -14878,20 +14890,20 @@ j
 <AppBar>
   <AppBar.Toolbar class="grid-cols-[auto_auto]">
     <AppBar.Lead>
-      <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal"
-        ><MenuIcon /></button
-      >
+      <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal">
+        <MenuIcon />
+      </button>
     </AppBar.Lead>
     <AppBar.Trail>
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><SearchIcon class="size-6" /></button
-      >
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><CalendarIcon class="size-6" /></button
-      >
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><CircleUserIcon class="size-6" /></button
-      >
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <SearchIcon class="size-6" />
+      </button>
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <CalendarIcon class="size-6" />
+      </button>
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <CircleUserIcon class="size-6" />
+      </button>
     </AppBar.Trail>
   </AppBar.Toolbar>
   <AppBar.Headline>
@@ -14912,9 +14924,9 @@ j
   <!-- 1. Set dynamic layout columns -->
   <AppBar.Toolbar class="grid-cols-[auto_1fr_auto] md:grid-cols-[auto_auto]">
     <AppBar.Lead>
-      <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal"
-        ><MenuIcon /></button
-      >
+      <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal">
+        <MenuIcon />
+      </button>
     </AppBar.Lead>
 
     <!-- 2. Set Mobile display -->
@@ -14923,15 +14935,15 @@ j
     </AppBar.Headline>
 
     <AppBar.Trail>
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><SearchIcon class="size-6" /></button
-      >
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><CalendarIcon class="size-6" /></button
-      >
-      <button type="button" class="btn-icon hover:preset-tonal"
-        ><CircleUserIcon class="size-6" /></button
-      >
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <SearchIcon class="size-6" />
+      </button>
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <CalendarIcon class="size-6" />
+      </button>
+      <button type="button" class="btn-icon hover:preset-tonal">
+        <CircleUserIcon class="size-6" />
+      </button>
     </AppBar.Trail>
   </AppBar.Toolbar>
 
@@ -15029,9 +15041,9 @@ j
       <span>&larr;</span>
       <span>Back</span>
     </Carousel.PrevTrigger>
-    <Carousel.AutoplayTrigger class="btn preset-tonal"
-      >Toggle Autoplay</Carousel.AutoplayTrigger
-    >
+    <Carousel.AutoplayTrigger class="btn preset-tonal">
+      Toggle Autoplay
+    </Carousel.AutoplayTrigger>
     <Carousel.NextTrigger class="btn preset-filled">
       <span>Next</span>
       <span>&rarr;</span>
@@ -15089,9 +15101,9 @@ j
       <span>&larr;</span>
       <span>Back</span>
     </Carousel.PrevTrigger>
-    <Carousel.AutoplayTrigger class="btn preset-tonal"
-      >Toggle Autoplay</Carousel.AutoplayTrigger
-    >
+    <Carousel.AutoplayTrigger class="btn preset-tonal">
+      Toggle Autoplay
+    </Carousel.AutoplayTrigger>
     <Carousel.NextTrigger class="btn preset-filled">
       <span>Next</span>
       <span>&rarr;</span>
@@ -15203,9 +15215,9 @@ j
       <span>&larr;</span>
       <span>Back</span>
     </Carousel.PrevTrigger>
-    <Carousel.AutoplayTrigger class="btn preset-tonal"
-      >Toggle Autoplay</Carousel.AutoplayTrigger
-    >
+    <Carousel.AutoplayTrigger class="btn preset-tonal">
+      Toggle Autoplay
+    </Carousel.AutoplayTrigger>
     <Carousel.NextTrigger class="btn preset-filled">
       <span>Next</span>
       <span>&rarr;</span>
@@ -15259,9 +15271,9 @@ j
     walks. Every heart has its own skeletons. The bones of the skeleton which
     support the body can become the bars of the cage which imprison the spirit.
   </Collapsible.Content>
-  <Collapsible.Trigger class="btn preset-filled"
-    >Show {open ? "Less" : "More"}</Collapsible.Trigger
-  >
+  <Collapsible.Trigger class="btn preset-filled">
+    Show {open ? "Less" : "More"}
+  </Collapsible.Trigger>
 </Collapsible>
 
 === 1025 sites/skeleton.dev/src/components/examples/framework-components/collapsible/svelte/default.svelte	svelte
@@ -15882,12 +15894,12 @@ j
         class="card preset-filled-error-500 w-md p-4 space-y-2 shadow-xl"
       >
         <Dialog.Title class="text-2xl font-bold">Alert</Dialog.Title>
-        <Dialog.Description
-          >Something important has happened!</Dialog.Description
-        >
-        <Dialog.CloseTrigger class="btn preset-tonal-error"
-          >Close</Dialog.CloseTrigger
-        >
+        <Dialog.Description>
+          Something important has happened!
+        </Dialog.Description>
+        <Dialog.CloseTrigger class="btn preset-tonal-error">
+          Close
+        </Dialog.CloseTrigger>
       </Dialog.Content>
     </Dialog.Positioner>
   </Portal>
@@ -15925,9 +15937,9 @@ j
           eiusmod tempor incididunt ut labore et dolore magna aliqua.
         </Dialog.Description>
         <footer class="flex justify-end gap-2">
-          <Dialog.CloseTrigger class="btn preset-tonal"
-            >Cancel</Dialog.CloseTrigger
-          >
+          <Dialog.CloseTrigger class="btn preset-tonal">
+            Cancel
+          </Dialog.CloseTrigger>
           <button type="button" class="btn preset-filled">Save</button>
         </footer>
       </Dialog.Content>
@@ -15935,7 +15947,7 @@ j
   </Portal>
 </Dialog>
 
-=== 806 sites/skeleton.dev/src/components/examples/framework-components/dialog/svelte/dir.svelte	svelte
+=== 817 sites/skeleton.dev/src/components/examples/framework-components/dialog/svelte/dir.svelte	svelte
 <script lang="ts">
   import { Dialog, Portal } from "@skeletonlabs/skeleton-svelte";
 </script>
@@ -15951,11 +15963,12 @@ j
         class="card bg-surface-100-900 w-md p-4 space-y-2 shadow-xl"
       >
         <Dialog.Title class="text-2xl font-bold">Hello World</Dialog.Title>
-        <Dialog.Description
-          >This is an example of a basic dialog.</Dialog.Description
-        >
-        <Dialog.CloseTrigger class="btn preset-tonal">Close</Dialog.CloseTrigger
-        >
+        <Dialog.Description>
+          This is an example of a basic dialog.
+        </Dialog.Description>
+        <Dialog.CloseTrigger class="btn preset-tonal">
+          Close
+        </Dialog.CloseTrigger>
       </Dialog.Content>
     </Dialog.Positioner>
   </Portal>
@@ -15996,7 +16009,7 @@ j
   </Portal>
 </Dialog>
 
-=== 880 sites/skeleton.dev/src/components/examples/framework-components/dialog/svelte/interaction.svelte	svelte
+=== 891 sites/skeleton.dev/src/components/examples/framework-components/dialog/svelte/interaction.svelte	svelte
 <script lang="ts">
   import { Dialog, Portal } from "@skeletonlabs/skeleton-svelte";
 </script>
@@ -16012,18 +16025,19 @@ j
         class="card bg-surface-100-900 w-md p-4 space-y-2 shadow-xl"
       >
         <Dialog.Title class="text-2xl font-bold">Dialog Title</Dialog.Title>
-        <Dialog.Description
-          >This dialog will only close with the Close button or via programmatic
-          controls.</Dialog.Description
-        >
-        <Dialog.CloseTrigger class="btn preset-tonal">Close</Dialog.CloseTrigger
-        >
+        <Dialog.Description>
+          This dialog will only close with the Close button or via programmatic
+          controls.
+        </Dialog.Description>
+        <Dialog.CloseTrigger class="btn preset-tonal">
+          Close
+        </Dialog.CloseTrigger>
       </Dialog.Content>
     </Dialog.Positioner>
   </Portal>
 </Dialog>
 
-=== 807 sites/skeleton.dev/src/components/examples/framework-components/dialog/svelte/z-index.svelte	svelte
+=== 818 sites/skeleton.dev/src/components/examples/framework-components/dialog/svelte/z-index.svelte	svelte
 <script lang="ts">
   import { Dialog, Portal } from "@skeletonlabs/skeleton-svelte";
 </script>
@@ -16039,11 +16053,12 @@ j
         class="card bg-surface-100-900 w-md p-4 space-y-2 shadow-xl"
       >
         <Dialog.Title class="text-2xl font-bold">Setting Z-Index</Dialog.Title>
-        <Dialog.Description
-          >This dialog will have a z-index value of 50.</Dialog.Description
-        >
-        <Dialog.CloseTrigger class="btn preset-tonal">Close</Dialog.CloseTrigger
-        >
+        <Dialog.Description>
+          This dialog will have a z-index value of 50.
+        </Dialog.Description>
+        <Dialog.CloseTrigger class="btn preset-tonal">
+          Close
+        </Dialog.CloseTrigger>
       </Dialog.Content>
     </Dialog.Positioner>
   </Portal>
@@ -16161,9 +16176,9 @@ j
       };
     }}
   >
-    <FloatingPanel.Trigger class="btn preset-filled"
-      >Open Panel</FloatingPanel.Trigger
-    >
+    <FloatingPanel.Trigger class="btn preset-filled">
+      Open Panel
+    </FloatingPanel.Trigger>
     <Portal>
       <FloatingPanel.Positioner class="z-50">
         <FloatingPanel.Content>
@@ -16291,9 +16306,9 @@ j
 </script>
 
 <FloatingPanel>
-  <FloatingPanel.Trigger class="btn preset-filled"
-    >Open Panel</FloatingPanel.Trigger
-  >
+  <FloatingPanel.Trigger class="btn preset-filled">
+    Open Panel
+  </FloatingPanel.Trigger>
   <Portal>
     <FloatingPanel.Positioner class="z-50">
       <FloatingPanel.Content>
@@ -16343,9 +16358,9 @@ j
 </script>
 
 <FloatingPanel dir="rtl">
-  <FloatingPanel.Trigger class="btn preset-filled"
-    >Open Panel</FloatingPanel.Trigger
-  >
+  <FloatingPanel.Trigger class="btn preset-filled">
+    Open Panel
+  </FloatingPanel.Trigger>
   <Portal>
     <FloatingPanel.Positioner class="z-50">
       <FloatingPanel.Content>
@@ -16395,9 +16410,9 @@ j
 </script>
 
 <FloatingPanel draggable={false}>
-  <FloatingPanel.Trigger class="btn preset-filled"
-    >Open Panel</FloatingPanel.Trigger
-  >
+  <FloatingPanel.Trigger class="btn preset-filled">
+    Open Panel
+  </FloatingPanel.Trigger>
   <Portal>
     <FloatingPanel.Positioner class="z-50">
       <FloatingPanel.Content>
@@ -16444,9 +16459,9 @@ j
 </script>
 
 <FloatingPanel resizable={false}>
-  <FloatingPanel.Trigger class="btn preset-filled"
-    >Open Panel</FloatingPanel.Trigger
-  >
+  <FloatingPanel.Trigger class="btn preset-filled">
+    Open Panel
+  </FloatingPanel.Trigger>
   <Portal>
     <FloatingPanel.Positioner class="z-50">
       <FloatingPanel.Content>
@@ -16493,9 +16508,9 @@ j
 </script>
 
 <FloatingPanel>
-  <FloatingPanel.Trigger class="btn preset-filled"
-    >Open Panel</FloatingPanel.Trigger
-  >
+  <FloatingPanel.Trigger class="btn preset-filled">
+    Open Panel
+  </FloatingPanel.Trigger>
   <Portal>
     <FloatingPanel.Positioner class="z-50">
       <FloatingPanel.Content>
@@ -16555,9 +16570,9 @@ j
   maxSize={{ width: 900, height: 600 }}
   minSize={{ width: 300, height: 200 }}
 >
-  <FloatingPanel.Trigger class="btn preset-filled"
-    >Open Panel</FloatingPanel.Trigger
-  >
+  <FloatingPanel.Trigger class="btn preset-filled">
+    Open Panel
+  </FloatingPanel.Trigger>
   <Portal>
     <FloatingPanel.Positioner class="z-50">
       <FloatingPanel.Content>
@@ -16876,7 +16891,7 @@ j
   <Marquee.Edge side="end" />
 </Marquee>
 
-=== 786 sites/skeleton.dev/src/components/examples/framework-components/menu/svelte/context.svelte	svelte
+=== 789 sites/skeleton.dev/src/components/examples/framework-components/menu/svelte/context.svelte	svelte
 <script lang="ts">
   import { Menu, Portal } from "@skeletonlabs/skeleton-svelte";
 </script>
@@ -16884,8 +16899,9 @@ j
 <Menu>
   <Menu.ContextTrigger
     class="card border border-dashed border-surface-200-800 p-8"
-    >Right-click here</Menu.ContextTrigger
   >
+    Right-click here
+  </Menu.ContextTrigger>
   <Portal>
     <Menu.Positioner>
       <Menu.Content>
@@ -17203,7 +17219,7 @@ j
   </div>
 </div>
 
-=== 3269 sites/skeleton.dev/src/components/examples/framework-components/navigation/svelte/sidebar.svelte	svelte
+=== 3282 sites/skeleton.dev/src/components/examples/framework-components/navigation/svelte/sidebar.svelte	svelte
 <script lang="ts">
   import BedDoubleIcon from "@lucide/svelte/icons/bed-double";
   import BikeIcon from "@lucide/svelte/icons/bike";
@@ -17262,8 +17278,9 @@ j
       </Navigation.Group>
       {#each Object.entries(linksSidebar) as [category, links]}
         <Navigation.Group>
-          <Navigation.Label class="capitalize pl-2">{category}</Navigation.Label
-          >
+          <Navigation.Label class="capitalize pl-2">
+            {category}
+          </Navigation.Label>
           <Navigation.Menu>
             {#each links as link (link)}
               {@const Icon = link.icon}
@@ -17568,7 +17585,7 @@ j
   </div>
 </div>
 
-=== 2375 sites/skeleton.dev/src/components/examples/framework-components/popover/svelte/anchor.svelte	svelte
+=== 2407 sites/skeleton.dev/src/components/examples/framework-components/popover/svelte/anchor.svelte	svelte
 <script>
   import XIcon from "@lucide/svelte/icons/x";
   import { Avatar, Popover, Portal } from "@skeletonlabs/skeleton-svelte";
@@ -17598,15 +17615,17 @@ j
               />
             </Avatar>
             <div>
-              <Popover.Title class="text-lg font-bold"
-                >Skeleton Labs</Popover.Title
-              >
+              <Popover.Title class="text-lg font-bold">
+                Skeleton Labs
+              </Popover.Title>
               <a
                 href="https://bsky.app/profile/skeleton.dev"
                 target="_blank"
                 rel="noopener noreferrer"
-                class="anchor">@skeletonlabs.dev</a
+                class="anchor"
               >
+                @skeletonlabs.dev
+              </a>
             </div>
             <Popover.CloseTrigger
               class="btn-icon hover:preset-tonal self-start"
@@ -17614,10 +17633,10 @@ j
               <XIcon class="size-4" />
             </Popover.CloseTrigger>
           </header>
-          <Popover.Description
-            >Your friendly neighborhood open source maintainers. Creators of
-            Skeleton.</Popover.Description
-          >
+          <Popover.Description>
+            Your friendly neighborhood open source maintainers. Creators of
+            Skeleton.
+          </Popover.Description>
           <div class="flex gap-4">
             <p class="text-sm">800 <span class="opacity-60">Followers</span></p>
             <p class="text-sm">120 <span class="opacity-60">Following</span></p>
@@ -17644,9 +17663,9 @@ j
   <Portal>
     <Popover.Positioner>
       <Popover.Content class="card max-w-md p-4 bg-surface-100-900 shadow-xl">
-        <Popover.Description
-          >This example will have a small arrow.</Popover.Description
-        >
+        <Popover.Description>
+          This example will have a small arrow.
+        </Popover.Description>
         <Popover.Arrow
           class="[--arrow-size:--spacing(2)] [--arrow-background:var(--color-surface-100-900)]"
         >
@@ -17657,7 +17676,7 @@ j
   </Portal>
 </Popover>
 
-=== 1988 sites/skeleton.dev/src/components/examples/framework-components/popover/svelte/default.svelte	svelte
+=== 2020 sites/skeleton.dev/src/components/examples/framework-components/popover/svelte/default.svelte	svelte
 <script>
   import XIcon from "@lucide/svelte/icons/x";
   import { Avatar, Popover, Portal } from "@skeletonlabs/skeleton-svelte";
@@ -17677,14 +17696,16 @@ j
               />
             </Avatar>
             <div>
-              <Popover.Title class="text-lg font-bold"
-                >Skeleton Labs</Popover.Title
-              >
+              <Popover.Title class="text-lg font-bold">
+                Skeleton Labs
+              </Popover.Title>
               <a
                 href="https://bsky.app/profile/skeleton.dev"
                 target="_blank"
-                class="anchor">@skeletonlabs.dev</a
+                class="anchor"
               >
+                @skeletonlabs.dev
+              </a>
             </div>
             <Popover.CloseTrigger
               class="btn-icon hover:preset-tonal self-start"
@@ -17692,10 +17713,10 @@ j
               <XIcon class="size-4" />
             </Popover.CloseTrigger>
           </header>
-          <Popover.Description
-            >Your friendly neighborhood open source maintainers. Creators of
-            Skeleton.</Popover.Description
-          >
+          <Popover.Description>
+            Your friendly neighborhood open source maintainers. Creators of
+            Skeleton.
+          </Popover.Description>
           <div class="flex gap-4">
             <p class="text-sm">800 <span class="opacity-60">Followers</span></p>
             <p class="text-sm">120 <span class="opacity-60">Following</span></p>
@@ -17725,12 +17746,12 @@ j
         class="card max-w-md p-4 bg-surface-100-900 shadow-xl space-y-2"
       >
         <Popover.Title class="font-bold">Example</Popover.Title>
-        <Popover.Description
-          >This is a basic example of a popover.</Popover.Description
-        >
-        <Popover.CloseTrigger class="btn preset-tonal"
-          >Close</Popover.CloseTrigger
-        >
+        <Popover.Description>
+          This is a basic example of a popover.
+        </Popover.Description>
+        <Popover.CloseTrigger class="btn preset-tonal">
+          Close
+        </Popover.CloseTrigger>
       </Popover.Content>
     </Popover.Positioner>
   </Portal>
@@ -17755,9 +17776,9 @@ j
 </script>
 
 <div class="flex flex-col gap-4">
-  <button class="btn preset-filled" onclick={showAndHide}
-    >Show for 3 seconds</button
-  >
+  <button class="btn preset-filled" onclick={showAndHide}>
+    Show for 3 seconds
+  </button>
 
   <Popover.Provider value={popover}>
     <Popover.Trigger class="btn preset-tonal">Anchor</Popover.Trigger>
@@ -17766,10 +17787,10 @@ j
         <Popover.Content
           class="card max-w-sm p-4 bg-surface-100-900 shadow-xl space-y-2"
         >
-          <Popover.Description
-            >This popover will appear, stay open for three seconds, then close
-            on it's own.</Popover.Description
-          >
+          <Popover.Description>
+            This popover will appear, stay open for three seconds, then close on
+            it's own.
+          </Popover.Description>
         </Popover.Content>
       </Popover.Positioner>
     </Portal>
@@ -17787,9 +17808,9 @@ j
     <Portal>
       <Popover.Positioner>
         <Popover.Content class="card max-w-md p-4 bg-surface-100-900 space-y-2">
-          <Popover.Description
-            >This example will be below the sibling.</Popover.Description
-          >
+          <Popover.Description>
+            This example will be below the sibling.
+          </Popover.Description>
         </Popover.Content>
       </Popover.Positioner>
     </Portal>
@@ -17802,9 +17823,9 @@ j
         <Popover.Content
           class="card max-w-md p-4 bg-surface-100-900 shadow-xl space-y-2"
         >
-          <Popover.Description
-            >This example will be above the sibling.</Popover.Description
-          >
+          <Popover.Description>
+            This example will be above the sibling.
+          </Popover.Description>
         </Popover.Content>
       </Popover.Positioner>
     </Portal>
@@ -18196,9 +18217,9 @@ j
   <QrCode.Overlay class="bg-white rounded-full p-1">
     <img src={favicon.src} alt="Skeleton Logo" class="size-12" />
   </QrCode.Overlay>
-  <QrCode.DownloadTrigger fileName="skeleton-dev" mimeType="image/png"
-    >Download</QrCode.DownloadTrigger
-  >
+  <QrCode.DownloadTrigger fileName="skeleton-dev" mimeType="image/png">
+    Download
+  </QrCode.DownloadTrigger>
 </QrCode>
 
 === 292 sites/skeleton.dev/src/components/examples/framework-components/qr-code/svelte/frame-colors.svelte	svelte
@@ -18667,7 +18688,7 @@ j
   </Slider.Control>
 </Slider>
 
-=== 1324 sites/skeleton.dev/src/components/examples/framework-components/steps/svelte/controlled.svelte	svelte
+=== 1327 sites/skeleton.dev/src/components/examples/framework-components/steps/svelte/controlled.svelte	svelte
 <script lang="ts">
   import { Steps } from "@skeletonlabs/skeleton-svelte";
 
@@ -18710,15 +18731,16 @@ j
   <Steps.Content
     index={steps.length}
     class="card preset-filled-surface-100-900 p-4 flex justify-center items-center"
-    >All done!</Steps.Content
   >
+    All done!
+  </Steps.Content>
   <div class="flex justify-between items-center gap-2">
     <Steps.PrevTrigger class="btn preset-filled">Back</Steps.PrevTrigger>
     <Steps.NextTrigger class="btn preset-filled">Next</Steps.NextTrigger>
   </div>
 </Steps>
 
-=== 1233 sites/skeleton.dev/src/components/examples/framework-components/steps/svelte/default.svelte	svelte
+=== 1236 sites/skeleton.dev/src/components/examples/framework-components/steps/svelte/default.svelte	svelte
 <script lang="ts">
   import { Steps } from "@skeletonlabs/skeleton-svelte";
 
@@ -18754,15 +18776,16 @@ j
   <Steps.Content
     index={steps.length}
     class="card preset-filled-surface-100-900 p-4 flex justify-center items-center"
-    >All done!</Steps.Content
   >
+    All done!
+  </Steps.Content>
   <div class="flex justify-between items-center gap-2">
     <Steps.PrevTrigger class="btn preset-filled">Back</Steps.PrevTrigger>
     <Steps.NextTrigger class="btn preset-filled">Next</Steps.NextTrigger>
   </div>
 </Steps>
 
-=== 1243 sites/skeleton.dev/src/components/examples/framework-components/steps/svelte/dir.svelte	svelte
+=== 1246 sites/skeleton.dev/src/components/examples/framework-components/steps/svelte/dir.svelte	svelte
 <script lang="ts">
   import { Steps } from "@skeletonlabs/skeleton-svelte";
 
@@ -18798,15 +18821,16 @@ j
   <Steps.Content
     index={steps.length}
     class="card preset-filled-surface-100-900 p-4 flex justify-center items-center"
-    >All done!</Steps.Content
   >
+    All done!
+  </Steps.Content>
   <div class="flex justify-between items-center gap-2">
     <Steps.PrevTrigger class="btn preset-filled">Back</Steps.PrevTrigger>
     <Steps.NextTrigger class="btn preset-filled">Next</Steps.NextTrigger>
   </div>
 </Steps>
 
-=== 1355 sites/skeleton.dev/src/components/examples/framework-components/steps/svelte/vertical.svelte	svelte
+=== 1360 sites/skeleton.dev/src/components/examples/framework-components/steps/svelte/vertical.svelte	svelte
 <script lang="ts">
   import { Steps } from "@skeletonlabs/skeleton-svelte";
 
@@ -18843,8 +18867,9 @@ j
     <Steps.Content
       index={steps.length}
       class="card preset-filled-surface-100-900 p-4 flex justify-center items-center grow"
-      >All done!</Steps.Content
     >
+      All done!
+    </Steps.Content>
     <div class="flex justify-between items-center gap-2">
       <Steps.PrevTrigger class="btn preset-filled">Back</Steps.PrevTrigger>
       <Steps.NextTrigger class="btn preset-filled">Next</Steps.NextTrigger>
@@ -19074,9 +19099,9 @@ j
     </Tabs.Trigger>
     <Tabs.Trigger value="#key-features">
       {#snippet element(attributes)}
-        <a {...attributes as HTMLAnchorAttributes} href="#key-features"
-          >Key Features</a
-        >
+        <a {...attributes as HTMLAnchorAttributes} href="#key-features">
+          Key Features
+        </a>
       {/snippet}
     </Tabs.Trigger>
     <Tabs.Trigger value="#activity">
@@ -19108,9 +19133,9 @@ j
 <Tabs defaultValue="overview" orientation="vertical">
   <Tabs.List>
     <Tabs.Trigger value="overview" class="justify-start">Overview</Tabs.Trigger>
-    <Tabs.Trigger value="features" class="justify-start"
-      >Key features</Tabs.Trigger
-    >
+    <Tabs.Trigger value="features" class="justify-start">
+      Key features
+    </Tabs.Trigger>
     <Tabs.Trigger value="activity" class="justify-start">Activity</Tabs.Trigger>
     <Tabs.Indicator />
   </Tabs.List>
@@ -19270,9 +19295,9 @@ j
   <div
     class="card preset-outlined-surface-200-800 flex justify-center items-center py-4"
   >
-    <button class="btn preset-filled" onclick={() => tagsInput().clearValue()}
-      >Clear Tags</button
-    >
+    <button class="btn preset-filled" onclick={() => tagsInput().clearValue()}>
+      Clear Tags
+    </button>
   </div>
 </div>
 
@@ -19382,7 +19407,7 @@ j
   {/snippet}
 </Toast.Group>
 
-=== 875 sites/skeleton.dev/src/components/examples/framework-components/toast/svelte/meta.svelte	svelte
+=== 885 sites/skeleton.dev/src/components/examples/framework-components/toast/svelte/meta.svelte	svelte
 <script lang="ts">
   import SkullIcon from "@lucide/svelte/icons/skull";
   import { Toast, createToaster } from "@skeletonlabs/skeleton-svelte";
@@ -19414,9 +19439,10 @@ j
       {@render toast.meta!.icon()}
       <Toast.Message>
         <Toast.Title class="flex gap-2 items-center">{toast.title}</Toast.Title>
-        <Toast.Description
-          >{toast.description} {toast.meta?.foo}</Toast.Description
-        >
+        <Toast.Description>
+          {toast.description}
+          {toast.meta?.foo}
+        </Toast.Description>
       </Toast.Message>
       <Toast.CloseTrigger />
     </Toast>
@@ -19768,14 +19794,14 @@ j
   <Tooltip.Trigger>Hover</Tooltip.Trigger>
   <Portal>
     <Tooltip.Positioner>
-      <Tooltip.Content class="card bg-surface-100-900 p-2  shadow-xl"
-        >Hello Skeleton</Tooltip.Content
-      >
+      <Tooltip.Content class="card bg-surface-100-900 p-2  shadow-xl">
+        Hello Skeleton
+      </Tooltip.Content>
     </Tooltip.Positioner>
   </Portal>
 </Tooltip>
 
-=== 694 sites/skeleton.dev/src/components/examples/framework-components/tooltip/svelte/provider-pattern.svelte	svelte
+=== 702 sites/skeleton.dev/src/components/examples/framework-components/tooltip/svelte/provider-pattern.svelte	svelte
 <script lang="ts">
   import { Portal, Tooltip, useTooltip } from "@skeletonlabs/skeleton-svelte";
 
@@ -19786,17 +19812,19 @@ j
 <div class="grid gap-4">
   <button
     class="btn preset-filled w-[150px]"
-    onclick={() => tooltip().setOpen(!tooltip().open)}>Trigger</button
+    onclick={() => tooltip().setOpen(!tooltip().open)}
   >
+    Trigger
+  </button>
   <Tooltip.Provider value={tooltip}>
-    <Tooltip.Trigger
-      >Anchor ({tooltip().open ? "open" : "closed"})</Tooltip.Trigger
-    >
+    <Tooltip.Trigger>
+      Anchor ({tooltip().open ? "open" : "closed"})
+    </Tooltip.Trigger>
     <Portal>
       <Tooltip.Positioner>
-        <Tooltip.Content class="card bg-surface-100-900 p-2  shadow-xl"
-          >Hello Skeleton</Tooltip.Content
-        >
+        <Tooltip.Content class="card bg-surface-100-900 p-2  shadow-xl">
+          Hello Skeleton
+        </Tooltip.Content>
       </Tooltip.Positioner>
     </Portal>
   </Tooltip.Provider>
@@ -19812,9 +19840,9 @@ j
     <Tooltip.Trigger>Default (auto)</Tooltip.Trigger>
     <Portal>
       <Tooltip.Positioner>
-        <Tooltip.Content class="card bg-surface-100-900 p-2  shadow-xl"
-          >This example will be below the sibling.</Tooltip.Content
-        >
+        <Tooltip.Content class="card bg-surface-100-900 p-2  shadow-xl">
+          This example will be below the sibling.
+        </Tooltip.Content>
       </Tooltip.Positioner>
     </Portal>
   </Tooltip>
@@ -19823,9 +19851,9 @@ j
     <Tooltip.Trigger>Above (20)</Tooltip.Trigger>
     <Portal>
       <Tooltip.Positioner class="z-20!">
-        <Tooltip.Content class="card bg-surface-100-900 p-2  shadow-xl"
-          >This example will be above the sibling.</Tooltip.Content
-        >
+        <Tooltip.Content class="card bg-surface-100-900 p-2  shadow-xl">
+          This example will be above the sibling.
+        </Tooltip.Content>
       </Tooltip.Positioner>
     </Portal>
   </Tooltip>
@@ -20588,7 +20616,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </div>
 </div>
 
-=== 274 sites/skeleton.dev/src/components/examples/guides/cookbook/clipboard/svelte/default.svelte	svelte
+=== 277 sites/skeleton.dev/src/components/examples/guides/cookbook/clipboard/svelte/default.svelte	svelte
 <script lang="ts">
   async function handleCopy() {
     const data = "Hello World!";
@@ -20597,8 +20625,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   }
 </script>
 
-<button class="btn preset-filled" onclick={handleCopy}>Copy to Clipboard</button
->
+<button class="btn preset-filled" onclick={handleCopy}>
+  Copy to Clipboard
+</button>
 
 === 366 sites/skeleton.dev/src/components/examples/guides/cookbook/clipboard/svelte/input.svelte	svelte
 <script lang="ts">
@@ -20647,9 +20676,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
 
 <span>
   <p>
-    This triggers a <span class="underline" {...tooltip.reference()}
-      >tooltip</span
-    >.
+    This triggers a <span class="underline" {...tooltip.reference()}>
+      tooltip
+    </span>.
   </p>
   {#if tooltip.isOpen()}
     <div
@@ -20934,60 +20963,82 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   <footer class="preset-filled-tertiary-500 p-4">(footer)</footer>
 </div>
 
-=== 443 sites/skeleton.dev/src/components/examples/guides/cookbook/logo-clouds/svelte/default.svelte	svelte
+=== 467 sites/skeleton.dev/src/components/examples/guides/cookbook/logo-clouds/svelte/default.svelte	svelte
 <nav
   class="rounded-container grid w-full grid-cols-1 gap-1 overflow-hidden md:grid-cols-3"
 >
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">Twitch</a
+    href="#"
   >
+    Twitch
+  </a>
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">YouTube</a
+    href="#"
   >
+    YouTube
+  </a>
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">TikTok</a
+    href="#"
   >
+    TikTok
+  </a>
 </nav>
 
-=== 1017 sites/skeleton.dev/src/components/examples/guides/cookbook/logo-clouds/svelte/rows.svelte	svelte
+=== 1081 sites/skeleton.dev/src/components/examples/guides/cookbook/logo-clouds/svelte/rows.svelte	svelte
 <nav
   class="rounded-container grid w-full grid-cols-2 gap-1 overflow-hidden md:grid-cols-4"
 >
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">Optimize</a
+    href="#"
   >
+    Optimize
+  </a>
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">Brand</a
+    href="#"
   >
+    Brand
+  </a>
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">Mesh</a
+    href="#"
   >
+    Mesh
+  </a>
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">Matrix</a
+    href="#"
   >
+    Matrix
+  </a>
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">Utilize</a
+    href="#"
   >
+    Utilize
+  </a>
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">Syndicate</a
+    href="#"
   >
+    Syndicate
+  </a>
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">Incubate</a
+    href="#"
   >
+    Incubate
+  </a>
   <a
     class="card preset-filled-surface-100-900 rounded-none p-4 py-8 text-center"
-    href="#">Orchestrate</a
+    href="#"
   >
+    Orchestrate
+  </a>
 </nav>
 
 === 2466 sites/skeleton.dev/src/components/examples/guides/cookbook/scroll-containers/svelte/carousel.svelte	svelte
@@ -22003,12 +22054,12 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
     </p>
   </article>
   <footer class="flex justify-end gap-2">
-    <button type="button" class="btn preset-tonal" onclick={closeModal}
-      >Cancel</button
-    >
-    <button type="button" class="btn preset-filled" onclick={closeModal}
-      >Discard</button
-    >
+    <button type="button" class="btn preset-tonal" onclick={closeModal}>
+      Cancel
+    </button>
+    <button type="button" class="btn preset-filled" onclick={closeModal}>
+      Discard
+    </button>
   </footer>
 </dialog>
 
@@ -22041,9 +22092,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </article>
   <footer class="flex justify-end">
     <form method="dialog">
-      <button type="button" class="btn preset-tonal" onclick={closeModal}
-        >Close</button
-      >
+      <button type="button" class="btn preset-tonal" onclick={closeModal}>
+        Close
+      </button>
     </form>
   </footer>
 </dialog>
@@ -22077,9 +22128,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </article>
   <footer class="flex justify-end">
     <form method="dialog">
-      <button type="button" class="btn preset-tonal" onclick={closeModal}
-        >Close</button
-      >
+      <button type="button" class="btn preset-tonal" onclick={closeModal}>
+        Close
+      </button>
     </form>
   </footer>
 </dialog>
@@ -22122,9 +22173,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </article>
   <footer class="flex justify-end">
     <form method="dialog">
-      <button type="button" class="btn preset-tonal" onclick={closeModal}
-        >Close</button
-      >
+      <button type="button" class="btn preset-tonal" onclick={closeModal}>
+        Close
+      </button>
     </form>
   </footer>
 </dialog>
@@ -22162,9 +22213,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </article>
   <footer class="flex justify-end">
     <form method="dialog">
-      <button type="button" class="btn preset-tonal" onclick={closeModal}
-        >Close</button
-      >
+      <button type="button" class="btn preset-tonal" onclick={closeModal}>
+        Close
+      </button>
     </form>
   </footer>
 </dialog>
@@ -22231,12 +22282,12 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </article>
   <footer class="flex justify-end gap-2">
     <form method="dialog" class="flex gap-2">
-      <button type="submit" value="cancel" class="btn preset-tonal"
-        >Cancel</button
-      >
-      <button type="submit" value="confirm" class="btn preset-filled"
-        >Confirm</button
-      >
+      <button type="submit" value="cancel" class="btn preset-tonal">
+        Cancel
+      </button>
+      <button type="submit" value="confirm" class="btn preset-filled">
+        Confirm
+      </button>
     </form>
   </footer>
 </dialog>
@@ -22293,7 +22344,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   alt="Avatar"
 />
 
-=== 20319 sites/skeleton.dev/src/components/landing-page/component-grid.svelte	svelte
+=== 20710 sites/skeleton.dev/src/components/landing-page/component-grid.svelte	svelte
 <script lang="ts">
   import massiveAttackMezzanine from "@/assets/landing-page/massive-attack-mezzanine.webp";
   import ArrowUpRight from "@lucide/svelte/icons/arrow-up-right";
@@ -22357,12 +22408,12 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
         <p class="opacity-60">Complete the form to get started.</p>
       </header>
       <nav class="grid grid-cols-2 gap-5">
-        <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-          >GitHub</button
-        >
-        <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-          >Google</button
-        >
+        <button class="btn preset-outlined-surface-200-800 hover:preset-tonal">
+          GitHub
+        </button>
+        <button class="btn preset-outlined-surface-200-800 hover:preset-tonal">
+          Google
+        </button>
       </nav>
       <hr class="hr" />
       <form class="grid grid-cols-1 gap-5">
@@ -22379,9 +22430,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
           />
         </label>
       </form>
-      <button class="w-full btn preset-filled-primary-500"
-        >Create Account</button
-      >
+      <button class="w-full btn preset-filled-primary-500">
+        Create Account
+      </button>
     </div>
     <div class={cardClasses}>
       <header class="space-y-1">
@@ -22534,8 +22585,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
           <button
             type="button"
             class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >Dismiss</button
           >
+            Dismiss
+          </button>
         </div>
       </div>
     </div>
@@ -22650,62 +22702,92 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       <div class="space-y-2">
         <p class="font-bold">Delivery</p>
         <nav class="grid grid-cols-2 gap-2">
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >Tomorrow</button
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >Within 2 days</button
+            Tomorrow
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
+            Within 2 days
+          </button>
         </nav>
       </div>
       <div class="space-y-2">
         <p class="font-bold">Size</p>
         <nav class="grid grid-cols-5 gap-2">
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >5.5</button
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
+            5.5
+          </button>
           <button class="btn preset-filled-primary-500">6</button>
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >6.5</button
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >7</button
+            6.5
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >7.5</button
+            7
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >8</button
+            7.5
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >8.5</button
+            8
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >9</button
+            8.5
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >9.5</button
+            9
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >10</button
+            9.5
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
+            10
+          </button>
         </nav>
       </div>
       <div class="space-y-2">
         <p class="font-bold">Material</p>
         <nav class="grid grid-cols-4 gap-2">
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >Canvas</button
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >Mesh</button
+            Canvas
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >Suede</button
+            Mesh
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
-          <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-            >Leather</button
+            Suede
+          </button>
+          <button
+            class="btn preset-outlined-surface-200-800 hover:preset-tonal"
           >
+            Leather
+          </button>
         </nav>
       </div>
     </div>
@@ -22725,9 +22807,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       </div>
       <nav class="grid grid-cols-1 gap-2">
         <button class="btn preset-filled-primary-500">Mark Completed</button>
-        <button class="btn preset-outlined-surface-200-800 hover:preset-tonal"
-          >Cancel</button
-        >
+        <button class="btn preset-outlined-surface-200-800 hover:preset-tonal">
+          Cancel
+        </button>
       </nav>
     </div>
 
@@ -22829,8 +22911,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
           <button
             type="button"
             class="btn hover:preset-tonal"
-            aria-label="Rewind"><Rewind class="size-4 opacity-60" /></button
+            aria-label="Rewind"
           >
+            <Rewind class="size-4 opacity-60" />
+          </button>
           <div class="space-y-1">
             <p class="font-bold">Pink Floyd</p>
             <progress class="progress" value="75" max="100"></progress>
@@ -22843,8 +22927,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
             type="button"
             class="btn hover:preset-tonal"
             aria-label="Fast forward"
-            ><FastForward class="size-4 opacity-60" /></button
           >
+            <FastForward class="size-4 opacity-60" />
+          </button>
         </div>
         <div class="grid grid-cols-[auto_1fr] gap-2 items-center">
           <Volume2 class="size-4 opacity-60" />
@@ -22864,7 +22949,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </div>
 </div>
 
-=== 9224 sites/skeleton.dev/src/components/landing-page/design-system.svelte	svelte
+=== 9294 sites/skeleton.dev/src/components/landing-page/design-system.svelte	svelte
 <script lang="ts" module>
   import SkeletonFigmaUIKit from "@/assets/landing-page/skeleton-figma-ui-kit.png";
 
@@ -23072,24 +23157,30 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
           <button
             type="button"
             class="btn preset-tonal hover:preset-filled hover:brightness-100"
-            >Tonal</button
           >
-        </div>
-        <div class="flex flex-col items-center">
-          <button type="button" class="btn preset-outlined hover:brightness-100"
-            >Outlined</button
-          >
-        </div>
-        <div class="flex flex-col items-center">
-          <button type="button" class="btn preset-filled shadow-xl"
-            >Elevated</button
-          >
+            Tonal
+          </button>
         </div>
         <div class="flex flex-col items-center">
           <button
             type="button"
-            class="btn hover:preset-filled hover:brightness-100">Ghost</button
+            class="btn preset-outlined hover:brightness-100"
           >
+            Outlined
+          </button>
+        </div>
+        <div class="flex flex-col items-center">
+          <button type="button" class="btn preset-filled shadow-xl">
+            Elevated
+          </button>
+        </div>
+        <div class="flex flex-col items-center">
+          <button
+            type="button"
+            class="btn hover:preset-filled hover:brightness-100"
+          >
+            Ghost
+          </button>
         </div>
         <div class="flex flex-col items-center">
           <button
@@ -23209,9 +23300,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       >
         <header class="flex justify-between items-center gap-4">
           <Dialog.Title class="text-2xl font-bold">Skeleton</Dialog.Title>
-          <Dialog.CloseTrigger class="btn-icon hover:preset-tonal rounded-full"
-            >&times</Dialog.CloseTrigger
-          >
+          <Dialog.CloseTrigger class="btn-icon hover:preset-tonal rounded-full">
+            &times
+          </Dialog.CloseTrigger>
         </header>
         <hr class="hr" />
         <div class="overflow-y-auto">
@@ -23351,7 +23442,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </Portal>
 </Menu>
 
-=== 8938 sites/skeleton.dev/src/components/ui/header/search.svelte	svelte
+=== 8943 sites/skeleton.dev/src/components/ui/header/search.svelte	svelte
 <script lang="ts">
   import type { Pagefind } from "@/modules/pagefind";
   import BookIcon from "@lucide/svelte/icons/book";
@@ -23570,8 +23661,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
     <span class="opacity-60">Search...</span>
     <span
       class="badge preset-outlined-surface-500 hidden md:flex opacity-60 scale-90"
-      >⌘ K</span
     >
+      ⌘ K
+    </span>
   </Dialog.Trigger>
   <Portal>
     <Dialog.Backdrop
@@ -23609,9 +23701,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
           </div>
           <hr class="hr" />
           {#if search.status === "idle"}
-            <span class="py-10 text-center opacity-50"
-              >What can we help you find?</span
-            >
+            <span class="py-10 text-center opacity-50">
+              What can we help you find?
+            </span>
           {:else if search.status === "searching"}
             <span class="py-10 text-center opacity-50">Searching...</span>
           {:else if search.status === "no-results"}
@@ -23633,15 +23725,15 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
           {/if}
           <hr class="hidden lg:block hr" />
           <div class="hidden lg:flex gap-2 px-4 pb-4 pt-2">
-            <span class="text-sm opacity-50"
-              ><kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> Navigate</span
-            >
-            <span class="text-sm opacity-50"
-              ><kbd class="kbd">⏎</kbd> Select</span
-            >
-            <span class="text-sm opacity-50"
-              ><kbd class="kbd">Esc</kbd> Close</span
-            >
+            <span class="text-sm opacity-50">
+              <kbd class="kbd">↑</kbd> <kbd class="kbd">↓</kbd> Navigate
+            </span>
+            <span class="text-sm opacity-50">
+              <kbd class="kbd">⏎</kbd> Select
+            </span>
+            <span class="text-sm opacity-50">
+              <kbd class="kbd">Esc</kbd> Close
+            </span>
           </div>
         </Combobox>
       </Dialog.Content>
@@ -24295,7 +24387,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </nav>
 {/if}
 
-=== 644 sites/themes.skeleton.dev/src/lib/components/common/AppFooter/AppFooter.svelte	svelte
+=== 684 sites/themes.skeleton.dev/src/lib/components/common/AppFooter/AppFooter.svelte	svelte
 <!-- <script lang="ts"></script> -->
 
 <footer
@@ -24307,14 +24399,18 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
         Built by <a
           class="underline"
           href="https://www.skeletonlabs.co/"
-          target="_blank">Skeleton Labs</a
+          target="_blank"
         >
+          Skeleton Labs
+        </a>
         and the
         <a
           href="https://github.com/skeletonlabs/skeleton/graphs/contributors"
           target="_blank"
-          class="underline">Skeleton community</a
-        >.
+          class="underline"
+        >
+          Skeleton community
+        </a>.
       </p>
     </div>
   </div>
@@ -24342,12 +24438,12 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       </a>
     </AppBar.Lead>
     <AppBar.Headline class="flex opacity-60">
-      <a href={resolve("/themes/create")} class="btn hover:preset-tonal"
-        >Create</a
-      >
-      <a href={resolve("/themes/import")} class="btn hover:preset-tonal"
-        >Import</a
-      >
+      <a href={resolve("/themes/create")} class="btn hover:preset-tonal">
+        Create
+      </a>
+      <a href={resolve("/themes/import")} class="btn hover:preset-tonal">
+        Import
+      </a>
     </AppBar.Headline>
     <AppBar.Trail class="flex items-center gap-4">
       <LightSwitch />
@@ -24461,7 +24557,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   />
 </svg>
 
-=== 4331 sites/themes.skeleton.dev/src/lib/components/generator/Controls/Controls.svelte	svelte
+=== 4343 sites/themes.skeleton.dev/src/lib/components/generator/Controls/Controls.svelte	svelte
 <script lang="ts">
   import { globals } from "$lib/state/generator.svelte";
   import ControlsBackgrounds from "./ControlsBackgrounds.svelte";
@@ -24585,8 +24681,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   <footer class="p-5">
     <button
       class="btn btn-xl w-full preset-filled"
-      onclick={() => (globals.panel = "code")}>Export Theme</button
+      onclick={() => (globals.panel = "code")}
     >
+      Export Theme
+    </button>
   </footer>
 </section>
 
@@ -24949,12 +25047,12 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
             >
               <Tabs.List>
                 <Tabs.Indicator />
-                <Tabs.Trigger value="three-stops" class="flex-1"
-                  >Three Stops</Tabs.Trigger
-                >
-                <Tabs.Trigger value="all-stops" class="flex-1"
-                  >All Stops</Tabs.Trigger
-                >
+                <Tabs.Trigger value="three-stops" class="flex-1">
+                  Three Stops
+                </Tabs.Trigger>
+                <Tabs.Trigger value="all-stops" class="flex-1">
+                  All Stops
+                </Tabs.Trigger>
               </Tabs.List>
             </Tabs>
             <div>
@@ -25148,7 +25246,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </div>
 </div>
 
-=== 3350 sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsEdges.svelte	svelte
+=== 3370 sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsEdges.svelte	svelte
 <script lang="ts">
   // Constants
   // Components
@@ -25214,8 +25312,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
           class="underline"
           href="https://skeleton.dev/docs/svelte/tailwind-utilities/corner-shapes"
           target="_blank"
-          rel="noopener noreferrer">corner shape</a
-        > utility.
+          rel="noopener noreferrer"
+        >
+          corner shape
+        </a> utility.
       </p>
     </header>
     <div class="label">
@@ -25274,7 +25374,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </section>
 </div>
 
-=== 1054 sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsSpacing.svelte	svelte
+=== 1074 sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsSpacing.svelte	svelte
 <script lang="ts">
   import { settingsSpacing } from "$lib/state/generator.svelte";
 
@@ -25307,14 +25407,16 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
         <button
           type="button"
           class="btn {activeClass(o.size)}"
-          onclick={() => set(o.size)}>{o.label}</button
+          onclick={() => set(o.size)}
         >
+          {o.label}
+        </button>
       {/each}
     </div>
   </label>
 </div>
 
-=== 38404 sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsTypography.svelte	svelte
+=== 38477 sites/themes.skeleton.dev/src/lib/components/generator/Controls/ControlsTypography.svelte	svelte
 <script lang="ts">
   // Constants
   import * as constants from "$lib/constants/generator";
@@ -25540,15 +25642,19 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       <a
         class="btn btn-xs preset-tonal"
         href="https://skeleton.dev/docs/svelte/design/themes#custom-fonts"
-        target="_blank">View Docs</a
+        target="_blank"
       >
+        View Docs
+      </a>
     </header>
     <p class="opacity-60">
       Import custom fonts to preview via <a
         href="https://fontsource.org/"
         target="_blank"
-        class="underline">Fontsource</a
-      >.
+        class="underline"
+      >
+        Fontsource
+      </a>.
     </p>
     <div class="grid grid-cols-2 gap-4">
       <div class="label space-y-2">
@@ -25584,8 +25690,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       <a
         class="btn btn-xs preset-tonal"
         href="https://designcode.io/typographic-scales"
-        target="_blank">View Docs</a
+        target="_blank"
       >
+        View Docs
+      </a>
     </header>
     <!-- --text-scaling -->
     <div
@@ -25603,9 +25711,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
             : 'hover:preset-tonal-primary'}"
         >
           <strong class="text-[16px]">{typographicScale.value}</strong>
-          <strong class="text-[10px] opacity-50"
-            >{typographicScale.label}</strong
-          >
+          <strong class="text-[10px] opacity-50">
+            {typographicScale.label}
+          </strong>
         </button>
       {/each}
     </div>
@@ -25678,14 +25786,14 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
               <option value={fontFamily}>{fontFamily}</option>
             {/each}
             {#if settingsCustomFonts.font1}
-              <option value="var(--font-custom-1)"
-                >{settingsCustomFonts.font1.family}</option
-              >
+              <option value="var(--font-custom-1)">
+                {settingsCustomFonts.font1.family}
+              </option>
             {/if}
             {#if settingsCustomFonts.font2}
-              <option value="var(--font-custom-2)"
-                >{settingsCustomFonts.font2.family}</option
-              >
+              <option value="var(--font-custom-2)">
+                {settingsCustomFonts.font2.family}
+              </option>
             {/if}
           </select>
         </label>
@@ -25891,14 +25999,14 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
               <option value={fontFamily}>{fontFamily}</option>
             {/each}
             {#if settingsCustomFonts.font1}
-              <option value="var(--font-custom-1)"
-                >{settingsCustomFonts.font1.family}</option
-              >
+              <option value="var(--font-custom-1)">
+                {settingsCustomFonts.font1.family}
+              </option>
             {/if}
             {#if settingsCustomFonts.font2}
-              <option value="var(--font-custom-2)"
-                >{settingsCustomFonts.font2.family}</option
-              >
+              <option value="var(--font-custom-2)">
+                {settingsCustomFonts.font2.family}
+              </option>
             {/if}
           </select>
         </label>
@@ -26078,14 +26186,14 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
               <option value={fontFamily}>{fontFamily}</option>
             {/each}
             {#if settingsCustomFonts.font1}
-              <option value="var(--font-custom-1)"
-                >{settingsCustomFonts.font1.family}</option
-              >
+              <option value="var(--font-custom-1)">
+                {settingsCustomFonts.font1.family}
+              </option>
             {/if}
             {#if settingsCustomFonts.font2}
-              <option value="var(--font-custom-2)"
-                >{settingsCustomFonts.font2.family}</option
-              >
+              <option value="var(--font-custom-2)">
+                {settingsCustomFonts.font2.family}
+              </option>
             {/if}
           </select>
         </label>
@@ -26275,8 +26383,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
                     bind:value={decorationColorShade[decorationState]}
                   >
                     {#each constants.colorShades as colorShade}
-                      <option value={colorShade.toString()}>{colorShade}</option
-                      >
+                      <option value={colorShade.toString()}>
+                        {colorShade}
+                      </option>
                     {/each}
                   </select>
                 {/if}
@@ -26313,9 +26422,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
                   }
                 >
                   {#each constants.decorationThicknesses as decorationThickness}
-                    <option value={decorationThickness}
-                      >{decorationThickness}</option
-                    >
+                    <option value={decorationThickness}>
+                      {decorationThickness}
+                    </option>
                   {/each}
                 </select>
               </label>
@@ -26351,9 +26460,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
                   }
                 >
                   {#each constants.underlinePositions as underlinePosition}
-                    <option value={underlinePosition}
-                      >{underlinePosition}</option
-                    >
+                    <option value={underlinePosition}>
+                      {underlinePosition}
+                    </option>
                   {/each}
                 </select>
               </label>
@@ -26450,7 +26559,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </div>
 </div>
 
-=== 7112 sites/themes.skeleton.dev/src/lib/components/generator/ExampleChart/ExampleChart.svelte	svelte
+=== 7256 sites/themes.skeleton.dev/src/lib/components/generator/ExampleChart/ExampleChart.svelte	svelte
 <script lang="ts">
   let { preset } = $props();
 </script>
@@ -26639,8 +26748,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="463"
-      opacity="1">Jan</text
+      opacity="1"
     >
+      Jan
+    </text>
     <text
       font-family="Roboto-Regular,Roboto"
       x="158.50000000000335"
@@ -26649,8 +26760,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="463"
-      opacity="1">Feb</text
+      opacity="1"
     >
+      Feb
+    </text>
     <text
       font-family="Roboto-Regular,Roboto"
       x="234.83333333333334"
@@ -26659,8 +26772,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="463"
-      opacity="1">Mar</text
+      opacity="1"
     >
+      Mar
+    </text>
     <text
       font-family="Roboto-Regular,Roboto"
       x="311.16666666667334"
@@ -26669,8 +26784,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="463"
-      opacity="1">Apr</text
+      opacity="1"
     >
+      Apr
+    </text>
     <text
       font-family="Roboto-Regular,Roboto"
       x="387.5000000000033"
@@ -26679,8 +26796,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="463"
-      opacity="1">May</text
+      opacity="1"
     >
+      May
+    </text>
     <text
       font-family="Roboto-Regular,Roboto"
       x="463.8333333333333"
@@ -26689,8 +26808,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="463"
-      opacity="1">June</text
+      opacity="1"
     >
+      June
+    </text>
   </g>
   <!-- Y-Axis Labels -->
   <g data-z-index="7" aria-hidden="true">
@@ -26702,8 +26823,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="449"
-      opacity="1">0</text
+      opacity="1"
     >
+      0
+    </text>
     <text
       font-family="Roboto-Regular,Roboto"
       x="29"
@@ -26712,8 +26835,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="369"
-      opacity="1">20</text
+      opacity="1"
     >
+      20
+    </text>
     <text
       font-family="Roboto-Regular,Roboto"
       x="29"
@@ -26722,8 +26847,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="289"
-      opacity="1">40</text
+      opacity="1"
     >
+      40
+    </text>
     <text
       font-family="Roboto-Regular,Roboto"
       x="29"
@@ -26732,8 +26859,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="210"
-      opacity="1">60</text
+      opacity="1"
     >
+      60
+    </text>
     <text
       font-family="Roboto-Regular,Roboto"
       x="29"
@@ -26742,8 +26871,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="130"
-      opacity="1">80</text
+      opacity="1"
     >
+      80
+    </text>
     <text
       font-family="Roboto-Regular,Roboto"
       x="29"
@@ -26752,8 +26883,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       class="fill-surface-950-50 opacity-60"
       style="cursor: default; font-size: 11px;"
       y="51"
-      opacity="1">100</text
+      opacity="1"
     >
+      100
+    </text>
   </g>
 </svg>
 
@@ -26838,7 +26971,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </footer>
 </section>
 
-=== 10785 sites/themes.skeleton.dev/src/lib/components/generator/Preview/PreviewComponents.svelte	svelte
+=== 10843 sites/themes.skeleton.dev/src/lib/components/generator/Preview/PreviewComponents.svelte	svelte
 <script lang="ts">
   import * as constants from "$lib/constants/generator";
   import { globals } from "$lib/state/generator.svelte";
@@ -26873,8 +27006,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
     <a
       href="https://www.skeleton.dev/docs/svelte/design/themes"
       target="_blank"
-      class="btn preset-tonal">View Docs</a
+      class="btn preset-tonal"
     >
+      View Docs
+    </a>
   </header>
 
   <!-- Swatches -->
@@ -26895,16 +27030,18 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       <Tabs defaultValue="planes">
         <Tabs.List>
           <Tabs.Indicator />
-          <Tabs.Trigger value="planes" class="flex-1 {currentPresets.hover}"
-            >Planes</Tabs.Trigger
-          >
-          <Tabs.Trigger value="trains" class="flex-1 {currentPresets.hover}"
-            >Trains</Tabs.Trigger
-          >
+          <Tabs.Trigger value="planes" class="flex-1 {currentPresets.hover}">
+            Planes
+          </Tabs.Trigger>
+          <Tabs.Trigger value="trains" class="flex-1 {currentPresets.hover}">
+            Trains
+          </Tabs.Trigger>
           <Tabs.Trigger
             value="automobiles"
-            class="flex-1 {currentPresets.hover}">Automobiles</Tabs.Trigger
+            class="flex-1 {currentPresets.hover}"
           >
+            Automobiles
+          </Tabs.Trigger>
         </Tabs.List>
       </Tabs>
       <!-- Avatars -->
@@ -26979,17 +27116,18 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
           </label>
         </fieldset>
         <fieldset>
-          <button type="button" class="btn {currentPresets.filled} w-full"
-            >Sign In Now</button
-          >
+          <button type="button" class="btn {currentPresets.filled} w-full">
+            Sign In Now
+          </button>
         </fieldset>
         <hr class="hr" />
         <fieldset class="space-y-5">
           <button
             type="button"
             class="btn preset-outlined-surface-300-700 hover:preset-tonal w-full"
-            >Continue with Github</button
           >
+            Continue with Github
+          </button>
         </fieldset>
       </form>
     </div>
@@ -27013,12 +27151,13 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       </div>
       <!-- Buttons -->
       <div class="grid grid-cols-3 gap-2">
-        <button type="button" class="btn {currentPresets.filled}">Button</button
-        >
+        <button type="button" class="btn {currentPresets.filled}">
+          Button
+        </button>
         <button type="button" class="btn {currentPresets.tonal}">Button</button>
-        <button type="button" class="btn {currentPresets.outlined}"
-          >Button</button
-        >
+        <button type="button" class="btn {currentPresets.outlined}">
+          Button
+        </button>
       </div>
       <!-- Segment Control -->
       <SegmentedControl defaultValue="left" class="w-full">
@@ -27076,23 +27215,23 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   <AppBar>
     <AppBar.Toolbar class="grid-cols-[auto_1fr_auto]">
       <AppBar.Lead>
-        <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal"
-          ><MenuIcon /></button
-        >
+        <button type="button" class="btn-icon btn-icon-lg hover:preset-tonal">
+          <MenuIcon />
+        </button>
       </AppBar.Lead>
       <AppBar.Headline>
         <p class="text-2xl">Headline</p>
       </AppBar.Headline>
       <AppBar.Trail>
-        <button type="button" class="btn-icon hover:preset-tonal"
-          ><SearchIcon class="size-6" /></button
-        >
-        <button type="button" class="btn-icon hover:preset-tonal"
-          ><CalendarIcon class="size-6" /></button
-        >
-        <button type="button" class="btn-icon hover:preset-tonal"
-          ><CircleUserIcon class="size-6" /></button
-        >
+        <button type="button" class="btn-icon hover:preset-tonal">
+          <SearchIcon class="size-6" />
+        </button>
+        <button type="button" class="btn-icon hover:preset-tonal">
+          <CalendarIcon class="size-6" />
+        </button>
+        <button type="button" class="btn-icon hover:preset-tonal">
+          <CircleUserIcon class="size-6" />
+        </button>
       </AppBar.Trail>
     </AppBar.Toolbar>
   </AppBar>
@@ -27144,7 +27283,7 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
   </div>
 </div>
 
-=== 18505 sites/themes.skeleton.dev/src/lib/components/generator/Preview/PreviewPalette.svelte	svelte
+=== 18553 sites/themes.skeleton.dev/src/lib/components/generator/Preview/PreviewPalette.svelte	svelte
 <script lang="ts">
   import * as constants from "$lib/constants/generator";
   import { globals } from "$lib/state/generator.svelte";
@@ -27579,8 +27718,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       <a
         href="https://skeleton.dev/docs/svelte/design/colors"
         target="_blank"
-        class="btn btn-xs preset-tonal">View Docs</a
+        class="btn btn-xs preset-tonal"
       >
+        View Docs
+      </a>
     </header>
 
     <div class="grid grid-cols-1 xl:grid-cols-7">
@@ -27611,8 +27752,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       <a
         href="https://skeleton.dev/docs/svelte/design/colors#brand-color"
         target="_blank"
-        class="btn btn-xs preset-tonal">View Docs</a
+        class="btn btn-xs preset-tonal"
       >
+        View Docs
+      </a>
     </header>
     <div class="grid grid-cols-3 gap-4">
       <div
@@ -27642,8 +27785,10 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
       <a
         href="https://skeleton.dev/docs/svelte/tailwind-utilities/presets"
         target="_blank"
-        class="btn btn-xs preset-tonal">View Docs</a
+        class="btn btn-xs preset-tonal"
       >
+        View Docs
+      </a>
     </header>
     <!-- Presets: Filled -->
     <div class="space-y-2">
@@ -27912,9 +28057,9 @@ https://tailwindcss.com/docs/grid-template-rows#arbitrary-values
     <FileUpload.Dropzone class="py-32">
       <FileUpIcon class="size-16" />
       <span>Select file or drag here.</span>
-      <span class="text-sm opacity-50"
-        >Accepts .css, .ts, or .js file formats.</span
-      >
+      <span class="text-sm opacity-50">
+        Accepts .css, .ts, or .js file formats.
+      </span>
       <FileUpload.HiddenInput />
     </FileUpload.Dropzone>
   </FileUpload>

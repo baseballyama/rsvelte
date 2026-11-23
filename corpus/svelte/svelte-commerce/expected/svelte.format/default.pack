@@ -52,9 +52,9 @@
             >
               <ArrowLeft class="h-4 w-4" />
             </Button>
-            <DialogTitle
-              >{isEdit ? "Edit Address" : "Add New Address"}</DialogTitle
-            >
+            <DialogTitle>
+              {isEdit ? "Edit Address" : "Add New Address"}
+            </DialogTitle>
           </div>
         </DialogHeader>
         <form onsubmit={handleSubmit} class="grid py-4">
@@ -266,7 +266,7 @@
 
 {@render content?.({ isSaving, handleBack, handleSubmit, handleDelete })}
 
-=== 3313 src/lib/components/address/address-list-modal.svelte	svelte
+=== 3341 src/lib/components/address/address-list-modal.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import {
@@ -360,8 +360,10 @@
             </div>
             <Button
               variant="default"
-              onclick={() => addressState.handleSelect(address)}>Select</Button
+              onclick={() => addressState.handleSelect(address)}
             >
+              Select
+            </Button>
           </div>
         </div>
       {/each}
@@ -684,9 +686,9 @@
           <div
             class="mb-1 flex h-12 w-12 items-center justify-center rounded-radius bg-muted shadow-sm ring-1 ring-border"
           >
-            <span class="text-lg font-bold text-gray-900 dark:text-white"
-              >{page?.data?.store?.name?.charAt(0) || "L"}</span
-            >
+            <span class="text-lg font-bold text-gray-900 dark:text-white">
+              {page?.data?.store?.name?.charAt(0) || "L"}
+            </span>
           </div>
         {/if}
         <div class="space-y-2">
@@ -794,9 +796,9 @@
               class="mx-auto max-w-[33ch] text-sm leading-6 text-gray-600 dark:text-gray-300"
             >
               We sent a password reset link to
-              <span class="font-semibold text-gray-950 dark:text-white"
-                >{forgotPasswordModule.email}</span
-              >.
+              <span class="font-semibold text-gray-950 dark:text-white">
+                {forgotPasswordModule.email}
+              </span>.
             </p>
           </div>
         </div>
@@ -810,9 +812,9 @@
 
         <div class="space-y-3">
           <AuthButton type="login">
-            <Button class="h-12 w-full text-base font-semibold"
-              >Back to login</Button
-            >
+            <Button class="h-12 w-full text-base font-semibold">
+              Back to login
+            </Button>
           </AuthButton>
           <Button
             variant="ghost"
@@ -827,7 +829,7 @@
   {/if}
 </Modal>
 
-=== 21304 src/lib/components/auth/login-modal.svelte	svelte
+=== 21481 src/lib/components/auth/login-modal.svelte	svelte
 <script lang="ts">
   import { ArrowLeft, Check, LoaderIcon, X, Phone, Mail } from "@lucide/svelte";
   import * as InputOTP from "$lib/components/ui/input-otp/index.js";
@@ -1071,9 +1073,9 @@
           <div
             class="mb-1 flex h-12 w-12 items-center justify-center rounded-radius bg-muted shadow-sm ring-1 ring-border"
           >
-            <span class="text-lg font-bold text-gray-900 dark:text-white"
-              >{page?.data?.store?.name?.charAt(0) || "L"}</span
-            >
+            <span class="text-lg font-bold text-gray-900 dark:text-white">
+              {page?.data?.store?.name?.charAt(0) || "L"}
+            </span>
           </div>
         {/if}
         <div class="space-y-2">
@@ -1205,8 +1207,9 @@
                 <Label
                   for="password"
                   class="text-sm font-medium text-gray-700 dark:text-gray-300"
-                  >Password</Label
                 >
+                  Password
+                </Label>
                 <Textbox
                   name="password"
                   type="password"
@@ -1241,8 +1244,9 @@
                   <Button
                     variant="link"
                     class="-mr-4 text-sm text-gray-600 hover:text-gray-500"
-                    >Forgot password?</Button
                   >
+                    Forgot password?
+                  </Button>
                 </AuthButton>
               </div>
             </div>
@@ -1271,8 +1275,9 @@
                 <AuthButton
                   type="signup"
                   class="ml-1 font-semibold text-gray-900 hover:underline dark:text-white"
-                  >Create an account</AuthButton
                 >
+                  Create an account
+                </AuthButton>
               </p>
             </div>
           {/if}
@@ -1285,8 +1290,10 @@
               <a
                 href="/terms-and-conditions"
                 class="font-medium text-gray-700 hover:underline dark:text-gray-300"
-                onclick={() => (show = false)}>Terms & Conditions</a
+                onclick={() => (show = false)}
               >
+                Terms & Conditions
+              </a>
             </p>
 
             {#if page?.data?.store?.plugins?.isMultiVendor?.active}
@@ -1294,8 +1301,10 @@
                 <a
                   href="/auth/join-as-vendor"
                   class="font-medium text-gray-600 hover:text-gray-900 hover:underline dark:text-gray-400 dark:hover:text-white"
-                  onclick={() => (show = false)}>Join as a Vendor</a
+                  onclick={() => (show = false)}
                 >
+                  Join as a Vendor
+                </a>
               </div>
             {/if}
           </div>
@@ -1313,8 +1322,9 @@
           </button>
           <span
             class="inline-flex items-center gap-1.5 text-xs font-semibold text-gray-500 dark:text-gray-400"
-            ><Check class="h-3.5 w-3.5 text-primary" /> Code sent</span
           >
+            <Check class="h-3.5 w-3.5 text-primary" /> Code sent
+          </span>
         </div>
 
         <div class="mt-10 space-y-2 text-center sm:mt-8">
@@ -1326,8 +1336,9 @@
           <p class="text-sm leading-6 text-gray-600 dark:text-gray-300">
             Enter the 4-digit code sent to <span
               class="font-semibold text-gray-950 dark:text-white"
-              >{recipient}</span
-            >.
+            >
+              {recipient}
+            </span>.
           </p>
           {#if dev}
             <p class="text-xs font-semibold text-amber-700 dark:text-amber-300">
@@ -1379,8 +1390,10 @@
               Didn't get it? <button
                 type="button"
                 class="min-h-11 font-semibold text-gray-950 underline-offset-4 transition-colors hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary dark:text-white"
-                onclick={handleResendOtp}>Resend code</button
+                onclick={handleResendOtp}
               >
+                Resend code
+              </button>
             {/if}
           </p>
         </div>
@@ -1389,7 +1402,7 @@
   </div>
 </Modal>
 
-=== 9322 src/lib/components/auth/signup-modal.svelte	svelte
+=== 9337 src/lib/components/auth/signup-modal.svelte	svelte
 <script lang="ts">
   import {
     ArrowLeft,
@@ -1475,9 +1488,9 @@
             <div
               class="mb-1 flex h-12 w-12 items-center justify-center rounded-radius bg-muted shadow-sm ring-1 ring-border"
             >
-              <span class="text-lg font-bold text-gray-900 dark:text-white"
-                >{page?.data?.store?.name?.charAt(0) || "L"}</span
-              >
+              <span class="text-lg font-bold text-gray-900 dark:text-white">
+                {page?.data?.store?.name?.charAt(0) || "L"}
+              </span>
             </div>
           {/if}
           <div class="space-y-2">
@@ -1576,10 +1589,10 @@
               <span>Passwords do not match yet.</span>
             {:else}
               <ShieldCheck class="mt-0.5 h-4 w-4 shrink-0 text-primary" />
-              <span
-                >Use at least 8 characters. Your password is only used to secure
-                your account.</span
-              >
+              <span>
+                Use at least 8 characters. Your password is only used to secure
+                your account.
+              </span>
             {/if}
           </div>
 
@@ -1633,8 +1646,9 @@
             <div class="relative flex justify-center text-sm">
               <span
                 class="bg-white px-2 text-gray-500 dark:bg-gray-900 dark:text-gray-400"
-                >or</span
               >
+                or
+              </span>
             </div>
           </div>
 
@@ -2352,9 +2366,9 @@
         send(input);
       }}
     >
-      <label class="sr-only" for="assistant-input"
-        >Message the shopping assistant</label
-      >
+      <label class="sr-only" for="assistant-input">
+        Message the shopping assistant
+      </label>
       <input
         id="assistant-input"
         bind:value={input}
@@ -2379,7 +2393,7 @@
   </section>
 {/if}
 
-=== 3937 src/lib/components/checkout/checkout-header.svelte	svelte
+=== 4001 src/lib/components/checkout/checkout-header.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { goto } from "$app/navigation";
@@ -2417,8 +2431,10 @@
       <span
         class="ml-2 text-xs font-bold uppercase tracking-widest {step === 1
           ? ''
-          : 'hidden sm:inline'}">Cart</span
+          : 'hidden sm:inline'}"
       >
+        Cart
+      </span>
     </Button>
 
     <div class="h-px w-4 bg-gray-200 sm:w-8 md:w-16"></div>
@@ -2450,8 +2466,10 @@
       <span
         class="ml-2 text-xs font-bold uppercase tracking-widest {step === 2
           ? ''
-          : 'hidden sm:inline'}">Address</span
+          : 'hidden sm:inline'}"
       >
+        Address
+      </span>
     </Button>
 
     <div class="h-px w-4 bg-gray-200 sm:w-8 md:w-16"></div>
@@ -2478,8 +2496,10 @@
       <span
         class="ml-2 text-xs font-bold uppercase tracking-widest {step === 3
           ? ''
-          : 'hidden sm:inline'}">Payment</span
+          : 'hidden sm:inline'}"
       >
+        Payment
+      </span>
     </Button>
 
     <div class="h-px w-4 bg-gray-200 sm:w-8 md:w-16"></div>
@@ -2506,13 +2526,15 @@
       <span
         class="ml-2 text-xs font-bold uppercase tracking-widest {step === 4
           ? ''
-          : 'hidden sm:inline'}">Placed</span
+          : 'hidden sm:inline'}"
       >
+        Placed
+      </span>
     </Button>
   </div>
 </div>
 
-=== 2490 src/lib/components/collection/display-collections.svelte	svelte
+=== 2503 src/lib/components/collection/display-collections.svelte	svelte
 <script lang="ts">
   import LazyImg from "$lib/core/components/image/lazy-img.svelte";
   let { cards } = $props();
@@ -2553,8 +2575,9 @@
             <a
               href={card.link}
               class="hover:text-gray-600 dark:hover:text-gray-300"
-              >{card.title}</a
             >
+              {card.title}
+            </a>
           </h3>
           <p
             class="mb-4 flex-grow text-[12px] text-gray-700 dark:text-gray-300"
@@ -2622,7 +2645,7 @@
   </Button>
 {/if}
 
-=== 1164 src/lib/components/common/footer-menu.svelte	svelte
+=== 1185 src/lib/components/common/footer-menu.svelte	svelte
 <script lang="ts">
   const { items } = $props();
 </script>
@@ -2651,8 +2674,9 @@
                     {child.name}
                   </a>
                 {:else}
-                  <span class="text-sm text-muted-foreground">{child.name}</span
-                  >
+                  <span class="text-sm text-muted-foreground">
+                    {child.name}
+                  </span>
                 {/if}
               </li>
             {/each}
@@ -2663,7 +2687,7 @@
   </div>
 </div>
 
-=== 17730 src/lib/components/common/footer.svelte	svelte
+=== 17892 src/lib/components/common/footer.svelte	svelte
 <script lang="ts">
   import {
     ChevronDown,
@@ -2775,9 +2799,9 @@
             class="flex h-auto w-full items-center justify-between border-b bg-muted/30 p-4 md:hidden"
             onclick={() => (isExpanded = !isExpanded)}
           >
-            <span class="text-sm font-bold uppercase tracking-widest"
-              >More about {storeData?.name}</span
-            >
+            <span class="text-sm font-bold uppercase tracking-widest">
+              More about {storeData?.name}
+            </span>
             <ChevronDown
               size={20}
               class="transition-transform duration-300 {isExpanded
@@ -2829,22 +2853,24 @@
                             role="img"
                             viewBox="0 0 24 24"
                             xmlns="http://www.w3.org/2000/svg"
-                            ><title>X</title><path
+                          >
+                            <title>X</title><path
                               fill="currentColor"
                               d="M18.901 1.153h3.68l-8.04 9.19L24 22.846h-7.406l-5.8-7.584-6.638 7.584H.474l8.6-9.83L0 1.154h7.594l5.243 6.932ZM17.61 20.644h2.039L6.486 3.24H4.298Z"
-                            /></svg
-                          >
+                            />
+                          </svg>
                         {:else if key == "facebook"}
                           <svg
                             class="size-6"
                             role="img"
                             viewBox="0 0 24 24"
                             xmlns="http://www.w3.org/2000/svg"
-                            ><title>Facebook</title><path
+                          >
+                            <title>Facebook</title><path
                               fill="currentColor"
                               d="M9.101 23.691v-7.98H6.627v-3.667h2.474v-1.58c0-4.085 1.848-5.978 5.858-5.978.401 0 .955.042 1.468.103a8.68 8.68 0 0 1 1.141.195v3.325a8.623 8.623 0 0 0-.653-.036 26.805 26.805 0 0 0-.733-.009c-.707 0-1.259.096-1.675.309a1.686 1.686 0 0 0-.679.622c-.258.42-.374.995-.374 1.752v1.297h3.919l-.386 2.103-.287 1.564h-3.246v8.245C19.396 23.238 24 18.179 24 12.044c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.628 3.874 10.35 9.101 11.647Z"
-                            /></svg
-                          >
+                            />
+                          </svg>
                         {:else if key == "linkedin"}
                           <svg
                             class="size-6"
@@ -2862,41 +2888,45 @@
                             role="img"
                             viewBox="0 0 24 24"
                             xmlns="http://www.w3.org/2000/svg"
-                            ><title>Instagram</title><path
+                          >
+                            <title>Instagram</title><path
                               fill="currentColor"
                               d="M7.0301.084c-1.2768.0602-2.1487.264-2.911.5634-.7888.3075-1.4575.72-2.1228 1.3877-.6652.6677-1.075 1.3368-1.3802 2.127-.2954.7638-.4956 1.6365-.552 2.914-.0564 1.2775-.0689 1.6882-.0626 4.947.0062 3.2586.0206 3.6671.0825 4.9473.061 1.2765.264 2.1482.5635 2.9107.308.7889.72 1.4573 1.388 2.1228.6679.6655 1.3365 1.0743 2.1285 1.38.7632.295 1.6361.4961 2.9134.552 1.2773.056 1.6884.069 4.9462.0627 3.2578-.0062 3.668-.0207 4.9478-.0814 1.28-.0607 2.147-.2652 2.9098-.5633.7889-.3086 1.4578-.72 2.1228-1.3881.665-.6682 1.0745-1.3378 1.3795-2.1284.2957-.7632.4966-1.636.552-2.9124.056-1.2809.0692-1.6898.063-4.948-.0063-3.2583-.021-3.6668-.0817-4.9465-.0607-1.2797-.264-2.1487-.5633-2.9117-.3084-.7889-.72-1.4568-1.3876-2.1228C21.2982 1.33 20.628.9208 19.8378.6165 19.074.321 18.2017.1197 16.9244.0645 15.6471.0093 15.236-.005 11.977.0014 8.718.0076 8.31.0215 7.0301.0839m.1402 21.6932c-1.17-.0509-1.8053-.2453-2.2287-.408-.5606-.216-.96-.4771-1.3819-.895-.422-.4178-.6811-.8186-.9-1.378-.1644-.4234-.3624-1.058-.4171-2.228-.0595-1.2645-.072-1.6442-.079-4.848-.007-3.2037.0053-3.583.0607-4.848.05-1.169.2456-1.805.408-2.2282.216-.5613.4762-.96.895-1.3816.4188-.4217.8184-.6814 1.3783-.9003.423-.1651 1.0575-.3614 2.227-.4171 1.2655-.06 1.6447-.072 4.848-.079 3.2033-.007 3.5835.005 4.8495.0608 1.169.0508 1.8053.2445 2.228.408.5608.216.96.4754 1.3816.895.4217.4194.6816.8176.9005 1.3787.1653.4217.3617 1.056.4169 2.2263.0602 1.2655.0739 1.645.0796 4.848.0058 3.203-.0055 3.5834-.061 4.848-.051 1.17-.245 1.8055-.408 2.2294-.216.5604-.4763.96-.8954 1.3814-.419.4215-.8181.6811-1.3783.9-.4224.1649-1.0577.3617-2.2262.4174-1.2656.0595-1.6448.072-4.8493.079-3.2045.007-3.5825-.006-4.848-.0608M16.953 5.5864A1.44 1.44 0 1 0 18.39 4.144a1.44 1.44 0 0 0-1.437 1.4424M5.8385 12.012c.0067 3.4032 2.7706 6.1557 6.173 6.1493 3.4026-.0065 6.157-2.7701 6.1506-6.1733-.0065-3.4032-2.771-6.1565-6.174-6.1498-3.403.0067-6.156 2.771-6.1496 6.1738M8 12.0077a4 4 0 1 1 4.008 3.9921A3.9996 3.9996 0 0 1 8 12"
-                            /></svg
-                          >
+                            />
+                          </svg>
                         {:else if key == "telegram"}
                           <svg
                             class="size-6"
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 256 256"
-                            ><path
+                          >
+                            <path
                               fill="currentColor"
                               d="M228.88,26.19a9,9,0,0,0-9.16-1.57L17.06,103.93a14.22,14.22,0,0,0,2.43,27.21L72,141.45V200a15.92,15.92,0,0,0,10,14.83,15.91,15.91,0,0,0,17.51-3.73l25.32-26.26L165,220a15.88,15.88,0,0,0,10.51,4,16.3,16.3,0,0,0,5-.79,15.85,15.85,0,0,0,10.67-11.63L231.77,35A9,9,0,0,0,228.88,26.19Zm-61.14,36L78.15,126.35l-49.6-9.73ZM88,200V152.52l24.79,21.74Zm87.53,8L92.85,135.5l119-85.29Z"
-                            /></svg
-                          >
+                            />
+                          </svg>
                         {:else if key == "youtube"}
                           <svg
                             class="size-6"
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 256 256"
-                            ><path
+                          >
+                            <path
                               fill="currentColor"
                               d="M164.44,121.34l-48-32A8,8,0,0,0,104,96v64a8,8,0,0,0,12.44,6.66l48-32a8,8,0,0,0,0-13.32ZM120,145.05V111l25.58,17ZM234.33,69.52a24,24,0,0,0-14.49-16.4C185.56,39.88,131,40,128,40s-57.56-.12-91.84,13.12a24,24,0,0,0-14.49,16.4C19.08,79.5,16,97.74,16,128s3.08,48.5,5.67,58.48a24,24,0,0,0,14.49,16.41C69,215.56,120.4,216,127.34,216h1.32c6.94,0,58.37-.44,91.18-13.11a24,24,0,0,0-14.49-16.41c2.59-10,5.67-28.22,5.67-58.48S236.92,79.5,234.33,69.52Zm-15.49,113a8,8,0,0,1-4.77,5.49c-31.65,12.22-85.48,12-86,12H128c-.54,0-54.33.2-86-12a8,8,0,0,1-4.77-5.49C34.8,173.39,32,156.57,32,128s2.8-45.39,5.16-54.47A8,8,0,0,1,41.93,68c30.52-11.79,81.66-12,85.85-12h.27c.54,0,54.38-.18,86,12a8,8,0,0,1,4.77,5.49C221.2,82.61,224,99.43,224,128S221.2,173.39,218.84,182.47Z"
-                            /></svg
-                          >
+                            />
+                          </svg>
                         {:else if key == "whatsapp"}
                           <svg
                             class="size-6"
                             xmlns="http://www.w3.org/2000/svg"
                             viewBox="0 0 256 256"
-                            ><path
+                          >
+                            <path
                               fill="currentColor"
                               d="M187.58,144.84l-32-16a8,8,0,0,0-8,.5l-14.69,9.8a40.55,40.55,0,0,1-16-16l9.8-14.69a8,8,0,0,0,.5-8l-16-32A8,8,0,0,0,104,64a40,40,0,0,0-40,40,88.1,88.1,0,0,0,88,88,40,40,0,0,0,40-40A8,8,0,0,0,187.58,144.84ZM152,176a72.08,72.08,0,0,1-72-72A24,24,0,0,1,99.29,80.46l11.48,23L101,118a8,8,0,0,0-.73,7.51,56.47,56.47,0,0,0,30.15,30.15A8,8,0,0,0,138,155l14.61-9.74,23,11.48A24,24,0,0,1,152,176ZM128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z"
-                            /></svg
-                          >
+                            />
+                          </svg>
                         {/if}
                         <span class="sr-only">{key}</span>
                       </a>
@@ -3952,9 +3982,9 @@
       {#if label}
         <Label class="block text-sm font-medium text-gray-700">
           {label}
-          {#if optional}<span class="text-xs text-muted-foreground"
-              >(Optional)</span
-            >{/if}
+          {#if optional}<span class="text-xs text-muted-foreground">
+              (Optional)
+            </span>{/if}
         </Label>
       {/if}
       <div class="relative w-full" {...rest}>
@@ -3969,9 +3999,9 @@
                 role="combobox"
                 aria-expanded={open}
               >
-                <span class="min-w-0 truncate"
-                  >{selectedValue || "Select..."}</span
-                >
+                <span class="min-w-0 truncate">
+                  {selectedValue || "Select..."}
+                </span>
                 <ChevronsUpDown class="ml-2 size-4 shrink-0 opacity-50" />
               </Button>
             {/snippet}
@@ -4095,9 +4125,9 @@
       {#if label}
         <Label for={inputId} class="block text-sm font-medium">
           {label}
-          {#if optional}<span class="text-xs text-muted-foreground"
-              >(Optional)</span
-            >{/if}
+          {#if optional}<span class="text-xs text-muted-foreground">
+              (Optional)
+            </span>{/if}
         </Label>
       {/if}
       <div class="relative">
@@ -4783,7 +4813,7 @@
   </div>
 </Carousel>
 
-=== 7705 src/lib/components/nav/bottom-nav.svelte	svelte
+=== 7650 src/lib/components/nav/bottom-nav.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
@@ -5012,12 +5042,12 @@
           <div class="space-y-4">
             <div class="flex justify-between text-sm">
               <span>Subtotal</span>
-              <span
-                >{formatPrice(
+              <span>
+                {formatPrice(
                   cartState.cart.subtotal,
                   cartState.cart.currencyCode,
-                )}</span
-              >
+                )}
+              </span>
             </div>
             <div class="flex justify-between text-sm">
               <span>Shipping</span>
@@ -5026,12 +5056,9 @@
             <Separator />
             <div class="flex justify-between font-medium">
               <span>Total</span>
-              <span
-                >{formatPrice(
-                  cartState.cart.total,
-                  cartState.cart.currencyCode,
-                )}</span
-              >
+              <span>
+                {formatPrice(cartState.cart.total, cartState.cart.currencyCode)}
+              </span>
             </div>
             <Button
               onclick={() => {
@@ -5052,7 +5079,7 @@
 
 <div class="h-16 md:hidden" />
 
-=== 9158 src/lib/components/nav/cart-sidebar.svelte	svelte
+=== 9228 src/lib/components/nav/cart-sidebar.svelte	svelte
 <script lang="ts">
   import CartItem from "$lib/components/cart/cart-item.svelte";
   import { X, ShoppingBag } from "@lucide/svelte";
@@ -5224,9 +5251,9 @@
           >
             Your Cart
             {#if cartState.cart?.lineItems?.length > 0}
-              <span class="font-normal text-gray-400"
-                >({cartState.cart.qty})</span
-              >
+              <span class="font-normal text-gray-400">
+                ({cartState.cart.qty})
+              </span>
             {/if}
           </h2>
           <Button
@@ -5283,18 +5310,22 @@
                 </div>
                 <span
                   class="text-xl font-bold uppercase tracking-widest text-gray-900"
-                  >Empty Cart!!</span
                 >
+                  Empty Cart!!
+                </span>
                 <span
                   class="max-w-xs px-2 text-center text-xs font-medium leading-relaxed text-gray-500"
-                  >We didn't find any item inside cart, Go ahead, order some
-                  essentials from the menu</span
                 >
+                  We didn't find any item inside cart, Go ahead, order some
+                  essentials from the menu
+                </span>
                 <Button
                   disabled={!!cartState.isUpdatingCart}
                   onclick={onContinueShopping}
-                  class="mt-8 px-8">Continue Shopping</Button
+                  class="mt-8 px-8"
                 >
+                  Continue Shopping
+                </Button>
               </div>
             {/if}
           </div>
@@ -7039,7 +7070,7 @@
   {@html block.metadata.html}
 </div>
 
-=== 24769 src/lib/components/product-catalogue/desktop-filter.svelte	svelte
+=== 24877 src/lib/components/product-catalogue/desktop-filter.svelte	svelte
 <script lang="ts">
   import { cn } from "$lib/core/utils/index.js";
   import { X } from "@lucide/svelte";
@@ -7211,8 +7242,9 @@
               {/if}
               <span
                 class="ed-df__cat flex-1 py-0.5 capitalize text-gray-600 transition-colors group-hover:text-primary"
-                >{formatCategoryName(category.name)}</span
               >
+                {formatCategoryName(category.name)}
+              </span>
             </Button>
           {/each}
           {#if filterState.filteredCategories.length > 5}
@@ -7249,16 +7281,19 @@
               {/if}
               <span
                 class="ed-df__cat flex-1 py-0.5 capitalize text-gray-600 transition-colors group-hover:text-primary"
-                >{formatCategoryName(category.name)}</span
               >
+                {formatCategoryName(category.name)}
+              </span>
             </Button>
           {/each}
           <Button
             variant="link"
             size="sm"
             class="ed-df__more mt-1 h-auto justify-start p-0"
-            onclick={filterState.toggleShowMoreCategories}>Show less</Button
+            onclick={filterState.toggleShowMoreCategories}
           >
+            Show less
+          </Button>
         {/if}
       </div>
     {/if}
@@ -7343,8 +7378,9 @@
               <label
                 for={`tag-${tag.slug || tag.name}`}
                 class="ed-df__opt flex-1 cursor-pointer py-1 capitalize text-gray-600 transition-colors hover:text-gray-900"
-                >{tag.name}</label
               >
+                {tag.name}
+              </label>
             </div>
           {/each}
           {#if filterState.filteredTags.length > 5}
@@ -7374,16 +7410,19 @@
               <label
                 for={`tag-${tag.slug || tag.name}`}
                 class="ed-df__opt flex-1 cursor-pointer py-1 capitalize text-gray-600 transition-colors hover:text-gray-900"
-                >{tag.name}</label
               >
+                {tag.name}
+              </label>
             </div>
           {/each}
           <Button
             variant="link"
             size="sm"
             class="ed-df__more mt-1 h-auto justify-start p-0"
-            onclick={filterState.toggleShowMoreTags}>Show less</Button
+            onclick={filterState.toggleShowMoreTags}
           >
+            Show less
+          </Button>
         {/if}
       </div>
 
@@ -7771,7 +7810,7 @@
   {/if}
 {/if}
 
-=== 8379 src/lib/components/product-catalogue/listing-grid.svelte	svelte
+=== 8384 src/lib/components/product-catalogue/listing-grid.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import Pagination from "$lib/components/common/pagination.svelte";
@@ -7904,8 +7943,9 @@
     <a
       href="/products"
       class="ed-empty__link text-sm font-bold uppercase tracking-widest text-primary underline underline-offset-4"
-      >Clear all filters</a
     >
+      Clear all filters
+    </a>
   </div>
 {:else}
   <div class="ed-grid intra-gap grid auto-rows-auto grid-cols-2 lg:grid-cols-3">
@@ -8035,7 +8075,7 @@
   }
 </style>
 
-=== 4393 src/lib/components/product-catalogue/listing-header.svelte	svelte
+=== 4400 src/lib/components/product-catalogue/listing-header.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import Select from "$lib/components/form/select.svelte";
@@ -8077,8 +8117,9 @@
     <div class="ed-lh__sort hidden items-center gap-2 lg:flex">
       <span
         class="ed-lh__sortlabel text-[10px] font-bold uppercase tracking-widest text-gray-400"
-        >Sort by</span
       >
+        Sort by
+      </span>
       <Select
         class="!mb-0 ed-lh__select"
         id="sort-by"
@@ -8284,7 +8325,7 @@
 <!-- No FAQPage here: this page renders no Q&A, and structured data that describes content the
      page does not show is a manual-action trigger. Real FAQ markup lives on /faqs. -->
 
-=== 22624 src/lib/components/product-catalogue/mobile-filter.svelte	svelte
+=== 22714 src/lib/components/product-catalogue/mobile-filter.svelte	svelte
 <script lang="ts">
   import * as Drawer from "$lib/components/ui/drawer/index.js";
   import { GetColorName } from "hex-color-to-color-name";
@@ -8438,8 +8479,10 @@
               variant="link"
               size="sm"
               class="ed-mf__clear h-auto p-0"
-              onclick={filterModule.clearFilters}>Clear All</Button
+              onclick={filterModule.clearFilters}
             >
+              Clear All
+            </Button>
           {/if}
         </div>
 
@@ -8452,8 +8495,10 @@
         <Button
           variant="default"
           class="ed-mf__apply h-9 bg-primary px-6 text-[10px] font-bold uppercase tracking-widest hover:bg-black"
-          onclick={filterModule.handleApply}>Apply</Button
+          onclick={filterModule.handleApply}
         >
+          Apply
+        </Button>
       </div>
     </div>
 
@@ -8562,8 +8607,9 @@
                     {/if}
                     <span
                       class="flex-1 py-0.5 capitalize text-gray-600 transition-colors group-hover:text-primary"
-                      >{formatCategoryName(category.name)}</span
                     >
+                      {formatCategoryName(category.name)}
+                    </span>
                   </Button>
                 {/each}
               </div>
@@ -8639,8 +8685,9 @@
                     <label
                       for={`m-${tag.slug || tag.name}`}
                       class="ed-mf__opt flex-1 text-sm font-medium capitalize text-gray-700"
-                      >{tag.name}</label
                     >
+                      {tag.name}
+                    </label>
                   </div>
                 {/each}
               </div>
@@ -9604,9 +9651,9 @@
                   {label}
                 </a>
               {:else}
-                <span class="truncate text-gray-600 dark:text-gray-300 md:ml-2"
-                  >{label}</span
-                >
+                <span class="truncate text-gray-600 dark:text-gray-300 md:ml-2">
+                  {label}
+                </span>
               {/if}
             </div>
           </div>
@@ -9619,9 +9666,9 @@
         <li>
           <div class="flex items-center">
             <ChevronRight class="h-4 w-4 text-gray-400" />
-            <span class="ml-1 text-gray-600 dark:text-gray-300 md:ml-2"
-              >...</span
-            >
+            <span class="ml-1 text-gray-600 dark:text-gray-300 md:ml-2">
+              ...
+            </span>
             <ChevronRight class="h-4 w-4 text-gray-400" />
           </div>
         </li>
@@ -14855,7 +14902,7 @@
   });
 </script>
 
-=== 1767 src/lib/core/components/plugins/order-trust-badges.svelte	svelte
+=== 1809 src/lib/core/components/plugins/order-trust-badges.svelte	svelte
 <script lang="ts">
   import { Award, RotateCcw, ShieldCheck } from "@lucide/svelte";
 </script>
@@ -14868,12 +14915,14 @@
     <div class="flex flex-col gap-1">
       <span
         class="text-sm font-bold uppercase leading-none tracking-tight text-gray-900"
-        >100% Secure</span
       >
+        100% Secure
+      </span>
       <span
         class="text-xs font-medium uppercase leading-none tracking-tighter text-gray-400"
-        >Payments</span
       >
+        Payments
+      </span>
     </div>
   </div>
 
@@ -14884,12 +14933,14 @@
     <div class="flex flex-col gap-1">
       <span
         class="text-sm font-bold uppercase leading-none tracking-tight text-gray-900"
-        >Easy</span
       >
+        Easy
+      </span>
       <span
         class="text-xs font-medium uppercase leading-none tracking-tighter text-gray-400"
-        >Returns</span
       >
+        Returns
+      </span>
     </div>
   </div>
 
@@ -14900,12 +14951,14 @@
     <div class="flex flex-col gap-1">
       <span
         class="text-sm font-bold uppercase leading-none tracking-tight text-gray-900"
-        >Quality</span
       >
+        Quality
+      </span>
       <span
         class="text-xs font-medium uppercase leading-none tracking-tighter text-gray-400"
-        >Assurance</span
       >
+        Assurance
+      </span>
     </div>
   </div>
 </div>
@@ -15070,9 +15123,9 @@
           >
             <Facebook class="h-full flex w-full" quote={productName} {url} />
           </div>
-          <span class="text-[10px] flex font-medium text-zinc-500"
-            >Facebook</span
-          >
+          <span class="text-[10px] flex font-medium text-zinc-500">
+            Facebook
+          </span>
         </div>
         <div class="flex flex-col items-center gap-1.5">
           <div
@@ -15224,7 +15277,7 @@
   {/if}
 </div>
 
-=== 2103 src/lib/core/components/plugins/whatsapp-chat-button.svelte	svelte
+=== 2108 src/lib/core/components/plugins/whatsapp-chat-button.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
@@ -15258,10 +15311,11 @@
       height="32"
       fill="#fff"
       viewBox="0 0 256 256"
-      ><path
-        d="M187.58,144.84l-32-16a8,8,0,0,0-8,.5l-14.69,9.8a40.55,40.55,0,0,1-16-16l9.8-14.69a8,8,0,0,0,.5-8l-16-32A8,8,0,0,0,104,64a40,40,0,0,0-40,40,88.1,88.1,0,0,0,88,88,40,40,0,0,0,40-40A8,8,0,0,0,187.58,144.84ZM152,176a72.08,72.08,0,0,1-72-72A24,24,0,0,1,99.29,80.46l11.48,23L101,118a8,8,0,0,0-.73,7.51,56.47,56.47,0,0,0,30.15,30.15A8,8,0,0,0,138,155l14.61-9.74,23,11.48A24,24,0,0,1,152,176ZM128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z"
-      ></path></svg
     >
+      <path
+        d="M187.58,144.84l-32-16a8,8,0,0,0-8,.5l-14.69,9.8a40.55,40.55,0,0,1-16-16l9.8-14.69a8,8,0,0,0,.5-8l-16-32A8,8,0,0,0,104,64a40,40,0,0,0-40,40,88.1,88.1,0,0,0,88,88,40,40,0,0,0,40-40A8,8,0,0,0,187.58,144.84ZM152,176a72.08,72.08,0,0,1-72-72A24,24,0,0,1,99.29,80.46l11.48,23L101,118a8,8,0,0,0-.73,7.51,56.47,56.47,0,0,0,30.15,30.15A8,8,0,0,0,138,155l14.61-9.74,23,11.48A24,24,0,0,1,152,176ZM128,24A104,104,0,0,0,36.18,176.88L24.83,210.93a16,16,0,0,0,20.24,20.24l34.05-11.35A104,104,0,1,0,128,24Zm0,192a87.87,87.87,0,0,1-44.06-11.81,8,8,0,0,0-6.54-.67L40,216,52.47,178.6a8,8,0,0,0-.66-6.54A88,88,0,1,1,128,216Z"
+      ></path>
+    </svg>
   </button>
 {/if}
 
@@ -15325,7 +15379,7 @@
   {/each}
 </div>
 
-=== 40296 src/lib/theme/default/DefaultHomepage.svelte	svelte
+=== 40311 src/lib/theme/default/DefaultHomepage.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
   import { page } from "$app/state";
@@ -15752,8 +15806,9 @@
           </h1>
           <p class="ed-hero__text">{ed.hero.text}</p>
           <div class="ed-hero__actions">
-            <a class="ed-btn" href={ed.hero.primaryHref}>{ed.hero.primaryCta}</a
-            >
+            <a class="ed-btn" href={ed.hero.primaryHref}>
+              {ed.hero.primaryCta}
+            </a>
             <a class="ed-link" href={ed.hero.secondaryHref}>
               {ed.hero.secondaryCta}
               <ArrowRight class="ed-link__icon" />
@@ -15912,9 +15967,9 @@
           <span class="ed-eyebrow">{ed.banner.eyebrow}</span>
           <h2 class="ed-display ed-banner__title">{ed.banner.title}</h2>
           <p>{ed.banner.text}</p>
-          <a class="ed-btn ed-btn--ghost" href={ed.banner.href}
-            >{ed.banner.cta}</a
-          >
+          <a class="ed-btn ed-btn--ghost" href={ed.banner.href}>
+            {ed.banner.cta}
+          </a>
         </div>
       </section>
     {/if}
@@ -15956,9 +16011,9 @@
                 placeholder="you@example.com"
                 bind:value={email}
               />
-              <button type="submit" disabled={subscribing}
-                >{subscribing ? "Subscribing…" : ed.newsletter.cta}</button
-              >
+              <button type="submit" disabled={subscribing}>
+                {subscribing ? "Subscribing…" : ed.newsletter.cta}
+              </button>
             </form>
           {/if}
           <p class="ed-news__privacy">{ed.newsletter.privacy}</p>
@@ -16788,7 +16843,7 @@
   }
 </style>
 
-=== 11698 src/lib/theme/default/DefaultProductCard.svelte	svelte
+=== 11722 src/lib/theme/default/DefaultProductCard.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { Plus, Minus, Heart } from "@lucide/svelte";
@@ -16881,12 +16936,12 @@
                   d="M5.58 1.15a.5.5 0 0 1 .84 0l1.528 2.363a.5.5 0 0 0 .291.212l2.72.722a.5.5 0 0 1 .26.799L9.442 7.429a.5.5 0 0 0-.111.343l.153 2.81a.5.5 0 0 1-.68.493L6.18 10.063a.5.5 0 0 0-.36 0l-2.625 1.014a.5.5 0 0 1-.68-.494l.153-2.81a.5.5 0 0 0-.11-.343L.781 5.246a.5.5 0 0 1 .26-.799l2.719-.722a.5.5 0 0 0 .291-.212L5.58 1.149Z"
                 ></path>
               </svg>
-              <span
-                >{product.rating ||
+              <span>
+                {product.rating ||
                   (Array.isArray(product.ratings)
                     ? product.ratings.length
-                    : product.ratings)}</span
-              >
+                    : product.ratings)}
+              </span>
             </div>
           {/if}
 
@@ -16917,8 +16972,10 @@
           <span
             class="dpc__title"
             data-testid="product-title"
-            title={product.title}>{product.title}</span
+            title={product.title}
           >
+            {product.title}
+          </span>
         </a>
 
         <div class="dpc__price" data-testid="product-card-price-container">
@@ -16929,9 +16986,9 @@
             <span class="dpc__price-mrp" data-testid="product-card-mrp">
               {formatPrice(product.mrp, page?.data?.store?.currency?.code)}
             </span>
-            <span class="dpc__price-off" data-testid="product-card-discount"
-              >{discount}% off</span
-            >
+            <span class="dpc__price-off" data-testid="product-card-discount">
+              {discount}% off
+            </span>
           {/if}
         </div>
 
@@ -17282,10 +17339,10 @@
   <div class="lime-footer-grid">
     {#each footer?.columns || [] as column}
       <details class="lime-footer-col" open={footerColsOpen}>
-        <summary
-          ><h3>{column.title}</h3>
-          <Plus class="lime-foot-plus" /></summary
-        >
+        <summary>
+          <h3>{column.title}</h3>
+          <Plus class="lime-foot-plus" />
+        </summary>
         {#each column.links || [] as link}
           <a href={link.href}>{link.label}</a>
         {/each}
@@ -17607,12 +17664,12 @@
       {/if}
       <div class="lime-collage-stack">
         {#each collage.slice(1, 3) as tile}
-          <a href={tile.href}
-            ><img
+          <a href={tile.href}>
+            <img
               src={themeImage(tile.image, tile.imageAlt || tile.href)}
               alt={tile.imageAlt || tile.title || ""}
-            /></a
-          >
+            />
+          </a>
         {/each}
       </div>
     </section>
@@ -17694,9 +17751,9 @@
       <!-- Was /store-locator, which is not a route — the [slug] catch-all answered it 200, so
 			     it was a soft-404. Retargeted at /contact-us (real route, carries the store's
 			     address/phone) rather than deleted, so the section keeps its source CTA. -->
-      <a href="/contact-us"
-        ><MapPin class="h-4 w-4" />{themeContent.special.cta}</a
-      >
+      <a href="/contact-us">
+        <MapPin class="h-4 w-4" />{themeContent.special.cta}
+      </a>
     </div>
     <img
       src={themeImage(themeContent.special.image, "lime-store")}
@@ -17709,9 +17766,9 @@
     <div class="lime-faq-list">
       {#each faq?.items ?? [] as item, index}
         <details open={index === 0}>
-          <summary
-            >{item.question}<Plus class="lime-faq-icon h-4 w-4" /></summary
-          >
+          <summary>
+            {item.question}<Plus class="lime-faq-icon h-4 w-4" />
+          </summary>
           <p>{item.answer}</p>
         </details>
       {/each}
@@ -20077,7 +20134,7 @@
   }
 </style>
 
-=== 27266 src/lib/theme/organic/OrganicHomepage.svelte	svelte
+=== 27327 src/lib/theme/organic/OrganicHomepage.svelte	svelte
 <script lang="ts">
   import {
     Heart,
@@ -20185,8 +20242,9 @@
     <div class="organic-hero-inner">
       <div class="organic-hero-content">
         <h1>
-          <span class="organic-text-primary">{themeContent.hero.titleLead}</span
-          >
+          <span class="organic-text-primary">
+            {themeContent.hero.titleLead}
+          </span>
           {themeContent.hero.titleAccent}
           <span>{themeContent.hero.titleRest}</span>
         </h1>
@@ -20311,11 +20369,11 @@
             <div class="organic-product-info">
               {#if rating > 0}
                 <div class="organic-product-rating">
-                  <span
-                    >{"★".repeat(Math.round(rating))}{"☆".repeat(
+                  <span>
+                    {"★".repeat(Math.round(rating))}{"☆".repeat(
                       5 - Math.round(rating),
-                    )}</span
-                  >
+                    )}
+                  </span>
                   {#if ratingCountOf(product)}
                     <small>({ratingCountOf(product)})</small>
                   {/if}
@@ -20325,12 +20383,13 @@
               <span class="organic-product-meta">{labels.unit}</span>
               <div class="organic-product-price">
                 {#if product.mrp && product.mrp > product.price}
-                  <span class="organic-price-old"
-                    >{formatPrice(product.mrp, currencyCode || "")}</span
-                  >
+                  <span class="organic-price-old">
+                    {formatPrice(product.mrp, currencyCode || "")}
+                  </span>
                 {/if}
-                <strong>{formatPrice(product.price, currencyCode || "")}</strong
-                >
+                <strong>
+                  {formatPrice(product.price, currencyCode || "")}
+                </strong>
               </div>
             </div>
             <div class="organic-card-actions">
@@ -20373,8 +20432,10 @@
           <div>
             <span>{banner.eyebrow}</span>
             <h3>{banner.title}</h3>
-            <a href={banner.href}>{banner.cta} <ArrowRight class="h-4 w-4" /></a
-            >
+            <a href={banner.href}>
+              {banner.cta}
+              <ArrowRight class="h-4 w-4" />
+            </a>
           </div>
         </div>
       {/each}
@@ -20392,14 +20453,14 @@
   <div class="organic-container">
     <div class="organic-newsletter-inner">
       <div class="organic-newsletter-content">
-        <span class="organic-section-label"
-          >{themeContent.newsletter.label}</span
-        >
+        <span class="organic-section-label">
+          {themeContent.newsletter.label}
+        </span>
         <h2>
           {themeContent.newsletter.titleLead}
-          <span class="organic-text-secondary"
-            >{themeContent.newsletter.titleAccent}</span
-          >
+          <span class="organic-text-secondary">
+            {themeContent.newsletter.titleAccent}
+          </span>
           {themeContent.newsletter.titleRest}
         </h2>
         <p>{themeContent.newsletter.text}</p>
@@ -21523,7 +21584,7 @@
   {/if}
 {/snippet}
 
-=== 62197 src/lib/theme/wine/WineHomepage.svelte	svelte
+=== 62247 src/lib/theme/wine/WineHomepage.svelte	svelte
 <script lang="ts">
   import {
     ArrowRight,
@@ -21640,9 +21701,9 @@
       <div class="hero-stats" aria-label="Restaurant highlights">
         {#each themeContent.hero.stats as stat, index}
           <div>
-            <strong>{stat.value}<em>{stat.suffix || ""}</em></strong><span
-              >{stat.label}</span
-            >
+            <strong>{stat.value}<em>{stat.suffix || ""}</em></strong><span>
+              {stat.label}
+            </span>
           </div>
           {#if index < themeContent.hero.stats.length - 1}<i></i>{/if}
         {/each}
@@ -21737,17 +21798,17 @@
         alt={themeContent.about.secondaryImageAlt}
       />
       <div class="experience-badge">
-        <strong>{themeContent.about.experienceValue}</strong><span
-          >{themeContent.about.experienceText}</span
-        >
+        <strong>{themeContent.about.experienceValue}</strong><span>
+          {themeContent.about.experienceText}
+        </span>
       </div>
     </div>
     <div>
       <span class="script-label">{themeContent.about.label}</span>
       <h2>
-        {themeContent.about.titleLead}<br /><span
-          >{themeContent.about.titleAccent}</span
-        >
+        {themeContent.about.titleLead}<br /><span>
+          {themeContent.about.titleAccent}
+        </span>
       </h2>
       <div class="section-line left"></div>
       <p class="body-copy">
@@ -21814,11 +21875,11 @@
                 alt={product.name || product.title}
               />
               {#if product.mrp && product.price && product.mrp > product.price}
-                <em
-                  >{Math.round(
+                <em>
+                  {Math.round(
                     ((product.mrp - product.price) / product.mrp) * 100,
-                  )}{themeContent.menu.discountSuffix}</em
-                >
+                  )}{themeContent.menu.discountSuffix}
+                </em>
               {/if}
               <span class="menu-heart"><Heart class="h-4 w-4" /></span>
             </div>
@@ -21829,11 +21890,12 @@
               <h3>{product.name || product.title}</h3>
               <span class="menu-desc">{themeContent.menu.cardDescription}</span>
               <div>
-                <strong>{formatPrice(product.price, currencyCode || "")}</strong
-                >
-                {#if product.rating}<small
-                    ><Star class="h-3 w-3 fill-current" /> ({product.rating})</small
-                  >{/if}
+                <strong>
+                  {formatPrice(product.price, currencyCode || "")}
+                </strong>
+                {#if product.rating}<small>
+                    <Star class="h-3 w-3 fill-current" /> ({product.rating})
+                  </small>{/if}
                 <b><Plus class="h-4 w-4" /></b>
               </div>
             </div>
@@ -21885,9 +21947,9 @@
         alt={themeContent.special.imageAlt}
       />
       <div class="price-badge">
-        <span>{themeContent.special.oldPrice}</span><strong
-          >{themeContent.special.price}</strong
-        >
+        <span>{themeContent.special.oldPrice}</span><strong>
+          {themeContent.special.price}
+        </strong>
       </div>
     </div>
   </div>
@@ -21979,9 +22041,9 @@
         {#each themeContent.hours.rows as row}
           <div class="hours-row">
             <span><CalendarCheck class="h-4 w-4" />{row[0]}</span>
-            <strong class:closed={!row[2]}
-              ><i class:open={row[2]}></i>{row[1]}</strong
-            >
+            <strong class:closed={!row[2]}>
+              <i class:open={row[2]}></i>{row[1]}
+            </strong>
           </div>
         {/each}
       </div>
@@ -21994,17 +22056,19 @@
       <div class="hours-card">
         <h3><MapPin class="h-4 w-4" />{themeContent.hours.locationTitle}</h3>
         <div class="hours-row">
-          <span
-            ><MapPin class="h-4 w-4" />{themeContent.hours.addressLabel}</span
-          ><strong>{themeContent.hours.address}</strong>
+          <span>
+            <MapPin class="h-4 w-4" />{themeContent.hours.addressLabel}
+          </span><strong>{themeContent.hours.address}</strong>
         </div>
         <div class="hours-row">
-          <span><Phone class="h-4 w-4" />{themeContent.hours.phoneLabel}</span
-          ><strong>{themeContent.hours.phone}</strong>
+          <span>
+            <Phone class="h-4 w-4" />{themeContent.hours.phoneLabel}
+          </span><strong>{themeContent.hours.phone}</strong>
         </div>
         <div class="hours-row">
-          <span><Mail class="h-4 w-4" />{themeContent.hours.emailLabel}</span
-          ><strong>{themeContent.hours.email}</strong>
+          <span>
+            <Mail class="h-4 w-4" />{themeContent.hours.emailLabel}
+          </span><strong>{themeContent.hours.email}</strong>
         </div>
       </div>
     </div>
@@ -22064,74 +22128,73 @@
         <h3>{themeContent.reservation.panelTitle}</h3>
         <p>{themeContent.reservation.panelText}</p>
         <div>
-          <Clock class="h-5 w-5" /><span
-            ><strong>{themeContent.reservation.hoursLabel}</strong>{themeContent
-              .reservation.hours}</span
-          >
+          <Clock class="h-5 w-5" /><span>
+            <strong>{themeContent.reservation.hoursLabel}</strong>{themeContent
+              .reservation.hours}
+          </span>
         </div>
         <div>
-          <Phone class="h-5 w-5" /><span
-            ><strong>{themeContent.reservation.phoneLabel}</strong>{themeContent
-              .reservation.phone}</span
-          >
+          <Phone class="h-5 w-5" /><span>
+            <strong>{themeContent.reservation.phoneLabel}</strong>{themeContent
+              .reservation.phone}
+          </span>
         </div>
         <div>
-          <Users class="h-5 w-5" /><span
-            ><strong>{themeContent.reservation.groupLabel}</strong>{themeContent
-              .reservation.group}</span
-          >
+          <Users class="h-5 w-5" /><span>
+            <strong>{themeContent.reservation.groupLabel}</strong>{themeContent
+              .reservation.group}
+          </span>
         </div>
         <div>
-          <MapPin class="h-5 w-5" /><span
-            ><strong>{themeContent.reservation.locationLabel}</strong
-            >{themeContent.reservation.location}</span
-          >
+          <MapPin class="h-5 w-5" /><span>
+            <strong>
+              {themeContent.reservation.locationLabel}
+            </strong>{themeContent.reservation.location}
+          </span>
         </div>
       </div>
       <form class="source-form" onsubmit={(event) => event.preventDefault()}>
-        <label
-          >{reservationForm?.nameLabel}<input
+        <label>
+          {reservationForm?.nameLabel}<input
             type="text"
             placeholder={reservationForm?.namePlaceholder}
-          /></label
-        >
-        <label
-          >{reservationForm?.phoneLabel}<input
+          />
+        </label>
+        <label>
+          {reservationForm?.phoneLabel}<input
             type="tel"
             placeholder={reservationForm?.phonePlaceholder}
-          /></label
-        >
-        <label
-          >{reservationForm?.emailLabel}<input
+          />
+        </label>
+        <label>
+          {reservationForm?.emailLabel}<input
             type="email"
             placeholder={reservationForm?.emailPlaceholder}
-          /></label
-        >
-        <label
-          >{reservationForm?.guestsLabel}<select
-            >{#each reservationForm?.guestsOptions ?? [] as guests}<option
-                >{guests}</option
-              >{/each}</select
-          ></label
-        >
+          />
+        </label>
+        <label>
+          {reservationForm?.guestsLabel}<select>
+            {#each reservationForm?.guestsOptions ?? [] as guests}<option>
+                {guests}
+              </option>{/each}
+          </select>
+        </label>
         <label>{reservationForm?.dateLabel}<input type="date" /></label>
-        <label
-          >{reservationForm?.timeLabel}<select
-            >{#each reservationForm?.timeOptions ?? [] as time}<option
-                >{time}</option
-              >{/each}</select
-          ></label
-        >
-        <label class="full"
-          >{reservationForm?.requestsLabel}<textarea
+        <label>
+          {reservationForm?.timeLabel}<select>
+            {#each reservationForm?.timeOptions ?? [] as time}<option>
+                {time}
+              </option>{/each}
+          </select>
+        </label>
+        <label class="full">
+          {reservationForm?.requestsLabel}<textarea
             rows="3"
-            placeholder={reservationForm?.requestsPlaceholder}
-          ></textarea></label
-        >
-        <button type="submit" class="wine-button primary full"
-          ><CalendarCheck class="h-4 w-4" />{themeContent.reservation
-            .cta}</button
-        >
+            placeholder={reservationForm?.requestsPlaceholder}></textarea>
+        </label>
+        <button type="submit" class="wine-button primary full">
+          <CalendarCheck class="h-4 w-4" />{themeContent.reservation.cta}
+        </button>
       </form>
     </div>
   </div>
@@ -22159,17 +22222,18 @@
             <h3><a href="/blog">{blog.title}</a></h3>
             {#if blog.author || blog.comments}
               <p>
-                {#if blog.author}<span
-                    ><ChefHat class="h-3 w-3" />{blog.author}</span
-                  >{/if}
-                {#if blog.comments}<span
-                    ><Mail class="h-3 w-3" />{blog.comments}</span
-                  >{/if}
+                {#if blog.author}<span>
+                    <ChefHat class="h-3 w-3" />{blog.author}
+                  </span>{/if}
+                {#if blog.comments}<span>
+                    <Mail class="h-3 w-3" />{blog.comments}
+                  </span>{/if}
               </p>
             {/if}
-            <a href="/blog"
-              >{themeContent.blog.readMore} <ArrowRight class="h-4 w-4" /></a
-            >
+            <a href="/blog">
+              {themeContent.blog.readMore}
+              <ArrowRight class="h-4 w-4" />
+            </a>
           </div>
         </article>
       {/each}
@@ -22217,64 +22281,64 @@
         <h3>{themeContent.contact.panelTitle}</h3>
         <p>{themeContent.contact.panelText}</p>
         <div>
-          <MapPin class="h-5 w-5" /><span
-            ><strong>{themeContent.contact.addressLabel}</strong>{themeContent
-              .contact.address}</span
-          >
+          <MapPin class="h-5 w-5" /><span>
+            <strong>{themeContent.contact.addressLabel}</strong>{themeContent
+              .contact.address}
+          </span>
         </div>
         <div>
-          <Phone class="h-5 w-5" /><span
-            ><strong>{themeContent.contact.phoneLabel}</strong>{themeContent
-              .contact.phone}</span
-          >
+          <Phone class="h-5 w-5" /><span>
+            <strong>{themeContent.contact.phoneLabel}</strong>{themeContent
+              .contact.phone}
+          </span>
         </div>
         <div>
-          <Mail class="h-5 w-5" /><span
-            ><strong>{themeContent.contact.emailLabel}</strong>{themeContent
-              .contact.email}</span
-          >
+          <Mail class="h-5 w-5" /><span>
+            <strong>{themeContent.contact.emailLabel}</strong>{themeContent
+              .contact.email}
+          </span>
         </div>
         <div>
-          <Clock class="h-5 w-5" /><span
-            ><strong>{themeContent.contact.hoursLabel}</strong>{themeContent
-              .contact.hours}</span
-          >
+          <Clock class="h-5 w-5" /><span>
+            <strong>{themeContent.contact.hoursLabel}</strong>{themeContent
+              .contact.hours}
+          </span>
         </div>
       </div>
       <form class="source-form" onsubmit={(event) => event.preventDefault()}>
-        <label
-          >{contactForm?.nameLabel}<input
+        <label>
+          {contactForm?.nameLabel}<input
             type="text"
             placeholder={contactForm?.namePlaceholder}
-          /></label
-        >
-        <label
-          >{contactForm?.emailLabel}<input
+          />
+        </label>
+        <label>
+          {contactForm?.emailLabel}<input
             type="email"
             placeholder={contactForm?.emailPlaceholder}
-          /></label
-        >
-        <label
-          >{contactForm?.phoneLabel}<input
+          />
+        </label>
+        <label>
+          {contactForm?.phoneLabel}<input
             type="tel"
             placeholder={contactForm?.phonePlaceholder}
-          /></label
-        >
-        <label
-          >{contactForm?.subjectLabel}<select
-            >{#each contactForm?.subjectOptions ?? [] as subject}<option
-                >{subject}</option
-              >{/each}</select
-          ></label
-        >
-        <label class="full"
-          >{contactForm?.messageLabel}<textarea
+          />
+        </label>
+        <label>
+          {contactForm?.subjectLabel}<select>
+            {#each contactForm?.subjectOptions ?? [] as subject}<option>
+                {subject}
+              </option>{/each}
+          </select>
+        </label>
+        <label class="full">
+          {contactForm?.messageLabel}<textarea
             rows="5"
-            placeholder={contactForm?.messagePlaceholder}></textarea></label
-        >
-        <button type="submit" class="wine-button primary"
-          ><Send class="h-4 w-4" />{themeContent.contact.cta}</button
-        >
+            placeholder={contactForm?.messagePlaceholder}></textarea>
+        </label>
+        <button type="submit" class="wine-button primary">
+          <Send class="h-4 w-4" />{themeContent.contact.cta}
+        </button>
       </form>
     </div>
   </div>
@@ -24383,7 +24447,7 @@
 
 <Blocks layouts={data?.page?.layouts} />
 
-=== 2408 src/routes/(legal)/blog/+page.svelte	svelte
+=== 2425 src/routes/(legal)/blog/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import SeoHeader from "$lib/components/seo/seo-header.svelte";
@@ -24425,8 +24489,9 @@
                 <span>{post.author}</span>
                 <span>•</span>
               {/if}
-              <time datetime={post.createdAt}>{formatDate(post.createdAt)}</time
-              >
+              <time datetime={post.createdAt}>
+                {formatDate(post.createdAt)}
+              </time>
             </div>
             <h2 class="mb-2 text-xl font-semibold text-gray-900">
               <a
@@ -24558,9 +24623,9 @@
             <span>•</span>
           {/if}
           {#if blog.publishedAt || blog.createdAt}
-            <time datetime={blog.publishedAt || blog.createdAt}
-              >{formatDate(blog.publishedAt || blog.createdAt)}</time
-            >
+            <time datetime={blog.publishedAt || blog.createdAt}>
+              {formatDate(blog.publishedAt || blog.createdAt)}
+            </time>
           {/if}
         </div>
       </header>
@@ -24603,7 +24668,7 @@
   {/if}
 </div>
 
-=== 13336 src/routes/(legal)/contact-us/+page.svelte	svelte
+=== 13491 src/routes/(legal)/contact-us/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import { Input } from "$lib/components/ui/input";
@@ -24815,8 +24880,9 @@
                       <Label
                         for="name"
                         class="text-xs font-black uppercase tracking-widest text-gray-400"
-                        >Full Name *</Label
                       >
+                        Full Name *
+                      </Label>
                       <Input
                         id="name"
                         placeholder="John Doe"
@@ -24839,8 +24905,9 @@
                       <Label
                         for="email"
                         class="text-xs font-black uppercase tracking-widest text-gray-400"
-                        >Email Address *</Label
                       >
+                        Email Address *
+                      </Label>
                       <Input
                         id="email"
                         type="email"
@@ -24865,8 +24932,9 @@
                     <Label
                       for="message"
                       class="text-xs font-black uppercase tracking-widest text-gray-400"
-                      >Your Message *</Label
                     >
+                      Your Message *
+                    </Label>
                     <Textarea
                       id="message"
                       placeholder="Tell us how we can help..."
@@ -24908,13 +24976,17 @@
                     By clicking "Send Message", you agree to our
                     <a
                       href="/terms-and-conditions"
-                      class="text-primary hover:underline">Terms</a
+                      class="text-primary hover:underline"
                     >
+                      Terms
+                    </a>
                     and
                     <a
                       href="/privacy-policy"
-                      class="text-primary hover:underline">Privacy Policy</a
-                    >.
+                      class="text-primary hover:underline"
+                    >
+                      Privacy Policy
+                    </a>.
                   </p>
                 </form>
               </div>
@@ -25021,9 +25093,9 @@
           <summary
             class="flex w-full cursor-pointer items-center justify-between px-6 py-4 text-left transition-colors hover:bg-gray-50"
           >
-            <span class="flex-1 pr-4 text-lg font-medium text-gray-900"
-              >{faq.question}</span
-            >
+            <span class="flex-1 pr-4 text-lg font-medium text-gray-900">
+              {faq.question}
+            </span>
             <span
               class="faq-chevron text-gray-500 transition-transform duration-200"
             >
@@ -25550,7 +25622,7 @@
   </div>
 </div>
 
-=== 6474 src/routes/(my)/my/addresses/+page.svelte	svelte
+=== 6514 src/routes/(my)/my/addresses/+page.svelte	svelte
 <script lang="ts">
   import {
     LoaderCircle,
@@ -25728,10 +25800,10 @@
     <Dialog.Content class="sm:max-w-[425px]">
       <Dialog.Header>
         <Dialog.Title>Delete Address</Dialog.Title>
-        <Dialog.Description
-          >Are you sure you want to delete this address? This action cannot be
-          undone.</Dialog.Description
-        >
+        <Dialog.Description>
+          Are you sure you want to delete this address? This action cannot be
+          undone.
+        </Dialog.Description>
       </Dialog.Header>
       <Dialog.Footer
         class="mt-6 flex flex-col gap-3 sm:flex-row sm:justify-end"
@@ -25739,13 +25811,17 @@
         <Button
           variant="outline"
           onclick={() => (showDeleteConfirmation = false)}
-          class="flex-1 sm:flex-none">Cancel</Button
+          class="flex-1 sm:flex-none"
         >
+          Cancel
+        </Button>
         <Button
           variant="destructive"
           onclick={handleDeleteConfirmation}
-          class="flex-1 sm:flex-none">Delete</Button
+          class="flex-1 sm:flex-none"
         >
+          Delete
+        </Button>
       </Dialog.Footer>
     </Dialog.Content>
   </Dialog.Root>
@@ -25757,7 +25833,7 @@
   }
 </style>
 
-=== 11355 src/routes/(my)/my/addresses/[id]/+page.svelte	svelte
+=== 11366 src/routes/(my)/my/addresses/[id]/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import Input from "$lib/components/ui/input/input.svelte";
@@ -25903,8 +25979,8 @@
           />
         </div>
         <div>
-          <label for="city" class="text-gray-700 dark:text-gray-300"
-            >City:
+          <label for="city" class="text-gray-700 dark:text-gray-300">
+            City:
           </label>
           <Input
             id="city"
@@ -25915,8 +25991,8 @@
           />
         </div>
         <div>
-          <label for="state" class="text-gray-700 dark:text-gray-300"
-            >State/Province:
+          <label for="state" class="text-gray-700 dark:text-gray-300">
+            State/Province:
           </label>
           <Input
             id="state"
@@ -25928,8 +26004,8 @@
         </div>
 
         <div>
-          <label for="zip" class="text-gray-700 dark:text-gray-300"
-            >Zip/Postal Code:
+          <label for="zip" class="text-gray-700 dark:text-gray-300">
+            Zip/Postal Code:
           </label>
           <Input
             id="zip"
@@ -25940,8 +26016,8 @@
           />
         </div>
         <div>
-          <label for="country" class="text-gray-700 dark:text-gray-300"
-            >Country:
+          <label for="country" class="text-gray-700 dark:text-gray-300">
+            Country:
           </label>
           <!-- <Input
 						id="country"
@@ -25978,9 +26054,9 @@
       </h2>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label for="phone" class="text-gray-700 dark:text-gray-300"
-            >Business phone:</label
-          >
+          <label for="phone" class="text-gray-700 dark:text-gray-300">
+            Business phone:
+          </label>
           <Input
             id="phone"
             type="phone"
@@ -25993,9 +26069,9 @@
         </div>
 
         <div>
-          <label for="email" class="text-gray-700 dark:text-gray-300"
-            >Business email:</label
-          >
+          <label for="email" class="text-gray-700 dark:text-gray-300">
+            Business email:
+          </label>
           <Input
             id="email"
             type="email"
@@ -26012,9 +26088,9 @@
       </h2>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-2">
         <div>
-          <label for="lat" class="text-gray-700 dark:text-gray-300"
-            >Latitude:</label
-          >
+          <label for="lat" class="text-gray-700 dark:text-gray-300">
+            Latitude:
+          </label>
           <Input
             id="lat"
             type="number"
@@ -26026,9 +26102,9 @@
           />
         </div>
         <div>
-          <label for="lng" class="text-gray-700 dark:text-gray-300"
-            >Longitude:</label
-          >
+          <label for="lng" class="text-gray-700 dark:text-gray-300">
+            Longitude:
+          </label>
           <Input
             id="lng"
             type="number"
@@ -26045,9 +26121,9 @@
       </h2>
       <div class="grid grid-cols-1 gap-4 md:grid-cols-3">
         <div>
-          <label for="isPrimary" class="text-gray-700 dark:text-gray-300"
-            >Is Default Location:</label
-          >
+          <label for="isPrimary" class="text-gray-700 dark:text-gray-300">
+            Is Default Location:
+          </label>
           <input
             id="isPrimary"
             type="checkbox"
@@ -26059,9 +26135,9 @@
           />
         </div>
         <div>
-          <label for="isResiddential" class="text-gray-700 dark:text-gray-300"
-            >Is Resident:</label
-          >
+          <label for="isResiddential" class="text-gray-700 dark:text-gray-300">
+            Is Resident:
+          </label>
           <input
             id="isResiddential"
             type="checkbox"
@@ -26076,8 +26152,9 @@
           <label
             for="deliveryInstructions"
             class="text-gray-700 dark:text-gray-300"
-            >Delivery Instructions:</label
           >
+            Delivery Instructions:
+          </label>
           <textarea
             id="deliveryInstructions"
             name="deliveryInstructions"
@@ -26088,9 +26165,9 @@
           ></textarea>
         </div>
         <div>
-          <label for="locality" class="text-gray-700 dark:text-gray-300"
-            >Locality:</label
-          >
+          <label for="locality" class="text-gray-700 dark:text-gray-300">
+            Locality:
+          </label>
           <Input
             id="locality"
             name="locality"
@@ -26664,7 +26741,7 @@
   }
 </style>
 
-=== 22018 src/routes/(my)/my/orders/[id]/+page.svelte	svelte
+=== 22043 src/routes/(my)/my/orders/[id]/+page.svelte	svelte
 <script lang="ts">
   import LazyImg from "$lib/core/components/image/lazy-img.svelte";
   import Button from "$lib/components/ui/button/button.svelte";
@@ -26722,9 +26799,9 @@
                 Order #{order?.orderNo}
               </h1>
               <p class="mt-2 text-sm text-gray-500">
-                Placed on <span class="font-medium text-gray-900"
-                  >{date(order?.createdAt)}</span
-                >
+                Placed on <span class="font-medium text-gray-900">
+                  {date(order?.createdAt)}
+                </span>
               </p>
             </div>
             <div class="flex items-center gap-3">
@@ -26932,9 +27009,9 @@
                         >
                           <div class="flex-1">
                             <div class="flex items-center gap-3">
-                              <span class="text-sm font-bold text-gray-900"
-                                >Shipment {ix + 1}</span
-                              >
+                              <span class="text-sm font-bold text-gray-900">
+                                Shipment {ix + 1}
+                              </span>
                               <StatusCell value={fulfillment?.status} />
                             </div>
                             <div class="mt-4 flex flex-wrap gap-2">
@@ -27054,23 +27131,23 @@
                   <div class="space-y-2">
                     <div class="flex justify-between text-sm">
                       <span class="text-gray-500">Subtotal</span>
-                      <span class="font-medium text-gray-900"
-                        >{formatPrice(
+                      <span class="font-medium text-gray-900">
+                        {formatPrice(
                           order?.subtotal,
                           page?.data?.store?.currency?.code,
-                        )}</span
-                      >
+                        )}
+                      </span>
                     </div>
 
                     {#if order?.discount > 0}
                       <div class="flex justify-between text-sm text-green-600">
                         <span>Discount</span>
-                        <span
-                          >-{formatPrice(
+                        <span>
+                          -{formatPrice(
                             order?.discount,
                             page?.data?.store?.currency?.code,
-                          )}</span
-                        >
+                          )}
+                        </span>
                       </div>
                     {/if}
 
@@ -27098,19 +27175,19 @@
                     {#if order?.codCharges}
                       <div class="flex justify-between text-sm">
                         <span class="text-gray-500">COD Charges</span>
-                        <span class="font-medium text-gray-900"
-                          >{formatPrice(
+                        <span class="font-medium text-gray-900">
+                          {formatPrice(
                             order.codCharges,
                             page?.data?.store?.currency?.code,
-                          )}</span
-                        >
+                          )}
+                        </span>
                       </div>
                     {/if}
 
                     <div class="pt-1 flex justify-between items-baseline">
-                      <span class="text-base font-bold text-gray-900"
-                        >Total</span
-                      >
+                      <span class="text-base font-bold text-gray-900">
+                        Total
+                      </span>
                       <span class="text-base font-bold text-gray-900">
                         {formatPrice(
                           order?.total,
@@ -27126,8 +27203,9 @@
                         <CreditCardIcon class="h-4 w-4 text-gray-400" />
                         <span
                           class="text-xs font-bold uppercase tracking-tight text-gray-400"
-                          >Payment Status</span
                         >
+                          Payment Status
+                        </span>
                       </div>
                       <span
                         class="text-xs font-bold uppercase tracking-wider {order?.paymentStatus ===
@@ -27177,9 +27255,9 @@
           <p class="mt-2 text-gray-500">
             We couldn't find the order details you're looking for.
           </p>
-          <Button href="/my/orders" class="mt-8 h-12 px-8"
-            >View All Orders</Button
-          >
+          <Button href="/my/orders" class="mt-8 h-12 px-8">
+            View All Orders
+          </Button>
         </div>
       {/if}
     </div>
@@ -27542,7 +27620,7 @@
   }
 </style>
 
-=== 4385 src/routes/(my)/my/profile/delete/+page.svelte	svelte
+=== 4400 src/routes/(my)/my/profile/delete/+page.svelte	svelte
 <script lang="ts">
   import Button from "$lib/components/ui/button/button.svelte";
   import { MyProfileDeleteModule } from "$lib/core/composables/index.js";
@@ -27591,8 +27669,9 @@
               <a
                 href="/privacy-policy"
                 class="font-semibold text-primary hover:underline"
-                >Privacy Policy</a
-              >.
+              >
+                Privacy Policy
+              </a>.
             </p>
           </div>
         </li>
@@ -27667,7 +27746,7 @@
   </div>
 </div>
 
-=== 7918 src/routes/(my)/my/wishlist/+page.svelte	svelte
+=== 7974 src/routes/(my)/my/wishlist/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import { MyWishlistRenderer } from "$lib/core/composables/index.js";
@@ -27865,8 +27944,10 @@
             <Button
               variant="outline"
               onclick={() => (showRemoveConfirmation = false)}
-              class="flex-1 sm:flex-none">Cancel</Button
+              class="flex-1 sm:flex-none"
             >
+              Cancel
+            </Button>
             <Button
               variant="destructive"
               onclick={async () => {
@@ -27879,8 +27960,10 @@
                   itemToRemove = null;
                 }
               }}
-              class="flex-1 sm:flex-none">Remove</Button
+              class="flex-1 sm:flex-none"
             >
+              Remove
+            </Button>
           </Dialog.Footer>
         </Dialog.Content>
       </Dialog.Root>
@@ -27994,7 +28077,7 @@
 <!-- Self-gates on the store's admin toggle via /api/commerce-assistant/config -->
 <ConversationalShopping />
 
-=== 10330 src/routes/(www)/+page.svelte	svelte
+=== 10316 src/routes/(www)/+page.svelte	svelte
 <script lang="ts">
   import { page as sveltePage } from "$app/state";
   import { fly } from "svelte/transition";
@@ -28241,10 +28324,9 @@
             {homepageModule.selectedRecentOrder?.first_name || "Someone"} from {homepageModule
               .selectedRecentOrder?.city || "nearby"}
           </p>
-          <strong class="block text-sm text-primary"
-            >{homepageModule.selectedRecentOrder?.title ||
-              "a menu item"}</strong
-          >
+          <strong class="block text-sm text-primary">
+            {homepageModule.selectedRecentOrder?.title || "a menu item"}
+          </strong>
           <span class="text-xs text-gray-500">
             {timestampToAgo(
               homepageModule.selectedRecentOrder?.created_at ||
@@ -28337,7 +28419,7 @@
 
 {@render children?.()}
 
-=== 6097 src/routes/(www)/auth/change-password/+page.svelte	svelte
+=== 6124 src/routes/(www)/auth/change-password/+page.svelte	svelte
 <script lang="ts">
   import Input from "$lib/components/ui/input/input.svelte";
   import Button from "$lib/components/ui/button/button.svelte";
@@ -28384,8 +28466,9 @@
         <label
           for="old"
           class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >Old Password</label
         >
+          Old Password
+        </label>
         <div class="relative">
           <div
             class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
@@ -28425,8 +28508,9 @@
         <label
           for="password"
           class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >New Password</label
         >
+          New Password
+        </label>
         <div class="relative">
           <div
             class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
@@ -28466,8 +28550,9 @@
         <label
           for="retype"
           class="mb-2 block text-sm font-medium text-gray-700 dark:text-gray-300"
-          >Confirm New Password</label
         >
+          Confirm New Password
+        </label>
         <div class="relative">
           <div
             class="pointer-events-none absolute inset-y-0 left-0 flex items-center pl-3"
@@ -28735,7 +28820,7 @@
   </div>
 </div>
 
-=== 3420 src/routes/(www)/auth/join-as-vendor/+page.svelte	svelte
+=== 3431 src/routes/(www)/auth/join-as-vendor/+page.svelte	svelte
 <script lang="ts">
   import Button from "$lib/components/ui/button/button.svelte";
 
@@ -28857,8 +28942,9 @@
           <Button
             variant="link"
             class="text-primary-600 hover:text-primary-500 h-auto p-0"
-            >Sign in</Button
           >
+            Sign in
+          </Button>
         </AuthButton>
       </div>
     </div>
@@ -28900,7 +28986,7 @@
   </div>
 </div>
 
-=== 3788 src/routes/(www)/auth/reset-password/+page.svelte	svelte
+=== 3797 src/routes/(www)/auth/reset-password/+page.svelte	svelte
 <script lang="ts">
   import Input from "$lib/components/ui/input/input.svelte";
   import Button from "$lib/components/ui/button/button.svelte";
@@ -29002,8 +29088,9 @@
           variant="outline"
           class="w-full"
           onclick={() => (resetPasswordModule.success = false)}
-          >Send another link</Button
         >
+          Send another link
+        </Button>
       </div>
     {/if}
   </CardContent>
@@ -29019,7 +29106,7 @@
   </CardFooter>
 </Card>
 
-=== 7861 src/routes/(www)/auth/signup/+page.svelte	svelte
+=== 7874 src/routes/(www)/auth/signup/+page.svelte	svelte
 <script lang="ts">
   import { LoaderIcon } from "@lucide/svelte";
   import Button from "$lib/components/ui/button/button.svelte";
@@ -29240,8 +29327,9 @@
           <div class="relative flex justify-center text-xs">
             <span
               class="bg-white px-2 text-gray-500 dark:bg-gray-900 dark:text-gray-400"
-              >or</span
             >
+              or
+            </span>
           </div>
         </div>
 
@@ -29257,7 +29345,7 @@
   </div>
 </div>
 
-=== 7504 src/routes/(www)/auth/signup/store/+page.svelte	svelte
+=== 7526 src/routes/(www)/auth/signup/store/+page.svelte	svelte
 <script lang="ts">
   import { LoaderIcon } from "@lucide/svelte";
   import Button from "$lib/components/ui/button/button.svelte";
@@ -29474,14 +29562,16 @@
           <a
             href="/terms-and-conditions"
             class="text-gray-600 hover:text-gray-900 dark:hover:text-gray-300"
-            >Terms of Service</a
           >
+            Terms of Service
+          </a>
           <span>and</span>
           <a
             href="/privacy-policy"
             class="text-gray-600 hover:text-gray-900 dark:hover:text-gray-300"
-            >Privacy Policy</a
           >
+            Privacy Policy
+          </a>
         </div>
       </div>
     </div>
@@ -29825,9 +29915,9 @@
         Verify your email
       </h2>
       <p class="text-blue-700 dark:text-blue-200">
-        We've sent a verification link to <span class="font-medium"
-          >{page.url.searchParams.get("email")}</span
-        >
+        We've sent a verification link to <span class="font-medium">
+          {page.url.searchParams.get("email")}
+        </span>
       </p>
       <p class="mt-2 text-sm text-blue-600 dark:text-blue-300">
         Please check your inbox and click the link to activate your account.
@@ -29866,7 +29956,7 @@
   </div>
 </div>
 
-=== 3780 src/routes/(www)/auth/verify/+page.svelte	svelte
+=== 3798 src/routes/(www)/auth/verify/+page.svelte	svelte
 <script lang="ts">
   import AuthButton from "$lib/components/auth/auth-button.svelte";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -29949,8 +30039,9 @@
           onclick={() => goto("/")}
           variant="default"
           class="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
-          >Continue Shopping</Button
         >
+          Continue Shopping
+        </Button>
       </div>
     </div>
   </div>
@@ -29989,8 +30080,9 @@
           onclick={() => goto("/")}
           variant="default"
           class="bg-gradient-to-r from-purple-600 to-pink-500 hover:from-purple-700 hover:to-pink-600"
-          >Log in</Button
         >
+          Log in
+        </Button>
       </div>
     </div>
   </div>
@@ -30077,7 +30169,7 @@
 
 {@render children?.()}
 
-=== 29802 src/routes/(www)/checkout/address/+page.svelte	svelte
+=== 30105 src/routes/(www)/checkout/address/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { goto } from "$app/navigation";
@@ -30223,9 +30315,12 @@
           <p class="text-xl text-gray-400">
             You must select at least one item in cart for checkout
           </p>
-          <Button variant="outline" href={appendOneTimeCartId("/checkout/cart")}
-            >Go back to cart</Button
+          <Button
+            variant="outline"
+            href={appendOneTimeCartId("/checkout/cart")}
           >
+            Go back to cart
+          </Button>
         </div>
       {:else if cartState?.cart?.lineItems?.length === 0 && !cartState?.isUpdatingCart}
         <div class="flex h-96 flex-col items-center justify-center gap-3">
@@ -30329,8 +30424,10 @@
                         class="block text-sm font-medium text-gray-700"
                       >
                         Email address {#if !addressModule.isEmailRequired}<span
-                            class="text-gray-400">(optional)</span
-                          >{/if}
+                            class="text-gray-400"
+                          >
+                            (optional)
+                          </span>{/if}
                       </label>
                       <Textbox
                         type="email"
@@ -30350,8 +30447,10 @@
                         class="block text-sm font-medium text-gray-700"
                       >
                         Phone number {#if !addressModule.isPhoneRequired}<span
-                            class="text-gray-400">(optional)</span
-                          >{/if}
+                            class="text-gray-400"
+                          >
+                            (optional)
+                          </span>{/if}
                       </label>
                       <Textbox
                         type="tel"
@@ -30476,8 +30575,9 @@
                           <p class="mt-4 border-border pt-4 font-medium">
                             <span
                               class="mr-2 text-[10px] font-bold uppercase tracking-tighter text-gray-400"
-                              >Phone</span
                             >
+                              Phone
+                            </span>
                             {cartState.cart.shippingAddress?.phone}
                           </p>
                         </div>
@@ -30521,8 +30621,9 @@
                             variant="default"
                             class="px-8"
                             onclick={addressModule.handleAddNewAddress}
-                            >Add New Address</Button
                           >
+                            Add New Address
+                          </Button>
                         </div>
                       {/if}
                     </form>
@@ -30593,8 +30694,9 @@
                           >
                             <span
                               class="mr-2 text-[10px] font-bold uppercase tracking-tighter text-gray-400"
-                              >Phone</span
                             >
+                              Phone
+                            </span>
                             {cartState.cart.billingAddress?.phone}
                           </p>
                         </div>
@@ -30623,8 +30725,9 @@
                   <label
                     for="isBillingAddressSameAsShipping"
                     class="cursor-pointer text-xs font-bold uppercase tracking-tight text-gray-700"
-                    >Billing address same as shipping</label
                   >
+                    Billing address same as shipping
+                  </label>
                 </div>
               {/if}
             {/if}
@@ -30653,23 +30756,24 @@
                   <div class="space-y-3 border-b border-border pb-6">
                     <div class="flex justify-between text-sm">
                       <span class="font-medium text-gray-500">Subtotal</span>
-                      <span class="font-bold text-gray-900"
-                        >{formatPrice(
+                      <span class="font-bold text-gray-900">
+                        {formatPrice(
                           cartState.cart.subtotal,
                           page?.data?.store?.currency?.code,
-                        )}</span
-                      >
+                        )}
+                      </span>
                     </div>
                     {#if cartState.cart.discountAmount > 0}
                       <div class="flex justify-between text-sm">
                         <span class="font-medium text-gray-500">Discount</span>
                         <span
                           class="font-bold uppercase tracking-tight text-orange-600"
-                          >- {formatPrice(
+                        >
+                          - {formatPrice(
                             cartState.cart.discountAmount,
                             page?.data?.store?.currency?.code,
-                          )}</span
-                        >
+                          )}
+                        </span>
                       </div>
                     {/if}
                     <div class="flex flex-col gap-1">
@@ -30682,32 +30786,33 @@
                             Address required
                           </span>
                         {:else if cartState.cart.shippingCharges}
-                          <span class="font-bold text-gray-900"
-                            >{formatPrice(
+                          <span class="font-bold text-gray-900">
+                            {formatPrice(
                               cartState.cart.shippingCharges,
                               page?.data?.store?.currency?.code,
-                            )}</span
-                          >
+                            )}
+                          </span>
                         {:else}
                           <span
                             class="rounded bg-green-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-green-600 ring-1 ring-green-100"
-                            >FREE</span
                           >
+                            FREE
+                          </span>
                         {/if}
                       </div>
                     </div>
                   </div>
 
                   <div class="flex items-center justify-between pt-2">
-                    <span class="text-sm font-bold uppercase text-gray-900"
-                      >Total</span
-                    >
-                    <span class="text-xl font-bold text-gray-900"
-                      >{formatPrice(
+                    <span class="text-sm font-bold uppercase text-gray-900">
+                      Total
+                    </span>
+                    <span class="text-xl font-bold text-gray-900">
+                      {formatPrice(
                         cartState.cart.total,
                         page?.data?.store?.currency?.code,
-                      )}</span
-                    >
+                      )}
+                    </span>
                   </div>
 
                   {#if addressModule.showError}
@@ -30897,9 +31002,9 @@
           required
         />
         <div class="flex flex-col justify-center">
-          <span class="text-xs uppercase tracking-wide text-gray-500"
-            >Country</span
-          >
+          <span class="text-xs uppercase tracking-wide text-gray-500">
+            Country
+          </span>
           <span class="text-sm font-medium text-gray-900">{countryName}</span>
         </div>
         <Textbox
@@ -30929,7 +31034,7 @@
   {/snippet}
 </AddressFormRenderer>
 
-=== 32935 src/routes/(www)/checkout/cart/+page.svelte	svelte
+=== 33081 src/routes/(www)/checkout/cart/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import {
@@ -31099,8 +31204,9 @@
             href="/"
             variant="default"
             class="rounded-full px-8 py-3 text-xs font-bold uppercase tracking-[0.2em]"
-            >Start Shopping</Button
           >
+            Start Shopping
+          </Button>
         </div>
       {:else}
         <div class="grid gap-8 lg:grid-cols-[1fr_400px]">
@@ -31125,14 +31231,14 @@
               >
                 <div class="flex items-center gap-2">
                   <Tag class="size-3.5 text-success" />
-                  <span class="text-sm font-medium text-success"
-                    >You saved <span class="font-bold"
-                      >{formatPrice(
+                  <span class="text-sm font-medium text-success">
+                    You saved <span class="font-bold">
+                      {formatPrice(
                         $animatedSavings,
                         page?.data?.store?.currency?.code,
-                      )}</span
-                    > on this order.</span
-                  >
+                      )}
+                    </span> on this order.
+                  </span>
                 </div>
               </div>
             {/if}
@@ -31159,8 +31265,9 @@
                     <label
                       for="allItemsChecked"
                       class="py-1.5 text-sm text-gray-700 hover:cursor-pointer"
-                      >Select all items</label
                     >
+                      Select all items
+                    </label>
                   </div>
                 </div>
               {/if}
@@ -31580,30 +31687,33 @@
                     <div class="space-y-3 border-b border-border pb-6">
                       <div class="flex justify-between text-sm">
                         <span class="font-medium text-gray-500">Subtotal</span>
-                        <span class="font-bold text-gray-900"
-                          >{formatPrice(
+                        <span class="font-bold text-gray-900">
+                          {formatPrice(
                             cartState.cart?.subtotal,
                             page?.data?.store?.currency?.code,
-                          )}</span
-                        >
+                          )}
+                        </span>
                       </div>
                       {#if cartState.cart?.discountAmount > 0}
                         <div class="flex justify-between text-sm">
-                          <span class="font-medium text-gray-500">Discount</span
-                          >
+                          <span class="font-medium text-gray-500">
+                            Discount
+                          </span>
                           <span
                             class="font-bold uppercase tracking-tight text-orange-600"
-                            >- {formatPrice(
+                          >
+                            - {formatPrice(
                               cartState.cart?.discountAmount,
                               page?.data?.store?.currency?.code,
-                            )}</span
-                          >
+                            )}
+                          </span>
                         </div>
                       {/if}
                       <div class="flex flex-col gap-1">
                         <div class="flex justify-between text-sm">
-                          <span class="font-medium text-gray-500">Shipping</span
-                          >
+                          <span class="font-medium text-gray-500">
+                            Shipping
+                          </span>
                           {#if !cartState.cart?.shippingAddress}
                             <span
                               class="text-[10px] font-bold uppercase tracking-tighter text-gray-400"
@@ -31611,32 +31721,33 @@
                               Address required
                             </span>
                           {:else if cartState.cart?.shippingCharges}
-                            <span class="font-bold text-gray-900"
-                              >{formatPrice(
+                            <span class="font-bold text-gray-900">
+                              {formatPrice(
                                 cartState.cart?.shippingCharges,
                                 page?.data?.store?.currency?.code,
-                              )}</span
-                            >
+                              )}
+                            </span>
                           {:else}
                             <span
                               class="rounded bg-green-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-green-600 ring-1 ring-green-100"
-                              >FREE</span
                             >
+                              FREE
+                            </span>
                           {/if}
                         </div>
                       </div>
                     </div>
 
                     <div class="flex items-center justify-between pt-2">
-                      <span class="text-sm font-bold uppercase text-gray-900"
-                        >Total</span
-                      >
-                      <span class="text-xl font-bold text-gray-900"
-                        >{formatPrice(
+                      <span class="text-sm font-bold uppercase text-gray-900">
+                        Total
+                      </span>
+                      <span class="text-xl font-bold text-gray-900">
+                        {formatPrice(
                           cartState.cart?.total,
                           page?.data?.store?.currency?.code,
-                        )}</span
-                      >
+                        )}
+                      </span>
                     </div>
 
                     <!-- {#if totalSavings > 0}
@@ -31729,9 +31840,9 @@
     {:catch}
       <div class="flex h-96 flex-col items-center justify-center gap-3">
         <p class="text-xl text-gray-400">Your cart is empty</p>
-        <Button class="ml-4" href="/" variant="outline" size="sm"
-          >Continue Shopping</Button
-        >
+        <Button class="ml-4" href="/" variant="outline" size="sm">
+          Continue Shopping
+        </Button>
       </div>
     {/await}
   </div>
@@ -31826,12 +31937,12 @@
         <div class="price-summary">
           <div class="price-row">
             <span>Subtotal</span>
-            <span
-              >{formatPrice(
+            <span>
+              {formatPrice(
                 cartState.cart?.subtotal,
                 page?.data?.store?.currency?.code,
-              )}</span
-            >
+              )}
+            </span>
           </div>
 
           <!-- Uncomment if shipping is available -->
@@ -31842,12 +31953,12 @@
 
           <div class="price-row total">
             <span>Total</span>
-            <span
-              >{formatPrice(
+            <span>
+              {formatPrice(
                 cartState.cart?.total,
                 page?.data?.store?.currency?.code,
-              )}</span
-            >
+              )}
+            </span>
           </div>
         </div>
       </div>
@@ -32060,7 +32171,7 @@
   />
 {/if}
 
-=== 14202 src/routes/(www)/checkout/payment/review.svelte	svelte
+=== 14106 src/routes/(www)/checkout/payment/review.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button";
   import {
@@ -32372,51 +32483,47 @@
             <div class="space-y-3 border-b border-border pb-6">
               <div class="flex justify-between text-sm">
                 <span class="font-medium text-gray-500">Subtotal</span>
-                <span class="font-bold text-gray-900"
-                  >{formatPrice(cartState.cart.subtotal, currencyCode)}</span
-                >
+                <span class="font-bold text-gray-900">
+                  {formatPrice(cartState.cart.subtotal, currencyCode)}
+                </span>
               </div>
               {#if cartState.cart.discountAmount > 0}
                 <div class="flex justify-between text-sm">
-                  <span class="font-medium text-gray-500"
-                    >Discount {cartState.cart.couponCode
+                  <span class="font-medium text-gray-500">
+                    Discount {cartState.cart.couponCode
                       ? `(${cartState.cart.couponCode})`
-                      : ""}</span
-                  >
+                      : ""}
+                  </span>
                   <span
                     class="font-bold uppercase tracking-tight text-orange-600"
-                    >- {formatPrice(
-                      cartState.cart.discountAmount,
-                      currencyCode,
-                    )}</span
                   >
+                    - {formatPrice(cartState.cart.discountAmount, currencyCode)}
+                  </span>
                 </div>
               {/if}
               <div class="flex justify-between text-sm">
                 <span class="font-medium text-gray-500">Shipping</span>
                 {#if cartState.cart.shippingCharges}
-                  <span class="font-bold text-gray-900"
-                    >{formatPrice(
-                      cartState.cart.shippingCharges,
-                      currencyCode,
-                    )}</span
-                  >
+                  <span class="font-bold text-gray-900">
+                    {formatPrice(cartState.cart.shippingCharges, currencyCode)}
+                  </span>
                 {:else}
                   <span
                     class="rounded bg-green-50 px-2 py-0.5 text-[10px] font-bold uppercase tracking-widest text-green-600 ring-1 ring-green-100"
-                    >FREE</span
                   >
+                    FREE
+                  </span>
                 {/if}
               </div>
             </div>
 
             <div class="flex items-center justify-between pt-2">
-              <span class="text-sm font-bold uppercase text-gray-900"
-                >Total</span
-              >
-              <span class="text-xl font-bold text-gray-900"
-                >{formatPrice(cartState.cart.total, currencyCode)}</span
-              >
+              <span class="text-sm font-bold uppercase text-gray-900">
+                Total
+              </span>
+              <span class="text-xl font-bold text-gray-900">
+                {formatPrice(cartState.cart.total, currencyCode)}
+              </span>
             </div>
 
             {#if paymentModule.showError}
@@ -32453,7 +32560,7 @@
   </div>
 </div>
 
-=== 3687 src/routes/(www)/collections/+page.svelte	svelte
+=== 3695 src/routes/(www)/collections/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import Select from "$lib/components/form/select.svelte";
@@ -32489,9 +32596,10 @@
   <div class="flex-1">
     <div class="mb-4 flex flex-col items-start gap-2">
       <h1 class="text-2xl font-bold">All Collections</h1>
-      <span class="text-sm text-muted-foreground"
-        >{count} {count === 1 ? "Collection" : "Collections"} found</span
-      >
+      <span class="text-sm text-muted-foreground">
+        {count}
+        {count === 1 ? "Collection" : "Collections"} found
+      </span>
     </div>
 
     <div class="hidden flex-row items-center gap-2 md:flex">
@@ -32611,7 +32719,7 @@
   </div>
 </div>
 
-=== 1866 src/routes/(www)/collections/[slug]/+page.svelte	svelte
+=== 1872 src/routes/(www)/collections/[slug]/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import ProductCard from "$lib/components/product-catalogue/product-card.svelte";
@@ -32639,9 +32747,10 @@
     {#if collection?.subTitle}
       <p class="text-sm text-muted-foreground">{collection.subTitle}</p>
     {/if}
-    <span class="text-sm text-muted-foreground"
-      >{products.length} {products.length === 1 ? "Product" : "Products"}</span
-    >
+    <span class="text-sm text-muted-foreground">
+      {products.length}
+      {products.length === 1 ? "Product" : "Products"}
+    </span>
   </div>
 
   {#if collection?.description}
@@ -32696,9 +32805,9 @@
         <p class="text-gray-600">
           {enquiryPlugin?.successMessage || "We will get back to you soon!"}
         </p>
-        <Button class="mt-5" onclick={() => goto("/products")}
-          >Continue Shopping</Button
-        >
+        <Button class="mt-5" onclick={() => goto("/products")}>
+          Continue Shopping
+        </Button>
       </div>
     </div>
   </div>
@@ -33291,7 +33400,7 @@
   </div>
 </div>
 
-=== 17638 src/routes/(www)/order-tracking/+page.svelte	svelte
+=== 17611 src/routes/(www)/order-tracking/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import productNonVeg from "$lib/assets/product/non-veg.png";
@@ -33572,11 +33681,10 @@
                     , {orderTrackingModule.order?.shippingAddress?.city}
                     <br />
                     {orderTrackingModule.order?.shippingAddress?.state},
-                    <span class="uppercase"
-                      >{orderTrackingModule.order?.shippingAddress?.country ||
-                        orderTrackingModule.order?.shippingAddress
-                          ?.countryCode}</span
-                    >,
+                    <span class="uppercase">
+                      {orderTrackingModule.order?.shippingAddress?.country ||
+                        orderTrackingModule.order?.shippingAddress?.countryCode}
+                    </span>,
                     {orderTrackingModule.order?.shippingAddress?.zip}
                   </span>
                 </p>
@@ -33613,11 +33721,11 @@
                       , {orderTrackingModule.order?.billingAddress?.city}
                       <br />
                       {orderTrackingModule.order?.billingAddress?.state},
-                      <span class="uppercase"
-                        >{orderTrackingModule.order?.billingAddress?.country ||
+                      <span class="uppercase">
+                        {orderTrackingModule.order?.billingAddress?.country ||
                           orderTrackingModule.order?.billingAddress
-                            ?.countryCode}</span
-                      >,
+                            ?.countryCode}
+                      </span>,
                       {orderTrackingModule.order?.billingAddress?.zip}
                     </span>
                   </p>
@@ -33869,9 +33977,9 @@
               {/if}
             </span>
 
-            <span class="font-semibold edp-opt-value"
-              >{productState.selectedAggregations?.[optionName] || ""}</span
-            >
+            <span class="font-semibold edp-opt-value">
+              {productState.selectedAggregations?.[optionName] || ""}
+            </span>
           </div>
 
           <div class="flex flex-wrap items-center gap-3">
@@ -34237,7 +34345,7 @@
   }
 </style>
 
-=== 16425 src/routes/(www)/products/[slug]/components/product-details.svelte	svelte
+=== 16432 src/routes/(www)/products/[slug]/components/product-details.svelte	svelte
 <script lang="ts">
   import LoginModal from "$lib/components/auth/login-modal.svelte";
   import EnquiryModal from "$lib/core/components/plugins/enquiry-modal.svelte";
@@ -34524,8 +34632,9 @@
       <a
         href="/products"
         class="text-sm font-bold uppercase tracking-widest text-primary underline underline-offset-4 edp-empty-link"
-        >Browse All Products</a
       >
+        Browse All Products
+      </a>
     </div>
   {:else}
     <div
@@ -34705,7 +34814,7 @@
   }
 </style>
 
-=== 5235 src/routes/(www)/products/[slug]/components/product-gallery-section.svelte	svelte
+=== 5263 src/routes/(www)/products/[slug]/components/product-gallery-section.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { useProductState } from "$lib/core/composables/index.js";
@@ -34785,22 +34894,24 @@
               viewBox="0 0 20 20"
               stroke="none"
               style="height: 20px; width: 20px;"
-              ><g
+            >
+              <g
                 stroke="#1C1C1C"
                 stroke-width="1.5"
                 clip-path="url(#icon-ymal_svg__a)"
-                ><rect width="8.9" height="13.7" x="5.55" y="3.15" rx="1.25"
+              >
+                <rect width="8.9" height="13.7" x="5.55" y="3.15" rx="1.25"
                 ></rect><path
                   stroke-linecap="round"
                   stroke-linejoin="round"
                   d="m14.4 6.4 4 1.2-4 8.8M5.6 6.4l-4 1.2 4 8.8"
-                ></path></g
-              ><defs
-                ><clipPath id="icon-ymal_svg__a"
-                  ><path fill="#fff" d="M0 0h19.2v19.2H0z"></path></clipPath
-                ></defs
-              ></svg
-            >
+                ></path>
+              </g><defs>
+                <clipPath id="icon-ymal_svg__a">
+                  <path fill="#fff" d="M0 0h19.2v19.2H0z"></path>
+                </clipPath>
+              </defs>
+            </svg>
             <span class="sr-only">View similar</span>
           </div>
         </Drawer.Trigger>
@@ -35355,9 +35466,9 @@
         </div>
       {/if}
     {/if}
-    <span class="w-fit text-sm font-medium text-900 ml-1 edp-tax"
-      >Inclusive of all taxes</span
-    >
+    <span class="w-fit text-sm font-medium text-900 ml-1 edp-tax">
+      Inclusive of all taxes
+    </span>
   </div>
 </div>
 
@@ -35395,7 +35506,7 @@
   }
 </style>
 
-=== 21546 src/routes/(www)/products/[slug]/components/product-reviews-section.svelte	svelte
+=== 21643 src/routes/(www)/products/[slug]/components/product-reviews-section.svelte	svelte
 <script lang="ts">
   import { toast } from "@misiki/kitcommerce-core";
   import {
@@ -35552,9 +35663,9 @@
           class="flex flex-col items-center text-center lg:col-span-3 lg:items-start lg:text-left"
         >
           <div class="flex items-baseline gap-1">
-            <span class="edp-rev-score text-5xl font-black text-foreground"
-              >{accRating || "0.0"}</span
-            >
+            <span class="edp-rev-score text-5xl font-black text-foreground">
+              {accRating || "0.0"}
+            </span>
             <span class="text-xl font-semibold text-muted-foreground">/5</span>
           </div>
           <div class="mt-2 flex items-center gap-0.5">
@@ -35574,8 +35685,9 @@
           <Button
             class="mt-4"
             onclick={() => (productState.showReviewForm = true)}
-            >Write a Review</Button
           >
+            Write a Review
+          </Button>
         </div>
 
         <div class="lg:col-span-5">
@@ -35584,8 +35696,9 @@
               <div class="flex items-center gap-3">
                 <span
                   class="w-12 shrink-0 text-right text-sm text-muted-foreground"
-                  >{row.stars} star</span
                 >
+                  {row.stars} star
+                </span>
                 <div
                   class="relative h-3.5 flex-1 overflow-hidden rounded-full border border-primary/40 bg-background"
                 >
@@ -35594,9 +35707,9 @@
                     style="width: {row.pct}%"
                   ></div>
                 </div>
-                <span class="w-10 shrink-0 text-sm text-muted-foreground"
-                  >{row.pct}%</span
-                >
+                <span class="w-10 shrink-0 text-sm text-muted-foreground">
+                  {row.pct}%
+                </span>
               </div>
             {/each}
           </div>
@@ -35644,12 +35757,12 @@
                 >
                   <UserRound class="h-4 w-4" />
                 </span>
-                <span class="font-semibold text-foreground"
-                  >{rating.name || "Guest"}</span
-                >
-                <span class="text-sm text-muted-foreground"
-                  >{rating.createdAt ? date(rating.createdAt) : ""}</span
-                >
+                <span class="font-semibold text-foreground">
+                  {rating.name || "Guest"}
+                </span>
+                <span class="text-sm text-muted-foreground">
+                  {rating.createdAt ? date(rating.createdAt) : ""}
+                </span>
               </div>
               <div class="mt-2.5 flex items-center gap-0.5">
                 {#each { length: 5 } as _, i}
@@ -35714,8 +35827,9 @@
         <Button
           class="h-12 px-8"
           onclick={() => (productState.showReviewForm = true)}
-          >Write the First Review</Button
         >
+          Write the First Review
+        </Button>
       </div>
     {/if}
   </section>
@@ -35832,9 +35946,9 @@
           <div class="space-y-8">
             <!-- Rating Selection -->
             <div class="space-y-3">
-              <span class="block text-base font-bold text-foreground"
-                >Overall Rating</span
-              >
+              <span class="block text-base font-bold text-foreground">
+                Overall Rating
+              </span>
               <div
                 class="flex flex-col items-start gap-3 sm:flex-row sm:items-center"
               >
@@ -35884,8 +35998,9 @@
               <label
                 for="review"
                 class="block text-base font-bold text-foreground"
-                >Your Story</label
               >
+                Your Story
+              </label>
               <Textarea
                 id="review"
                 placeholder="What did you love? What could be better? We're all ears."
@@ -35896,12 +36011,13 @@
 
             <!-- Photos -->
             <div class="space-y-3">
-              <span class="block text-base font-bold text-foreground"
-                >Add Photos <span
+              <span class="block text-base font-bold text-foreground">
+                Add Photos <span
                   class="text-sm font-normal text-muted-foreground"
-                  >(optional, up to 5)</span
-                ></span
-              >
+                >
+                  (optional, up to 5)
+                </span>
+              </span>
               <div class="flex flex-wrap gap-3">
                 {#each pendingPhotos as photo, i}
                   <div
@@ -35948,8 +36064,10 @@
             <Button
               variant="ghost"
               onclick={() => (productState.showReviewForm = false)}
-              class="h-11 px-5">Discard</Button
+              class="h-11 px-5"
             >
+              Discard
+            </Button>
             <Button
               disabled={productState.select === null ||
                 !productState.reviewMessage ||
@@ -36216,7 +36334,7 @@
   }
 </style>
 
-=== 4917 src/routes/(www)/products/[slug]/components/product-title-section.svelte	svelte
+=== 4927 src/routes/(www)/products/[slug]/components/product-title-section.svelte	svelte
 <script lang="ts">
   import { Star, StarHalf, HeartIcon, LoaderCircle } from "@lucide/svelte";
   import { page } from "$app/state";
@@ -36305,23 +36423,24 @@
             {/if}
           </div>
         </div>
-        <span class="text-xs font-bold text-gray-900 dark:text-gray-100"
-          >{avgRating}</span
-        >
+        <span class="text-xs font-bold text-gray-900 dark:text-gray-100">
+          {avgRating}
+        </span>
         <span class="h-1 w-1 rounded-full bg-gray-300"></span>
-        <span class="text-xs text-gray-500"
-          >{reviewCount} {reviewCount === 1 ? "review" : "reviews"}</span
-        >
-        <Button variant="link" class="h-auto p-0 text-xs font-medium"
-          >View Reviews</Button
-        >
+        <span class="text-xs text-gray-500">
+          {reviewCount}
+          {reviewCount === 1 ? "review" : "reviews"}
+        </span>
+        <Button variant="link" class="h-auto p-0 text-xs font-medium">
+          View Reviews
+        </Button>
       </div>
     </div>
   {:else if reviewsEnabled}
     <div class="intra-pt edp-reviewrow">
-      <span class="text-sm text-gray-400 edp-review-empty"
-        >Be the first to review</span
-      >
+      <span class="text-sm text-gray-400 edp-review-empty">
+        Be the first to review
+      </span>
     </div>
   {/if}
 </div>
@@ -36400,11 +36519,11 @@
               {/if}
             </span>
 
-            <span class="font-semibold edp-opt-value"
-              >{productState.selectedVariant?.options?.find(
+            <span class="font-semibold edp-opt-value">
+              {productState.selectedVariant?.options?.find(
                 (opt: Record<string, any>) => option.id === opt.optionId,
-              )?.value}</span
-            >
+              )?.value}
+            </span>
           </div>
           {#if option.type === "Size"}
             <SizeGuideDrawer />
@@ -36622,7 +36741,7 @@
   }
 </style>
 
-=== 7050 src/routes/(www)/products/[slug]/components/size-guide-drawer.svelte	svelte
+=== 7092 src/routes/(www)/products/[slug]/components/size-guide-drawer.svelte	svelte
 <script lang="ts">
   import * as Drawer from "$lib/components/ui/drawer/index.js";
   import * as Tabs from "$lib/components/ui/tabs/index.js";
@@ -36720,28 +36839,30 @@
               >
                 <tr>
                   <th class="px-4 py-3 text-left font-semibold">US Size</th>
-                  <th class="px-4 py-3 text-right font-semibold"
-                    >Circumference (mm)</th
-                  >
-                  <th class="px-4 py-3 text-right font-semibold"
-                    >Diameter (mm)</th
-                  >
+                  <th class="px-4 py-3 text-right font-semibold">
+                    Circumference (mm)
+                  </th>
+                  <th class="px-4 py-3 text-right font-semibold">
+                    Diameter (mm)
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {#each ringSizes as row}
                   <tr class="border-t transition-colors hover:bg-muted/40">
-                    <td class="px-4 py-2.5 font-medium text-foreground"
-                      >{row.size}</td
-                    >
+                    <td class="px-4 py-2.5 font-medium text-foreground">
+                      {row.size}
+                    </td>
                     <td
                       class="px-4 py-2.5 text-right tabular-nums text-muted-foreground"
-                      >{row.circumference.toFixed(1)}</td
                     >
+                      {row.circumference.toFixed(1)}
+                    </td>
                     <td
                       class="px-4 py-2.5 text-right tabular-nums text-muted-foreground"
-                      >{row.diameter.toFixed(1)}</td
                     >
+                      {row.diameter.toFixed(1)}
+                    </td>
                   </tr>
                 {/each}
               </tbody>
@@ -36762,9 +36883,9 @@
                 >
                   {i + 1}
                 </span>
-                <span class="text-sm leading-relaxed text-foreground"
-                  >{step}</span
-                >
+                <span class="text-sm leading-relaxed text-foreground">
+                  {step}
+                </span>
               </li>
             {/each}
           </ol>
@@ -36822,9 +36943,9 @@
       <div class="flex items-center gap-2">
         <StoreIcon class="h-5 w-5" />
 
-        <span class="font-semibold edp-store-title"
-          >Looking to pickup this item?</span
-        >
+        <span class="font-semibold edp-store-title">
+          Looking to pickup this item?
+        </span>
       </div>
 
       <span class="text-sm text-gray-500 edp-store-text">
@@ -36833,9 +36954,9 @@
       </span>
 
       <Sheet.Trigger>
-        <Button variant="link" class="self-start h-auto p-0"
-          >Check Availability</Button
-        >
+        <Button variant="link" class="self-start h-auto p-0">
+          Check Availability
+        </Button>
       </Sheet.Trigger>
     </div>
 
@@ -36878,11 +36999,11 @@
                 <div class="flex items-center gap-1 text-gray-500">
                   <MapPin size={12} />
 
-                  <span class="text-gray-700"
-                    >{house.address_1}{house.address_2
+                  <span class="text-gray-700">
+                    {house.address_1}{house.address_2
                       ? `, ${house.address_2}`
-                      : ""}</span
-                  >
+                      : ""}
+                  </span>
                 </div>
 
                 <div class="flex items-center gap-1 pl-4 text-gray-500">
@@ -36893,11 +37014,11 @@
               <div class="mt-1 flex items-center gap-1 text-sm text-gray-500">
                 <Clock size={12} />
 
-                <span
-                  >Lead Time: <span class="font-medium text-gray-700"
-                    >{house.leadTime} hours</span
-                  ></span
-                >
+                <span>
+                  Lead Time: <span class="font-medium text-gray-700">
+                    {house.leadTime} hours
+                  </span>
+                </span>
               </div>
             </div>
           </div>
@@ -37671,7 +37792,7 @@
 
 <Canonical />
 
-=== 1612 src/routes/(www)/subscription-success/+page.svelte	svelte
+=== 1632 src/routes/(www)/subscription-success/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { MailCheck } from "@lucide/svelte";
@@ -37704,8 +37825,10 @@
     <p class="mb-2 text-base text-muted-foreground">
       {#if email}
         Thanks for subscribing! We've sent a confirmation email to <span
-          class="font-semibold text-foreground">{email}</span
-        >.
+          class="font-semibold text-foreground"
+        >
+          {email}
+        </span>.
       {:else}
         Thanks for subscribing! We've sent you a confirmation email.
       {/if}
@@ -37880,7 +38003,7 @@
   </div>
 </div>
 
-=== 3091 src/routes/+error.svelte	svelte
+=== 3115 src/routes/+error.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import Button from "$lib/components/ui/button/button.svelte";
@@ -37947,8 +38070,10 @@
           <Button
             type="submit"
             class="absolute right-2 top-1/2 -translate-y-1/2"
-            onclick={() => handleSearch()}>Search</Button
+            onclick={() => handleSearch()}
           >
+            Search
+          </Button>
         </div>
       </form>
     </div>
@@ -37957,17 +38082,17 @@
     <div class="mb-8 flex flex-wrap justify-center gap-4 text-sm text-gray-600">
       <a href="/" class="transition-colors hover:text-primary">Home</a>
       <span>•</span>
-      <a href="/categories" class="transition-colors hover:text-primary"
-        >Categories</a
-      >
+      <a href="/categories" class="transition-colors hover:text-primary">
+        Categories
+      </a>
       <span>•</span>
-      <a href="/products" class="transition-colors hover:text-primary"
-        >All Products</a
-      >
+      <a href="/products" class="transition-colors hover:text-primary">
+        All Products
+      </a>
       <span>•</span>
-      <a href="/contact-us" class="transition-colors hover:text-primary"
-        >Contact Us</a
-      >
+      <a href="/contact-us" class="transition-colors hover:text-primary">
+        Contact Us
+      </a>
     </div>
 
     <div class="flex flex-col gap-4 sm:flex-row sm:justify-center">

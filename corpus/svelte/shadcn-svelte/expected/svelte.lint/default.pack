@@ -12359,7 +12359,7 @@
 72:1 72:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 73:1 73:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 10658 docs/src/lib/registry/blocks/chart-bar-active.svelte	lint.txt
+=== 10654 docs/src/lib/registry/blocks/chart-bar-active.svelte	lint.txt
 1:1 24:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12430,7 +12430,7 @@
 63:1 63:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
 63:9 63:26 svelte/sort-attributes "Attribute 'fill' should go before 'rounded'."
 64:1 64:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
-64:9 64:15 svelte/sort-attributes "Attribute 'data' should go before 'seriesKey'."
+64:9 64:15 svelte/sort-attributes "Attribute 'data' should go before 'rounded'."
 65:1 65:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
 65:9 65:26 svelte/sort-attributes "Attribute 'fillOpacity' should go before 'rounded'."
 66:1 66:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
@@ -12450,7 +12450,7 @@
 77:1 77:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
 77:9 77:26 svelte/sort-attributes "Attribute 'fill' should go before 'rounded'."
 78:1 78:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
-78:9 78:15 svelte/sort-attributes "Attribute 'data' should go before 'seriesKey'."
+78:9 78:15 svelte/sort-attributes "Attribute 'data' should go before 'rounded'."
 79:1 79:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
 79:9 79:23 svelte/sort-attributes "Attribute 'motion' should go before 'rounded'."
 80:1 80:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
@@ -31300,11 +31300,12 @@
 6:27 6:36 svelte/sort-attributes "Attribute 'size' should go before 'variant'."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 577 docs/src/lib/registry/examples/calendar-demo.svelte	lint.txt
+=== 786 docs/src/lib/registry/examples/calendar-demo.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:11 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:25 8:35 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 8:36 8:71 svelte/sort-attributes "Attribute 'class' should go before 'type'."
 8:72 8:96 svelte/sort-attributes "Attribute 'captionLayout' should go before 'type'."
@@ -95228,14 +95229,13 @@
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1424 sv-addons/registry/template/src/lib/registry/ui/label/label.svelte	lint.txt
+=== 1326 sv-addons/registry/template/src/lib/registry/ui/label/label.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-7:3 7:6 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

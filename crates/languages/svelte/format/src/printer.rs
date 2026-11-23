@@ -168,6 +168,9 @@ fn print(
         in_pre: false,
         in_head: false,
         in_shadow_root: false,
+        preserve_whitespace: c
+            .svelte_option_flag(source_text, "preserveWhitespace")
+            .unwrap_or(false),
         last_in_block: None,
         buffers: Vec::new(),
         ignore: Ignore::default(),
@@ -294,6 +297,10 @@ fn refuse_lost_comments(
 }
 
 /// The component outlives the arena its layouts are built in, so they may borrow its trees.
+#[expect(
+    clippy::struct_excessive_bools,
+    reason = "each answers a question the plugin asks of the path or the root"
+)]
 struct Printer<'a: 'x, 'd, 'x> {
     c: &'a Component,
     options: &'a Options,
@@ -308,6 +315,9 @@ struct Printer<'a: 'x, 'd, 'x> {
     in_head: bool,
     /// Svelte's `parent_is_shadowroot_template`: a `<slot>` here is a `RegularElement`.
     in_shadow_root: bool,
+    /// `<svelte:options preserveWhitespace>`, under which Svelte keeps an element's edge
+    /// whitespace.
+    preserve_whitespace: bool,
     /// The last child, ignoring blank text, of the block element being printed.
     last_in_block: Option<TemplateNodeIdentifier>,
     /// Emptied lists of child layouts, kept so each text node and child list does not allocate.

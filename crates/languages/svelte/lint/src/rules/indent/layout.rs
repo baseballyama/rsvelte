@@ -274,20 +274,24 @@ impl<'a> Layout<'a> {
             lines.push((comments, buffer));
         }
         let mut prev: Option<Token> = None;
+        let mut prev_expected = None;
         for (comments, line) in lines {
-            self.line(&comments, &line, prev, &ignored, reporter);
+            prev_expected = self.line(&comments, &line, prev, prev_expected, &ignored, reporter);
             prev = line.last().copied();
         }
     }
 
+    /// Checks one line and the comment lines before it; the indentation it saves, or `None` when
+    /// the line has no expectation.
     fn line(
         &mut self,
         comments: &[Token],
         line: &[Token],
         prev: Option<Token>,
+        prev_expected: Option<u32>,
         ignored: &[bool],
         reporter: &mut Reporter<'_>,
-    ) {
+    ) -> Option<u32> {
         let first = line[0];
         let actual = self.tokens.column(self.tokens.span(first).start_offset);
         let mut expected = None;
@@ -302,7 +306,7 @@ impl<'a> Layout<'a> {
         }
         let Some(expected) = expected else {
             self.save(line, actual);
-            return;
+            return None;
         };
         let mut least = expected;
         for &t in line {
@@ -316,16 +320,43 @@ impl<'a> Layout<'a> {
         let mut prev = prev;
         if let (Some(&comment), Some(&last)) = (comments.first(), comments.last()) {
             if prev.is_some_and(|p| end_line(p) < start_line(comment)) {
-                self.validate(comment, expected, reporter);
+                let (wanted, also) = self.comment_expected(first, expected, prev_expected);
+                self.validate(comment, wanted, also, reporter);
             }
             prev = Some(last);
         }
         if prev.is_some_and(|p| end_line(p) < start_line(first)) {
-            self.validate(first, expected, reporter);
+            self.validate(first, expected, None, reporter);
+        }
+        Some(least)
+    }
+
+    /// The indentation of comments before `next`, and another one accepted: before a closing
+    /// bracket a comment may align with the line above it rather than with the bracket.
+    fn comment_expected(
+        &self,
+        next: Token,
+        expected: u32,
+        prev_expected: Option<u32>,
+    ) -> (u32, Option<u32>) {
+        let closing =
+            self.tokens.is_punctuator(next) && matches!(self.tokens.text(next), ")" | "}" | "]");
+        match prev_expected {
+            Some(prev) if closing && prev == expected => {
+                (expected + self.options.size, Some(expected))
+            }
+            Some(prev) if closing => (prev, Some(expected)),
+            _ => (expected, None),
         }
     }
 
-    fn validate(&self, token: Token, expected: u32, reporter: &mut Reporter<'_>) {
+    fn validate(
+        &self,
+        token: Token,
+        expected: u32,
+        also: Option<u32>,
+        reporter: &mut Reporter<'_>,
+    ) {
         let tokens = &self.tokens;
         let start = tokens.span(token).start_offset;
         let line = tokens.line(start);
@@ -342,7 +373,7 @@ impl<'a> Layout<'a> {
         let actual = tokens.column(start);
         let unit = if character == '\t' { "tab" } else { "space" };
         let mismatched = indent.chars().any(|c| c != character);
-        if actual != expected {
+        if actual != expected && also != Some(actual) {
             let plural = |n: u32| if n == 1 { "" } else { "s" };
             let actual_unit = if mismatched { "whitespace" } else { unit };
             let message = format!(
