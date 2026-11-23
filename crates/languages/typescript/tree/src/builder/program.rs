@@ -53,7 +53,7 @@ impl<'a> TreeBuilder<'a> {
         let start = range.start_offset;
         self.read_program(text, start, source_type, keep)
             .map_err(|rejected| {
-                let program = (rejected.recovered).map(|program| &self.programs[program]);
+                let program = (rejected.recovered).map(|program| &self.programs[program].0);
                 let errors = rejected.diagnostics.into_iter().map(|e| {
                     let at = program.and_then(|program| {
                         typescript_eslint_at(&e, |locator| Part::Program(program).walk(locator))
