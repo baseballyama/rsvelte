@@ -4,6 +4,7 @@
 
 use rsvelte_svelte_compile::{Target, compile_to_javascript};
 
+mod ambient;
 mod class_names;
 mod const_tags;
 mod derived;
