@@ -39,6 +39,8 @@ pub(crate) enum Rejection {
         name: names::Restricted,
         binds: bool,
     },
+    /// A word acorn refuses as a name, read as one in an ambient context.
+    Reserved(names::ReservedWord),
     /// An initializer in an ambient context, where only a `const` without a type may have one.
     AmbientInitializer,
     /// `await` in a class static block.
@@ -60,6 +62,7 @@ impl Rejection {
             Self::NextLine => "Unexpected character '\u{85}'",
             Self::ZeroWidthSpace => "Unexpected character '\u{200B}'",
             Self::StrictName { name, binds } => name.message(binds),
+            Self::Reserved(word) => word.message(),
             Self::AmbientInitializer => "Initializers are not allowed in ambient contexts.",
             Self::StaticBlockAwait => "Cannot use await in class static initialization block",
             Self::AmbientConstInitializer => concat!(
@@ -213,6 +216,8 @@ pub(crate) struct Unsupported<'t> {
     /// How many `declare`d declarations are around the walk, each of which puts what it holds in
     /// an ambient context.
     ambient: u32,
+    /// How many types are around the walk, whose names acorn-typescript reads without a check.
+    types: u32,
     /// The namespace the next part of a dotted namespace name declares, whose name acorn does
     /// not check.
     dotted: Option<oxc_span::Span>,
@@ -226,6 +231,7 @@ impl<'t> Unsupported<'t> {
             tokens,
             first: None,
             ambient: 0,
+            types: 0,
             dotted: None,
             awaits: StaticBlockAwaits::new(),
         }
@@ -265,6 +271,12 @@ impl<'a> Visit<'a> for Unsupported<'_> {
         }
     }
 
+    fn visit_ts_type(&mut self, it: &oxc_ast::ast::TSType<'a>) {
+        self.types += 1;
+        oxc_ast_visit::walk::walk_ts_type(self, it);
+        self.types -= 1;
+    }
+
     fn visit_function(
         &mut self,
         it: &oxc_ast::ast::Function<'a>,
@@ -288,6 +300,7 @@ impl Unsupported<'_> {
         [
             found,
             names::strict_name(kind, nested),
+            names::reserved(kind, self.types > 0),
             ambient::initializer(kind),
         ]
         .into_iter()

@@ -137,8 +137,8 @@ pub(super) enum Find {
     Initializer,
     /// The module reference of the import equals declaration that is the label.
     ModuleReference,
-    /// The variable declarator whose initializer is the label.
-    VariableInitializer,
+    /// The class field with a public name whose initializer is the label.
+    PublicFieldValue,
     /// The type alias, interface, class member with a public name or enum member whose name is
     /// the label, or the parameter list around it or the signature or function without a body
     /// that holds it, where the label redeclares the name the span is.
@@ -448,11 +448,12 @@ impl Locator {
             {
                 it.module_reference.span().start
             }
-            (Find::VariableInitializer, AstKind::VariableDeclarator(it))
-                if it
-                    .init
-                    .as_ref()
-                    .is_some_and(|init| init.span() == self.label) =>
+            (Find::PublicFieldValue, AstKind::PropertyDefinition(it))
+                if !it.key.is_private_identifier()
+                    && it
+                        .value
+                        .as_ref()
+                        .is_some_and(|value| value.span() == self.label) =>
             {
                 it.span.start
             }
