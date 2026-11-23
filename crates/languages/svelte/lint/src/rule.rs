@@ -9,7 +9,6 @@ use rsvelte_kernel::computation::registry::Contribution;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
-use rsvelte_svelte_semantic::Warned;
 use rsvelte_svelte_semantic::compiler_syntax_tree::CompilerSyntaxTree;
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_semantic::warnings::CompileWarnings;
@@ -18,7 +17,9 @@ use rsvelte_typescript_semantic::globals::Declared;
 use rsvelte_typescript_semantic::semantic::Semantic;
 use rsvelte_typescript_tree::{ProgramIdentifier, Script, Tree};
 
-use crate::computation::{ConditionTypes, Linted, NativeConditionTypes, module_semantic};
+use crate::computation::{
+    CompiledForLint, ConditionTypes, Linted, NativeConditionTypes, module_semantic,
+};
 use crate::project::{SvelteConfiguration, SvelteKit, SvelteKitProject};
 use crate::types::TypeFacts;
 use crate::{LintSettings, SvelteConfig};
@@ -251,7 +252,7 @@ impl<'a> File<'a> {
     pub fn compile_warnings(&self) -> Option<Result<&'a CompileWarnings, &'a Diagnostic>> {
         self.component()?;
         // The compiler reads its own tree, not the one the rules read.
-        self.context.get::<Warned>().as_ref().map_or_else(
+        self.context.get::<CompiledForLint>().as_ref().map_or_else(
             || {
                 (self.context.get::<rsvelte_svelte_syntax::Parsed>().as_ref())
                     .err()
