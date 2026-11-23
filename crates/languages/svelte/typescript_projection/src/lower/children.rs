@@ -109,7 +109,7 @@ impl Builder<'_> {
             let parameters = Some(javascript.get_parameters(parameters).span);
             let name = self.source(name, None);
             let parameters = parameters.map(|at| self.source(at, None));
-            let body = self.children(body)?;
+            let body = self.snippet_body(body)?;
             let property = self.tree.push(Node::SnippetProperty {
                 name,
                 parameters,
@@ -119,6 +119,14 @@ impl Builder<'_> {
             names.push(name);
         }
         Ok(self.tree.list(&names))
+    }
+
+    /// A snippet's body, whose elements svelte2tsx reads as having no parent element.
+    pub(super) fn snippet_body(&mut self, body: Range) -> Result<Range> {
+        let component_parent = std::mem::replace(&mut self.component_parent, false);
+        let body = self.children(body);
+        self.component_parent = component_parent;
+        body
     }
 
     /// The generated name of a component whose snippets' names are declared from its props.

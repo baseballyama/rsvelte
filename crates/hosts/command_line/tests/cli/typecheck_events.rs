@@ -7,7 +7,7 @@ use crate::typecheck::{Project, text, typecheck_config};
 
 /// The report of a type check of `files` with svelte linked, its errors on stdout.
 #[cfg(unix)]
-fn check(files: &[(&str, &str)]) -> String {
+pub(crate) fn check(files: &[(&str, &str)]) -> String {
     let mut all = vec![(
         "tsconfig.json",
         r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
