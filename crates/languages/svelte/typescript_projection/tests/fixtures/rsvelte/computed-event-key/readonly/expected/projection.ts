@@ -14,7 +14,7 @@ function $$render() {
 ;
 
   return __rsvelte_export_isomorphic<$$ComponentProps, {}, "">()(__rsvelte_any_event({
-    ...(__sveltets_2_toEventTypings<{ readonly [GO]: number }>()),
+    ...(__sveltets_2_toEventTypings<__rsvelte_dispatcher_events<typeof d>>()),
   }), {});
 }
 const Readonly__SvelteComponent_ = $$render();

@@ -31,7 +31,6 @@ function $$render() {
           } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["b"];
           __rsvelte_component(C)(__rsvelte_internals(), {
             children: __rsvelte_children,
-            "slot": "b",
           });
           x;
           y;

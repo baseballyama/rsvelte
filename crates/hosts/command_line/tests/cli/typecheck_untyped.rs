@@ -6,8 +6,7 @@ use crate::typecheck::{Project, text, typecheck_config};
 /// A JavaScript component is untyped where TypeScript reads JavaScript as untyped: each import of
 /// it reports TS7016, from a component or a script and through a package or a relative path, and
 /// one only a package's import reaches is not checked. The expected lines are svelte-check
-/// 4.7.8's, but a TS7016 path inside the project, which it prints absolute, from the root as its
-/// recorded output reads it.
+/// 4.7.8's.
 #[cfg(unix)]
 #[test]
 fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
@@ -51,6 +50,8 @@ fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
     };
     let dep = project.0.join("dep/src/Annotated.svelte");
     let dep = dep.display().to_string();
+    let local = project.0.join("app/src/Annotated.svelte");
+    let local = local.display().to_string();
     assert_eq!(
         format!("{}{}", text(&output.stdout), text(&output.stderr)),
         format!(
@@ -62,8 +63,8 @@ fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
              src/use.ts(2,20): {}\n\
              \nFound 5 errors in 4 files.\n",
             untyped("dep/src/Annotated.svelte", &dep),
-            untyped("./Annotated.svelte", "src/Annotated.svelte"),
-            untyped("./Annotated.svelte", "src/Annotated.svelte"),
+            untyped("./Annotated.svelte", &local),
+            untyped("./Annotated.svelte", &local),
             untyped("dep/src/Annotated.svelte", &dep),
         )
     );
@@ -115,6 +116,38 @@ fn typecheck_does_not_check_a_javascript_component_only_javascript_reaches() {
              'dep/src/Chain.svelte'. '{}' implicitly has an 'any' type.\n\
              \nFound 1 error in 1 file.\n",
             chain.display()
+        )
+    );
+}
+
+/// TypeScript's own TS7016 for a JavaScript module names the module by its absolute path, as
+/// svelte-check 4.7.8 prints it.
+#[cfg(unix)]
+#[test]
+fn typecheck_names_an_untyped_javascript_module_by_its_absolute_path() {
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let project = Project::new(&[
+        ("app/rsvelte.config.json", &config),
+        (
+            "app/tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"types":[]},"include":["src"]}"#,
+        ),
+        ("app/src/s.js", "export const sj = 1;\n"),
+        (
+            "app/src/Page.svelte",
+            "<script lang=\"ts\">\n\timport { sj } from \"./s.js\";\n</script>\n\n{sj}\n",
+        ),
+    ]);
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    let module = project.0.join("app/src/s.js");
+    assert_eq!(
+        format!("{}{}", text(&output.stdout), text(&output.stderr)),
+        format!(
+            "src/Page.svelte(2,21): error TS7016: Could not find a declaration file for module \
+             './s.js'. '{}' implicitly has an 'any' type.\n\
+             \nFound 1 error in 1 file.\n",
+            module.display()
         )
     );
 }

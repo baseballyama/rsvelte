@@ -43,6 +43,14 @@ pub(crate) struct TypeScriptDiagnostic {
     pub syntactic: bool,
 }
 
+/// A run's findings, and the directory of its project.
+#[derive(Debug)]
+pub(crate) struct Report {
+    pub diagnostics: Vec<TypeScriptDiagnostic>,
+    /// The tsconfig's directory, or the current one: a real path.
+    pub root: PathBuf,
+}
+
 static RUN: AtomicU32 = AtomicU32::new(0);
 
 /// The directory beside each project root that holds what rsvelte adds: the overlay tsconfig and
@@ -55,10 +63,7 @@ impl Tsc {
     ///
     /// A message if the projections cannot be written, the checker cannot run, or it reports a
     /// diagnostic outside every document.
-    pub(crate) fn check(
-        &self,
-        req: &CheckRequest<'_>,
-    ) -> Result<Vec<TypeScriptDiagnostic>, String> {
+    pub(crate) fn check(&self, req: &CheckRequest<'_>) -> Result<Report, String> {
         if req.env.content_mapper.is_none() && req.mapped_files.iter().any(Option::is_some) {
             return Err("content-mapped inputs require a mapper executable".into());
         }
@@ -84,11 +89,7 @@ impl Tsc {
         }
     }
 
-    fn check_with(
-        &self,
-        support: &Path,
-        req: &CheckRequest<'_>,
-    ) -> Result<Vec<TypeScriptDiagnostic>, String> {
+    fn check_with(&self, support: &Path, req: &CheckRequest<'_>) -> Result<Report, String> {
         let (base, root) = self.root()?;
         let paths: Vec<PathBuf> = (0..req.files.len())
             .map(|i| req.checked_path(&root, i))
@@ -173,7 +174,8 @@ impl Tsc {
         )
         .map_err(failed)?;
         // The session ends when it drops, which frees the snapshot with the process.
-        self.findings(req, checked, &root, &paths)
+        let diagnostics = self.findings(req, checked, &paths)?;
+        Ok(Report { diagnostics, root })
     }
 
     /// The errors of `checked`, at the documents' lines, with each untyped import's TS7016.
@@ -181,12 +183,11 @@ impl Tsc {
         &self,
         req: &CheckRequest<'_>,
         checked: Checked,
-        root: &Path,
         paths: &[PathBuf],
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
         let [program, syntactic, semantic] = checked.found;
         let index = path_index(paths);
-        let untyped = untyped::imports(req, &checked.modules, root, &index);
+        let untyped = untyped::imports(req, &checked.modules, &index);
         // Where JavaScript is untyped, TypeScript loads no JavaScript file the tsconfig does not
         // select, whatever imports it. A document the program does not reach at all is one the
         // run was given, which svelte-check checks as a root.
@@ -203,8 +204,7 @@ impl Tsc {
             // The command line reports errors only; svelte-check's errors are the oracle.
             .filter(|(_, d)| d.is_error())
             .map(|(syntactic, d)| {
-                located(&d, root, &index, &lines, syntactic)
-                    .ok_or_else(|| unlocated(&self.checker, &d))
+                located(&d, &index, &lines, syntactic).ok_or_else(|| unlocated(&self.checker, &d))
             })
             .filter(|found| {
                 !found.as_ref().is_ok_and(|found| {
@@ -524,11 +524,9 @@ fn path_index(paths: &[PathBuf]) -> HashMap<&Path, usize> {
 }
 
 /// The document and byte range of a diagnostic in the document `index` names, whose texts
-/// `lines` index. A path below `root` in the message drops that root, so the message does not
-/// depend on where the project is.
+/// `lines` index.
 fn located(
     d: &rsvelte_typescript_api::Diagnostic,
-    root: &Path,
     index: &HashMap<&Path, usize>,
     lines: &[LineIndex],
     syntactic: bool,
@@ -538,10 +536,7 @@ fn located(
         let p = p?;
         lines[file].offset(p.line + 1, p.character)
     };
-    let message = d.flattened_message().replace(
-        &format!("{}{}", root.display(), std::path::MAIN_SEPARATOR),
-        "",
-    );
+    let message = d.flattened_message();
     // A finding in synthesized code may still carry a nearby position, beside this note.
     let span = offset(d.start_position)
         .zip(offset(d.end_position))
