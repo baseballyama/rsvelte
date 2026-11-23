@@ -46,11 +46,18 @@ thread_local! {
     static BUFFER: std::cell::RefCell<String> = const { std::cell::RefCell::new(String::new()) };
 }
 
-/// One buffer per thread grows once; each program gets a copy of exactly its output's length.
-fn printed<'a>(codegen: Codegen<'a>, program: &Program<'a>) -> oxc_codegen::CodegenReturn<'a> {
+/// One buffer per thread grows once; each program gets a copy of exactly its output's length,
+/// which starts with `head`.
+fn printed<'a>(
+    codegen: Codegen<'a>,
+    program: &Program<'a>,
+    head: &[&str],
+) -> oxc_codegen::CodegenReturn<'a> {
     let buffer = BUFFER.with_borrow_mut(std::mem::take);
     let mut printed = codegen.with_buffer(buffer).build(program);
-    let code = printed.code.as_str().to_owned();
+    let mut code = String::with_capacity(head_len(head) + printed.code.len());
+    code.extend(head.iter().copied());
+    code.push_str(&printed.code);
     BUFFER.with_borrow_mut(|b| *b = std::mem::replace(&mut printed.code, code));
     printed
 }
@@ -62,7 +69,7 @@ pub fn print(program: &Program<'_>) -> String {
 
 #[must_use]
 pub fn print_with(program: &Program<'_>, comments: Comments) -> String {
-    printed(codegen(program, options(), comments), program).code
+    printed(codegen(program, options(), comments), program, &[]).code
 }
 
 /// [`print()`], with what `expand` returns printed in place of a statement.
@@ -71,7 +78,7 @@ pub fn print_expanding<'a>(program: &Program<'a>, expand: StatementExpansion<'a>
     let codegen = Codegen::new()
         .with_options(options())
         .with_statement_expansion(expand);
-    printed(codegen, program).code
+    printed(codegen, program, &[]).code
 }
 
 /// Upstream's printer keeps a template literal's text as written, `</script` too.
@@ -86,16 +93,36 @@ fn options() -> CodegenOptions {
 /// mapping wherever the printer maps a node back into the source.
 #[must_use]
 pub fn emit_with(program: &Program<'_>, lines: Option<&LineIndex>, comments: Comments) -> Emitter {
+    emit_after(&[], program, lines, comments)
+}
+
+/// [`emit_with()`], with the pieces of `head` written before the program and mapped nowhere.
+#[must_use]
+pub fn emit_after(
+    head: &[&str],
+    program: &Program<'_>,
+    lines: Option<&LineIndex>,
+    comments: Comments,
+) -> Emitter {
     lines.map_or_else(
         || Emitter {
-            out: print_with(program, comments),
+            out: printed(codegen(program, options(), comments), program, head).code,
             ..Emitter::default()
         },
-        |lines| print_mapped_with(program, lines, comments),
+        |lines| print_mapped_with(head, program, lines, comments),
     )
 }
 
-fn print_mapped_with(program: &Program<'_>, lines: &LineIndex, comments: Comments) -> Emitter {
+fn head_len(head: &[&str]) -> usize {
+    head.iter().map(|piece| piece.len()).sum()
+}
+
+fn print_mapped_with(
+    head: &[&str],
+    program: &Program<'_>,
+    lines: &LineIndex,
+    comments: Comments,
+) -> Emitter {
     // The printer counts ECMAScript's line breaks, which differ from `\n` only at a lone CR, LS or
     // PS.
     let text = program.source_text;
@@ -114,15 +141,17 @@ fn print_mapped_with(program: &Program<'_>, lines: &LineIndex, comments: Comment
         source_map_path: Some("source".into()),
         ..options()
     };
-    let printed = printed(codegen(program, options, comments), program);
+    let printed = printed(codegen(program, options, comments), program, head);
     let mut emitter = Emitter::default();
     if let Some(map) = printed.map {
-        let mut generated = Cursor::new(&printed.code);
+        let start = head_len(head);
+        let mut generated = Cursor::new(&printed.code[start..]);
         emitter.mappings = map
             .get_tokens()
             .filter_map(|token| {
                 Some(Mapping {
-                    generated: generated.seek(token.get_dst_line(), token.get_dst_col())?,
+                    generated: start as u32
+                        + generated.seek(token.get_dst_line(), token.get_dst_col())?,
                     source_text: source.offset(token.get_src_line() + 1, token.get_src_col())?,
                     len: 0,
                 })

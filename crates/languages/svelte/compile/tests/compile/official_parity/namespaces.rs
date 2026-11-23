@@ -70,6 +70,22 @@ const CASES: &[(&str, Option<(&str, u32)>)] = &[
         "declare namespace N { export enum E { A } }",
         Some(("typescript_invalid_feature", 29)),
     ),
+    (
+        "namespace N { declare namespace M { const a: number; } }",
+        Some(("typescript_invalid_feature", 14)),
+    ),
+    (
+        "namespace N { declare enum E { A } }",
+        Some(("typescript_invalid_feature", 14)),
+    ),
+    (
+        "namespace N { export declare let x: number; export const y = 1; }",
+        Some(("typescript_invalid_feature", 0)),
+    ),
+    (
+        "namespace N { export declare class C {} export class D {} }",
+        Some(("typescript_invalid_feature", 0)),
+    ),
     ("declare namespace N { export declare enum E { A } }", None),
     ("namespace N { export declare enum E { A } }", None),
     ("declare namespace N {}", None),

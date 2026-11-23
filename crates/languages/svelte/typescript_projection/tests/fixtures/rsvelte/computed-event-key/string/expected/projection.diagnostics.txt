@@ -1,0 +1,1 @@
+error check_projection_thrown 4:36-4:42 The ComponentEvents interface can only have properties of type Identifier, StringLiteral or ComputedPropertyName. In case of ComputedPropertyName, it must be a const declared within the component and initialized with a string.
