@@ -1,48 +1,47 @@
-//! The JavaScript components a search of `node_modules` finds. svelte-language-server resolves a
-//! component without TypeScript's `originalPath`, so TypeScript reads one as JavaScript from a
-//! package even behind a symbolic link, and does not load it beyond `maxNodeModuleJsDepth`. The
-//! checker loads every mapped document, so it says which ones such a search found.
+//! What the project the tsconfig selects holds beyond its root files. svelte-language-server
+//! resolves a component without TypeScript's `originalPath`, so TypeScript reads one as
+//! JavaScript from a package even behind a symbolic link, and does not load it beyond
+//! `maxNodeModuleJsDepth`. The checker loads every mapped document, so this project says which
+//! ones a search of `node_modules` found.
 
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use rsvelte_typescript_api::{Layer, Session};
+use rsvelte_typescript_api::{Project, Session};
 
 use super::javascript;
 use crate::check::CheckRequest;
 
-/// The JavaScript documents the tsconfig does not select that the checker, in the project the
-/// tsconfig selects, finds by searching `node_modules`, by index in ascending order. A document
-/// the project does not reach stays checked as a root. `selection` gives that project's tsconfig
-/// and its text; where no document is a candidate, nothing is asked of the checker.
-pub(in crate::check::run) fn external(
+/// The files of the selection's project that only an import reaches, and of them the JavaScript
+/// documents a search of `node_modules` found, by index in ascending order.
+#[derive(Default)]
+pub(in crate::check::run) struct Selected {
+    pub(in crate::check::run) reached: HashSet<PathBuf>,
+    pub(in crate::check::run) external: Vec<usize>,
+}
+
+/// What `project`, the selection's, holds beyond its roots. `packages` names the documents to
+/// ask about where a package's JavaScript is untyped; a document the tsconfig selects, or one
+/// the project does not reach, is not asked about.
+pub(in crate::check::run) fn selected(
     session: &mut Session,
-    layer: &mut Layer,
-    selection: impl FnOnce() -> (PathBuf, String),
-    req: &CheckRequest<'_>,
-    roots: &[PathBuf],
-    paths: &[PathBuf],
-) -> Result<Vec<usize>, String> {
-    let roots: HashSet<&Path> = roots.iter().map(PathBuf::as_path).collect();
-    let candidates: Vec<usize> = (0..paths.len())
-        .filter(|&file| javascript(req, file) && !roots.contains(paths[file].as_path()))
+    project: &Project,
+    packages: Option<(&CheckRequest<'_>, &[PathBuf])>,
+) -> Result<Selected, String> {
+    let roots: HashSet<&Path> = project.root_files.iter().map(PathBuf::as_path).collect();
+    let reached: HashSet<PathBuf> = (session.source_file_names(project)?.into_iter())
+        .filter(|file| !roots.contains(file.as_path()))
         .collect();
-    if candidates.is_empty() {
-        return Ok(Vec::new());
-    }
-    let (config, text) = selection();
-    layer.files.insert(config.clone(), text);
-    let project = session
-        .open(&[config.as_path()], layer)?
-        .into_iter()
-        .next()
-        .ok_or("the checker opened no project")?;
-    let mut found = Vec::new();
-    for file in candidates {
-        if session.from_external_library(&project, &paths[file])? == Some(true) {
-            found.push(file);
+    let mut external = Vec::new();
+    if let Some((req, paths)) = packages {
+        for (file, path) in paths.iter().enumerate() {
+            if javascript(req, file)
+                && reached.contains(path)
+                && session.from_external_library(project, path)? == Some(true)
+            {
+                external.push(file);
+            }
         }
     }
-    session.release(project.snapshot)?;
-    Ok(found)
+    Ok(Selected { reached, external })
 }

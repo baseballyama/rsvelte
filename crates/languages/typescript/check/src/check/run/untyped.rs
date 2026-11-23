@@ -149,7 +149,7 @@ pub(super) fn javascript(req: &CheckRequest<'_>, file: usize) -> bool {
 }
 
 mod external;
-pub(super) use external::external;
+pub(super) use external::{Selected, selected};
 
 /// `Value refers to a value, but is being used as a type here.`
 const VALUE_AS_TYPE: u32 = 2749;
