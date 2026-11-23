@@ -16,7 +16,7 @@ function $$render() {
   return __rsvelte_export_isomorphic<$$ComponentProps, {
     GO: typeof GO;
   }, "">()(__rsvelte_any_event({
-    ...(__sveltets_2_toEventTypings<{ [GO]: number }>()),
+    ...(__sveltets_2_toEventTypings<__rsvelte_dispatcher_events<typeof d>>()),
   }), {});
 }
 const Export__SvelteComponent_ = $$render();

@@ -3,12 +3,12 @@
 
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-input.svelte".skip]
 "svelte.lint" = "upstream bug: typescript-eslint's scope manager makes the name `export as namespace` declares into a reference, so no-undef reports it as undefined"
-"svelte.compile" = "svelte 5.57.3 emits an import declaration that is not at the top level, which does not parse"
+"svelte.compile" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the import equals and the export assignment as TypeScript, so its output does not parse)"
 "svelte.check" = "checker: TS 7 resolves the module of an `import … = require(…)` inside a function, where TS 6 reports only that the declaration is not at the top level, so TS 7 adds a 2307"
 
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-output.svelte".skip]
 "svelte.lint" = "upstream bug: typescript-eslint's scope manager makes the name `export as namespace` declares into a reference, so no-undef reports it as undefined"
-"svelte.compile" = "svelte 5.57.3 emits an import declaration that is not at the top level, which does not parse"
+"svelte.compile" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the import equals and the export assignment as TypeScript, so its output does not parse)"
 "svelte.check" = "checker: TS 7 resolves the module of an `import … = require(…)` inside a function, where TS 6 reports only that the declaration is not at the top level, so TS 7 adds a 2307"
 
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-attributes04-input.svelte".skip]
@@ -341,43 +341,43 @@
 "svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (5:11)"
 
 ["svelte/rsvelte-tests-core-3/ts_export_type_only_declaration/an_exported_import_equals_adds_no_props_parameter/5d0ce2b793c1ccd6.svelte".skip]
-"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (5:1)"
-"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (4:1)"
+"svelte.compile/client" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the import equals as TypeScript, so its output does not parse)"
+"svelte.compile/server" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the import equals as TypeScript, so its output does not parse)"
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
 
 ["svelte/rsvelte-tests-core-3/ts_only_nodes_in_parse_ast_4195/a_namespace_export_declaration_reaches_the_program_body/9125c12e26a89289.svelte".skip]
 "svelte.lint" = "upstream bug: typescript-eslint's scope manager makes the name `export as namespace` declares into a reference, so no-undef reports it as undefined"
-"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
-"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+"svelte.compile/client" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the namespace export as TypeScript, so its output does not parse, and rsvelte erases it)"
+"svelte.compile/server" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the namespace export as TypeScript, so its output does not parse, and rsvelte erases it)"
 
 ["svelte/rsvelte-tests-core-3/ts_only_nodes_in_parse_ast_4195/an_export_assignment_reaches_the_program_body/a160f5217fd6c8bf.svelte".skip]
-"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
-"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+"svelte.compile/client" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the export assignment as TypeScript, so its output does not parse)"
+"svelte.compile/server" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the export assignment as TypeScript, so its output does not parse)"
 
 ["svelte/rsvelte-tests-core-3/ts_only_nodes_in_parse_ast_4195/an_external_module_reference_carries_its_literal/766434abf47b9e47.svelte".skip]
-"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
-"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+"svelte.compile/client" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the import equals as TypeScript, so its output does not parse)"
+"svelte.compile/server" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the import equals as TypeScript, so its output does not parse)"
 
 ["svelte/rsvelte-tests-core-3/ts_only_statements_4196/a_typescript_only_statement_compiles_on_both_targets/41c07e7c21de09d3.svelte".skip]
-"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
-"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+"svelte.compile/client" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the export assignment as TypeScript, so its output does not parse)"
+"svelte.compile/server" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the export assignment as TypeScript, so its output does not parse)"
 
 ["svelte/rsvelte-tests-core-3/ts_only_statements_4196/a_typescript_only_statement_compiles_on_both_targets/6106b9e4c198dc24.svelte".skip]
 "svelte.lint" = "upstream bug: typescript-eslint's scope manager makes the name `export as namespace` declares into a reference, so no-undef reports it as undefined"
-"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
-"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+"svelte.compile/client" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the namespace export as TypeScript, so its output does not parse, and rsvelte erases it)"
+"svelte.compile/server" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the namespace export as TypeScript, so its output does not parse, and rsvelte erases it)"
 
 ["svelte/rsvelte-tests-core-3/ts_only_statements_4196/a_typescript_only_statement_compiles_on_both_targets/d62b10769928e1c3.svelte".skip]
-"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (7:1)"
-"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: 'import' and 'export' may only appear at the top level (6:1)"
+"svelte.compile/client" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the import equals as TypeScript, so its output does not parse)"
+"svelte.compile/server" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the import equals as TypeScript, so its output does not parse)"
 
 ["svelte/rsvelte-tests-core-3/ts_overload_signature_3421/a_bodiless_class_member_is_erased_on_every_target/21e4b23cf8260a77.svelte".skip]
 "svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (10:16)"
 "svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (6:17)"
 
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/a7c2da5fe5fdef8f.svelte".skip]
-"svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (4:10)"
-"svelte.compile/server" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Unexpected token (3:10)"
+"svelte.compile/client" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the import equals as TypeScript, so its output does not parse)"
+"svelte.compile/server" = "deliberate divergence: crates/languages/svelte/compile/DIVERGENCES.md#typescript-module-syntax (svelte keeps the import equals as TypeScript, so its output does not parse)"
 
 ["svelte/rsvelte-tests-core-3/upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/23ad7418aa0f36cd.svelte".skip]
 "svelte.compile/client" = "svelte 5.57.3 emits JavaScript the canonicalizer cannot parse: Assigning to rvalue (31:2)"

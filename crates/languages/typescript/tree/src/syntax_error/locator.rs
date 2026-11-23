@@ -35,6 +35,9 @@ pub struct Locator {
     cover: Cover,
     /// Where acorn checks the label as a name the head of a function binds: at its body.
     head_checked: Option<u32>,
+    /// For [`Find::UncheckedName`], whether acorn checks the names of the innermost parameter
+    /// list that holds the label.
+    parameters_checked: Option<bool>,
     /// Whether the walk took in any node: a part oxc could not read has no tree.
     pub(super) walked: bool,
 }
@@ -115,6 +118,10 @@ pub(super) enum Find {
     Binding,
     /// The class accessor without a body whose key is the label.
     BodilessAccessor,
+    /// The node that declares the label as a name acorn reads without checking it: a class
+    /// expression's, a type parameter's, a mapped type's key, or a parameter of a signature or
+    /// of a function without a body.
+    UncheckedName,
     /// The `break` or `continue` statement around the label.
     Jump,
     /// The `delete` around the label.
@@ -147,6 +154,7 @@ impl Locator {
             word: None,
             cover: Cover::None,
             head_checked: None,
+            parameters_checked: None,
             walked: false,
             rest: AroundRest {
                 ambient: false,
@@ -334,6 +342,24 @@ impl Locator {
         };
     }
 
+    fn enter_unchecked_name(&mut self, kind: AstKind<'_>, around: bool) {
+        if around && let Some((parameters, checked)) = parameter_list(kind) {
+            self.parameters_checked = parameters.contains_inclusive(self.label).then_some(checked);
+        }
+        let name = match kind {
+            AstKind::Class(it) if it.is_expression() => it.id.as_ref().map(|id| id.span),
+            AstKind::TSTypeParameter(it) => Some(it.name.span),
+            AstKind::TSMappedType(it) => Some(it.key.span),
+            AstKind::BindingIdentifier(it) if self.parameters_checked == Some(false) => {
+                Some(it.span)
+            }
+            _ => None,
+        };
+        if name == Some(self.label) {
+            self.found = Some((kind.span().start, kind.ty()));
+        }
+    }
+
     /// Takes in a node of the walk, outer nodes before inner ones.
     pub fn enter(&mut self, kind: AstKind<'_>) {
         self.walked = true;
@@ -358,6 +384,9 @@ impl Locator {
                 self.enter_around_rest(kind);
             }
             return;
+        }
+        if matches!(self.find, Find::UncheckedName) {
+            return self.enter_unchecked_name(kind, around);
         }
         if let Find::Redeclared(first) = self.find {
             return self.enter_redeclared(first, kind, around);
@@ -415,17 +444,23 @@ impl Locator {
 }
 
 /// Whether acorn checks the names of the parameters `kind` holds, where it holds any.
-const fn parameters_checked(kind: AstKind<'_>) -> Option<bool> {
-    match kind {
-        AstKind::Function(it) => Some(it.body.is_some()),
-        AstKind::ArrowFunctionExpression(_) => Some(true),
-        AstKind::TSFunctionType(_)
-        | AstKind::TSConstructorType(_)
-        | AstKind::TSMethodSignature(_)
-        | AstKind::TSCallSignatureDeclaration(_)
-        | AstKind::TSConstructSignatureDeclaration(_) => Some(false),
-        _ => None,
-    }
+fn parameters_checked(kind: AstKind<'_>) -> Option<bool> {
+    parameter_list(kind).map(|(_, checked)| checked)
+}
+
+/// The parameter list `kind` holds, and whether acorn checks its names: those of a function with
+/// a body.
+fn parameter_list(kind: AstKind<'_>) -> Option<(oxc_span::Span, bool)> {
+    Some(match kind {
+        AstKind::Function(it) => (it.params.span, it.body.is_some()),
+        AstKind::ArrowFunctionExpression(it) => (it.params.span, true),
+        AstKind::TSFunctionType(it) => (it.params.span, false),
+        AstKind::TSConstructorType(it) => (it.params.span, false),
+        AstKind::TSMethodSignature(it) => (it.params.span, false),
+        AstKind::TSCallSignatureDeclaration(it) => (it.params.span, false),
+        AstKind::TSConstructSignatureDeclaration(it) => (it.params.span, false),
+        _ => return None,
+    })
 }
 
 /// The home `kind` is, and the source it governs, where acorn reads a name in that home.

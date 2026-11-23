@@ -42,8 +42,8 @@ impl Facet for TypeScriptView {
 
 #[derive(Debug)]
 pub enum TypeScriptDocument {
-    /// Not type-checked: a JavaScript document, for which upstream reports no semantic
-    /// diagnostics (`checkJs` is off). Its findings are empty.
+    /// Not type-checked: a document of another language that the projection reads as
+    /// JavaScript it does not cover. Its findings are empty.
     Unchecked,
     /// A document the language's own parser rejects: svelte-check reports only that error, with
     /// the code `-1`, instead of type checking.
@@ -292,7 +292,7 @@ impl FinishTask for Check {
             Ok(TypeScriptDocument::Unchecked) => {
                 out.file(
                     "json",
-                    render_findings(context.lines(LineBreaks::Newline), &[]),
+                    render_findings::<&str>(context.lines(LineBreaks::Newline), &[]),
                 );
                 self.stand_in(context)
             }
@@ -447,14 +447,14 @@ fn check_projected(
             .map(|d| d.document.projection.out.as_str())
             .collect(),
     };
-    let found = match tsc.check(&req) {
-        Ok(found) => found,
+    let report = match tsc.check(&req) {
+        Ok(report) => report,
         Err(msg) => {
             fail(outs, &msg);
             return;
         }
     };
-    write_findings(docs, outs, found);
+    write_findings(docs, outs, report);
 }
 
 mod findings;
@@ -462,7 +462,7 @@ pub(crate) use findings::render_findings;
 use findings::{byte_order_mark, write_findings};
 
 mod run;
-pub(crate) use run::{CheckRequest, ContentMappedInput, TypeScriptDiagnostic};
+pub(crate) use run::{CheckRequest, ContentMappedInput, Report};
 
 #[cfg(test)]
 mod tests;

@@ -160,11 +160,10 @@ impl Builder<'_> {
                 AttributeKind::Attribute
                     if (host.kind == Kind::Slot && attribute.name.text(self.source) == "name")
                         || (host.dynamic && attribute.name.text(self.source) == "this") => {}
-                // A component's child names the slot it fills with a text `slot`, which svelte2tsx
-                // reads as that slot rather than as a property.
+                // A component's child, element or component, names the slot it fills with a text
+                // `slot`, which svelte2tsx reads as that slot rather than as a property.
                 AttributeKind::Attribute
-                    if host.intrinsic()
-                        && self.component_parent
+                    if self.component_parent
                         && attribute.name.text(self.source) == "slot"
                         && matches!(
                             attribute.value,
