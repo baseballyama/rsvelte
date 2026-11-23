@@ -1,12 +1,15 @@
 //! Each document's findings, ordered and written as svelte-check and vue-tsc report them.
 
+use std::borrow::Cow;
+use std::path::Path;
+
 use rsvelte_kernel::computation::task::TaskOutput;
 use rsvelte_kernel::diagnostics::{self, Diagnostic};
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 
-use super::{Prepared, TypeScriptDiagnostic};
+use super::{Prepared, Report};
 use crate::CheckedDocument;
 
 const NO_OVERLOAD_MATCHES_CALL: u32 = 2769;
@@ -32,11 +35,11 @@ struct Finding {
 /// Writes each document's findings, ordered as svelte-check and vue-tsc list them: syntax errors
 /// first, then by position in the generated text, where the upstream projection may have moved
 /// code.
-pub(super) fn write_findings(
-    docs: &[Prepared],
-    outs: Vec<&mut TaskOutput>,
-    found: Vec<TypeScriptDiagnostic>,
-) {
+pub(super) fn write_findings(docs: &[Prepared], outs: Vec<&mut TaskOutput>, report: Report) {
+    let Report {
+        diagnostics: found,
+        root,
+    } = report;
     let mut per_doc: Vec<Vec<Finding>> = (0..docs.len()).map(|_| Vec::new()).collect();
     let mut unmapped: Vec<Vec<String>> = vec![Vec::new(); docs.len()];
     for mut f in found {
@@ -145,7 +148,7 @@ pub(super) fn write_findings(
             });
         }
     }
-    write_outputs(docs, outs, per_doc, unmapped);
+    write_outputs(docs, outs, per_doc, unmapped, &root);
 }
 
 /// svelte-check's filter of a finding in the types `upsertKitFile` inserts: it keeps three codes,
@@ -173,7 +176,11 @@ fn write_outputs(
     outs: Vec<&mut TaskOutput>,
     per_doc: Vec<Vec<Finding>>,
     unmapped: Vec<Vec<String>>,
+    root: &Path,
 ) {
+    // svelte-check prints TypeScript's absolute paths; its recorded output, which the corpus and
+    // the fixtures compare with this report, names a path in the project from its root.
+    let root = format!("{}{}", root.display(), std::path::MAIN_SEPARATOR);
     // svelte-check and vue-tsc count positions in the text TypeScript reads: without the mark.
     for (((d, out), mut keyed), unmapped) in docs.iter().zip(outs).zip(per_doc).zip(unmapped) {
         keyed.sort_by_key(|f| (f.semantic, f.generated, f.span.start_offset));
@@ -191,7 +198,10 @@ fn write_outputs(
         }
         let bom = byte_order_mark(&d.source_text);
         let text = &d.source_text[bom as usize..];
-        out.file("json", render_findings(&LineIndex::new(text), &found));
+        let recorded: Vec<_> = (found.iter())
+            .map(|(span, code, message)| (*span, *code, from_root(message, &root)))
+            .collect();
+        out.file("json", render_findings(&LineIndex::new(text), &recorded));
         // A finding's span is in the document, which keeps the mark.
         out.findings
             .extend(found.into_iter().map(|(span, code, message)| {
@@ -204,7 +214,7 @@ fn write_outputs(
 /// A finding for a person to read, beside the report that matches upstream's. `code` -1 is a
 /// document the checker cannot take.
 pub(super) fn finding(span: Span, code: i64, message: String) -> diagnostics::Finding {
-    let code: std::borrow::Cow<'static, str> = if code < 0 {
+    let code: Cow<'static, str> = if code < 0 {
         "check_rejected".into()
     } else {
         format!("TS{code}").into()
@@ -264,7 +274,19 @@ fn generated_offset(projection: &Emitter, offset: u32) -> u32 {
 
 /// Findings as svelte-check and vue-tsc report them: `code`, the flattened `message`, and 0-based
 /// lines with UTF-16 characters, in the order given.
-pub(crate) fn render_findings(lines: &LineIndex, found: &[(Span, i64, String)]) -> String {
+/// `message` with each path under `root` written from it.
+fn from_root<'m>(message: &'m str, root: &str) -> Cow<'m, str> {
+    if message.contains(root) {
+        Cow::Owned(message.replace(root, ""))
+    } else {
+        Cow::Borrowed(message)
+    }
+}
+
+pub(crate) fn render_findings<M: AsRef<str>>(
+    lines: &LineIndex,
+    found: &[(Span, i64, M)],
+) -> String {
     let mut w = StructuredDataWriter::new(true);
     w.begin_array();
     for (span, code, message) in found {
@@ -272,7 +294,7 @@ pub(crate) fn render_findings(lines: &LineIndex, found: &[(Span, i64, String)]) 
             .key("code")
             .write_number(*code)
             .key("message")
-            .write_string(message);
+            .write_string(message.as_ref());
         for (key, at) in [("start", span.start_offset), ("end", span.end_offset)] {
             let lc = lines.line_column(at);
             w.key(key)
