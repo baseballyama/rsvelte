@@ -721,6 +721,23 @@ bar
   }
 </style>
 
+=== 142 packages/svelte/tests/css/samples/css-vars/input.svelte	svelte
+<div></div>
+
+<style>
+  :root {
+    --root-test: 20;
+  }
+  div {
+    --test: 10;
+  }
+
+  div {
+    --foo: ;
+    --bar: !important;
+  }
+</style>
+
 === 61 packages/svelte/tests/css/samples/custom-css-hash/input.svelte	svelte
 <div>red</div>
 
@@ -33730,6 +33747,36 @@ Child: {settings.showInRgb}
 {#snippet snippet()}
   <p>hello world</p>
 {/snippet}
+
+=== 498 packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte	svelte
+<script lang="ts">
+</script>
+
+{#snippet counter1(c: number)}
+  {c}
+{/snippet}
+{#snippet counter2({ c }: { c: number })}
+  {c}
+{/snippet}
+{#snippet counter3(c?: number)}
+  {c}
+{/snippet}
+{#snippet counter4(c: number = 4)}
+  {c}
+{/snippet}
+{#snippet counter5(c?: number = 5)}
+  {c}
+{/snippet}
+{#snippet counter6(c?: number, d?: string)}
+  {c}{d}
+{/snippet}
+
+{@render counter1(1)}
+{@render counter2({ c: 2 })}
+{@render counter3(3)}
+{@render counter4()}
+{@render counter5()}
+{@render counter6(6, "a")}
 
 === 200 packages/svelte/tests/runtime-runes/samples/snippet-undefined/main.svelte	svelte
 <script>

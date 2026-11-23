@@ -75,26 +75,6 @@
 <p>We're loading the route! Please wait 5 seconds.</p>
 <p>Here's your message: {params && params.message}</p>
 
-=== 452 examples/dynamic-imports/src/routes/Wild.svelte	svelte
-<script lang="ts">
-  const { params = {} } = $props();
-</script>
-
-<h2>Wildcard</h2>
-
-<p>
-  Anything in the URL after <code>/wild/</code> is shown below as message.
-  That's found in the <code>params.wild</code> prop.
-</p>
-
-<p>Your message is: {params.wild}</p>
-
-<p>
-  Note that this route was artificially delayed for 5 seconds to let us see the <code>
-    Loading
-  </code> component even when the network is fast (such as testing on localhost).
-</p>
-
 === 19931 src/Router.svelte	svelte
 <script module lang="ts">
   import { tick, untrack } from "svelte";

@@ -1,6 +1,2 @@
-# svelte.format/default: 34775 match
-svelte/appwrite-console/src/lib/components/roles/default.svelte	mismatch
-svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createApple.svelte	mismatch
-svelte/cmsaasstarter/src/routes/(marketing)/+page.svelte	mismatch
+# svelte.format/default: 34778 match
 svelte/rsvelte-tests-formatter/typescript/plain_ts_script_ambiguous_generic_expr_formats_as_js/6f506a9c7c78c0d3.svelte	mismatch
-svelte/svelte-spa-router/examples/dynamic-imports/src/routes/Wild.svelte	mismatch
