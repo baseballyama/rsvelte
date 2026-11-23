@@ -42,8 +42,8 @@ impl Facet for TypeScriptView {
 
 #[derive(Debug)]
 pub enum TypeScriptDocument {
-    /// Not type-checked: a JavaScript document, for which upstream reports no semantic
-    /// diagnostics (`checkJs` is off). Its findings are empty.
+    /// Not type-checked: a document of another language that the projection reads as
+    /// JavaScript it does not cover. Its findings are empty.
     Unchecked,
     /// A document the language's own parser rejects: svelte-check reports only that error, with
     /// the code `-1`, instead of type checking.
