@@ -4,8 +4,8 @@
 use std::borrow::Cow;
 
 use oxc_ast::ast::{
-    Argument, CallExpression, Expression, ImportDeclarationSpecifier, Program, PropertyKey,
-    Statement, TSInterfaceDeclaration, TSSignature, TSType, TSTypeAliasDeclaration,
+    Argument, CallExpression, Expression, ImportDeclarationSpecifier, Program, Statement,
+    TSInterfaceDeclaration, TSPropertySignature, TSSignature, TSType, TSTypeAliasDeclaration,
     VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, walk};
@@ -13,8 +13,12 @@ use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, TemplateNode};
 use rsvelte_typescript_tree::node_span;
 
-use super::super::{Buffer, Builder, Node, NodeIdentifier, Range, Span};
+use super::super::{Buffer, Builder, Node, NodeIdentifier, Range, Refusal, Result, Span};
 use super::Edit;
+
+mod names;
+
+use names::{UNNAMED_EVENT, UnnamedKey};
 
 /// A component's events: how many svelte2tsx finds, the value whose type the component's events
 /// are, and whether they are svelte2tsx's `hasStrictEvents`.
@@ -54,11 +58,12 @@ impl<'a> Builder<'a> {
         &mut self,
         program: Option<&Program<'_>>,
         edits: &mut Buffer<Edit>,
-    ) -> Events {
+    ) -> Result<Events> {
         let calls = self.template_calls();
         let forwarded = self.forwarded_events();
         let mut found = Found {
             dispatcher: program.and_then(dispatcher_import),
+            top_level: program.map_or(&[], |program| &program.body),
             template: &calls,
             map: forwarded
                 .iter()
@@ -68,6 +73,12 @@ impl<'a> Builder<'a> {
         };
         if let Some(program) = program {
             found.visit_program(program);
+        }
+        if let Some(key) = found.thrown {
+            return Err(Refusal::Thrown {
+                message: UNNAMED_EVENT,
+                span: self.key_span(key),
+            });
         }
         for &at in &found.declared_typings {
             let typing = self
@@ -81,11 +92,11 @@ impl<'a> Builder<'a> {
         if let Some(count) = found.declared {
             let declared = self.tree.push(Node::Identifier("$$Events"));
             let value = self.value_of(declared);
-            return Events {
+            return Ok(Events {
                 count,
                 value,
                 strict: true,
-            };
+            });
         }
         let mut properties = Vec::new();
         for &typing in &found.typings {
@@ -114,11 +125,11 @@ impl<'a> Builder<'a> {
             properties.push(self.event_entry(name, value));
         }
         let properties = self.tree.list(&properties);
-        Events {
+        Ok(Events {
             count: found.map.len(),
             value: self.tree.push(Node::Object { properties }),
             strict: self.strict_events(),
-        }
+        })
     }
 
     /// The events value svelte2tsx's `_events(strict, render)` passes: outside `strict`, a
@@ -322,6 +333,10 @@ struct Found<'a, 't> {
     /// The property signatures of the first `$$Events`.
     declared: Option<usize>,
     dispatcher: Option<&'a str>,
+    /// The instance's top-level statements, where a bracketed key's variable is looked up.
+    top_level: &'t [Statement<'a>],
+    /// The first key svelte2tsx's `getName` cannot name an event by, where it throws.
+    thrown: Option<UnnamedKey>,
     /// The template's calls, from [`Builder::template_calls`].
     template: &'t [(&'t str, Cow<'t, str>)],
     /// Where each dispatcher creation after `$$Events` takes its type arguments.
@@ -341,26 +356,29 @@ struct Found<'a, 't> {
 
 impl<'a: 't, 't> Visit<'a> for Found<'a, 't> {
     fn visit_ts_interface_declaration(&mut self, it: &TSInterfaceDeclaration<'a>) {
-        if it.id.name == "$$Events" && self.declared.is_none() {
-            self.declared = Some(properties(&it.body.body));
+        if it.id.name == "$$Events" {
+            // svelte2tsx reads the keys of every `$$Events`.
+            let declared = self.properties(&it.body.body);
+            self.declared.get_or_insert(declared);
         }
         walk::walk_ts_interface_declaration(self, it);
     }
 
     fn visit_ts_type_alias_declaration(&mut self, it: &TSTypeAliasDeclaration<'a>) {
-        if it.id.name == "$$Events" && self.declared.is_none() {
-            self.declared = Some(match &it.type_annotation {
-                TSType::TSTypeLiteral(literal) => properties(&literal.members),
+        if it.id.name == "$$Events" {
+            let declared = match &it.type_annotation {
+                TSType::TSTypeLiteral(literal) => self.properties(&literal.members),
                 TSType::TSIntersectionType(intersection) => intersection
                     .types
                     .iter()
                     .map(|part| match part {
-                        TSType::TSTypeLiteral(literal) => properties(&literal.members),
+                        TSType::TSTypeLiteral(literal) => self.properties(&literal.members),
                         _ => 0,
                     })
                     .sum(),
                 _ => 0,
-            });
+            };
+            self.declared.get_or_insert(declared);
         }
         walk::walk_ts_type_alias_declaration(self, it);
     }
@@ -433,18 +451,31 @@ impl<'a: 't, 't> Found<'a, 't> {
                     let TSSignature::TSPropertySignature(property) = member else {
                         continue;
                     };
-                    let name = match &property.key {
-                        PropertyKey::StaticIdentifier(name) => name.name.as_str(),
-                        PropertyKey::StringLiteral(name) => match name.value.as_str() {
-                            Some(name) => name,
-                            None => continue,
-                        },
-                        _ => continue,
-                    };
-                    self.add(Cow::Borrowed(name));
+                    if let Some(name) = self.event_name(property) {
+                        self.add(Cow::Borrowed(name));
+                    }
                 }
             }
         }
+    }
+
+    /// svelte2tsx's `getName`; the first key it throws on is kept.
+    fn event_name(&mut self, property: &TSPropertySignature<'a>) -> Option<&'a str> {
+        names::event_name(self.top_level, property).unwrap_or_else(|key| {
+            self.thrown.get_or_insert(key);
+            None
+        })
+    }
+
+    /// The property signatures among `members`, which svelte2tsx reads as events.
+    fn properties(&mut self, members: &[TSSignature<'a>]) -> usize {
+        members
+            .iter()
+            .filter_map(|member| match member {
+                TSSignature::TSPropertySignature(property) => self.event_name(property),
+                _ => None,
+            })
+            .count()
     }
 
     /// svelte2tsx's `addToEvents`: an event found again is typed `CustomEvent<any>`.
@@ -467,14 +498,6 @@ impl<'a: 't, 't> Found<'a, 't> {
             self.dispatched.push(name);
         }
     }
-}
-
-/// The property signatures among `members`, which svelte2tsx reads as events.
-fn properties(members: &[TSSignature<'_>]) -> usize {
-    members
-        .iter()
-        .filter(|member| matches!(member, TSSignature::TSPropertySignature(_)))
-        .count()
 }
 
 /// The template's calls of a name with a literal first argument.
