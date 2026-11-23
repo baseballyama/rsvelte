@@ -16,12 +16,13 @@ use rsvelte_typescript_tree::node_span;
 use super::super::{Buffer, Builder, Node, NodeIdentifier, Range, Span};
 use super::Edit;
 
-/// A component's events: how many svelte2tsx finds, and the value whose type the component's
-/// events are.
+/// A component's events: how many svelte2tsx finds, the value whose type the component's events
+/// are, and whether they are svelte2tsx's `hasStrictEvents`.
 #[derive(Clone, Copy)]
 pub(in super::super) struct Events {
     count: usize,
-    pub(in super::super) value: NodeIdentifier,
+    value: NodeIdentifier,
+    pub(in super::super) strict: bool,
 }
 
 impl Events {
@@ -81,7 +82,11 @@ impl<'a> Builder<'a> {
         if let Some(count) = found.declared {
             let declared = self.tree.push(Node::Identifier("$$Events"));
             let value = self.value_of(declared);
-            return Events { count, value };
+            return Events {
+                count,
+                value,
+                strict: true,
+            };
         }
         let mut properties = Vec::new();
         for &Typing {
@@ -127,16 +132,26 @@ impl<'a> Builder<'a> {
             properties.push(self.event_entry(name, value));
         }
         let properties = self.tree.list(&properties);
-        let mut value = self.tree.push(Node::Object { properties });
-        if !self.strict_events() {
-            let callee = self.tree.push(Node::Identifier("__rsvelte_any_event"));
-            let arguments = self.tree.list(&[value]);
-            value = self.tree.push(Node::Call { callee, arguments });
-        }
         Events {
             count: found.map.len(),
-            value,
+            value: self.tree.push(Node::Object { properties }),
+            strict: self.strict_events(),
         }
+    }
+
+    /// The events value svelte2tsx's `_events(strict, render)` passes: outside `strict`, a
+    /// component also takes any event.
+    pub(in super::super) fn events_value(
+        &mut self,
+        events: Events,
+        strict: bool,
+    ) -> NodeIdentifier {
+        if strict {
+            return events.value;
+        }
+        let callee = self.tree.push(Node::Identifier("__rsvelte_any_event"));
+        let arguments = self.tree.list(&[events.value]);
+        self.tree.push(Node::Call { callee, arguments })
     }
 
     /// `__rsvelte_value<written>()`.

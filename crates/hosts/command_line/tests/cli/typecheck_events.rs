@@ -128,6 +128,51 @@ fn typecheck_types_the_events_svelte2tsx_reads_from_edge_shapes() {
     );
 }
 
+/// A generic component's events are svelte2tsx's too, strict in runes mode, and of the
+/// instance its props construct, so an event of the generic type takes the type they infer.
+/// svelte-check 4.7.8 reports these four lines.
+#[cfg(unix)]
+#[test]
+fn typecheck_types_the_events_of_a_generic_component() {
+    let dispatcher = |events: &str, value: &str| {
+        format!(
+            "<script lang=\"ts\" generics=\"T\">\n\timport {{ createEventDispatcher }} from \
+             'svelte';\n\tlet {{ value }}: {{ value: T }} = $props();\n\tconst dispatch = \
+             createEventDispatcher<{{ go: {events} }}>();\n</script>\n<button onclick={{() => \
+             dispatch('go', {value})}}>x</button>\n"
+        )
+    };
+    let fixed = dispatcher("number", "1");
+    let inferred = dispatcher("T", "value");
+    let app = "<script lang=\"ts\">\n\timport Fixed from './Fixed.svelte';\n\
+        \timport Inferred from './Inferred.svelte';\n\
+        \timport Silent from './Silent.svelte';\n</script>\n\
+        <Fixed value={1} on:go={(e) => { const s: string = e.detail; }} on:other={() => {}} />\n\
+        <Inferred value={1} on:go={(e) => { const s: string = e.detail; }} />\n\
+        <Inferred value=\"x\" on:go={(e) => { const s: string = e.detail; }} />\n\
+        <Silent value={1} on:x={() => {}} />\n";
+    let report = check(&[
+        ("src/Fixed.svelte", &fixed),
+        ("src/Inferred.svelte", &inferred),
+        (
+            "src/Silent.svelte",
+            "<script lang=\"ts\" generics=\"T\">\n\tlet { value }: { value: T } = $props();\n\
+             </script>\n<p>{value}</p>\n",
+        ),
+        ("src/App.svelte", app),
+    ]);
+    assert_eq!(
+        report,
+        "src/App.svelte(6,40): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+         src/App.svelte(6,68): error TS2345: Argument of type '\"other\"' is not assignable to \
+         parameter of type '\"go\"'.\n\
+         src/App.svelte(7,43): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+         src/App.svelte(9,22): error TS2345: Argument of type '\"x\"' is not assignable to \
+         parameter of type 'never'.\n\
+         \nFound 4 errors in 1 file.\n"
+    );
+}
+
 /// A typed dispatcher's events are read from its type, so a name the typing cannot resolve is
 /// reported once, where it is written, as svelte-check reports it: svelte2tsx's copy of the
 /// typing maps nowhere. svelte-check 4.7.8 reports these four lines.
