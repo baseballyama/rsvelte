@@ -3,12 +3,11 @@
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
     AssignmentTarget, Expression, ForStatementLeft, MemberExpression, MethodDefinitionKind,
-    Statement, VariableDeclaration,
+    VariableDeclaration,
 };
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
-use rsvelte_kernel::performance::stack::grow;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     AttributeValue, ElementKind, MetadataTag, NodeKind,
@@ -27,13 +26,13 @@ mod errors;
 mod exports;
 mod places;
 mod references;
+mod visit;
 
 use assignments::{check_assignment, fixed_expression, fixed_simple, fixed_target};
 use declarations::{check_props_pattern, imports};
 pub(in crate::lower) use errors::{script_and_template_errors, script_error};
-use places::place_of;
 
-use crate::lower::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
+use crate::lower::class_fields::{ClassFields, StateField, key_name, member_name};
 
 fn state_field_invalid_assignment<T>(span: Span) -> Result<T, Diagnostic> {
     crate::lower::invalid(
@@ -325,64 +324,6 @@ fn walk_scripts<'a>(
     walk
 }
 
-impl<'a> Visit<'a> for RuneWalk<'a> {
-    fn enter_node(&mut self, kind: AstKind<'a>) {
-        // Upstream analyzes a class body before what it holds.
-        if let AstKind::ClassBody(body) = kind {
-            let fields = class_fields(self.res, body).unwrap_or_else(|error| {
-                self.error.get_or_insert(error);
-                ClassFields::default()
-            });
-            self.classes.push(fields);
-        }
-        let (place, parent) = match self.frames.last() {
-            Some(frame) => (place_of(frame, kind), Some(frame.kind)),
-            None => (self.root, None),
-        };
-        let rune = if self.error.is_none() {
-            self.check(kind, parent, place).unwrap_or_else(|error| {
-                self.error = Some(error);
-                None
-            })
-        } else {
-            None
-        };
-        self.frames.push(Frame { kind, place, rune });
-    }
-
-    fn leave_node(&mut self, kind: AstKind<'a>) {
-        if matches!(kind, AstKind::ClassBody(_)) {
-            self.classes.pop();
-        }
-        if let AstKind::ExportDeclaration(export) = kind
-            && self.error.is_none()
-            && let Err(error) = self.check_export(export)
-        {
-            self.error = Some(error);
-        }
-        if let AstKind::ExportNamedDeclaration(export) = kind
-            && self.error.is_none()
-            && let Err(error) = self.check_specifiers(export)
-        {
-            self.error = Some(error);
-        }
-        self.frames.pop();
-    }
-
-    // Expressions nest thousands deep in real input.
-    fn visit_expression(&mut self, it: &Expression<'a>) {
-        if self.error.is_none() {
-            grow(|| oxc_ast_visit::walk::walk_expression(self, it));
-        }
-    }
-
-    fn visit_statement(&mut self, it: &Statement<'a>) {
-        if self.error.is_none() {
-            grow(|| oxc_ast_visit::walk::walk_statement(self, it));
-        }
-    }
-}
-
 /// A `bind:` target other than `this` that [`check_runes`] raises upstream's error for: a name
 /// nothing declares, or one upstream's `validate_assignment` rejects.
 pub(in crate::lower) fn rejects_binding(res: &Resolution, e: &Expression<'_>) -> bool {
@@ -487,7 +428,11 @@ impl<'a> RuneWalk<'a> {
                 );
             }
             AstKind::ImportDeclaration(import) => imports(import)?,
-            AstKind::IdentifierReference(reference) => self.check_rune_reference(reference)?,
+            AstKind::IdentifierReference(reference) => {
+                self.check_arguments(kind)?;
+                self.check_rune_reference(reference)?;
+            }
+            AstKind::BindingIdentifier(_) => self.check_arguments(kind)?,
             AstKind::CallExpression(call) => {
                 if let Some(rune) = res.rune_of_call(call) {
                     let chained = matches!(parent, Some(AstKind::ChainExpression(_)));
