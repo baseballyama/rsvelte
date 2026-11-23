@@ -21,6 +21,7 @@ mod svelte_kit;
 mod tool_plugins;
 mod typecheck;
 mod typecheck_events;
+mod typecheck_slot_attribute;
 mod typecheck_untyped;
 mod unit_names;
 
