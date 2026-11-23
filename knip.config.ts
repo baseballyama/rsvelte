@@ -32,6 +32,10 @@ export default {
 			// crates/hosts/node's test runs it with the addon it builds, not a package script.
 			entry: ['compiler.test.ts'],
 		},
+		'apps/vscode': {
+			// The extension host loads the bundle of the first, and VS Code the bundle of the last.
+			entry: ['src/extension.ts', 'test/editor/suite.ts'],
+		},
 		'tools/writing': {
 			// The spelling rule loads the dictionary by its language name.
 			ignoreDependencies: ['dictionary-en'],
