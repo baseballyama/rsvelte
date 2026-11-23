@@ -196,10 +196,21 @@ impl Builder<'_> {
         self.tree.push(Node::Call { callee, arguments })
     }
 
-    /// `__rsvelte_instance(component).$on(name, handler);` for each event.
-    pub(super) fn component_events(&mut self, component: NodeIdentifier, events: &[Range]) {
+    /// `__rsvelte_constructed(component, constructed).$on(name, handler);` for each event, where
+    /// `constructed` names the component's call.
+    pub(super) fn component_events(
+        &mut self,
+        component: NodeIdentifier,
+        constructed: NodeIdentifier,
+        events: &[Range],
+    ) {
         for &arguments in events {
-            let object = self.instance(component);
+            let callee = self.tree.push(Node::Identifier("__rsvelte_constructed"));
+            let instance = self.tree.list(&[component, constructed]);
+            let object = self.tree.push(Node::Call {
+                callee,
+                arguments: instance,
+            });
             let property = self.tree.push(Node::Identifier("$on"));
             let callee = self.tree.push(Node::Member { object, property });
             let call = self.tree.push(Node::Call { callee, arguments });

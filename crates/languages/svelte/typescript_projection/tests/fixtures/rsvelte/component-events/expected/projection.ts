@@ -16,23 +16,25 @@ function $$render() {
   async () => {
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      __rsvelte_component_0(__rsvelte_internals(), {
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         "a": n,
       });
-      __rsvelte_instance(__rsvelte_component_0).$on("click", f);
-      __rsvelte_instance(__rsvelte_component_0).$on("click", () => n++);
-      __rsvelte_instance(__rsvelte_component_0).$on("hover", h);
-      __rsvelte_instance(__rsvelte_component_0).$on("make", make());
-      __rsvelte_instance(__rsvelte_component_0).$on("bubble", () => {});
-      __rsvelte_instance(__rsvelte_component_0).$on("x-y", f);
+      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("click", f);
+      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("click", () => n++);
+      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("hover", h);
+      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("make", make());
+      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("bubble", () => {});
+      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("x-y", f);
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      __rsvelte_component_0(__rsvelte_internals(), {});
-      __rsvelte_instance(__rsvelte_component_0).$on("click", f);
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {});
+      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("click", f);
     }
   };
-  return (/** @type {typeof __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, "">} */ (__rsvelte_export_isomorphic))()({});
+  return (/** @type {typeof __rsvelte_export_isomorphic<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_isomorphic))()(__rsvelte_any_event({
+    "bubble": __sveltets_2_bubbleEventDef(__sveltets_2_instanceOf((/** @type {typeof __rsvelte_value<typeof C>} */ (__rsvelte_value))()).$$events_def, "bubble"),
+  }), {});
 }
 export const ComponentEvents__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {InstanceType<typeof ComponentEvents__SvelteComponent_>} ComponentEvents__SvelteComponent_ */

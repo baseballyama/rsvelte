@@ -2,14 +2,17 @@
 //! [`crate::features::first_runtime_feature`] found nothing to refuse in.
 
 use oxc_allocator::{Allocator, TakeIn, Vec as ArenaVec};
+use oxc_ast::Comment;
 use oxc_ast::ast::{
     ArrowFunctionExpression, CallExpression, CatchParameter, ChainElement, Class, ClassElement,
-    Declaration, ExportDefaultDeclarationKind, ExportSpecifier, Expression, FormalParameter,
-    FormalParameterRest, Function, ImportDeclarationSpecifier, MethodDefinition,
-    MethodDefinitionType, NewExpression, PropertyDefinition, PropertyDefinitionType,
-    SimpleAssignmentTarget, Statement, TaggedTemplateExpression, VariableDeclarator,
+    CommentPosition, Declaration, ExportDefaultDeclarationKind, ExportSpecifier, Expression,
+    FormalParameter, FormalParameterRest, Function, FunctionBody, ImportDeclarationSpecifier,
+    MethodDefinition, MethodDefinitionType, NewExpression, Program, PropertyDefinition,
+    PropertyDefinitionType, SimpleAssignmentTarget, Statement, TaggedTemplateExpression,
+    VariableDeclarator,
 };
-use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
+use oxc_span::{GetSpan, Span};
 use oxc_syntax::scope::ScopeFlags;
 
 /// Erases the types of every node it visits.
@@ -30,30 +33,36 @@ impl<'a> Strip<'a> {
     }
 }
 
-/// Whether erasing types removes `statement` from its list.
+/// Whether erasing types removes `statement` from its list: what TypeScript's emit removes, and
+/// an import or export whose every specifier is a type, which upstream removes as well.
 #[must_use]
 pub fn is_type_only(statement: &Statement<'_>) -> bool {
+    is_type_declaration(statement)
+        || match statement {
+            Statement::ImportDeclaration(d) => d.specifiers.as_ref().is_some_and(|specifiers| {
+                !specifiers.is_empty() && specifiers.iter().all(is_type_import)
+            }),
+            Statement::ExportNamedDeclaration(d) => d.specifiers.iter().all(is_type_export),
+            Statement::ExportFromDeclaration(d) => d.specifiers.iter().all(is_type_export),
+            _ => false,
+        }
+}
+
+/// Whether TypeScript's emit removes `statement`, which `verbatimModuleSyntax` keeps when only its
+/// specifiers are types.
+fn is_type_declaration(statement: &Statement<'_>) -> bool {
     if let Some(declaration) = statement.as_declaration() {
         return is_type_only_declaration(declaration);
     }
     match statement {
         Statement::TSNamespaceExportDeclaration(_) => true,
-        Statement::ImportDeclaration(d) => {
-            d.import_kind.is_type()
-                || d.specifiers.as_ref().is_some_and(|specifiers| {
-                    !specifiers.is_empty() && specifiers.iter().all(is_type_import)
-                })
-        }
+        Statement::ImportDeclaration(d) => d.import_kind.is_type(),
         // acorn-typescript reads `export declare …` as an export of types.
         Statement::ExportDeclaration(d) => {
             d.declaration.declare() || is_type_only_declaration(&d.declaration)
         }
-        Statement::ExportNamedDeclaration(d) => {
-            d.export_kind.is_type() || d.specifiers.iter().all(is_type_export)
-        }
-        Statement::ExportFromDeclaration(d) => {
-            d.export_kind.is_type() || d.specifiers.iter().all(is_type_export)
-        }
+        Statement::ExportNamedDeclaration(d) => d.export_kind.is_type(),
+        Statement::ExportFromDeclaration(d) => d.export_kind.is_type(),
         Statement::ExportAllDeclaration(d) => d.export_kind.is_type(),
         Statement::ExportDefaultDeclaration(d) => matches!(
             d.declaration,
@@ -74,6 +83,18 @@ fn is_type_only_declaration(declaration: &Declaration<'_>) -> bool {
         Declaration::FunctionDeclaration(f) => f.declare || f.body.is_none(),
         Declaration::ClassDeclaration(c) => c.declare,
         Declaration::TSEnumDeclaration(_) | Declaration::TSImportEqualsDeclaration(_) => false,
+    }
+}
+
+/// Whether erasing types removes `element` from its class.
+fn is_type_only_element(element: &ClassElement<'_>) -> bool {
+    match element {
+        ClassElement::TSIndexSignature(_) => true,
+        ClassElement::MethodDefinition(m) => m.value.body.is_none(),
+        ClassElement::PropertyDefinition(p) => {
+            p.declare || p.r#type != PropertyDefinitionType::PropertyDefinition
+        }
+        _ => false,
     }
 }
 
@@ -223,14 +244,7 @@ impl<'a> VisitMut<'a> for Strip<'a> {
     }
 
     fn visit_class_elements(&mut self, it: &mut ArenaVec<'a, ClassElement<'a>>) {
-        it.retain(|element| match element {
-            ClassElement::TSIndexSignature(_) => false,
-            ClassElement::MethodDefinition(m) => m.value.body.is_some(),
-            ClassElement::PropertyDefinition(p) => {
-                !p.declare && p.r#type == PropertyDefinitionType::PropertyDefinition
-            }
-            _ => true,
-        });
+        it.retain(|element| !is_type_only_element(element));
         walk_mut::walk_class_elements(self, it);
     }
 
@@ -250,5 +264,117 @@ impl<'a> VisitMut<'a> for Strip<'a> {
         it.readonly = false;
         it.r#override = false;
         walk_mut::walk_property_definition(self, it);
+    }
+}
+
+/// The comments TypeScript's emit removes with the declarations it erases.
+///
+/// That is each comment inside one, before it back to the previous token, or after it on its
+/// line. A file or a function body keeps a header: its first comments, which a blank line
+/// separates from what follows.
+#[derive(Debug, Default)]
+pub struct ErasedComments {
+    /// The erased declarations that no other erased declaration holds, in source order.
+    declarations: Vec<Span>,
+    /// The starts of the erased first statements of the file and of the function bodies.
+    bodies: Vec<u32>,
+}
+
+impl ErasedComments {
+    #[must_use]
+    pub fn new(program: &Program<'_>) -> Self {
+        let mut erased = Self::default();
+        if program.directives.is_empty() {
+            erased.body(&program.body);
+        }
+        erased.visit_program(program);
+        erased.bodies.sort_unstable();
+        erased
+    }
+
+    /// The comments of `program` that its emit keeps.
+    pub fn kept<'c>(
+        &self,
+        program: &'c Program<'_>,
+    ) -> impl Iterator<Item = &'c Comment> + use<'c, '_> {
+        let text = program.source_text;
+        let headers: Vec<Span> = (self.bodies.iter())
+            .flat_map(|&start| header(&program.comments, text, start))
+            .collect();
+        (program.comments.iter()).filter(move |c| headers.contains(&c.span) || !self.erases(c))
+    }
+
+    fn erases(&self, comment: &Comment) -> bool {
+        let inside = self
+            .declarations
+            .partition_point(|d| d.start <= comment.span.start);
+        (inside > 0 && comment.span.end <= self.declarations[inside - 1].end)
+            || match comment.position {
+                CommentPosition::Leading => self.starts(comment.attached_to),
+                CommentPosition::Trailing => (self.declarations)
+                    .binary_search_by_key(&comment.attached_to, |d| d.end)
+                    .is_ok(),
+            }
+    }
+
+    /// Notes a body whose header TypeScript would keep: one that starts with an erased statement.
+    fn body(&mut self, statements: &[Statement<'_>]) {
+        if let Some(first) = statements.first().filter(|s| is_type_declaration(s)) {
+            self.bodies.push(first.span().start);
+        }
+    }
+
+    fn starts(&self, at: u32) -> bool {
+        (self.declarations)
+            .binary_search_by_key(&at, |d| d.start)
+            .is_ok()
+    }
+}
+
+/// TypeScript's detached comments: the leading comments of the statement at `start` up to the
+/// first blank line, if a blank line follows them.
+fn header(comments: &[Comment], text: &str, start: u32) -> Vec<Span> {
+    let blank = |from: u32, to: u32| text[from as usize..to as usize].matches('\n').count() >= 2;
+    let leading = comments
+        .iter()
+        .filter(|c| c.position == CommentPosition::Leading && c.attached_to == start);
+    let mut group: Vec<Span> = Vec::new();
+    for comment in leading {
+        if group
+            .last()
+            .is_some_and(|last| blank(last.end, comment.span.start))
+        {
+            break;
+        }
+        group.push(comment.span);
+    }
+    match group.last() {
+        Some(last) if blank(last.end, start) => group,
+        _ => Vec::new(),
+    }
+}
+
+impl<'a> Visit<'a> for ErasedComments {
+    fn visit_statement(&mut self, it: &Statement<'a>) {
+        if is_type_declaration(it) {
+            self.declarations.push(it.span());
+        } else {
+            walk::walk_statement(self, it);
+        }
+    }
+
+    fn visit_class_element(&mut self, it: &ClassElement<'a>) {
+        if is_type_only_element(it) {
+            self.declarations.push(it.span());
+        } else {
+            walk::walk_class_element(self, it);
+        }
+    }
+
+    fn visit_function_body(&mut self, it: &FunctionBody<'a>) {
+        if it.directives.is_empty() {
+            self.body(&it.statements);
+        }
+        walk::walk_function_body(self, it);
     }
 }

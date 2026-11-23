@@ -209,7 +209,7 @@ function $$render() {
     __rsvelte_ensure_snippet(arrow());
     __rsvelte_ensure_snippet(typeo());
   };
-  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, { [evt: string]: CustomEvent<any> }, {}, string>} */ (__rsvelte_export_isomorphic))()({});
+  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, {}, string>} */ (__rsvelte_export_isomorphic))()(__rsvelte_any_event({}), {});
 }
 export const SnippetDefaultParentheses__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {InstanceType<typeof SnippetDefaultParentheses__SvelteComponent_>} SnippetDefaultParentheses__SvelteComponent_ */

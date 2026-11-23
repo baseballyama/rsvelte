@@ -1,0 +1,14 @@
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'GO'.",
+		"start": {
+			"line": 4,
+			"character": 23
+		},
+		"end": {
+			"line": 4,
+			"character": 25
+		}
+	}
+]

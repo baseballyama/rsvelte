@@ -1,0 +1,2 @@
+error js_parse_error 5:7-5:7 type '$$Events' has already been declared.
+    https://svelte.dev/e/js_parse_error

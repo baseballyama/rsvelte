@@ -209,7 +209,7 @@ impl Printer<'_> {
                 self.output.push(",\n");
             }
             Node::Spread { value, dots } => {
-                self.output.atom("...", dots);
+                self.output.atom_at("...", dots);
                 self.output.push("(");
                 self.node(value);
                 self.output.push("),\n");
