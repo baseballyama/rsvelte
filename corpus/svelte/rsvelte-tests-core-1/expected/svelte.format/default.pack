@@ -10230,6 +10230,13 @@ class C extends B { f = () => { super(); }; }
   }
 </style>
 
+=== 84 compile_result_legacy_ast_3295/compilation_rebuilds_legacy_comment_locations_at_the_json_boundary/3e5801f545086334.svelte	svelte
+<script>
+  // script comment
+</script>
+
+<button /* attribute comment */>ok</button>
+
 === 182 compile_result_legacy_ast_3295/compilation_rebuilds_legacy_expression_locations_at_the_json_boundary/97783ac0a4553537.svelte	svelte
 {#each items as item}{item}{@const local =
     item +

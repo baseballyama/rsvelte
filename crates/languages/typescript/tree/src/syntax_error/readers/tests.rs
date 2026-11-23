@@ -18,7 +18,7 @@ fn throws(reader: Reader, text: &str) -> Option<bool> {
     reader.throws(&tree, program, &errors, &tokens)
 }
 
-// What Prettier 3.9.10 does with each sample, with its `typescript` and `babel-ts` parsers.
+// What Prettier 3.10.1 does with each sample, with its `typescript` and `babel-ts` parsers.
 const SAMPLES: [(&str, bool, Option<bool>); 35] = [
     ("let x = 1;\nreturn x;", false, Some(false)),
     ("class A { x = await f(); }", false, Some(true)),
@@ -70,14 +70,14 @@ const SAMPLES: [(&str, bool, Option<bool>); 35] = [
     ("type T<number> = number;", false, Some(false)),
     ("class C { constructor(this: C) {} }", false, Some(false)),
     ("class C { private #a = 1; }", false, Some(true)),
-    ("let a!: number = 1;", true, Some(false)),
-    ("let a!;", true, Some(false)),
+    ("let a!: number = 1;", true, Some(true)),
+    ("let a!;", true, Some(true)),
     ("declare function* f(): any;", true, Some(false)),
     ("class C { declare accessor a; }", false, Some(false)),
     ("class C { static abstract m(); }", false, Some(true)),
 ];
 
-// What Prettier 3.9.10's `babel-ts` does with each pair of modifiers that tsc reports as 1243 (or
+// What Prettier 3.10.1's `babel-ts` does with each pair of modifiers that tsc reports as 1243 (or
 // 1040), in either order.
 const MODIFIER_PAIRS: [(&str, bool); 12] = [
     ("class C { accessor declare a; }", true),
