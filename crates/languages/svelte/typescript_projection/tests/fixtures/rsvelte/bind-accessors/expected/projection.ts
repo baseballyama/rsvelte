@@ -27,7 +27,7 @@ function $$render() {
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      __rsvelte_component_0(__rsvelte_internals(), {
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         "a": 1,
         "value": __rsvelte_get_set(() => v, (x) => (v = x)),
         ...(rest),
@@ -47,7 +47,7 @@ function $$render() {
       }
       {
         const __rsvelte_component_0 = __rsvelte_component(C);
-        __rsvelte_component_0(__rsvelte_internals(), {
+        const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
           children: __rsvelte_children,
           "open": __rsvelte_get_set(() => v, (x) => (v = x)),
         });

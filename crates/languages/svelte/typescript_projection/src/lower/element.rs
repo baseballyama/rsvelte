@@ -96,11 +96,9 @@ impl Builder<'_> {
                     || !directives.bindable.is_empty()
                     || !directives.lets.is_empty()
                     || self.fills_slot_with_lets(children),
-                // The `$on` calls read the instance the call constructs.
-                !directives.events.is_empty()
-                    || bindings
-                        .iter()
-                        .any(|b| matches!(b, binding::Binding::This { .. })),
+                bindings
+                    .iter()
+                    .any(|b| matches!(b, binding::Binding::This { .. })),
             )
         } else if slot {
             (
@@ -119,14 +117,26 @@ impl Builder<'_> {
                 None,
             )
         };
-        let lets = self.after_call(call, named, bindings, snippets, &directives);
+        let (lets, instance) = self.after_call(call, named, bindings, snippets, &directives);
+        let slot_let = directives.slot_let.take();
         self.directives = directives;
         self.class_expressions(attributes);
-        let parent = std::mem::replace(&mut self.slot_parent, named);
+        let parent = std::mem::replace(&mut self.slot_parent, instance);
         let component_parent = std::mem::replace(&mut self.component_parent, is_component);
         self.element_children(children, snippet_props, lets)?;
         self.slot_parent = parent;
         self.component_parent = component_parent;
+        Ok(self.close_element(start, end_name, slot_let))
+    }
+
+    /// The element's block from `start`, after its end tag's name, inside a block that reads the
+    /// filled slot's `let:` first.
+    fn close_element(
+        &mut self,
+        start: usize,
+        end_name: Option<Span>,
+        slot_let: Option<NodeIdentifier>,
+    ) -> NodeIdentifier {
         if let Some(end_name) = end_name {
             let name = self.source(
                 oxc_span::Span::new(end_name.start_offset, end_name.end_offset),
@@ -135,7 +145,16 @@ impl Builder<'_> {
             self.scratch.push(self.tree.push(Node::Statement(name)));
         }
         let body = self.finish_list(start);
-        Ok(self.tree.push(Node::Block { body }))
+        let block = self.tree.push(Node::Block { body });
+        // svelte2tsx reads the filled slot's `let:` in a block around the element's, where no name
+        // the element declares shadows its parent's.
+        match slot_let {
+            Some(slot_let) => {
+                let body = self.tree.list(&[slot_let, block]);
+                self.tree.push(Node::Block { body })
+            }
+            None => block,
+        }
     }
 
     /// The call with what svelte2tsx writes around it: actions before, then bindings, directive
@@ -147,18 +166,20 @@ impl Builder<'_> {
         bindings: Vec<binding::Binding>,
         snippets: Range,
         directives: &directive::Directives,
-    ) -> Option<usize> {
-        self.scratch.extend(directives.slot_let);
+    ) -> (Option<usize>, Option<directive::Constructed>) {
         self.scratch.extend_from_slice(&directives.actions);
-        let constructed = self.bound_call(call, bindings, !directives.events.is_empty());
+        let call = self.bound_call(call, bindings, named.is_some());
+        let instance = named
+            .zip(call)
+            .map(|(component, call)| directive::Constructed { component, call });
         if let Some(component) = named {
             self.bindable_checks(component, &directives.bindable);
         }
         self.scratch.extend_from_slice(&directives.checks);
-        let component = named?;
-        if let Some(constructed) = constructed {
-            self.component_events(component, constructed, &directives.events);
-        }
+        let (Some(component), Some(instance)) = (named, instance) else {
+            return (None, None);
+        };
+        self.component_events(instance, &directives.events);
         if snippets.len != 0 {
             let declaration = self.tree.push(Node::SnippetNames {
                 names: snippets,
@@ -167,8 +188,8 @@ impl Builder<'_> {
             self.scratch.push(declaration);
         }
         let lets = self.scratch.len();
-        self.component_lets(component, &directives.lets);
-        (self.scratch.len() > lets).then_some(lets)
+        self.component_lets(instance, &directives.lets);
+        ((self.scratch.len() > lets).then_some(lets), Some(instance))
     }
 
     /// The expressions of `class:` directives, which svelte2tsx checks after the call.
