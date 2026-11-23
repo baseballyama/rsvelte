@@ -54,7 +54,7 @@ const TYPED: &str = "src/Page.svelte(7,24): error TS2322: Type 'string' is not a
 /// The expected lines are svelte-check 4.7.8's.
 #[cfg(unix)]
 #[test]
-fn typecheck_reads_a_package_javascript_component_as_untyped_beside_allow_js() {
+fn typecheck_reads_a_package_javascript_component_as_untyped_where_javascript_is_allowed() {
     let project = project("");
     let output = project.rsvelte_in("app", &["typecheck"]);
     let linked = project.0.join("dep/src/Annotated.svelte");
@@ -73,7 +73,7 @@ fn typecheck_reads_a_package_javascript_component_as_untyped_beside_allow_js() {
 /// typed as the local one is. The expected lines are svelte-check 4.7.8's.
 #[cfg(unix)]
 #[test]
-fn typecheck_loads_a_package_javascript_component_within_max_node_module_js_depth() {
+fn typecheck_loads_a_package_javascript_component_within_the_node_module_javascript_depth() {
     let project = project(r#","maxNodeModuleJsDepth":1"#);
     let output = project.rsvelte_in("app", &["typecheck"]);
     assert_eq!(
