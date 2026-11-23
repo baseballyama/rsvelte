@@ -4,7 +4,7 @@ use oxc_parser::Parser;
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex};
 
-use super::{Comments, emit_with, print};
+use super::{Comments, emit_after, emit_with, print};
 
 /// The generated offset of every token the printer maps, by an index of the printed text.
 fn indexed(source: &str) -> (Vec<u32>, Vec<u32>) {
@@ -83,4 +83,28 @@ fn each_print_owns_exactly_its_output() {
         )
     );
     assert_eq!(second.capacity(), second.len());
+}
+
+#[test]
+fn a_head_is_written_before_the_program_and_moves_every_mapping_past_it() {
+    let source = "let a = 1;\nf(a);\n";
+    let allocator = Allocator::default();
+    let program = Parser::new(&allocator, source, SourceType::mjs())
+        .parse()
+        .program;
+    let lines = LineIndex::new(source);
+    let bare = emit_with(&program, Some(&lines), Comments::Attached);
+    let head = ["/* a", " */\n"];
+    let headed = emit_after(&head, &program, Some(&lines), Comments::Attached);
+    assert_eq!(headed.out, format!("/* a */\n{}", bare.out));
+    assert!(!bare.mappings.is_empty());
+    let moved = |e: &rsvelte_kernel::output::emitter::Emitter| -> Vec<(u32, u32)> {
+        (e.mappings.iter())
+            .map(|m| (m.generated, m.source_text))
+            .collect()
+    };
+    let expected: Vec<_> = moved(&bare).into_iter().map(|(g, s)| (g + 8, s)).collect();
+    assert_eq!(moved(&headed), expected);
+    let unmapped = emit_after(&head, &program, None, Comments::Attached);
+    assert_eq!(unmapped.out, headed.out);
 }
