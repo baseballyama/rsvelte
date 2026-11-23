@@ -1,6 +1,6 @@
 # Upstream issues
 
-These are the behaviors of eslint-plugin-svelte 3.23.1 rules that this crate does not reproduce.
+These are the behaviors of eslint-plugin-svelte 3.24.1 rules that this crate does not reproduce.
 Each entry is a candidate issue for eslint-plugin-svelte and names the test that holds this crate's
 behavior. ESLint with svelte-eslint-parser gave the upstream output (`oracle lint-cases`), and
 `svelte/compiler`'s `parse` gave the decoded values. Issue
@@ -480,13 +480,14 @@ below is in a `+page.svelte` of a Kit 2 project whose `<script>` imports `resolv
 | `{#each [...front, resolve('/b')] as href}` with `const front = [resolve('/a')]` | reports  | allows     |
 | `{#each nav.groups as group}{#each group.links as { href }}` over literals       | reports  | allows     |
 
-Upstream reads a variable's initializer whatever the code writes to it later, so the first three
-miss `/x`. This crate reads a literal only when nothing reassigns the variable, writes through a
-member or passes it to a call other than a navigation or `resolve()`. Upstream marks each
-identifier node it resolves and never resolves it again in the same URL, so a value reached
-twice, as through both branches of the conditional, is unresolved the second time. It also takes
-a canonical index only on an array literal, rejects a spread in the array an `{#each}` iterates
-and does not resolve an `{#each}` item's members. This crate reads all four.
+Upstream reads the value a variable starts with, whatever the code writes to it later, so the
+first three miss `/x`. This crate reads a literal only when nothing reassigns the variable, writes
+through a member or passes it to a call other than a navigation or `resolve()`. Upstream marks
+each identifier node it resolves and never resolves it again in the same link address.
+So upstream does not resolve a value it reaches twice, as through both branches of the
+conditional, the second time. It also takes a canonical index only on an array literal, rejects
+a spread in the array an `{#each}` iterates and does not resolve an `{#each}` item's members.
+This crate reads all four.
 Tests in `rules/no_navigation_without_resolve/tests.rs`:
 `an_href_whose_values_are_not_all_known_to_come_from_resolve_is_reported`,
 `values_that_refer_to_themselves_end`,
