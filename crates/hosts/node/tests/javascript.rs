@@ -5,32 +5,35 @@ use std::path::{Path, PathBuf};
 use std::process::Command;
 
 /// The addon, built now: cargo builds a cdylib for no test, and an older one would pass stale code.
+/// cargo's report of the build names the file, wherever the build directory puts it.
 fn addon() -> PathBuf {
     let mut build = Command::new(env!("CARGO"));
-    build.args(["build", "--offline", "--package", "rsvelte_node"]);
+    build.args([
+        "build",
+        "--offline",
+        "--package",
+        "rsvelte_node",
+        "--message-format=json-render-diagnostics",
+    ]);
     if !cfg!(debug_assertions) {
         build.arg("--release");
     }
-    let status = build.status().expect("run cargo");
+    let output = build.output().expect("run cargo");
     assert!(
-        status.success(),
+        output.status.success(),
         "cargo build --package rsvelte_node failed"
     );
-    let name = if cfg!(windows) {
-        "rsvelte_node.dll"
-    } else if cfg!(target_os = "macos") {
-        "librsvelte_node.dylib"
-    } else {
-        "librsvelte_node.so"
-    };
-    let test = std::env::current_exe().expect("the test's path");
-    let addon = test
-        .parent()
-        .and_then(Path::parent)
-        .expect("target/<profile>/deps/<test>")
-        .join(name);
-    assert!(addon.is_file(), "{} is missing", addon.display());
-    addon
+    let extension = std::env::consts::DLL_SUFFIX;
+    String::from_utf8_lossy(&output.stdout)
+        .lines()
+        .filter(|line| {
+            line.contains("\"reason\":\"compiler-artifact\"")
+                && line.contains("\"name\":\"rsvelte_node\"")
+        })
+        .flat_map(|line| line.split('"'))
+        .find(|field| field.ends_with(extension))
+        .map(PathBuf::from)
+        .expect("cargo reports the addon it built")
 }
 
 #[test]
