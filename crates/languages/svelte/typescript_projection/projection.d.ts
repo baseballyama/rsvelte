@@ -31,6 +31,8 @@ type __rsvelte_event_of<Events, K> = [K] extends [keyof Events] ? Events[K] : Ev
 declare function __rsvelte_element_event<K extends string>(event: K): __rsvelte_event_of<HTMLElementEventMap, K>;
 declare function __rsvelte_window_event<K extends string>(event: K): __rsvelte_event_of<HTMLBodyElementEventMap, K>;
 declare function __rsvelte_body_event<K extends string>(event: K): __rsvelte_event_of<WindowEventMap, K>;
+// The events map a typed dispatcher was created with.
+type __rsvelte_dispatcher_events<Dispatcher> = Dispatcher extends import('svelte').EventDispatcher<infer Events> ? Events : never;
 // As svelte2tsx's `__sveltets_2_with_any_event`: a component without `strictEvents` takes any event too.
 declare function __rsvelte_any_event<Events>(events: Events): Events & { [evt: string]: CustomEvent<any> };
 // What a render function returns, or `Unrendered` when a hole closes it before its return: svelte2tsx's helpers then make the component of their constraints.
