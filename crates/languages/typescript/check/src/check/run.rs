@@ -9,6 +9,7 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Project, Session};
+use untyped::{UntypedDocuments, UntypedJavaScript};
 
 use super::{Tsc, TypeScriptEnv};
 use crate::type_checker::{CONTRACT, TypeChecker};
@@ -132,10 +133,22 @@ impl Tsc {
         // The project's own root files, as its tsconfig selects them; the overlay keeps them.
         let mut own = base_project(&mut session, base.as_deref(), req, &overlay, &mut layer)
             .map_err(failed)?;
+        // Where only a package's JavaScript is untyped, the components a search of
+        // `node_modules` finds.
+        let external = match base.as_deref() {
+            Some(base) if own.untyped == UntypedJavaScript::Packages => {
+                let selection = || untyped::selection(req, &overlay, base, &store);
+                untyped::external(&mut session, &mut layer, selection, req, &own.roots, &paths)
+                    .map_err(failed)?
+            }
+            _ => Vec::new(),
+        };
+        let store = mapped::untyped_store(req, &root, &paths, &external, store)?;
         let mut roots = std::mem::take(&mut own.roots);
         own.script_modules =
             own.node_resolution && script_module::add(&mut layer, &roots, &paths, req);
-        if own.untyped {
+        let all_untyped = own.untyped == UntypedJavaScript::All;
+        if all_untyped {
             let declaration = untyped::options_declaration(&overlay);
             roots.push(declaration.0.clone());
             layer.files.insert(declaration.0, declaration.1);
@@ -157,12 +170,12 @@ impl Tsc {
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
         // Where an untyped import is reported, the checker resolves each import, and a project
         // beside the overlay names the files the tsconfig selects.
-        let selection = (base.as_deref().filter(|_| own.untyped)).map(|base| {
+        let selection = (base.as_deref().filter(|_| all_untyped)).map(|base| {
             let (path, text) = untyped::selection(req, &overlay, base, &store);
             layer.files.insert(path.clone(), text);
             path
         });
-        let resolve = own.untyped.then_some((req, paths.as_slice()));
+        let resolve = (all_untyped || !external.is_empty()).then_some((req, paths.as_slice()));
         let checked = check_shares(
             &mut session,
             helpers,
@@ -174,7 +187,11 @@ impl Tsc {
         )
         .map_err(failed)?;
         // The session ends when it drops, which frees the snapshot with the process.
-        let diagnostics = self.findings(req, checked, &paths)?;
+        let untyped = UntypedDocuments {
+            all: all_untyped,
+            external,
+        };
+        let diagnostics = self.findings(req, checked, &paths, &untyped)?;
         Ok(Report { diagnostics, root })
     }
 
@@ -184,15 +201,21 @@ impl Tsc {
         req: &CheckRequest<'_>,
         checked: Checked,
         paths: &[PathBuf],
+        untyped_documents: &UntypedDocuments,
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
         let [program, syntactic, semantic] = checked.found;
         let index = path_index(paths);
-        let untyped = untyped::imports(req, &checked.modules, &index);
+        let is_untyped = |file: usize| untyped_documents.is(req, file);
+        let untyped = untyped::imports(req, &checked.modules, &index, &is_untyped);
         // Where JavaScript is untyped, TypeScript loads no JavaScript file the tsconfig does not
         // select, whatever imports it. A document the program does not reach at all is one the
-        // run was given, which svelte-check checks as a root.
-        let unloaded =
-            |file: usize| untyped::javascript(req, file) && checked.reached.contains(&paths[file]);
+        // run was given, which svelte-check checks as a root. Nor does it load a component a
+        // search of `node_modules` finds beyond `maxNodeModuleJsDepth`.
+        let unloaded = |file: usize| {
+            untyped::javascript(req, file)
+                && (untyped_documents.all && checked.reached.contains(&paths[file])
+                    || untyped_documents.external(file))
+        };
         let lines: Vec<LineIndex> = (0..req.files.len())
             .map(|i| LineIndex::new(req.text(i)))
             .collect();
@@ -467,9 +490,9 @@ struct BaseProject {
     roots: Vec<PathBuf>,
     /// `compilerOptions.paths`, which the overlay's own `paths` would otherwise replace.
     paths: Vec<(String, Vec<PathBuf>)>,
-    /// Whether the options make an import of JavaScript untyped. Without a tsconfig,
+    /// Which imports of JavaScript the options make untyped. Without a tsconfig,
     /// `noImplicitAny` is off and such an import stays quiet.
-    untyped: bool,
+    untyped: UntypedJavaScript,
     /// Whether modules resolve as `node16` or `nodenext` do.
     node_resolution: bool,
     /// Whether the file layer holds a declaration of a script module, such as `x.d.svelte.ts`.
@@ -498,7 +521,7 @@ fn base_project(
     let project = projects.next().ok_or("the checker opened no project")?;
     let untyped = match projects.next() {
         Some(probe) => untyped::reported(session, &probe, overlay)?,
-        None => false,
+        None => UntypedJavaScript::None,
     };
     session.release(project.snapshot)?;
     Ok(BaseProject {
