@@ -225,3 +225,27 @@ fn an_await_in_a_derived_needs_experimental_async() {
         .collect();
     assert_eq!(codes, [("experimental_async", 26)]);
 }
+
+#[test]
+fn a_typescript_module_drops_the_comments_its_emit_erases_with_a_declaration() {
+    // svelte 5.57.3's `compileModule` of TypeScript 6.0's `transpileModule` output: comments go
+    // with an erased declaration, an erased class member and an erased statement's line, while a
+    // function body's detached header and a comment before a kept import stay.
+    let module = "// header\n\n// lead h\ninterface H {}\nexport const z = 0;\n\
+        type B = 1; // trail\n//\n// MULTIPLE\n//\n\ninterface A extends H {}\n\n\
+        export class C {\n\t// member\n\tdeclare x: number;\n\t// kept\n\ty = 1;\n}\n\
+        export function f() {\n\t// body header\n\n\ttype T = 1;\n\treturn z;\n}\n\
+        // before import\nimport { type D } from './d';\nexport const y = 1;\n";
+    for target in [Target::Client, Target::Server] {
+        let javascript = compile("a.svelte.ts", module, target);
+        let comments: Vec<&str> = (javascript.lines())
+            .map(str::trim)
+            .filter(|line| line.starts_with("//"))
+            .collect();
+        assert_eq!(
+            comments,
+            ["// kept", "// body header", "// before import"],
+            "{target:?}:\n{javascript}"
+        );
+    }
+}
