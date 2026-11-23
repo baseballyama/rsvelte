@@ -145,7 +145,8 @@
 
 === 0 src/routes/examples/hello-world/App.svelte	lint.txt
 
-=== 318 src/routes/examples/layer-events/App.svelte	lint.txt
+=== 527 src/routes/examples/layer-events/App.svelte	lint.txt
+5:7 5:12 svelte/valid-compile "`balls` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:21 18:47 svelte/max-attributes-per-line "'style' should be on a new line."
 18:21 18:47 svelte/sort-attributes "Attribute 'style' should go before 'layerEvents'."
 20:19 20:22 svelte/max-attributes-per-line "'x' should be on a new line."

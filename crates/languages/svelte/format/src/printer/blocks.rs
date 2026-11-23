@@ -148,12 +148,13 @@ impl Printer<'_, '_, '_> {
         let branch = |r: rsvelte_svelte_syntax::syntax_tree::Range| {
             r.present().map_or(&[][..], |r| c.children(r))
         };
+        // An empty `{:catch}` stays: without one, Svelte rethrows the rejection.
+        let has_catch = catch.present().is_some();
         let (pending, then, catch) = (branch(pending), branch(then), branch(catch));
         let has = |p: &Self, children: &[TemplateNodeIdentifier]| {
             children.iter().any(|&n| !p.is_empty_text(n))
         };
-        let (has_pending, has_then, has_catch) =
-            (has(self, pending), has(self, then), has(self, catch));
+        let (has_pending, has_then) = (has(self, pending), has(self, then));
         let mut block = Vec::new();
         let open = self.lit("{#await ");
         let e = self.expression(expression, true, false)?;

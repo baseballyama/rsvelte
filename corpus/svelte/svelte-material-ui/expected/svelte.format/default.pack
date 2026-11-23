@@ -307,7 +307,7 @@
   {/if}
 </div>
 
-=== 7018 packages/accordion/src/Panel.svelte	svelte
+=== 7022 packages/accordion/src/Panel.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -549,8 +549,10 @@
   onSMUIAccordionHeaderActivate={(e) => {
     handleHeaderActivate(e);
     restProps.onSMUIAccordionHeaderActivate?.(e);
-  }}>{@render children?.()}</Paper
+  }}
 >
+  {@render children?.()}
+</Paper>
 
 === 15468 packages/autocomplete/src/Autocomplete.svelte	svelte
 <svelte:options runes />
@@ -2070,7 +2072,7 @@
   {@render children?.()}
 </div>
 
-=== 1403 packages/bottom-app-bar/src/Section.svelte	svelte
+=== 1407 packages/bottom-app-bar/src/Section.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -2131,10 +2133,12 @@
   color={$color}
   variant="unelevated"
   square
-  {...restProps}>{@render children?.()}</Paper
+  {...restProps}
 >
+  {@render children?.()}
+</Paper>
 
-=== 5790 packages/button/src/Button.svelte	svelte
+=== 5780 packages/button/src/Button.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -2349,11 +2353,10 @@
     handleClick();
     restProps.onclick?.(e);
   }}
-  ><div class="mdc-button__ripple"></div>
-  {@render children?.()}{#if touch}<div
-      class="mdc-button__touch"
-    ></div>{/if}</MyComponent
 >
+  <div class="mdc-button__ripple"></div>
+  {@render children?.()}{#if touch}<div class="mdc-button__touch"></div>{/if}
+</MyComponent>
 
 === 1204 packages/button/src/Group.svelte	svelte
 <svelte:options runes />
@@ -2410,7 +2413,7 @@
   {@render children?.()}
 </div>
 
-=== 789 packages/card/src/ActionButtons.svelte	svelte
+=== 793 packages/card/src/ActionButtons.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -2442,10 +2445,12 @@
   _smuiClass="mdc-card__action-buttons"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 787 packages/card/src/ActionIcons.svelte	svelte
+=== 791 packages/card/src/ActionIcons.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -2477,8 +2482,10 @@
   _smuiClass="mdc-card__action-icons"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 1254 packages/card/src/Actions.svelte	svelte
 <svelte:options runes />
@@ -2596,7 +2603,7 @@
   {@render children?.()}
 </div>
 
-=== 783 packages/card/src/Content.svelte	svelte
+=== 787 packages/card/src/Content.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -2628,8 +2635,10 @@
   _smuiClass="smui-card__content"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 1143 packages/card/src/Media.svelte	svelte
 <svelte:options runes />
@@ -2685,7 +2694,7 @@
   {@render children?.()}
 </div>
 
-=== 788 packages/card/src/MediaContent.svelte	svelte
+=== 792 packages/card/src/MediaContent.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -2717,8 +2726,10 @@
   _smuiClass="mdc-card__media-content"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 2483 packages/card/src/PrimaryAction.svelte	svelte
 <svelte:options runes />
@@ -3258,7 +3269,7 @@
   <div class="mdc-checkbox__ripple"></div>
 </div>
 
-=== 11276 packages/chip-input/src/ChipInput.svelte	svelte
+=== 11285 packages/chip-input/src/ChipInput.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -3634,9 +3645,9 @@
           restProps.chip$onSMUIChipRemoval?.(e);
         }}
       >
-        <ChipText {...prefixFilter(restProps, "chipText$")}
-          >{getChipLabel(chip)}</ChipText
-        >
+        <ChipText {...prefixFilter(restProps, "chipText$")}>
+          {getChipLabel(chip)}
+        </ChipText>
         <TrailingAction {...prefixFilter(restProps, "chipTrailingAction$")}>
           {@render chipTrailingAction?.()}
         </TrailingAction>
@@ -3677,8 +3688,9 @@
         <FloatingLabel
           bind:this={floatingLabel}
           {...prefixFilter(restProps, "label$")}
-          >{@render labelSnippet?.()}</FloatingLabel
         >
+          {@render labelSnippet?.()}
+        </FloatingLabel>
       {/snippet}
       <Input
         bind:this={input}
@@ -4639,7 +4651,7 @@
   {/each}
 </div>
 
-=== 1379 packages/chips/src/LeadingIcon.svelte	svelte
+=== 1383 packages/chips/src/LeadingIcon.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -4693,10 +4705,12 @@
     ...$leadingIconClasses,
     [className]: true,
   })}
-  {...restProps}>{@render children?.()}</i
+  {...restProps}
 >
+  {@render children?.()}
+</i>
 
-=== 4386 packages/chips/src/Text.svelte	svelte
+=== 4391 packages/chips/src/Text.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -4841,9 +4855,9 @@
   {...prefixFilter(restProps, "container$")}
 >
   {#if $nonInteractive}
-    <span class="mdc-chip__text" {...prefixFilter(restProps, "text$")}
-      >{@render children?.()}</span
-    >
+    <span class="mdc-chip__text" {...prefixFilter(restProps, "text$")}>
+      {@render children?.()}
+    </span>
   {:else}
     <span
       bind:this={primaryAction}
@@ -4857,14 +4871,15 @@
       {...roleProps}
       {...internalAttrs}
       {...exclude(restProps, ["checkmark$", "container$", "text$"])}
-      ><span class="mdc-chip__text" {...prefixFilter(restProps, "text$")}
-        >{@render children?.()}</span
-      ></span
     >
+      <span class="mdc-chip__text" {...prefixFilter(restProps, "text$")}>
+        {@render children?.()}
+      </span>
+    </span>
   {/if}
 </span>
 
-=== 5932 packages/chips/src/TrailingAction.svelte	svelte
+=== 5940 packages/chips/src/TrailingAction.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -5101,11 +5116,13 @@
       "mdc-deprecated-chip-trailing-action__icon": true,
       [icon$class]: true,
     })}
-    {...prefixFilter(restProps, "icon$")}>{@render children?.()}</span
+    {...prefixFilter(restProps, "icon$")}
   >
+    {@render children?.()}
+  </span>
 </button>
 
-=== 1004 packages/chips/src/TrailingIcon.svelte	svelte
+=== 1012 packages/chips/src/TrailingIcon.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -5147,8 +5164,10 @@
       "mdc-chip__icon--trailing": true,
       [className]: true,
     })}
-    {...restProps}>{@render children?.()}</i
+    {...restProps}
   >
+    {@render children?.()}
+  </i>
 </span>
 
 === 6631 packages/circular-progress/src/CircularProgress.svelte	svelte
@@ -5405,7 +5424,7 @@
   </div>
 </div>
 
-=== 2146 packages/common/src/CommonIcon.svelte	svelte
+=== 2150 packages/common/src/CommonIcon.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts" generics="TagName extends SmuiEveryElement = 'i'">
@@ -5485,10 +5504,12 @@
   })}
   aria-hidden="true"
   {...svg ? { focusable: "false", tabindex: "-1" } : {}}
-  {...restProps}>{@render children?.()}</MyComponent
+  {...restProps}
 >
+  {@render children?.()}
+</MyComponent>
 
-=== 2249 packages/common/src/CommonLabel.svelte	svelte
+=== 2253 packages/common/src/CommonLabel.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts" generics="TagName extends SmuiEveryElement = 'span'">
@@ -5565,8 +5586,10 @@
   })}
   {...context === "snackbar" ? { "aria-atomic": "false" } : {}}
   {tabindex}
-  {...restProps}>{@render children?.()}</MyComponent
+  {...restProps}
 >
+  {@render children?.()}
+</MyComponent>
 
 === 602 packages/common/src/ContextFragment.svelte	svelte
 <svelte:options runes />
@@ -5602,7 +5625,7 @@
 
 {@render children?.()}
 
-=== 1559 packages/common/src/SmuiElement.svelte	svelte
+=== 1567 packages/common/src/SmuiElement.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts" generics="TagName extends SmuiEveryElement">
@@ -5661,9 +5684,9 @@
 </script>
 
 {#if tag === "svg"}
-  <svg bind:this={element} use:useActions={use} {...restProps}
-    >{@render children?.()}</svg
-  >
+  <svg bind:this={element} use:useActions={use} {...restProps}>
+    {@render children?.()}
+  </svg>
 {:else if selfClosing}
   <svelte:element
     this={tag}
@@ -5676,8 +5699,10 @@
     this={tag}
     bind:this={element}
     use:useActions={use}
-    {...restProps}>{@render children?.()}</svelte:element
+    {...restProps}
   >
+    {@render children?.()}
+  </svelte:element>
 {/if}
 
 === 879 packages/common/src/Svg.svelte	svelte
@@ -5716,11 +5741,11 @@
   }
 </script>
 
-<svg bind:this={element} use:useActions={use} {...restProps}
-  >{@render children?.()}</svg
->
+<svg bind:this={element} use:useActions={use} {...restProps}>
+  {@render children?.()}
+</svg>
 
-=== 2902 packages/common/src/classadder/ClassAdder.svelte	svelte
+=== 2906 packages/common/src/classadder/ClassAdder.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -5843,10 +5868,12 @@
     [className]: true,
   })}
   {..._smuiProps}
-  {...restProps}>{@render children?.()}</MyComponent
+  {...restProps}
 >
+  {@render children?.()}
+</MyComponent>
 
-=== 2792 packages/data-table/src/Body.svelte	svelte
+=== 2796 packages/data-table/src/Body.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -5952,10 +5979,12 @@
     "mdc-data-table__content": true,
     [className]: true,
   })}
-  {...restProps}>{@render children?.()}</tbody
+  {...restProps}
 >
+  {@render children?.()}
+</tbody>
 
-=== 6440 packages/data-table/src/Cell.svelte	svelte
+=== 6451 packages/data-table/src/Cell.svelte	svelte
 <svelte:options runes />
 
 <script module lang="ts">
@@ -6152,7 +6181,8 @@
       }
       restProps.onchange?.(e);
     }}
-    >{#if sortable}
+  >
+    {#if sortable}
       <div class="mdc-data-table__header-cell-wrapper">
         {@render children?.()}
         <div
@@ -6167,8 +6197,8 @@
             : ""}
         </div>
       </div>
-    {:else}{@render children?.()}{/if}</th
-  >
+    {:else}{@render children?.()}{/if}
+  </th>
 {:else}
   <td
     bind:this={element}
@@ -6187,8 +6217,10 @@
         notifyBodyChange(e);
       }
       restProps.onchange?.(e);
-    }}>{@render children?.()}</td
+    }}
   >
+    {@render children?.()}
+  </td>
 {/if}
 
 === 13822 packages/data-table/src/DataTable.svelte	svelte
@@ -6789,9 +6821,9 @@
   }
 </script>
 
-<thead bind:this={element} use:useActions={use} {...restProps}
-  >{@render children?.()}</thead
->
+<thead bind:this={element} use:useActions={use} {...restProps}>
+  {@render children?.()}
+</thead>
 
 === 2421 packages/data-table/src/Pagination.svelte	svelte
 <svelte:options runes />
@@ -6898,7 +6930,7 @@
   </div>
 </div>
 
-=== 4885 packages/data-table/src/Row.svelte	svelte
+=== 4889 packages/data-table/src/Row.svelte	svelte
 <svelte:options runes />
 
 <script module lang="ts">
@@ -7076,10 +7108,12 @@
       notifyRowClick(e);
     }
     restProps.onclick?.(e);
-  }}>{@render children?.()}</tr
+  }}
 >
+  {@render children?.()}
+</tr>
 
-=== 946 packages/dialog/src/Actions.svelte	svelte
+=== 950 packages/dialog/src/Actions.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -7117,10 +7151,12 @@
   }}
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 798 packages/dialog/src/CloseTooltipWrapper.svelte	svelte
+=== 802 packages/dialog/src/CloseTooltipWrapper.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -7152,10 +7188,12 @@
   _smuiClass="mdc-dialog__close-tooltip-wrapper"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 784 packages/dialog/src/Content.svelte	svelte
+=== 788 packages/dialog/src/Content.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -7187,8 +7225,10 @@
   _smuiClass="mdc-dialog__content"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 13169 packages/dialog/src/Dialog.svelte	svelte
 <svelte:options runes />
@@ -7672,7 +7712,7 @@
 
 {@render over?.()}
 
-=== 856 packages/dialog/src/Header.svelte	svelte
+=== 860 packages/dialog/src/Header.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -7707,10 +7747,12 @@
   }}
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 1030 packages/dialog/src/Title.svelte	svelte
+=== 1034 packages/dialog/src/Title.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -7751,10 +7793,12 @@
   _smuiClass="mdc-dialog__title"
   tag="h2"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 787 packages/drawer/src/AppContent.svelte	svelte
+=== 791 packages/drawer/src/AppContent.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -7786,10 +7830,12 @@
   _smuiClass="mdc-drawer-app-content"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 784 packages/drawer/src/Content.svelte	svelte
+=== 788 packages/drawer/src/Content.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -7821,10 +7867,12 @@
   _smuiClass="mdc-drawer__content"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 783 packages/drawer/src/Header.svelte	svelte
+=== 787 packages/drawer/src/Header.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -7856,8 +7904,10 @@
   _smuiClass="mdc-drawer__header"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 1854 packages/drawer/src/Scrim.svelte	svelte
 <svelte:options runes />
@@ -7939,7 +7989,7 @@
   {@render children?.()}
 </MyComponent>
 
-=== 784 packages/drawer/src/Subtitle.svelte	svelte
+=== 788 packages/drawer/src/Subtitle.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -7971,10 +8021,12 @@
   _smuiClass="mdc-drawer__subtitle"
   tag="h2"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 781 packages/drawer/src/Title.svelte	svelte
+=== 785 packages/drawer/src/Title.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -8006,10 +8058,12 @@
   _smuiClass="mdc-drawer__title"
   tag="h1"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 3971 packages/fab/src/Fab.svelte	svelte
+=== 3961 packages/fab/src/Fab.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -8171,14 +8225,13 @@
     .join(" ")}
   {href}
   {...restProps}
-  ><div class="mdc-fab__ripple"></div>
-  {#if focusRing}<div class="mdc-fab__focus-ring"></div>{/if}
-  {@render children?.()}{#if touch}<div
-      class="mdc-fab__touch"
-    ></div>{/if}</MyComponent
 >
+  <div class="mdc-fab__ripple"></div>
+  {#if focusRing}<div class="mdc-fab__focus-ring"></div>{/if}
+  {@render children?.()}{#if touch}<div class="mdc-fab__touch"></div>{/if}
+</MyComponent>
 
-=== 6188 packages/floating-label/src/FloatingLabel.svelte	svelte
+=== 6204 packages/floating-label/src/FloatingLabel.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -8390,8 +8443,10 @@
       .map(([name, value]) => `${name}: ${value};`)
       .concat([style])
       .join(" ")}
-    {...restProps}>{@render children?.()}</span
+    {...restProps}
   >
+    {@render children?.()}
+  </span>
 {:else}
   <label
     bind:this={element}
@@ -8408,11 +8463,13 @@
       .concat([style])
       .join(" ")}
     for={forId || (inputProps ? inputProps.id : undefined)}
-    {...restProps}>{@render children?.()}</label
+    {...restProps}
   >
+    {@render children?.()}
+  </label>
 {/if}
 
-=== 3673 packages/form-field/src/FormField.svelte	svelte
+=== 3681 packages/form-field/src/FormField.svelte	svelte
 <svelte:options runes />
 
 <script module lang="ts">
@@ -8568,11 +8625,13 @@
       [label$class]: true,
     })}
     for={inputId}
-    {...prefixFilter(restProps, "label$")}>{@render label?.()}</label
+    {...prefixFilter(restProps, "label$")}
   >
+    {@render label?.()}
+  </label>
 </div>
 
-=== 786 packages/image-list/src/Image.svelte	svelte
+=== 790 packages/image-list/src/Image.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -8604,10 +8663,12 @@
   _smuiClass="mdc-image-list__image"
   tag="img"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 803 packages/image-list/src/ImageAspectContainer.svelte	svelte
+=== 807 packages/image-list/src/ImageAspectContainer.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -8639,8 +8700,10 @@
   _smuiClass="mdc-image-list__image-aspect-container"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 1385 packages/image-list/src/ImageList.svelte	svelte
 <svelte:options runes />
@@ -8704,7 +8767,7 @@
   {@render children?.()}
 </ul>
 
-=== 784 packages/image-list/src/Item.svelte	svelte
+=== 788 packages/image-list/src/Item.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -8736,10 +8799,12 @@
   _smuiClass="mdc-image-list__item"
   tag="li"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 791 packages/image-list/src/Supporting.svelte	svelte
+=== 795 packages/image-list/src/Supporting.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -8771,8 +8836,10 @@
   _smuiClass="mdc-image-list__supporting"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 2028 packages/layout-grid/src/Cell.svelte	svelte
 <svelte:options runes />
@@ -9368,7 +9435,7 @@
   </div>
 </div>
 
-=== 1129 packages/list/src/Graphic.svelte	svelte
+=== 1133 packages/list/src/Graphic.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -9413,10 +9480,12 @@
     "mdc-menu__selection-group-icon": menuSelectionGroup,
     [className]: true,
   })}
-  {...restProps}>{@render children?.()}</span
+  {...restProps}
 >
+  {@render children?.()}
+</span>
 
-=== 790 packages/list/src/Group.svelte	svelte
+=== 794 packages/list/src/Group.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -9448,10 +9517,12 @@
   _smuiClass="mdc-deprecated-list-group"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 12244 packages/list/src/Item.svelte	svelte
+=== 12245 packages/list/src/Item.svelte	svelte
 <svelte:options runes />
 
 <script module lang="ts">
@@ -9914,11 +9985,12 @@
     handleKeydown(e);
     restProps.onkeydown?.(e);
   }}
-  >{#if ripple}<span class="mdc-deprecated-list-item__ripple"
-    ></span>{/if}{@render children?.()}</MyComponent
 >
+  {#if ripple}<span class="mdc-deprecated-list-item__ripple"
+    ></span>{/if}{@render children?.()}
+</MyComponent>
 
-=== 1136 packages/list/src/Label.svelte	svelte
+=== 1140 packages/list/src/Label.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -9964,8 +10036,10 @@
     [className]: true,
   })}
   for={inputProps ? inputProps.id : undefined}
-  {...restProps}>{@render children?.()}</label
+  {...restProps}
 >
+  {@render children?.()}
+</label>
 
 === 15644 packages/list/src/List.svelte	svelte
 <svelte:options runes />
@@ -10538,7 +10612,7 @@
   {@render children?.()}
 </MyComponent>
 
-=== 796 packages/list/src/Meta.svelte	svelte
+=== 800 packages/list/src/Meta.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -10570,10 +10644,12 @@
   _smuiClass="mdc-deprecated-list-item__meta"
   tag="span"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 804 packages/list/src/PrimaryText.svelte	svelte
+=== 808 packages/list/src/PrimaryText.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -10605,10 +10681,12 @@
   _smuiClass="mdc-deprecated-list-item__primary-text"
   tag="span"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 806 packages/list/src/SecondaryText.svelte	svelte
+=== 810 packages/list/src/SecondaryText.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -10640,8 +10718,10 @@
   _smuiClass="mdc-deprecated-list-item__secondary-text"
   tag="span"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 2414 packages/list/src/Separator.svelte	svelte
 <svelte:options runes />
@@ -10739,7 +10819,7 @@
   {...restProps}
 />
 
-=== 800 packages/list/src/Subheader.svelte	svelte
+=== 804 packages/list/src/Subheader.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -10771,10 +10851,12 @@
   _smuiClass="mdc-deprecated-list-group__subheader"
   tag="h3"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 796 packages/list/src/Text.svelte	svelte
+=== 800 packages/list/src/Text.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -10806,8 +10888,10 @@
   _smuiClass="mdc-deprecated-list-item__text"
   tag="span"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 11696 packages/menu-surface/src/MenuSurface.svelte	svelte
 <svelte:options runes />
@@ -11253,7 +11337,7 @@
   {@render children?.()}
 </div>
 
-=== 7716 packages/menu/src/Menu.svelte	svelte
+=== 7720 packages/menu/src/Menu.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -11512,8 +11596,10 @@
       );
     }
     restProps.onSMUIListAction?.(e);
-  }}>{@render children?.()}</MenuSurface
+  }}
 >
+  {@render children?.()}
+</MenuSurface>
 
 === 1481 packages/menu/src/SelectionGroup.svelte	svelte
 <svelte:options runes />
@@ -11581,7 +11667,7 @@
   </ul>
 </li>
 
-=== 873 packages/menu/src/SelectionGroupIcon.svelte	svelte
+=== 877 packages/menu/src/SelectionGroupIcon.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -11614,8 +11700,10 @@
   _smuiClass="mdc-menu__selection-group-icon"
   component={Graphic as unknown as SmuiComponent}
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 3971 packages/notched-outline/src/NotchedOutline.svelte	svelte
 <svelte:options runes />
@@ -11776,7 +11864,7 @@
   <div class="mdc-notched-outline__trailing"></div>
 </div>
 
-=== 784 packages/paper/src/Content.svelte	svelte
+=== 788 packages/paper/src/Content.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -11808,8 +11896,10 @@
   _smuiClass="smui-paper__content"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 2083 packages/paper/src/Paper.svelte	svelte
 <svelte:options runes />
@@ -11894,7 +11984,7 @@
   {@render children?.()}
 </div>
 
-=== 784 packages/paper/src/Subtitle.svelte	svelte
+=== 788 packages/paper/src/Subtitle.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -11926,10 +12016,12 @@
   _smuiClass="smui-paper__subtitle"
   tag="h6"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 781 packages/paper/src/Title.svelte	svelte
+=== 785 packages/paper/src/Title.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -11961,8 +12053,10 @@
   _smuiClass="smui-paper__title"
   tag="h5"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 5822 packages/radio/src/Radio.svelte	svelte
 <svelte:options runes />
@@ -12203,7 +12297,7 @@
   <div class="mdc-radio__ripple"></div>
 </div>
 
-=== 6523 packages/segmented-button/src/Segment.svelte	svelte
+=== 6524 packages/segmented-button/src/Segment.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts" generics="SegmentKey extends Object | string | number">
@@ -12437,12 +12531,13 @@
       instance.handleClick();
     }
   }}
-  >{#if ripple}<div
+>
+  {#if ripple}<div
       class="mdc-segmented-button__ripple"
     ></div>{/if}{@render children?.()}{#if touch}<div
       class="mdc-segmented-button__segment__touch"
-    ></div>{/if}</button
->
+    ></div>{/if}
+</button>
 
 === 9524 packages/segmented-button/src/SegmentedButton.svelte	svelte
 <svelte:options runes />
@@ -12785,7 +12880,7 @@
   {/each}
 </div>
 
-=== 1524 packages/select/src/Option.svelte	svelte
+=== 1528 packages/select/src/Option.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -12850,10 +12945,12 @@
   data-value={value}
   {value}
   {selected}
-  {...restProps}>{@render children?.()}</Item
+  {...restProps}
 >
+  {@render children?.()}
+</Item>
 
-=== 23749 packages/select/src/Select.svelte	svelte
+=== 23779 packages/select/src/Select.svelte	svelte
 <svelte:options runes />
 
 <script module lang="ts">
@@ -13564,8 +13661,9 @@
         floatAbove={$selectedTextStore !== ""}
         {required}
         {...prefixFilter(restProps, "label$")}
-        >{#if label == null}{:else if typeof label === "string"}{label}{:else}{@render label()}{/if}</FloatingLabel
       >
+        {#if label == null}{:else if typeof label === "string"}{label}{:else}{@render label()}{/if}
+      </FloatingLabel>
     {/if}
     {#if variant === "outlined"}
       <NotchedOutline
@@ -13580,8 +13678,9 @@
             floatAbove={$selectedTextStore !== ""}
             {required}
             {...prefixFilter(restProps, "label$")}
-            >{#if label == null}{:else if typeof label === "string"}{label}{:else}{@render label()}{/if}</FloatingLabel
           >
+            {#if label == null}{:else if typeof label === "string"}{label}{:else}{@render label()}{/if}
+          </FloatingLabel>
         {/if}
       </NotchedOutline>
     {/if}
@@ -13686,14 +13785,16 @@
       role="listbox"
       {wrapFocus}
       bind:selectedIndex
-      {...prefixFilter(restProps, "list$")}>{@render children?.()}</List
+      {...prefixFilter(restProps, "list$")}
     >
+      {@render children?.()}
+    </List>
   </Menu>
 </div>
 {#if helperText}
-  <HelperText {...prefixFilter(restProps, "helperText$")}
-    >{@render helperText?.()}</HelperText
-  >
+  <HelperText {...prefixFilter(restProps, "helperText$")}>
+    {@render helperText?.()}
+  </HelperText>
 {/if}
 
 === 4042 packages/select/src/helper-text/HelperText.svelte	svelte
@@ -13851,7 +13952,7 @@
   {#if content == null}{@render children?.()}{:else}{content}{/if}
 </div>
 
-=== 3442 packages/select/src/icon/Icon.svelte	svelte
+=== 3443 packages/select/src/icon/Icon.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -13985,10 +14086,11 @@
   {...roleProps}
   {...internalAttrs}
   {...restProps}
-  >{#if content == null}{@render children?.()}{:else}{content}{/if}</i
 >
+  {#if content == null}{@render children?.()}{:else}{content}{/if}
+</i>
 
-=== 5623 packages/site/src/lib/Demo.svelte	svelte
+=== 5655 packages/site/src/lib/Demo.svelte	svelte
 <script lang="ts">
   import type { Component, Snippet } from "svelte";
   import {
@@ -14094,8 +14196,10 @@
             <div class="demo-file-footer">
               <a
                 href={`https://github.com/hperrin/svelte-material-ui/blob/master/packages/site/src/routes/demo/${curFile}`}
-                target="_blank">{curFile}</a
+                target="_blank"
               >
+                {curFile}
+              </a>
               <Wrapper>
                 <IconButton
                   onclick={() => navigator.clipboard.writeText(curSource)}
@@ -15809,7 +15913,7 @@
   </Accordion>
 </div>
 
-=== 1146 packages/site/src/routes/demo/accordion/_Simple.svelte	svelte
+=== 1166 packages/site/src/routes/demo/accordion/_Simple.svelte	svelte
 <script lang="ts">
   import Accordion, { Panel, Header, Content } from "@smui-extra/accordion";
 </script>
@@ -15854,8 +15958,10 @@
       <Content>
         If you like this component, you can thank <a
           href="https://github.com/NickantX"
-          target="_blank">nick</a
-        > who pushed me to make it. He was right, accordions are awesome! :D
+          target="_blank"
+        >
+          nick
+        </a> who pushed me to make it. He was right, accordions are awesome! :D
       </Content>
     </Panel>
   </Accordion>
@@ -17270,18 +17376,18 @@
   src="/demo/bottom-app-bar/iframe/inset-fab"
   title="inset-fab"
 ></iframe>
-<a style="display: none;" href="/demo/bottom-app-bar/iframe/inset-fab"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/bottom-app-bar/iframe/inset-fab">
+  helper needed for export
+</a>
 
 <iframe
   class="bottom-app-bar-iframe"
   src="/demo/bottom-app-bar/iframe/inset-fab-right"
   title="inset-fab-right"
 ></iframe>
-<a style="display: none;" href="/demo/bottom-app-bar/iframe/inset-fab-right"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/bottom-app-bar/iframe/inset-fab-right">
+  helper needed for export
+</a>
 
 <style>
   .bottom-app-bar-iframe {
@@ -17307,9 +17413,9 @@
   src="/demo/bottom-app-bar/iframe/snackbar"
   title="snackbar"
 ></iframe>
-<a style="display: none;" href="/demo/bottom-app-bar/iframe/snackbar"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/bottom-app-bar/iframe/snackbar">
+  helper needed for export
+</a>
 
 <style>
   .bottom-app-bar-iframe {
@@ -17460,18 +17566,18 @@
   src="/demo/bottom-app-bar/iframe/standard"
   title="standard"
 ></iframe>
-<a style="display: none;" href="/demo/bottom-app-bar/iframe/standard"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/bottom-app-bar/iframe/standard">
+  helper needed for export
+</a>
 
 <iframe
   class="bottom-app-bar-iframe"
   src="/demo/bottom-app-bar/iframe/fixed"
   title="fixed"
 ></iframe>
-<a style="display: none;" href="/demo/bottom-app-bar/iframe/fixed"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/bottom-app-bar/iframe/fixed">
+  helper needed for export
+</a>
 
 <style>
   .bottom-app-bar-iframe {
@@ -17871,9 +17977,9 @@
     Creating notched buttons with Sass
   </Demo>
 
-  <Demo component={CustomTag} file="button/_CustomTag.svelte"
-    >Custom HTML tag</Demo
-  >
+  <Demo component={CustomTag} file="button/_CustomTag.svelte">
+    Custom HTML tag
+  </Demo>
 </section>
 
 <style>
@@ -18786,7 +18892,7 @@
 <br />
 <Button onclick={() => (checked2 = null)}>Reset</Button>
 
-=== 1269 packages/site/src/routes/demo/checkbox/_Group.svelte	svelte
+=== 1277 packages/site/src/routes/demo/checkbox/_Group.svelte	svelte
 <script lang="ts">
   import Checkbox from "@smui/checkbox";
   import FormField from "@smui/form-field";
@@ -18849,8 +18955,10 @@
       } else {
         selected.push("Doc");
       }
-    }}>Toggle Doc Programmatically</Button
+    }}
   >
+    Toggle Doc Programmatically
+  </Button>
 </div>
 
 <pre class="status">Selected: {selected.join(", ")}</pre>
@@ -19552,9 +19660,9 @@
 
   <Demo component={Input} file="chips/_Input.svelte">Input chips</Demo>
 
-  <Demo component={Keyed} file="chips/_Keyed.svelte"
-    >Keyed filter input chips</Demo
-  >
+  <Demo component={Keyed} file="chips/_Keyed.svelte">
+    Keyed filter input chips
+  </Demo>
 </section>
 
 === 823 packages/site/src/routes/demo/chips/_Choice.svelte	svelte
@@ -19984,7 +20092,7 @@
   }
 </style>
 
-=== 753 packages/site/src/routes/demo/common/_ClassAdderComponent.svelte	svelte
+=== 757 packages/site/src/routes/demo/common/_ClassAdderComponent.svelte	svelte
 <script
   lang="ts"
   generics="T extends SmuiEveryElement = keyof SmuiElementPropMap, C extends SmuiComponent = SmuiComponent"
@@ -20014,8 +20122,10 @@
   _smuiClass="my-added-class"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 1166 packages/site/src/routes/demo/common/_ClassMap.svelte	svelte
 <script lang="ts">
@@ -20219,18 +20329,18 @@
 -->
 
 <div>
-  <Button tag="div" bind:this={DivButton as Button<undefined, "div">}
-    ><Label>I'm a &lt;div /&gt; Button</Label></Button
-  >
+  <Button tag="div" bind:this={DivButton as Button<undefined, "div">}>
+    <Label>I'm a &lt;div /&gt; Button</Label>
+  </Button>
   <Button tag="span"><Label>I'm a &lt;span /&gt; Button</Label></Button>
   <Button tag="strong"><Label>I'm a &lt;strong /&gt; Button</Label></Button>
   <Button tag="em"><Label>I'm a &lt;em /&gt; Button</Label></Button>
 </div>
 
 <div>
-  <SmuiElement tag="em"
-    >I'm rendered as a HTML <code>em</code> element!</SmuiElement
-  >
+  <SmuiElement tag="em">
+    I'm rendered as a HTML <code>em</code> element!
+  </SmuiElement>
 </div>
 
 === 5303 packages/site/src/routes/demo/common/_Svg.svelte	svelte
@@ -20890,9 +21000,9 @@
 <!-- Check out iframe.svelte too see how these work. -->
 <iframe class="data-table-iframe" src="/demo/data-table/iframe" title="standard"
 ></iframe>
-<a style="display: none;" href="/demo/data-table/iframe"
-  >helper needed for sapper export</a
->
+<a style="display: none;" href="/demo/data-table/iframe">
+  helper needed for sapper export
+</a>
 
 <style>
   .data-table-iframe {
@@ -21393,9 +21503,9 @@
 >
   <!-- Title cannot contain leading whitespace due to mdc-typography-baseline-top() -->
   <Title id="nonclose-title">Easiest Riddle</Title>
-  <Content id="nonclose-content"
-    >Only one of these buttons will close the dialog. Can you guess which one?</Content
-  >
+  <Content id="nonclose-content">
+    Only one of these buttons will close the dialog. Can you guess which one?
+  </Content>
   <Actions>
     <!--
       The `action=""` here will cause the dialog to stay open. The default
@@ -21845,9 +21955,9 @@
 
   <AppContent class="app-content">
     <main class="main-content">
-      <Button onclick={() => (open = !open)}
-        ><Label>Toggle Drawer</Label></Button
-      >
+      <Button onclick={() => (open = !open)}>
+        <Label>Toggle Drawer</Label>
+      </Button>
       <br />
       <pre class="status">Active: {active}</pre>
     </main>
@@ -22657,7 +22767,7 @@
 
 <pre class="status">Selected: {selected}</pre>
 
-=== 476 packages/site/src/routes/demo/form-field/_Switch.svelte	svelte
+=== 481 packages/site/src/routes/demo/form-field/_Switch.svelte	svelte
 <script lang="ts">
   import FormField from "@smui/form-field";
   import Switch from "@smui/switch";
@@ -22670,8 +22780,9 @@
   {#snippet label()}
     I agree to the terms and conditions of the software, <small
       style="opacity: .4;"
-      >and hereby sign away my rights just to use this app.</small
     >
+      and hereby sign away my rights just to use this app.
+    </small>
   {/snippet}
 </FormField>
 
@@ -23739,7 +23850,7 @@
   }
 </style>
 
-=== 1226 packages/site/src/routes/demo/list/_ThreeLine.svelte	svelte
+=== 1244 packages/site/src/routes/demo/list/_ThreeLine.svelte	svelte
 <script lang="ts">
   import List, { Item, Text, PrimaryText, SecondaryText } from "@smui/list";
 </script>
@@ -23759,9 +23870,10 @@
         <SecondaryText>$700</SecondaryText>
         <SecondaryText
           title="Pretty much the same phone, but a different brand name and OS. It spies on you more, too."
-          >Pretty much the same phone, but a different brand name and OS. It
-          spies on you more, too.</SecondaryText
         >
+          Pretty much the same phone, but a different brand name and OS. It
+          spies on you more, too.
+        </SecondaryText>
       </Text>
     </Item>
     <Item>
@@ -23770,9 +23882,10 @@
         <SecondaryText>$220</SecondaryText>
         <SecondaryText
           title="A very weak phone that you can install literally anything on. Compile your own kernel, you nerd. :D"
-          >A very weak phone that you can install literally anything on. Compile
-          your own kernel, you nerd. :D</SecondaryText
         >
+          A very weak phone that you can install literally anything on. Compile
+          your own kernel, you nerd. :D
+        </SecondaryText>
       </Text>
     </Item>
   </List>
@@ -26611,7 +26724,7 @@
 
 <pre class="status">Value: {valueStart} - {valueEnd}</pre>
 
-=== 480 packages/site/src/routes/demo/slider/_Range.svelte	svelte
+=== 488 packages/site/src/routes/demo/slider/_Range.svelte	svelte
 <script lang="ts">
   import Slider from "@smui/slider";
   import Button from "@smui/button";
@@ -26635,8 +26748,10 @@
     onclick={() => {
       valueStart = 0;
       valueEnd = 10;
-    }}>Maximum Range!</Button
+    }}
   >
+    Maximum Range!
+  </Button>
 </div>
 
 <pre class="status">Value: {valueStart} - {valueEnd}</pre>
@@ -26758,9 +26873,9 @@
 </script>
 
 <Snackbar bind:this={snackbarSuccess} class="demo-success">
-  <Label
-    >That thing you tried to do actually worked, if you can believe it!</Label
-  >
+  <Label>
+    That thing you tried to do actually worked, if you can believe it!
+  </Label>
   <Actions>
     <IconButton title="Dismiss">
       <Icon class="material-icons">close</Icon>
@@ -26769,9 +26884,9 @@
 </Snackbar>
 
 <Snackbar bind:this={snackbarWarning} class="demo-warning">
-  <Label
-    >Ok, it looks like that thing you tried to do might not have work.</Label
-  >
+  <Label>
+    Ok, it looks like that thing you tried to do might not have work.
+  </Label>
   <Actions>
     <IconButton title="Dismiss">
       <Icon class="material-icons">close</Icon>
@@ -26780,10 +26895,10 @@
 </Snackbar>
 
 <Snackbar bind:this={snackbarError} class="demo-error">
-  <Label
-    >That thing you tried to do didn't work. Honestly, I'm not sure why you even
-    tried.</Label
-  >
+  <Label>
+    That thing you tried to do didn't work. Honestly, I'm not sure why you even
+    tried.
+  </Label>
   <Actions>
     <IconButton title="Dismiss">
       <Icon class="material-icons">close</Icon>
@@ -27027,7 +27142,7 @@
 <pre class="status">Closed Reason: {reason}</pre>
 <pre class="status">Action: {action}</pre>
 
-=== 1442 packages/site/src/routes/demo/switch/+page.svelte	svelte
+=== 1474 packages/site/src/routes/demo/switch/+page.svelte	svelte
 <script lang="ts">
   import Demo from "$lib/Demo.svelte";
 
@@ -27065,12 +27180,16 @@
     {#snippet subtitle()}
       Think about your <a
         href="https://developer.chrome.com/blog/new-in-devtools-83/#vision-deficiencies"
-        target="_blank">color</a
+        target="_blank"
       >
+        color
+      </a>
       <a
         href="https://developer.mozilla.org/en-US/docs/Tools/Accessibility_inspector/Simulation"
-        target="_blank">blind</a
-      > users before you choose this.
+        target="_blank"
+      >
+        blind
+      </a> users before you choose this.
     {/snippet}
   </Demo>
 
@@ -28120,7 +28239,7 @@
   </div>
 </div>
 
-=== 471 packages/site/src/routes/demo/textfield/_ElementsInLabel.svelte	svelte
+=== 478 packages/site/src/routes/demo/textfield/_ElementsInLabel.svelte	svelte
 <script lang="ts">
   import Textfield from "@smui/textfield";
   import { Icon as CommonIcon } from "@smui/common";
@@ -28134,8 +28253,9 @@
       <CommonIcon
         class="material-icons"
         style="font-size: 1em; line-height: normal; vertical-align: top;"
-        >email</CommonIcon
-      > Email
+      >
+        email
+      </CommonIcon> Email
     {/snippet}
   </Textfield>
 </div>
@@ -28373,9 +28493,9 @@
       lineRipple={lineRippleA}
     >
       {#snippet label()}
-        <FloatingLabel bind:this={floatingLabelA} for="input-manual-a"
-          >Standard</FloatingLabel
-        >
+        <FloatingLabel bind:this={floatingLabelA} for="input-manual-a">
+          Standard
+        </FloatingLabel>
       {/snippet}
       <Input
         bind:this={inputA}
@@ -28402,9 +28522,9 @@
       variant="filled"
     >
       {#snippet label()}
-        <FloatingLabel bind:this={floatingLabelB} for="input-manual-b"
-          >Filled</FloatingLabel
-        >
+        <FloatingLabel bind:this={floatingLabelB} for="input-manual-b">
+          Filled
+        </FloatingLabel>
       {/snippet}
       <Input
         bind:this={inputB}
@@ -28432,9 +28552,9 @@
     >
       {#snippet label()}
         <NotchedOutline bind:this={notchedOutlineC}>
-          <FloatingLabel bind:this={floatingLabelC} for="input-manual-c"
-            >Outlined</FloatingLabel
-          >
+          <FloatingLabel bind:this={floatingLabelC} for="input-manual-c">
+            Outlined
+          </FloatingLabel>
         </NotchedOutline>
       {/snippet}
       {#snippet leadingIcon()}
@@ -28463,9 +28583,9 @@
     >
       {#snippet label()}
         <NotchedOutline bind:this={notchedOutlineD}>
-          <FloatingLabel bind:this={floatingLabelD} for="input-manual-d"
-            >Textarea</FloatingLabel
-          >
+          <FloatingLabel bind:this={floatingLabelD} for="input-manual-d">
+            Textarea
+          </FloatingLabel>
         </NotchedOutline>
       {/snippet}
       <Textarea
@@ -28959,9 +29079,9 @@
     -->
     {#snippet trailingIcon()}
       {#if !disabled}
-        <Icon class="material-icons" role="button" onclick={clickHandler}
-          >send</Icon
-        >
+        <Icon class="material-icons" role="button" onclick={clickHandler}>
+          send
+        </Icon>
       {/if}
     {/snippet}
     {#snippet helper()}
@@ -29227,9 +29347,9 @@
 
   <Demo component={Delayed} file="tooltip/_Delayed.svelte">Delayed</Demo>
 
-  <Demo component={Disappearing} file="tooltip/_Disappearing.svelte"
-    >Disappearing</Demo
-  >
+  <Demo component={Disappearing} file="tooltip/_Disappearing.svelte">
+    Disappearing
+  </Demo>
 </section>
 
 === 390 packages/site/src/routes/demo/tooltip/_Delayed.svelte	svelte
@@ -29342,7 +29462,7 @@
   </Wrapper>
 </div>
 
-=== 1791 packages/site/src/routes/demo/tooltip/_Rich.svelte	svelte
+=== 1811 packages/site/src/routes/demo/tooltip/_Rich.svelte	svelte
 <script lang="ts">
   import Tooltip, {
     Wrapper,
@@ -29386,8 +29506,10 @@
       <Content>
         An interactive rich tooltip can have <Link
           href="http://example.com"
-          target="_blank">links</Link
-        > and actions.
+          target="_blank"
+        >
+          links
+        </Link> and actions.
       </Content>
       <RichActions>
         <Button onclick={() => clicked++}><Label>Action</Label></Button>
@@ -29713,54 +29835,54 @@
   src="/demo/top-app-bar/iframe/standard"
   title="standard"
 ></iframe>
-<a style="display: none;" href="/demo/top-app-bar/iframe/standard"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/top-app-bar/iframe/standard">
+  helper needed for export
+</a>
 
 <iframe
   class="top-app-bar-iframe"
   src="/demo/top-app-bar/iframe/fixed"
   title="fixed"
 ></iframe>
-<a style="display: none;" href="/demo/top-app-bar/iframe/fixed"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/top-app-bar/iframe/fixed">
+  helper needed for export
+</a>
 
 <iframe
   class="top-app-bar-iframe"
   src="/demo/top-app-bar/iframe/dense"
   title="dense"
 ></iframe>
-<a style="display: none;" href="/demo/top-app-bar/iframe/dense"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/top-app-bar/iframe/dense">
+  helper needed for export
+</a>
 
 <iframe
   class="top-app-bar-iframe"
   src="/demo/top-app-bar/iframe/prominent"
   title="prominent"
 ></iframe>
-<a style="display: none;" href="/demo/top-app-bar/iframe/prominent"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/top-app-bar/iframe/prominent">
+  helper needed for export
+</a>
 
 <iframe
   class="top-app-bar-iframe"
   src="/demo/top-app-bar/iframe/short"
   title="short"
 ></iframe>
-<a style="display: none;" href="/demo/top-app-bar/iframe/short"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/top-app-bar/iframe/short">
+  helper needed for export
+</a>
 
 <iframe
   class="top-app-bar-iframe"
   src="/demo/top-app-bar/iframe/short-closed"
   title="short closed"
 ></iframe>
-<a style="display: none;" href="/demo/top-app-bar/iframe/short-closed"
-  >helper needed for export</a
->
+<a style="display: none;" href="/demo/top-app-bar/iframe/short-closed">
+  helper needed for export
+</a>
 
 <style>
   .top-app-bar-iframe {
@@ -31048,7 +31170,7 @@
   {/if}
 </div>
 
-=== 987 packages/snackbar/src/Actions.svelte	svelte
+=== 991 packages/snackbar/src/Actions.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -31086,8 +31208,10 @@
   }}
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 6820 packages/snackbar/src/Snackbar.svelte	svelte
 <svelte:options runes />
@@ -31359,7 +31483,7 @@
   </div>
 </aside>
 
-=== 4215 packages/snackbar/src/kitchen/Kitchen.svelte	svelte
+=== 4254 packages/snackbar/src/kitchen/Kitchen.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -31492,8 +31616,10 @@
               onclick={(e) => {
                 handleActionClick(action, e);
                 restProps.action$onclick?.(e as unknown as any);
-              }}>{action.text}</Button
+              }}
             >
+              {action.text}
+            </Button>
           {/each}
         {/if}
         {#if config.dismissButton}
@@ -31504,11 +31630,12 @@
               handleDismiss(e);
               (restProps as unknown as any).dismiss$onclick?.(e);
             }}
-            ><Icon {...prefixFilter(restProps, "dismissIcon$")}
-              >{#if dismiss}{@render dismiss?.()}{:else}{config.dismissText ??
-                  "close"}{/if}</Icon
-            ></IconButton
           >
+            <Icon {...prefixFilter(restProps, "dismissIcon$")}>
+              {#if dismiss}{@render dismiss?.()}{:else}{config.dismissText ??
+                  "close"}{/if}
+            </Icon>
+          </IconButton>
         {/if}
       </Actions>
     {/if}
@@ -32166,7 +32293,7 @@
   </TabScroller>
 </div>
 
-=== 5235 packages/tab-indicator/src/TabIndicator.svelte	svelte
+=== 5243 packages/tab-indicator/src/TabIndicator.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -32372,8 +32499,10 @@
       .map(([name, value]) => `${name}: ${value};`)
       .join(" ")}
     aria-hidden={type === "icon" ? "true" : undefined}
-    {...prefixFilter(restProps, "content$")}>{@render children?.()}</span
+    {...prefixFilter(restProps, "content$")}
   >
+    {@render children?.()}
+  </span>
 </span>
 
 === 7108 packages/tab-scroller/src/TabScroller.svelte	svelte
@@ -32634,7 +32763,7 @@
   </div>
 </div>
 
-=== 8940 packages/tab/src/Tab.svelte	svelte
+=== 8943 packages/tab/src/Tab.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -32982,11 +33111,12 @@
     bind:this={tabIndicatorInstance}
     bind:active
     {...prefixFilter(restProps, "tabIndicator$")}
-    >{@render tabIndicator?.()}</TabIndicator
   >
+    {@render tabIndicator?.()}
+  </TabIndicator>
 {/snippet}
 
-=== 791 packages/textfield/src/HelperLine.svelte	svelte
+=== 795 packages/textfield/src/HelperLine.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -33018,8 +33148,10 @@
   _smuiClass="mdc-text-field-helper-line"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 4505 packages/textfield/src/Input.svelte	svelte
 <svelte:options runes />
@@ -33216,7 +33348,7 @@
   }}
 />
 
-=== 817 packages/textfield/src/Prefix.svelte	svelte
+=== 821 packages/textfield/src/Prefix.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -33248,10 +33380,12 @@
   _smuiClass="mdc-text-field__affix mdc-text-field__affix--prefix"
   tag="span"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 817 packages/textfield/src/Suffix.svelte	svelte
+=== 821 packages/textfield/src/Suffix.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -33283,8 +33417,10 @@
   _smuiClass="mdc-text-field__affix mdc-text-field__affix--suffix"
   tag="span"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 2766 packages/textfield/src/Textarea.svelte	svelte
 <svelte:options runes />
@@ -33646,7 +33782,7 @@
   {#if content == null}{@render children?.()}{:else}{content}{/if}
 </div>
 
-=== 4322 packages/textfield/src/icon/Icon.svelte	svelte
+=== 4323 packages/textfield/src/icon/Icon.svelte	svelte
 <svelte:options runes />
 
 <script lang="ts">
@@ -33803,10 +33939,11 @@
   {...roleProps}
   {...internalAttrs}
   {...restProps}
-  >{#if content == null}{@render children?.()}{:else}{content}{/if}</i
 >
+  {#if content == null}{@render children?.()}{:else}{content}{/if}
+</i>
 
-=== 785 packages/tooltip/src/Content.svelte	svelte
+=== 789 packages/tooltip/src/Content.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -33838,10 +33975,12 @@
   _smuiClass="mdc-tooltip__content"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 788 packages/tooltip/src/Link.svelte	svelte
+=== 792 packages/tooltip/src/Link.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -33873,10 +34012,12 @@
   _smuiClass="mdc-tooltip__content-link"
   tag="a"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 966 packages/tooltip/src/RichActions.svelte	svelte
+=== 970 packages/tooltip/src/RichActions.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -33914,10 +34055,12 @@
   }}
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
-=== 782 packages/tooltip/src/Title.svelte	svelte
+=== 786 packages/tooltip/src/Title.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -33949,8 +34092,10 @@
   _smuiClass="mdc-tooltip__title"
   tag="h2"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 17924 packages/tooltip/src/Tooltip.svelte	svelte
 <svelte:options runes />
@@ -34725,7 +34870,7 @@
   {@render children?.()}
 </MyComponent>
 
-=== 785 packages/top-app-bar/src/Row.svelte	svelte
+=== 789 packages/top-app-bar/src/Row.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -34757,8 +34902,10 @@
   _smuiClass="mdc-top-app-bar__row"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 1588 packages/top-app-bar/src/Section.svelte	svelte
 <svelte:options runes />
@@ -34830,7 +34977,7 @@
   {@render children?.()}
 </section>
 
-=== 788 packages/top-app-bar/src/Title.svelte	svelte
+=== 792 packages/top-app-bar/src/Title.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -34862,8 +35009,10 @@
   _smuiClass="mdc-top-app-bar__title"
   tag="span"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 
 === 7030 packages/top-app-bar/src/TopAppBar.svelte	svelte
 <svelte:options runes />
@@ -35139,7 +35288,7 @@
   {@render children?.()}
 </header>
 
-=== 789 packages/touch-target/src/Wrapper.svelte	svelte
+=== 793 packages/touch-target/src/Wrapper.svelte	svelte
 <svelte:options runes />
 
 <script
@@ -35171,6 +35320,8 @@
   _smuiClass="mdc-touch-target-wrapper"
   tag="div"
   bind:this={element as ReturnType<C>}
-  {...restProps}>{@render children?.()}</ClassAdder
+  {...restProps}
 >
+  {@render children?.()}
+</ClassAdder>
 

@@ -27,9 +27,9 @@
     <li>
       <input type="checkbox" bind:checked={todo.done} />
       <input bind:value={todo.text} />
-      <button onclick={() => (todos = todos.filter((t) => t !== todo))}
-        >x</button
-      >
+      <button onclick={() => (todos = todos.filter((t) => t !== todo))}>
+        x
+      </button>
     </li>
   {:else}
     <li>Nothing to do.</li>

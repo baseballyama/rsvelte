@@ -9,7 +9,7 @@ use rsvelte_typescript_lint::{PreferConstOptions, ProgramStatements};
 use rustc_hash::FxHashSet;
 use serde::Deserialize;
 
-use super::shared::nodes::is_named;
+use super::shared::nodes::{is_named, is_props_call};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 /// `ESLint`'s core rule, which leaves alone a declaration initialised by an excluded rune.
@@ -146,8 +146,7 @@ fn props(file: &File<'_>) -> FxHashSet<SymbolId> {
             }
             Statement::VariableDeclaration(declaration) if runes_mode => {
                 for declarator in &declaration.declarations {
-                    if let Some(Expression::CallExpression(call)) = &declarator.init
-                        && is_named(&call.callee, "$props")
+                    if declarator.init.as_ref().is_some_and(is_props_call)
                         && matches!(declarator.id, BindingPattern::ObjectPattern(_))
                     {
                         bindable_names(&declarator.id, &mut identifiers);

@@ -59,7 +59,7 @@ const URL_PROPERTIES: &[&str] = &[
 
 impl SvelteRule for PreferSvelteReactivity {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        if !file.is_svelte_file() {
+        if file.runes() != Some(true) {
             return;
         }
         let semantic = file.semantic();

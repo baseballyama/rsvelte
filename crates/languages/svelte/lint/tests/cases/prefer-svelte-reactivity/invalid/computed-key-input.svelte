@@ -1,3 +1,5 @@
+<svelte:options runes />
+
 <script>
 	const m = new Map();
 	m['set'](1, 2);

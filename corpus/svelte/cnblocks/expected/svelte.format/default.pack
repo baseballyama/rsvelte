@@ -204,7 +204,7 @@
   </section>
 </div>
 
-=== 3397 src/lib/components/base/InfoPopover.svelte	svelte
+=== 3402 src/lib/components/base/InfoPopover.svelte	svelte
 <script lang="ts">
   import { scale } from "svelte/transition";
   import { onMount, tick } from "svelte";
@@ -304,10 +304,11 @@
       height="16"
       fill="currentColor"
       viewBox="0 0 256 256"
-      ><path
-        d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"
-      ></path></svg
     >
+      <path
+        d="M128,24A104,104,0,1,0,232,128,104.11,104.11,0,0,0,128,24Zm0,192a88,88,0,1,1,88-88A88.1,88.1,0,0,1,128,216Zm16-40a8,8,0,0,1-8,8,16,16,0,0,1-16-16V128a8,8,0,0,1,0-16,16,16,0,0,1,16,16v40A8,8,0,0,1,144,176ZM112,84a12,12,0,1,1,12,12A12,12,0,0,1,112,84Z"
+      ></path>
+    </svg>
   </button>
 
   {#if isOpen}
@@ -394,7 +395,7 @@
   </div>
 {/if}
 
-=== 15621 src/lib/components/base/TableOfContents.svelte	svelte
+=== 15628 src/lib/components/base/TableOfContents.svelte	svelte
 <script lang="ts">
   import { SvelteMap } from "svelte/reactivity";
   import { cn } from "$lib/utils";
@@ -882,10 +883,11 @@
         height="16"
         fill="currentColor"
         viewBox="0 0 256 256"
-        ><path
-          d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"
-        ></path></svg
       >
+        <path
+          d="M224,128a8,8,0,0,1-8,8H40a8,8,0,0,1,0-16H216A8,8,0,0,1,224,128ZM40,72H216a8,8,0,0,0,0-16H40a8,8,0,0,0,0,16ZM216,184H40a8,8,0,0,0,0,16H216a8,8,0,0,0,0-16Z"
+        ></path>
+      </svg>
       On this page
     </div>
     <div class="relative flex px-2">
@@ -1152,9 +1154,9 @@
             class="mt-2"
           />
         </div>
-        <Button type="submit" class="mt-4 w-full py-2 font-medium"
-          >Sign in</Button
-        >
+        <Button type="submit" class="mt-4 w-full py-2 font-medium">
+          Sign in
+        </Button>
       </form>
 
       <div class="relative my-6">
@@ -1243,9 +1245,9 @@
             class="mt-2"
           />
         </div>
-        <Button type="submit" class="mt-4 w-full py-2 font-medium"
-          >Sign in</Button
-        >
+        <Button type="submit" class="mt-4 w-full py-2 font-medium">
+          Sign in
+        </Button>
       </form>
       <p class="mt-6 text-sm text-muted-foreground dark:text-muted-foreground">
         Forgot your password?{" "}
@@ -1360,9 +1362,9 @@
             class="mt-2"
           />
         </div>
-        <Button type="submit" class="mt-4 w-full py-2 font-medium"
-          >Sign in</Button
-        >
+        <Button type="submit" class="mt-4 w-full py-2 font-medium">
+          Sign in
+        </Button>
       </form>
       <p class="mt-6 text-sm text-muted-foreground dark:text-muted-foreground">
         Forgot your password?{" "}
@@ -1488,9 +1490,9 @@
             </Label>
           </div>
 
-          <Button type="submit" class="mt-4 w-full py-2 font-medium"
-            >Create account</Button
-          >
+          <Button type="submit" class="mt-4 w-full py-2 font-medium">
+            Create account
+          </Button>
 
           <p
             class="text-center text-xs text-muted-foreground dark:text-muted-foreground"
@@ -1560,9 +1562,9 @@
             class="w-full rounded-xl"
           />
           <div class="flex flex-col gap-2">
-            <Button class="w-full rounded-xl" size="lg"
-              >Send me the magic link</Button
-            >
+            <Button class="w-full rounded-xl" size="lg">
+              Send me the magic link
+            </Button>
             <Button variant="link" class="w-full text-sm text-muted-foreground">
               Sign in using password
             </Button>
@@ -1937,9 +1939,9 @@
           </label>
         </div>
 
-        <Button class="w-full bg-primary text-primary-foreground"
-          >Create free account</Button
-        >
+        <Button class="w-full bg-primary text-primary-foreground">
+          Create free account
+        </Button>
       </CardContent>
       <CardFooter class="flex justify-center border-t py-4!">
         <p class="text-center text-sm text-muted-foreground">
@@ -3135,9 +3137,9 @@
         <div>
           <Label for="website">Company Website</Label>
           <Input type="url" id="website" placeholder="https://company.com" />
-          <span class="inline-block text-sm text-muted-foreground"
-            >Must start with 'https'</span
-          >
+          <span class="inline-block text-sm text-muted-foreground">
+            Must start with 'https'
+          </span>
         </div>
 
         <div>
@@ -3351,7 +3353,7 @@
   </div>
 </section>
 
-=== 2236 src/lib/components/blocks/content/content-one.svelte	svelte
+=== 2247 src/lib/components/blocks/content/content-one.svelte	svelte
 <section class="py-16 md:py-32">
   <div class="mx-auto max-w-5xl space-y-8 px-6 md:space-y-16">
     <h2 class="relative z-10 max-w-xl text-4xl font-medium lg:text-5xl">
@@ -3383,8 +3385,9 @@
         <p class="text-muted-foreground">
           Gemini is evolving to be more than just the models. <span
             class="font-bold text-accent-foreground"
-            >It supports an entire ecosystem</span
-          > — from products innovate.
+          >
+            It supports an entire ecosystem
+          </span> — from products innovate.
         </p>
         <p class="text-muted-foreground">
           It supports an entire ecosystem — from products to the APIs and
@@ -3416,7 +3419,7 @@
   </div>
 </section>
 
-=== 2377 src/lib/components/blocks/content/content-seven.svelte	svelte
+=== 2388 src/lib/components/blocks/content/content-seven.svelte	svelte
 <script>
   import Zap from "@lucide/svelte/icons/zap";
   import Cpu from "@lucide/svelte/icons/cpu";
@@ -3432,8 +3435,9 @@
         <p class="text-muted-foreground">
           Gemini is evolving to be more than just the models. <span
             class="font-bold text-accent-foreground"
-            >It supports an entire ecosystem</span
-          > — from products innovate.
+          >
+            It supports an entire ecosystem
+          </span> — from products innovate.
         </p>
         <p class="text-muted-foreground">
           It supports an entire ecosystem — from products to the APIs and
@@ -3688,7 +3692,7 @@
   </div>
 </section>
 
-=== 2420 src/lib/components/blocks/content/content-two.svelte	svelte
+=== 2444 src/lib/components/blocks/content/content-two.svelte	svelte
 <script>
   import Zap from "@lucide/svelte/icons/zap";
   import Cpu from "@lucide/svelte/icons/cpu";
@@ -3703,8 +3707,10 @@
       <div class="relative z-10 space-y-4 md:w-1/2">
         <p class="text-body">
           Lyra is evolving to be more than just the models. <span
-            class="text-title font-medium">It supports an entire ecosystem</span
-          > — from products innovate.
+            class="text-title font-medium"
+          >
+            It supports an entire ecosystem
+          </span> — from products innovate.
         </p>
         <p>
           It supports an entire ecosystem — from products to the APIs and
@@ -3780,7 +3786,7 @@
   </div>
 </section>
 
-=== 1905 src/lib/components/blocks/cta/cta-three.svelte	svelte
+=== 1920 src/lib/components/blocks/cta/cta-three.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
   import Mail from "@lucide/svelte/icons/mail";
@@ -3822,10 +3828,11 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="relative mx-auto size-5 md:hidden"
-                ><path
-                  d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"
-                /><path d="M6 12h16" /></svg
               >
+                <path
+                  d="M3.714 3.048a.498.498 0 0 0-.683.627l2.843 7.627a2 2 0 0 1 0 1.396l-2.842 7.627a.498.498 0 0 0 .682.627l18-8.5a.5.5 0 0 0 0-.904z"
+                /><path d="M6 12h16" />
+              </svg>
             </Button>
           </div>
         </div>
@@ -3857,7 +3864,7 @@
   </div>
 </section>
 
-=== 3289 src/lib/components/blocks/faq/faq-four.svelte	svelte
+=== 3304 src/lib/components/blocks/faq/faq-four.svelte	svelte
 <script lang="ts">
   import {
     Accordion,
@@ -3925,8 +3932,9 @@
             >
               <AccordionTrigger
                 class="cursor-pointer text-base hover:no-underline"
-                >{item.question}</AccordionTrigger
               >
+                {item.question}
+              </AccordionTrigger>
               <AccordionContent>
                 <p class="text-base">{item.answer}</p>
               </AccordionContent>
@@ -4128,7 +4136,7 @@
   </div>
 </section>
 
-=== 3059 src/lib/components/blocks/faq/faq-two.svelte	svelte
+=== 3072 src/lib/components/blocks/faq/faq-two.svelte	svelte
 <script lang="ts">
   import {
     Accordion,
@@ -4197,8 +4205,9 @@
           >
             <AccordionTrigger
               class="cursor-pointer text-base hover:no-underline"
-              >{item.question}</AccordionTrigger
             >
+              {item.question}
+            </AccordionTrigger>
             <AccordionContent>
               <p class="text-base">{item.answer}</p>
             </AccordionContent>
@@ -4280,7 +4289,7 @@
   ></span>
 {/snippet}
 
-=== 39941 src/lib/components/blocks/feature/feature-eight.svelte	svelte
+=== 39998 src/lib/components/blocks/feature/feature-eight.svelte	svelte
 <script>
   import { Card, CardContent } from "$lib/components/ui/card";
   import Shield from "@lucide/svelte/icons/shield";
@@ -4305,9 +4314,9 @@
                   fill="currentColor"
                 />
               </svg>
-              <span class="mx-auto block w-fit text-5xl font-semibold"
-                >100%</span
-              >
+              <span class="mx-auto block w-fit text-5xl font-semibold">
+                100%
+              </span>
             </div>
             <h2 class="mt-6 text-center text-3xl font-semibold">
               Customizable
@@ -4594,8 +4603,9 @@
                 >
                   <span
                     class="block h-fit rounded border px-2 py-1 text-xs shadow-sm"
-                    >Saloni</span
                   >
+                    Saloni
+                  </span>
                   <div class="size-7 ring-4 ring-background">
                     <img
                       class="size-full rounded-full border"
@@ -4616,16 +4626,18 @@
                   </div>
                   <span
                     class="block h-fit rounded border px-2 py-1 text-xs shadow-sm"
-                    >Bhide Svelte</span
                   >
+                    Bhide Svelte
+                  </span>
                 </div>
                 <div
                   class="relative flex w-[calc(50%+0.875rem)] items-center justify-end gap-2"
                 >
                   <span
                     class="block h-fit rounded border px-2 py-1 text-xs shadow-sm"
-                    >Aditya</span
                   >
+                    Aditya
+                  </span>
                   <div class="size-7 ring-4 ring-background">
                     <img
                       class="size-full rounded-full border"
@@ -4928,7 +4940,7 @@
   </dl>
 </div>
 
-=== 6433 src/lib/components/blocks/feature/feature-nine.svelte	svelte
+=== 6446 src/lib/components/blocks/feature/feature-nine.svelte	svelte
 <script lang="ts">
   import MapIcon from "@lucide/svelte/icons/map";
   import MessageCircle from "@lucide/svelte/icons/message-circle";
@@ -5050,8 +5062,9 @@
             Molestiae numquam debitis et ullam distinctio provident nobis
             repudiandae deleniti necessitatibus.
           </div>
-          <span class="block text-right text-xs text-muted-foreground">Now</span
-          >
+          <span class="block text-right text-xs text-muted-foreground">
+            Now
+          </span>
         </div>
       </div>
     </div>
@@ -5550,9 +5563,9 @@
         {/each}
       </div>
     </div>
-    <span class="mt-1.5 block text-center text-sm text-muted-foreground"
-      >{label}</span
-    >
+    <span class="mt-1.5 block text-center text-sm text-muted-foreground">
+      {label}
+    </span>
   </div>
 {/snippet}
 
@@ -6067,9 +6080,9 @@
 
         <form class="mt-12 w-full max-w-xs">
           <div class="space-y-2.5">
-            <Label class="block text-sm font-medium" for="email"
-              >Subscribe to our newsletter</Label
-            >
+            <Label class="block text-sm font-medium" for="email">
+              Subscribe to our newsletter
+            </Label>
             <Input
               class="input variant-mixed sz-md"
               placeholder="Your email"
@@ -6094,7 +6107,7 @@
   </div>
 </footer>
 
-=== 1095 src/lib/components/blocks/footer/footer-four.svelte	svelte
+=== 1102 src/lib/components/blocks/footer/footer-four.svelte	svelte
 <script>
   const links = [
     {
@@ -6129,8 +6142,9 @@
     <div class="flex flex-wrap justify-between gap-6">
       <span
         class="order-last block text-center text-sm text-muted-foreground md:order-first"
-        >© {new Date().getFullYear()} Tailus UI, All rights reserved</span
       >
+        © {new Date().getFullYear()} Tailus UI, All rights reserved
+      </span>
       <div
         class="order-first flex flex-wrap justify-center gap-6 text-sm md:order-last"
       >
@@ -6351,12 +6365,12 @@
       </a>
     </div>
     <span class="block text-center text-sm text-muted-foreground">
-      © {new Date().getFullYear()} Tailus UI, All rights reserved</span
-    >
+      © {new Date().getFullYear()} Tailus UI, All rights reserved
+    </span>
   </div>
 </footer>
 
-=== 12727 src/lib/components/blocks/footer/footer-three.svelte	svelte
+=== 12734 src/lib/components/blocks/footer/footer-three.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
   import Input from "$lib/components/ui/input/input.svelte";
@@ -6681,9 +6695,9 @@
             />
             <Button size="sm">Submit</Button>
           </div>
-          <span class="block text-sm text-muted-foreground"
-            >Don't miss any update!</span
-          >
+          <span class="block text-sm text-muted-foreground">
+            Don't miss any update!
+          </span>
         </div>
       </form>
     </div>
@@ -6692,8 +6706,9 @@
     >
       <small
         class="order-last block text-center text-sm text-muted-foreground md:order-first"
-        >© {new Date().getFullYear()} Tailus UI, All rights reserved</small
       >
+        © {new Date().getFullYear()} Tailus UI, All rights reserved
+      </small>
       <form action="">
         <div class="relative">
           <ChevronsUpDown
@@ -6720,7 +6735,7 @@
   </div>
 </footer>
 
-=== 10451 src/lib/components/blocks/footer/footer-two.svelte	svelte
+=== 10458 src/lib/components/blocks/footer/footer-two.svelte	svelte
 <script>
   let links = [
     {
@@ -6898,8 +6913,9 @@
     >
       <span
         class="order-last block text-center text-sm text-muted-foreground md:order-first"
-        >© {new Date().getFullYear()} Tailus UI, All rights reserved</span
       >
+        © {new Date().getFullYear()} Tailus UI, All rights reserved
+      </span>
       <div
         class="order-first flex flex-wrap justify-center gap-6 text-sm md:order-last"
       >
@@ -7113,9 +7129,9 @@
     <div class="p-3">
       <p class="text-center text-sm text-accent-foreground">
         Remembered your password?
-        <Button href="/preview/login/two" variant="link" class="px-2"
-          >Log in</Button
-        >
+        <Button href="/preview/login/two" variant="link" class="px-2">
+          Log in
+        </Button>
       </p>
     </div>
   </form>
@@ -7201,9 +7217,9 @@
     <div class="p-3">
       <p class="text-center text-sm text-accent-foreground">
         Remembered your password?
-        <Button href="/preview/login/two" variant="link" class="px-2"
-          >Log in</Button
-        >
+        <Button href="/preview/login/two" variant="link" class="px-2">
+          Log in
+        </Button>
       </p>
     </div>
   </form>
@@ -7459,9 +7475,9 @@
             >
               Login
             </Button>
-            <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}
-              >Sign Up</Button
-            >
+            <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}>
+              Sign Up
+            </Button>
             <Button
               size="sm"
               href="/"
@@ -7611,9 +7627,9 @@
             >
               Login
             </Button>
-            <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}
-              >Sign Up</Button
-            >
+            <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}>
+              Sign Up
+            </Button>
             <Button
               size="sm"
               href="/"
@@ -7628,7 +7644,7 @@
   </nav>
 </header>
 
-=== 9266 src/lib/components/blocks/hero/hero-eight.svelte	svelte
+=== 9279 src/lib/components/blocks/hero/hero-eight.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
   import Menu from "@lucide/svelte/icons/menu";
@@ -7679,8 +7695,9 @@
           >
             <span
               class="rounded-[calc(var(--radius)-0.25rem)] bg-muted px-2 py-1 text-xs"
-              >New</span
             >
+              New
+            </span>
             <span class="text-sm">Introduction Tailus UI Html</span>
             <span class="block h-4 w-px bg-(--color-border)"></span>
 
@@ -8116,9 +8133,9 @@
               >
                 Login
               </Button>
-              <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}
-                >Sign Up</Button
-              >
+              <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}>
+                Sign Up
+              </Button>
               <Button
                 size="sm"
                 href="/"
@@ -8207,9 +8224,9 @@
           <div
             class="mt-12 flex flex-col items-center justify-center gap-2 sm:flex-row lg:justify-start"
           >
-            <Button href="/" size="lg" class="px-5 text-base"
-              >Start Building</Button
-            >
+            <Button href="/" size="lg" class="px-5 text-base">
+              Start Building
+            </Button>
             <Button size="lg" variant="ghost" class="px-5 text-base" href="/">
               Request a demo
             </Button>
@@ -8692,9 +8709,9 @@
                 href="#link"
                 class="group mx-auto flex w-fit items-center gap-4 rounded-full border bg-muted p-1 pl-4 shadow-md shadow-zinc-950/5 transition-colors duration-300 hover:bg-background dark:border-t-white/5 dark:shadow-zinc-950 dark:hover:border-t-border"
               >
-                <span class="text-sm text-foreground"
-                  >Introducing Support for AI Models</span
-                >
+                <span class="text-sm text-foreground">
+                  Introducing Support for AI Models
+                </span>
                 <span
                   class="block h-4 w-0.5 border-l bg-white dark:border-background dark:bg-zinc-700"
                 ></span>
@@ -8930,9 +8947,9 @@
               >
                 Login
               </Button>
-              <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}
-                >Sign Up</Button
-              >
+              <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}>
+                Sign Up
+              </Button>
               <Button
                 size="sm"
                 href="/"
@@ -8948,7 +8965,7 @@
   </header>
 {/snippet}
 
-=== 28115 src/lib/components/blocks/hero/hero-seven.svelte	svelte
+=== 28128 src/lib/components/blocks/hero/hero-seven.svelte	svelte
 <script lang="ts">
   import Button from "$lib/components/ui/button/button.svelte";
   import Rocket from "@lucide/svelte/icons/rocket";
@@ -9023,8 +9040,9 @@
           >
             <span
               class="rounded-[calc(var(--radius)-0.25rem)] bg-muted px-2 py-1 text-xs"
-              >New</span
             >
+              New
+            </span>
             <span class="text-sm">Introduction Tailus UI Html</span>
             <span class="block h-4 w-px bg-(--color-border)"></span>
 
@@ -9437,9 +9455,9 @@
               >
                 Login
               </Button>
-              <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}
-                >Sign Up</Button
-              >
+              <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}>
+                Sign Up
+              </Button>
               <Button
                 size="sm"
                 href="/"
@@ -9455,7 +9473,7 @@
   </header>
 {/snippet}
 
-=== 9356 src/lib/components/blocks/hero/hero-six.svelte	svelte
+=== 9371 src/lib/components/blocks/hero/hero-six.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
 
@@ -9494,8 +9512,9 @@
             >
               <span
                 class="rounded-[calc(var(--radius)-0.25rem)] bg-muted px-2 py-1 text-xs"
-                >New</span
               >
+                New
+              </span>
               <span class="text-sm">Introduction Tailark Html</span>
               <span class="block h-4 w-px bg-(--color-border)"></span>
 
@@ -9676,7 +9695,7 @@
   </header>
 {/snippet}
 
-=== 15994 src/lib/components/blocks/hero/hero-three.svelte	svelte
+=== 16052 src/lib/components/blocks/hero/hero-three.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
   import { Marquee } from "$lib/components/magic/marquee";
@@ -9818,11 +9837,12 @@
                           <div class="space-x-1">
                             <span
                               class="align-baseline text-xl font-medium text-foreground"
-                              >8,081</span
                             >
-                            <span class="text-xs text-muted-foreground"
-                              >Steps/day</span
-                            >
+                              8,081
+                            </span>
+                            <span class="text-xs text-muted-foreground">
+                              Steps/day
+                            </span>
                           </div>
                           <div
                             class="flex h-5 items-center rounded bg-linear-to-l from-emerald-400 to-indigo-600 px-2 text-xs text-white"
@@ -9834,11 +9854,12 @@
                           <div class="space-x-1">
                             <span
                               class="align-baseline text-xl font-medium text-foreground"
-                              >5,412</span
                             >
-                            <span class="text-xs text-muted-foreground"
-                              >Steps/day</span
-                            >
+                              5,412
+                            </span>
+                            <span class="text-xs text-muted-foreground">
+                              Steps/day
+                            </span>
                           </div>
                           <div
                             class="flex h-5 w-2/3 items-center rounded bg-muted px-2 text-xs text-foreground dark:bg-white/20"
@@ -10022,9 +10043,9 @@
               >
                 Login
               </Button>
-              <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}
-                >Sign Up</Button
-              >
+              <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}>
+                Sign Up
+              </Button>
               <Button
                 size="sm"
                 href="/"
@@ -10319,9 +10340,9 @@
               >
                 Login
               </Button>
-              <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}
-                >Sign Up</Button
-              >
+              <Button href="/" size="sm" class={cn(isScrolled && "lg:hidden")}>
+                Sign Up
+              </Button>
               <Button
                 size="sm"
                 href="/"
@@ -12999,7 +13020,7 @@
   </div>
 </section>
 
-=== 4210 src/lib/components/blocks/pricing/pricing-one.svelte	svelte
+=== 4219 src/lib/components/blocks/pricing/pricing-one.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
   import {
@@ -13080,8 +13101,9 @@
       <Card class="relative">
         <span
           class="absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center rounded-full bg-linear-to-br/increasing from-purple-400 to-amber-300 px-3 py-1 text-xs font-medium text-amber-950 ring-1 ring-white/20 ring-offset-1 ring-offset-gray-950/5 ring-inset"
-          >Popular</span
         >
+          Popular
+        </span>
 
         <div class="flex flex-col">
           <CardHeader>
@@ -13136,7 +13158,7 @@
   </div>
 </section>
 
-=== 3984 src/lib/components/blocks/pricing/pricing-three.svelte	svelte
+=== 3993 src/lib/components/blocks/pricing/pricing-three.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
   import {
@@ -13194,9 +13216,9 @@
           <span class="my-3 block text-2xl font-semibold">$0 / mo</span>
 
           <CardDescription class="text-sm">Per editor</CardDescription>
-          <Button href="/" variant="outline" class="mt-4 w-full"
-            >Get Started</Button
-          >
+          <Button href="/" variant="outline" class="mt-4 w-full">
+            Get Started
+          </Button>
         </CardHeader>
 
         <CardContent class="space-y-4">
@@ -13216,8 +13238,9 @@
       <Card class="relative">
         <span
           class="absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center rounded-full bg-linear-to-br/increasing from-purple-400 to-amber-300 px-3 py-1 text-xs font-medium text-amber-950 ring-1 ring-white/20 ring-offset-1 ring-offset-gray-950/5 ring-inset"
-          >Popular</span
         >
+          Popular
+        </span>
 
         <CardHeader>
           <CardTitle class="font-medium">Pro</CardTitle>
@@ -13251,9 +13274,9 @@
 
           <CardDescription class="text-sm">Per editor</CardDescription>
 
-          <Button href="/" variant="outline" class="mt-4 w-full"
-            >Get Started</Button
-          >
+          <Button href="/" variant="outline" class="mt-4 w-full">
+            Get Started
+          </Button>
         </CardHeader>
 
         <CardContent class="space-y-4">
@@ -13273,7 +13296,7 @@
   </div>
 </section>
 
-=== 4293 src/lib/components/blocks/pricing/pricing-two.svelte	svelte
+=== 4302 src/lib/components/blocks/pricing/pricing-two.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
   import {
@@ -13356,8 +13379,9 @@
       <Card class="relative">
         <span
           class="absolute inset-x-0 -top-3 mx-auto flex h-6 w-fit items-center rounded-full bg-linear-to-br/increasing from-purple-400 to-amber-300 px-3 py-1 text-xs font-medium text-amber-950 ring-1 ring-white/20 ring-offset-1 ring-offset-gray-950/5 ring-inset"
-          >Popular</span
         >
+          Popular
+        </span>
 
         <div class="flex flex-col">
           <CardHeader>
@@ -13857,7 +13881,7 @@
   </form>
 </section>
 
-=== 2248 src/lib/components/blocks/stats/stats-four.svelte	svelte
+=== 2268 src/lib/components/blocks/stats/stats-four.svelte	svelte
 <script lang="ts">
   import { Spotify } from "$lib/svgs";
 </script>
@@ -13870,8 +13894,10 @@
       </h2>
       <p>
         Gemini is evolving to be more than just the models. <span
-          class="font-medium">It supports an entire ecosystem</span
-        > — from products innovate.
+          class="font-medium"
+        >
+          It supports an entire ecosystem
+        </span> — from products innovate.
       </p>
     </div>
     <div class="grid gap-6 sm:grid-cols-2 md:gap-12 lg:gap-24">
@@ -14063,9 +14089,9 @@
               />
             </div>
             <span class="mt-2 block text-sm">{member.name}</span>
-            <span class="block text-xs text-muted-foreground"
-              >{member.role}</span
-            >
+            <span class="block text-xs text-muted-foreground">
+              {member.role}
+            </span>
           </div>
         {/each}
       </div>
@@ -14092,9 +14118,9 @@
               />
             </div>
             <span class="mt-2 block text-sm">{member.name}</span>
-            <span class="block text-xs text-muted-foreground"
-              >{member.role}</span
-            >
+            <span class="block text-xs text-muted-foreground">
+              {member.role}
+            </span>
           </div>
         {/each}
       </div>
@@ -14121,9 +14147,9 @@
               />
             </div>
             <span class="mt-2 block text-sm">{member.name}</span>
-            <span class="block text-xs text-muted-foreground"
-              >{member.role}</span
-            >
+            <span class="block text-xs text-muted-foreground">
+              {member.role}
+            </span>
           </div>
         {/each}
       </div>
@@ -14131,7 +14157,7 @@
   </div>
 </section>
 
-=== 3396 src/lib/components/blocks/team/team-two.svelte	svelte
+=== 3418 src/lib/components/blocks/team/team-two.svelte	svelte
 <script>
   const members = [
     {
@@ -14177,8 +14203,9 @@
   <div class="mx-auto max-w-5xl border-t px-6">
     <span
       class="text-caption -mt-3.5 -ml-6 block w-max bg-gray-50 px-6 dark:bg-gray-950"
-      >Team</span
     >
+      Team
+    </span>
     <div class="mt-12 gap-4 sm:grid sm:grid-cols-2 md:mt-24">
       <div class="sm:w-2/5">
         <h2 class="text-3xl font-bold sm:text-4xl">Our dream team</h2>
@@ -14214,8 +14241,9 @@
               <div class="mt-1 flex items-center justify-between">
                 <span
                   class="inline-block translate-y-6 text-sm text-muted-foreground opacity-0 transition duration-300 group-hover:translate-y-0 group-hover:opacity-100"
-                  >{member.role}</span
                 >
+                  {member.role}
+                </span>
                 <a
                   href={member.link}
                   class="group-hover:text-primary-600 dark:group-hover:text-primary-400 inline-block translate-y-8 text-sm tracking-wide opacity-0 transition-all duration-500 group-hover:translate-y-0 group-hover:opacity-100 hover:underline"
@@ -14232,7 +14260,7 @@
   </div>
 </section>
 
-=== 6715 src/lib/components/blocks/testimonial/testimonial-five.svelte	svelte
+=== 6736 src/lib/components/blocks/testimonial/testimonial-five.svelte	svelte
 <script lang="ts">
   import {
     Avatar,
@@ -14384,8 +14412,9 @@
 
                     <span
                       class="block text-sm tracking-wide text-muted-foreground"
-                      >{role}</span
                     >
+                      {role}
+                    </span>
 
                     <blockquote class="mt-3">
                       <p class="text-gray-700 dark:text-gray-300">{quote}</p>
@@ -14504,9 +14533,9 @@
 
               <div>
                 <cite class="text-sm font-medium">Shekinah Tshiokufila</cite>
-                <span class="block text-sm text-muted-foreground"
-                  >Software Ingineer</span
-                >
+                <span class="block text-sm text-muted-foreground">
+                  Software Ingineer
+                </span>
               </div>
             </div>
           </blockquote>
@@ -14533,9 +14562,9 @@
               </Avatar>
               <div>
                 <cite class="text-sm font-medium">Jonathan Yombo</cite>
-                <span class="block text-sm text-muted-foreground"
-                  >Software Ingineer</span
-                >
+                <span class="block text-sm text-muted-foreground">
+                  Software Ingineer
+                </span>
               </div>
             </div>
           </blockquote>
@@ -14564,9 +14593,9 @@
               </Avatar>
               <div>
                 <cite class="text-sm font-medium">Yucel Faruksahan</cite>
-                <span class="block text-sm text-muted-foreground"
-                  >Creator, Tailkits</span
-                >
+                <span class="block text-sm text-muted-foreground">
+                  Creator, Tailkits
+                </span>
               </div>
             </div>
           </blockquote>
@@ -14593,9 +14622,9 @@
               </Avatar>
               <div>
                 <p class="text-sm font-medium">Rodrigo Aguilar</p>
-                <span class="block text-sm text-muted-foreground"
-                  >Creator, TailwindAwesome</span
-                >
+                <span class="block text-sm text-muted-foreground">
+                  Creator, TailwindAwesome
+                </span>
               </div>
             </div>
           </blockquote>
@@ -14605,7 +14634,7 @@
   </div>
 </section>
 
-=== 6823 src/lib/components/blocks/testimonial/testimonial-six.svelte	svelte
+=== 6844 src/lib/components/blocks/testimonial/testimonial-six.svelte	svelte
 <script lang="ts">
   import {
     Avatar,
@@ -14759,8 +14788,9 @@
 
                     <span
                       class="block text-sm tracking-wide text-muted-foreground"
-                      >{role}</span
                     >
+                      {role}
+                    </span>
 
                     <blockquote class="mt-3">
                       <p class="text-gray-700 dark:text-gray-300">{quote}</p>
@@ -14869,9 +14899,9 @@
 
               <div>
                 <cite class="text-sm font-medium">Shekinah Tshiokufila</cite>
-                <span class="block text-sm text-muted-foreground"
-                  >Software Ingineer</span
-                >
+                <span class="block text-sm text-muted-foreground">
+                  Software Ingineer
+                </span>
               </div>
             </div>
           </blockquote>
@@ -14898,9 +14928,9 @@
               </Avatar>
               <div>
                 <cite class="text-sm font-medium">Jonathan Yombo</cite>
-                <span class="block text-sm text-muted-foreground"
-                  >Software Ingineer</span
-                >
+                <span class="block text-sm text-muted-foreground">
+                  Software Ingineer
+                </span>
               </div>
             </div>
           </blockquote>
@@ -14929,9 +14959,9 @@
               </Avatar>
               <div>
                 <cite class="text-sm font-medium">Yucel Faruksahan</cite>
-                <span class="block text-sm text-muted-foreground"
-                  >Creator, Tailkits</span
-                >
+                <span class="block text-sm text-muted-foreground">
+                  Creator, Tailkits
+                </span>
               </div>
             </div>
           </blockquote>
@@ -14958,9 +14988,9 @@
               </Avatar>
               <div>
                 <p class="text-sm font-medium">Rodrigo Aguilar</p>
-                <span class="block text-sm text-muted-foreground"
-                  >Creator, TailwindAwesome</span
-                >
+                <span class="block text-sm text-muted-foreground">
+                  Creator, TailwindAwesome
+                </span>
               </div>
             </div>
           </blockquote>
@@ -14994,7 +15024,7 @@
   <path d="m14.5 4-5 16" />
 </svg>
 
-=== 2524 src/lib/components/icons/css.svelte	svelte
+=== 2525 src/lib/components/icons/css.svelte	svelte
 <script lang="ts">
   import type { Props } from "./index";
   import { cn } from "$lib/utils";
@@ -15007,14 +15037,15 @@
   aria-labelledby="css-logo-title css-logo-description"
   viewBox="0 0 1000 1000"
   {...rest}
-  ><path
+>
+  <path
     fill="#639"
     d="M0 0h840a160 160 0 0 1 160 160v680a160 160 0 0 1-160 160H160A160 160 0 0 1 0 840V0Z"
   /><path
     fill="#fff"
     d="M816.54 919.9c-32.39 0-57.16-9.42-74.5-28.35-17.15-19.03-26.08-46.18-26.88-81.64h69.8c.4 31.36 11.42 47.08 33.08 47.08 11.04 0 18.86-3.5 23.37-10.42 4.41-6.9 6.72-17.93 6.72-33.05 0-12.02-3.01-22.04-8.83-29.95a73.2 73.2 0 0 0-29.48-21.14L783.95 750c-23.06-11.02-39.81-24.04-50.14-39.27-10.03-15.13-15.04-36.36-15.04-63.5 0-30.36 8.83-55 26.37-73.94 18.05-18.93 42.62-28.34 74-28.34 30.3 0 53.76 9.31 70.3 27.84 16.85 18.64 25.67 45.28 26.38 80.14h-67.19c.4-11.4-1.9-22.72-6.72-33.06-3.8-7.6-11.23-11.41-22.26-11.41-19.65 0-29.48 11.71-29.48 35.05 0 11.83 2.4 21.04 7.22 28.05A65.18 65.18 0 0 0 822.76 689l24.77 10.92c25.57 11.72 44.02 26.05 55.35 43.38 11.43 17.23 17.05 40.27 17.05 69.12 0 34.56-9.03 61.1-27.38 79.63-18.25 18.53-43.62 27.85-76 27.85Zm-225.42 0c-32.4 0-57.16-9.42-74.51-28.35-17.15-19.03-26.07-46.18-26.87-81.64h69.79c.4 31.36 11.43 47.08 33.1 47.08 11.02 0 18.84-3.5 23.25-10.42 4.52-6.9 6.72-17.93 6.72-33.05 0-12.02-2.9-22.04-8.72-29.95a73.2 73.2 0 0 0-29.48-21.14L558.53 750c-23.07-11.02-39.81-24.04-50.14-39.27-10.03-15.13-15.04-36.36-15.04-63.5 0-30.36 8.82-55 26.37-73.94 18.05-18.93 42.62-28.34 74-28.34 30.29 0 53.75 9.31 70.2 27.84 17.05 18.64 25.77 45.28 26.47 80.14h-67.18c.4-11.4-1.9-22.72-6.72-33.06-3.81-7.6-11.23-11.41-22.26-11.41-19.66 0-29.49 11.71-29.49 35.05 0 11.83 2.41 21.04 7.22 28.05A65.18 65.18 0 0 0 597.33 689l24.77 10.92c25.57 11.72 44.02 26.05 55.36 43.38 11.33 17.23 17.04 40.27 17.04 69.12 0 34.56-9.12 61.1-27.37 79.63-18.25 18.53-43.62 27.85-76.01 27.85Zm-234.75 0c-31.7 0-56.86-8.62-75.51-25.85-18.65-17.12-27.88-42.87-27.88-76.93V648.83c0-33.85 9.83-59.5 29.48-77.13 19.96-17.43 46.13-26.24 78.52-26.24 31.39 0 56.15 9.01 74.5 26.84 18.56 17.93 27.88 44.58 27.88 80.14v13.32h-73.9v-12.92c0-13.72-3.01-23.84-8.83-30.45a26.46 26.46 0 0 0-21.66-10.32c-12.03 0-20.55 4.1-25.37 12.42a79.04 79.04 0 0 0-6.72 36.66v146.26c0 30.55 10.74 46.08 32.1 46.38 10.02 0 17.54-3.61 22.76-10.82a51.74 51.74 0 0 0 7.72-30.46V801.6h73.9v11.42c0 23.74-4.61 43.57-13.94 59.4a88.8 88.8 0 0 1-38.2 35.66 121.46 121.46 0 0 1-54.85 11.82Z"
-  /></svg
->
+  />
+</svg>
 
 === 2217 src/lib/components/icons/github.svelte	svelte
 <script lang="ts">
@@ -15036,7 +15067,7 @@
   />
 </svg>
 
-=== 922 src/lib/components/icons/linkedin.svelte	svelte
+=== 923 src/lib/components/icons/linkedin.svelte	svelte
 <script lang="ts">
   import type { Props } from "./index";
   import { cn } from "$lib/utils";
@@ -15048,11 +15079,12 @@
   preserveAspectRatio="xMidYMid"
   viewBox="0 0 256 256"
   class={cn("size-4", className)}
-  ><path
+>
+  <path
     d="M218.123 218.127h-37.931v-59.403c0-14.165-.253-32.4-19.728-32.4-19.756 0-22.779 15.434-22.779 31.369v60.43h-37.93V95.967h36.413v16.694h.51a39.907 39.907 0 0 1 35.928-19.733c38.445 0 45.533 25.288 45.533 58.186l-.016 67.013ZM56.955 79.27c-12.157.002-22.014-9.852-22.016-22.009-.002-12.157 9.851-22.014 22.008-22.016 12.157-.003 22.014 9.851 22.016 22.008A22.013 22.013 0 0 1 56.955 79.27m18.966 138.858H37.95V95.967h37.97v122.16ZM237.033.018H18.89C8.58-.098.125 8.161-.001 18.471v219.053c.122 10.315 8.576 18.582 18.89 18.474h218.144c10.336.128 18.823-8.139 18.966-18.474V18.454c-.147-10.33-8.635-18.588-18.966-18.453"
     fill="#0A66C2"
-  /></svg
->
+  />
+</svg>
 
 === 580 src/lib/components/icons/markdown.svelte	svelte
 <script lang="ts">
@@ -15109,7 +15141,7 @@
   />
 </svg>
 
-=== 1998 src/lib/components/icons/svelte.svelte	svelte
+=== 1999 src/lib/components/icons/svelte.svelte	svelte
 <script lang="ts">
   import type { Props } from ".";
   import { cn } from "$lib/utils";
@@ -15122,14 +15154,15 @@
   preserveAspectRatio="xMidYMid"
   class={cn("size-4", className)}
   {...rest}
-  ><path
+>
+  <path
     d="M239.682 40.707C211.113-.182 154.69-12.301 113.895 13.69L42.247 59.356a82.198 82.198 0 0 0-37.135 55.056 86.566 86.566 0 0 0 8.536 55.576 82.425 82.425 0 0 0-12.296 30.719 87.596 87.596 0 0 0 14.964 66.244c28.574 40.893 84.997 53.007 125.787 27.016l71.648-45.664a82.182 82.182 0 0 0 37.135-55.057 86.601 86.601 0 0 0-8.53-55.577 82.409 82.409 0 0 0 12.29-30.718 87.573 87.573 0 0 0-14.963-66.244"
     fill="#FF3E00"
   /><path
     d="M106.889 270.841c-23.102 6.007-47.497-3.036-61.103-22.648a52.685 52.685 0 0 1-9.003-39.85 49.978 49.978 0 0 1 1.713-6.693l1.35-4.115 3.671 2.697a92.447 92.447 0 0 0 28.036 14.007l2.663.808-.245 2.659a16.067 16.067 0 0 0 2.89 10.656 17.143 17.143 0 0 0 18.397 6.828 15.786 15.786 0 0 0 4.403-1.935l71.67-45.672a14.922 14.922 0 0 0 6.734-9.977 15.923 15.923 0 0 0-2.713-12.011 17.156 17.156 0 0 0-18.404-6.832 15.78 15.78 0 0 0-4.396 1.933l-27.35 17.434a52.298 52.298 0 0 1-14.553 6.391c-23.101 6.007-47.497-3.036-61.101-22.649a52.681 52.681 0 0 1-9.004-39.849 49.428 49.428 0 0 1 22.34-33.114l71.664-45.677a52.218 52.218 0 0 1 14.563-6.398c23.101-6.007 47.497 3.036 61.101 22.648a52.685 52.685 0 0 1 9.004 39.85 50.559 50.559 0 0 1-1.713 6.692l-1.35 4.116-3.67-2.693a92.373 92.373 0 0 0-28.037-14.013l-2.664-.809.246-2.658a16.099 16.099 0 0 0-2.89-10.656 17.143 17.143 0 0 0-18.398-6.828 15.786 15.786 0 0 0-4.402 1.935l-71.67 45.674a14.898 14.898 0 0 0-6.73 9.975 15.9 15.9 0 0 0 2.709 12.012 17.156 17.156 0 0 0 18.404 6.832 15.841 15.841 0 0 0 4.402-1.935l27.345-17.427a52.147 52.147 0 0 1 14.552-6.397c23.101-6.006 47.497 3.037 61.102 22.65a52.681 52.681 0 0 1 9.003 39.848 49.453 49.453 0 0 1-22.34 33.12l-71.664 45.673a52.218 52.218 0 0 1-14.563 6.398"
     fill="#FFF"
-  /></svg
->
+  />
+</svg>
 
 === 464 src/lib/components/icons/terminal.svelte	svelte
 <script lang="ts">
@@ -15154,7 +15187,7 @@
   <line x1="12" x2="20" y1="19" y2="19" />
 </svg>
 
-=== 582 src/lib/components/icons/twitter.svelte	svelte
+=== 583 src/lib/components/icons/twitter.svelte	svelte
 <script lang="ts">
   import type { Props } from "./index.js";
   import { cn } from "$lib/utils";
@@ -15167,12 +15200,13 @@
   viewBox="0 0 1200 1227"
   class={cn("size-4 fill-current", className)}
   {...rest}
-  ><path
-    d="M714.163 519.284 1160.89 0h-105.86L667.137 450.887 357.328 0H0l468.492 681.821L0 1226.37h105.866l409.625-476.152 327.181 476.152H1200L714.137 519.284h.026ZM569.165 687.828l-47.468-67.894-377.686-540.24h162.604l304.797 435.991 47.468 67.894 396.2 566.721H892.476L569.165 687.854v-.026Z"
-  /></svg
 >
+  <path
+    d="M714.163 519.284 1160.89 0h-105.86L667.137 450.887 357.328 0H0l468.492 681.821L0 1226.37h105.866l409.625-476.152 327.181 476.152H1200L714.137 519.284h.026ZM569.165 687.828l-47.468-67.894-377.686-540.24h162.604l304.797 435.991 47.468 67.894 396.2 566.721H892.476L569.165 687.854v-.026Z"
+  />
+</svg>
 
-=== 1955 src/lib/components/icons/typescript.svelte	svelte
+=== 1956 src/lib/components/icons/typescript.svelte	svelte
 <script lang="ts">
   import type { Props } from ".";
   import { cn } from "$lib/utils";
@@ -15186,7 +15220,8 @@
   viewBox="0 0 512 512"
   xmlns="http://www.w3.org/2000/svg"
   {...rest}
-  ><rect fill="#3178c6" height="512" rx="50" width="512" /><rect
+>
+  <rect fill="#3178c6" height="512" rx="50" width="512" /><rect
     fill="#3178c6"
     height="512"
     rx="50"
@@ -15196,10 +15231,10 @@
     d="m316.939 407.424v50.061c8.138 4.172 17.763 7.3 28.875 9.386s22.823 3.129 35.135 3.129c11.999 0 23.397-1.147 34.196-3.442 10.799-2.294 20.268-6.075 28.406-11.342 8.138-5.266 14.581-12.15 19.328-20.65s7.121-19.007 7.121-31.522c0-9.074-1.356-17.026-4.069-23.857s-6.625-12.906-11.738-18.225c-5.112-5.319-11.242-10.091-18.389-14.315s-15.207-8.213-24.18-11.967c-6.573-2.712-12.468-5.345-17.685-7.9-5.217-2.556-9.651-5.163-13.303-7.822-3.652-2.66-6.469-5.476-8.451-8.448-1.982-2.973-2.974-6.336-2.974-10.091 0-3.441.887-6.544 2.661-9.308s4.278-5.136 7.512-7.118c3.235-1.981 7.199-3.52 11.894-4.615 4.696-1.095 9.912-1.642 15.651-1.642 4.173 0 8.581.313 13.224.938 4.643.626 9.312 1.591 14.008 2.894 4.695 1.304 9.259 2.947 13.694 4.928 4.434 1.982 8.529 4.276 12.285 6.884v-46.776c-7.616-2.92-15.937-5.084-24.962-6.492s-19.381-2.112-31.066-2.112c-11.895 0-23.163 1.278-33.805 3.833s-20.006 6.544-28.093 11.967c-8.086 5.424-14.476 12.333-19.171 20.729-4.695 8.395-7.043 18.433-7.043 30.114 0 14.914 4.304 27.638 12.912 38.172 8.607 10.533 21.675 19.45 39.204 26.751 6.886 2.816 13.303 5.579 19.25 8.291s11.086 5.528 15.415 8.448c4.33 2.92 7.747 6.101 10.252 9.543 2.504 3.441 3.756 7.352 3.756 11.733 0 3.233-.783 6.231-2.348 8.995s-3.939 5.162-7.121 7.196-7.147 3.624-11.894 4.771c-4.748 1.148-10.303 1.721-16.668 1.721-10.851 0-21.597-1.903-32.24-5.71-10.642-3.806-20.502-9.516-29.579-17.13zm-84.159-123.342h64.22v-41.082h-179v41.082h63.906v182.918h50.874z"
     fill="#fff"
     fill-rule="evenodd"
-  /></svg
->
+  />
+</svg>
 
-=== 767 src/lib/components/icons/youtube.svelte	svelte
+=== 768 src/lib/components/icons/youtube.svelte	svelte
 <script lang="ts">
   import type { Props } from ".";
   import { cn } from "$lib/utils";
@@ -15213,11 +15248,12 @@
   class={cn("size-4", className)}
   aria-labelledby="youtube-logo-title youtube-logo-description"
   {...rest}
-  ><path
+>
+  <path
     fill="red"
     d="M250.346 28.075A32.18 32.18 0 0 0 227.69 5.418C207.824 0 127.87 0 127.87 0S47.912.164 28.046 5.582A32.18 32.18 0 0 0 5.39 28.24c-6.009 35.298-8.34 89.084.165 122.97a32.18 32.18 0 0 0 22.656 22.657c19.866 5.418 99.822 5.418 99.822 5.418s79.955 0 99.82-5.418a32.18 32.18 0 0 0 22.657-22.657c6.338-35.348 8.291-89.1-.164-123.134Z"
-  /><path fill="#FFF" d="m102.421 128.06 66.328-38.418-66.328-38.418z" /></svg
->
+  /><path fill="#FFF" d="m102.421 128.06 66.328-38.418-66.328-38.418z" />
+</svg>
 
 === 1000 src/lib/components/layout/DocsPageShell.svelte	svelte
 <script lang="ts" module>
@@ -15577,7 +15613,7 @@
   </Sidebar.GroupContent>
 </Sidebar.Group>
 
-=== 1232 src/lib/components/layout/nav-user.svelte	svelte
+=== 1245 src/lib/components/layout/nav-user.svelte	svelte
 <script lang="ts">
   import * as Avatar from "$lib/components/ui/avatar/index.js";
   import * as Sidebar from "$lib/components/ui/sidebar/index.js";
@@ -15611,8 +15647,9 @@
         </Avatar.Root>
         <div class="grid flex-1 text-start text-sm leading-tight">
           <span class="truncate font-medium">{user.name}</span>
-          <span class="truncate text-xs text-muted-foreground">{user.desc}</span
-          >
+          <span class="truncate text-xs text-muted-foreground">
+            {user.desc}
+          </span>
         </div>
       </Sidebar.MenuButton>
     </a>
@@ -16095,7 +16132,7 @@
   />
 </svg>
 
-=== 5635 src/lib/components/magic/CompareImgBlock.svelte	svelte
+=== 5644 src/lib/components/magic/CompareImgBlock.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
   import { Spring } from "svelte/motion";
@@ -16269,12 +16306,13 @@
           stroke-linecap="round"
           stroke-linejoin="round"
           class="h-4 w-4 text-black"
-          ><circle cx="12" cy="12" r="1" /><circle
-            cx="12"
-            cy="5"
-            r="1"
-          /><circle cx="12" cy="19" r="1" /></svg
         >
+          <circle cx="12" cy="12" r="1" /><circle cx="12" cy="5" r="1" /><circle
+            cx="12"
+            cy="19"
+            r="1"
+          />
+        </svg>
       </div>
     {/if}
   </div>
@@ -17280,7 +17318,7 @@
   </div>
 </section>
 
-=== 5604 src/lib/components/mist/mcontent/one.svelte	svelte
+=== 5611 src/lib/components/mist/mcontent/one.svelte	svelte
 <script lang="ts">
   import {
     ToggleGroup,
@@ -17403,8 +17441,9 @@
     <span>
       <span
         class="bg-secondary py-1 text-sm text-secondary-foreground dark:bg-secondary/10"
-        >Tomorrow 8:30 pm</span
-      > is our priority.
+      >
+        Tomorrow 8:30 pm
+      </span> is our priority.
     </span>
   </div>
 {/snippet}
@@ -17478,7 +17517,7 @@
   </div>
 </section>
 
-=== 5587 src/lib/components/mist/mcontent/two.svelte	svelte
+=== 5594 src/lib/components/mist/mcontent/two.svelte	svelte
 <script lang="ts">
   import {
     ToggleGroup,
@@ -17603,8 +17642,9 @@
     <span>
       <span
         class="bg-secondary py-1 text-sm text-secondary-foreground dark:bg-secondary/10"
-        >Tomorrow 8:30 pm</span
-      > is our priority.
+      >
+        Tomorrow 8:30 pm
+      </span> is our priority.
     </span>
   </div>
 {/snippet}
@@ -17787,9 +17827,9 @@
       <h2
         class="text-3xl font-semibold text-balance text-foreground md:text-4xl"
       >
-        <span class="text-muted-foreground"
-          >Empowering Marketing teams with</span
-        > AI-driven solutions
+        <span class="text-muted-foreground">
+          Empowering Marketing teams with
+        </span> AI-driven solutions
       </h2>
       <div class="@container mt-12 space-y-12">
         <Card variant="soft" class="relative overflow-hidden p-0 sm:col-span-2">
@@ -17871,7 +17911,7 @@
   </Card>
 {/snippet}
 
-=== 3529 src/lib/components/mist/mfeature/feature-table.svelte	svelte
+=== 3557 src/lib/components/mist/mfeature/feature-table.svelte	svelte
 <script lang="ts">
   import { cn } from "$lib/utils";
   const AIDEN_BLESER = "https://avatars.githubusercontent.com/u/117548273?v=4";
@@ -17966,8 +18006,10 @@
                   "bg-red-500/15 text-red-800",
                 customer.statusVariant == "warning" &&
                   "bg-yellow-500/15 text-yellow-800",
-              )}>{customer.status}</span
+              )}
             >
+              {customer.status}
+            </span>
           </td>
           <td>
             <div class="text-title flex items-center gap-2">
@@ -18059,7 +18101,7 @@
   </div>
 </section>
 
-=== 5425 src/lib/components/mist/mfeature/four.svelte	svelte
+=== 5432 src/lib/components/mist/mfeature/four.svelte	svelte
 <script lang="ts">
   import {
     ToggleGroup,
@@ -18182,8 +18224,9 @@
     <span>
       <span
         class="bg-secondary py-1 text-sm text-secondary-foreground dark:bg-secondary/10"
-        >Tomorrow 8:30 pm</span
-      > is our priority.
+      >
+        Tomorrow 8:30 pm
+      </span> is our priority.
     </span>
   </div>
 {/snippet}
@@ -18364,9 +18407,9 @@
             width="460"
           />
         </div>
-        <span class="text-sm font-medium text-muted-foreground"
-          >Bhide Svelte</span
-        >
+        <span class="text-sm font-medium text-muted-foreground">
+          Bhide Svelte
+        </span>
 
         <span class="text-xs text-muted-foreground/75">2m</span>
       </div>
@@ -18661,9 +18704,9 @@
             width="460"
           />
         </div>
-        <span class="text-sm font-medium text-muted-foreground"
-          >Bhide Svelte</span
-        >
+        <span class="text-sm font-medium text-muted-foreground">
+          Bhide Svelte
+        </span>
 
         <span class="text-xs text-muted-foreground/75">2m</span>
       </div>
@@ -18867,9 +18910,9 @@
             width="460"
           />
         </div>
-        <span class="text-sm font-medium text-muted-foreground"
-          >Bhide Svelte</span
-        >
+        <span class="text-sm font-medium text-muted-foreground">
+          Bhide Svelte
+        </span>
 
         <span class="text-xs text-muted-foreground/75">2m</span>
       </div>
@@ -18965,9 +19008,9 @@
       <h2
         class="text-3xl font-semibold text-balance text-foreground md:text-4xl"
       >
-        <span class="text-muted-foreground"
-          >Empowering Marketing teams with</span
-        > AI-driven solutions
+        <span class="text-muted-foreground">
+          Empowering Marketing teams with
+        </span> AI-driven solutions
       </h2>
       <div class="mt-12 grid gap-12 sm:grid-cols-2">
         <div class="col-span-full space-y-4">
@@ -19076,9 +19119,9 @@
             width="460"
           />
         </div>
-        <span class="text-sm font-medium text-muted-foreground"
-          >Bhide Svelte</span
-        >
+        <span class="text-sm font-medium text-muted-foreground">
+          Bhide Svelte
+        </span>
 
         <span class="text-xs text-muted-foreground/75">2m</span>
       </div>
@@ -19142,7 +19185,7 @@
   </Card>
 {/snippet}
 
-=== 5383 src/lib/components/mist/mfeature/three.svelte	svelte
+=== 5390 src/lib/components/mist/mfeature/three.svelte	svelte
 <script lang="ts">
   import {
     ToggleGroup,
@@ -19266,8 +19309,9 @@
     <span>
       <span
         class="bg-secondary py-1 text-sm text-secondary-foreground dark:bg-secondary/10"
-        >Tomorrow 8:30 pm</span
-      > is our priority.
+      >
+        Tomorrow 8:30 pm
+      </span> is our priority.
     </span>
   </div>
 {/snippet}
@@ -19431,9 +19475,9 @@
             ></path>
           </svg>
         </a>
-        <span class="block text-center text-sm text-muted-foreground"
-          >© {new Date().getFullYear()} Tailark Mist, All rights reserved</span
-        >
+        <span class="block text-center text-sm text-muted-foreground">
+          © {new Date().getFullYear()} Tailark Mist, All rights reserved
+        </span>
       </div>
 
       <div class="order-first flex flex-wrap gap-x-6 gap-y-4 md:order-last">
@@ -19656,8 +19700,8 @@
       </a>
     </div>
     <span class="block text-center text-sm text-muted-foreground">
-      © {new Date().getFullYear()} Tailark Mist, All rights reserved</span
-    >
+      © {new Date().getFullYear()} Tailark Mist, All rights reserved
+    </span>
   </div>
 </footer>
 
@@ -19807,7 +19851,7 @@
   </div>
 </footer>
 
-=== 9890 src/lib/components/mist/mfooter/two.svelte	svelte
+=== 9897 src/lib/components/mist/mfooter/two.svelte	svelte
 <script lang="ts">
   let links = [
     {
@@ -19954,8 +19998,9 @@
     >
       <span
         class="order-last block text-center text-sm text-muted-foreground md:order-first"
-        >© {new Date().getFullYear()} Tailark Mist, All rights reserved</span
       >
+        © {new Date().getFullYear()} Tailark Mist, All rights reserved
+      </span>
       <div
         class="order-first flex flex-wrap justify-center gap-6 text-sm md:order-last"
       >
@@ -20159,9 +20204,9 @@
         </div>
         <!-- You can use variant='default'  -->
         <!-- I have added variant='mdefault' as new variant in button.svelte -->
-        <Button class="w-full" variant="mdefault" size="default"
-          >Send Reset Link</Button
-        >
+        <Button class="w-full" variant="mdefault" size="default">
+          Send Reset Link
+        </Button>
       </div>
     </div>
     <div class="px-6">
@@ -20897,7 +20942,7 @@
   </div>
 {/snippet}
 
-=== 2788 src/lib/components/mist/mhero/three/hero-three.svelte	svelte
+=== 2803 src/lib/components/mist/mhero/three/hero-three.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
   import Header from "./header.svelte";
@@ -20923,8 +20968,9 @@
           <div
             class="flex flex-col items-center gap-3 *:w-full sm:flex-row sm:*:w-fit"
           >
-            <Button variant="mdefault" href="/" size="lg">Start Building</Button
-            >
+            <Button variant="mdefault" href="/" size="lg">
+              Start Building
+            </Button>
             <Button href="/" size="lg" variant="outline">Request a demo</Button>
           </div>
         </div>
@@ -21571,9 +21617,9 @@
           <div>
             <CardHeader class="p-8">
               <CardTitle class="font-medium">Free</CardTitle>
-              <span class="mt-2 mb-0.5 block text-2xl font-semibold"
-                >$0 / mo</span
-              >
+              <span class="mt-2 mb-0.5 block text-2xl font-semibold">
+                $0 / mo
+              </span>
               <CardDescription class="text-sm">Per editor</CardDescription>
             </CardHeader>
             <div class="border-y px-8 py-4">
@@ -21595,9 +21641,9 @@
             <div class="relative px-1 @3xl:px-0 @3xl:py-3">
               <CardHeader class="p-8">
                 <CardTitle class="font-medium">Pro</CardTitle>
-                <span class="mt-2 mb-0.5 block text-2xl font-semibold"
-                  >$19 / mo</span
-                >
+                <span class="mt-2 mb-0.5 block text-2xl font-semibold">
+                  $19 / mo
+                </span>
                 <CardDescription class="text-sm">Per editor</CardDescription>
               </CardHeader>
               <div class="-mx-1 border-y px-8 py-4 @3xl:mx-0">
@@ -21617,9 +21663,9 @@
           <div>
             <CardHeader class="p-8">
               <CardTitle class="font-medium">Pro Plus</CardTitle>
-              <span class="mt-2 mb-0.5 block text-2xl font-semibold"
-                >$49 / mo</span
-              >
+              <span class="mt-2 mb-0.5 block text-2xl font-semibold">
+                $49 / mo
+              </span>
               <CardDescription class="text-sm">Per editor</CardDescription>
             </CardHeader>
             <div class="border-y px-8 py-4">
@@ -21854,9 +21900,9 @@
               class="size-10  rounded-(--radius) border border-transparent shadow ring-1"
             >
               <AvatarImage src={member.src} alt={member.name} />
-              <AvatarFallback class="rounded-(--radius)"
-                >{member.name.charAt(0)}</AvatarFallback
-              >
+              <AvatarFallback class="rounded-(--radius)">
+                {member.name.charAt(0)}
+              </AvatarFallback>
             </Avatar>
 
             <div>
@@ -21870,7 +21916,7 @@
   </div>
 </section>
 
-=== 4975 src/lib/components/mist/mteam/two.svelte	svelte
+=== 4996 src/lib/components/mist/mteam/two.svelte	svelte
 <script lang="ts">
   import Button from "$lib/components/ui/button/button.svelte";
   import ChevronRight from "@lucide/svelte/icons/chevron-right";
@@ -21979,9 +22025,9 @@
                     class="size-10  rounded-(--radius) border border-transparent shadow ring-1"
                   >
                     <AvatarImage src={member.src} alt={member.name} />
-                    <AvatarFallback class="rounded-(--radius)"
-                      >{member.name.charAt(0)}</AvatarFallback
-                    >
+                    <AvatarFallback class="rounded-(--radius)">
+                      {member.name.charAt(0)}
+                    </AvatarFallback>
                   </Avatar>
                   <Button
                     href="https://x.com/Sikandar_Bhide"
@@ -21995,11 +22041,12 @@
                       height="1227"
                       fill="none"
                       viewBox="0 0 1200 1227"
-                      ><path
+                    >
+                      <path
                         fill="#fff"
                         d="M714.163 519.284 1160.89 0h-105.86L667.137 450.887 357.328 0H0l468.492 681.821L0 1226.37h105.866l409.625-476.152 327.181 476.152H1200L714.137 519.284h.026ZM569.165 687.828l-47.468-67.894-377.686-540.24h162.604l304.797 435.991 47.468 67.894 396.2 566.721H892.476L569.165 687.854v-.026Z"
-                      /></svg
-                    >
+                      />
+                    </svg>
                   </Button>
                 </div>
 
@@ -22047,9 +22094,9 @@
               />
               <AvatarFallback>T</AvatarFallback>
             </Avatar>
-            <cite class="mt-2 text-lg font-medium text-foreground"
-              >Théo Balick</cite
-            >
+            <cite class="mt-2 text-lg font-medium text-foreground">
+              Théo Balick
+            </cite>
             <span class="text-muted-foreground">@theo_b</span>
           </footer>
         </blockquote>
@@ -22188,9 +22235,9 @@
                 aria-hidden="true"
                 class="size-1 rounded-full bg-foreground/25"
               ></span>
-              <span class="text-sm text-muted-foreground"
-                >{testimonial.role}</span
-              >
+              <span class="text-sm text-muted-foreground">
+                {testimonial.role}
+              </span>
             </div>
           </div>
         {/each}
@@ -22265,9 +22312,9 @@
                 aria-hidden="true"
                 class="size-1 rounded-full bg-foreground/25"
               ></span>
-              <span class="text-sm text-muted-foreground"
-                >{testimonial.role}</span
-              >
+              <span class="text-sm text-muted-foreground">
+                {testimonial.role}
+              </span>
             </div>
           </div>
         {/each}
@@ -23069,7 +23116,7 @@
   {@render children?.()}
 </nav>
 
-=== 2340 src/lib/components/ui/button/animated-button.svelte	svelte
+=== 2347 src/lib/components/ui/button/animated-button.svelte	svelte
 <script lang="ts">
   import { cn } from "$lib/utils";
   import type { ButtonProps } from "./button.svelte";
@@ -23098,8 +23145,9 @@
       <span
         class="spark mask-gradient absolute inset-0 h-[100%] w-[100%] animate-flip overflow-hidden rounded-md [mask:linear-gradient(white,_transparent_50%)] before:absolute before:[inset:0_auto_auto_50%] before:aspect-square before:w-[200%] before:[translate:-50%_-15%] before:rotate-[-90deg]
         before:animate-kitrotate before:bg-[conic-gradient(from_0deg,transparent_0_330deg,blue_360deg)] before:content-[''] dark:before:bg-[conic-gradient(from_0deg,transparent_0_340deg,white_360deg)]"
-        >,</span
       >
+        ,
+      </span>
     </span>
     <span
       class="backdrop absolute inset-[0.9px] rounded-md bg-secondary transition-colors duration-200 group-hover:bg-neutral-200 dark:bg-neutral-900 dark:group-hover:bg-neutral-900"
@@ -23671,7 +23719,7 @@
   }
 </style>
 
-=== 3616 src/lib/components/ui/code/multiple-code.svelte	svelte
+=== 3640 src/lib/components/ui/code/multiple-code.svelte	svelte
 <script lang="ts">
   import type { Snippet } from "svelte";
   import * as Code from "./index";
@@ -23745,8 +23793,10 @@
               selectedIndex === index
                 ? "!text-black dark:!text-white"
                 : "text-muted-foreground",
-            ]}>{item?.filename || "Svelte"}</span
+            ]}
           >
+            {item?.filename || "Svelte"}
+          </span>
         </Button>
       {/each}
     </div>
@@ -24065,7 +24115,7 @@
   {...restProps}
 />
 
-=== 2403 src/lib/components/ui/copy-button/copy-button.svelte	svelte
+=== 2426 src/lib/components/ui/copy-button/copy-button.svelte	svelte
 <script lang="ts">
   import {
     Tooltip,
@@ -24144,9 +24194,13 @@
         {/if}
       </Button>
     </TooltipTrigger>
-    <TooltipContent align="center" side="top" class="z-50 px-2 py-1 text-[10px]"
-      >Copy Code</TooltipContent
+    <TooltipContent
+      align="center"
+      side="top"
+      class="z-50 px-2 py-1 text-[10px]"
     >
+      Copy Code
+    </TooltipContent>
   </Tooltip>
 </TooltipProvider>
 
@@ -25101,7 +25155,7 @@
   }
 </style>
 
-=== 3125 src/lib/components/ui/preview-component/preview-component.svelte	svelte
+=== 3140 src/lib/components/ui/preview-component/preview-component.svelte	svelte
 <script lang="ts">
   import * as Tabs from "$lib/components/ui/tabs/index.js";
   import * as Frame from "$lib/components/ui/frame/index.js";
@@ -25181,10 +25235,11 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="lucide lucide-rotate-cw-icon lucide-rotate-cw"
-                ><path
-                  d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"
-                /><path d="M21 3v5h-5" /></svg
               >
+                <path
+                  d="M21 12a9 9 0 1 1-9-9c2.52 0 4.93 1 6.74 2.74L21 8"
+                /><path d="M21 3v5h-5" />
+              </svg>
             </Button>
           {/if}
           {#key retryKey}
@@ -27613,9 +27668,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       >
         <p class="text-sm text-muted-foreground">Starting at</p>
         <p class="mt-1 font-serif text-4xl font-medium">
-          {price}<span class="text-lg font-normal text-muted-foreground"
-            >{priceSuffix}</span
-          >
+          {price}<span class="text-lg font-normal text-muted-foreground">
+            {priceSuffix}
+          </span>
         </p>
         <p class="mt-1 text-sm text-muted-foreground">{priceNote}</p>
         <Button href={ctaHref} class="mt-6 gap-2">
@@ -27972,9 +28027,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <div class="grid grid-cols-3 border-t">
         <div class="p-4"></div>
         <div class="min-w-32 border-l p-4">
-          <Button href="#link" variant="outline" size="sm" class="w-full"
-            >Get Started</Button
-          >
+          <Button href="#link" variant="outline" size="sm" class="w-full">
+            Get Started
+          </Button>
         </div>
         <div class="min-w-32 border-l bg-primary/5 p-4">
           <Button href="#link" size="sm" class="w-full">Upgrade</Button>
@@ -28306,9 +28361,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
     <p class="mt-8 text-center text-sm text-muted-foreground">
       Have another question?
-      <a href="/" class="font-medium text-primary hover:underline"
-        >Get in touch</a
-      >
+      <a href="/" class="font-medium text-primary hover:underline">
+        Get in touch
+      </a>
     </p>
   </div>
 </section>
@@ -29847,9 +29902,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
     <p class="mt-6 text-center text-sm text-muted-foreground">
       Remember your password?
-      <Button href="/" variant="link" class="px-1 font-medium text-primary"
-        >Sign in</Button
-      >
+      <Button href="/" variant="link" class="px-1 font-medium text-primary">
+        Sign in
+      </Button>
     </p>
   </div>
 </section>
@@ -29894,9 +29949,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
     <p class="mt-8 text-center text-sm text-muted-foreground">
       Remember your password?
-      <Button href="/" variant="link" class="px-1 font-medium text-primary"
-        >Sign in</Button
-      >
+      <Button href="/" variant="link" class="px-1 font-medium text-primary">
+        Sign in
+      </Button>
     </p>
   </div>
 </section>
@@ -29944,9 +29999,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
     <p class="mt-8 text-center text-sm text-muted-foreground">
       Remember your password?
-      <Button href="/" variant="link" class="px-1 font-medium text-primary"
-        >Sign in</Button
-      >
+      <Button href="/" variant="link" class="px-1 font-medium text-primary">
+        Sign in
+      </Button>
     </p>
   </div>
 </section>
@@ -30602,7 +30657,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </section>
 </main>
 
-=== 5417 src/lib/components/veil/hero/hero-one.svelte	svelte
+=== 5455 src/lib/components/veil/hero/hero-one.svelte	svelte
 <script lang="ts">
   import HeaderOne from "$lib/components/veil/header/header-one.svelte";
   import { Button } from "$lib/components/ui/veil/button";
@@ -30658,9 +30713,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Supabase class="size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Supabase</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Supabase
+                </span>
               </Card>
             </div>
             <div class="ml-auto">
@@ -30668,8 +30723,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Slack class="size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs">Slack</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Slack
+                </span>
               </Card>
             </div>
             <div class="ml-auto blur-[2px]">
@@ -30677,8 +30733,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Figma class="size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs">Figma</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Figma
+                </span>
               </Card>
             </div>
             <div class="mr-auto">
@@ -30686,9 +30743,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Vercel class="size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Vercel</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Vercel
+                </span>
               </Card>
             </div>
             <div class="blur-[2px]">
@@ -30696,9 +30753,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Firebase class="size-3 sm:size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Firebase</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Firebase
+                </span>
               </Card>
             </div>
             <div>
@@ -30706,9 +30763,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="mx-a flex h-8 h-10 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Linear class="size-3 sm:size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Linear</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Linear
+                </span>
               </Card>
             </div>
             <div class="ml-auto blur-[2px]">
@@ -30716,9 +30773,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Twilio class="size-3 sm:size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Twilio</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Twilio
+                </span>
               </Card>
             </div>
             <div>
@@ -30726,9 +30783,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="mx-a flex h-8 h-10 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Claude class="size-3 sm:size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Claude AI</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Claude AI
+                </span>
               </Card>
             </div>
             <div class="blur-[2px]">
@@ -30736,8 +30793,8 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Clerk class="size-3 sm:size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Clerk
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Clerk
                 </span>
               </Card>
             </div>
@@ -30850,7 +30907,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </section>
 </main>
 
-=== 5380 src/lib/components/veil/hero/hero-two.svelte	svelte
+=== 5418 src/lib/components/veil/hero/hero-two.svelte	svelte
 <script lang="ts">
   import HeaderTwo from "$lib/components/veil/header/header-two.svelte";
   import { Button } from "$lib/components/ui/veil/button";
@@ -30892,9 +30949,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Supabase class="size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Supabase</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Supabase
+                </span>
               </Card>
             </div>
             <div class="ml-auto">
@@ -30902,8 +30959,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Slack class="size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs">Slack</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Slack
+                </span>
               </Card>
             </div>
             <div class="ml-auto blur-[2px]">
@@ -30911,8 +30969,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Figma class="size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs">Figma</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Figma
+                </span>
               </Card>
             </div>
             <div class="mr-auto">
@@ -30920,9 +30979,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Vercel class="size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Vercel</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Vercel
+                </span>
               </Card>
             </div>
             <div class="blur-[2px]">
@@ -30930,9 +30989,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Firebase class="size-3 sm:size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Firebase</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Firebase
+                </span>
               </Card>
             </div>
             <div>
@@ -30940,9 +30999,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="mx-a flex h-8 h-10 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Linear class="size-3 sm:size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Linear</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Linear
+                </span>
               </Card>
             </div>
             <div class="ml-auto blur-[2px]">
@@ -30950,9 +31009,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Twilio class="size-3 sm:size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Twilio</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Twilio
+                </span>
               </Card>
             </div>
             <div>
@@ -30960,9 +31019,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="mx-a flex h-8 h-10 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Claude class="size-3 sm:size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Claude AI</span
-                >
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Claude AI
+                </span>
               </Card>
             </div>
             <div class="blur-[2px]">
@@ -30970,8 +31029,8 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="flex h-8 w-fit items-center gap-2 rounded-xl px-3 shadow-foreground/10 sm:h-10 sm:px-4"
               >
                 <Clerk class="size-3 sm:size-4" />
-                <span class="font-medium text-nowrap max-sm:text-xs"
-                  >Clerk
+                <span class="font-medium text-nowrap max-sm:text-xs">
+                  Clerk
                 </span>
               </Card>
             </div>
@@ -31314,9 +31373,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
     <p class="mt-6 text-center text-sm text-muted-foreground">
       Don't have an account?
-      <Button href="/" variant="link" class="px-1 font-medium text-primary"
-        >Sign up</Button
-      >
+      <Button href="/" variant="link" class="px-1 font-medium text-primary">
+        Sign up
+      </Button>
     </p>
   </div>
 </section>
@@ -31419,9 +31478,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
     <p class="mt-6 text-center text-sm text-muted-foreground">
       New here?
-      <Button href="/" variant="link" class="px-1 font-medium text-primary"
-        >Create account</Button
-      >
+      <Button href="/" variant="link" class="px-1 font-medium text-primary">
+        Create account
+      </Button>
     </p>
   </div>
 </section>
@@ -31516,9 +31575,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
     <p class="mt-8 text-center text-sm text-muted-foreground">
       Don't have an account?
-      <Button href="/" variant="link" class="px-1 font-medium text-primary"
-        >Sign up</Button
-      >
+      <Button href="/" variant="link" class="px-1 font-medium text-primary">
+        Sign up
+      </Button>
     </p>
   </div>
 </section>
@@ -32076,9 +32135,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
     <p class="mt-6 text-center text-sm text-muted-foreground">
       Already have an account?
-      <Button href="/" variant="link" class="px-1 font-medium text-primary"
-        >Sign in</Button
-      >
+      <Button href="/" variant="link" class="px-1 font-medium text-primary">
+        Sign in
+      </Button>
     </p>
   </div>
 </section>
@@ -32175,9 +32234,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
     <p class="mt-6 text-center text-sm text-muted-foreground">
       Already have an account?
-      <Button href="/" variant="link" class="px-1 font-medium text-primary"
-        >Sign in</Button
-      >
+      <Button href="/" variant="link" class="px-1 font-medium text-primary">
+        Sign in
+      </Button>
     </p>
   </div>
 </section>
@@ -32272,9 +32331,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
     <p class="mt-8 text-center text-sm text-muted-foreground">
       Already have an account?
-      <Button href="/" variant="link" class="px-1 font-medium text-primary"
-        >Sign in</Button
-      >
+      <Button href="/" variant="link" class="px-1 font-medium text-primary">
+        Sign in
+      </Button>
     </p>
   </div>
 </section>
@@ -32500,9 +32559,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             </div>
             <p class="text-sm font-medium">
               {testimonial.name}
-              <span class="ml-2 font-normal text-muted-foreground"
-                >{testimonial.role}</span
-              >
+              <span class="ml-2 font-normal text-muted-foreground">
+                {testimonial.role}
+              </span>
             </p>
           </div>
 
@@ -32624,7 +32683,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </div>
 </section>
 
-=== 19958 src/lib/components/web/BlockPreview.svelte	svelte
+=== 19921 src/lib/components/web/BlockPreview.svelte	svelte
 <script lang="ts">
   import { cn } from "$lib/utils";
   import { Pane, PaneGroup, PaneResizer, type PaneAPI } from "paneforge";
@@ -32808,15 +32867,16 @@ get along, so we shut typescript up by casting `value` to `never`.
                 stroke-width="1.4"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                ><path stroke="none" d="M0 0h24v24H0z" fill="none" />
+              >
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                 <path class="sm:opacity-50" d="M7 8l-4 4l4 4" />
                 <path
                   class="sm:opacity-50"
                   stroke="currentColor"
                   d="M17 8l4 4l-4 4"
                 />
-                <path d="M14 4l-4 16" /></svg
-              >
+                <path d="M14 4l-4 16" />
+              </svg>
               <span class="hidden text-[13px] sm:block">Code</span>
             </Button>
           </div>
@@ -32832,13 +32892,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           <Maximize strokeWidth={1.6} class="size-4! sm:opacity-70" />
         </Button>
         <Separator orientation="vertical" class="hidden h-4! lg:block" />
-        <span class="hidden text-sm text-muted-foreground lg:block"
-          >{width < MD_SIZE
-            ? "Mobile"
-            : width < LG_SIZE
-              ? "Tablet"
-              : "Desktop"}</span
-        >
+        <span class="hidden text-sm text-muted-foreground lg:block">
+          {width < MD_SIZE ? "Mobile" : width < LG_SIZE ? "Tablet" : "Desktop"}
+        </span>
         <!-- {#if previewOnly} -->
         <Separator orientation="vertical" class="h-4!" />
         <span class="ml-0 text-sm capitalize">{category + " " + title}</span>
@@ -32851,8 +32907,8 @@ get along, so we shut typescript up by casting `value` to `never`.
             <!-- Laptop Icon -->
             <TooltipProvider delayDuration={100}>
               <Tooltip>
-                <TooltipTrigger
-                  ><Button
+                <TooltipTrigger>
+                  <Button
                     onclick={() => {
                       if (ref) {
                         ref.resize(DEFAULT_SIZE);
@@ -32888,11 +32944,11 @@ get along, so we shut typescript up by casting `value` to `never`.
                         stroke-linejoin="round"
                       />
                     </svg>
-                  </Button></TooltipTrigger
-                >
-                <TooltipContent align="center" class="px-2 py-1 text-[10px]"
-                  >Laptop</TooltipContent
-                >
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent align="center" class="px-2 py-1 text-[10px]">
+                  Laptop
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -32933,19 +32989,19 @@ get along, so we shut typescript up by casting `value` to `never`.
                         stroke-linecap="round"
                       ></path>
                     </svg>
-                  </Button></TooltipTrigger
-                >
-                <TooltipContent align="center" class="px-2 py-1 text-[10px]"
-                  >Tablet</TooltipContent
-                >
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent align="center" class="px-2 py-1 text-[10px]">
+                  Tablet
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
             <!-- Phone Icon -->
             <TooltipProvider delayDuration={100}>
               <Tooltip>
-                <TooltipTrigger
-                  ><Button
+                <TooltipTrigger>
+                  <Button
                     onclick={() => {
                       if (ref) {
                         ref.resize(SM_SIZE);
@@ -32981,11 +33037,11 @@ get along, so we shut typescript up by casting `value` to `never`.
                         stroke-linejoin="round"
                       />
                     </svg>
-                  </Button></TooltipTrigger
-                >
-                <TooltipContent align="center" class="px-2 py-1 text-[10px]"
-                  >Mobile</TooltipContent
-                >
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent align="center" class="px-2 py-1 text-[10px]">
+                  Mobile
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -33049,9 +33105,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                   </svg>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent align="center" class="px-2 py-1 text-[10px]"
-                >Responsive UI</TooltipContent
-              >
+              <TooltipContent align="center" class="px-2 py-1 text-[10px]">
+                Responsive UI
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         {/if}
@@ -33162,7 +33218,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </div>
 </section>
 
-=== 6322 src/lib/components/web/CodeEditor.svelte	svelte
+=== 6337 src/lib/components/web/CodeEditor.svelte	svelte
 <script lang="ts">
   import type { MistCode } from "./MistBlockPreview.svelte";
   import ChevronDown from "@lucide/svelte/icons/chevron-down";
@@ -33243,14 +33299,15 @@ get along, so we shut typescript up by casting `value` to `never`.
                 class="size-3.5"
                 xmlns="http://www.w3.org/2000/svg"
                 preserveAspectRatio="xMidYMid"
-                ><path
+              >
+                <path
                   d="M239.682 40.707C211.113-.182 154.69-12.301 113.895 13.69L42.247 59.356a82.198 82.198 0 0 0-37.135 55.056 86.566 86.566 0 0 0 8.536 55.576 82.425 82.425 0 0 0-12.296 30.719 87.596 87.596 0 0 0 14.964 66.244c28.574 40.893 84.997 53.007 125.787 27.016l71.648-45.664a82.182 82.182 0 0 0 37.135-55.057 86.601 86.601 0 0 0-8.53-55.577 82.409 82.409 0 0 0 12.29-30.718 87.573 87.573 0 0 0-14.963-66.244"
                   fill="#FF3E00"
                 /><path
                   d="M106.889 270.841c-23.102 6.007-47.497-3.036-61.103-22.648a52.685 52.685 0 0 1-9.003-39.85 49.978 49.978 0 0 1 1.713-6.693l1.35-4.115 3.671 2.697a92.447 92.447 0 0 0 28.036 14.007l2.663.808-.245 2.659a16.067 16.067 0 0 0 2.89 10.656 17.143 17.143 0 0 0 18.397 6.828 15.786 15.786 0 0 0 4.403-1.935l71.67-45.672a14.922 14.922 0 0 0 6.734-9.977 15.923 15.923 0 0 0-2.713-12.011 17.156 17.156 0 0 0-18.404-6.832 15.78 15.78 0 0 0-4.396 1.933l-27.35 17.434a52.298 52.298 0 0 1-14.553 6.391c-23.101 6.007-47.497-3.036-61.101-22.649a52.681 52.681 0 0 1-9.004-39.849 49.428 49.428 0 0 1 22.34-33.114l71.664-45.677a52.218 52.218 0 0 1 14.563-6.398c23.101-6.007 47.497 3.036 61.101 22.648a52.685 52.685 0 0 1 9.004 39.85 50.559 50.559 0 0 1-1.713 6.692l-1.35 4.116-3.67-2.693a92.373 92.373 0 0 0-28.037-14.013l-2.664-.809.246-2.658a16.099 16.099 0 0 0-2.89-10.656 17.143 17.143 0 0 0-18.398-6.828 15.786 15.786 0 0 0-4.402 1.935l-71.67 45.674a14.898 14.898 0 0 0-6.73 9.975 15.9 15.9 0 0 0 2.709 12.012 17.156 17.156 0 0 0 18.404 6.832 15.841 15.841 0 0 0 4.402-1.935l27.345-17.427a52.147 52.147 0 0 1 14.552-6.397c23.101-6.006 47.497 3.037 61.102 22.65a52.681 52.681 0 0 1 9.003 39.848 49.453 49.453 0 0 1-22.34 33.12l-71.664 45.673a52.218 52.218 0 0 1-14.563 6.398"
                   fill="#FFF"
-                /></svg
-              >
+                />
+              </svg>
               <span>{item?.name || "Untitled"}</span>
             </Button>
           {/each}
@@ -33341,7 +33398,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   ></path>
 </svg>
 
-=== 22302 src/lib/components/web/MistBlockPreview.svelte	svelte
+=== 22265 src/lib/components/web/MistBlockPreview.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { cn } from "$lib/utils";
@@ -33548,15 +33605,16 @@ get along, so we shut typescript up by casting `value` to `never`.
                 stroke-width="1.4"
                 stroke-linecap="round"
                 stroke-linejoin="round"
-                ><path stroke="none" d="M0 0h24v24H0z" fill="none" />
+              >
+                <path stroke="none" d="M0 0h24v24H0z" fill="none" />
                 <path class="sm:opacity-50" d="M7 8l-4 4l4 4" />
                 <path
                   class="sm:opacity-50"
                   stroke="currentColor"
                   d="M17 8l4 4l-4 4"
                 />
-                <path d="M14 4l-4 16" /></svg
-              >
+                <path d="M14 4l-4 16" />
+              </svg>
               <span class="hidden text-[13px] sm:block">Code</span>
             </Button>
           </div>
@@ -33566,13 +33624,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           <Maximize strokeWidth={1.6} class="size-4! sm:opacity-70" />
         </Button>
         <Separator orientation="vertical" class="hidden h-4! lg:block" />
-        <span class="hidden text-sm text-muted-foreground lg:block"
-          >{width < MD_SIZE
-            ? "Mobile"
-            : width < LG_SIZE
-              ? "Tablet"
-              : "Desktop"}</span
-        >
+        <span class="hidden text-sm text-muted-foreground lg:block">
+          {width < MD_SIZE ? "Mobile" : width < LG_SIZE ? "Tablet" : "Desktop"}
+        </span>
         <!-- {#if previewOnly} -->
         <Separator orientation="vertical" class="h-4!" />
         <span class="ml-0 text-sm capitalize">{title}</span>
@@ -33585,8 +33639,8 @@ get along, so we shut typescript up by casting `value` to `never`.
             <!-- Laptop Icon -->
             <TooltipProvider delayDuration={100}>
               <Tooltip>
-                <TooltipTrigger
-                  ><Button
+                <TooltipTrigger>
+                  <Button
                     onclick={() => {
                       if (ref) {
                         ref.resize(DEFAULT_SIZE);
@@ -33622,11 +33676,11 @@ get along, so we shut typescript up by casting `value` to `never`.
                         stroke-linejoin="round"
                       />
                     </svg>
-                  </Button></TooltipTrigger
-                >
-                <TooltipContent align="center" class="px-2 py-1 text-[10px]"
-                  >Laptop</TooltipContent
-                >
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent align="center" class="px-2 py-1 text-[10px]">
+                  Laptop
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
@@ -33667,19 +33721,19 @@ get along, so we shut typescript up by casting `value` to `never`.
                         stroke-linecap="round"
                       ></path>
                     </svg>
-                  </Button></TooltipTrigger
-                >
-                <TooltipContent align="center" class="px-2 py-1 text-[10px]"
-                  >Tablet</TooltipContent
-                >
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent align="center" class="px-2 py-1 text-[10px]">
+                  Tablet
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
 
             <!-- Phone Icon -->
             <TooltipProvider delayDuration={100}>
               <Tooltip>
-                <TooltipTrigger
-                  ><Button
+                <TooltipTrigger>
+                  <Button
                     onclick={() => {
                       if (ref) {
                         ref.resize(SM_SIZE);
@@ -33715,11 +33769,11 @@ get along, so we shut typescript up by casting `value` to `never`.
                         stroke-linejoin="round"
                       />
                     </svg>
-                  </Button></TooltipTrigger
-                >
-                <TooltipContent align="center" class="px-2 py-1 text-[10px]"
-                  >Mobile</TooltipContent
-                >
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent align="center" class="px-2 py-1 text-[10px]">
+                  Mobile
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -33783,9 +33837,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                   </svg>
                 </Button>
               </TooltipTrigger>
-              <TooltipContent align="center" class="px-2 py-1 text-[10px]"
-                >Responsive UI</TooltipContent
-              >
+              <TooltipContent align="center" class="px-2 py-1 text-[10px]">
+                Responsive UI
+              </TooltipContent>
             </Tooltip>
           </TooltipProvider>
         {/if}
@@ -34588,7 +34642,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </defs>
 </svg>
 
-=== 1995 src/lib/svgs/svelte.svelte	svelte
+=== 1996 src/lib/svgs/svelte.svelte	svelte
 <script lang="ts">
   import type { SVGAttributes } from "svelte/elements";
 
@@ -34600,14 +34654,15 @@ get along, so we shut typescript up by casting `value` to `never`.
   preserveAspectRatio="xMidYMid"
   xmlns="http://www.w3.org/2000/svg"
   {...props}
-  ><path
+>
+  <path
     d="M239.682 40.707C211.113-.182 154.69-12.301 113.895 13.69L42.247 59.356a82.198 82.198 0 0 0-37.135 55.056 86.566 86.566 0 0 0 8.536 55.576 82.425 82.425 0 0 0-12.296 30.719 87.596 87.596 0 0 0 14.964 66.244c28.574 40.893 84.997 53.007 125.787 27.016l71.648-45.664a82.182 82.182 0 0 0 37.135-55.057 86.601 86.601 0 0 0-8.53-55.577 82.409 82.409 0 0 0 12.29-30.718 87.573 87.573 0 0 0-14.963-66.244"
     fill="#FF3E00"
   /><path
     d="M106.889 270.841c-23.102 6.007-47.497-3.036-61.103-22.648a52.685 52.685 0 0 1-9.003-39.85 49.978 49.978 0 0 1 1.713-6.693l1.35-4.115 3.671 2.697a92.447 92.447 0 0 0 28.036 14.007l2.663.808-.245 2.659a16.067 16.067 0 0 0 2.89 10.656 17.143 17.143 0 0 0 18.397 6.828 15.786 15.786 0 0 0 4.403-1.935l71.67-45.672a14.922 14.922 0 0 0 6.734-9.977 15.923 15.923 0 0 0-2.713-12.011 17.156 17.156 0 0 0-18.404-6.832 15.78 15.78 0 0 0-4.396 1.933l-27.35 17.434a52.298 52.298 0 0 1-14.553 6.391c-23.101 6.007-47.497-3.036-61.101-22.649a52.681 52.681 0 0 1-9.004-39.849 49.428 49.428 0 0 1 22.34-33.114l71.664-45.677a52.218 52.218 0 0 1 14.563-6.398c23.101-6.007 47.497 3.036 61.101 22.648a52.685 52.685 0 0 1 9.004 39.85 50.559 50.559 0 0 1-1.713 6.692l-1.35 4.116-3.67-2.693a92.373 92.373 0 0 0-28.037-14.013l-2.664-.809.246-2.658a16.099 16.099 0 0 0-2.89-10.656 17.143 17.143 0 0 0-18.398-6.828 15.786 15.786 0 0 0-4.402 1.935l-71.67 45.674a14.898 14.898 0 0 0-6.73 9.975 15.9 15.9 0 0 0 2.709 12.012 17.156 17.156 0 0 0 18.404 6.832 15.841 15.841 0 0 0 4.402-1.935l27.345-17.427a52.147 52.147 0 0 1 14.552-6.397c23.101-6.006 47.497 3.037 61.102 22.65a52.681 52.681 0 0 1 9.003 39.848 49.453 49.453 0 0 1-22.34 33.12l-71.664 45.673a52.218 52.218 0 0 1-14.563 6.398"
     fill="#FFF"
-  /></svg
->
+  />
+</svg>
 
 === 653 src/lib/svgs/twilio.svelte	svelte
 <script lang="ts">
@@ -34815,9 +34870,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           >
             <span class="relative z-[1] block text-sm">{item.name}</span>
             {#if item.isNew}
-              <Badge variant="secondary" class="rounded-full font-medium"
-                >New</Badge
-              >
+              <Badge variant="secondary" class="rounded-full font-medium">
+                New
+              </Badge>
             {/if}
           </a>
         {/each}
@@ -34839,9 +34894,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     {#each category_blocks as { title, href, length }}
       <Button {href} size="extralg" variant="outline">
         {title}
-        <span class="rounded-xl border bg-secondary px-2 font-display"
-          >{length}</span
-        >
+        <span class="rounded-xl border bg-secondary px-2 font-display">
+          {length}
+        </span>
       </Button>
     {/each}
   </div>
@@ -34877,9 +34932,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 "flex h-7 w-fit items-center rounded-full px-1 text-[13px] text-nowrap text-zinc-700 hover:bg-muted hover:text-foreground lg:-mx-2 lg:px-3 dark:text-muted-foreground",
               )}
             >
-              <span class="block w-max text-nowrap capitalize"
-                >{category.title}</span
-              >
+              <span class="block w-max text-nowrap capitalize">
+                {category.title}
+              </span>
             </a>
           </li>
         {/each}
@@ -34888,7 +34943,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </div>
 </div>
 
-=== 5242 src/lib/web/layouts/FeatureSection.svelte	svelte
+=== 5192 src/lib/web/layouts/FeatureSection.svelte	svelte
 <script lang="ts">
   import Card from "$lib/components/ui/card/card.svelte";
   import CompareImgBlock from "$lib/components/magic/CompareImgBlock.svelte";
@@ -34906,8 +34961,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             xmlns="http://www.w3.org/2000/svg"
             viewBox="0 0 24 24"
             class="size-6 text-primary"
-            ><g fill="none"
-              ><path
+          >
+            <g fill="none">
+              <path
                 fill="currentColor"
                 d="M2.75 12A9.25 9.25 0 0 0 12 21.25V2.75A9.25 9.25 0 0 0 2.75 12"
               /><path
@@ -34916,9 +34972,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 stroke-linejoin="round"
                 stroke-width="1.5"
                 d="M12 21.25a9.25 9.25 0 0 0 0-18.5m0 18.5a9.25 9.25 0 0 1 0-18.5m0 18.5V2.75"
-              /></g
-            ></svg
-          >
+              />
+            </g>
+          </svg>
           <h3 class="mt-4 text-lg font-semibold text-foreground">
             Light and Dark Mode
           </h3>
@@ -34946,8 +35002,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             xmlns="http://www.w3.org/2000/svg"
             class="size-6 text-primary"
             viewBox="0 0 24 24"
-            ><g fill="none"
-              ><circle
+          >
+            <g fill="none">
+              <circle
                 cx="12"
                 cy="12"
                 r="10"
@@ -34961,15 +35018,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               /><path
                 fill="currentColor"
                 d="M16 10.5c0 .828-.448 1.5-1 1.5s-1-.672-1-1.5s.448-1.5 1-1.5s1 .672 1 1.5"
-              /><ellipse
-                cx="9"
-                cy="10.5"
-                fill="currentColor"
-                rx="1"
-                ry="1.5"
-              /></g
-            ></svg
-          >
+              /><ellipse cx="9" cy="10.5" fill="currentColor" rx="1" ry="1.5" />
+            </g>
+          </svg>
           <h3 class="mt-4 text-lg font-semibold text-foreground">
             Free & Open Source
           </h3>
@@ -34983,15 +35034,16 @@ get along, so we shut typescript up by casting `value` to `never`.
             xmlns="http://www.w3.org/2000/svg"
             class="size-6 text-primary"
             viewBox="0 0 24 24"
-            ><g fill="none" stroke="currentColor" stroke-width="1.5"
-              ><path
+          >
+            <g fill="none" stroke="currentColor" stroke-width="1.5">
+              <path
                 d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2S2 6.477 2 12s4.477 10 10 10Z"
               /><path
                 stroke-linecap="round"
                 d="m15.5 9l.172.172c1.333 1.333 2 2 2 2.828s-.667 1.495-2 2.828L15.5 15m-2.206-7.83L12 12l-1.294 4.83M8.5 9l-.172.172c-1.333 1.333-2 2-2 2.828s.667 1.495 2 2.828L8.5 15"
-              /></g
-            ></svg
-          >
+              />
+            </g>
+          </svg>
           <h3 class="mt-4 text-lg font-semibold text-foreground">
             CLI Integration
           </h3>
@@ -35006,15 +35058,16 @@ get along, so we shut typescript up by casting `value` to `never`.
             height="32"
             class="size-6 text-primary"
             viewBox="0 0 24 24"
-            ><path
+          >
+            <path
               fill="none"
               stroke="currentColor"
               stroke-linecap="round"
               stroke-linejoin="round"
               stroke-width="1.5"
               d="M9 10v10M20.5 9.5h-17M3 9.4c0-2.24 0-3.36.436-4.216a4 4 0 0 1 1.748-1.748C6.04 3 7.16 3 9.4 3h5.2c2.24 0 3.36 0 4.216.436a4 4 0 0 1 1.748 1.748C21 6.04 21 7.16 21 9.4v5.2c0 2.24 0 3.36-.436 4.216a4 4 0 0 1-1.748 1.748C17.96 21 16.84 21 14.6 21H9.4c-2.24 0-3.36 0-4.216-.436a4 4 0 0 1-1.748-1.748C3 17.96 3 16.84 3 14.6z"
-            /></svg
-          >
+            />
+          </svg>
           <h3 class="mt-4 text-lg font-semibold text-foreground">
             MCP Server Integration
           </h3>
@@ -35210,13 +35263,13 @@ get along, so we shut typescript up by casting `value` to `never`.
         {/each}
       </div>
     </div>
-    <span class="mt-1.5 block text-center text-sm text-muted-foreground"
-      >{label}</span
-    >
+    <span class="mt-1.5 block text-center text-sm text-muted-foreground">
+      {label}
+    </span>
   </div>
 {/snippet}
 
-=== 23615 src/lib/web/layouts/Header.svelte	svelte
+=== 23657 src/lib/web/layouts/Header.svelte	svelte
 <script lang="ts">
   import { slide } from "svelte/transition";
   import Button from "$lib/components/ui/button/button.svelte";
@@ -35603,8 +35656,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           <a
             href={nav.url}
             class="block rounded-md px-3 py-2 text-base font-medium text-primary"
-            >{nav.name}</a
           >
+            {nav.name}
+          </a>
         {/each}
       </div>
       <div class="flex justify-end pb-2">
@@ -35629,14 +35683,15 @@ get along, so we shut typescript up by casting `value` to `never`.
         stroke-linecap="round"
         stroke-linejoin="round"
         class="h-[1.2rem] w-[1.2rem]"
-        ><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path
+      >
+        <circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path
           d="M12 20v2"
         /><path d="m4.93 4.93 1.41 1.41" /><path
           d="m17.66 17.66 1.41 1.41"
         /><path d="M2 12h2" /><path d="M20 12h2" /><path
           d="m6.34 17.66-1.41 1.41"
-        /><path d="m19.07 4.93-1.41 1.41" /></svg
-      >
+        /><path d="m19.07 4.93-1.41 1.41" />
+      </svg>
     {:else}
       <!-- Moon Icon -->
       <svg
@@ -35650,8 +35705,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         stroke-linecap="round"
         stroke-linejoin="round"
         class="h-[1.2rem] w-[1.2rem]"
-        ><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg
       >
+        <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+      </svg>
     {/if}
     <span class="sr-only">Toggle theme</span>
   </Button>
@@ -35665,7 +35721,8 @@ get along, so we shut typescript up by casting `value` to `never`.
       href="https://github.com/SikandarJODD/cnblocks"
       size="icon"
       variant="ghost"
-      ><svg
+    >
+      <svg
         viewBox="0 0 256 250"
         width="256"
         height="250"
@@ -35676,25 +35733,27 @@ get along, so we shut typescript up by casting `value` to `never`.
         <path
           d="M128.001 0C57.317 0 0 57.307 0 128.001c0 56.554 36.676 104.535 87.535 121.46 6.397 1.185 8.746-2.777 8.746-6.158 0-3.052-.12-13.135-.174-23.83-35.61 7.742-43.124-15.103-43.124-15.103-5.823-14.795-14.213-18.73-14.213-18.73-11.613-7.944.876-7.78.876-7.78 12.853.902 19.621 13.19 19.621 13.19 11.417 19.568 29.945 13.911 37.249 10.64 1.149-8.272 4.466-13.92 8.127-17.116-28.431-3.236-58.318-14.212-58.318-63.258 0-13.975 5-25.394 13.188-34.358-1.329-3.224-5.71-16.242 1.24-33.874 0 0 10.749-3.44 35.21 13.121 10.21-2.836 21.16-4.258 32.038-4.307 10.878.049 21.837 1.47 32.066 4.307 24.431-16.56 35.165-13.12 35.165-13.12 6.967 17.63 2.584 30.65 1.255 33.873 8.207 8.964 13.173 20.383 13.173 34.358 0 49.163-29.944 59.988-58.447 63.157 4.591 3.972 8.682 11.762 8.682 23.704 0 17.126-.148 30.91-.148 35.126 0 3.407 2.304 7.398 8.792 6.14C219.37 232.5 256 184.537 256 128.002 256 57.307 198.691 0 128.001 0Zm-80.06 182.34c-.282.636-1.283.827-2.194.39-.929-.417-1.45-1.284-1.15-1.922.276-.655 1.279-.838 2.205-.399.93.418 1.46 1.293 1.139 1.931Zm6.296 5.618c-.61.566-1.804.303-2.614-.591-.837-.892-.994-2.086-.375-2.66.63-.566 1.787-.301 2.626.591.838.903 1 2.088.363 2.66Zm4.32 7.188c-.785.545-2.067.034-2.86-1.104-.784-1.138-.784-2.503.017-3.05.795-.547 2.058-.055 2.861 1.075.782 1.157.782 2.522-.019 3.08Zm7.304 8.325c-.701.774-2.196.566-3.29-.49-1.119-1.032-1.43-2.496-.726-3.27.71-.776 2.213-.558 3.315.49 1.11 1.03 1.45 2.505.701 3.27Zm9.442 2.81c-.31 1.003-1.75 1.459-3.199 1.033-1.448-.439-2.395-1.613-2.103-2.626.301-1.01 1.747-1.484 3.207-1.028 1.446.436 2.396 1.602 2.095 2.622Zm10.744 1.193c.036 1.055-1.193 1.93-2.715 1.95-1.53.034-2.769-.82-2.786-1.86 0-1.065 1.202-1.932 2.733-1.958 1.522-.03 2.768.818 2.768 1.868Zm10.555-.405c.182 1.03-.875 2.088-2.387 2.37-1.485.271-2.861-.365-3.05-1.386-.184-1.056.893-2.114 2.376-2.387 1.514-.263 2.868.356 3.061 1.403Z"
         />
-      </svg></Button
-    >
+      </svg>
+    </Button>
     <!-- Twitter  -->
     <Button
       size="icon"
       target="_blank"
       href="https://x.com/Sikandar_Bhide"
       variant="ghost"
-      ><svg
+    >
+      <svg
         xmlns="http://www.w3.org/2000/svg"
         width="1200"
         height="1227"
         fill="currentColor"
         viewBox="0 0 1200 1227"
-        ><path
+      >
+        <path
           d="M714.163 519.284 1160.89 0h-105.86L667.137 450.887 357.328 0H0l468.492 681.821L0 1226.37h105.866l409.625-476.152 327.181 476.152H1200L714.137 519.284h.026ZM569.165 687.828l-47.468-67.894-377.686-540.24h162.604l304.797 435.991 47.468 67.894 396.2 566.721H892.476L569.165 687.854v-.026Z"
-        /></svg
-      ></Button
-    >
+        />
+      </svg>
+    </Button>
     {@render ThemeToggle()}
   </div>
 {/snippet}
@@ -35761,7 +35820,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   ></path>
 </svg>
 
-=== 2927 src/lib/web/layouts/MCPDialog.svelte	svelte
+=== 2976 src/lib/web/layouts/MCPDialog.svelte	svelte
 <script lang="ts">
   import Button from "$lib/components/ui/button/button.svelte";
   import * as Dialog from "$lib/components/ui/dialog/index.js";
@@ -35771,31 +35830,34 @@ get along, so we shut typescript up by casting `value` to `never`.
 
 <Dialog.Root>
   <Dialog.Trigger>
-    <Button size="sm" variant="secondary"
-      ><svg
+    <Button size="sm" variant="secondary">
+      <svg
         class="size-4"
         xmlns="http://www.w3.org/2000/svg"
         fill="currentColor"
         fill-rule="evenodd"
         aria-labelledby="mcp-logo-title mcp-logo-description"
         viewBox="0 0 24 24"
-        ><title id="mcp-logo-title">ModelContextProtocol</title><desc
-          id="mcp-logo-description">MCP logo</desc
-        ><path
+      >
+        <title id="mcp-logo-title">ModelContextProtocol</title><desc
+          id="mcp-logo-description"
+        >
+          MCP logo
+        </desc><path
           d="M15.688 2.343a2.588 2.588 0 00-3.61 0l-9.626 9.44a.863.863 0 01-1.203 0 .823.823 0 010-1.18l9.626-9.44a4.313 4.313 0 016.016 0 4.116 4.116 0 011.204 3.54 4.3 4.3 0 013.609 1.18l.05.05a4.115 4.115 0 010 5.9l-8.706 8.537a.274.274 0 000 .393l1.788 1.754a.823.823 0 010 1.18.863.863 0 01-1.203 0l-1.788-1.753a1.92 1.92 0 010-2.754l8.706-8.538a2.47 2.47 0 000-3.54l-.05-.049a2.588 2.588 0 00-3.607-.003l-7.172 7.034-.002.002-.098.097a.863.863 0 01-1.204 0 .823.823 0 010-1.18l7.273-7.133a2.47 2.47 0 00-.003-3.537z"
         ></path><path
           d="M14.485 4.703a.823.823 0 000-1.18.863.863 0 00-1.204 0l-7.119 6.982a4.115 4.115 0 000 5.9 4.314 4.314 0 006.016 0l7.12-6.982a.823.823 0 000-1.18.863.863 0 00-1.204 0l-7.119 6.982a2.588 2.588 0 01-3.61 0 2.47 2.47 0 010-3.54l7.12-6.982z"
-        ></path></svg
-      >
-      MCP</Button
-    >
+        ></path>
+      </svg>
+      MCP
+    </Button>
   </Dialog.Trigger>
   <Dialog.Content class="md:max-w-xl">
     <Dialog.Header>
       <Dialog.Title>Setup MCP Server</Dialog.Title>
-      <Dialog.Description
-        >Use the code below to setup MCP in your project.</Dialog.Description
-      >
+      <Dialog.Description>
+        Use the code below to setup MCP in your project.
+      </Dialog.Description>
     </Dialog.Header>
     <div>
       <Tabs.Root value="cursor">
@@ -35806,14 +35868,16 @@ get along, so we shut typescript up by casting `value` to `never`.
         <Tabs.Content value="cursor" class="text-sm">
           Add the following code to your <code
             class="rounded-sm bg-secondary px-1 py-0.5 font-mono text-primary"
-            >.cursor/mcp.json</code
-          > file.
+          >
+            .cursor/mcp.json
+          </code> file.
         </Tabs.Content>
         <Tabs.Content value="windsurf" class="text-sm">
           Add the following code to your <code
             class="rounded-sm bg-secondary px-1 py-0.5 font-mono text-primary"
-            >.codeium/windsurf/mcp_config.json</code
-          > file.
+          >
+            .codeium/windsurf/mcp_config.json
+          </code> file.
         </Tabs.Content>
       </Tabs.Root>
       <div class="mt-4 rounded-xl border">
@@ -35873,9 +35937,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                   "flex h-7 w-fit items-center rounded-full px-1 text-[13px] text-nowrap text-zinc-700 transition-all duration-300 hover:bg-muted hover:text-foreground lg:-mx-2 lg:px-3 dark:text-muted-foreground",
                 )}
               >
-                <span class="block w-max text-nowrap capitalize"
-                  >{category.title}</span
-                >
+                <span class="block w-max text-nowrap capitalize">
+                  {category.title}
+                </span>
               </a>
             </li>
           {/each}
@@ -35951,7 +36015,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </Command.List>
 </Command.Dialog>
 
-=== 4892 src/lib/web/layouts/SiteFooter.svelte	svelte
+=== 4908 src/lib/web/layouts/SiteFooter.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
   import ArrowUpRight from "@lucide/svelte/icons/arrow-up-right";
@@ -36000,8 +36064,10 @@ get along, so we shut typescript up by casting `value` to `never`.
       <a
         href="https://x.com/MeschacIrung"
         class="bg-sky-50 px-1 text-sky-500 dark:bg-sky-900/20"
-        target="_blank">Méschac Irung</a
-      >Ported by
+        target="_blank"
+      >
+        Méschac Irung
+      </a>Ported by
       <div
         class="flex items-start justify-center gap-2 text-center font-medium sm:gap-1"
       >
@@ -36067,7 +36133,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </div>
 </footer>
 
-=== 1317 src/lib/web/layouts/ThemeToggle.svelte	svelte
+=== 1327 src/lib/web/layouts/ThemeToggle.svelte	svelte
 <script>
   import Button from "$lib/components/ui/button/button.svelte";
   import { mode, toggleMode } from "mode-watcher";
@@ -36092,14 +36158,15 @@ get along, so we shut typescript up by casting `value` to `never`.
       stroke-linecap="round"
       stroke-linejoin="round"
       class="h-[1.2rem] w-[1.2rem]"
-      ><circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path
+    >
+      <circle cx="12" cy="12" r="4" /><path d="M12 2v2" /><path
         d="M12 20v2"
       /><path d="m4.93 4.93 1.41 1.41" /><path
         d="m17.66 17.66 1.41 1.41"
       /><path d="M2 12h2" /><path d="M20 12h2" /><path
         d="m6.34 17.66-1.41 1.41"
-      /><path d="m19.07 4.93-1.41 1.41" /></svg
-    >
+      /><path d="m19.07 4.93-1.41 1.41" />
+    </svg>
   {:else}
     <!-- Moon Icon -->
     <svg
@@ -36113,8 +36180,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       stroke-linecap="round"
       stroke-linejoin="round"
       class="h-[1.2rem] w-[1.2rem]"
-      ><path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" /></svg
     >
+      <path d="M12 3a6 6 0 0 0 9 9 9 9 0 1 1-9-9Z" />
+    </svg>
   {/if}
   <span class="sr-only">Toggle theme</span>
 </Button>
@@ -36151,9 +36219,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                   isActive(category.href) && "bg-muted text-primary!",
                 )}
               >
-                <span class="block w-max text-nowrap capitalize"
-                  >{category.title}</span
-                >
+                <span class="block w-max text-nowrap capitalize">
+                  {category.title}
+                </span>
               </a>
             </li>
           {/each}
@@ -36566,7 +36634,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </div>
 </div>
 
-=== 5144 src/routes/(app)/docs/installation/+page.svelte	svelte
+=== 5164 src/routes/(app)/docs/installation/+page.svelte	svelte
 <script lang="ts">
   import DocsCodeBlock from "$lib/web/docs/DocsCodeBlock.svelte";
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index";
@@ -36614,8 +36682,10 @@ get along, so we shut typescript up by casting `value` to `never`.
           href="https://jsrepo.dev"
           target="_blank"
           rel="noopener"
-          class="text-yellow-500 underline underline-offset-2">jsrepo CLI</a
-        > to install the blocks.
+          class="text-yellow-500 underline underline-offset-2"
+        >
+          jsrepo CLI
+        </a> to install the blocks.
       </p>
     </div>
   </div>
@@ -36727,7 +36797,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </div>
 </main>
 
-=== 9496 src/routes/(app)/docs/mcp/+page.svelte	svelte
+=== 9581 src/routes/(app)/docs/mcp/+page.svelte	svelte
 <script lang="ts">
   import DocsCodeBlock from "$lib/web/docs/DocsCodeBlock.svelte";
   import * as Breadcrumb from "$lib/components/ui/breadcrumb/index";
@@ -36769,8 +36839,10 @@ get along, so we shut typescript up by casting `value` to `never`.
           href="https://jsrepo.dev/docs/registry/mcp"
           target="_blank"
           rel="noopener"
-          class="text-yellow-500 underline underline-offset-2">jsrepo</a
-        > to integrate MCP Server to your project.
+          class="text-yellow-500 underline underline-offset-2"
+        >
+          jsrepo
+        </a> to integrate MCP Server to your project.
       </p>
     </div>
   </div>
@@ -36789,8 +36861,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           <p class="text-sm text-muted-foreground">
             Add the following code to your <code
               class="rounded-sm bg-secondary px-1 py-0.5 font-mono text-primary"
-              >.cursor/mcp.json</code
-            > file:
+            >
+              .cursor/mcp.json
+            </code> file:
           </p>
           <DocsCodeBlock
             fileName="Terminal"
@@ -36821,8 +36894,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           <p class="text-sm text-muted-foreground">
             Add the following code to your <code
               class="rounded-sm bg-secondary px-1 py-0.5 font-mono text-primary"
-              >.codeium/windsurf/mcp_config.json</code
-            > file:
+            >
+              .codeium/windsurf/mcp_config.json
+            </code> file:
           </p>
           <DocsCodeBlock
             fileName="Terminal"
@@ -36854,13 +36928,15 @@ get along, so we shut typescript up by casting `value` to `never`.
           <p class="text-sm text-muted-foreground">
             Create new file in <code
               class="rounded-sm bg-secondary px-1 py-0.5 font-mono text-primary"
-              >.cursor/rules</code
             >
+              .cursor/rules
+            </code>
             folder and create new file
             <code
               class="rounded-sm bg-secondary px-1 py-0.5 font-mono text-primary"
-              >svelte-blocks.mdc</code
             >
+              svelte-blocks.mdc
+            </code>
             and add the following code:
           </p>
           <DocsCodeBlock
@@ -36951,8 +37027,9 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
           <p class="text-sm text-muted-foreground">
             Create a new file in the root of your project named <code
               class="rounded-sm bg-secondary px-1 py-0.5 font-mono text-primary"
-              >jsrepo.json</code
             >
+              jsrepo.json
+            </code>
             and add the following code:
           </p>
           <DocsCodeBlock
@@ -37002,7 +37079,7 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
   </div>
 </main>
 
-=== 2496 src/routes/(app)/docs/sponsors/+page.svelte	svelte
+=== 2505 src/routes/(app)/docs/sponsors/+page.svelte	svelte
 <script lang="ts">
   import Button from "$lib/components/ui/button/button.svelte";
 
@@ -37067,15 +37144,16 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
         Your support helps us to continue improving and maintaining the project.
       </p>
       <div class="space-x-2">
-        <Button href="https://github.com/sponsors/SikandarJODD" target="_blank"
-          >Donate on Github</Button
-        >
+        <Button href="https://github.com/sponsors/SikandarJODD" target="_blank">
+          Donate on Github
+        </Button>
         <Button
           variant="outline"
           target="_blank"
           href="https://twitter.com/intent/tweet?text=I%E2%80%99m%20loving%20these%20free%20Svelte%20marketing%20components%21%0A%0ACheck%20them%20out%20https%3A%2F%2Fsv-blocks.vercel.app%0A%0AThanks%20%40Sikandar_Bhide"
-          >Share on Twitter</Button
         >
+          Share on Twitter
+        </Button>
       </div>
     </div>
   </div>
@@ -37360,7 +37438,7 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
   <MistBlockPreview {...block} />
 {/each}
 
-=== 10145 src/routes/(app)/templates/+page.svelte	svelte
+=== 10286 src/routes/(app)/templates/+page.svelte	svelte
 <script>
   import RainbowButton from "$lib/components/magic/RainbowButton.svelte";
   import Button from "$lib/components/ui/button/button.svelte";
@@ -37429,8 +37507,9 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
     <Button
       target="_blank"
       href="https://buy.polar.sh/polar_cl_AjEE4uRd34lOYFgOsLlGXCtyHfPqrwL6rXx5G3qPNAi"
-      >Buy Now</Button
     >
+      Buy Now
+    </Button>
     <Button
       href="https://sv-landing-pg.vercel.app"
       target="_blank"
@@ -37486,8 +37565,8 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
               class="text-md mt-4 flex list-inside list-disc flex-col space-y-1 text-muted-foreground"
             >
               {#each features as feature}
-                <span class="flex items-start font-semibold text-primary"
-                  ><svg
+                <span class="flex items-start font-semibold text-primary">
+                  <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="24"
                     height="24"
@@ -37498,9 +37577,10 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     class="mt-1.5 mr-2 h-4 w-4 text-green-500"
-                    ><polyline points="20 6 9 17 4 12"></polyline></svg
-                  >{feature}</span
-                >
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>{feature}
+                </span>
               {/each}
             </div>
           </div>
@@ -37512,8 +37592,8 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
               class="text-md mt-4 flex list-inside list-disc flex-col space-y-1 text-muted-foreground"
             >
               {#each sections as section}
-                <span class="flex items-start font-semibold text-primary"
-                  ><svg
+                <span class="flex items-start font-semibold text-primary">
+                  <svg
                     xmlns="http://www.w3.org/2000/svg"
                     width="24"
                     height="24"
@@ -37524,9 +37604,10 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
                     stroke-linecap="round"
                     stroke-linejoin="round"
                     class="mt-1.5 mr-2 h-4 w-4 text-green-500"
-                    ><polyline points="20 6 9 17 4 12"></polyline></svg
-                  >{section}</span
-                >
+                  >
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  </svg>{section}
+                </span>
               {/each}
             </div>
           </div>
@@ -37567,8 +37648,9 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="mr-2 h-4 w-4 text-green-500"
-                ><polyline points="20 6 9 17 4 12"></polyline></svg
-              >Sveltekit <span class="ml-2 text-muted-foreground">v2</span>
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>Sveltekit <span class="ml-2 text-muted-foreground">v2</span>
             </div>
             <div class="flex items-center">
               <svg
@@ -37582,8 +37664,10 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="mr-2 h-4 w-4 text-green-500"
-                ><polyline points="20 6 9 17 4 12"></polyline></svg
-              >TailwindCSS <span class="ml-2 text-muted-foreground">v4</span>
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>TailwindCSS
+              <span class="ml-2 text-muted-foreground">v4</span>
             </div>
             <div class="flex items-center">
               <svg
@@ -37597,8 +37681,9 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="mr-2 h-4 w-4 text-green-500"
-                ><polyline points="20 6 9 17 4 12"></polyline></svg
-              >Shadcn Svelte
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>Shadcn Svelte
             </div>
             <div class="flex items-center">
               <svg
@@ -37612,8 +37697,9 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 class="mr-2 h-4 w-4 text-green-500"
-                ><polyline points="20 6 9 17 4 12"></polyline></svg
-              >Svelte Animations
+              >
+                <polyline points="20 6 9 17 4 12"></polyline>
+              </svg>Svelte Animations
             </div>
           </div>
         </div>
@@ -37636,8 +37722,10 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
           <Button
             size="lg"
             href="https://buy.polar.sh/polar_cl_AjEE4uRd34lOYFgOsLlGXCtyHfPqrwL6rXx5G3qPNAi"
-            target="_blank">Buy Now</Button
+            target="_blank"
           >
+            Buy Now
+          </Button>
         </div>
       </div>
     </div>
@@ -37728,7 +37816,7 @@ Hero, Feature, Content, Testimonial, Pricing, FAQ, CTA, Integration, Header, Foo
   </div>
 </Sidebar.Provider>
 
-=== 2218 src/routes/(app)/v2-docs/installation/+page.svelte	svelte
+=== 2242 src/routes/(app)/v2-docs/installation/+page.svelte	svelte
 <script lang="ts">
   import SEOComponent from "$lib/seo/SEO.svelte";
   import DocsPageShell from "$lib/components/layout/DocsPageShell.svelte";
@@ -37792,8 +37880,10 @@ pnpm dlx shadcn-svelte@latest add https://sv-blocks.vercel.app/v/hero-one.json`}
         <Paragraph class="mt-0">
           Open any preview route, copy the component code, and paste it into
           your app. Start with <Link href="/preview/hero/one">Hero Block</Link>, <Link
-            href="/preview/mist/hero/one">Mist</Link
-          >, or <Link href="/preview/veil/hero/hero-one">Veil</Link>.
+            href="/preview/mist/hero/one"
+          >
+            Mist
+          </Link>, or <Link href="/preview/veil/hero/hero-one">Veil</Link>.
         </Paragraph>
       </Step>
     </Steps>
@@ -37963,9 +38053,9 @@ jsrepo mcp`}
             alt={sponsor.name}
             loading="lazy"
           />
-          <span class="mt-2 text-center text-sm font-medium"
-            >{sponsor.name}</span
-          >
+          <span class="mt-2 text-center text-sm font-medium">
+            {sponsor.name}
+          </span>
         </a>
       {/each}
     </div>
@@ -37976,14 +38066,14 @@ jsrepo mcp`}
     <UnorderedList class="mt-2">
       <ListItem>Become a recurring sponsor on GitHub.</ListItem>
       <ListItem>Share the project with your developer network.</ListItem>
-      <ListItem
-        >Contribute docs, bug fixes, and component improvements.</ListItem
-      >
+      <ListItem>
+        Contribute docs, bug fixes, and component improvements.
+      </ListItem>
     </UnorderedList>
     <div class="mt-6 flex flex-wrap gap-3">
-      <Button href="https://github.com/sponsors/SikandarJODD" target="_blank"
-        >Donate on GitHub</Button
-      >
+      <Button href="https://github.com/sponsors/SikandarJODD" target="_blank">
+        Donate on GitHub
+      </Button>
       <Button
         variant="outline"
         target="_blank"
@@ -38066,7 +38156,7 @@ jsrepo mcp`}
   </div>
 {/snippet}
 
-=== 1095 src/routes/(app)/veil/+page.svelte	svelte
+=== 1115 src/routes/(app)/veil/+page.svelte	svelte
 ﻿<script lang="ts">
   import Button from "$lib/components/ui/button/button.svelte";
   import { seoMetaTags } from "$lib/config/seo";
@@ -38091,8 +38181,10 @@ jsrepo mcp`}
         <Button
           href="/docs/installation"
           variant="outline"
-          class="w-full sm:w-fit">Visit Docs</Button
+          class="w-full sm:w-fit"
         >
+          Visit Docs
+        </Button>
       </div>
     </div>
   </div>

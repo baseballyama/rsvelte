@@ -46,7 +46,8 @@
 14:16 14:22 svelte/max-attributes-per-line "'y1' should be on a new line."
 14:23 14:30 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
 
-=== 841 attractions/file-input/paperclip.svelte	lint.txt
+=== 1051 attractions/file-input/paperclip.svelte	lint.txt
+5:7 5:13 svelte/valid-compile "`_class` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:3 12:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
 13:3 13:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
 14:3 14:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
@@ -58,7 +59,8 @@
 20:3 20:26 svelte/sort-attributes "Attribute 'class' should go before 'xmlns'."
 23:5 23:122 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
 
-=== 1049 attractions/file-input/plus.svelte	lint.txt
+=== 1259 attractions/file-input/plus.svelte	lint.txt
+5:7 5:13 svelte/valid-compile "`_class` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:3 12:13 svelte/sort-attributes "Attribute 'width' should go before 'xmlns'."
 13:3 13:14 svelte/sort-attributes "Attribute 'height' should go before 'xmlns'."
 14:3 14:22 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
@@ -88,7 +90,8 @@
 18:17 18:24 svelte/max-attributes-per-line "'y1' should be on a new line."
 18:25 18:32 svelte/sort-attributes "Attribute 'x2' should go before 'y1'."
 
-=== 1140 attractions/loading/loading.svelte	lint.txt
+=== 1350 attractions/loading/loading.svelte	lint.txt
+5:7 5:13 svelte/valid-compile "`_class` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:3 11:26 svelte/no-unused-class-name "Unused class \"bounce1\"."
 11:3 11:26 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 11:24 11:26 svelte/html-self-closing "Disallow self-closing on HTML elements."
@@ -120,14 +123,17 @@
 11:3 11:26 svelte/sort-attributes "Attribute 'stroke-linejoin' should go before 'xmlns'."
 13:19 13:26 svelte/max-attributes-per-line "'cy' should be on a new line."
 
-=== 222 docs/src/containers/docs/showcase.svelte	lint.txt
+=== 606 docs/src/containers/docs/showcase.svelte	lint.txt
 6:1 6:27 svelte/no-unused-class-name "Unused class \"showcase\"."
+8:3 8:27 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 8:25 8:27 svelte/html-self-closing "Disallow self-closing on HTML elements."
+11:5 11:27 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 11:25 11:27 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 1129 docs/src/containers/home/info-tiles.svelte	lint.txt
+=== 1352 docs/src/containers/home/info-tiles.svelte	lint.txt
 10:1 10:5 svelte/indent "Expected indentation of 6 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 6 spaces but found 4 spaces."
+12:7 12:24 svelte/valid-compile "`bundleSizePromise` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:25 15:30 no-undef "'fetch' is not defined."
 16:64 16:71 no-undef "'process' is not defined."
 21:1 21:25 svelte/no-unused-class-name "Unused class \"info-tiles\"."
@@ -142,31 +148,41 @@
 52:7 52:67 svelte/sort-attributes "Attribute 'subtitle' should go before 'title'."
 53:7 53:59 svelte/sort-attributes "Attribute 'href' should go before 'icon'."
 
-=== 77 docs/src/mdsvex/layout-no-head.svelte	lint.txt
+=== 447 docs/src/mdsvex/layout-no-head.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+29:1 29:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 29:7 29:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 76 docs/src/mdsvex/li.svelte	lint.txt
+=== 267 docs/src/mdsvex/li.svelte	lint.txt
+2:3 2:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 77 docs/src/mdsvex/mark.svelte	lint.txt
+=== 268 docs/src/mdsvex/mark.svelte	lint.txt
+1:7 1:15 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:13 1:15 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 76 docs/src/mdsvex/p.svelte	lint.txt
+=== 267 docs/src/mdsvex/p.svelte	lint.txt
+2:3 2:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 76 docs/src/mdsvex/table.svelte	lint.txt
+=== 267 docs/src/mdsvex/table.svelte	lint.txt
+2:3 2:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 76 docs/src/mdsvex/td.svelte	lint.txt
+=== 267 docs/src/mdsvex/td.svelte	lint.txt
+2:3 2:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 77 docs/src/mdsvex/th.svelte	lint.txt
+=== 268 docs/src/mdsvex/th.svelte	lint.txt
+7:5 7:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 7:11 7:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 76 docs/src/mdsvex/tr.svelte	lint.txt
+=== 267 docs/src/mdsvex/tr.svelte	lint.txt
+2:3 2:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 76 docs/src/mdsvex/ul.svelte	lint.txt
+=== 267 docs/src/mdsvex/ul.svelte	lint.txt
+2:3 2:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:9 2:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 2169 docs/src/routes/index.svelte	lint.txt

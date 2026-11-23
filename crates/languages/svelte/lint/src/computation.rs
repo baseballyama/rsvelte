@@ -159,6 +159,25 @@ impl Facet for ConditionTypes {
     const NAME: &'static str = "svelte.lint.condition_types";
 }
 
+/// The compiler's warnings and analysis errors as eslint-plugin-svelte compiles the component:
+/// with the `runes` of its `svelte.config.js`. `None` when the document did not parse.
+#[derive(Debug)]
+pub(crate) struct CompiledForLint;
+
+impl Artifact for CompiledForLint {
+    type Output = Option<rsvelte_svelte_semantic::warnings::CompileWarnings>;
+
+    const NAME: &'static str = "svelte.lint.compile_warnings";
+
+    fn compute(context: &DocumentContext<'_>) -> Self::Output {
+        let runes = context
+            .facet::<crate::project::SvelteConfiguration>()
+            .and_then(|config| config.as_ref().ok())
+            .and_then(|config| config.runes);
+        rsvelte_svelte_semantic::linting_warnings(context, runes)
+    }
+}
+
 /// The built-in prototype's [`ConditionTypes`].
 #[derive(Debug)]
 pub(crate) struct NativeConditionTypes;

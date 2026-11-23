@@ -85,17 +85,14 @@
 27:3 27:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
 49:5 49:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 2900 src/lib/components/furniture/QuickTips.svelte	lint.txt
+=== 2661 src/lib/components/furniture/QuickTips.svelte	lint.txt
 1:1 114:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 48:25 48:37 no-undef "'localStorage' is not defined."
 52:28 52:40 no-undef "'localStorage' is not defined."
 67:7 67:19 no-undef "'localStorage' is not defined."
-69:1 69:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 87:27 87:39 no-undef "'localStorage' is not defined."
-92:1 92:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
 96:7 96:17 no-undef "'setTimeout' is not defined."
 106:9 106:21 no-undef "'localStorage' is not defined."
-108:1 108:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
 117:27 117:47 svelte/max-attributes-per-line "'role' should be on a new line."
 117:48 117:71 svelte/sort-attributes "Attribute 'aria-label' should go before 'role'."
 118:5 123:6 svelte/button-has-type "Missing an explicit type attribute for button."
@@ -680,8 +677,14 @@
 
 === 0 src/lib/components/page-specific/about/ApiSection.svelte	lint.txt
 
-=== 3175 src/lib/components/page-specific/about/AttributionsSection.svelte	lint.txt
+=== 4492 src/lib/components/page-specific/about/AttributionsSection.svelte	lint.txt
 1:1 51:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+19:7 19:75 svelte/valid-compile "`sponsors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+20:7 20:65 svelte/valid-compile "`contributors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+21:7 21:63 svelte/valid-compile "`stargazers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+22:7 22:22 svelte/valid-compile "`loadingSponsors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+23:7 23:26 svelte/valid-compile "`loadingContributors` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+24:7 24:24 svelte/valid-compile "`loadingStargazers` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 29:33 29:38 no-undef "'fetch' is not defined."
 37:37 37:42 no-undef "'fetch' is not defined."
 45:35 45:40 no-undef "'fetch' is not defined."
@@ -4862,11 +4865,9 @@
 342:3 342:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
 560:3 560:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 6172 src/lib/components/tools/RPBuilder.svelte	lint.txt
+=== 6014 src/lib/components/tools/RPBuilder.svelte	lint.txt
 1:1 162:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 57:17 59:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-73:1 73:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
-79:1 79:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 121:22 121:26 no-undef "'Blob' is not defined."
 122:17 122:20 no-undef "'URL' is not defined."
 123:15 123:23 no-undef "'document' is not defined."
@@ -5921,8 +5922,14 @@
 374:7 374:46 svelte/no-unused-class-name "Unused class \"info-panel\"."
 385:1 955:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 2831 src/lib/components/tools/ULAGenerator.svelte	lint.txt
+=== 4751 src/lib/components/tools/ULAGenerator.svelte	lint.txt
 1:1 40:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+4:7 4:12 svelte/valid-compile "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+5:7 5:16 svelte/valid-compile "`subnetIds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+6:7 6:31 svelte/valid-compile "`result` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+7:7 7:14 svelte/valid-compile "`loading` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+8:7 8:17 svelte/valid-compile "`parseInput` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+9:7 9:54 svelte/valid-compile "`parseResult` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 38:5 38:14 no-undef "'navigator' is not defined."
 50:27 50:40 svelte/max-attributes-per-line "'type' should be on a new line."
 50:41 50:48 svelte/sort-attributes "Attribute 'min' should go before 'type'."
@@ -5931,11 +5938,14 @@
 58:11 58:19 svelte/sort-attributes "Attribute 'rows' should go before 'bind:value'."
 59:11 59:78 svelte/sort-attributes "Attribute 'placeholder' should go before 'bind:value'."
 64:7 64:107 svelte/button-has-type "Missing an explicit type attribute for button."
+64:15 64:38 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 64:39 64:85 svelte/max-attributes-per-line "'disabled' should be on a new line."
 64:39 64:85 svelte/sort-attributes "Attribute 'disabled' should go before 'on:click'."
 64:86 64:106 svelte/sort-attributes "Attribute 'class' should go before 'on:click'."
 110:21 114:22 svelte/button-has-type "Missing an explicit type attribute for button."
+112:23 112:75 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 113:23 113:51 svelte/sort-attributes "Attribute 'title' should go before 'on:click'."
+192:9 192:35 svelte/valid-compile "Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 193:9 193:47 svelte/sort-attributes "Attribute 'placeholder' should go before 'type'."
 232:3 232:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
 264:3 264:17 svelte/consistent-selector-style "Selector should select by ID instead of class"
@@ -6336,13 +6346,12 @@
 
 === 0 src/lib/composables/useValidation.svelte.ts	lint.txt
 
-=== 3704 src/routes/+error.svelte	lint.txt
+=== 3623 src/routes/+error.svelte	lint.txt
 1:1 145:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 16:7 16:14 no-undef "'console' is not defined."
 73:7 73:14 no-undef "'console' is not defined."
 119:7 119:13 no-undef "'window' is not defined."
 124:7 124:15 no-undef "'location' is not defined."
-126:1 126:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 142:7 142:14 no-undef "'console' is not defined."
 149:28 149:59 svelte/max-attributes-per-line "'content' should be on a new line."
 150:23 150:40 svelte/max-attributes-per-line "'content' should be on a new line."
@@ -6521,8 +6530,9 @@
 64:5 64:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
 70:3 70:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 764 src/routes/about/legal/+layout.svelte	lint.txt
+=== 955 src/routes/about/legal/+layout.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+6:3 6:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 6:9 6:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 10:1 91:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 11:3 11:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -6662,13 +6672,14 @@
 === 89 src/routes/cidr/gaps/+page.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 1826 src/routes/cidr/mask-converter/cidr-to-subnet-mask/+page.svelte	lint.txt
+=== 2040 src/routes/cidr/mask-converter/cidr-to-subnet-mask/+page.svelte	lint.txt
 2:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 9:1 9:40 svelte/no-unused-class-name "Unused class \"fade-in\"."
 12:30 12:50 svelte/max-attributes-per-line "'class' should be on a new line."
 12:30 12:50 svelte/sort-attributes "Attribute 'class' should go before 'for'."
 20:9 20:16 svelte/sort-attributes "Attribute 'min' should go before 'type'."
 21:9 21:17 svelte/sort-attributes "Attribute 'max' should go before 'type'."
+23:9 23:81 svelte/valid-compile "Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 23:55 23:71 no-undef "'HTMLInputElement' is not defined."
 24:9 24:28 svelte/sort-attributes "Attribute 'class' should go before 'type'."
 41:1 140:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
@@ -6685,13 +6696,14 @@
 125:7 125:20 svelte/consistent-selector-style "Selector should select by ID instead of class"
 131:7 131:20 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 644 src/routes/cidr/mask-converter/subnet-mask-to-cidr/+page.svelte	lint.txt
+=== 858 src/routes/cidr/mask-converter/subnet-mask-to-cidr/+page.svelte	lint.txt
 2:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 11:19 11:76 svelte/require-stores-init "Always set a default value for svelte stores."
 14:1 14:40 svelte/no-unused-class-name "Unused class \"fade-in\"."
 22:7 22:34 svelte/sort-attributes "Attribute 'placeholder' should go before 'type'."
 23:7 23:53 svelte/sort-attributes "Attribute 'class' should go before 'type'."
 23:25 23:52 svelte/prefer-class-directive "Unexpected class using the ternary operator."
+24:7 24:79 svelte/valid-compile "Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 24:54 24:70 no-undef "'HTMLInputElement' is not defined."
 37:1 87:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
@@ -6699,8 +6711,9 @@
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:1 5:29 svelte/no-unused-class-name "Unused class \"page-container\"."
 
-=== 1604 src/routes/cidr/set-operations/+layout.svelte	lint.txt
+=== 1794 src/routes/cidr/set-operations/+layout.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+6:1 6:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 6:7 6:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 32:41 32:50 svelte/max-attributes-per-line "'size' should be on a new line."
 55:3 55:47 svelte/no-unused-class-name "Unused class \"info-panel\"."
@@ -9278,9 +9291,10 @@
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:1 5:29 svelte/no-unused-class-name "Unused class \"page-container\"."
 
-=== 1754 src/routes/ip-address-convertor/families/+layout.svelte	lint.txt
+=== 1945 src/routes/ip-address-convertor/families/+layout.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 8:1 8:24 svelte/no-unused-class-name "Unused class \"container\"."
+9:3 9:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 9:9 9:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 13:5 13:42 svelte/no-unused-class-name "Unused class \"no-hover\"."
 15:27 15:36 svelte/max-attributes-per-line "'size' should be on a new line."
@@ -9387,9 +9401,10 @@
 631:36 631:45 svelte/max-attributes-per-line "'size' should be on a new line."
 645:1 1383:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 1556 src/routes/ip-address-convertor/notation/+layout.svelte	lint.txt
+=== 1747 src/routes/ip-address-convertor/notation/+layout.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 8:1 8:24 svelte/no-unused-class-name "Unused class \"container\"."
+9:3 9:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 9:9 9:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 13:5 13:42 svelte/no-unused-class-name "Unused class \"no-hover\"."
 15:27 15:36 svelte/max-attributes-per-line "'size' should be on a new line."
@@ -9458,8 +9473,9 @@
 === 89 src/routes/ip-address-convertor/validator/+page.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 1745 src/routes/offline/+page.svelte	lint.txt
+=== 1957 src/routes/offline/+page.svelte	lint.txt
 1:1 29:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:7 7:15 svelte/valid-compile "`isOnline` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:16 10:25 no-undef "'navigator' is not defined."
 14:7 14:17 no-undef "'setTimeout' is not defined."
 14:25 14:31 no-undef "'window' is not defined."

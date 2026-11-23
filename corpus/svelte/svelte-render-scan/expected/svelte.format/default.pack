@@ -421,7 +421,7 @@
 
 {@render children()}
 
-=== 11685 src/routes/+page.svelte	svelte
+=== 11722 src/routes/+page.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
   import Eye from "$lib/components/Logo.svelte";
@@ -572,9 +572,9 @@
         <div class="space-y-6">
           <!-- Color Picker -->
           <div class="flex items-center justify-between">
-            <label for="highlight-color" class="font-medium"
-              >Page Highlight Color</label
-            >
+            <label for="highlight-color" class="font-medium">
+              Page Highlight Color
+            </label>
             <input
               type="color"
               id="highlight-color"
@@ -636,8 +636,10 @@
             stroke={highlightColor}
             stroke-width="2"
             stroke-linecap="round"
-            stroke-linejoin="round"><polyline points="20 6 9 17 4 12" /></svg
+            stroke-linejoin="round"
           >
+            <polyline points="20 6 9 17 4 12" />
+          </svg>
           <p>{feature}</p>
         </div>
       {/each}
@@ -665,8 +667,9 @@
               style="background-color: {i.name === installer
                 ? highlightColor
                 : ''}; color: {i.name === installer ? textColor : ''}"
-              >{i.name}</span
             >
+              {i.name}
+            </span>
           </label>
         {/each}
       </div>
@@ -746,9 +749,9 @@
   </section>
 
   <p class="mb-2 mt-24 text-center">
-    <a href="https://github.com/khromov/svelte-render-scan" class="underline"
-      >GitHub</a
-    >
+    <a href="https://github.com/khromov/svelte-render-scan" class="underline">
+      GitHub
+    </a>
   </p>
   <p class="text-center text-gray-500">
     © {new Date().getFullYear()} svelte-render-scan · Version {pkg.version}

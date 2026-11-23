@@ -825,7 +825,7 @@
   }
 </style>
 
-=== 7469 src/routes/demos/hacker-news/+page.svelte	svelte
+=== 7601 src/routes/demos/hacker-news/+page.svelte	svelte
 <script>
   import VirtualList from "$lib/VirtualList.svelte";
   import InfiniteLoading from "svelte-infinite-loading";
@@ -929,8 +929,10 @@
                   href="https://news.ycombinator.com/from?site={formatSite(
                     list[index].url,
                   )}"
-                  target="_blank">{formatSite(list[index].url)}</a
-                >)
+                  target="_blank"
+                >
+                  {formatSite(list[index].url)}
+                </a>)
               {/if}
             </div>
             <div class="truncate">
@@ -938,22 +940,28 @@
               <a
                 class="hacker-news-link"
                 href="https://news.ycombinator.com/user?id={list[index].author}"
-                target="_blank">{list[index].author}</a
+                target="_blank"
               >
+                {list[index].author}
+              </a>
               <a
                 class="hacker-news-link"
                 title={list[index].created_at}
                 href="https://news.ycombinator.com/item?id={list[index]
                   .story_id}"
-                target="_blank">{formatCreatedAt(list[index].created_at)}</a
+                target="_blank"
               >
+                {formatCreatedAt(list[index].created_at)}
+              </a>
               |
               <a
                 class="hacker-news-link"
                 target="_blank"
                 href="https://news.ycombinator.com/item?id={list[index]
-                  .story_id}">{list[index].num_comments} comments</a
+                  .story_id}"
               >
+                {list[index].num_comments} comments
+              </a>
             </div>
           </article>
         </div>

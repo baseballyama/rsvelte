@@ -42,7 +42,7 @@
   {@render children()}
 {/if}
 
-=== 2257 src/docs/ui/aside.svelte	svelte
+=== 2360 src/docs/ui/aside.svelte	svelte
 <script lang="ts">
   import type { AsideT } from "./types.js";
   import { page } from "$app/state";
@@ -76,8 +76,9 @@
             <Badge
               size="sm"
               variant={asideData.title?.badge?.variant || "green"}
-              >{asideData.title?.badge?.name}</Badge
             >
+              {asideData.title?.badge?.name}
+            </Badge>
           {/if}
         </p>
         <ul class="relative space-y-0.5">
@@ -89,11 +90,15 @@
                     class="flex h-10 w-full items-center gap-x-3 {setActive(
                       list?.url || '',
                     )} group-hover:bg-kui-light-gray-alpha-100 dark:group-hover:bg-kui-dark-gray-alpha-100 group-hover:text-kui-light-gray-1000 dark:group-hover:text-kui-dark-gray-1000 flex items-center rounded-md px-3 py-1.5 text-[14px] leading-5 font-normal capitalize"
-                    >{list?.name || ""}
+                  >
+                    {list?.name || ""}
                     {#if list?.badge}
-                      <Badge size="sm" variant={list?.badge?.variant || "green"}
-                        >{list?.badge.name}</Badge
+                      <Badge
+                        size="sm"
+                        variant={list?.badge?.variant || "green"}
                       >
+                        {list?.badge.name}
+                      </Badge>
                     {/if}
                   </span>
                 </a>
@@ -706,7 +711,7 @@ z-1000 h-full w-[75%] border-r"
   {/if}
 </button>
 
-=== 7590 src/lib/calendar/calendar.svelte	svelte
+=== 7602 src/lib/calendar/calendar.svelte	svelte
 <script lang="ts">
   import { clickOutside, componentPosition } from "$lib/utils/event.js";
   import { cubicOut } from "svelte/easing";
@@ -907,8 +912,10 @@ z-1000 h-full w-[75%] border-r"
         isActive = false;
       }}
       variant="secondary"
-      class="w-full">done</Button
+      class="w-full"
     >
+      done
+    </Button>
   </footer>
 {/snippet}
 
@@ -1641,7 +1648,7 @@ z-1000 h-full w-[75%] border-r"
   {/if}
 </div>
 
-=== 2731 src/lib/collapse/trigger.svelte	svelte
+=== 2736 src/lib/collapse/trigger.svelte	svelte
 <script lang="ts">
   import { ChevronRight } from "$lib/icons/index.js";
   import { getContext, type Snippet } from "svelte";
@@ -1739,8 +1746,9 @@ z-1000 h-full w-[75%] border-r"
   {#if children}
     <span
       class="{textClass} text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 font-semibold"
-      >{@render children()}</span
     >
+      {@render children()}
+    </span>
   {/if}
   <div class="">
     <div class="h-4 w-4 overflow-hidden">
@@ -2020,7 +2028,7 @@ z-1000 h-full w-[75%] border-r"
   </div>
 </div>
 
-=== 714 src/lib/icons/accessibility.svelte	svelte
+=== 715 src/lib/icons/accessibility.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2028,17 +2036,18 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     d="M8 3C8.82843 3 9.5 2.32843 9.5 1.5C9.5 0.671573 8.82843 0 8 0C7.17157 0 6.5 0.671573 6.5 1.5C6.5 2.32843 7.17157 3 8 3Z"
     fill="currentColor"
   ></path>
   <path
     d="M4.67148 6C5.89632 6 6.83343 7.09104 6.64857 8.30185L6.43 9.73346C6.3381 10.2159 6.1906 10.6874 6 11.1401L4.33 15.2L5.92164 15.888L7.594 11.9162C7.72668 11.6011 8.27332 11.6011 8.406 11.9162L10.0784 15.888L11.67 15.2L10 11.1401C9.8094 10.6874 9.6619 10.2159 9.57 9.73346L9.2835 8.42904C9.00946 7.18131 9.95947 6 11.2369 6H14V4.5H2V6H4.67148Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 726 src/lib/icons/arrow-circle-up.svelte	svelte
+=== 727 src/lib/icons/arrow-circle-up.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2046,15 +2055,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M7.25 10.75V11.5H8.75V10.75V6.56066L10.2197 8.03033L10.75 8.56066L11.8107 7.5L11.2803 6.96967L8.53033 4.21967C8.23744 3.92678 7.76256 3.92678 7.46967 4.21967L4.71967 6.96967L4.18934 7.5L5.25 8.56066L5.78033 8.03033L7.25 6.56066V10.75ZM14.5 8C14.5 11.5899 11.5899 14.5 8 14.5C4.41015 14.5 1.5 11.5899 1.5 8C1.5 4.41015 4.41015 1.5 8 1.5C11.5899 1.5 14.5 4.41015 14.5 8ZM8 16C12.4183 16 16 12.4183 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 499 src/lib/icons/arrow-left.svelte	svelte
+=== 500 src/lib/icons/arrow-left.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="16"
@@ -2062,15 +2072,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="16"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M6.46966 13.7803L6.99999 14.3107L8.06065 13.25L7.53032 12.7197L3.56065 8.75001H14.25H15V7.25001H14.25H3.56065L7.53032 3.28034L8.06065 2.75001L6.99999 1.68935L6.46966 2.21968L1.39644 7.2929C1.00592 7.68342 1.00592 8.31659 1.39644 8.70711L6.46966 13.7803Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 484 src/lib/icons/arrow-right.svelte	svelte
+=== 485 src/lib/icons/arrow-right.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="16"
@@ -2078,15 +2089,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="16"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M9.53033 2.21968L9 1.68935L7.93934 2.75001L8.46967 3.28034L12.4393 7.25001H1.75H1V8.75001H1.75H12.4393L8.46967 12.7197L7.93934 13.25L9 14.3107L9.53033 13.7803L14.6036 8.70711C14.9941 8.31659 14.9941 7.68342 14.6036 7.2929L9.53033 2.21968Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 436 src/lib/icons/arrow-up-right.svelte	svelte
+=== 437 src/lib/icons/arrow-up-right.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2094,15 +2106,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M5.75001 2H5.00001V3.5H5.75001H11.4393L2.21968 12.7197L1.68935 13.25L2.75001 14.3107L3.28034 13.7803L12.4988 4.56182V10.25V11H13.9988V10.25V3C13.9988 2.44772 13.5511 2 12.9988 2H5.75001Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 503 src/lib/icons/arrow-up.svelte	svelte
+=== 504 src/lib/icons/arrow-up.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2110,15 +2123,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M8.70711 1.39644C8.31659 1.00592 7.68342 1.00592 7.2929 1.39644L2.21968 6.46966L1.68935 6.99999L2.75001 8.06065L3.28034 7.53032L7.25001 3.56065V14.25V15H8.75001V14.25V3.56065L12.7197 7.53032L13.25 8.06065L14.3107 6.99999L13.7803 6.46966L8.70711 1.39644Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 738 src/lib/icons/asterisk.svelte	svelte
+=== 739 src/lib/icons/asterisk.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2126,15 +2140,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M7.25 15V11.0311C7.25 10.2613 6.41667 9.78019 5.75 10.1651L2.31287 12.1495L1.56287 10.8505L5.00006 8.86602C5.66673 8.48112 5.66673 7.51886 5.00006 7.13396L1.5629 5.14952L2.3129 3.85048L5.75 5.83489C6.41667 6.21979 7.25 5.73867 7.25 4.96886V1H8.75V4.96894C8.75 5.73874 9.58333 6.21986 10.25 5.83496L13.6872 3.85048L14.4372 5.14952L11.0001 7.13396C10.3334 7.51886 10.3334 8.48112 11.0001 8.86602L14.4373 10.8505L13.6873 12.1495L10.25 10.165C9.58333 9.78012 8.75 10.2612 8.75 11.031V15H7.25Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 495 src/lib/icons/calendar.svelte	svelte
+=== 496 src/lib/icons/calendar.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2142,15 +2157,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M5.5 0.5V1.25V2H10.5V1.25V0.5H12V1.25V2H14H15.5V3.5V13.5C15.5 14.8807 14.3807 16 13 16H3C1.61929 16 0.5 14.8807 0.5 13.5V3.5V2H2H4V1.25V0.5H5.5ZM2 3.5H14V6H2V3.5ZM2 7.5V13.5C2 14.0523 2.44772 14.5 3 14.5H13C13.5523 14.5 14 14.0523 14 13.5V7.5H2Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 383 src/lib/icons/chart-bar-peak.svelte	svelte
+=== 384 src/lib/icons/chart-bar-peak.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2158,15 +2174,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M14 1V1.75V14.25V15H12.5V14.25V1.75V1H14ZM8.75 6V6.75V14.25V15H7.25V14.25V6.75V6H8.75ZM3.5 10.75V10H2V10.75V14.25V15H3.5V14.25V10.75Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 690 src/lib/icons/check-circle.svelte	svelte
+=== 691 src/lib/icons/check-circle.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2174,15 +2191,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M14.5 8C14.5 11.5899 11.5899 14.5 8 14.5C4.41015 14.5 1.5 11.5899 1.5 8C1.5 4.41015 4.41015 1.5 8 1.5C11.5899 1.5 14.5 4.41015 14.5 8ZM16 8C16 12.4183 12.4183 16 8 16C3.58172 16 0 12.4183 0 8C0 3.58172 3.58172 0 8 0C12.4183 0 16 3.58172 16 8ZM11.5303 6.53033L12.0607 6L11 4.93934L10.4697 5.46967L6.5 9.43934L5.53033 8.46967L5 7.93934L3.93934 9L4.46967 9.53033L5.96967 11.0303C6.26256 11.3232 6.73744 11.3232 7.03033 11.0303L11.5303 6.53033Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 667 src/lib/icons/check-square-fill.svelte	svelte
+=== 668 src/lib/icons/check-square-fill.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2190,15 +2208,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M14.5 1.5V14.5L1.5 14.5L1.5 1.5H14.5ZM16 15C16 15.5523 15.5523 16 15 16L1 16C0.447715 16 0 15.5523 0 15V1C0 0.447715 0.447716 0 1 0H15C15.5523 0 16 0.447715 16 1V15ZM11.7803 6.28033L12.3107 5.75L11.25 4.68934L10.7197 5.21967L6.5 9.43935L5.28033 8.21967L4.75001 7.68934L3.68934 8.74999L4.21967 9.28033L5.96967 11.0303C6.11032 11.171 6.30109 11.25 6.5 11.25C6.69891 11.25 6.88968 11.171 7.03033 11.0303L11.7803 6.28033Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 655 src/lib/icons/check-square.svelte	svelte
+=== 656 src/lib/icons/check-square.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2206,15 +2225,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M15 16H1C0.447715 16 0 15.5523 0 15V1C0 0.447715 0.447716 0 1 0L15 8.17435e-06C15.5523 8.47532e-06 16 0.447724 16 1.00001V15C16 15.5523 15.5523 16 15 16ZM11.7803 6.28033L12.3107 5.75L11.25 4.68934L10.7197 5.21967L6.5 9.43935L5.28033 8.21967L4.75001 7.68934L3.68934 8.74999L4.21967 9.28033L5.96967 11.0303C6.11032 11.171 6.30109 11.25 6.5 11.25C6.69891 11.25 6.88968 11.171 7.03033 11.0303L11.7803 6.28033Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 553 src/lib/icons/check.svelte	svelte
+=== 554 src/lib/icons/check.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2222,15 +2242,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M15.5607 3.99999L15.0303 4.53032L6.23744 13.3232C5.55403 14.0066 4.44599 14.0066 3.76257 13.3232L4.2929 12.7929L3.76257 13.3232L0.969676 10.5303L0.439346 9.99999L1.50001 8.93933L2.03034 9.46966L4.82323 12.2626C4.92086 12.3602 5.07915 12.3602 5.17678 12.2626L13.9697 3.46966L14.5 2.93933L15.5607 3.99999Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 465 src/lib/icons/chevron-down-small.svelte	svelte
+=== 466 src/lib/icons/chevron-down-small.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="16"
@@ -2238,15 +2259,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="16"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M12.0607 6.74999L11.5303 7.28032L8.7071 10.1035C8.31657 10.4941 7.68341 10.4941 7.29288 10.1035L4.46966 7.28032L3.93933 6.74999L4.99999 5.68933L5.53032 6.21966L7.99999 8.68933L10.4697 6.21966L11 5.68933L12.0607 6.74999Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 469 src/lib/icons/chevron-down.svelte	svelte
+=== 470 src/lib/icons/chevron-down.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2254,15 +2276,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M14.0607 5.49999L13.5303 6.03032L8.7071 10.8535C8.31658 11.2441 7.68341 11.2441 7.29289 10.8535L2.46966 6.03032L1.93933 5.49999L2.99999 4.43933L3.53032 4.96966L7.99999 9.43933L12.4697 4.96966L13 4.43933L14.0607 5.49999Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 469 src/lib/icons/chevron-left-small.svelte	svelte
+=== 470 src/lib/icons/chevron-left-small.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2270,15 +2293,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M9.24996 12.0607L8.71963 11.5303L5.89641 8.7071C5.50588 8.31657 5.50588 7.68341 5.89641 7.29288L8.71963 4.46966L9.24996 3.93933L10.3106 4.99999L9.78029 5.53032L7.31062 7.99999L9.78029 10.4697L10.3106 11L9.24996 12.0607Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 460 src/lib/icons/chevron-left.svelte	svelte
+=== 461 src/lib/icons/chevron-left.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2286,15 +2310,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M10.5 14.0607L9.96966 13.5303L5.14644 8.7071C4.75592 8.31658 4.75592 7.68341 5.14644 7.29289L9.96966 2.46966L10.5 1.93933L11.5607 2.99999L11.0303 3.53032L6.56065 7.99999L11.0303 12.4697L11.5607 13L10.5 14.0607Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 469 src/lib/icons/chevron-right-small.svelte	svelte
+=== 470 src/lib/icons/chevron-right-small.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2302,15 +2327,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M6.74999 3.93933L7.28032 4.46966L10.1035 7.29288C10.4941 7.68341 10.4941 8.31657 10.1035 8.7071L7.28032 11.5303L6.74999 12.0607L5.68933 11L6.21966 10.4697L8.68933 7.99999L6.21966 5.53032L5.68933 4.99999L6.74999 3.93933Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 469 src/lib/icons/chevron-right.svelte	svelte
+=== 470 src/lib/icons/chevron-right.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2318,15 +2344,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M5.50001 1.93933L6.03034 2.46966L10.8536 7.29288C11.2441 7.68341 11.2441 8.31657 10.8536 8.7071L6.03034 13.5303L5.50001 14.0607L4.43935 13L4.96968 12.4697L9.43935 7.99999L4.96968 3.53032L4.43935 2.99999L5.50001 1.93933Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 465 src/lib/icons/chevron-up-small.svelte	svelte
+=== 466 src/lib/icons/chevron-up-small.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="16"
@@ -2334,15 +2361,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="16"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M3.93933 9.24999L4.46966 8.71966L7.29288 5.89644C7.68341 5.50592 8.31657 5.50592 8.7071 5.89644L11.5303 8.71966L12.0607 9.24999L11 10.3107L10.4697 9.78032L7.99999 7.31065L5.53032 9.78032L4.99999 10.3107L3.93933 9.24999Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 807 src/lib/icons/copy.svelte	svelte
+=== 808 src/lib/icons/copy.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2350,15 +2378,16 @@ z-1000 h-full w-[75%] border-r"
   style="color:currentColor"
   viewBox="0 0 16 16"
   width="100%"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M2.75 0.5C1.7835 0.5 1 1.2835 1 2.25V9.75C1 10.7165 1.7835 11.5 2.75 11.5H3.75H4.5V10H3.75H2.75C2.61193 10 2.5 9.88807 2.5 9.75V2.25C2.5 2.11193 2.61193 2 2.75 2H8.25C8.38807 2 8.5 2.11193 8.5 2.25V3H10V2.25C10 1.2835 9.2165 0.5 8.25 0.5H2.75ZM7.75 4.5C6.7835 4.5 6 5.2835 6 6.25V13.75C6 14.7165 6.7835 15.5 7.75 15.5H13.25C14.2165 15.5 15 14.7165 15 13.75V6.25C15 5.2835 14.2165 4.5 13.25 4.5H7.75ZM7.5 6.25C7.5 6.11193 7.61193 6 7.75 6H13.25C13.3881 6 13.5 6.11193 13.5 6.25V13.75C13.5 13.8881 13.3881 14 13.25 14H7.75C7.61193 14 7.5 13.8881 7.5 13.75V6.25Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 637 src/lib/icons/cpu.svelte	svelte
+=== 638 src/lib/icons/cpu.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2366,15 +2395,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M5.5 2V0.75V0H7V0.75V2H9V0.75V0H10.5V0.75V2H13C13.5523 2 14 2.44772 14 3V5.5H15.25H16V7H15.25H14V9H15.25H16V10.5H15.25H14V13C14 13.5523 13.5523 14 13 14H10.5V15.25V16H9V15.25V14H7V15.25V16H5.5V15.25V14H3C2.44772 14 2 13.5523 2 13V10.5H0.75H0V9H0.75H2V7H0.75H0V5.5H0.75H2V3C2 2.44772 2.44772 2 3 2H5.5ZM12.75 10.5V9V7V5.5V3.25H10.5H9H7H5.5H3.25V5.5V7V9V10.5V12.75H5.5H7H9H10.5H12.75V10.5Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 567 src/lib/icons/cross.svelte	svelte
+=== 568 src/lib/icons/cross.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2382,15 +2412,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M12.4697 13.5303L13 14.0607L14.0607 13L13.5303 12.4697L9.06065 7.99999L13.5303 3.53032L14.0607 2.99999L13 1.93933L12.4697 2.46966L7.99999 6.93933L3.53032 2.46966L2.99999 1.93933L1.93933 2.99999L2.46966 3.53032L6.93933 7.99999L2.46966 12.4697L1.93933 13L2.99999 14.0607L3.53032 13.5303L7.99999 9.06065L12.4697 13.5303Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 528 src/lib/icons/device-alternate.svelte	svelte
+=== 529 src/lib/icons/device-alternate.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="16"
@@ -2398,15 +2429,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="16"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M1 3.25C1 1.45507 2.45507 0 4.25 0H11.75C13.5449 0 15 1.45507 15 3.25V15.25V16H14.25H1.75H1V15.25V3.25ZM4.25 1.5C3.2835 1.5 2.5 2.2835 2.5 3.25V14.5H13.5V3.25C13.5 2.2835 12.7165 1.5 11.75 1.5H4.25ZM4 4C4 3.44772 4.44772 3 5 3H11C11.5523 3 12 3.44772 12 4V10H4V4ZM9 13H12V11.5H9V13Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 968 src/lib/icons/error.svelte	svelte
+=== 969 src/lib/icons/error.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2414,15 +2446,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="width: 16px; height: 16px; color: var(--ds-red-900);"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M5.30761 1.5L1.5 5.30761L1.5 10.6924L5.30761 14.5H10.6924L14.5 10.6924V5.30761L10.6924 1.5H5.30761ZM5.10051 0C4.83529 0 4.58094 0.105357 4.3934 0.292893L0.292893 4.3934C0.105357 4.58094 0 4.83529 0 5.10051V10.8995C0 11.1647 0.105357 11.4191 0.292894 11.6066L4.3934 15.7071C4.58094 15.8946 4.83529 16 5.10051 16H10.8995C11.1647 16 11.4191 15.8946 11.6066 15.7071L15.7071 11.6066C15.8946 11.4191 16 11.1647 16 10.8995V5.10051C16 4.83529 15.8946 4.58093 15.7071 4.3934L11.6066 0.292893C11.4191 0.105357 11.1647 0 10.8995 0H5.10051ZM8.75 3.75V4.5V8L8.75 8.75H7.25V8V4.5V3.75H8.75ZM8 12C8.55229 12 9 11.5523 9 11C9 10.4477 8.55229 10 8 10C7.44772 10 7 10.4477 7 11C7 11.5523 7.44772 12 8 12Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 829 src/lib/icons/grid-square.svelte	svelte
+=== 830 src/lib/icons/grid-square.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2430,15 +2463,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M2.5 5.5V2.5H5.5V5.5H2.5ZM1 2C1 1.44772 1.44772 1 2 1H6C6.55228 1 7 1.44772 7 2V6C7 6.55228 6.55228 7 6 7H2C1.44772 7 1 6.55228 1 6V2ZM2.5 13.5V10.5H5.5V13.5H2.5ZM1 10C1 9.44772 1.44772 9 2 9H6C6.55228 9 7 9.44772 7 10V14C7 14.5523 6.55228 15 6 15H2C1.44772 15 1 14.5523 1 14V10ZM10.5 2.5V5.5H13.5V2.5H10.5ZM10 1C9.44772 1 9 1.44772 9 2V6C9 6.55228 9.44772 7 10 7H14C14.5523 7 15 6.55228 15 6V2C15 1.44772 14.5523 1 14 1H10ZM10.5 13.5V10.5H13.5V13.5H10.5ZM9 10C9 9.44772 9.44772 9 10 9H14C14.5523 9 15 9.44772 15 10V14C15 14.5523 14.5523 15 14 15H10C9.44772 15 9 14.5523 9 14V10Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 775 src/lib/icons/hook.svelte	svelte
+=== 776 src/lib/icons/hook.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2446,15 +2480,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M3.5 2.75C3.5 2.05964 4.05964 1.5 4.75 1.5C5.44036 1.5 6 2.05964 6 2.75C6 3.44036 5.44036 4 4.75 4C4.05964 4 3.5 3.44036 3.5 2.75ZM4.75 0C3.23122 0 2 1.23122 2 2.75C2 4.00878 2.84575 5.07002 4 5.39648V11.25C4 13.8734 6.12665 16 8.75 16H9.25C11.8734 16 14 13.8734 14 11.25V4.25V2.43934L12.7197 3.71967L10.4697 5.96967L9.93934 6.5L11 7.56066L11.5303 7.03033L12.5 6.06066V11.25C12.5 13.0449 11.0449 14.5 9.25 14.5H8.75C6.95507 14.5 5.5 13.0449 5.5 11.25V5.39648C6.65425 5.07002 7.5 4.00878 7.5 2.75C7.5 1.23122 6.26878 0 4.75 0Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 623 src/lib/icons/information-fill-small.svelte	svelte
+=== 624 src/lib/icons/information-fill-small.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2462,7 +2497,8 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     d="M14 8C14 11.3137 11.3137 14 8 14C4.68629 14 2 11.3137 2 8C2 4.68629 4.68629 2 8 2C11.3137 2 14 4.68629 14 8Z"
     fill="currentColor"
     fill-opacity="0.08"
@@ -2472,10 +2508,10 @@ z-1000 h-full w-[75%] border-r"
     clip-rule="evenodd"
     d="M8 6C8.55228 6 9 5.55228 9 5C9 4.44772 8.55228 4 8 4C7.44771 4 7 4.44772 7 5C7 5.55228 7.44771 6 8 6ZM7 7H6.25V8.5H7H7.24999V10.5V11.25H8.74999V10.5V8C8.74999 7.44772 8.30227 7 7.74999 7H7Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 684 src/lib/icons/information.svelte	svelte
+=== 685 src/lib/icons/information.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2483,15 +2519,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M8 14.5C11.5899 14.5 14.5 11.5899 14.5 8C14.5 4.41015 11.5899 1.5 8 1.5C4.41015 1.5 1.5 4.41015 1.5 8C1.5 11.5899 4.41015 14.5 8 14.5ZM8 16C12.4183 16 16 12.4183 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 12.4183 3.58172 16 8 16ZM6.25 7H7H7.74999C8.30227 7 8.74999 7.44772 8.74999 8V11.5V12.25H7.24999V11.5V8.5H7H6.25V7ZM8 6C8.55229 6 9 5.55228 9 5C9 4.44772 8.55229 4 8 4C7.44772 4 7 4.44772 7 5C7 5.55228 7.44772 6 8 6Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 689 src/lib/icons/link-external.svelte	svelte
+=== 690 src/lib/icons/link-external.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2499,15 +2536,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M13.5 10.25V13.25C13.5 13.3881 13.3881 13.5 13.25 13.5H2.75C2.61193 13.5 2.5 13.3881 2.5 13.25L2.5 2.75C2.5 2.61193 2.61193 2.5 2.75 2.5H5.75H6.5V1H5.75H2.75C1.7835 1 1 1.7835 1 2.75V13.25C1 14.2165 1.7835 15 2.75 15H13.25C14.2165 15 15 14.2165 15 13.25V10.25V9.5H13.5V10.25ZM9 1H9.75H14.2495C14.6637 1 14.9995 1.33579 14.9995 1.75V6.25V7H13.4995V6.25V3.56066L8.53033 8.52978L8 9.06011L6.93934 7.99945L7.46967 7.46912L12.4388 2.5H9.75H9V1Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 946 src/lib/icons/link.svelte	svelte
+=== 947 src/lib/icons/link.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2515,15 +2553,16 @@ z-1000 h-full w-[75%] border-r"
   style="color:currentColor"
   viewBox="0 0 16 16"
   width="100%"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M8.46968 1.46968C10.1433 -0.203925 12.8567 -0.203923 14.5303 1.46968C16.2039 3.14329 16.2039 5.85674 14.5303 7.53034L12.0303 10.0303L10.9697 8.96968L13.4697 6.46968C14.5575 5.38186 14.5575 3.61816 13.4697 2.53034C12.3819 1.44252 10.6182 1.44252 9.53034 2.53034L7.03034 5.03034L5.96968 3.96968L8.46968 1.46968ZM11.5303 5.53034L5.53034 11.5303L4.46968 10.4697L10.4697 4.46968L11.5303 5.53034ZM1.46968 14.5303C3.14329 16.2039 5.85673 16.204 7.53034 14.5303L10.0303 12.0303L8.96968 10.9697L6.46968 13.4697C5.38186 14.5575 3.61816 14.5575 2.53034 13.4697C1.44252 12.3819 1.44252 10.6182 2.53034 9.53034L5.03034 7.03034L3.96968 5.96968L1.46968 8.46968C-0.203923 10.1433 -0.203925 12.8567 1.46968 14.5303Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 818 src/lib/icons/list-unordered.svelte	svelte
+=== 819 src/lib/icons/list-unordered.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2531,15 +2570,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M2.5 4C3.19036 4 3.75 3.44036 3.75 2.75C3.75 2.05964 3.19036 1.5 2.5 1.5C1.80964 1.5 1.25 2.05964 1.25 2.75C1.25 3.44036 1.80964 4 2.5 4ZM2.5 9.25C3.19036 9.25 3.75 8.69036 3.75 8C3.75 7.30964 3.19036 6.75 2.5 6.75C1.80964 6.75 1.25 7.30964 1.25 8C1.25 8.69036 1.80964 9.25 2.5 9.25ZM3.75 13.25C3.75 13.9404 3.19036 14.5 2.5 14.5C1.80964 14.5 1.25 13.9404 1.25 13.25C1.25 12.5596 1.80964 12 2.5 12C3.19036 12 3.75 12.5596 3.75 13.25ZM6.75 2H6V3.5H6.75H14.25H15V2H14.25H6.75ZM6.75 7.25H6V8.75H6.75H14.25H15V7.25H14.25H6.75ZM6.75 12.5H6V14H6.75H14.25H15V12.5H14.25H6.75Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 1589 src/lib/icons/loader-circle.svelte	svelte
+=== 1590 src/lib/icons/loader-circle.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2547,7 +2587,8 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><g clip-path="url(#clip0_2393_1490)">
+>
+  <g clip-path="url(#clip0_2393_1490)">
     <path d="M8 0V4" stroke="currentColor" stroke-width="1.5"></path>
     <path opacity="0.5" d="M8 16V12" stroke="currentColor" stroke-width="1.5"
     ></path>
@@ -2607,7 +2648,7 @@ z-1000 h-full w-[75%] border-r"
   </defs>
 </svg>
 
-=== 458 src/lib/icons/lock-closed-small.svelte	svelte
+=== 459 src/lib/icons/lock-closed-small.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2615,15 +2656,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M9.5 6V7H6.5V6C6.5 5.17157 7.17157 4.5 8 4.5C8.82843 4.5 9.5 5.17157 9.5 6ZM5 7V6C5 4.34315 6.34315 3 8 3C9.65685 3 11 4.34315 11 6V7H12V11.5C12 12.3284 11.3284 13 10.5 13H5.5C4.67157 13 4 12.3284 4 11.5V7H5Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 592 src/lib/icons/lock-closed.svelte	svelte
+=== 593 src/lib/icons/lock-closed.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2631,15 +2673,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M10 4.5V6H6V4.5C6 3.39543 6.89543 2.5 8 2.5C9.10457 2.5 10 3.39543 10 4.5ZM4.5 6V4.5C4.5 2.567 6.067 1 8 1C9.933 1 11.5 2.567 11.5 4.5V6H12.5H14V7.5V12.5C14 13.8807 12.8807 15 11.5 15H4.5C3.11929 15 2 13.8807 2 12.5V7.5V6H3.5H4.5ZM11.5 7.5H10H6H4.5H3.5V12.5C3.5 13.0523 3.94772 13.5 4.5 13.5H11.5C12.0523 13.5 12.5 13.0523 12.5 12.5V7.5H11.5Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 466 src/lib/icons/lock-open-small.svelte	svelte
+=== 467 src/lib/icons/lock-open-small.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2647,15 +2690,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M13.5 7V6C13.5 5.17157 12.8284 4.5 12 4.5C11.1716 4.5 10.5 5.17157 10.5 6V7H12V8.5V9V11.5C12 12.3284 11.3284 13 10.5 13H5.5C4.67157 13 4 12.3284 4 11.5V7H9V6C9 4.34315 10.3431 3 12 3C13.6569 3 15 4.34315 15 6V7H13.5Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 580 src/lib/icons/lock-open.svelte	svelte
+=== 581 src/lib/icons/lock-open.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2663,15 +2707,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M14 6V4.5C14 3.39543 13.1046 2.5 12 2.5C10.8954 2.5 10 3.39543 10 4.5V6H10.5H12V7.5V12.5C12 13.8807 10.8807 15 9.5 15H2.5C1.11929 15 0 13.8807 0 12.5V7.5V6H1.5H8.5V4.5C8.5 2.567 10.067 1 12 1C13.933 1 15.5 2.567 15.5 4.5V6H14ZM10.5 7.5H10H8.5H1.5V12.5C1.5 13.0523 1.94772 13.5 2.5 13.5H9.5C10.0523 13.5 10.5 13.0523 10.5 12.5V7.5Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 1520 src/lib/icons/logo-bitbucket-color.svelte	svelte
+=== 1521 src/lib/icons/logo-bitbucket-color.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="16"
@@ -2679,7 +2724,8 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="16"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     d="M15.0132 1.00004C15.0833 0.999103 15.1528 1.01411 15.2168 1.04401C15.2807 1.07391 15.3376 1.11798 15.3834 1.17313C15.4292 1.22827 15.4628 1.29315 15.4819 1.36322C15.501 1.43328 15.505 1.50683 15.4938 1.57869L13.4536 14.4338C13.4282 14.5911 13.3502 14.7341 13.2333 14.8376C13.1164 14.9411 12.9681 14.9986 12.8144 15H3.02696C2.91176 15.0015 2.79987 14.96 2.71166 14.8831C2.62344 14.8062 2.56478 14.699 2.54636 14.5809L0.506198 1.58119C0.494969 1.50932 0.499032 1.43577 0.518103 1.36571C0.537173 1.29565 0.570788 1.23077 0.616589 1.17562C0.662389 1.12048 0.719264 1.07641 0.783219 1.04651C0.847176 1.0166 0.916662 1.0016 0.986801 1.00254L15.0132 1.00004ZM6.42242 10.2909H9.54634L10.3922 5.70409H5.66547L6.42242 10.2909Z"
     fill="#2684FF"
   ></path>
@@ -2699,10 +2745,10 @@ z-1000 h-full w-[75%] border-r"
       <stop offset="0.18" stop-color="#0052CC"></stop>
       <stop offset="1" stop-color="#2684FF"></stop>
     </linearGradient>
-  </defs></svg
->
+  </defs>
+</svg>
 
-=== 636 src/lib/icons/logo-facebook.svelte	svelte
+=== 637 src/lib/icons/logo-facebook.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2710,15 +2756,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M9.00319 15.9377C12.948 15.4442 16 12.0785 16 8C16 3.58172 12.4183 0 8 0C3.58172 0 0 3.58172 0 8C0 11.8172 2.67341 15.0099 6.25 15.808V10.4303H4.5V8H6.25V6.93969C6.25 4.22193 7.28461 2.96364 9.95128 2.96364C10.4559 2.96364 11.3277 3.06264 11.6854 3.16164V5.37163C11.497 5.35247 11.168 5.34289 10.7625 5.34289C9.45307 5.34289 9 5.8379 9 7.12812V8H11.5577L11.1106 10.4303H9.00319V15.9377Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 1482 src/lib/icons/logo-geist.svelte	svelte
+=== 1483 src/lib/icons/logo-geist.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2726,15 +2773,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M8 4C8.82843 4 9.5 3.32843 9.5 2.5C9.5 1.67157 8.82843 1 8 1C7.17157 1 6.5 1.67157 6.5 2.5C6.5 3.32843 7.17157 4 8 4ZM8.97125 4.75725L9.57125 5.75725L10.4287 5.24275L9.82875 4.24275L8.97125 4.75725ZM6.42875 5.75725L7.02875 4.75725L6.17125 4.24275L5.57125 5.24275L6.42875 5.75725ZM10.1713 6.75725L10.7713 7.75725L11.6287 7.24275L11.0287 6.24275L10.1713 6.75725ZM5.22875 7.75725L5.82875 6.75725L4.97125 6.24275L4.37125 7.24275L5.22875 7.75725ZM11.3713 8.75725L11.9713 9.75725L12.8287 9.24275L12.2287 8.24275L11.3713 8.75725ZM4.02875 9.75725L4.62875 8.75725L3.77125 8.24275L3.17125 9.24275L4.02875 9.75725ZM12.5713 10.7572L13.1713 11.7572L14.0287 11.2428L13.4287 10.2428L12.5713 10.7572ZM2.82875 11.7572L3.42875 10.7572L2.57125 10.2428L1.97125 11.2428L2.82875 11.7572ZM3 13.5C3 13.8133 2.90396 14.1041 2.73971 14.3447V14.5H2.61805C2.34339 14.8069 1.94425 15 1.5 15C0.671573 15 0 14.3284 0 13.5C0 12.6716 0.671573 12 1.5 12C2.32843 12 3 12.6716 3 13.5ZM3.925 14.5H5.1103V13.5H3.925V14.5ZM6.29559 14.5H7.48089V13.5H6.29559V14.5ZM8.66618 14.5H9.85147V13.5H8.66618V14.5ZM11.0368 14.5H12.2221V13.5H11.0368V14.5ZM14.5 15C15.3284 15 16 14.3284 16 13.5C16 12.6716 15.3284 12 14.5 12C13.6716 12 13 12.6716 13 13.5C13 14.3284 13.6716 15 14.5 15Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 1429 src/lib/icons/logo-github.svelte	svelte
+=== 1430 src/lib/icons/logo-github.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="16"
@@ -2742,7 +2790,8 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="16"
   style="color: currentcolor;"
-  ><g clip-path="url(#clip0_872_3147)">
+>
+  <g clip-path="url(#clip0_872_3147)">
     <path
       fill-rule="evenodd"
       clip-rule="evenodd"
@@ -2754,10 +2803,10 @@ z-1000 h-full w-[75%] border-r"
     <clipPath id="clip0_872_3147">
       <rect width="16" height="16" fill="white"></rect>
     </clipPath>
-  </defs></svg
->
+  </defs>
+</svg>
 
-=== 2309 src/lib/icons/logo-gitlab.svelte	svelte
+=== 2310 src/lib/icons/logo-gitlab.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="16"
@@ -2765,7 +2814,8 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="16"
   style="color: currentcolor;"
-  ><g clip-path="url(#clip0_872_3176)">
+>
+  <g clip-path="url(#clip0_872_3176)">
     <path
       d="M15.5274 6.68664L15.5055 6.63069L13.3858 1.0989C13.3427 0.990478 13.2663 0.898505 13.1677 0.836175C13.069 0.774904 12.9539 0.745394 12.8379 0.751629C12.7219 0.757865 12.6106 0.799545 12.519 0.871043C12.4285 0.944593 12.3628 1.04426 12.3309 1.15647L10.8997 5.53519H5.10437L3.67318 1.15647C3.64214 1.04365 3.57631 0.943483 3.48506 0.870232C3.39349 0.798734 3.28219 0.757054 3.16619 0.750818C3.05018 0.744583 2.93506 0.774093 2.83636 0.835364C2.73794 0.897946 2.66164 0.989838 2.61823 1.09809L0.494551 6.62744L0.473468 6.68339C0.168338 7.48065 0.130675 8.3555 0.366157 9.17603C0.601639 9.99656 1.0975 10.7183 1.77898 11.2324L1.78627 11.2381L1.80574 11.2519L5.03464 13.6699L6.63206 14.8789L7.60511 15.6136C7.71893 15.7 7.85791 15.7468 8.00082 15.7468C8.14373 15.7468 8.28271 15.7 8.39652 15.6136L9.36957 14.8789L10.967 13.6699L14.2154 11.2373L14.2235 11.2308C14.9034 10.7166 15.3981 9.99558 15.6332 9.17616C15.8684 8.35673 15.8312 7.48313 15.5274 6.68664Z"
       fill="#E24329"
@@ -2787,10 +2837,10 @@ z-1000 h-full w-[75%] border-r"
     <clipPath id="clip0_872_3176">
       <rect width="16" height="16" fill="white"></rect>
     </clipPath>
-  </defs></svg
->
+  </defs>
+</svg>
 
-=== 2159 src/lib/icons/logo-slack-color.svelte	svelte
+=== 2160 src/lib/icons/logo-slack-color.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2798,7 +2848,8 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><g clip-path="url(#clip0_872_3152)">
+>
+  <g clip-path="url(#clip0_872_3152)">
     <path
       d="M3.42681 10.0787C3.42681 10.9984 2.68351 11.7417 1.76382 11.7417C0.844137 11.7417 0.10083 10.9984 0.10083 10.0787C0.10083 9.15906 0.844137 8.41575 1.76382 8.41575H3.42681V10.0787ZM4.25831 10.0787C4.25831 9.15906 5.00162 8.41575 5.9213 8.41575C6.84099 8.41575 7.58429 9.15906 7.58429 10.0787V14.2362C7.58429 15.1559 6.84099 15.8992 5.9213 15.8992C5.00162 15.8992 4.25831 15.1559 4.25831 14.2362V10.0787Z"
       fill="#E01E5A"
@@ -2820,10 +2871,10 @@ z-1000 h-full w-[75%] border-r"
     <clipPath id="clip0_872_3152">
       <rect width="16" height="16" fill="white"></rect>
     </clipPath>
-  </defs></svg
->
+  </defs>
+</svg>
 
-=== 453 src/lib/icons/logo-twitter-x-small.svelte	svelte
+=== 454 src/lib/icons/logo-twitter-x-small.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2831,15 +2882,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M1.60022 2H5.80022L8.78759 6.16842L12.4002 2H14.0002L9.5118 7.17895L14.4002 14H10.2002L7.21285 9.83158L3.60022 14H2.00022L6.48864 8.82105L1.60022 2ZM10.8166 12.8L3.93657 3.2H5.18387L12.0639 12.8H10.8166Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 420 src/lib/icons/logo-twitter-x.svelte	svelte
+=== 421 src/lib/icons/logo-twitter-x.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2847,15 +2899,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M0.5 0.5H5.75L9.48421 5.71053L14 0.5H16L10.3895 6.97368L16.5 15.5H11.25L7.51579 10.2895L3 15.5H1L6.61053 9.02632L0.5 0.5ZM12.0204 14L3.42043 2H4.97957L13.5796 14H12.0204Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 628 src/lib/icons/magnifying-glass.svelte	svelte
+=== 629 src/lib/icons/magnifying-glass.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2863,15 +2916,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M1.5 6.5C1.5 3.73858 3.73858 1.5 6.5 1.5C9.26142 1.5 11.5 3.73858 11.5 6.5C11.5 9.26142 9.26142 11.5 6.5 11.5C3.73858 11.5 1.5 9.26142 1.5 6.5ZM6.5 0C2.91015 0 0 2.91015 0 6.5C0 10.0899 2.91015 13 6.5 13C8.02469 13 9.42677 12.475 10.5353 11.596L13.9697 15.0303L14.5 15.5607L15.5607 14.5L15.0303 13.9697L11.596 10.5353C12.475 9.42677 13 8.02469 13 6.5C13 2.91015 10.0899 0 6.5 0Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 379 src/lib/icons/menu-alt.svelte	svelte
+=== 380 src/lib/icons/menu-alt.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2879,15 +2933,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M1 2H1.75H14.25H15V3.5H14.25H1.75H1V2ZM1 12.5H1.75H14.25H15V14H14.25H1.75H1V12.5ZM1.75 7.25H1V8.75H1.75H14.25H15V7.25H14.25H1.75Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 295 src/lib/icons/minus.svelte	svelte
+=== 296 src/lib/icons/minus.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2895,15 +2950,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M2 7.25H2.75H13.25H14V8.75H13.25H2.75H2V7.25Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 942 src/lib/icons/moon.svelte	svelte
+=== 943 src/lib/icons/moon.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="16"
@@ -2911,15 +2967,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="16"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M1.5 8.00005C1.5 5.53089 2.99198 3.40932 5.12349 2.48889C4.88136 3.19858 4.75 3.95936 4.75 4.7501C4.75 8.61609 7.88401 11.7501 11.75 11.7501C11.8995 11.7501 12.048 11.7454 12.1953 11.7361C11.0955 13.1164 9.40047 14.0001 7.5 14.0001C4.18629 14.0001 1.5 11.3138 1.5 8.00005ZM6.41706 0.577759C2.78784 1.1031 0 4.22536 0 8.00005C0 12.1422 3.35786 15.5001 7.5 15.5001C10.5798 15.5001 13.2244 13.6438 14.3792 10.9921L13.4588 9.9797C12.9218 10.155 12.3478 10.2501 11.75 10.2501C8.71243 10.2501 6.25 7.78767 6.25 4.7501C6.25 3.63431 6.58146 2.59823 7.15111 1.73217L6.41706 0.577759ZM13.25 1V1.75V2.75L14.25 2.75H15V4.25H14.25H13.25V5.25V6H11.75V5.25V4.25H10.75L10 4.25V2.75H10.75L11.75 2.75V1.75V1H13.25Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 624 src/lib/icons/more-horizontal.svelte	svelte
+=== 625 src/lib/icons/more-horizontal.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2927,15 +2984,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M4 8C4 8.82843 3.32843 9.5 2.5 9.5C1.67157 9.5 1 8.82843 1 8C1 7.17157 1.67157 6.5 2.5 6.5C3.32843 6.5 4 7.17157 4 8ZM9.5 8C9.5 8.82843 8.82843 9.5 8 9.5C7.17157 9.5 6.5 8.82843 6.5 8C6.5 7.17157 7.17157 6.5 8 6.5C8.82843 6.5 9.5 7.17157 9.5 8ZM13.5 9.5C14.3284 9.5 15 8.82843 15 8C15 7.17157 14.3284 6.5 13.5 6.5C12.6716 6.5 12 7.17157 12 8C12 8.82843 12.6716 9.5 13.5 9.5Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 663 src/lib/icons/rotate-counter-clockwise.svelte	svelte
+=== 664 src/lib/icons/rotate-counter-clockwise.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2943,15 +3001,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M13.5 8C13.5 4.96643 11.0257 2.5 7.96452 2.5C5.42843 2.5 3.29365 4.19393 2.63724 6.5H5.25H6V8H5.25H0.75C0.335787 8 0 7.66421 0 7.25V2.75V2H1.5V2.75V5.23347C2.57851 2.74164 5.06835 1 7.96452 1C11.8461 1 15 4.13001 15 8C15 11.87 11.8461 15 7.96452 15C5.62368 15 3.54872 13.8617 2.27046 12.1122L1.828 11.5066L3.03915 10.6217L3.48161 11.2273C4.48831 12.6051 6.12055 13.5 7.96452 13.5C11.0257 13.5 13.5 11.0336 13.5 8Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 1665 src/lib/icons/shield-check.svelte	svelte
+=== 1666 src/lib/icons/shield-check.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2959,15 +3018,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M3.5 9.52717V4.057C3.69054 4.00405 3.8926 3.95131 4.10681 3.8954L4.10684 3.89539C4.25396 3.85699 4.40682 3.81709 4.5656 3.7746C5.15243 3.61758 5.79596 3.43066 6.38899 3.17017C6.97334 2.91351 7.55664 2.56529 8 2.05704C8.44336 2.56529 9.02666 2.91351 9.61101 3.17017C10.204 3.43066 10.8476 3.61758 11.4344 3.7746C11.5932 3.81709 11.746 3.85699 11.8932 3.89539C12.1074 3.9513 12.3094 4.00405 12.5 4.057V9.52717C12.5 10.9221 11.7257 12.2018 10.49 12.849L8 14.1533L5.50997 12.849C4.27429 12.2018 3.5 10.9221 3.5 9.52717ZM6.87802 1.06132C7.10537 0.796772 7.25 0.467199 7.25 0H8.75C8.75 0.467199 8.89463 0.796772 9.12198 1.06132C9.3643 1.34329 9.73045 1.58432 10.2142 1.79681C10.6962 2.00853 11.2465 2.17155 11.8221 2.32558C11.9557 2.36133 12.0926 2.39704 12.2305 2.43301L12.2307 2.43305C12.6631 2.54586 13.1054 2.66124 13.4872 2.78849L14 2.95943V3.5V9.52717C14 11.4801 12.916 13.2716 11.186 14.1778L8.34801 15.6644L8 15.8467L7.65199 15.6644L4.81396 14.1778C3.084 13.2716 2 11.4801 2 9.52717V3.5V2.95943L2.51283 2.78849C2.89458 2.66124 3.33687 2.54586 3.76932 2.43305L3.7694 2.43303C3.90732 2.39706 4.04424 2.36134 4.17787 2.32558C4.75351 2.17155 5.30375 2.00853 5.78576 1.79681C6.26955 1.58432 6.6357 1.34329 6.87802 1.06132ZM10.5303 7.53033L11.0607 7L10 5.93934L9.46967 6.46967L7 8.93934L6.53033 8.46967L6 7.93934L4.93934 9L5.46967 9.53033L6.46967 10.5303C6.76256 10.8232 7.23744 10.8232 7.53033 10.5303L10.5303 7.53033Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 968 src/lib/icons/shield-globe.svelte	svelte
+=== 969 src/lib/icons/shield-globe.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -2975,7 +3035,8 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     d="M11.25 4.25V3.5C9.35033 2.86678 6 2.58921 6 0C6 2.58921 2.64967 2.86678 0.75 3.5V9.52717C0.75 11.2011 1.67915 12.7367 3.16197 13.5134L4.5 14.2143"
     stroke="currentColor"
     stroke-width="1.5"
@@ -3002,10 +3063,10 @@ z-1000 h-full w-[75%] border-r"
     d="M12.25 15V15C12.9036 12.7124 12.9036 10.2876 12.25 8V8"
     stroke="currentColor"
     stroke-linejoin="bevel"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 1412 src/lib/icons/shield.svelte	svelte
+=== 1413 src/lib/icons/shield.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -3013,15 +3074,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M3.5 4.057V9.52717C3.5 10.9221 4.27429 12.2018 5.50997 12.849L8 14.1533L10.49 12.849C11.7257 12.2018 12.5 10.9221 12.5 9.52717V4.057C12.3094 4.00405 12.1074 3.9513 11.8932 3.89539C11.746 3.85699 11.5932 3.81709 11.4344 3.7746C10.8476 3.61758 10.204 3.43066 9.61101 3.17017C9.02666 2.91351 8.44336 2.56529 8 2.05704C7.55664 2.56529 6.97334 2.91351 6.38899 3.17017C5.79596 3.43066 5.15243 3.61758 4.5656 3.7746C4.40682 3.81709 4.25396 3.85699 4.10684 3.89539C3.89262 3.9513 3.69055 4.00405 3.5 4.057ZM7.25 0C7.25 0.467199 7.10537 0.796772 6.87802 1.06132C6.6357 1.34329 6.26955 1.58432 5.78576 1.79681C5.30375 2.00853 4.75351 2.17155 4.17787 2.32558C4.04421 2.36134 3.90727 2.39707 3.76932 2.43305C3.33687 2.54586 2.89458 2.66124 2.51283 2.78849L2 2.95943V3.5V9.52717C2 11.4801 3.084 13.2716 4.81396 14.1778L7.65199 15.6644L8 15.8467L8.34801 15.6644L11.186 14.1778C12.916 13.2716 14 11.4801 14 9.52717V3.5V2.95943L13.4872 2.78849C13.1054 2.66124 12.6631 2.54586 12.2307 2.43305C12.0927 2.39707 11.9558 2.36134 11.8221 2.32558C11.2465 2.17155 10.6962 2.00853 10.2142 1.79681C9.73045 1.58432 9.3643 1.34329 9.12198 1.06132C8.89463 0.796772 8.75 0.467199 8.75 0H7.25Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 381 src/lib/icons/star-fill.svelte	svelte
+=== 382 src/lib/icons/star-fill.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -3029,13 +3091,14 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     d="M7.99999 0.489502L10.5734 5.20807L15.8562 6.19736L12.1638 10.1029L12.8554 15.4329L7.99999 13.1281L3.1446 15.4329L3.83621 10.1029L0.143799 6.19736L5.42663 5.20807L7.99999 0.489502Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 923 src/lib/icons/star.svelte	svelte
+=== 924 src/lib/icons/star.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -3043,15 +3106,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M8.00001 0.433594L8.65845 1.64093L10.5908 5.18412L14.5577 5.92698L15.9094 6.18011L14.9646 7.17942L12.192 10.1121L12.7113 14.1144L12.8883 15.4782L11.6459 14.8884L8.00001 13.1577L4.35408 14.8884L3.11173 15.4782L3.28869 14.1144L3.80802 10.1121L1.03538 7.17942L0.0906067 6.18011L1.44233 5.92698L5.40922 5.18412L7.34156 1.64093L8.00001 0.433594ZM8.00001 3.56646L6.55565 6.21487L6.38519 6.52743L6.03525 6.59296L3.07014 7.14822L5.14259 9.34029L5.38718 9.59899L5.34137 9.95205L4.95318 12.9436L7.67838 11.65L8.00001 11.4973L8.32163 11.65L11.0468 12.9436L10.6586 9.95205L10.6128 9.59899L10.8574 9.34029L12.9299 7.14822L9.96476 6.59296L9.61482 6.52743L9.44436 6.21487L8.00001 3.56646Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 1238 src/lib/icons/sun.svelte	svelte
+=== 1239 src/lib/icons/sun.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="16"
@@ -3059,15 +3123,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="16"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M8.75 0.75V0H7.25V0.75V2V2.75H8.75V2V0.75ZM11.182 3.75732L11.7123 3.22699L12.0659 2.87344L12.5962 2.34311L13.6569 3.40377L13.1265 3.9341L12.773 4.28765L12.2426 4.81798L11.182 3.75732ZM8 10.5C9.38071 10.5 10.5 9.38071 10.5 8C10.5 6.61929 9.38071 5.5 8 5.5C6.61929 5.5 5.5 6.61929 5.5 8C5.5 9.38071 6.61929 10.5 8 10.5ZM8 12C10.2091 12 12 10.2091 12 8C12 5.79086 10.2091 4 8 4C5.79086 4 4 5.79086 4 8C4 10.2091 5.79086 12 8 12ZM13.25 7.25H14H15.25H16V8.75H15.25H14H13.25V7.25ZM0.75 7.25H0V8.75H0.75H2H2.75V7.25H2H0.75ZM2.87348 12.0659L2.34315 12.5962L3.40381 13.6569L3.93414 13.1265L4.28769 12.773L4.81802 12.2426L3.75736 11.182L3.22703 11.7123L2.87348 12.0659ZM3.75735 4.81798L3.22702 4.28765L2.87347 3.9341L2.34314 3.40377L3.4038 2.34311L3.93413 2.87344L4.28768 3.22699L4.81802 3.75732L3.75735 4.81798ZM12.0659 13.1265L12.5962 13.6569L13.6569 12.5962L13.1265 12.0659L12.773 11.7123L12.2426 11.182L11.182 12.2426L11.7123 12.773L12.0659 13.1265ZM8.75 13.25V14V15.25V16H7.25V15.25V14V13.25H8.75Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 904 src/lib/icons/user-plus.svelte	svelte
+=== 905 src/lib/icons/user-plus.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -3075,15 +3140,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M5.75 0C3.95507 0 2.5 1.45507 2.5 3.25V3.75C2.5 5.54493 3.95507 7 5.75 7H6.25C8.04493 7 9.5 5.54493 9.5 3.75V3.25C9.5 1.45507 8.04493 0 6.25 0H5.75ZM4 3.25C4 2.2835 4.7835 1.5 5.75 1.5H6.25C7.2165 1.5 8 2.2835 8 3.25V3.75C8 4.7165 7.2165 5.5 6.25 5.5H5.75C4.7835 5.5 4 4.7165 4 3.75V3.25ZM12.25 7.25V9H13.75V7.25H15.5V5.75H13.75V4H12.25V5.75H10.5V7.25H12.25ZM1.5 13.1709V14.5H10.5V13.1709C9.68042 11.5377 8.00692 10.5 6.17055 10.5H5.82945C3.99308 10.5 2.31958 11.5377 1.5 13.1709ZM0.0690305 12.6857C1.10604 10.4388 3.35483 9 5.82945 9H6.17055C8.64517 9 10.894 10.4388 11.931 12.6857L12 12.8353V13V15.25V16H11.25H0.75H0V15.25V13V12.8353L0.0690305 12.6857Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 752 src/lib/icons/warning.svelte	svelte
+=== 753 src/lib/icons/warning.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -3091,15 +3157,16 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M8.55846 2H7.44148L1.88975 13.5H14.1102L8.55846 2ZM9.90929 1.34788C9.65902 0.829456 9.13413 0.5 8.55846 0.5H7.44148C6.86581 0.5 6.34092 0.829454 6.09065 1.34787L0.192608 13.5653C-0.127943 14.2293 0.355835 15 1.09316 15H14.9068C15.6441 15 16.1279 14.2293 15.8073 13.5653L9.90929 1.34788ZM8.74997 4.75V5.5V8V8.75H7.24997V8V5.5V4.75H8.74997ZM7.99997 12C8.55226 12 8.99997 11.5523 8.99997 11C8.99997 10.4477 8.55226 10 7.99997 10C7.44769 10 6.99997 10.4477 6.99997 11C6.99997 11.5523 7.44769 12 7.99997 12Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
-=== 1698 src/lib/icons/webhook.svelte	svelte
+=== 1699 src/lib/icons/webhook.svelte	svelte
 <svg
   data-testid="geist-icon"
   height="100%"
@@ -3107,13 +3174,14 @@ z-1000 h-full w-[75%] border-r"
   viewBox="0 0 16 16"
   width="100%"
   style="color: currentcolor;"
-  ><path
+>
+  <path
     fill-rule="evenodd"
     clip-rule="evenodd"
     d="M5.8349 3.24994C5.14454 4.44567 5.55423 5.97464 6.74996 6.665L7.39465 7.03721L7.02726 7.68466L5.14599 11C5.21289 11.1531 5.25 11.3222 5.25 11.5C5.25 12.1904 4.69036 12.75 4 12.75C3.30964 12.75 2.75 12.1904 2.75 11.5C2.75 10.8634 3.22584 10.338 3.84123 10.26L5.38944 7.5316C3.95909 6.30274 3.55857 4.19264 4.53586 2.49994C5.64043 0.586765 8.08679 -0.0687357 9.99996 1.03583C11.836 2.09584 12.5137 4.39156 11.5892 6.26591L10.4949 4.33754C10.4418 3.53274 10.0009 2.76843 9.24996 2.33487C8.05423 1.64452 6.52525 2.0542 5.8349 3.24994ZM9.146 4.99996C9.21289 4.84686 9.25 4.67776 9.25 4.5C9.25 3.80964 8.69036 3.25 8 3.25C7.30964 3.25 6.75 3.80964 6.75 4.5C6.75 5.13659 7.22586 5.66203 7.84127 5.74002L9.72266 9.05556L10.0956 9.71274L10.75 9.33493C11.9457 8.64458 13.4747 9.05427 14.165 10.25C14.8554 11.4457 14.4457 12.9747 13.25 13.6651C12.5047 14.0953 11.63 14.0983 10.9096 13.75H8.69252C9.85895 15.4685 12.1727 16.0191 14 14.9641C15.9131 13.8595 16.5686 11.4132 15.4641 9.5C14.4886 7.81038 12.4665 7.10169 10.6895 7.71998L9.146 4.99996ZM13.25 11.5C13.25 12.1904 12.6904 12.75 12 12.75C11.591 12.75 11.228 12.5536 10.9999 12.25H7.9298C7.57875 14.1006 5.95279 15.5 4 15.5C1.79086 15.5 0 13.7091 0 11.5C0 9.40018 1.61801 7.67826 3.67529 7.51299L2.58098 9.44147C1.92792 9.89251 1.5 10.6463 1.5 11.5C1.5 12.8807 2.61929 14 4 14C5.38071 14 6.5 12.8807 6.5 11.5V10.75H7.25H10.9999C11.228 10.4464 11.591 10.25 12 10.25C12.6904 10.25 13.25 10.8096 13.25 11.5Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
 === 6129 src/lib/input/input.svelte	svelte
 <script lang="ts">
@@ -4575,7 +4643,7 @@ z-1000 h-full w-[75%] border-r"
   </aside>
 </div>
 
-=== 2255 src/lib/select/content.svelte	svelte
+=== 2275 src/lib/select/content.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/index.js";
   import { getContext, type Snippet } from "svelte";
@@ -4624,8 +4692,10 @@ z-1000 h-full w-[75%] border-r"
             rootState.setIsActive(false);
           }}
           variant="secondary"
-          class="w-full">done</Button
+          class="w-full"
         >
+          done
+        </Button>
       </footer>
     </div>
   {/if}
@@ -4896,7 +4966,7 @@ z-1000 h-full w-[75%] border-r"
   </div>
 {/if}
 
-=== 1612 src/lib/select/value.svelte	svelte
+=== 1601 src/lib/select/value.svelte	svelte
 <script lang="ts">
   import ChevronDownSmall from "$lib/icons/chevron-down-small.svelte";
   import { getContext } from "svelte";
@@ -4929,10 +4999,9 @@ z-1000 h-full w-[75%] border-r"
   {#if !rootState.getLoading()}
     <span
       class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 text-sm first-letter:capitalize"
-      >{rootState.getSelected() === ""
-        ? placeholder
-        : rootState.getSelected()}</span
     >
+      {rootState.getSelected() === "" ? placeholder : rootState.getSelected()}
+    </span>
     <div class="flex h-4 w-4 items-center justify-center">
       <div
         class="text-kui-light-gray-900 hover:text-kui-light-gray-1000 dark:text-kui-dark-gray-900 dark:hover:text-kui-dark-gray-1000 h-4 w-4 transform duration-300 {rotate}"
@@ -5606,7 +5675,7 @@ z-1000 h-full w-[75%] border-r"
   </div>
 </div>
 
-=== 845 src/lib/statusDot/statusDot.svelte	svelte
+=== 850 src/lib/statusDot/statusDot.svelte	svelte
 <script lang="ts">
   interface Props {
     state?: "QUEUED" | "BUILDING" | "ERROR" | "READY" | "CANCELED";
@@ -5628,8 +5697,9 @@ z-1000 h-full w-[75%] border-r"
   {#if label}
     <span
       class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 text-sm leading-4 first-letter:capitalize"
-      >{state.toLowerCase()}</span
     >
+      {state.toLowerCase()}
+    </span>
   {/if}
 </div>
 
@@ -7123,12 +7193,12 @@ z-1000 h-full w-[75%] border-r"
             <div class="flex items-center gap-1">
               <Badge icon={Shield} size="lg" variant="blue">purple</Badge>
               <Badge icon={Shield} size="md" variant="purple">purple</Badge>
-              <Badge icon={Shield} size="md" variant="amber" contrast="low"
-                >purple</Badge
-              >
-              <Badge icon={Shield} size="lg" variant="red" contrast="low"
-                >purple</Badge
-              >
+              <Badge icon={Shield} size="md" variant="amber" contrast="low">
+                purple
+              </Badge>
+              <Badge icon={Shield} size="lg" variant="red" contrast="low">
+                purple
+              </Badge>
             </div>
 
             <Button size="small" shape="square" svgOnly aria-label="Globe">
@@ -7825,7 +7895,7 @@ z-1000 h-full w-[75%] border-r"
 
 <Shell asideSlot={aside} contSlot={cont} />
 
-=== 21721 src/routes/colors/+page.svelte	svelte
+=== 21976 src/routes/colors/+page.svelte	svelte
 <script lang="ts">
   import Aside from "$lib/../docs/ui/aside.svelte";
   import Row from "$lib/../docs/ui/row.svelte";
@@ -7968,9 +8038,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet backgrounds()}
   <Row>
-    <LinkH2 href="/colors#backgrounds" aria-label="backgrounds"
-      >backgrounds</LinkH2
-    >
+    <LinkH2 href="/colors#backgrounds" aria-label="backgrounds">
+      backgrounds
+    </LinkH2>
     <p
       class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4"
     >
@@ -7998,15 +8068,17 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Background 1</Text
           >
+            Background 1
+          </Text>
         </div>
 
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Default element background</Text
         >
+          Default element background
+        </Text>
       </div>
       <Hr class="py-2" />
       <div class="flex items-center gap-8">
@@ -8025,14 +8097,16 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Background 2</Text
           >
+            Background 2
+          </Text>
         </div>
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Secondary background</Text
         >
+          Secondary background
+        </Text>
       </div>
     </div>
 
@@ -8086,8 +8160,9 @@ z-1000 h-full w-[75%] border-r"
     <LinkH2
       href="/colors#colors-1-3:-component-backgrounds"
       aria-label="Colors 1-3: Component Backgrounds"
-      >Colors 1-3: Component Backgrounds</LinkH2
     >
+      Colors 1-3: Component Backgrounds
+    </LinkH2>
     <p
       class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4"
     >
@@ -8112,15 +8187,17 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Color 1</Text
           >
+            Color 1
+          </Text>
         </div>
 
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Default background</Text
         >
+          Default background
+        </Text>
       </div>
       <Hr class="py-3" />
       <div class="flex items-center gap-8">
@@ -8139,14 +8216,16 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Color 2</Text
           >
+            Color 2
+          </Text>
         </div>
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Hover background</Text
         >
+          Hover background
+        </Text>
       </div>
       <Hr class="py-3" />
       <div class="flex items-center gap-8">
@@ -8165,14 +8244,16 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Color 3</Text
           >
+            Color 3
+          </Text>
         </div>
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Active background</Text
         >
+          Active background
+        </Text>
       </div>
     </div>
 
@@ -8189,9 +8270,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet borders()}
   <Row>
-    <LinkH2 href="/colors#colors-4-6:-borders" aria-label="Colors 4-6: Borders"
-      >colors 4-6: borders</LinkH2
-    >
+    <LinkH2 href="/colors#colors-4-6:-borders" aria-label="Colors 4-6: Borders">
+      colors 4-6: borders
+    </LinkH2>
     <p
       class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4"
     >
@@ -8216,15 +8297,17 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Color 4</Text
           >
+            Color 4
+          </Text>
         </div>
 
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Default border</Text
         >
+          Default border
+        </Text>
       </div>
       <Hr class="py-3" />
       <div class="flex items-center gap-8">
@@ -8243,14 +8326,16 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Color 5</Text
           >
+            Color 5
+          </Text>
         </div>
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Hover border</Text
         >
+          Hover border
+        </Text>
       </div>
       <Hr class="py-3" />
       <div class="flex items-center gap-8">
@@ -8269,14 +8354,16 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Color 6</Text
           >
+            Color 6
+          </Text>
         </div>
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Active border</Text
         >
+          Active border
+        </Text>
       </div>
     </div>
 
@@ -8294,8 +8381,9 @@ z-1000 h-full w-[75%] border-r"
     <LinkH2
       href="/colors#colors-7-8:-high-contrast-backgrounds"
       aria-label="Colors 7-8: High Contrast Backgrounds"
-      >Colors 7-8: High Contrast Backgrounds</LinkH2
     >
+      Colors 7-8: High Contrast Backgrounds
+    </LinkH2>
     <p
       class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4"
     >
@@ -8320,15 +8408,17 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Color 7</Text
           >
+            Color 7
+          </Text>
         </div>
 
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >High contrast background</Text
         >
+          High contrast background
+        </Text>
       </div>
       <Hr class="py-3" />
       <div class="flex items-center gap-8">
@@ -8347,14 +8437,16 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Color 8</Text
           >
+            Color 8
+          </Text>
         </div>
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Hover high contrast background</Text
         >
+          Hover high contrast background
+        </Text>
       </div>
     </div>
   </Row>
@@ -8365,8 +8457,9 @@ z-1000 h-full w-[75%] border-r"
     <LinkH2
       href="/colors#colors-9-10:-text-and-icons"
       aria-label="Colors 9-10: Text and Icons"
-      >Colors 9-10: Text and Icons</LinkH2
     >
+      Colors 9-10: Text and Icons
+    </LinkH2>
     <p
       class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4"
     >
@@ -8391,15 +8484,17 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Color 9</Text
           >
+            Color 9
+          </Text>
         </div>
 
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Secondary text and icons</Text
         >
+          Secondary text and icons
+        </Text>
       </div>
       <Hr class="py-3" />
       <div class="flex items-center gap-8">
@@ -8418,14 +8513,16 @@ z-1000 h-full w-[75%] border-r"
           <Text
             size={14}
             class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000"
-            >Color 10</Text
           >
+            Color 10
+          </Text>
         </div>
         <Text
           size={14}
           class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
-          >Primary text and icons</Text
         >
+          Primary text and icons
+        </Text>
       </div>
     </div>
   </Row>
@@ -8682,9 +8779,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet defaultEmptyState()}
   <Row>
-    <LinkH2 href="/empty-state#default" aria-label="default"
-      >Empty state Design framework</LinkH2
-    >
+    <LinkH2 href="/empty-state#default" aria-label="default">
+      Empty state Design framework
+    </LinkH2>
     <p
       class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4"
     >
@@ -8698,31 +8795,31 @@ z-1000 h-full w-[75%] border-r"
       - Blank Slate <span
         class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
       >
-        - Basic empty state for first run experience</span
-      ></Text
-    >
+        - Basic empty state for first run experience
+      </span>
+    </Text>
     <Text size={16} class="mt-2 xl:mt-4">
       - Informationa <span
         class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
       >
         - Alternative for first use empty state, including in-line CTAs and
-        supplemental documentation links</span
-      ></Text
-    >
+        supplemental documentation links
+      </span>
+    </Text>
     <Text size={16} class="mt-2 xl:mt-4">
       - Educational <span
         class="text-kui-light-gray-900 dark:text-kui-dark-gray-900"
       >
         - Launch a contextual onboarding flow to gain deeper understanding about
-        that area of the app</span
-      ></Text
-    >
+        that area of the app
+      </span>
+    </Text>
     <Text size={16} class="mt-2 xl:mt-4">
       - Guide <span class="text-kui-light-gray-900 dark:text-kui-dark-gray-900">
         - Starter content that allows users to interact with data and learn the
-        system by tinkering or setting up their environment</span
-      ></Text
-    >
+        system by tinkering or setting up their environment
+      </span>
+    </Text>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <EmptyState.Root
@@ -8738,9 +8835,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet blank()}
   <Row>
-    <LinkH2 href="/empty-state#blank-state" aria-label="blank-state"
-      >blank state</LinkH2
-    >
+    <LinkH2 href="/empty-state#blank-state" aria-label="blank-state">
+      blank state
+    </LinkH2>
     <p
       class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4"
     >
@@ -8761,9 +8858,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet informational()}
   <Row>
-    <LinkH2 href="/empty-state#informational" aria-label="informational"
-      >Informational</LinkH2
-    >
+    <LinkH2 href="/empty-state#informational" aria-label="informational">
+      Informational
+    </LinkH2>
     <p
       class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4"
     >
@@ -8816,7 +8913,7 @@ z-1000 h-full w-[75%] border-r"
 
 <Shell asideSlot={aside} contSlot={cont} />
 
-=== 3954 src/routes/error/+page.svelte	svelte
+=== 3966 src/routes/error/+page.svelte	svelte
 <script lang="ts">
   import Aside from "$lib/../docs/ui/aside.svelte";
   import Row from "$lib/../docs/ui/row.svelte";
@@ -8885,15 +8982,15 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet customLabel()}
   <Row>
-    <LinkH2 href="/error#custome-label" aria-label="custom-label"
-      >custom label</LinkH2
-    >
+    <LinkH2 href="/error#custome-label" aria-label="custom-label">
+      custom label
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div>
-          <Error label="Email Error"
-            >This email address is already in use.</Error
-          >
+          <Error label="Email Error">
+            This email address is already in use.
+          </Error>
         </div>
       {/snippet}
       {@render demoAndCode(demo, errorCustomLabel)}
@@ -8919,8 +9016,10 @@ z-1000 h-full w-[75%] border-r"
   <Row>
     <LinkH2
       href="/error#with-an-error-property"
-      aria-label="With an error property">With an error property</LinkH2
+      aria-label="With an error property"
     >
+      With an error property
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <Error
@@ -9148,9 +9247,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet prefixAndSuffix()}
   <Row>
-    <LinkH2 href="/input#prefix-and-suffix" aria-label="prefix and suffix"
-      >prefix and suffix</LinkH2
-    >
+    <LinkH2 href="/input#prefix-and-suffix" aria-label="prefix and suffix">
+      prefix and suffix
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="grid w-full grid-cols-1 lg:grid-cols-3">
@@ -9393,9 +9492,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet keyboardInputModifiersSnippet()}
   <Row>
-    <LinkH2 href="/keyboard-input#modifiers" aria-label="modifiers"
-      >Modifiers</LinkH2
-    >
+    <LinkH2 href="/keyboard-input#modifiers" aria-label="modifiers">
+      Modifiers
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div>
@@ -9433,7 +9532,7 @@ z-1000 h-full w-[75%] border-r"
 
 <Shell asideSlot={aside} contSlot={cont} />
 
-=== 7525 src/routes/modal/+page.svelte	svelte
+=== 7658 src/routes/modal/+page.svelte	svelte
 <script lang="ts">
   import Aside from "$lib/../docs/ui/aside.svelte";
   import Row from "$lib/../docs/ui/row.svelte";
@@ -9497,9 +9596,9 @@ z-1000 h-full w-[75%] border-r"
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div>
-          <Button onclick={() => (active = true)} size="small"
-            >Open Modal</Button
-          >
+          <Button onclick={() => (active = true)} size="small">
+            Open Modal
+          </Button>
           <Modal.Root bind:active>
             <Modal.Content>
               <Modal.Body>
@@ -9513,9 +9612,9 @@ z-1000 h-full w-[75%] border-r"
                 <Text size={14}>Some content contained within the modal.</Text>
               </Modal.Body>
               <Modal.Footer>
-                <Button onclick={() => (active = false)} variant="secondary"
-                  >Cancel</Button
-                >
+                <Button onclick={() => (active = false)} variant="secondary">
+                  Cancel
+                </Button>
                 <Button onclick={() => (active = false)}>Submit</Button>
               </Modal.Footer>
             </Modal.Content>
@@ -9533,9 +9632,9 @@ z-1000 h-full w-[75%] border-r"
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div>
-          <Button onclick={() => (activeSticky = true)} size="small"
-            >Open Modal</Button
-          >
+          <Button onclick={() => (activeSticky = true)} size="small">
+            Open Modal
+          </Button>
           <Modal.Root bind:active={activeSticky} sticky>
             <Modal.Content>
               <Modal.Body>
@@ -9544,16 +9643,19 @@ z-1000 h-full w-[75%] border-r"
                 </Modal.Header>
                 <!--Array from 1 to 30-->
                 {#each Array(60), index (index)}
-                  <Text size={14}>Some content contained within the modal.</Text
-                  >
+                  <Text size={14}>
+                    Some content contained within the modal.
+                  </Text>
                 {/each}
               </Modal.Body>
               <Modal.Footer>
                 <div class="flex gap-3">
                   <Button
                     onclick={() => (activeSticky = false)}
-                    variant="secondary">Cancel</Button
+                    variant="secondary"
                   >
+                    Cancel
+                  </Button>
                   <Button
                     onclick={() => (activeSticky = false)}
                     variant="secondary"
@@ -9577,15 +9679,15 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet singleButton()}
   <Row>
-    <LinkH2 href="/modal#single-button" aria-label="single-button"
-      >single button</LinkH2
-    >
+    <LinkH2 href="/modal#single-button" aria-label="single-button">
+      single button
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div>
-          <Button onclick={() => (activeSingleButton = true)} size="small"
-            >Open Modal</Button
-          >
+          <Button onclick={() => (activeSingleButton = true)} size="small">
+            Open Modal
+          </Button>
           <Modal.Root bind:active={activeSingleButton}>
             <Modal.Content>
               <Modal.Body>
@@ -9598,8 +9700,10 @@ z-1000 h-full w-[75%] border-r"
                 <Button
                   onclick={() => (activeSingleButton = false)}
                   variant="secondary"
-                  class="w-full">Cancel</Button
+                  class="w-full"
                 >
+                  Cancel
+                </Button>
               </Modal.Footer>
             </Modal.Content>
           </Modal.Root>
@@ -9612,15 +9716,15 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet disabled()}
   <Row>
-    <LinkH2 href="/modal#disabled-actions" aria-label="disabled-actions"
-      >disabled actions</LinkH2
-    >
+    <LinkH2 href="/modal#disabled-actions" aria-label="disabled-actions">
+      disabled actions
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div>
-          <Button onclick={() => (activeDisabled = true)} size="small"
-            >Open Modal</Button
-          >
+          <Button onclick={() => (activeDisabled = true)} size="small">
+            Open Modal
+          </Button>
           <Modal.Root bind:active={activeDisabled}>
             <Modal.Content>
               <Modal.Body>
@@ -9633,11 +9737,13 @@ z-1000 h-full w-[75%] border-r"
               <Modal.Footer>
                 <Button
                   onclick={() => (activeDisabled = false)}
-                  variant="secondary">Cancel</Button
+                  variant="secondary"
                 >
-                <Button disabled onclick={() => (activeDisabled = false)}
-                  >Submit</Button
-                >
+                  Cancel
+                </Button>
+                <Button disabled onclick={() => (activeDisabled = false)}>
+                  Submit
+                </Button>
               </Modal.Footer>
             </Modal.Content>
           </Modal.Root>
@@ -9760,7 +9866,7 @@ z-1000 h-full w-[75%] border-r"
 
 <Shell asideSlot={aside} contSlot={cont} />
 
-=== 3895 src/routes/progress/+page.svelte	svelte
+=== 3943 src/routes/progress/+page.svelte	svelte
 <script lang="ts">
   import Aside from "$lib/../docs/ui/aside.svelte";
   import Row from "$lib/../docs/ui/row.svelte";
@@ -9827,9 +9933,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet dynamicColors()}
   <Row>
-    <LinkH2 href="/progress#dynamic-colors" aria-label="dynamic-colors"
-      >dynamic colors</LinkH2
-    >
+    <LinkH2 href="/progress#dynamic-colors" aria-label="dynamic-colors">
+      dynamic colors
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <Progress value={dynamic} />
@@ -9840,8 +9946,10 @@ z-1000 h-full w-[75%] border-r"
                 dynamic = dynamic + 10;
               }
             }}
-            size="small">Increase</Button
+            size="small"
           >
+            Increase
+          </Button>
           <Button
             onclick={() => {
               if (dynamic > 0) {
@@ -9849,8 +9957,10 @@ z-1000 h-full w-[75%] border-r"
               }
             }}
             size="small"
-            variant="secondary">Decrease</Button
+            variant="secondary"
           >
+            Decrease
+          </Button>
         </div>
       {/snippet}
       {@render demoAndCode(demo, progressDynamicColors)}
@@ -10632,9 +10742,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet inverted()}
   <Row>
-    <LinkH2 href="/error#custome-label" aria-label="custom-label"
-      >inverted</LinkH2
-    >
+    <LinkH2 href="/error#custome-label" aria-label="custom-label">
+      inverted
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <CodeSnippet
@@ -10796,9 +10906,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet defaultSize()}
   <Row>
-    <LinkH2 href="/spinner#default-size" aria-label="default-size"
-      >default size</LinkH2
-    >
+    <LinkH2 href="/spinner#default-size" aria-label="default-size">
+      default size
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <Spinner />
@@ -10810,9 +10920,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet custom()}
   <Row>
-    <LinkH2 href="/spinner#custom-size" aria-label="custom-size"
-      >custom size</LinkH2
-    >
+    <LinkH2 href="/spinner#custom-size" aria-label="custom-size">
+      custom size
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="flex items-center gap-8">
@@ -10848,7 +10958,7 @@ z-1000 h-full w-[75%] border-r"
 
 <Shell asideSlot={aside} contSlot={cont} />
 
-=== 7826 src/routes/split-button/+page.svelte	svelte
+=== 7947 src/routes/split-button/+page.svelte	svelte
 <script lang="ts">
   import Aside from "$lib/../docs/ui/aside.svelte";
   import Row from "$lib/../docs/ui/row.svelte";
@@ -10912,9 +11022,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet defaultDescription()}
   <Row>
-    <LinkH2 href="/split-button#split-button" aria-label="split-button"
-      >default</LinkH2
-    >
+    <LinkH2 href="/split-button#split-button" aria-label="split-button">
+      default
+    </LinkH2>
     <p
       class="text-kui-light-gray-900 dark:text-kui-dark-gray-900 mt-2 text-[16px] leading-6 font-normal first-letter:capitalize xl:mt-4"
     >
@@ -10926,9 +11036,12 @@ z-1000 h-full w-[75%] border-r"
           <div class="flex flex-wrap gap-4 lg:gap-8">
             {#each sizes as size, index (index)}
               <SplitButton.Root>
-                <SplitButton.Button onclick={() => alert("Clicked save")} {size}
-                  >save</SplitButton.Button
+                <SplitButton.Button
+                  onclick={() => alert("Clicked save")}
+                  {size}
                 >
+                  save
+                </SplitButton.Button>
                 <SplitButton.Content class="w-66">
                   <SplitButton.Item
                     onClick={() => alert("Clicked save")}
@@ -10950,8 +11063,10 @@ z-1000 h-full w-[75%] border-r"
                 <SplitButton.Button
                   onclick={() => alert("Clicked save")}
                   {size}
-                  type="secondary">save</SplitButton.Button
+                  type="secondary"
                 >
+                  save
+                </SplitButton.Button>
                 <SplitButton.Content class="w-66">
                   <SplitButton.Item
                     onClick={() => alert("Clicked save")}
@@ -10984,8 +11099,10 @@ z-1000 h-full w-[75%] border-r"
             <SplitButton.Root>
               <SplitButton.Button
                 onclick={() => alert("Clicked save")}
-                type={sbType}>save</SplitButton.Button
+                type={sbType}
               >
+                save
+              </SplitButton.Button>
               <SplitButton.Content class="w-66">
                 <SplitButton.Item
                   onClick={() => alert("Clicked save")}
@@ -11009,16 +11126,16 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet alignment()}
   <Row>
-    <LinkH2 href="/split-button#menu-alignment" aria-label="menu-alignment"
-      >Menu Alignment</LinkH2
-    >
+    <LinkH2 href="/split-button#menu-alignment" aria-label="menu-alignment">
+      Menu Alignment
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="flex w-full gap-10">
           <SplitButton.Root>
-            <SplitButton.Button onclick={() => alert("Clicked save")}
-              >save</SplitButton.Button
-            >
+            <SplitButton.Button onclick={() => alert("Clicked save")}>
+              save
+            </SplitButton.Button>
             <SplitButton.Content class="w-66">
               <SplitButton.Item
                 onClick={() => alert("Clicked save")}
@@ -11034,9 +11151,9 @@ z-1000 h-full w-[75%] border-r"
           </SplitButton.Root>
 
           <SplitButton.Root alignment="right">
-            <SplitButton.Button onclick={() => alert("Clicked save")}
-              >save</SplitButton.Button
-            >
+            <SplitButton.Button onclick={() => alert("Clicked save")}>
+              save
+            </SplitButton.Button>
             <SplitButton.Content class="w-66">
               <SplitButton.Item
                 onClick={() => alert("Clicked save")}
@@ -11187,7 +11304,7 @@ z-1000 h-full w-[75%] border-r"
 
 <Shell asideSlot={aside} contSlot={cont} />
 
-=== 6468 src/routes/switch/+page.svelte	svelte
+=== 6475 src/routes/switch/+page.svelte	svelte
 <script lang="ts">
   import Aside from "$lib/../docs/ui/aside.svelte";
   import Row from "$lib/../docs/ui/row.svelte";
@@ -11313,8 +11430,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet fullWidth()}
   <Row>
-    <LinkH2 href="/switch#full-width" aria-label="full-width">full width</LinkH2
-    >
+    <LinkH2 href="/switch#full-width" aria-label="full-width">
+      full width
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <Switch.Root bind:value name="size-small" size="large" fullWidth>
@@ -11397,7 +11515,7 @@ z-1000 h-full w-[75%] border-r"
 
 <Shell asideSlot={aside} contSlot={cont} />
 
-=== 9017 src/routes/table/+page.svelte	svelte
+=== 9034 src/routes/table/+page.svelte	svelte
 <script lang="ts">
   import Aside from "$lib/../docs/ui/aside.svelte";
   import Row from "$lib/../docs/ui/row.svelte";
@@ -11499,9 +11617,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet defaultTable()}
   <Row>
-    <LinkH2 href="/table#basic-table" aria-label="basic-table"
-      >basic table</LinkH2
-    >
+    <LinkH2 href="/table#basic-table" aria-label="basic-table">
+      basic table
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="w-full">
@@ -11540,9 +11658,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet striped()}
   <Row>
-    <LinkH2 href="/table#striped-table" aria-label="striped-table"
-      >striped table</LinkH2
-    >
+    <LinkH2 href="/table#striped-table" aria-label="striped-table">
+      striped table
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="w-full">
@@ -11581,9 +11699,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet interactive()}
   <Row>
-    <LinkH2 href="/table#interactive-table" aria-label="interactive-table"
-      >interactive table</LinkH2
-    >
+    <LinkH2 href="/table#interactive-table" aria-label="interactive-table">
+      interactive table
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="w-full">
@@ -11622,9 +11740,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet full()}
   <Row>
-    <LinkH2 href="/table#full-featured-table" aria-label="full-featured-table"
-      >full featured table</LinkH2
-    >
+    <LinkH2 href="/table#full-featured-table" aria-label="full-featured-table">
+      full featured table
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="w-full">
@@ -11657,8 +11775,9 @@ z-1000 h-full w-[75%] border-r"
               <Table.Row>
                 <Table.Cell
                   class="text-kui-light-gray-1000 dark:text-kui-dark-gray-1000 font-medium"
-                  >Subtotal</Table.Cell
                 >
+                  Subtotal
+                </Table.Cell>
                 <Table.Cell></Table.Cell>
                 <Table.Cell></Table.Cell>
                 <Table.Cell
@@ -11702,7 +11821,7 @@ z-1000 h-full w-[75%] border-r"
 
 <Shell asideSlot={aside} contSlot={cont} />
 
-=== 5400 src/routes/tabs/+page.svelte	svelte
+=== 5412 src/routes/tabs/+page.svelte	svelte
 <script lang="ts">
   import Aside from "$lib/../docs/ui/aside.svelte";
   import Row from "$lib/../docs/ui/row.svelte";
@@ -11810,8 +11929,10 @@ z-1000 h-full w-[75%] border-r"
   <Row>
     <LinkH2
       href="/tabs#disable-specific-tabs"
-      aria-label="disable specific tabs">disable specific tabs</LinkH2
+      aria-label="disable specific tabs"
     >
+      disable specific tabs
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <Tabs
@@ -11904,7 +12025,7 @@ z-1000 h-full w-[75%] border-r"
 
 <Shell asideSlot={aside} contSlot={cont} />
 
-=== 6038 src/routes/text/+page.svelte	svelte
+=== 6051 src/routes/text/+page.svelte	svelte
 <script lang="ts">
   import Aside from "$lib/../docs/ui/aside.svelte";
   import Row from "$lib/../docs/ui/row.svelte";
@@ -12042,9 +12163,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet responsiveVariantSnip()}
   <Row>
-    <LinkH2 href="/text#responsive-variants" aria-label="responsive-variants"
-      >responsive variants</LinkH2
-    >
+    <LinkH2 href="/text#responsive-variants" aria-label="responsive-variants">
+      responsive variants
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="w-full space-y-6">
@@ -12087,8 +12208,9 @@ z-1000 h-full w-[75%] border-r"
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="w-full">
-          <Text size={16} class="max-w-25" truncate>The Evil Rabbit jumps.</Text
-          >
+          <Text size={16} class="max-w-25" truncate>
+            The Evil Rabbit jumps.
+          </Text>
         </div>
       {/snippet}
       {@render demoAndCode(demo, textTruncate)}
@@ -12355,7 +12477,7 @@ z-1000 h-full w-[75%] border-r"
 
 <Shell asideSlot={aside} contSlot={cont} />
 
-=== 8267 src/routes/toggle/+page.svelte	svelte
+=== 8470 src/routes/toggle/+page.svelte	svelte
 <script lang="ts">
   import Aside from "$lib/../docs/ui/aside.svelte";
   import Row from "$lib/../docs/ui/row.svelte";
@@ -12454,9 +12576,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet customColors()}
   <Row>
-    <LinkH2 href="/toggle#custom-color" aria-label="custom color"
-      >custom color</LinkH2
-    >
+    <LinkH2 href="/toggle#custom-color" aria-label="custom color">
+      custom color
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="w-full space-y-4">
@@ -12538,33 +12660,40 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet withLabel()}
   <Row>
-    <LinkH2 href="/toggle#with-label" aria-label="with label">with label</LinkH2
-    >
+    <LinkH2 href="/toggle#with-label" aria-label="with label">
+      with label
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div class="w-full space-y-6">
           <div class="flex w-full items-center gap-4">
-            <Toggle aria-label="Enable Firewall" bind:checked={label}
-              >Enable Firewall</Toggle
-            >
+            <Toggle aria-label="Enable Firewall" bind:checked={label}>
+              Enable Firewall
+            </Toggle>
             <Toggle
               aria-label="Enable Firewall"
               bind:checked={label}
-              direction="switch-first">Enable Firewall</Toggle
+              direction="switch-first"
             >
+              Enable Firewall
+            </Toggle>
           </div>
           <div class="flex w-full items-center gap-4">
             <Toggle
               aria-label="Enable Firewall"
               size="large"
-              bind:checked={label}>Enable Firewall</Toggle
+              bind:checked={label}
             >
+              Enable Firewall
+            </Toggle>
             <Toggle
               aria-label="Enable Firewall"
               size="large"
               direction="switch-first"
-              bind:checked={label}>Enable Firewall</Toggle
+              bind:checked={label}
             >
+              Enable Firewall
+            </Toggle>
           </div>
           <div class="flex w-full items-center gap-4">
             <Toggle
@@ -12573,8 +12702,10 @@ z-1000 h-full w-[75%] border-r"
               icon={{
                 checked: LockClosedSmall,
                 unchecked: LockOpenSmall,
-              }}>Enable Firewall</Toggle
+              }}
             >
+              Enable Firewall
+            </Toggle>
 
             <Toggle
               aria-label="Enable Firewall"
@@ -12583,8 +12714,10 @@ z-1000 h-full w-[75%] border-r"
               icon={{
                 checked: LockClosedSmall,
                 unchecked: LockOpenSmall,
-              }}>Enable Firewall</Toggle
+              }}
             >
+              Enable Firewall
+            </Toggle>
           </div>
           <div class="flex w-full items-center gap-4">
             <Toggle
@@ -12594,8 +12727,10 @@ z-1000 h-full w-[75%] border-r"
               icon={{
                 checked: LockClosedSmall,
                 unchecked: LockOpenSmall,
-              }}>Enable Firewall</Toggle
+              }}
             >
+              Enable Firewall
+            </Toggle>
 
             <Toggle
               aria-label="Enable Firewall"
@@ -12605,8 +12740,10 @@ z-1000 h-full w-[75%] border-r"
               icon={{
                 checked: LockClosedSmall,
                 unchecked: LockOpenSmall,
-              }}>Enable Firewall</Toggle
+              }}
             >
+              Enable Firewall
+            </Toggle>
           </div>
         </div>
       {/snippet}
@@ -12735,9 +12872,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet customType()}
   <Row>
-    <LinkH2 href="/tooltip#custom-type" aria-label="custom type"
-      >custom type</LinkH2
-    >
+    <LinkH2 href="/tooltip#custom-type" aria-label="custom type">
+      custom type
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <div>
@@ -12785,9 +12922,9 @@ z-1000 h-full w-[75%] border-r"
 
 {#snippet components()}
   <Row>
-    <LinkH2 href="/tooltip#components" aria-label="components"
-      >components</LinkH2
-    >
+    <LinkH2 href="/tooltip#components" aria-label="components">
+      components
+    </LinkH2>
     <div class="mt-4 xl:mt-7">
       {#snippet demo()}
         <Tooltip position="bottom" text="The Evil Rabbit Jumped over the Fence">
