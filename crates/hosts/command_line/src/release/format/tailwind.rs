@@ -114,9 +114,11 @@ impl Tailwind {
             Err(error) => return Err(error.clone()),
         };
         let answer = process.ask(&request).unwrap_or_else(|broken| {
-            let error = format!("the Node.js process sorting Tailwind CSS classes {broken}");
-            *state = Some(Err(error.clone()));
-            Err(error)
+            // The next sort starts a new process, so a long-lived host recovers.
+            *state = None;
+            Err(format!(
+                "the Node.js process sorting Tailwind CSS classes {broken}"
+            ))
         });
         drop(state);
         answer
