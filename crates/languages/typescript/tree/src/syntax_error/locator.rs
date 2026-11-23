@@ -2,7 +2,7 @@
 
 use std::borrow::Cow;
 
-use oxc_ast::ast::{ArrowFunctionBody, FormalParameters};
+use oxc_ast::ast::{ArrowFunctionBody, Declaration, FormalParameters, Function};
 use oxc_ast::{AstKind, AstType};
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
@@ -122,6 +122,9 @@ pub(super) enum Find {
     /// expression's, a type parameter's, a mapped type's key, or a parameter of a signature or
     /// of a function without a body.
     UncheckedName,
+    /// The function declaration whose body is the label, which acorn-typescript reports an
+    /// implementation in an ambient context at; it reads a method's body without a check.
+    Implementation,
     /// The `break` or `continue` statement around the label.
     Jump,
     /// The `delete` around the label.
@@ -418,6 +421,18 @@ impl Locator {
             {
                 it.span.start
             }
+            (Find::Implementation, AstKind::ExportDeclaration(it))
+                if let Declaration::FunctionDeclaration(function) = &it.declaration
+                    && function.declare
+                    && implements(function, self.label) =>
+            {
+                function.span.start
+            }
+            (Find::Implementation, AstKind::Function(it))
+                if self.found.is_none() && it.is_declaration() && implements(it, self.label) =>
+            {
+                it.span.start
+            }
             (Find::Initializer, AstKind::PropertyDefinition(it)) if it.key.span() == self.label => {
                 let Some(value) = &it.value else { return };
                 value.span().start
@@ -511,4 +526,9 @@ pub(super) fn locate(
     let mut locator = Locator::new(start, end, find);
     visit(&mut locator);
     locator.found
+}
+
+/// Whether the body of `function` is `label`.
+fn implements(function: &Function<'_>, label: oxc_span::Span) -> bool {
+    (function.body.as_ref()).is_some_and(|body| body.span.start == label.start)
 }
