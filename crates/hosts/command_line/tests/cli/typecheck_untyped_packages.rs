@@ -4,7 +4,9 @@
 use crate::typecheck::{Project, text, typecheck_config};
 
 /// A project whose page imports a JavaScript component and a TypeScript one through a linked
-/// package, and a JavaScript component by its path, under `compilerOptions` `options`.
+/// package, and a JavaScript component by its path, under `compilerOptions` `options`. Beside
+/// them, `app/other/Loose.svelte` and `dep/more/Unreached.svelte` are JavaScript components that
+/// the tsconfig does not select and nothing imports.
 fn project(options: &str) -> Project {
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
     let annotated = "<script>\n\tlet { n }: { n: number } = $props();\n</script>\n\n{n}\n";
@@ -24,7 +26,9 @@ fn project(options: &str) -> Project {
              <Linked n=\"s\" /><Typed n=\"s\" /><Local n=\"s\" />\n",
         ),
         ("dep/package.json", r#"{"name":"dep","type":"module"}"#),
+        ("app/other/Loose.svelte", annotated),
         ("dep/src/Annotated.svelte", annotated),
+        ("dep/more/Unreached.svelte", annotated),
         (
             "dep/src/Typed.svelte",
             "<script lang=\"ts\">\n\tlet { n }: { n: number } = $props();\n</script>\n\n{n}\n",
@@ -81,5 +85,51 @@ fn typecheck_loads_a_package_javascript_component_within_max_node_module_js_dept
              'number'.\n\
              {TYPED}\nFound 5 errors in 3 files.\n"
         )
+    );
+}
+
+/// A JavaScript document of the run that the tsconfig does not select and the program does not
+/// reach is checked as a root, inside or outside the package: only the one a search of
+/// `node_modules` finds is not.
+#[cfg(unix)]
+#[test]
+fn a_javascript_component_the_program_does_not_reach_is_still_checked() {
+    let project = project("");
+    let documents = [
+        "src/Page.svelte",
+        "../dep/src/Annotated.svelte",
+        "other/Loose.svelte",
+        "../dep/more/Unreached.svelte",
+    ];
+    let mut arguments = vec!["run"];
+    arguments.extend(documents);
+    arguments.extend(["--task", "svelte.check/default"]);
+    let output = crate::rsvelte_dev(project.0.join("app"))
+        .args(&arguments)
+        .output()
+        .expect("rsvelte-dev runs");
+    let stdout = text(&output.stdout);
+    let codes: Vec<(&str, Vec<u64>)> = stdout
+        .split("// ")
+        .skip(1)
+        .map(|part| {
+            let (head, body) = part.split_once('\n').expect("a header line");
+            let findings: serde_json::Value = serde_json::from_str(body).expect("findings");
+            let codes = (findings.as_array().expect("a list").iter())
+                .map(|finding| finding["code"].as_u64().expect("a code"))
+                .collect();
+            (head.split(' ').next().expect("a path"), codes)
+        })
+        .collect();
+    assert_eq!(
+        codes,
+        [
+            ("src/Page.svelte", vec![7016, 2322, 2322]),
+            ("../dep/src/Annotated.svelte", vec![]),
+            ("other/Loose.svelte", vec![8008]),
+            ("../dep/more/Unreached.svelte", vec![8008]),
+        ],
+        "{stdout}{}",
+        text(&output.stderr)
     );
 }
