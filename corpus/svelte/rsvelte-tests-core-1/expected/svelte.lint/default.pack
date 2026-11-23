@@ -3448,9 +3448,10 @@
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 1:17 1:22 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 145 bidirectional_control_characters_slots_3227/a_script_literal_still_warns/21b1231e1b124275.svelte	lint.txt
+=== 439 bidirectional_control_characters_slots_3227/a_script_literal_still_warns/21b1231e1b124275.svelte	lint.txt
 1:20 1:21 no-unused-vars "'s' is assigned a value but never used."
 1:20 1:21 svelte/prefer-const "'s' is never reassigned. Use 'const' instead."
+1:24 1:29 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
 === 395 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/1318223db50291f3.svelte	lint.txt
 1:4 1:11 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
@@ -3463,8 +3464,9 @@
 1:1 1:14 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
 1:8 1:13 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 103 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/d885b42f442ee74a.svelte	lint.txt
+=== 397 bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/d885b42f442ee74a.svelte	lint.txt
 1:10 1:17 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
+1:11 1:16 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
 === 397 bidirectional_control_characters_slots_3227/a_template_literal_quasi_is_walked/84195bb9b4b0e48a.svelte	lint.txt
 1:10 1:17 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
@@ -12913,8 +12915,9 @@
 1:13 1:14 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
 1:19 1:24 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 58 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/53a610167d17d55b.svelte	lint.txt
+=== 352 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/53a610167d17d55b.svelte	lint.txt
 1:15 1:16 no-unused-vars "'K' is defined but never used."
+1:20 1:25 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
 === 439 computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/9f66dcb10f9cf157.svelte	lint.txt
 1:13 1:14 no-unused-vars "'o' is assigned a value but never used."
@@ -12928,9 +12931,10 @@
 1:13 1:14 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
 1:22 1:27 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 145 computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/f89ba9cbae0f69c4.svelte	lint.txt
+=== 439 computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/f89ba9cbae0f69c4.svelte	lint.txt
 1:13 1:14 no-unused-vars "'s' is assigned a value but never used."
 1:13 1:14 svelte/prefer-const "'s' is never reassigned. Use 'const' instead."
+1:17 1:22 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
 === 439 computed_property_key_span_3345/the_whole_key_subtree_moves_with_it/b6e7554f8c5692e2.svelte	lint.txt
 1:13 1:14 no-unused-vars "'o' is assigned a value but never used."
