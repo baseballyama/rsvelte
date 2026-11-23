@@ -17,6 +17,8 @@ use crate::settings::ExperimentalAsync;
 use crate::words::words;
 use crate::{LintSettings, SvelteConfig, settings};
 
+mod nested;
+
 /// One code of a `svelte-ignore` comment.
 #[derive(Debug)]
 pub(crate) struct IgnoreItem {
@@ -295,6 +297,7 @@ fn apply<'a>(
         return failed(error);
     }
     let targets = Targets { component };
+    let nested = nested::Nested::new(file, ignores);
     let mut warnings = Vec::new();
     for warning in &compile.warnings {
         if stripped.is_some_and(|s| contains(s, warning.span.start_offset))
@@ -303,13 +306,19 @@ fn apply<'a>(
             continue;
         }
         let mut silenced = false;
-        for leading in targets.chain(warning.span) {
+        let chain = targets.chain(warning.span);
+        let outer = chain.iter().map(Vec::as_slice);
+        for leading in nested.leading(warning.span.start_offset).chain(outer) {
             // The comment nearest the node that names the code wins.
-            let hit = leading.iter().rev().find_map(|&comment| {
-                ignores
-                    .of(comment)
-                    .find(|(_, item)| item.names(&warning.code, source))
-            });
+            let hit = leading
+                .iter()
+                .rev()
+                .filter(|&&comment| !nested.is_trailing(comment))
+                .find_map(|&comment| {
+                    ignores
+                        .of(comment)
+                        .find(|(_, item)| item.names(&warning.code, source))
+                });
             if let Some((i, _)) = hit {
                 used[i] = true;
                 silenced = true;
