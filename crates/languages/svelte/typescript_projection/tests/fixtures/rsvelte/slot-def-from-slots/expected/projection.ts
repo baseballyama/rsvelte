@@ -41,7 +41,7 @@ function $$render() {
       mixed: "",
     },
     "row": {
-      item: __rsvelte_untyped_prop(),
+      item: __sveltets_2_unwrapArr(items),
       ...(rest),
     },
     "footer": {
