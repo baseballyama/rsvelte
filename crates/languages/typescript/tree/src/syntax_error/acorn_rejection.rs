@@ -358,6 +358,11 @@ fn early_error(
             second()?.0,
         )),
         "1117" => Some(fails("Redefinition of __proto__ property", second()?.0)),
+        // oxc labels the declaration, and acorn-typescript reports the module reference.
+        "1392" => Some(fails(
+            "An import alias can not use 'import type'.",
+            locate(start, end, Find::ModuleReference, visit)?.0,
+        )),
         // acorn tells a name declared from a name assigned to.
         "1100" => {
             let name = text.get(start as usize..end as usize)?;

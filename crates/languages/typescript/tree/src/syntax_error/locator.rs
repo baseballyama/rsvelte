@@ -134,6 +134,8 @@ pub(super) enum Find {
     SuperHome,
     /// The initializer of the class field whose key is the label.
     Initializer,
+    /// The module reference of the import equals declaration that is the label.
+    ModuleReference,
     /// The type alias, interface, class member with a public name or enum member whose name is
     /// the label, or the parameter list around it or the signature or function without a body
     /// that holds it, where the label redeclares the name the span is.
@@ -432,6 +434,11 @@ impl Locator {
                 if self.found.is_none() && it.is_declaration() && implements(it, self.label) =>
             {
                 it.span.start
+            }
+            (Find::ModuleReference, AstKind::TSImportEqualsDeclaration(it))
+                if it.span == self.label =>
+            {
+                it.module_reference.span().start
             }
             (Find::Initializer, AstKind::PropertyDefinition(it)) if it.key.span() == self.label => {
                 let Some(value) = &it.value else { return };
