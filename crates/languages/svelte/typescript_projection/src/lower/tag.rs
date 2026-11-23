@@ -55,7 +55,7 @@ impl Builder<'_> {
                     }))
                 });
                 let parameters = parameters.map(|at| self.source(at, None));
-                let body = self.children(body)?;
+                let body = self.snippet_body(body)?;
                 Node::Snippet {
                     name,
                     type_parameters,
