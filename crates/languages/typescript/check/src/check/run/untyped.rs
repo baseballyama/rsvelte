@@ -109,7 +109,6 @@ pub(super) fn modules(
 pub(super) fn imports<'a>(
     req: &'a CheckRequest<'_>,
     modules: &[(usize, Vec<Option<PathBuf>>)],
-    root: &Path,
     index: &HashMap<&Path, usize>,
 ) -> Untyped<'a> {
     let mut untyped = Untyped::default();
@@ -122,9 +121,6 @@ pub(super) fn imports<'a>(
             if !(index.get(module.as_path())).is_some_and(|&read| javascript(req, read)) {
                 continue;
             }
-            // svelte-check prints TypeScript's absolute name; its recorded output, which the
-            // corpus and the fixtures compare, reads it from the root.
-            let shown = module.strip_prefix(root).unwrap_or(&module);
             (untyped.names).extend(import.names.iter().map(|name| (file, name.as_str())));
             untyped.found.push(TypeScriptDiagnostic {
                 file,
@@ -133,7 +129,7 @@ pub(super) fn imports<'a>(
                     "Could not find a declaration file for module '{}'. '{}' implicitly has an \
                      'any' type.",
                     import.specifier,
-                    shown.display()
+                    module.display()
                 ),
                 span: Some(import.at),
                 syntactic: false,

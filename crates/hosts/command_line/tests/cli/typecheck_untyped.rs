@@ -6,8 +6,7 @@ use crate::typecheck::{Project, text, typecheck_config};
 /// A JavaScript component is untyped where TypeScript reads JavaScript as untyped: each import of
 /// it reports TS7016, from a component or a script and through a package or a relative path, and
 /// one only a package's import reaches is not checked. The expected lines are svelte-check
-/// 4.7.8's, but a TS7016 path inside the project, which it prints absolute, from the root as its
-/// recorded output reads it.
+/// 4.7.8's.
 #[cfg(unix)]
 #[test]
 fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
@@ -51,6 +50,8 @@ fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
     };
     let dep = project.0.join("dep/src/Annotated.svelte");
     let dep = dep.display().to_string();
+    let local = project.0.join("app/src/Annotated.svelte");
+    let local = local.display().to_string();
     assert_eq!(
         format!("{}{}", text(&output.stdout), text(&output.stderr)),
         format!(
@@ -62,8 +63,8 @@ fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
              src/use.ts(2,20): {}\n\
              \nFound 5 errors in 4 files.\n",
             untyped("dep/src/Annotated.svelte", &dep),
-            untyped("./Annotated.svelte", "src/Annotated.svelte"),
-            untyped("./Annotated.svelte", "src/Annotated.svelte"),
+            untyped("./Annotated.svelte", &local),
+            untyped("./Annotated.svelte", &local),
             untyped("dep/src/Annotated.svelte", &dep),
         )
     );
