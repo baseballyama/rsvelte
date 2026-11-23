@@ -1,31 +1,12 @@
-# svelte.lint/default: 37533 match
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/class-id-type/class-scss01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/consistent-selector-style/valid/type-class-id/type-scss01-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang03-input.svelte	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang05-input.svelte	mismatch
-svelte/gitlight/src/lib/components/common/DragRegion.svelte	mismatch
+# svelte.lint/default: 37552 match
 svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_script_literal_still_warns/21b1231e1b124275.svelte	mismatch
 svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/41c8d31d26ba9ffe.svelte	mismatch
 svelte/rsvelte-tests-core-1/bidirectional_control_characters_slots_3227/a_template_expression_literal_is_walked/d885b42f442ee74a.svelte	mismatch
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_computed_key_in_a_script_is_not_one_column_early/53a610167d17d55b.svelte	mismatch
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/a_template_expression_keeps_its_positions/743e8de38eab5c63.svelte	mismatch
 svelte/rsvelte-tests-core-1/computed_property_key_span_3345/the_neighbouring_positions_are_unaffected/f89ba9cbae0f69c4.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_custom_property_block_3052/scss_line_comment_parentheses_do_not_end_the_enclosing_rule_early/508af60a57fab5fd.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_value_scan_4046/a_line_comment_that_reaches_a_brace_is_still_an_identifier_error/565742e847c7ca12.svelte	mismatch
-svelte/rsvelte-tests-core-1/css_value_scan_4046/a_line_comment_that_reaches_a_brace_is_still_an_identifier_error/6dd628aaa6b68558.svelte	mismatch
-svelte/rsvelte-tests-core-3/style_close_tag_scan_3281/an_apostrophe_in_an_scss_line_comment_does_not_hide_the_css_error/94b995e04075acf2.svelte	mismatch
-svelte/rsvelte-tests-formatter/style/callback_receives_scss_lang_attribute/2da0f4f245354019.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_language_server/folding/tests/no_input_panics/55ce6fb6ed3ca3b4.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_language_server/hover/tests/a_sass_or_stylus_block_gets_no_css_hover/88bb11a823b81892.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_lint/rules/no_unused_svelte_ignore/tests/transformed_scss_unused_ignore_is_reported/e19fecebd6a045c3.svelte	mismatch
-svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_whitespace_parity_2172/style_the_parser_does_not_capture_keeps_the_whitespace_around_it/82635606e280819f.svelte	mismatch
 svelte/rsvelte/lint/no-dupe-on-directives/16-cr-only-lineno.svelte	unexpected
-svelte/rsvelte/lint/no-unused-class-name/09-unknown-lang.svelte	mismatch
-svelte/rsvelte/lint/no-unused-svelte-ignore/10-style-scss-css-ignore.svelte	mismatch
-svelte/rsvelte/pattern/issues/nested-global-parent-scopes-through-nesting.svelte	mismatch
-svelte/rsvelte/pattern/issues/scss-line-comment-apostrophe.svelte	mismatch
 svelte/rsvelte/pattern/issues/ts-bodiless-constructor-alone.svelte	mismatch
-svelte/svelte-eslint-parser/tests/fixtures/parser/selector-parsing/simple-scss-input.svelte	mismatch
 svelte/svelte-material-ui/packages/data-table/src/Pagination.svelte	unexpected
 svelte/svelte-material-ui/packages/layout-grid/src/LayoutGrid.svelte	mismatch
 svelte/svelte-material-ui/packages/menu/src/SelectionGroup.svelte	unexpected
