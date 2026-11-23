@@ -389,6 +389,12 @@ fn a_target_is_read_where_acorn_reads_it() {
 const READ_WHERE_ACORN_READS: &[(bool, &str, &str, u32)] = &[
     (
         false,
+        "const h = ([(f())] = []) => 1;",
+        "Assigning to rvalue",
+        20,
+    ),
+    (
+        false,
         "async function f() { for await ([(f())] of o); }",
         "Assigning to rvalue",
         41,

@@ -177,30 +177,57 @@ fn misused_word(
 }
 
 /// Where acorn reads the word oxc labels `start..end`, and the name oxc's tree reads there. A
-/// part oxc could not read has no tree, and there only a name outside every bracket and arrow
-/// before it is known to be at the top level.
+/// part oxc could not read has no tree. There a name is known to be at the top level when it is
+/// outside every bracket and arrow before it, or when nothing before it can start a function:
+/// `function`, `class`, `=>`, or a `{` after a `)` that closes inside brackets or right before it,
+/// which is how a method's body opens, with or without a return type.
 pub(super) fn home(
     start: u32,
     end: u32,
     tokens: impl Iterator<Item = Token>,
     visit: impl FnOnce(&mut Locator),
 ) -> (Option<Home>, Option<(Word, Read)>) {
+    #[derive(Clone, Copy, Default)]
+    struct Before {
+        depth: i32,
+        arrow: bool,
+        function: bool,
+        previous: Option<Kind>,
+        closed_inside: bool,
+    }
     let mut locator = Locator::new(start, end, Find::Home);
     visit(&mut locator);
     if locator.walked {
         return (Some(locator.home.unwrap_or(Home::TopLevel)), locator.word);
     }
-    let (depth, arrow) = tokens.take_while(|token| token.start() < start).fold(
-        (0_i32, false),
-        |(depth, arrow), token| match token.kind() {
-            Kind::LCurly | Kind::LParen | Kind::LBrack | Kind::TemplateHead => (depth + 1, arrow),
-            Kind::RCurly | Kind::RParen | Kind::RBrack | Kind::TemplateTail => (depth - 1, arrow),
-            Kind::Arrow if depth == 0 => (depth, true),
-            Kind::Semicolon if depth == 0 => (depth, false),
-            _ => (depth, arrow),
+    let before = tokens.take_while(|token| token.start() < start).fold(
+        Before::default(),
+        |before, token| {
+            let kind = token.kind();
+            let opens_body = kind == Kind::LCurly
+                && (before.closed_inside || before.previous == Some(Kind::RParen));
+            let depth = match kind {
+                Kind::LCurly | Kind::LParen | Kind::LBrack | Kind::TemplateHead => before.depth + 1,
+                Kind::RCurly | Kind::RParen | Kind::RBrack | Kind::TemplateTail => before.depth - 1,
+                _ => before.depth,
+            };
+            Before {
+                depth,
+                arrow: match kind {
+                    Kind::Arrow if depth == 0 => true,
+                    Kind::Semicolon if depth == 0 => false,
+                    _ => before.arrow,
+                },
+                function: before.function
+                    || opens_body
+                    || matches!(kind, Kind::Function | Kind::Arrow | Kind::Class),
+                previous: Some(kind),
+                closed_inside: before.closed_inside || (kind == Kind::RParen && depth > 0),
+            }
         },
     );
-    ((depth == 0 && !arrow).then_some(Home::TopLevel), None)
+    let top_level = (before.depth == 0 && !before.arrow) || !before.function;
+    (top_level.then_some(Home::TopLevel), None)
 }
 
 /// Acorn's error at a reserved `word`.
