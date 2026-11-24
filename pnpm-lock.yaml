@@ -224,7 +224,14 @@ importers:
         version: 6.0.3
 
   apps/rsvelte:
+    dependencies:
+      '@jridgewell/remapping':
+        specifier: 2.3.5
+        version: 2.3.5
     devDependencies:
+      '@jridgewell/trace-mapping':
+        specifier: 0.3.31
+        version: 0.3.31
       '@types/node':
         specifier: 26.6.6
         version: 26.6.6

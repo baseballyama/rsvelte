@@ -97,7 +97,7 @@ pub fn compile(source: &str, options: &CompileOptions) -> Result<CompileResult, 
     let map = compiled.javascript.source_map(
         context.source_text(),
         context.lines(LineBreaks::Newline),
-        &options.filename,
+        source_name(&options.filename),
     );
     Ok(CompileResult {
         js: JavaScript {
@@ -131,7 +131,7 @@ pub fn compile_module(
     )?;
     let map = module
         .javascript
-        .source_map(source, &lines, &options.filename);
+        .source_map(source, &lines, source_name(&options.filename));
     Ok(CompileResult {
         js: JavaScript {
             code: module.javascript.out,
@@ -140,6 +140,14 @@ pub fn compile_module(
         css: None,
         warnings: module.warnings,
     })
+}
+
+/// The official map names the source by its file name alone, so that a preprocessor's map, which
+/// names it so, joins it.
+fn source_name(filename: &str) -> &str {
+    filename
+        .rfind(['/', '\\'])
+        .map_or(filename, |at| &filename[at + 1..])
 }
 
 fn document(filename: &str, source: &str) -> Result<Document, Diagnostic> {
