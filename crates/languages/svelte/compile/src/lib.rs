@@ -15,8 +15,8 @@ mod task;
 mod warnings;
 
 pub use compiler::{
-    CompileOptions, CompileResult, JavaScript, ModuleCompileOptions, VERSION, compile,
-    compile_module,
+    CompileOptions, CompileResult, JavaScript, ModuleCompileOptions, UNKNOWN_FILENAME, VERSION,
+    compile, compile_module,
 };
 pub use computation::{Identified, Planned, ScopedStylesheet, compile_errors, register_validation};
 pub use configuration::{Configuration, CssHash, CssHashInput};
