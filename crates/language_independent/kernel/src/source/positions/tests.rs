@@ -184,6 +184,7 @@ fn a_cursor_refuses_an_index_of_other_line_breaks() {
 /// The line starts and long breaks of `text`, found by reading every byte.
 fn breaks_by_every_byte(text: &str, breaks: LineBreaks) -> (Vec<u32>, Vec<(u32, u32)>) {
     let (bytes, ecmascript) = (text.as_bytes(), breaks == LineBreaks::Ecmascript);
+    let lone_cr = breaks != LineBreaks::Newline;
     let (mut starts, mut long) = (vec![0_u32], Vec::new());
     let mut push = |next: usize, len: u32, starts: &mut Vec<u32>| {
         if len > 1 {
@@ -194,10 +195,10 @@ fn breaks_by_every_byte(text: &str, breaks: LineBreaks) -> (Vec<u32>, Vec<(u32, 
     for (i, &byte) in bytes.iter().enumerate() {
         let after_cr = i > 0 && bytes[i - 1] == b'\r';
         match byte {
-            b'\n' if after_cr && ecmascript => {}
+            b'\n' if after_cr && lone_cr => {}
             b'\n' => push(i + 1, if after_cr { 2 } else { 1 }, &mut starts),
-            b'\r' if ecmascript && bytes.get(i + 1) == Some(&b'\n') => push(i + 2, 2, &mut starts),
-            b'\r' if ecmascript => push(i + 1, 1, &mut starts),
+            b'\r' if lone_cr && bytes.get(i + 1) == Some(&b'\n') => push(i + 2, 2, &mut starts),
+            b'\r' if lone_cr => push(i + 1, 1, &mut starts),
             0xE2 if ecmascript && matches!(bytes.get(i + 1..i + 3), Some([0x80, 0xA8 | 0xA9])) => {
                 push(i + 3, 3, &mut starts);
             }
@@ -221,7 +222,11 @@ fn an_index_finds_the_breaks_that_reading_every_byte_finds() {
     };
     for _ in 0..500 {
         let text: String = (0..next(300)).map(|_| pieces[next(11) as usize]).collect();
-        for breaks in [LineBreaks::Newline, LineBreaks::Ecmascript] {
+        for breaks in [
+            LineBreaks::Newline,
+            LineBreaks::Ecmascript,
+            LineBreaks::LanguageServer,
+        ] {
             let index = LineIndex::with_breaks(&text, breaks);
             let (starts, long) = breaks_by_every_byte(&text, breaks);
             assert_eq!(

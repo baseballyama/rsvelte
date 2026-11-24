@@ -57,7 +57,7 @@ pub(crate) fn lint(arguments: &[String]) -> ExitCode {
 
 /// The Svelte rules: `svelte/*` by their own name, and the core rules rsvelte runs in a component
 /// because they need its template.
-fn svelte() -> Arc<HostPlugin> {
+pub(super) fn svelte() -> Arc<HostPlugin> {
     let mut rules = Vec::new();
     let mut builtin_rules = Vec::new();
     for rule in rsvelte_svelte_lint::reporting_rules() {

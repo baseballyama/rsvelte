@@ -7,8 +7,11 @@
 /tools/*/node_modules/
 /apps/eslint-plugin/node_modules/
 /apps/rsvelte/node_modules/
+/apps/vscode/node_modules/
 # Measurement output, kept next to the tool that writes it.
 /tools/*/generated/
+/apps/vscode/dist/
+/apps/vscode/generated/
 /tools/performance/workloads/*/generated/
 # Per-unit implementation output and cached snapshots. Original path segments with these names are
 # stored as `~actual` / `~cache` (tools/oracle/paths.ts), so the patterns reach only unit children.
