@@ -12,7 +12,7 @@ impl Directory {
         let path =
             std::env::temp_dir().join(format!("rsvelte-combined-{}-{name}", std::process::id()));
         std::fs::create_dir_all(&path).expect("directory");
-        Self(std::fs::canonicalize(path).expect("real path"))
+        Self(rsvelte_kernel::source::paths::canonicalize(path).expect("real path"))
     }
 
     fn file(&self, name: &str, text: &str) -> PathBuf {

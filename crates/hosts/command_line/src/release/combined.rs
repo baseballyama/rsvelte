@@ -133,7 +133,7 @@ fn read(reg: &Registry, linted: Vec<PathBuf>, checked: &[PathBuf]) -> Result<Rea
     // A file lint reaches through a link, or that a task reads replaced, each command reads
     // apart, so that what each reads is what it reads alone.
     let shared = |path: &PathBuf| {
-        let real = std::fs::canonicalize(path).ok()?;
+        let real = rsvelte_kernel::source::paths::canonicalize(path).ok()?;
         let unlinked = std::path::absolute(path).ok()? == real;
         (unlinked && reg.replacement(&real, LINT_AND_TYPECHECK).is_none()).then_some(real)
     };

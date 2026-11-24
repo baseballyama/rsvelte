@@ -136,7 +136,8 @@ fn collect(
     }
     // Inside a repository, `.gitignore` files and excludes count up to the repository root, as
     // oxfmt and git read them. Outside one, every `.gitignore` still counts.
-    let root = std::fs::canonicalize(path).map_err(|e| format!("{}: {e}", path.display()))?;
+    let root = rsvelte_kernel::source::paths::canonicalize(path)
+        .map_err(|e| format!("{}: {e}", path.display()))?;
     let in_repository = root
         .ancestors()
         .any(|directory| directory.join(".git").exists() || directory.join(".jj").exists());

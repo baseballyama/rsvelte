@@ -7,7 +7,7 @@ use rsvelte_typescript_api::{DiagnosticKind, Layer, Session};
 fn reports_semantic_diagnostics_with_their_chains_in_utf16() {
     let directory = std::env::temp_dir().join(format!("rsvelte-api-{}", std::process::id()));
     std::fs::create_dir_all(&directory).unwrap();
-    let directory = std::fs::canonicalize(&directory).unwrap();
+    let directory = rsvelte_kernel::source::paths::canonicalize(&directory).unwrap();
     let file = directory.join("a.ts");
     std::fs::write(
         &file,
@@ -50,7 +50,7 @@ fn reports_semantic_diagnostics_with_their_chains_in_utf16() {
 
 #[test]
 fn a_layer_supplies_files_the_disk_lacks() {
-    let directory = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+    let directory = rsvelte_kernel::source::paths::canonicalize(std::env::temp_dir()).unwrap();
     let root = directory.join(format!("rsvelte-api-layer-{}", std::process::id()));
     assert!(!root.exists());
     let (config, file) = (root.join("tsconfig.json"), root.join("a.ts"));
@@ -77,7 +77,7 @@ fn a_layer_supplies_files_the_disk_lacks() {
 
 #[test]
 fn a_syntax_error_in_one_file_keeps_the_type_errors_of_another() {
-    let directory = std::fs::canonicalize(std::env::temp_dir()).unwrap();
+    let directory = rsvelte_kernel::source::paths::canonicalize(std::env::temp_dir()).unwrap();
     let root = directory.join(format!("rsvelte-api-syntax-{}", std::process::id()));
     let (config, broken, typed) = (
         root.join("tsconfig.json"),

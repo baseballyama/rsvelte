@@ -1604,6 +1604,7 @@ dependencies = [
 name = "rsvelte_configuration_loading"
 version = "0.5.2"
 dependencies = [
+ "rsvelte_kernel",
  "rsvelte_plugin_interface",
  "serde",
  "serde_json",

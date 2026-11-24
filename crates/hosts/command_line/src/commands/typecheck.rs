@@ -70,7 +70,9 @@ pub(crate) fn project_files(reg: &Registry, tasks: &[&str]) -> Project {
 
 /// The current directory, which the report names files relative to.
 fn here() -> Option<PathBuf> {
-    std::env::current_dir().and_then(std::fs::canonicalize).ok()
+    std::env::current_dir()
+        .and_then(rsvelte_kernel::source::paths::canonicalize)
+        .ok()
 }
 
 /// One line per problem, `<file>(<line>,<column>): error <code>: <message>`, with paths relative

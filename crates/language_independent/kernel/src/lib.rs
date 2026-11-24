@@ -35,11 +35,12 @@ pub mod performance {
     pub mod parallel;
     pub mod stack;
 }
-/// Documents, character classes, source positions, names, and tokens.
+/// Documents, character classes, real paths, source positions, names, and tokens.
 pub mod source {
     pub mod characters;
     pub mod document;
     pub mod interning;
+    pub mod paths;
     pub mod positions;
     pub mod tokens;
 }

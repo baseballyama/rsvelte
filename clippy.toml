@@ -6,3 +6,9 @@ allow-print-in-tests = true
 # oxc's and wasm-bindgen's proc macros use syn 2, and serde_derive and displaydoc use syn 3.
 # oxc_transformer's browser data reads postcard, which takes two embedded-io versions.
 allowed-duplicate-crates = ["syn", "embedded-io"]
+# A real path reaches TypeScript, the content mapper and the output, and on Windows the
+# standard library gives it as `\\?\C:\…`, which TypeScript 7 refuses.
+disallowed-methods = [
+  { path = "std::fs::canonicalize", reason = "use rsvelte_kernel::source::paths::canonicalize, which gives the plain form on Windows" },
+  { path = "std::path::Path::canonicalize", reason = "use rsvelte_kernel::source::paths::canonicalize, which gives the plain form on Windows" },
+]
