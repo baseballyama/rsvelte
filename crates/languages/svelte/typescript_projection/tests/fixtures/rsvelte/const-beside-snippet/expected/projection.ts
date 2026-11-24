@@ -11,7 +11,7 @@ function $$render() {
   async () => {
     {
       const __rsvelte_component_0 = __rsvelte_component(Component);
-      __rsvelte_component_0(__rsvelte_internals(), {
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         children: __rsvelte_children,
         prop: () => {
           async () => {
@@ -27,7 +27,7 @@ function $$render() {
       foo;
       {
         const __rsvelte_component_0 = __rsvelte_component(Component);
-        __rsvelte_component_0(__rsvelte_internals(), {
+        const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
           prop: () => {
             async () => {
               foo;

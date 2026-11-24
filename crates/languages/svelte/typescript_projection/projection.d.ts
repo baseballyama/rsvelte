@@ -38,13 +38,13 @@ declare function __rsvelte_any_event<Events>(events: Events): Events & { [evt: s
 // What a render function returns, or `Unrendered` when a hole closes it before its return: svelte2tsx's helpers then make the component of their constraints.
 type __rsvelte_rendered<Rendered, Unrendered> = [Rendered] extends [void] ? Unrendered : Rendered;
 type __rsvelte_unrendered_component = import('svelte').Component<Record<string, any>, Record<string, any>, string>;
-type __rsvelte_unrendered_generic = import('svelte').Component<any, any, any> & { __rsvelte_bindings?: any; __rsvelte_exports?: any; __rsvelte_events?: any };
+type __rsvelte_unrendered_generic = import('svelte').Component<any, any, any> & { __rsvelte_bindings?: any; __rsvelte_exports?: any; __rsvelte_events?: any; __rsvelte_slots?: any };
 type __rsvelte_unrendered_isomorphic = __sveltets_2_IsomorphicComponent<Record<string, any>, Record<string, any>, Record<string, any>, Record<string, any>, string>;
 declare function __rsvelte_value<T>(): T;
 // What `bind:this` assigns: a generic component's instance, or else what its call returns.
 declare function __rsvelte_bind_this<C>(component: C): C extends { __rsvelte_instance: infer Instance } ? Instance : C;
 // `__rsvelte_exports`: the exports without the `$on` and `$set` a call adds, as svelte2tsx's `exports()`.
-declare function __rsvelte_export_generic<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings>(): <Events extends Record<string, any>>(events: Events) => import('svelte').Component<Props, Exports, any> & { __rsvelte_bindings?: Bindings; __rsvelte_exports?: Exports; __rsvelte_events?: Events };
+declare function __rsvelte_export_generic<Props extends Record<string, any>, Exports extends Record<string, any>, Bindings>(): <Events extends Record<string, any>, Slots>(events: Events, slots: Slots) => import('svelte').Component<Props, Exports, any> & { __rsvelte_bindings?: Bindings; __rsvelte_exports?: Exports; __rsvelte_events?: Events; __rsvelte_slots?: Slots };
 declare function __rsvelte_props<Required extends Record<string, unknown>, Optional extends Record<string, unknown>, Rest extends boolean>(required: Required, optional: Optional, rest: Rest): Required & Partial<Optional> & (Rest extends true ? Record<string, any> : {});
 declare function __rsvelte_untyped_prop(): any;
 declare function __rsvelte_array_prop(): any[];

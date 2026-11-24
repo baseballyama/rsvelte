@@ -7,7 +7,7 @@ function $$render<1>() {
 
 ;
 
-  return __rsvelte_export_generic<globalThis.Record<string, never>, {}, string>()(__rsvelte_any_event({}));
+  return __rsvelte_export_generic<globalThis.Record<string, never>, {}, string>()(__rsvelte_any_event({}), {});
 }
 const GenericsAttributeUnparseable__SvelteComponent_ = $$render();
 type GenericsAttributeUnparseable__SvelteComponent_ = ReturnType<typeof GenericsAttributeUnparseable__SvelteComponent_>;

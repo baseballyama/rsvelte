@@ -13,7 +13,7 @@ function $$render() {
   async () => {
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      __rsvelte_component_0(__rsvelte_internals(), {
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         children: __rsvelte_children,
       });
       {
@@ -21,7 +21,7 @@ function $$render() {
           item,
           "index": i,
           "pair": { a, b: [c], ...rest },
-        } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
+        } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def.default;
         {
           for (let [, x] of __rsvelte_each(item)) {
             {
@@ -40,64 +40,76 @@ function $$render() {
         {
           const {
             x,
-          } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["named"];
-          svelteHTML.createElement("div", {});
-          x;
+          } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["named"];
+          {
+            svelteHTML.createElement("div", {});
+            x;
+          }
         }
         {
           const {
             "y": { z },
-          } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["f"];
-          svelteHTML.createElement("svelte:fragment", {});
-          z;
+          } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["f"];
+          {
+            svelteHTML.createElement("svelte:fragment", {});
+            z;
+          }
         }
         {
           const {
             w,
-          } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["comp"];
-          __rsvelte_component(C)(__rsvelte_internals(), {
-            children: __rsvelte_children,
-            "foo": w,
-          });
-          w;
-          C;
+          } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["comp"];
+          {
+            __rsvelte_component(C)(__rsvelte_internals(), {
+              children: __rsvelte_children,
+              "foo": w,
+            });
+            w;
+            C;
+          }
         }
         {
           const {
             v,
-          } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["consts"];
-          svelteHTML.createElement("p", {});
-          const twice = v * 2;
-          twice;
+          } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["consts"];
+          {
+            svelteHTML.createElement("p", {});
+            const twice = v * 2;
+            twice;
+          }
         }
       }
       C;
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      __rsvelte_component_0(__rsvelte_internals(), {
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         children: __rsvelte_children,
       });
       {
         const {
           v,
-        } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
-        svelteHTML.createElement("svelte:fragment", {});
-        v;
+        } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def.default;
+        {
+          svelteHTML.createElement("svelte:fragment", {});
+          v;
+        }
       }
       C;
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      __rsvelte_component_0(__rsvelte_internals(), {
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         children: __rsvelte_children,
       });
       {
         const {
           u,
-        } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["default"];
-        svelteHTML.createElement("svelte:fragment", {});
-        u;
+        } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["default"];
+        {
+          svelteHTML.createElement("svelte:fragment", {});
+          u;
+        }
       }
       C;
     }
