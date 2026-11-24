@@ -34,7 +34,6 @@ pub(super) fn server_props_pattern<'o>(
                 PropertyKey::new_static_identifier(SPAN, key, b),
                 b.binding(name),
                 key == name,
-                false,
                 b,
             )
         })

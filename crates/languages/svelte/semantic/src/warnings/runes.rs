@@ -520,12 +520,11 @@ pub(super) fn custom_element(
                     let ObjectPropertyKind::ObjectProperty(p) = p else {
                         return false;
                     };
-                    !p.computed
-                        && match &p.key {
-                            PropertyKey::StaticIdentifier(key) => key.name == "props",
-                            PropertyKey::StringLiteral(key) => key.value == "props",
-                            _ => false,
-                        }
+                    match &p.key {
+                        PropertyKey::StaticIdentifier(key) => key.name == "props",
+                        PropertyKey::StaticStringLiteral(key) => key.value == "props",
+                        _ => false,
+                    }
                 }),
                 _ => false,
             },

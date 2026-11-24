@@ -403,7 +403,7 @@ fn props(res: &Resolution, pattern: &BindingPattern<'_>) -> R<(Vec<PropKey>, Opt
     };
     let mut out = Vec::with_capacity(object.properties.len());
     for p in &object.properties {
-        let (false, PropertyKey::StaticIdentifier(key)) = (p.computed, &p.key) else {
+        let (false, PropertyKey::StaticIdentifier(key)) = (p.key.is_computed(), &p.key) else {
             return refuse(p.span);
         };
         let (local, literal) = match &p.value {

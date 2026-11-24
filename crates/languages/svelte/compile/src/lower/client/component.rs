@@ -282,7 +282,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     value = b.arrow(b.parameters(["$$node"]), call);
                 }
                 let key = PropertyKey::from(b.runtime("attachment", []));
-                parts.push(Entry::Property(b.property(key, value, true)));
+                parts.push(Entry::Property(b.property(key, value)));
             }
             Prop::Spread(e) => {
                 let built = self.expression(e);

@@ -329,7 +329,7 @@ impl Builder<'_> {
         let siblings = Siblings::new(pattern);
         let mut reads = Buffer::new(0);
         for property in &object.properties {
-            if property.computed {
+            if property.key.is_computed() {
                 return Err(refuse(
                     "computed props contracts",
                     document_span(property.span),
@@ -464,7 +464,9 @@ impl Builder<'_> {
 
     fn property_string(&mut self, key: &PropertyKey<'_>) -> NodeIdentifier {
         match key {
-            PropertyKey::StringLiteral(string) => self.source(string.span, None),
+            PropertyKey::StaticStringLiteral(string) | PropertyKey::StringLiteral(string) => {
+                self.source(string.span, None)
+            }
             PropertyKey::StaticIdentifier(_) => {
                 let text = self.tree.push(Node::Text(node_span(key)));
                 let parts = self.tree.list(&[text]);

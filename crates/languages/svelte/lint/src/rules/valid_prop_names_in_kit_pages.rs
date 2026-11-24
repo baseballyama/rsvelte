@@ -99,7 +99,7 @@ fn check_pattern(pattern: &BindingPattern<'_>, expected: &[&str], reporter: &mut
         return;
     };
     for property in &object.properties {
-        if property.computed {
+        if property.key.is_computed() {
             continue;
         }
         if let PropertyKey::StaticIdentifier(key) = &property.key

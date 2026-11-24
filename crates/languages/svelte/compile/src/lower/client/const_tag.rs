@@ -74,7 +74,6 @@ fn is_simple_object_pattern(pattern: &BindingPattern<'_>) -> bool {
     };
     object.rest.is_none()
         && object.properties.iter().all(|p| {
-            !p.computed
-                && matches!((&p.key, &p.value), (PropertyKey::StaticIdentifier(key), BindingPattern::BindingIdentifier(value)) if key.name == value.name)
+            matches!((&p.key, &p.value), (PropertyKey::StaticIdentifier(key), BindingPattern::BindingIdentifier(value)) if key.name == value.name)
         })
 }

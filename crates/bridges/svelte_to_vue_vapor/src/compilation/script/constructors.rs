@@ -61,7 +61,7 @@ impl Classes<'_> {
         for member in &class.body.body {
             if let ClassElement::PropertyDefinition(p) = member
                 && p.value.is_some()
-                && !p.computed
+                && !p.key.is_computed()
                 && let Some(key) = field_key(&p.key)
             {
                 initialized.insert(key);
