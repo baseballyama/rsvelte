@@ -1,5 +1,24 @@
 # @rsvelte/cli
 
+## 0.7.0
+
+### Minor Changes
+
+- 4496c0e: `rsvelte lsp` serves an editor over the Language Server Protocol: the problems `rsvelte lint` finds in the text in the editor, their fixes, and formatting as `rsvelte format` does. A Visual Studio Code extension runs it.
+
+### Patch Changes
+
+- ed7da1b: `typecheck` no longer reports TS7016 for an import of an untyped component when an ambient module's pattern, such as `declare module '*.svelte'`, matches its specifier. TypeScript reads that module instead, as svelte-check does.
+- 84b9cd6: Type check a generic component's slot props as svelte-check does: `let:` on it reads the slots of the generics its props infer. A component that fills a named slot and has its own `on:` or `let:` now reads its parent's slot, not its own.
+- 567bd0f: `compile` reports `import type` on an import alias with acorn-typescript's message, at the module reference, as svelte does.
+- f1be923: `compile` now reports acorn's "Identifier directly after number" for a name right after a number, and "Unexpected token" for a stray digit as in `0b12`, where svelte does.
+- b6f17d1: Report an assignment target whose left edge is in parentheses where svelte does. `(a)?.b = x` and `(f)() = 1` now fail at the opening parenthesis, which starts the node acorn rejects, instead of at the name inside it.
+
+  An `await` outside an async function that comes before another syntax error is now reported with svelte's wording and position, instead of the later error.
+
+- 7df6e2d: `typecheck` now types a `<slot>` prop that reads an `{#each}` item, an `{#await}` value or a component's `let:` name, as svelte-check does. A parent's `let:` of that prop was `any` before.
+- 7355888: `typecheck` runs on Windows again. rsvelte now gives TypeScript, the content mapper and its output each real path as `C:\…`, where it gave the `\\?\C:\…` form that TypeScript 7 refuses as a network path. `lint` and `format` read real paths the same way.
+
 ## 0.6.0
 
 ### Minor Changes

@@ -27,8 +27,8 @@ impl Tsc {
             "a project check needs a tsconfig: `tsconfig.json` beside the options, such as in \
                  the current directory, or `tsconfig` in the options of `typescript.check`",
         )?;
-        let config =
-            std::fs::canonicalize(config).map_err(|e| format!("{}: {e}", config.display()))?;
+        let config = rsvelte_kernel::source::paths::canonicalize(config)
+            .map_err(|e| format!("{}: {e}", config.display()))?;
         in_temporary_directory("rsvelte-project", |dir| {
             root_files(self, &config, languages, dir)
         })
@@ -43,7 +43,7 @@ fn root_files(
 ) -> Result<Project, String> {
     let io = |path: &Path, e: std::io::Error| format!("{}: {e}", path.display());
     // The checker names the project by its real path, such as `/private/var` for `/var`.
-    let dir = &std::fs::canonicalize(dir).map_err(|e| io(dir, e))?;
+    let dir = &rsvelte_kernel::source::paths::canonicalize(dir).map_err(|e| io(dir, e))?;
     let mut overlay = StructuredDataWriter::new(false);
     overlay
         .begin_object()

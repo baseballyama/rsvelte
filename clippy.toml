@@ -8,3 +8,9 @@ allow-print-in-tests = true
 # oxc_linter's resolver (dashmap, simd-json), tower-lsp-server's dashmap and the control flow
 # graph (petgraph) each take their own hashbrown, and petgraph's takes foldhash 0.1.
 allowed-duplicate-crates = ["syn", "embedded-io", "hashbrown", "foldhash"]
+# A real path reaches TypeScript, the content mapper and the output, and on Windows the
+# standard library gives it as `\\?\C:\…`, which TypeScript 7 refuses.
+disallowed-methods = [
+  { path = "std::fs::canonicalize", reason = "use rsvelte_kernel::source::paths::canonicalize, which gives the plain form on Windows" },
+  { path = "std::path::Path::canonicalize", reason = "use rsvelte_kernel::source::paths::canonicalize, which gives the plain form on Windows" },
+]
