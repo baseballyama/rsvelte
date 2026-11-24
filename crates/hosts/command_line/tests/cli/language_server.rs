@@ -96,15 +96,15 @@ impl Client {
         self.input.flush().expect("flush");
     }
 
-    fn notify(&mut self, method: &str, params: &Value) {
-        self.send(&json!({ "jsonrpc": "2.0", "method": method, "params": params }));
+    fn notify(&mut self, method: &str, parameters: &Value) {
+        self.send(&json!({ "jsonrpc": "2.0", "method": method, "params": parameters }));
     }
 
     /// The result of `method`, answering the server's own requests on the way.
-    fn request(&mut self, method: &str, params: &Value) -> Value {
+    fn request(&mut self, method: &str, parameters: &Value) -> Value {
         self.next += 1;
         let id = self.next;
-        self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": params }));
+        self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": parameters }));
         loop {
             let message = self.receive();
             if message.get("id") == Some(&json!(id)) && message.get("method").is_none() {

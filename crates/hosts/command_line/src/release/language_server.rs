@@ -220,13 +220,16 @@ impl Tool for Server {
         }
     }
 
-    fn get_code_actions_or_commands(&self, params: CodeActionParams) -> Vec<CodeActionResponse> {
-        let (Some(text), Some(path)) = (&params.text, uri_to_file_path(&params.uri)) else {
+    fn get_code_actions_or_commands(
+        &self,
+        parameters: CodeActionParams,
+    ) -> Vec<CodeActionResponse> {
+        let (Some(text), Some(path)) = (&parameters.text, uri_to_file_path(&parameters.uri)) else {
             return Vec::new();
         };
         guarded(
             |_| Vec::new(),
-            || actions::actions(self, &path, text, &params),
+            || actions::actions(self, &path, text, &parameters),
         )
     }
 

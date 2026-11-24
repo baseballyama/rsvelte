@@ -14,16 +14,16 @@ use tower_lsp_server::gen_lsp_types::{
 use super::{FIX_ALL, Linted, Server, convert};
 use crate::commands::run;
 
-/// The actions of `params`' kinds over its range, for `text`, the open document at `path`.
+/// The actions of `parameters`' kinds over its range, for `text`, the open document at `path`.
 pub(super) fn actions(
     server: &Server,
     path: &Path,
     text: &str,
-    params: &CodeActionParams,
+    parameters: &CodeActionParams,
 ) -> Vec<CodeActionResponse> {
     // The light bulb asks for no kind; only fixes belong under it.
     let wanted = |kind: &CodeActionKind| {
-        (params.context.only.as_ref()).map_or_else(
+        (parameters.context.only.as_ref()).map_or_else(
             || *kind == CodeActionKind::QuickFix,
             |only| only.iter().any(|asked| includes(asked, kind)),
         )
@@ -43,7 +43,7 @@ pub(super) fn actions(
     if quick {
         for finding in findings(&result).filter(|finding| !finding.fix.is_empty()) {
             let diagnostic = convert::diagnostic(&lines, &finding.diagnostic);
-            if !overlaps(params.range, diagnostic.range) {
+            if !overlaps(parameters.range, diagnostic.range) {
                 continue;
             }
             let Some(replacement) = diagnostics::merge(text, &finding.fix) else {
@@ -58,7 +58,7 @@ pub(super) fn actions(
                 kind: Some(CodeActionKind::QuickFix),
                 diagnostics: Some(vec![diagnostic]),
                 is_preferred: Some(true),
-                edit: Some(workspace_edit(&params.uri, edit)),
+                edit: Some(workspace_edit(&parameters.uri, edit)),
                 ..CodeAction::default()
             }));
         }
@@ -70,7 +70,7 @@ pub(super) fn actions(
         actions.push(CodeActionResponse::CodeAction(CodeAction {
             title: "Fix all rsvelte problems".to_owned(),
             kind: Some(FIX_ALL),
-            edit: Some(workspace_edit(&params.uri, edit)),
+            edit: Some(workspace_edit(&parameters.uri, edit)),
             ..CodeAction::default()
         }));
     }
