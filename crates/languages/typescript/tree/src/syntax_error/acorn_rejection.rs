@@ -14,7 +14,7 @@ use super::word::{Home, keyword, misused};
 
 mod lexer;
 mod pattern;
-use lexer::regular_expression;
+use lexer::{after_number, regular_expression};
 use pattern::parenthesized_element;
 
 /// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one
@@ -146,7 +146,8 @@ pub(crate) fn acorn(
             .then(|| keyword(kind.to_str(), at))
     };
     if error.code.scope.as_deref() != Some("TS") {
-        return arguments_misused(error, start)
+        return after_number(error, text, start, end)
+            .or_else(|| arguments_misused(error, start))
             .or_else(|| misused(start, end, read(), visit, false))
             .or_else(|| regular_expression(text, start, read()))
             // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.

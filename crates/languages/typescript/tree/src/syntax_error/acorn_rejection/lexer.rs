@@ -1,5 +1,6 @@
 //! What acorn reports where its lexer reads a token oxc's does not.
 
+use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::{Kind, Token};
 use rsvelte_kernel::source::characters::is_ecmascript_line_terminator;
 
@@ -74,4 +75,31 @@ pub(super) fn regular_expression(
     message
         .or_else(|| both.then_some("Invalid regular expression flag"))
         .map(|message| fails(message, start + 1))
+}
+
+/// oxc's error for the characters right after a number, which it labels from the first of them.
+const AFTER_NUMBER: &str = "Invalid characters after number";
+
+/// What acorn reports for the characters oxc labels at `start..end` right after a number: an
+/// identifier there, or digits its radix does not take, which acorn reads as a number of its own,
+/// failing at an identifier after them or else at that number as a token the parser rejects.
+pub(super) fn after_number(
+    error: &OxcDiagnostic,
+    text: &str,
+    start: u32,
+    end: u32,
+) -> Option<Acorn> {
+    if error.message != AFTER_NUMBER {
+        return None;
+    }
+    let label = text.get(start as usize..end as usize)?;
+    let digits = label.bytes().take_while(u8::is_ascii_digit).count();
+    Some(if digits < label.len() {
+        fails(
+            "Identifier directly after number",
+            start + u32::try_from(digits).ok()?,
+        )
+    } else {
+        fails("Unexpected token", start)
+    })
 }
