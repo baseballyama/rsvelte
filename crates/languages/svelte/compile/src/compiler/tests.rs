@@ -53,6 +53,34 @@ fn compile_gives_what_the_task_writes() {
 }
 
 #[test]
+fn the_source_map_names_the_source_by_its_file_name() {
+    for filename in [
+        "src/lib/Button.svelte",
+        "C:\\app\\Button.svelte",
+        "Button.svelte",
+    ] {
+        let options = CompileOptions {
+            filename: filename.to_owned(),
+            ..CompileOptions::default()
+        };
+        let map = compile(BUTTON, &options).expect("compiles").js.map;
+        assert!(
+            map.contains("\"sources\":[\"Button.svelte\"]"),
+            "{filename}: {map}"
+        );
+    }
+    let options = ModuleCompileOptions {
+        filename: "src/lib/a.svelte.js".to_owned(),
+        generate: Target::Client,
+    };
+    let map = compile_module("export const a = 1;\n", &options)
+        .expect("compiles")
+        .js
+        .map;
+    assert!(map.contains("\"sources\":[\"a.svelte.js\"]"), "{map}");
+}
+
+#[test]
 fn compile_returns_the_warnings_the_task_reports() {
     let source = "<img src=\"a.png\">";
     let mut registry = Registry::new();
