@@ -12,12 +12,30 @@ fn rules_acorn_does_not_check_parse_in_every_host() {
         // TS1263 and TS5085.
         "<script lang=\"ts\">let x!: number = 1;</script>",
         "<script lang=\"ts\">type T = [...a?: string[]];</script>",
-        // TS1308, which the compiler raises where acorn reads the `await`; a script is a module.
+        // TS1308 where acorn reads `await` as the keyword: an enum at the top level of a module.
         "<script lang=\"ts\">enum E { A = await (f()) }</script>",
-        "<script lang=\"ts\">function g() { await (f()); }</script>",
-        "<script>function g() { await (f()); }</script>",
     ] {
         assert!(parse(source).is_ok(), "{source}");
+    }
+}
+
+#[test]
+fn an_await_outside_an_async_function_fails_where_acorn_reads_it_as_a_name() {
+    // svelte 5.59.1's `parse`, which reads a script as a module.
+    for (source, at) in [
+        (
+            "<script lang=\"ts\">function g() { await (f()); }</script>",
+            33,
+        ),
+        ("<script>function g() { await (f()); }</script>", 23),
+    ] {
+        let error = parse(source).expect_err(source);
+        let message = error.message.lines().next().unwrap_or_default();
+        assert_eq!(
+            (message, error.span.start_offset),
+            ("Cannot use keyword 'await' outside an async function", at),
+            "{source}"
+        );
     }
 }
 

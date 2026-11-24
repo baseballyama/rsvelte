@@ -2,6 +2,7 @@
 //! the process-wide buffer pool.
 
 mod acorn_errors;
+mod after_a_number;
 mod element_boundaries;
 mod invalid_character;
 mod javascript_tokens;
