@@ -3,11 +3,10 @@
 
 use rsvelte_test_harness::NodePackages;
 
-use crate::typecheck::{Project, text, typecheck_config};
+use crate::typecheck::{Native, Project, link, text, typecheck_config};
 
 /// `app`, whose tsconfig has `compilerOptions` `options` and selects `src`, beside `dep`, which
 /// `app/node_modules/dep` links to, with `files` added to both.
-#[cfg(unix)]
 pub(crate) fn linked(options: &str, files: &[(&str, &str)]) -> Project {
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
     let tsconfig = format!(
@@ -22,9 +21,9 @@ pub(crate) fn linked(options: &str, files: &[(&str, &str)]) -> Project {
     let project = Project::new(&all);
     let modules = project.0.join("app/node_modules");
     std::fs::create_dir_all(&modules).expect("node_modules");
-    std::os::unix::fs::symlink("../../dep", modules.join("dep")).expect("link");
+    link("../../dep", modules.join("dep"));
     let svelte = NodePackages::locate().package("svelte");
-    std::os::unix::fs::symlink(svelte, modules.join("svelte")).expect("link");
+    link(svelte, modules.join("svelte"));
     project
 }
 
@@ -32,7 +31,6 @@ pub(crate) fn linked(options: &str, files: &[(&str, &str)]) -> Project {
 /// tsconfig's directory, but not a file an import of a package reaches. `tsc` 7.1 and 6.0 find
 /// no error; an import of the same file by its path reports TS6059, and these lines are
 /// `tsc` 7.1's.
-#[cfg(unix)]
 #[test]
 fn typecheck_does_not_check_a_linked_package_file_against_the_root_directory() {
     let typecheck = |import: &str| {
@@ -69,6 +67,7 @@ fn typecheck_does_not_check_a_linked_package_file_against_the_root_directory() {
                 file.display(),
                 app.display()
             )
+            .native()
         )
     );
 }
@@ -77,7 +76,6 @@ fn typecheck_does_not_check_a_linked_package_file_against_the_root_directory() {
 /// `node_modules`, as svelte-check 4.7.7 and later report it; svelte-check 4.7.6 skipped it,
 /// since it did not follow the link. `outDir` adds no TS6059 for it. The expected lines are
 /// svelte-check 4.7.8's, with and without `outDir`.
-#[cfg(unix)]
 #[test]
 fn typecheck_reports_a_linked_package_component_as_svelte_check_does() {
     let wrapper = "<script lang=\"ts\">\n  import Icon from './Icon.svelte';\n  \
@@ -120,7 +118,8 @@ fn typecheck_reports_a_linked_package_component_as_svelte_check_does() {
                  required in type '$$ComponentProps'.\n\
                  \nFound 3 errors in 2 files.\n",
                 project.0.join("dep/src/Icon.svelte").display()
-            ),
+            )
+            .native(),
             "{options}"
         );
     }

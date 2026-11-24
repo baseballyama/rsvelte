@@ -1,7 +1,7 @@
 //! `rsvelte typecheck` where `allowJs` loads JavaScript but a JavaScript component a package's
 //! import reaches stays untyped, as `maxNodeModuleJsDepth` decides.
 
-use crate::typecheck::{Project, text, typecheck_config};
+use crate::typecheck::{Native, Project, link, text, typecheck_config};
 
 /// A project whose page imports a JavaScript component and a TypeScript one through a linked
 /// package, and a JavaScript component by its path, under `compilerOptions` `options`. Beside
@@ -36,8 +36,7 @@ fn project(options: &str) -> Project {
     ]);
     let app = project.0.join("app");
     std::fs::create_dir_all(app.join("node_modules")).expect("node_modules");
-    #[cfg(unix)]
-    std::os::unix::fs::symlink("../../dep", app.join("node_modules/dep")).expect("link");
+    link("../../dep", app.join("node_modules/dep"));
     project
 }
 
@@ -52,7 +51,6 @@ const TYPED: &str = "src/Page.svelte(7,24): error TS2322: Type 'string' is not a
 /// the one a search of `node_modules` finds: that import reports TS7016, the component is not
 /// checked, and its props are not typed. The TypeScript component of the package stays typed.
 /// The expected lines are svelte-check 4.7.8's.
-#[cfg(unix)]
 #[test]
 fn typecheck_reads_a_package_javascript_component_as_untyped_where_javascript_is_allowed() {
     let project = project("");
@@ -66,12 +64,12 @@ fn typecheck_reads_a_package_javascript_component_as_untyped_where_javascript_is
              {TYPED}\nFound 4 errors in 2 files.\n",
             linked.display()
         )
+        .native()
     );
 }
 
 /// `maxNodeModuleJsDepth` 1 loads the package's JavaScript component, so it is checked and
 /// typed as the local one is. The expected lines are svelte-check 4.7.8's.
-#[cfg(unix)]
 #[test]
 fn typecheck_loads_a_package_javascript_component_within_the_node_module_javascript_depth() {
     let project = project(r#","maxNodeModuleJsDepth":1"#);
@@ -85,13 +83,13 @@ fn typecheck_loads_a_package_javascript_component_within_the_node_module_javascr
              'number'.\n\
              {TYPED}\nFound 5 errors in 3 files.\n"
         )
+        .native()
     );
 }
 
 /// A JavaScript document of the run that the tsconfig does not select and the program does not
 /// reach is checked as a root, inside or outside the package: only the one a search of
 /// `node_modules` finds is not.
-#[cfg(unix)]
 #[test]
 fn a_javascript_component_the_program_does_not_reach_is_still_checked() {
     let project = project("");

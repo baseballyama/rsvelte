@@ -1,13 +1,12 @@
 //! `rsvelte typecheck` where TypeScript reads JavaScript as untyped: which JavaScript components
 //! it checks, and the TS7016 of each import of one.
 
-use crate::typecheck::{Project, text, typecheck_config};
+use crate::typecheck::{Native, Project, link, text, typecheck_config};
 
 /// A JavaScript component is untyped where TypeScript reads JavaScript as untyped: each import of
 /// it reports TS7016, from a component or a script and through a package or a relative path, and
 /// one only a package's import reaches is not checked. The expected lines are svelte-check
 /// 4.7.8's.
-#[cfg(unix)]
 #[test]
 fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
@@ -40,7 +39,7 @@ fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
     ]);
     let app = project.0.join("app");
     std::fs::create_dir_all(app.join("node_modules")).expect("node_modules");
-    std::os::unix::fs::symlink("../../dep", app.join("node_modules/dep")).expect("link");
+    link("../../dep", app.join("node_modules/dep"));
     let output = project.rsvelte_in("app", &["typecheck"]);
     let untyped = |specifier: &str, file: &str| {
         format!(
@@ -67,13 +66,13 @@ fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
             untyped("./Annotated.svelte", &local),
             untyped("dep/src/Annotated.svelte", &dep),
         )
+        .native()
     );
 }
 
 /// Where JavaScript is untyped, TypeScript loads no JavaScript component the tsconfig does not
 /// select, whatever imports it: one a JavaScript component imports, through a package or a
 /// relative path, is not checked. The expected lines are svelte-check 4.7.8's.
-#[cfg(unix)]
 #[test]
 fn typecheck_does_not_check_a_javascript_component_only_javascript_reaches() {
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
@@ -106,7 +105,7 @@ fn typecheck_does_not_check_a_javascript_component_only_javascript_reaches() {
     ]);
     let app = project.0.join("app");
     std::fs::create_dir_all(app.join("node_modules")).expect("node_modules");
-    std::os::unix::fs::symlink("../../dep", app.join("node_modules/dep")).expect("link");
+    link("../../dep", app.join("node_modules/dep"));
     let output = project.rsvelte_in("app", &["typecheck"]);
     let chain = project.0.join("dep/src/Chain.svelte");
     assert_eq!(
@@ -117,12 +116,12 @@ fn typecheck_does_not_check_a_javascript_component_only_javascript_reaches() {
              \nFound 1 error in 1 file.\n",
             chain.display()
         )
+        .native()
     );
 }
 
 /// TypeScript's own TS7016 for a JavaScript module names the module by its absolute path, as
 /// svelte-check 4.7.8 prints it.
-#[cfg(unix)]
 #[test]
 fn typecheck_names_an_untyped_javascript_module_by_its_absolute_path() {
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
@@ -149,5 +148,6 @@ fn typecheck_names_an_untyped_javascript_module_by_its_absolute_path() {
              \nFound 1 error in 1 file.\n",
             module.display()
         )
+        .native()
     );
 }

@@ -2,7 +2,7 @@
 //! such as `declare module '*.svelte'`, matches its specifier: TypeScript reads that module
 //! instead of reporting TS7016.
 
-use crate::typecheck::text;
+use crate::typecheck::{Native, text};
 use crate::typecheck_linked_packages::linked;
 
 const ENV: &str = "declare module '*.svelte' {\n  import type { Component } from 'svelte';\n  \
@@ -13,7 +13,6 @@ const ICON: &str = "<svg width=\"16\" height=\"16\"></svg>\n";
 /// linked package that its barrel `.ts`, a component of its own and the package's name import.
 /// The pattern makes every import quiet; without it each one reports TS7016. The expected lines
 /// are svelte-check 4.7.8's.
-#[cfg(unix)]
 #[test]
 fn typecheck_reads_an_untyped_import_as_the_ambient_module_its_specifier_matches() {
     let typecheck = |env: Option<&str>| {
@@ -76,6 +75,7 @@ fn typecheck_reads_an_untyped_import_as_the_ambient_module_its_specifier_matches
                 untyped("dep/Icon.svelte", icon),
                 untyped("./Local.svelte", "app/src/Local.svelte"),
             )
+            .native()
         )
     );
 }
