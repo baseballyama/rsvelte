@@ -1218,9 +1218,8 @@
 158:1 158:13 svelte/indent "Expected indentation of 10 spaces but found 12 spaces."
 158:57 159:11 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 
-=== 1212 src/routes/(marketing)/login/+layout.svelte	lint.txt
+=== 1133 src/routes/(marketing)/login/+layout.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 19:2 svelte/no-unused-class-name "Unused class \"text-center\"."
 17:1 19:2 svelte/no-unused-class-name "Unused class \"content-center\"."
 17:1 19:2 svelte/no-unused-class-name "Unused class \"max-w-lg\"."

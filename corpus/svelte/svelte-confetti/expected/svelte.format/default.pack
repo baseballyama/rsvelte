@@ -213,7 +213,7 @@
   }
 </style>
 
-=== 1792 src/routes/CodeBlock.svelte	svelte
+=== 1808 src/routes/CodeBlock.svelte	svelte
 <script>
   let { svelte4, svelte5 } = $props();
 
@@ -228,8 +228,10 @@
       <button
         class="tab"
         class:active={currentTab === tab}
-        onclick={() => (currentTab = tab)}>{tab}</button
+        onclick={() => (currentTab = tab)}
       >
+        {tab}
+      </button>
     {/each}
   </strong>
 {/if}

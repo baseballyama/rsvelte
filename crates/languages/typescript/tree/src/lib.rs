@@ -56,7 +56,7 @@ impl Drop for Kept {
 
 /// What few documents have.
 struct Rare {
-    acorn_rejection: Option<(u32, acorn_grammar::Rejection)>,
+    acorn_rejection: Option<acorn_grammar::Stop>,
     /// How many pairs of parentheses wrapped each node that had any where upstream's parser keeps
     /// them, sorted by span.
     parentheses: Vec<(oxc_span::Span, u8)>,
@@ -65,6 +65,8 @@ struct Rare {
 struct Trees<'a> {
     source_text: &'a str,
     programs: IndexVector<ProgramIdentifier, Program<'a>>,
+    /// The tokens oxc read in each program, which stay in the arena anyway.
+    program_tokens: IndexVector<ProgramIdentifier, &'a [oxc_parser::Token]>,
     expressions: IndexVector<ExpressionIdentifier, Expression<'a>>,
     patterns: IndexVector<PatternIdentifier, FormalParameter<'a>>,
     parameters: IndexVector<ParametersIdentifier, FormalParameters<'a>>,
@@ -227,6 +229,13 @@ impl Tree {
     #[must_use]
     pub fn get_program(&self, identifier: ProgramIdentifier) -> &Program<'_> {
         &self.0.borrow_dependent().programs[identifier]
+    }
+
+    /// The tokens of a program, comments excluded, in document order; none for a program a host
+    /// built.
+    #[must_use]
+    pub fn get_program_tokens(&self, identifier: ProgramIdentifier) -> &[oxc_parser::Token] {
+        self.0.borrow_dependent().program_tokens[identifier]
     }
 
     #[must_use]

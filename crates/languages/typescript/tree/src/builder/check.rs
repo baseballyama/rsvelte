@@ -26,11 +26,11 @@ impl<'a> TreeBuilder<'a> {
         let stop = if self.as_acorn && (first.is_some() || self.acorn_rejection.is_none()) {
             let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
             part.walk(&mut unsupported);
-            let unsupported = unsupported.first.map(|(at, why)| (at + shift, why));
+            let unsupported = unsupported.first.map(|stop| stop.shifted(shift));
             unsupported
                 .into_iter()
                 .chain(whitespace(text, irregular, shift))
-                .min_by_key(|stop| stop.0)
+                .min_by_key(|stop| stop.raised)
         } else {
             None
         };
@@ -45,7 +45,7 @@ impl<'a> TreeBuilder<'a> {
             // acorn throws where it stops first, before an error oxc reports later or at the same
             // place.
             return Err(match stop {
-                Some(stop) if stop.0 <= error.acorn_raised_at() => rejection(stop),
+                Some(stop) if stop.raised <= error.acorn_raised_at() => rejection(stop),
                 _ => error,
             });
         }
@@ -75,7 +75,7 @@ impl<'a> TreeBuilder<'a> {
             .flatten();
         let syntax_error = syntax_error(error.diagnostics, text, &error.tokens, fallback, shift);
         match stop {
-            Some(stop) if stop.0 <= syntax_error.acorn_raised_at() => rejection(stop),
+            Some(stop) if stop.raised <= syntax_error.acorn_raised_at() => rejection(stop),
             _ => syntax_error,
         }
     }

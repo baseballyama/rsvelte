@@ -205,9 +205,10 @@ pub(crate) fn template<'a>(
     component: &Component,
     source: &'a str,
     lines: &LineIndex,
+    prefixes: &[&'static str],
 ) -> ProcessorDirectives<'a> {
     let mut out = ProcessorDirectives::default();
-    for directive in markup_directives(component, source) {
+    for directive in markup_directives(component, source, prefixes) {
         let comment = directive.comment;
         let targets: Vec<(Target<'a>, u32)> = if directive.rules.is_empty() {
             vec![(Target::All, comment.start_offset)]

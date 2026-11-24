@@ -36,7 +36,7 @@
 
 <slot key={$store.key} send={$store.send} receive={$store.receive} />
 
-=== 2835 src/lib/docs/JSONEditorModal.svelte	svelte
+=== 2855 src/lib/docs/JSONEditorModal.svelte	svelte
 <script>
   import CrossfadeProvider from "$lib/components/generic/crossfade/CrossfadeProvider.svelte";
   import { storeContextKey } from "$lib/context";
@@ -73,8 +73,10 @@
         <button type="submit">save</button>
         <button
           class="secondary"
-          on:click|preventDefault={() => store.cancelEdit()}>revert</button
+          on:click|preventDefault={() => store.cancelEdit()}
         >
+          revert
+        </button>
       </div>
     </div>
   </form>
@@ -318,9 +320,9 @@
 
 <!-- Example Notes -->
 <p>
-  Not your cup of tea? <a href="{base}/docs/theme-editor/light"
-    >Design your own theme.</a
-  >
+  Not your cup of tea? <a href="{base}/docs/theme-editor/light">
+    Design your own theme.
+  </a>
 </p>
 
 === 212 src/lib/docs/examples/InlineCalendar.svelte	svelte
@@ -418,7 +420,7 @@
   }
 </style>
 
-=== 5831 src/routes/docs/examples.svelte	svelte
+=== 5859 src/routes/docs/examples.svelte	svelte
 <script>
   import Crossfade from "$lib/components/generic/crossfade/Crossfade.svelte";
   import Theme from "$lib/components/generic/Theme.svelte";
@@ -509,8 +511,10 @@
               href="#example"
               in:receive|local={{ key }}
               out:send|local={{ key }}
-              on:click|preventDefault={openExample(ex)}>{ex.title}</a
+              on:click|preventDefault={openExample(ex)}
             >
+              {ex.title}
+            </a>
           {/if}
         </div>
       {/each}

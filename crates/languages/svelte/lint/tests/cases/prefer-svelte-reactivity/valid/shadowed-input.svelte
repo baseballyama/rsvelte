@@ -1,3 +1,5 @@
+<svelte:options runes />
+
 <script>
 	function f(Map) {
 		const m = new Map();

@@ -33,6 +33,7 @@ const BLOCK_ELEMENTS: &[&str] = &[
     "hr",
     "li",
     "main",
+    "menu",
     "nav",
     "ol",
     "p",

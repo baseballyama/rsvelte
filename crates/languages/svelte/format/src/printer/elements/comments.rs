@@ -57,14 +57,14 @@ fn starts_with_newline(s: &str) -> bool {
 
 impl Printer<'_, '_, '_> {
     /// The comments between `attributes` (`this` left out, as Svelte takes it out) of the tag that
-    /// starts at `tag`. The comments of a tag without attributes, and those after the last one from
-    /// the first that holds a `>` on (the plugin looks for the tag's end with `indexOf('>')`), are
-    /// in no attribute: the plugin deletes them, so they are refused.
+    /// starts at `tag`, and the comments of a tag without attributes from `after_name` on, past its
+    /// name and `this`, which the plugin keeps on the element as dangling comments.
     pub(super) fn attribute_comments(
         &mut self,
         tag: u32,
+        after_name: u32,
         attributes: &[&Attribute],
-    ) -> Vec<Attached> {
+    ) -> (Vec<Attached>, Vec<Span>) {
         let mut attached: Vec<Attached> = attributes.iter().map(|_| Attached::default()).collect();
         let c = self.c;
         let tokens = &c.tokens;
@@ -79,13 +79,17 @@ impl Printer<'_, '_, '_> {
                 .map(|t| t.span)
         };
         let Some(last) = attributes.last() else {
-            self.embedder.dropped.extend(comments_from(tag).map(|c| {
-                (
-                    c,
-                    "a comment in a tag without attributes, which the plugin deletes",
-                )
-            }));
-            return attached;
+            if after_name != tag {
+                self.embedder.dropped.extend(comments_from(tag).map(|c| {
+                    (
+                        c,
+                        "a comment before `this` in a tag without other attributes",
+                    )
+                }));
+            }
+            let dangling: Vec<Span> = comments_from(after_name).collect();
+            self.embedder.kept.extend(&dangling);
+            return (attached, dangling);
         };
         let mut start = tag;
         for (i, a) in attributes.iter().enumerate() {
@@ -96,20 +100,38 @@ impl Printer<'_, '_, '_> {
             attached[i].leading = before;
             start = a.span.end_offset;
         }
-        let mut closed = false;
-        for comment in comments_from(last.span.end_offset) {
-            closed = closed || comment.text(self.source_text).contains('>');
-            if closed {
-                self.embedder.dropped.push((
-                    comment,
-                    "a comment after the `>` the plugin takes for the tag's end, which it deletes",
-                ));
+        let trailing: Vec<Span> = comments_from(last.span.end_offset).collect();
+        self.embedder.kept.extend(&trailing);
+        attached[attributes.len() - 1].trailing = trailing;
+        (attached, Vec::new())
+    }
+
+    /// `printDanglingTagComments`: appends the `dangling` comments of a tag without attributes to
+    /// `parts`, and says whether the last is a line comment, which ends the tag's line itself.
+    pub(super) fn dangling_comments(
+        &mut self,
+        dangling: &[Span],
+        parts: &mut Vec<LayoutInstructionIdentifier>,
+    ) -> bool {
+        for &comment in dangling {
+            let text = comment.text(self.source_text);
+            let line = self.d().line();
+            parts.push(line);
+            if is_block(text) {
+                parts.push(self.d().text(text));
             } else {
-                self.embedder.kept.push(comment);
-                attached[attributes.len() - 1].trailing.push(comment);
+                parts.push(self.d().text(text.strip_suffix('\r').unwrap_or(text)));
+                parts.push(self.d().break_parent());
             }
         }
-        attached
+        let trailing_line = dangling
+            .last()
+            .is_some_and(|c| !is_block(c.text(self.source_text)));
+        if trailing_line {
+            let hardline = self.d().hardline();
+            parts.push(self.d().dedent(hardline));
+        }
+        trailing_line
     }
 
     /// `document` with its comments, as Prettier's `printComments` prints them. `ends_line` says a

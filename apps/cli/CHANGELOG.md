@@ -1,5 +1,60 @@
 # @rsvelte/cli
 
+## 0.6.0
+
+### Minor Changes
+
+- 8b7a9cc: `rsvelte lint` is oxlint with a built-in Svelte linter. It takes oxlint's options and reads `.oxlintrc.json`, where it configures Svelte rules under the `svelte/` prefix with oxlint's categories. `rsvelte.config` no longer configures lint, so it has no `svelte.lint` and `typescript.lint` any more. `@rsvelte/eslint-plugin` now turns off only the rules rsvelte adds to oxlint, to use beside `eslint-plugin-oxlint`, and gains `buildFromOxlintConfig` and `buildFromOxlintConfigFile`.
+
+### Patch Changes
+
+- 1a88d20: In a component's script, `compile` now refuses a namespace that holds a statement in an ambient context, as svelte does. It reports an implementation there only for a function declaration, at its start.
+- 570a9f8: `compile` refuses `eval` and `arguments` as the name of an ambient declaration or parameter, and a `declare` variable's value that svelte refuses, with acorn's message and position.
+- 7715867: `typecheck` now checks JavaScript modules as `tsconfig.json` says, as svelte-check does: `checkJs` checks each one, and `allowJs` checks a module that starts with `// @ts-check`. A JavaScript route, hooks or `params` file of SvelteKit gets its types from a `JSDoc` comment, as svelte2tsx writes them.
+- 2e28ee8: The compiler hashes the CSS of a component without a filename from its stylesheet, as svelte does.
+- 46ee17a: `rsvelte lint` follows `eslint-plugin-svelte` 3.24.1 and `svelte-eslint-parser` 1.10.1.
+
+  - `svelte/valid-compile` and `svelte/no-unused-svelte-ignore` compile a component with the `compilerOptions.runes` of its `svelte.config.js`, so they report the warnings of runes mode in a component that relies on that option.
+  - `svelte/no-unused-svelte-ignore` no longer reports a `svelte-ignore` comment for a runtime warning, such as `ownership_invalid_binding`, which the compiler never reports.
+  - `svelte/valid-compile` and `svelte/no-unused-svelte-ignore` read a `svelte-ignore` comment before a node inside a statement, such as an object property or a call argument, as Svelte 5 does. A comment at the end of the line before a node no longer ignores warnings of that node.
+  - `svelte/indent` accepts a comment before a closing bracket when the comment has the indentation of the line above it.
+  - `svelte/sort-attributes` no longer reports or moves a shorthand attribute or a directive across a spread attribute.
+  - `svelte/prefer-svelte-reactivity` no longer reports in a component that is not in runes mode.
+  - `svelte/prefer-const` and `no-unused-vars` read the `$bindable()` props of `$props() as T`, `$props()!` and `$props() satisfies T` as those of `$props()`.
+
+- 6ac2227: `typecheck` now reads a file that only an import reaches as `tsc` does, such as a file of a package linked into `node_modules`. It made every such file a root of the project before, so with `outDir` set it reported TS6059 for a linked package's file, which `tsc` does not.
+- 46ee17a: `rsvelte format` now puts an element's content on its own lines instead of hugging `>` and `</`, as `prettier-plugin-svelte` 4.2.0 does.
+  Elements whose edge whitespace Svelte keeps still hug their content: in `<pre>` or `<textarea>`, a `<title>` in `<svelte:head>`, and a component with `preserveWhitespace`.
+  `htmlWhitespaceSensitivity: "strict"` keeps hugging as before.
+  `rsvelte format` now formats `<menu>` as a block element.
+  `rsvelte format` now keeps an empty `{:catch}` in an `{#await}` block.
+  `rsvelte format` now prints a string in `<svelte:element this={...}>` with the quotes `singleQuote` picks.
+  `rsvelte format` now keeps a comment in an opening tag without attributes, and one after the last attribute that holds a `>`.
+  `rsvelte format` now formats a `<script>` that has a `break` or `continue` without a target, as Prettier 3.10 does.
+- 8112215: `typecheck` now prints a path inside the project as an absolute path in TypeScript's messages, such as TS7016's, as svelte-check does. It printed that path from the project's root before.
+- 455719b: `typecheck` now reads a JavaScript component that a package import reaches as untyped when `allowJs` is on, as svelte-check does. TypeScript loads such a component only within `maxNodeModuleJsDepth`, so beyond it the import reports TS7016, its props are not typed, and the component itself is not checked.
+
+## 0.5.2
+
+### Patch Changes
+
+- ffc3018: `rsvelte check` now reports a finding on an `animate:` directive's movement where svelte-check does. That is the name's last character when the start tag's `>` directly follows the name, and the name's end otherwise.
+- 44c2249: `rsvelte check` now reports an event key that svelte2tsx cannot name, as svelte-check does. A
+  key in brackets names an event only through a top-level variable that holds a string. Any other
+  key in `$$Events` or in a typed `createEventDispatcher` gets that report.
+- 52504bd: `compile` now accepts a class expression, type parameter or signature parameter named `eval` or `arguments`, and reports a class expression named `arguments` as svelte does.
+- bf43bad: The output of a `.svelte.js` or `.svelte.ts` module starts with the
+  `/* <file> generated by Svelte v<version> */` line that `compileModule` writes.
+- a06b54d: Type check a component's events as svelte-check does. Events from `createEventDispatcher` and from a bare `on:` keep their own types, and `strictEvents` limits a component to them.
+- 9247ecd: `compile` now refuses a `declare` namespace, module or `global` block that holds a value, as svelte does.
+- 5024339: Report a name that a typed `createEventDispatcher` cannot resolve once, at the type argument, as svelte-check does, without a second finding that has no source range.
+- 4e311b8: Type check a generic component's events as svelte-check does. `on:` on it checks the events it dispatches and forwards, typed by the generics its props infer.
+- 1e552ef: `rsvelte lint` now knows the globals that ESLint 10.15.0 knows from `globals` 16.5.0, such as `DigitalCredential`. As in eslint-plugin-svelte, `svelte/no-top-level-browser-globals` no longer reports `localStorage`, `sessionStorage` and `ErrorEvent`, which are now also globals in `node`.
+- 0246df2: `typecheck` no longer reports a text `slot` attribute as an unknown prop on a component that fills a slot of its parent component, as svelte-check does. Inside a snippet or a plain element, `slot` stays a prop.
+- 2439699: Without a `command`, `rsvelte typecheck` starts the native executable of `typescript` or `@typescript/native-preview` directly instead of through `node`. It saves about 100 ms on each run.
+- 3d2714c: Without a `command`, `rsvelte typecheck` also starts `tsrs`'s native executable directly instead of through `node`, or the program `TSRS_BINARY` names.
+- 0f84ead: The `typecheck` command reports TS7016 at an import of a JavaScript component, as svelte-check does, also through a package or from a `.ts` file. It no longer reports the findings of a JavaScript component that only such an import reaches.
+
 ## 0.5.1
 
 ### Patch Changes

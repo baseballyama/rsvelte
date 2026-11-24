@@ -558,6 +558,24 @@ impl Component {
         attributes.iter().find(|a| a.name.text(source) == name)
     }
 
+    /// The value of the boolean option `name` of `<svelte:options>`, which the parser has
+    /// checked is bare or a boolean literal.
+    #[must_use]
+    pub fn svelte_option_flag(&self, source: &str, name: &str) -> Option<bool> {
+        let attribute = self.svelte_option(source, name)?;
+        Some(match attribute.value {
+            AttributeValue::True => true,
+            AttributeValue::Parts(parts) => !matches!(
+                self.parts(parts),
+                [Part::Expression { expression, .. }]
+                    if matches!(
+                        self.javascript.get_expression(*expression).without_parentheses(),
+                        oxc_ast::ast::Expression::BooleanLiteral(b) if !b.value
+                    )
+            ),
+        })
+    }
+
     #[must_use]
     pub fn parts(&self, r: Range) -> &[Part] {
         r.get(&self.parts)

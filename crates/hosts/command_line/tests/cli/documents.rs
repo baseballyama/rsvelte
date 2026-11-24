@@ -335,8 +335,10 @@ fn javascript_uses_its_own_syntax_mode_in_shared_tasks() {
     assert_eq!(compiled.files[0].text, "export const value = a(c);\n");
 }
 
+/// A JavaScript module is checked as the tsconfig says: `checkJs` or `// @ts-check` decides,
+/// as svelte-check leaves it to TypeScript.
 #[test]
-fn javascript_type_checking_is_explicitly_unchecked() {
+fn a_javascript_document_is_type_checked() {
     let mut registry = registry();
     registry.finish_task(rsvelte_typescript_check::Check {
         identifier: "ts.check/default",
@@ -348,30 +350,10 @@ fn javascript_type_checking_is_explicitly_unchecked() {
     for path in ["input.js", "input.mjs", "input.cjs"] {
         let document = Document::new(path, "export const value = 1;").expect("valid text");
         let context = DocumentContext::new(&document, registry.artifacts());
-        assert!(
-            matches!(
-                context.facet::<TypeScriptView>(),
-                Some(Ok(TypeScriptDocument::Unchecked))
-            ),
-            "{path}"
-        );
-        let results = run(
-            &registry,
-            std::slice::from_ref(&document),
-            &RunOptions {
-                tasks: &["ts.check/default"],
-                sharing: Sharing::Shared,
-                threads: Some(1),
-            },
-        )
-        .expect("known task");
-        assert!(results[0].panic.is_none(), "{path}");
-        let output = &results[0].outputs[0].1;
-        assert!(
-            output.diagnostics.is_empty(),
-            "{path}: {:?}",
-            output.diagnostics
-        );
-        assert_eq!(output.files[0].text, "[]\n", "{path}");
+        let Some(Ok(TypeScriptDocument::Checked(checked))) = context.facet::<TypeScriptView>()
+        else {
+            panic!("{path} is checked");
+        };
+        assert_eq!(checked.projection.out, "export const value = 1;", "{path}");
     }
 }

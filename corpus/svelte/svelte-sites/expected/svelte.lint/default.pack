@@ -151,7 +151,7 @@
 25:4 25:16 no-undef "'localStorage' is not defined."
 26:1 26:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:12 26:13 no-unused-vars "'e' is defined but never used."
-27:1 27:4 svelte/indent "Expected indentation of 4 spaces but found 3 whitespaces."
+27:1 27:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 28:1 28:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 29:1 29:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 32:1 39:2 svelte/button-has-type "Missing an explicit type attribute for button."

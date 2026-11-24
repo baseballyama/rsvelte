@@ -4,17 +4,25 @@ use super::*;
 
 #[test]
 fn a_script_babel_rejects_is_kept_as_written_and_the_rest_formatted() {
-    // Expected output from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1.
-    let script = "<script>\n\tfunction f() { continue; }\n\tlet   x =  1\n</script>\n";
-    assert_eq!(
-        formatted(&format!("{script}<div   class=\"a\"  >{{x+1}}</div>\n")),
-        format!("{script}\n<div class=\"a\">{{x + 1}}</div>\n")
-    );
+    // Expected output from Prettier 3.10.1 with prettier-plugin-svelte 4.2.0.
+    // Babel no longer throws on a `break` or `continue` without a target.
+    for (source_text, expected) in [
+        (
+            "<script>\n\tfunction f() { continue; }\n</script>\n",
+            "<script>\n  function f() {\n    continue;\n  }\n</script>\n",
+        ),
+        (
+            "<script>\n\tfunction f() { break nope; }\n</script>\n",
+            "<script>\n  function f() {\n    break nope;\n  }\n</script>\n",
+        ),
+    ] {
+        assert_eq!(formatted(source_text), expected, "{source_text:?}");
+    }
     // tsc gives both duplicates one code, and Babel throws only on the private name.
     let script = "<script>\n\tclass A { #a; #a; }\n\tlet   x =  1\n</script>\n";
     assert_eq!(
-        formatted(&format!("{script}<p>{{x}}</p>\n")),
-        format!("{script}\n<p>{{x}}</p>\n")
+        formatted(&format!("{script}<div   class=\"a\"  >{{x+1}}</div>\n")),
+        format!("{script}\n<div class=\"a\">{{x + 1}}</div>\n")
     );
     assert_eq!(
         formatted("<script>\n\tlet a; let a;\n</script>\n<p>x</p>\n"),

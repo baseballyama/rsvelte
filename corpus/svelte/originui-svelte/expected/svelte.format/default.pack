@@ -2360,7 +2360,7 @@
   </span>
 </div>
 
-=== 453 src/lib/components/avatars/avatar-09.svelte	svelte
+=== 456 src/lib/components/avatars/avatar-09.svelte	svelte
 <script lang="ts">
   import Badge from "$lib/components/ui/badge.svelte";
 
@@ -2378,11 +2378,12 @@
   </Avatar>
   <Badge
     class="border-background absolute -top-1.5 left-full min-w-5 -translate-x-3.5 px-1"
-    >6</Badge
   >
+    6
+  </Badge>
 </div>
 
-=== 468 src/lib/components/avatars/avatar-10.svelte	svelte
+=== 471 src/lib/components/avatars/avatar-10.svelte	svelte
 <script lang="ts">
   import Badge from "$lib/components/ui/badge.svelte";
 
@@ -2400,8 +2401,9 @@
   </Avatar>
   <Badge
     class="border-background absolute -top-2 left-full min-w-5 -translate-x-3 px-1"
-    >6</Badge
   >
+    6
+  </Badge>
 </div>
 
 === 993 src/lib/components/avatars/avatar-11.svelte	svelte
@@ -3113,7 +3115,7 @@
   </p>
 </div>
 
-=== 499 src/lib/components/banners/banner-03.svelte	svelte
+=== 506 src/lib/components/banners/banner-03.svelte	svelte
 <script lang="ts">
   import Eclipse from "@lucide/svelte/icons/eclipse";
 </script>
@@ -3126,8 +3128,9 @@
       aria-hidden="true"
     />Get the most out of your app with real-time updates and analytics
     <span class="text-muted-foreground">·</span>
-    <a href="#title" class="font-medium underline hover:no-underline">Upgrade</a
-    >
+    <a href="#title" class="font-medium underline hover:no-underline">
+      Upgrade
+    </a>
   </p>
 </div>
 
@@ -3240,9 +3243,9 @@
           </p>
           <div class="flex gap-2 max-md:flex-wrap">
             <Button size="sm" class="text-sm">Download</Button>
-            <Button variant="outline" size="sm" class="text-sm"
-              >Learn more</Button
-            >
+            <Button variant="outline" size="sm" class="text-sm">
+              Learn more
+            </Button>
           </div>
         </div>
       </div>
@@ -4362,9 +4365,9 @@
   >
     <ChevronUp size={16} aria-hidden="true" />
   </Button>
-  <span class="border-input flex items-center border px-3 text-sm font-medium"
-    >235</span
-  >
+  <span class="border-input flex items-center border px-3 text-sm font-medium">
+    235
+  </span>
   <Button
     class="rounded-none shadow-none first:rounded-s-lg last:rounded-e-lg focus-visible:z-10"
     variant="outline"
@@ -5411,9 +5414,9 @@
 
 <div class="flex items-center gap-2">
   <Checkbox id={uid} checked />
-  <Label for={uid} class="peer-data-[state=checked]:line-through"
-    >Simple todo item</Label
-  >
+  <Label for={uid} class="peer-data-[state=checked]:line-through">
+    Simple todo item
+  </Label>
 </div>
 
 === 813 src/lib/components/checkboxes/checkbox-06.svelte	svelte
@@ -5910,9 +5913,9 @@
 </script>
 
 <fieldset class="space-y-4">
-  <legend class="text-foreground text-sm leading-none font-medium"
-    >Days of the week</legend
-  >
+  <legend class="text-foreground text-sm leading-none font-medium">
+    Days of the week
+  </legend>
   <div class="flex gap-1.5">
     {#each items as item (item.id)}
       <label
@@ -6012,9 +6015,9 @@
   >
     <div class="overflow-y-auto">
       <Dialog.Header class="contents space-y-0 text-left">
-        <Dialog.Title class="px-6 pt-6"
-          >Frequently Asked Questions (FAQ)</Dialog.Title
-        >
+        <Dialog.Title class="px-6 pt-6">
+          Frequently Asked Questions (FAQ)
+        </Dialog.Title>
         <Dialog.Description class="p-6">
           <div
             class="[&_strong]:text-foreground space-y-4 [&_strong]:font-semibold"
@@ -6131,9 +6134,9 @@
         </Dialog.Description>
       </Dialog.Header>
       <Dialog.Footer class="px-6 pb-6 sm:justify-start">
-        <Dialog.Close class={buttonVariants({ variant: "outline" })}
-          >Cancel</Dialog.Close
-        >
+        <Dialog.Close class={buttonVariants({ variant: "outline" })}>
+          Cancel
+        </Dialog.Close>
         <Dialog.Close class={buttonVariants()}>Okay</Dialog.Close>
       </Dialog.Footer>
     </div>
@@ -6157,9 +6160,9 @@
   >
     <ScrollArea class="flex max-h-full flex-col">
       <Dialog.Header class="contents space-y-0 text-left">
-        <Dialog.Title class="px-6 pt-6"
-          >Frequently Asked Questions (FAQ)</Dialog.Title
-        >
+        <Dialog.Title class="px-6 pt-6">
+          Frequently Asked Questions (FAQ)
+        </Dialog.Title>
         <Dialog.Description class="p-6">
           <div
             class="[&_strong]:text-foreground space-y-4 [&_strong]:font-semibold"
@@ -6276,9 +6279,9 @@
         </Dialog.Description>
       </Dialog.Header>
       <Dialog.Footer class="px-6 pb-6 sm:justify-start">
-        <Dialog.Close class={buttonVariants({ variant: "outline" })}
-          >Cancel</Dialog.Close
-        >
+        <Dialog.Close class={buttonVariants({ variant: "outline" })}>
+          Cancel
+        </Dialog.Close>
         <Dialog.Close class={buttonVariants()}>Okay</Dialog.Close>
       </Dialog.Footer>
     </ScrollArea>
@@ -6442,9 +6445,9 @@
   >
     <div class="overflow-y-auto">
       <Dialog.Header class="contents space-y-0 text-left">
-        <Dialog.Title class="px-6 pt-6 text-base"
-          >Frequently Asked Questions (FAQ)</Dialog.Title
-        >
+        <Dialog.Title class="px-6 pt-6 text-base">
+          Frequently Asked Questions (FAQ)
+        </Dialog.Title>
         <Dialog.Description class="p-6">
           <div
             class="[&_strong]:text-foreground space-y-4 [&_strong]:font-semibold"
@@ -6562,9 +6565,9 @@
       </Dialog.Header>
     </div>
     <Dialog.Footer class="border-border border-t px-6 py-4">
-      <Dialog.Close class={buttonVariants({ variant: "outline" })}
-        >Cancel</Dialog.Close
-      >
+      <Dialog.Close class={buttonVariants({ variant: "outline" })}>
+        Cancel
+      </Dialog.Close>
       <Dialog.Close class={buttonVariants()}>Okay</Dialog.Close>
     </Dialog.Footer>
   </Dialog.Content>
@@ -6589,9 +6592,9 @@
 </script>
 
 <Dialog.Root>
-  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-    >Terms & Conditions</Dialog.Trigger
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Terms & Conditions
+  </Dialog.Trigger>
   <Dialog.Content
     class="flex flex-col gap-0 p-0 sm:max-h-[min(640px,80vh)] sm:max-w-lg [&>button:last-child]:top-3.5"
   >
@@ -6712,9 +6715,9 @@
           Read all terms before accepting.
         </span>
       {/if}
-      <Dialog.Close class={buttonVariants({ variant: "outline" })}
-        >Cancel</Dialog.Close
-      >
+      <Dialog.Close class={buttonVariants({ variant: "outline" })}>
+        Cancel
+      </Dialog.Close>
       <Dialog.Close>
         {#snippet child({ props })}
           <Button {...props} disabled={!hasReadToBottom}>I agree</Button>
@@ -6724,7 +6727,7 @@
   </Dialog.Content>
 </Dialog.Root>
 
-=== 1830 src/lib/components/dialogs/dialog-08.svelte	svelte
+=== 1850 src/lib/components/dialogs/dialog-08.svelte	svelte
 <script lang="ts">
   import Button, { buttonVariants } from "$lib/components/ui/button.svelte";
   import Input from "$lib/components/ui/input.svelte";
@@ -6738,9 +6741,9 @@
 </script>
 
 <Dialog.Root>
-  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-    >Delete project</Dialog.Trigger
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Delete project
+  </Dialog.Trigger>
   <Dialog.Content>
     <div class="flex flex-col items-center gap-2">
       <div
@@ -6770,14 +6773,16 @@
         />
       </div>
       <Dialog.Footer>
-        <Dialog.Close class="{buttonVariants({ variant: 'outline' })} flex-1"
-          >Cancel</Dialog.Close
-        >
+        <Dialog.Close class="{buttonVariants({ variant: 'outline' })} flex-1">
+          Cancel
+        </Dialog.Close>
         <Button
           type="button"
           class="flex-1"
-          disabled={inputValue !== PROJECT_NAME}>Delete</Button
+          disabled={inputValue !== PROJECT_NAME}
         >
+          Delete
+        </Button>
       </Dialog.Footer>
     </form>
   </Dialog.Content>
@@ -6793,9 +6798,9 @@
 </script>
 
 <Dialog.Root>
-  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-    >Newsletter</Dialog.Trigger
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Newsletter
+  </Dialog.Trigger>
   <Dialog.Content>
     <div class="mb-2 flex flex-col items-center gap-2">
       <div
@@ -6858,9 +6863,9 @@
 </script>
 
 <Dialog.Root>
-  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-    >Feedback</Dialog.Trigger
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Feedback
+  </Dialog.Trigger>
   <Dialog.Content>
     <Dialog.Header>
       <Dialog.Title>Send us feedback</Dialog.Title>
@@ -6868,9 +6873,9 @@
         Watch
         <a class="text-foreground hover:underline" href="#title">tutorials</a>,
         read Origin UI&lsquo;s
-        <a class="text-foreground hover:underline" href="#title"
-          >documentation</a
-        >, or join our
+        <a class="text-foreground hover:underline" href="#title">
+          documentation
+        </a>, or join our
         <a class="text-foreground hover:underline" href="#title">Discord</a>
         for community help.
       </Dialog.Description>
@@ -6902,9 +6907,9 @@
 </script>
 
 <Dialog.Root>
-  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-    >Rating</Dialog.Trigger
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Rating
+  </Dialog.Trigger>
   <Dialog.Content class="flex flex-col gap-0 p-0 [&>button:last-child]:top-3.5">
     <Dialog.Header class="contents space-y-0 text-left">
       <Dialog.Title class="border-border border-b px-6 py-4 text-base">
@@ -6972,9 +6977,9 @@
 </script>
 
 <Dialog.Root>
-  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-    >Sign up</Dialog.Trigger
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Sign up
+  </Dialog.Trigger>
   <Dialog.Content>
     <div class="flex flex-col items-center gap-2">
       <div
@@ -7060,9 +7065,9 @@
 </script>
 
 <Dialog.Root>
-  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-    >Sign in</Dialog.Trigger
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Sign in
+  </Dialog.Trigger>
   <Dialog.Content>
     <div class="flex flex-col items-center gap-2">
       <div
@@ -7113,13 +7118,13 @@
       <div class="flex justify-between gap-2">
         <div class="flex items-center gap-2">
           <Checkbox id="login-remember" />
-          <Label for="login-remember" class="text-muted-foreground font-normal"
-            >Remember me</Label
-          >
+          <Label for="login-remember" class="text-muted-foreground font-normal">
+            Remember me
+          </Label>
         </div>
-        <a class="text-sm underline hover:no-underline" href="#title"
-          >Forgot password?</a
-        >
+        <a class="text-sm underline hover:no-underline" href="#title">
+          Forgot password?
+        </a>
       </div>
       <Button type="button" class="w-full">Sign in</Button>
     </form>
@@ -7168,9 +7173,9 @@
 </script>
 
 <Dialog.Root>
-  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-    >Invite members</Dialog.Trigger
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Invite members
+  </Dialog.Trigger>
   <Dialog.Content>
     <div class="flex flex-col gap-2">
       <div
@@ -7260,9 +7265,9 @@
                 </button>
               {/snippet}
             </TooltipTrigger>
-            <TooltipContent class="px-2 py-1 text-xs"
-              >Copy to clipboard</TooltipContent
-            >
+            <TooltipContent class="px-2 py-1 text-xs">
+              Copy to clipboard
+            </TooltipContent>
           </Tooltip>
         </TooltipProvider>
       </div>
@@ -7285,9 +7290,9 @@
 </script>
 
 <Dialog.Root>
-  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-    >Change plan</Dialog.Trigger
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Change plan
+  </Dialog.Trigger>
   <Dialog.Content>
     <div class="mb-2 flex flex-col gap-2">
       <div
@@ -7298,9 +7303,9 @@
       </div>
       <Dialog.Header>
         <Dialog.Title class="text-left">Change your plan</Dialog.Title>
-        <Dialog.Description class="text-left"
-          >Pick one of the following plans.</Dialog.Description
-        >
+        <Dialog.Description class="text-left">
+          Pick one of the following plans.
+        </Dialog.Description>
       </Dialog.Header>
     </div>
 
@@ -7414,15 +7419,15 @@
 
       <div class="grid gap-2">
         <Button type="button" class="w-full">Change plan</Button>
-        <Dialog.Close class="{buttonVariants({ variant: 'ghost' })} w-full"
-          >Cancel</Dialog.Close
-        >
+        <Dialog.Close class="{buttonVariants({ variant: 'ghost' })} w-full">
+          Cancel
+        </Dialog.Close>
       </div>
     </form>
   </Dialog.Content>
 </Dialog.Root>
 
-=== 8231 src/lib/components/dialogs/dialog-19.svelte	svelte
+=== 8247 src/lib/components/dialogs/dialog-19.svelte	svelte
 <script lang="ts">
   import Input from "../ui/input.svelte";
   import Textarea from "../ui/textarea.svelte";
@@ -7456,17 +7461,19 @@
       <Button
         variant="outline"
         class={buttonVariants({ variant: "outline" })}
-        {...props}>Edit profile</Button
+        {...props}
       >
+        Edit profile
+      </Button>
     {/snippet}
   </Dialog.Trigger>
   <Dialog.Content
     class="flex flex-col gap-0 overflow-y-visible p-0 sm:max-w-lg [&>button:last-child]:top-3.5"
   >
     <Dialog.Header class="contents space-y-0 text-left">
-      <Dialog.Title class="border-b px-6 py-4 text-base"
-        >Edit profile</Dialog.Title
-      >
+      <Dialog.Title class="border-b px-6 py-4 text-base">
+        Edit profile
+      </Dialog.Title>
     </Dialog.Header>
     <Dialog.Description class="sr-only">
       Make changes to your profile here. You can change your photo and set a
@@ -7550,9 +7557,9 @@
               role="status"
               aria-live="polite"
             >
-              <span class="tabular-nums"
-                >{bioLimit.maxLength - bioLimit.characterCount}</span
-              >
+              <span class="tabular-nums">
+                {bioLimit.maxLength - bioLimit.characterCount}
+              </span>
               characters left
             </p>
           </div>
@@ -7705,9 +7712,9 @@
     if (open) step = 1;
   }}
 >
-  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}
-    >Onboarding</Dialog.Trigger
-  >
+  <Dialog.Trigger class={buttonVariants({ variant: "outline" })}>
+    Onboarding
+  </Dialog.Trigger>
   <Dialog.Content class="gap-0 p-0 [&>button:last-child]:text-white">
     <div class="p-2">
       <img
@@ -7737,9 +7744,9 @@
           {/each}
         </div>
         <Dialog.Footer>
-          <Dialog.Close class={buttonVariants({ variant: "ghost" })}
-            >Skip</Dialog.Close
-          >
+          <Dialog.Close class={buttonVariants({ variant: "ghost" })}>
+            Skip
+          </Dialog.Close>
           {#if step < steps.length}
             <Button class="group" type="button" onclick={handleContinue}>
               Next
@@ -8165,9 +8172,9 @@
       onValueChange={(value) => (framework = value)}
     >
       <DropdownMenuRadioItem value="sveltekit">SvelteKit</DropdownMenuRadioItem>
-      <DropdownMenuRadioItem value="nextjs" disabled
-        >Next.js</DropdownMenuRadioItem
-      >
+      <DropdownMenuRadioItem value="nextjs" disabled>
+        Next.js
+      </DropdownMenuRadioItem>
       <DropdownMenuRadioItem value="remix">Remix</DropdownMenuRadioItem>
       <DropdownMenuRadioItem value="astro">Astro</DropdownMenuRadioItem>
     </DropdownMenuRadioGroup>
@@ -8299,12 +8306,12 @@
             value={framework}
             onValueChange={(value) => (framework = value)}
           >
-            <DropdownMenuRadioItem value="sveltekit"
-              >SvelteKit</DropdownMenuRadioItem
-            >
-            <DropdownMenuRadioItem value="nextjs" disabled
-              >Next.js</DropdownMenuRadioItem
-            >
+            <DropdownMenuRadioItem value="sveltekit">
+              SvelteKit
+            </DropdownMenuRadioItem>
+            <DropdownMenuRadioItem value="nextjs" disabled>
+              Next.js
+            </DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="remix">Remix</DropdownMenuRadioItem>
             <DropdownMenuRadioItem value="astro">Astro</DropdownMenuRadioItem>
           </DropdownMenuRadioGroup>
@@ -8381,9 +8388,9 @@
   <DropdownMenuContent class="max-w-64">
     <DropdownMenuLabel class="flex flex-col">
       <span>Signed in as</span>
-      <span class="text-foreground text-xs font-normal"
-        >k.kennedy@originui-svelte.com</span
-      >
+      <span class="text-foreground text-xs font-normal">
+        k.kennedy@originui-svelte.com
+      </span>
     </DropdownMenuLabel>
     <DropdownMenuSeparator />
     <DropdownMenuGroup>
@@ -8440,9 +8447,9 @@
         alt="Avatar"
       />
       <div class="flex min-w-0 flex-col">
-        <span class="text-foreground truncate text-sm font-medium"
-          >Keith Kennedy</span
-        >
+        <span class="text-foreground truncate text-sm font-medium">
+          Keith Kennedy
+        </span>
         <span class="text-muted-foreground truncate text-xs font-normal">
           k.kennedy@originui-svelte.com
         </span>
@@ -8527,9 +8534,9 @@
   </DropdownMenuTrigger>
   <DropdownMenuContent class="max-w-64">
     <DropdownMenuLabel class="flex min-w-0 flex-col">
-      <span class="text-foreground truncate text-sm font-medium"
-        >Keith Kennedy</span
-      >
+      <span class="text-foreground truncate text-sm font-medium">
+        Keith Kennedy
+      </span>
       <span class="text-muted-foreground truncate text-xs font-normal">
         k.kennedy@originui-svelte.com
       </span>
@@ -9661,9 +9668,9 @@
     for={uid}
     class="has-[+input:not(:placeholder-shown)):-translate-y-1/2 origin-start text-muted-foreground/70 group-focus-within:text-foreground has-[+input:not(:placeholder-shown)]:text-foreground absolute top-1/2 block -translate-y-1/2 cursor-text px-1 text-sm transition-all group-focus-within:pointer-events-none group-focus-within:top-0 group-focus-within:-translate-y-1/2 group-focus-within:cursor-default group-focus-within:text-xs group-focus-within:font-medium has-[+input:not(:placeholder-shown)]:pointer-events-none has-[+input:not(:placeholder-shown)]:top-0 has-[+input:not(:placeholder-shown)]:cursor-default has-[+input:not(:placeholder-shown)]:text-xs has-[+input:not(:placeholder-shown)]:font-medium"
   >
-    <span class="bg-background inline-flex px-2"
-      >Input with label animation</span
-    >
+    <span class="bg-background inline-flex px-2">
+      Input with label animation
+    </span>
   </label>
   <Input id={uid} type="email" placeholder="" />
 </div>
@@ -9748,9 +9755,9 @@
     role="status"
     aria-live="polite"
   >
-    <span class="tabular-nums"
-      >{characterLimit.maxLength - characterLimit.characterCount}</span
-    > characters left
+    <span class="tabular-nums">
+      {characterLimit.maxLength - characterLimit.characterCount}
+    </span> characters left
   </p>
 </div>
 
@@ -9835,9 +9842,9 @@
 </script>
 
 <TimeField class="*:not-first:mt-2">
-  <Label class="text-foreground text-sm font-medium"
-    >Time input with start icon</Label
-  >
+  <Label class="text-foreground text-sm font-medium">
+    Time input with start icon
+  </Label>
   <div class="relative">
     <div
       class="text-muted-foreground/80 pointer-events-none absolute inset-y-0 start-0 z-10 flex items-center justify-center ps-3"
@@ -9872,9 +9879,9 @@
 </script>
 
 <TimeField class="*:not-first:mt-2">
-  <Label class="text-foreground text-sm font-medium"
-    >Time input with end icon</Label
-  >
+  <Label class="text-foreground text-sm font-medium">
+    Time input with end icon
+  </Label>
   <div class="relative">
     <TimeInput />
     <div
@@ -10054,7 +10061,7 @@
   </div>
 </DatePicker.Root>
 
-=== 9095 src/lib/components/inputs/input-42.svelte	svelte
+=== 9108 src/lib/components/inputs/input-42.svelte	svelte
 <script lang="ts">
   import Label from "$lib/components/ui/label.svelte";
   import { useLocale } from "$lib/hooks/use-locale.svelte";
@@ -10101,8 +10108,9 @@
           {/snippet}
         </DateRangePicker.Input>
         {#if type === "start"}
-          <span aria-hidden="true" class="text-muted-foreground/70 px-2">-</span
-          >
+          <span aria-hidden="true" class="text-muted-foreground/70 px-2">
+            -
+          </span>
         {/if}
       {/each}
     </div>
@@ -10211,7 +10219,7 @@
   </p>
 </DateRangePicker.Root>
 
-=== 10080 src/lib/components/inputs/input-43.svelte	svelte
+=== 10093 src/lib/components/inputs/input-43.svelte	svelte
 <script lang="ts">
   import Label from "$lib/components/ui/label.svelte";
   import { useLocale } from "$lib/hooks/use-locale.svelte";
@@ -10278,9 +10286,9 @@
   fixedWeeks={true}
   class="*:not-first:mt-2"
 >
-  <Label class="text-foreground text-sm font-medium"
-    >Date range picker (unavailable dates)</Label
-  >
+  <Label class="text-foreground text-sm font-medium">
+    Date range picker (unavailable dates)
+  </Label>
   <div class="flex">
     <div
       class="border-input bg-background ring-offset-background focus-within:border-ring focus-within:ring-ring/30 inline-flex h-9 w-full items-center overflow-hidden rounded-lg border px-3 py-2 pe-9 text-sm whitespace-nowrap shadow-xs shadow-black/[.04] transition-shadow focus-within:ring-2 focus-within:ring-offset-2 focus-within:outline-hidden disabled:opacity-50"
@@ -10303,8 +10311,9 @@
           {/snippet}
         </DateRangePicker.Input>
         {#if type === "start"}
-          <span aria-hidden="true" class="text-muted-foreground/70 px-2">-</span
-          >
+          <span aria-hidden="true" class="text-muted-foreground/70 px-2">
+            -
+          </span>
         {/if}
       {/each}
     </div>
@@ -10885,7 +10894,7 @@
   </div>
 </div>
 
-=== 932 src/lib/components/inputs/input-55.svelte	svelte
+=== 944 src/lib/components/inputs/input-55.svelte	svelte
 <script lang="ts">
   import Input from "$lib/components/ui/input.svelte";
   import Label from "$lib/components/ui/label.svelte";
@@ -10919,12 +10928,14 @@
       class="hover:text-foreground underline"
       href="https://github.com/RobinHerbots/inputmask"
       target="_blank"
-      rel="noopener nofollow">inputmask</a
+      rel="noopener nofollow"
     >
+      inputmask
+    </a>
   </p>
 </div>
 
-=== 927 src/lib/components/inputs/input-56.svelte	svelte
+=== 939 src/lib/components/inputs/input-56.svelte	svelte
 <script lang="ts">
   import Input from "$lib/components/ui/input.svelte";
   import Label from "$lib/components/ui/label.svelte";
@@ -10958,8 +10969,10 @@
       class="hover:text-foreground underline"
       href="https://github.com/RobinHerbots/inputmask"
       target="_blank"
-      rel="noopener nofollow">inputmask</a
+      rel="noopener nofollow"
     >
+      inputmask
+    </a>
   </p>
 </div>
 
@@ -10991,7 +11004,7 @@
   </div>
 </div>
 
-=== 4220 src/lib/components/navbars/navbar-01.svelte	svelte
+=== 4229 src/lib/components/navbars/navbar-01.svelte	svelte
 <script lang="ts">
   import Button from "$lib/components/ui/button.svelte";
 
@@ -11102,14 +11115,15 @@
     </div>
     <!-- Right side  -->
     <div class="flex items-center gap-2">
-      <Button href="#" variant="ghost" size="sm" class="text-sm">Sign In</Button
-      >
+      <Button href="#" variant="ghost" size="sm" class="text-sm">
+        Sign In
+      </Button>
       <Button href="#" size="sm" class="text-sm">Get Started</Button>
     </div>
   </div>
 </header>
 
-=== 9424 src/lib/components/navbars/navbar-02.svelte	svelte
+=== 9433 src/lib/components/navbars/navbar-02.svelte	svelte
 <script lang="ts">
   import Button from "$lib/components/ui/button.svelte";
 
@@ -11343,14 +11357,15 @@
     </div>
     <!-- Right side  -->
     <div class="flex items-center gap-2">
-      <Button href="#" variant="ghost" size="sm" class="text-sm">Sign In</Button
-      >
+      <Button href="#" variant="ghost" size="sm" class="text-sm">
+        Sign In
+      </Button>
       <Button href="#" size="sm" class="text-sm">Get Started</Button>
     </div>
   </div>
 </header>
 
-=== 4559 src/lib/components/navbars/navbar-03.svelte	svelte
+=== 4568 src/lib/components/navbars/navbar-03.svelte	svelte
 <script lang="ts">
   import Button from "$lib/components/ui/button.svelte";
 
@@ -11463,14 +11478,15 @@
     </div>
     <!-- Right side  -->
     <div class="flex items-center gap-2">
-      <Button href="#" variant="ghost" size="sm" class="text-sm">Sign In</Button
-      >
+      <Button href="#" variant="ghost" size="sm" class="text-sm">
+        Sign In
+      </Button>
       <Button href="#" size="sm" class="text-sm">Get Started</Button>
     </div>
   </div>
 </header>
 
-=== 5798 src/lib/components/navbars/navbar-04.svelte	svelte
+=== 5807 src/lib/components/navbars/navbar-04.svelte	svelte
 <script lang="ts">
   import Button from "$lib/components/ui/button.svelte";
   import Input from "$lib/components/ui/input.svelte";
@@ -11563,9 +11579,9 @@
                 ></div>
               </NavigationMenuItem>
               <NavigationMenuItem class="w-full">
-                <NavigationMenuLink href="#" class="py-1.5"
-                  >Sign In</NavigationMenuLink
-                >
+                <NavigationMenuLink href="#" class="py-1.5">
+                  Sign In
+                </NavigationMenuLink>
               </NavigationMenuItem>
               <NavigationMenuItem class="w-full">
                 <Button size="sm" class="mt-0.5 w-full text-left text-sm">
@@ -11618,14 +11634,15 @@
 
     <!-- Right side  -->
     <div class="flex items-center gap-2 max-md:hidden">
-      <Button href="#" variant="ghost" size="sm" class="text-sm">Sign In</Button
-      >
+      <Button href="#" variant="ghost" size="sm" class="text-sm">
+        Sign In
+      </Button>
       <Button href="#" size="sm" class="text-sm">
         <span class="flex items-baseline gap-2">
           Cart
           <span class="text-primary-foreground/60 text-xs">2</span>
-        </span></Button
-      >
+        </span>
+      </Button>
     </div>
   </div>
 </header>
@@ -12441,9 +12458,9 @@
     </div>
     <!-- Right side -->
     <div class="flex flex-1 items-center justify-end gap-2">
-      <Button variant="ghost" href="#" size="sm" class="text-sm"
-        >Community</Button
-      >
+      <Button variant="ghost" href="#" size="sm" class="text-sm">
+        Community
+      </Button>
       <Button size="sm" href="#" class="text-sm">Get Started</Button>
       <ThemeToggle />
     </div>
@@ -12873,9 +12890,9 @@
                 class="[&_*[role=option]]:ps-2 [&_*[role=option]]:pe-8 [&_*[role=option]>span]:start-auto [&_*[role=option]>span]:end-2"
               >
                 {#each accountTypes as accountType (accountType.value)}
-                  <SelectItem value={accountType.value}
-                    >{accountType.label}</SelectItem
-                  >
+                  <SelectItem value={accountType.value}>
+                    {accountType.label}
+                  </SelectItem>
                 {/each}
               </SelectContent>
             </Select>
@@ -15267,9 +15284,9 @@
 <div class="flex items-center justify-between gap-8">
   <!-- Results per page -->
   <div class="flex items-center gap-3">
-    <Label for="rows-per-page" class="w-fit whitespace-nowrap"
-      >Rows per page</Label
-    >
+    <Label for="rows-per-page" class="w-fit whitespace-nowrap">
+      Rows per page
+    </Label>
     <Select bind:value={getValue, setValue} type="single">
       <SelectTrigger id="rows-per-page" class="w-fit whitespace-nowrap">
         {#if selectedPaginationItemsToDisplay}
@@ -15620,21 +15637,21 @@
           </div>
           <div class="flex items-center gap-2">
             <Checkbox id="popover-filter-02" />
-            <Label for="popover-filter-02" class="font-normal"
-              >Top Channels</Label
-            >
+            <Label for="popover-filter-02" class="font-normal">
+              Top Channels
+            </Label>
           </div>
           <div class="flex items-center gap-2">
             <Checkbox id="popover-filter-03" />
-            <Label for="popover-filter-03" class="font-normal"
-              >Last Orders</Label
-            >
+            <Label for="popover-filter-03" class="font-normal">
+              Last Orders
+            </Label>
           </div>
           <div class="flex items-center gap-2">
             <Checkbox id="popover-filter-04" />
-            <Label for="popover-filter-04" class="font-normal"
-              >Total Spent</Label
-            >
+            <Label for="popover-filter-04" class="font-normal">
+              Total Spent
+            </Label>
           </div>
           <div
             role="separator"
@@ -16315,9 +16332,9 @@
                     </button>
                   {/snippet}
                 </TooltipTrigger>
-                <TooltipContent class="px-2 py-1 text-xs"
-                  >Copy to clipboard</TooltipContent
-                >
+                <TooltipContent class="px-2 py-1 text-xs">
+                  Copy to clipboard
+                </TooltipContent>
               </Tooltip>
             </TooltipProvider>
           </div>
@@ -16798,9 +16815,9 @@
         {/each}
       </span>
       <span class="sr-only">1 star</span>
-      <span class="text-muted-foreground text-xs leading-[inherit] font-normal"
-        >(452)</span
-      >
+      <span class="text-muted-foreground text-xs leading-[inherit] font-normal">
+        (452)
+      </span>
     </Label>
   </div>
 </RadioGroup>
@@ -16816,9 +16833,9 @@
 </script>
 
 <fieldset class="space-y-4">
-  <legend class="text-foreground text-sm leading-none font-medium"
-    >Choose a color</legend
-  >
+  <legend class="text-foreground text-sm leading-none font-medium">
+    Choose a color
+  </legend>
   <RadioGroup class="flex gap-1.5" bind:value={selectedColor}>
     <RadioGroupItem
       value="blue"
@@ -17284,9 +17301,9 @@
 </script>
 
 <fieldset class="space-y-4">
-  <legend class="text-foreground text-sm leading-none font-medium"
-    >CPU Cores</legend
-  >
+  <legend class="text-foreground text-sm leading-none font-medium">
+    CPU Cores
+  </legend>
   <RadioGroup class="grid grid-cols-3 gap-2" value="r1">
     {#each items as item (item.id)}
       <label
@@ -17322,9 +17339,9 @@
 </script>
 
 <fieldset class="space-y-4">
-  <legend class="text-foreground text-sm leading-none font-medium"
-    >Server location</legend
-  >
+  <legend class="text-foreground text-sm leading-none font-medium">
+    Server location
+  </legend>
   <RadioGroup class="flex flex-wrap gap-2" value="r1">
     {#each items as item (item.id)}
       <div
@@ -17362,9 +17379,9 @@
 </script>
 
 <fieldset class="space-y-4">
-  <legend class="text-foreground text-sm leading-none font-medium"
-    >Choose plan</legend
-  >
+  <legend class="text-foreground text-sm leading-none font-medium">
+    Choose plan
+  </legend>
   <RadioGroup
     class="gap-0 -space-y-px rounded-lg shadow-xs shadow-black/[.04]"
     bind:value={selectedValue}
@@ -17426,9 +17443,9 @@
 </script>
 
 <fieldset class="space-y-4">
-  <legend class="text-foreground text-sm leading-none font-medium"
-    >How did it go?</legend
-  >
+  <legend class="text-foreground text-sm leading-none font-medium">
+    How did it go?
+  </legend>
   <RadioGroup class="flex gap-1.5" bind:value={selectedValue}>
     {#each items as item (item.id)}
       <label
@@ -17507,9 +17524,9 @@
 </script>
 
 <fieldset class="space-y-4">
-  <legend class="text-foreground text-sm leading-none font-medium"
-    >Choose a theme</legend
-  >
+  <legend class="text-foreground text-sm leading-none font-medium">
+    Choose a theme
+  </legend>
   <RadioGroup class="flex gap-3" value="r1">
     {#each items as item (item.id)}
       <label>
@@ -17571,9 +17588,9 @@
       class="group-data-[state=off]:text-muted-foreground/70 relative z-10 inline-flex h-full min-w-8 cursor-pointer items-center justify-center px-4 whitespace-nowrap"
     >
       <span>
-        Bill Yearly <span class="group-data-[state=on]:text-emerald-500"
-          >-20%</span
-        >
+        Bill Yearly <span class="group-data-[state=on]:text-emerald-500">
+          -20%
+        </span>
       </span>
       <RadioGroupItem value="on" class="sr-only" />
     </label>
@@ -18187,9 +18204,9 @@
 <div class="space-y-2">
   <Label for={uid}>Disabled select</Label>
   <Select.Root type="single" bind:value disabled>
-    <Select.Trigger id={uid}
-      >{selected?.label ?? "Select a framework"}</Select.Trigger
-    >
+    <Select.Trigger id={uid}>
+      {selected?.label ?? "Select a framework"}
+    </Select.Trigger>
     <Select.Content>
       {#each items as item (item.value)}
         <Select.Item value={item.value}>
@@ -18415,7 +18432,7 @@
   </Select.Root>
 </div>
 
-=== 1053 src/lib/components/selects/select-28.svelte	svelte
+=== 1056 src/lib/components/selects/select-28.svelte	svelte
 <script lang="ts">
   import Label from "$lib/components/ui/label.svelte";
   import * as Select from "$lib/components/ui/select/index.js";
@@ -18438,8 +18455,9 @@
   <Label
     for={uid}
     class="bg-background text-foreground absolute start-1 top-0 z-10 block -translate-y-1/2 px-2 text-xs font-medium group-has-disabled:opacity-50"
-    >Select with overlapping label</Label
   >
+    Select with overlapping label
+  </Label>
   <Select.Root type="single" bind:value>
     <Select.Trigger id={uid}>
       {selected?.label ?? "Select a framework"}
@@ -19106,9 +19124,9 @@
     />
     <span>
       <span class="block font-medium">{item.name}</span>
-      <span class="text-muted-foreground mt-0.5 block text-xs"
-        >{item.username}</span
-      >
+      <span class="text-muted-foreground mt-0.5 block text-xs">
+        {item.username}
+      </span>
     </span>
   </span>
 {/snippet}
@@ -19886,9 +19904,9 @@
               index % skipInterval !== 0 && "h-0.5",
             )}
           ></span>
-          <span class={cn(index % skipInterval !== 0 && "opacity-0")}
-            >{index}</span
-          >
+          <span class={cn(index % skipInterval !== 0 && "opacity-0")}>
+            {index}
+          </span>
         </span>
       {/each}
     </span>
@@ -20093,9 +20111,9 @@
               </Button>
             {/snippet}
           </TooltipTrigger>
-          <TooltipContent class="px-2 py-1 text-xs"
-            >Reset to default</TooltipContent
-          >
+          <TooltipContent class="px-2 py-1 text-xs">
+            Reset to default
+          </TooltipContent>
         </Tooltip>
       </TooltipProvider>
       <Input
@@ -20823,9 +20841,9 @@
         aria-label="60 Hz"
         showTooltip
       />
-      <Label class="text-muted-foreground flex w-0 justify-center text-xs"
-        >60</Label
-      >
+      <Label class="text-muted-foreground flex w-0 justify-center text-xs">
+        60
+      </Label>
     </div>
     <div class="flex flex-col items-center gap-2">
       <Slider
@@ -20838,9 +20856,9 @@
         aria-label="250 Hz"
         showTooltip
       />
-      <Label class="text-muted-foreground flex w-0 justify-center text-xs"
-        >250</Label
-      >
+      <Label class="text-muted-foreground flex w-0 justify-center text-xs">
+        250
+      </Label>
     </div>
     <div class="flex flex-col items-center gap-2">
       <Slider
@@ -20853,9 +20871,9 @@
         aria-label="1k"
         showTooltip
       />
-      <Label class="text-muted-foreground flex w-0 justify-center text-xs"
-        >1k</Label
-      >
+      <Label class="text-muted-foreground flex w-0 justify-center text-xs">
+        1k
+      </Label>
     </div>
     <div class="flex flex-col items-center gap-2">
       <Slider
@@ -20868,9 +20886,9 @@
         aria-label="4k"
         showTooltip
       />
-      <Label class="text-muted-foreground flex w-0 justify-center text-xs"
-        >4k</Label
-      >
+      <Label class="text-muted-foreground flex w-0 justify-center text-xs">
+        4k
+      </Label>
     </div>
     <div class="flex flex-col items-center gap-2">
       <Slider
@@ -20883,9 +20901,9 @@
         aria-label="16k"
         showTooltip
       />
-      <Label class="text-muted-foreground flex w-0 justify-center text-xs"
-        >16K</Label
-      >
+      <Label class="text-muted-foreground flex w-0 justify-center text-xs">
+        16K
+      </Label>
     </div>
   </div>
 </div>
@@ -22748,9 +22766,9 @@
         </TableRow>
       {:else}
         <TableRow>
-          <TableCell colspan={columns.length} class="h-24 text-center"
-            >No results.</TableCell
-          >
+          <TableCell colspan={columns.length} class="h-24 text-center">
+            No results.
+          </TableCell>
         </TableRow>
       {/each}
     </TableBody>
@@ -23282,9 +23300,9 @@
         </TableRow>
       {:else}
         <TableRow>
-          <TableCell colspan={columns.length} class="h-24 text-center"
-            >No results.</TableCell
-          >
+          <TableCell colspan={columns.length} class="h-24 text-center">
+            No results.
+          </TableCell>
         </TableRow>
       {/each}
     </TableBody>
@@ -23629,9 +23647,9 @@
         </TableRow>
       {:else}
         <TableRow>
-          <TableCell colspan={columns.length} class="h-24 text-center"
-            >No results.</TableCell
-          >
+          <TableCell colspan={columns.length} class="h-24 text-center">
+            No results.
+          </TableCell>
         </TableRow>
       {/each}
     </TableBody>
@@ -23999,9 +24017,9 @@
         </TableRow>
       {:else}
         <TableRow>
-          <TableCell colspan={columns.length} class="h-24 text-center"
-            >No results.</TableCell
-          >
+          <TableCell colspan={columns.length} class="h-24 text-center">
+            No results.
+          </TableCell>
         </TableRow>
       {/each}
     </TableBody>
@@ -24360,9 +24378,9 @@
         </TableRow>
       {:else}
         <TableRow>
-          <TableCell colspan={columns.length} class="h-24 text-center"
-            >No results.</TableCell
-          >
+          <TableCell colspan={columns.length} class="h-24 text-center">
+            No results.
+          </TableCell>
         </TableRow>
       {/each}
     </TableBody>
@@ -24737,9 +24755,9 @@
         {/if}
       {:else}
         <TableRow>
-          <TableCell colspan={columns.length} class="h-24 text-center"
-            >No results.</TableCell
-          >
+          <TableCell colspan={columns.length} class="h-24 text-center">
+            No results.
+          </TableCell>
         </TableRow>
       {/each}
     </TableBody>
@@ -25046,9 +25064,9 @@
           </TableRow>
         {:else}
           <TableRow>
-            <TableCell colspan={columns.length} class="h-24 text-center"
-              >No results.</TableCell
-            >
+            <TableCell colspan={columns.length} class="h-24 text-center">
+              No results.
+            </TableCell>
           </TableRow>
         {/each}
       </TableBody>
@@ -25483,9 +25501,9 @@
           </TableRow>
         {:else}
           <TableRow>
-            <TableCell colspan={columns.length} class="h-24 text-center"
-              >No results.</TableCell
-            >
+            <TableCell colspan={columns.length} class="h-24 text-center">
+              No results.
+            </TableCell>
           </TableRow>
         {/each}
       </TableBody>
@@ -25942,7 +25960,7 @@
   </TabsContent>
 </Tabs>
 
-=== 1897 src/lib/components/tabs/tab-08.svelte	svelte
+=== 1906 src/lib/components/tabs/tab-08.svelte	svelte
 <script lang="ts">
   import Badge from "$lib/components/ui/badge.svelte";
 
@@ -25984,8 +26002,9 @@
         Packages
         <Badge
           class="ms-1.5 transition-opacity group-data-[state=inactive]:opacity-50"
-          >New</Badge
         >
+          New
+        </Badge>
       </TabsTrigger>
     </TabsList>
     <Scrollbar orientation="horizontal" />
@@ -26238,9 +26257,9 @@
           aria-hidden="true"
         />
         Repositories
-        <Badge class="bg-primary/15 ms-1.5 min-w-5 px-1" variant="secondary"
-          >3</Badge
-        >
+        <Badge class="bg-primary/15 ms-1.5 min-w-5 px-1" variant="secondary">
+          3
+        </Badge>
       </TabsTrigger>
       <TabsTrigger
         value="tab-3"
@@ -26563,9 +26582,9 @@
             </span>
           {/snippet}
         </TooltipTrigger>
-        <TooltipContent side="right" class="px-2 py-1 text-xs"
-          >Overview</TooltipContent
-        >
+        <TooltipContent side="right" class="px-2 py-1 text-xs">
+          Overview
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
     <TooltipProvider delayDuration={0}>
@@ -26586,9 +26605,9 @@
             </span>
           {/snippet}
         </TooltipTrigger>
-        <TooltipContent side="right" class="px-2 py-1 text-xs"
-          >Repositories</TooltipContent
-        >
+        <TooltipContent side="right" class="px-2 py-1 text-xs">
+          Repositories
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
     <TooltipProvider delayDuration={0}>
@@ -26602,9 +26621,9 @@
             </span>
           {/snippet}
         </TooltipTrigger>
-        <TooltipContent side="right" class="px-2 py-1 text-xs"
-          >Packages</TooltipContent
-        >
+        <TooltipContent side="right" class="px-2 py-1 text-xs">
+          Packages
+        </TooltipContent>
       </Tooltip>
     </TooltipProvider>
   </TabsList>
@@ -27017,9 +27036,9 @@
     for={uid}
     class="has-[+textarea:not(:placeholder-shown)):-translate-y-1/2 origin-start text-muted-foreground/70 group-focus-within:text-foreground has-[+textarea:not(:placeholder-shown)]:text-foreground absolute top-0 block translate-y-2 cursor-text px-1 text-sm transition-all group-focus-within:pointer-events-none group-focus-within:top-0 group-focus-within:-translate-y-1/2 group-focus-within:cursor-default group-focus-within:text-xs group-focus-within:font-medium has-[+textarea:not(:placeholder-shown)]:pointer-events-none has-[+textarea:not(:placeholder-shown)]:top-0 has-[+textarea:not(:placeholder-shown)]:cursor-default has-[+textarea:not(:placeholder-shown)]:text-xs has-[+textarea:not(:placeholder-shown)]:font-medium"
   >
-    <span class="bg-background inline-flex px-2"
-      >Textarea with label animation</span
-    >
+    <span class="bg-background inline-flex px-2">
+      Textarea with label animation
+    </span>
   </label>
   <Textarea id={uid} placeholder="" />
 </div>
@@ -27067,9 +27086,9 @@
     role="status"
     aria-live="polite"
   >
-    <span class="tabular-nums"
-      >{characterLimit.maxLength - characterLimit.characterCount}</span
-    >
+    <span class="tabular-nums">
+      {characterLimit.maxLength - characterLimit.characterCount}
+    </span>
     characters left
   </p>
 </div>
@@ -27988,9 +28007,9 @@
         <Button variant="outline" size="sm" {...props}>Tiny</Button>
       {/snippet}
     </TooltipTrigger>
-    <TooltipContent class="px-2 py-1 text-xs"
-      >This is a simple tooltip</TooltipContent
-    >
+    <TooltipContent class="px-2 py-1 text-xs">
+      This is a simple tooltip
+    </TooltipContent>
   </Tooltip>
 </TooltipProvider>
 
@@ -28013,9 +28032,9 @@
         <Button variant="outline" size="sm" {...props}>Dark</Button>
       {/snippet}
     </TooltipTrigger>
-    <TooltipContent class="dark px-2 py-1 text-xs"
-      >This tooltip will be always dark</TooltipContent
-    >
+    <TooltipContent class="dark px-2 py-1 text-xs">
+      This tooltip will be always dark
+    </TooltipContent>
   </Tooltip>
 </TooltipProvider>
 
@@ -28038,9 +28057,9 @@
         <Button variant="outline" size="sm" {...props}>W/ arrow</Button>
       {/snippet}
     </TooltipTrigger>
-    <TooltipContent class="dark px-2 py-1 text-xs" showArrow={true}
-      >This tooltip has an arrow</TooltipContent
-    >
+    <TooltipContent class="dark px-2 py-1 text-xs" showArrow={true}>
+      This tooltip has an arrow
+    </TooltipContent>
   </Tooltip>
 </TooltipProvider>
 
@@ -28063,19 +28082,19 @@
         <Button variant="outline" size="sm" {...props}>W/ title</Button>
       {/snippet}
     </TooltipTrigger>
-    <TooltipContent class="py-3"
-      ><div class="space-y-1">
+    <TooltipContent class="py-3">
+      <div class="space-y-1">
         <p class="text-[13px] font-medium">Tooltip with title</p>
         <p class="text-muted-foreground text-xs">
           Tooltips are made to be highly customizable, with features like
           dynamic placement, rich content, and a robust API. You can even use
-          them as a full-featured dropdown menu by setting the <code
-            >trigger</code
-          >
+          them as a full-featured dropdown menu by setting the <code>
+            trigger
+          </code>
           prop to <code>click</code>.
         </p>
-      </div></TooltipContent
-    >
+      </div>
+    </TooltipContent>
   </Tooltip>
 </TooltipProvider>
 
@@ -28099,8 +28118,8 @@
         <Button variant="outline" size="sm" {...props}>W/ icon</Button>
       {/snippet}
     </TooltipTrigger>
-    <TooltipContent class="dark py-3"
-      ><div class="flex gap-3">
+    <TooltipContent class="dark py-3">
+      <div class="flex gap-3">
         <Globe
           class="mt-0.5 shrink-0 opacity-60"
           size={16}
@@ -28113,8 +28132,8 @@
             dynamic placement, rich content, and a robust API.
           </p>
         </div>
-      </div></TooltipContent
-    >
+      </div>
+    </TooltipContent>
   </Tooltip>
 </TooltipProvider>
 
@@ -28152,8 +28171,8 @@
             dynamic placement, rich content, and a robust API.
           </p>
         </div>
-      </div></TooltipContent
-    >
+      </div>
+    </TooltipContent>
   </Tooltip>
 </TooltipProvider>
 
@@ -28298,8 +28317,8 @@
         <Button variant="outline" size="sm" {...props}>Stats</Button>
       {/snippet}
     </TooltipTrigger>
-    <TooltipContent class=" py-3"
-      ><ul class="grid gap-3 text-xs">
+    <TooltipContent class=" py-3">
+      <ul class="grid gap-3 text-xs">
         <li class="grid gap-0.5">
           <span class="text-muted-foreground">Status</span>
           <span class="font-medium">Completed</span>
@@ -28316,8 +28335,8 @@
           <span class="text-muted-foreground">Performance Score</span>
           <span class="font-medium">98/100</span>
         </li>
-      </ul></TooltipContent
-    >
+      </ul>
+    </TooltipContent>
   </Tooltip>
 </TooltipProvider>
 
@@ -28391,8 +28410,8 @@
             Costs <span class="ml-auto">$410</span>
           </span>
         </div>
-      </div></TooltipContent
-    >
+      </div>
+    </TooltipContent>
   </Tooltip>
 </TooltipProvider>
 
@@ -28485,9 +28504,9 @@
         </div>
       </div>
       <p class="text-muted-foreground text-sm">
-        Designer at <strong class="text-foreground font-medium"
-          >@Origin UI - Svelte</strong
-        >. Crafting web experiences with Tailwind CSS.
+        Designer at <strong class="text-foreground font-medium">
+          @Origin UI - Svelte
+        </strong>. Crafting web experiences with Tailwind CSS.
       </p>
       <div class="flex items-center gap-2">
         <div class="flex -space-x-1.5">
@@ -32344,9 +32363,9 @@
           >
             <div class="flex items-center">
               <Package class="mr-1 h-3 w-3" />
-              <span class="truncate" title={dependency.name}
-                >{dependency.name}</span
-              >
+              <span class="truncate" title={dependency.name}>
+                {dependency.name}
+              </span>
             </div>
             <ExternalLink class="h-3 w-3" />
           </div>
@@ -33259,9 +33278,9 @@
         </Button>
       {/snippet}
     </Tooltip.TooltipTrigger>
-    <Tooltip.TooltipContent
-      >Share the {component.name} component</Tooltip.TooltipContent
-    >
+    <Tooltip.TooltipContent>
+      Share the {component.name} component
+    </Tooltip.TooltipContent>
   </Tooltip.Tooltip>
 </Tooltip.TooltipProvider>
 
@@ -34148,7 +34167,7 @@
   </div>
 </div>
 
-=== 3806 src/routes/+page.svelte	svelte
+=== 3822 src/routes/+page.svelte	svelte
 <script lang="ts">
   import CategoryCard from "$lib/demo/category-card.svelte";
   import Illustration from "$lib/demo/illustration.svelte";
@@ -34225,8 +34244,10 @@
       This project is not affiliated with the original <a
         class="underline"
         href="https://originui.com/"
-        rel="noreferrer">Origin UI</a
-      >. <br />
+        rel="noreferrer"
+      >
+        Origin UI
+      </a>. <br />
       <span class="text-muted-foreground text-xs">
         I appreciate their work and have developed these Svelte 5 components
         based on their design.

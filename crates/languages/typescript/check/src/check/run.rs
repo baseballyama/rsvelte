@@ -8,7 +8,10 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_typescript_api::{DiagnosticKind, Layer, Position, Project, Session};
+use rsvelte_typescript_api::{Layer, Position, Session};
+use selection::Selected;
+use shares::{Checked, Helper, check_shares};
+use untyped::{UntypedDocuments, UntypedJavaScript};
 
 use super::{Tsc, TypeScriptEnv};
 use crate::type_checker::{CONTRACT, TypeChecker};
@@ -43,6 +46,14 @@ pub(crate) struct TypeScriptDiagnostic {
     pub syntactic: bool,
 }
 
+/// A run's findings, and the directory of its project.
+#[derive(Debug)]
+pub(crate) struct Report {
+    pub diagnostics: Vec<TypeScriptDiagnostic>,
+    /// The tsconfig's directory, or the current one: a real path.
+    pub root: PathBuf,
+}
+
 static RUN: AtomicU32 = AtomicU32::new(0);
 
 /// The directory beside each project root that holds what rsvelte adds: the overlay tsconfig and
@@ -55,10 +66,7 @@ impl Tsc {
     ///
     /// A message if the projections cannot be written, the checker cannot run, or it reports a
     /// diagnostic outside every document.
-    pub(crate) fn check(
-        &self,
-        req: &CheckRequest<'_>,
-    ) -> Result<Vec<TypeScriptDiagnostic>, String> {
+    pub(crate) fn check(&self, req: &CheckRequest<'_>) -> Result<Report, String> {
         if req.env.content_mapper.is_none() && req.mapped_files.iter().any(Option::is_some) {
             return Err("content-mapped inputs require a mapper executable".into());
         }
@@ -84,62 +92,45 @@ impl Tsc {
         }
     }
 
-    fn check_with(
-        &self,
-        support: &Path,
-        req: &CheckRequest<'_>,
-    ) -> Result<Vec<TypeScriptDiagnostic>, String> {
+    fn check_with(&self, support: &Path, req: &CheckRequest<'_>) -> Result<Report, String> {
         let (base, root) = self.root()?;
         let paths: Vec<PathBuf> = (0..req.files.len())
             .map(|i| req.checked_path(&root, i))
             .collect();
         let overlay = root.join(OVERLAY);
-        let mut layer = Layer {
-            files: req.env.replaced.iter().cloned().collect(),
-            links: Vec::new(),
-        };
-        // A document of a replaced file has the replaced text, as the host reads it.
-        for (i, path) in paths.iter().enumerate() {
-            layer.files.insert(path.clone(), req.text(i).to_owned());
-        }
-        layer.files.extend(
-            req.stand_ins(&root)
-                .map(|(path, text)| (path, text.to_owned())),
-        );
-        let store = support.join("projections.json");
-        if let Some(binary) = &req.env.content_mapper {
-            let package = mapped::write_mapper(req, binary, support, &store, &root, &paths)?;
-            layer
-                .links
-                .push((overlay.join("node_modules").join(MAPPER_PACKAGE), package));
-        }
-        let declarations: Vec<PathBuf> = req
-            .env
-            .declarations
-            .iter()
-            .map(|(name, text)| {
-                let path = overlay.join(name);
-                layer.files.insert(path.clone(), (*text).to_owned());
-                path
-            })
-            .collect();
+        let (mut layer, store, declarations) = layer(req, support, &root, &overlay, &paths)?;
         let failed = |e: String| format!("{e}; rsvelte needs {CONTRACT}");
         let _p = measurement::phase("ts.tsc");
         let helpers = self.start_helpers(paths.len(), &root);
         let mut session = Session::start(&self.checker.program, &self.checker.arguments, &root)
             .map_err(failed)?;
-        // The project's own root files, as its tsconfig selects them; the overlay keeps them.
-        let mut own = base_project(&mut session, base.as_deref(), req, &overlay, &mut layer)
-            .map_err(failed)?;
+        // The project's own root files, as its tsconfig selects them, components included; the
+        // overlay keeps them.
+        let mut own = base_project(
+            &mut session,
+            base.as_deref(),
+            req,
+            &overlay,
+            &store,
+            &paths,
+            &mut layer,
+        )
+        .map_err(failed)?;
         let mut roots = std::mem::take(&mut own.roots);
         own.script_modules =
             own.node_resolution && script_module::add(&mut layer, &roots, &paths, req);
-        if own.untyped {
+        let all_untyped = own.untyped == UntypedJavaScript::All;
+        if all_untyped {
             let declaration = untyped::options_declaration(&overlay);
             roots.push(declaration.0.clone());
             layer.files.insert(declaration.0, declaration.1);
         }
-        roots.extend(paths.iter().cloned());
+        // A document is a root only where the project does not reach it.
+        roots.extend(
+            (paths.iter())
+                .filter(|path| !own.selected.reached.contains(*path))
+                .cloned(),
+        );
         // Upstream's project holds every component, so one that is not checked still declares
         // its globals.
         roots.extend(req.stand_ins(&root).map(|(path, _)| path).filter(|path| {
@@ -154,26 +145,29 @@ impl Tsc {
             tsconfig_json(base.as_deref(), req, &own, &roots, &store),
         );
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
-        // Where an untyped import is reported, the checker resolves each import, and a project
-        // beside the overlay names the files the tsconfig selects.
-        let selection = (base.as_deref().filter(|_| own.untyped)).map(|base| {
-            let (path, text) = untyped::selection(req, &overlay, base, &store);
-            layer.files.insert(path.clone(), text);
-            path
-        });
-        let resolve = own.untyped.then_some((req, paths.as_slice()));
-        let checked = check_shares(
-            &mut session,
-            helpers,
-            &config,
-            selection.as_deref(),
-            &layer,
-            &files,
-            resolve,
-        )
-        .map_err(failed)?;
+        // Where every import of JavaScript is untyped, the checker resolves each import.
+        let resolve = all_untyped.then_some((req, paths.as_slice()));
+        let mut checked = check_shares(&mut session, helpers, &config, &layer, &files, resolve)
+            .map_err(failed)?;
+        let external = std::mem::take(&mut own.selected.external);
+        if !external.is_empty() {
+            // The components a search of `node_modules` finds read as untyped JavaScript, which
+            // the projections say, so the files are checked again with them.
+            let store = mapped::untyped_store(req, &root, &paths, &external, store)?;
+            let text = tsconfig_json(base.as_deref(), req, &own, &roots, &store);
+            layer.files.insert(config.clone(), text);
+            let helpers = self.start_helpers(paths.len(), &root);
+            let resolve = Some((req, paths.as_slice()));
+            checked = check_shares(&mut session, helpers, &config, &layer, &files, resolve)
+                .map_err(failed)?;
+        }
         // The session ends when it drops, which frees the snapshot with the process.
-        self.findings(req, checked, &root, &paths)
+        let untyped = UntypedDocuments {
+            all: all_untyped,
+            external,
+        };
+        let diagnostics = self.findings(req, checked, &own.selected, &paths, &untyped)?;
+        Ok(Report { diagnostics, root })
     }
 
     /// The errors of `checked`, at the documents' lines, with each untyped import's TS7016.
@@ -181,17 +175,23 @@ impl Tsc {
         &self,
         req: &CheckRequest<'_>,
         checked: Checked,
-        root: &Path,
+        selected: &Selected,
         paths: &[PathBuf],
+        untyped_documents: &UntypedDocuments,
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
         let [program, syntactic, semantic] = checked.found;
         let index = path_index(paths);
-        let untyped = untyped::imports(req, &checked.modules, root, &index);
+        let is_untyped = |file: usize| untyped_documents.is(req, file);
+        let untyped = untyped::imports(req, &checked.modules, &index, &is_untyped);
         // Where JavaScript is untyped, TypeScript loads no JavaScript file the tsconfig does not
         // select, whatever imports it. A document the program does not reach at all is one the
-        // run was given, which svelte-check checks as a root.
-        let unloaded =
-            |file: usize| untyped::javascript(req, file) && checked.reached.contains(&paths[file]);
+        // run was given, which svelte-check checks as a root. Nor does it load a component a
+        // search of `node_modules` finds beyond `maxNodeModuleJsDepth`.
+        let unloaded = |file: usize| {
+            untyped::javascript(req, file)
+                && (untyped_documents.all && selected.reached.contains(&paths[file])
+                    || untyped_documents.external(file))
+        };
         let lines: Vec<LineIndex> = (0..req.files.len())
             .map(|i| LineIndex::new(req.text(i)))
             .collect();
@@ -203,8 +203,7 @@ impl Tsc {
             // The command line reports errors only; svelte-check's errors are the oracle.
             .filter(|(_, d)| d.is_error())
             .map(|(syntactic, d)| {
-                located(&d, root, &index, &lines, syntactic)
-                    .ok_or_else(|| unlocated(&self.checker, &d))
+                located(&d, &index, &lines, syntactic).ok_or_else(|| unlocated(&self.checker, &d))
             })
             .filter(|found| {
                 !found.as_ref().is_ok_and(|found| {
@@ -273,139 +272,6 @@ const FILES_PER_PROCESS: usize = 50;
 /// Each process opens the project again, so more of them cost more than they save.
 const MOST_PROCESSES: usize = 4;
 
-type Helper = std::thread::JoinHandle<Result<Session, String>>;
-type Found = Vec<rsvelte_typescript_api::Diagnostic>;
-/// The modules each import of a document reads, by document.
-type Modules = Vec<(usize, Vec<Option<PathBuf>>)>;
-
-/// What the processes found in the project of `config`.
-struct Checked {
-    /// The program, syntactic and semantic findings.
-    found: [Found; 3],
-    /// The modules each document's imports read, by document, when asked to resolve them.
-    modules: Modules,
-    /// The files the project of the selection config, if any, has only because an import
-    /// reaches them, not because the tsconfig selects them.
-    reached: std::collections::HashSet<PathBuf>,
-}
-
-/// The documents whose imports the processes resolve, at their paths.
-type Resolve<'r> = Option<(&'r CheckRequest<'r>, &'r [PathBuf])>;
-
-/// The program, syntactic and semantic findings of `files` in the project of `config`, and the
-/// modules their imports read when `resolve` asks. Every process opens the project at the same
-/// time and takes shares of the files from `Shares` until none is left; `session` also asks for
-/// the program and syntactic findings, and opens the project of `selection` in its snapshot.
-fn check_shares(
-    session: &mut Session,
-    helpers: Vec<Helper>,
-    config: &Path,
-    selection: Option<&Path>,
-    layer: &Layer,
-    files: &[&Path],
-    resolve: Resolve<'_>,
-) -> Result<Checked, String> {
-    let shares = Shares::new(files, helpers.len() + 1, resolve);
-    let shares = &shares;
-    std::thread::scope(|scope| {
-        let running: Vec<_> = helpers
-            .into_iter()
-            .map(|helper| {
-                scope.spawn(move || {
-                    let mut helper = helper
-                        .join()
-                        .unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
-                    let project = helper.open(&[config], layer)?.remove(0);
-                    shares.check(&mut helper, &project)
-                })
-            })
-            .collect();
-        let mut configs = vec![config];
-        configs.extend(selection);
-        let mut projects = session.open(&configs, layer)?.into_iter();
-        let project = projects.next().ok_or("the checker opened no project")?;
-        let reached = match projects.next() {
-            Some(selection) => {
-                let roots: std::collections::HashSet<PathBuf> =
-                    selection.root_files.iter().cloned().collect();
-                (session.source_file_names(&selection)?.into_iter())
-                    .filter(|file| !roots.contains(file))
-                    .collect()
-            }
-            None => std::collections::HashSet::new(),
-        };
-        let program = session.diagnostics(&project, DiagnosticKind::Program, None)?;
-        let syntactic = session.diagnostics(&project, DiagnosticKind::Syntactic, Some(files))?;
-        let (mut semantic, mut modules) = shares.check(session, &project)?;
-        for helper in running {
-            let (found, resolved) = helper
-                .join()
-                .unwrap_or_else(|panic| std::panic::resume_unwind(panic))?;
-            semantic.extend(found);
-            modules.extend(resolved);
-        }
-        Ok(Checked {
-            found: [program, syntactic, semantic],
-            modules,
-            reached,
-        })
-    })
-}
-
-/// The files no process has taken yet. A process takes half of its part of what is left, as in
-/// factoring scheduling: early shares are large, so few requests are made, and the last are
-/// single files, so the processes finish together however long each file takes.
-struct Shares<'a> {
-    files: &'a [&'a Path],
-    processes: usize,
-    taken: std::sync::Mutex<usize>,
-    resolve: Resolve<'a>,
-}
-
-impl<'a> Shares<'a> {
-    const fn new(files: &'a [&'a Path], processes: usize, resolve: Resolve<'a>) -> Self {
-        Self {
-            files,
-            processes,
-            taken: std::sync::Mutex::new(0),
-            resolve,
-        }
-    }
-
-    fn take(&self) -> Option<std::ops::Range<usize>> {
-        let mut taken = self
-            .taken
-            .lock()
-            .unwrap_or_else(std::sync::PoisonError::into_inner);
-        let start = *taken;
-        let left = self.files.len() - start;
-        *taken += left.div_ceil(2 * self.processes);
-        let end = *taken;
-        drop(taken);
-        (left != 0).then_some(start..end)
-    }
-
-    /// The semantic findings of each share `session` takes, and the modules of its documents'
-    /// imports when asked.
-    fn check(&self, session: &mut Session, project: &Project) -> Result<(Found, Modules), String> {
-        let mut found = Vec::new();
-        let mut modules = Vec::new();
-        while let Some(share) = self.take() {
-            let files = &self.files[share.clone()];
-            found.extend(session.diagnostics(project, DiagnosticKind::Semantic, Some(files))?);
-            if let Some((req, paths)) = self.resolve {
-                for file in share {
-                    let resolved = untyped::modules(req, session, project, paths, file)?;
-                    if !resolved.is_empty() {
-                        modules.push((file, resolved));
-                    }
-                }
-            }
-        }
-        Ok((found, modules))
-    }
-}
-
 fn tsconfig_json(
     base: Option<&Path>,
     req: &CheckRequest<'_>,
@@ -460,16 +326,58 @@ fn tsconfig_json(
     w.finish()
 }
 
+/// The files the checker reads over the disk: the documents' texts, the stand-ins, the
+/// declarations and the content mapper's package, which serves the store it returns. It also
+/// returns the declarations' paths.
+fn layer(
+    req: &CheckRequest<'_>,
+    support: &Path,
+    root: &Path,
+    overlay: &Path,
+    paths: &[PathBuf],
+) -> Result<(Layer, PathBuf, Vec<PathBuf>), String> {
+    let mut layer = Layer {
+        files: req.env.replaced.iter().cloned().collect(),
+        links: Vec::new(),
+    };
+    // A document of a replaced file has the replaced text, as the host reads it.
+    for (i, path) in paths.iter().enumerate() {
+        layer.files.insert(path.clone(), req.text(i).to_owned());
+    }
+    layer.files.extend(
+        req.stand_ins(root)
+            .map(|(path, text)| (path, text.to_owned())),
+    );
+    let store = support.join("projections.json");
+    if let Some(binary) = &req.env.content_mapper {
+        let package = mapped::write_mapper(req, binary, support, &store, root, paths)?;
+        layer
+            .links
+            .push((overlay.join("node_modules").join(MAPPER_PACKAGE), package));
+    }
+    let declarations: Vec<PathBuf> = req
+        .env
+        .declarations
+        .iter()
+        .map(|(name, text)| {
+            let path = overlay.join(name);
+            layer.files.insert(path.clone(), (*text).to_owned());
+            path
+        })
+        .collect();
+    Ok((layer, store, declarations))
+}
+
 /// What the overlay keeps of the project its tsconfig describes.
 #[derive(Default)]
 struct BaseProject {
-    /// The root files, as the tsconfig selects them.
+    /// The root files, as the tsconfig selects them, components included.
     roots: Vec<PathBuf>,
     /// `compilerOptions.paths`, which the overlay's own `paths` would otherwise replace.
     paths: Vec<(String, Vec<PathBuf>)>,
-    /// Whether the options make an import of JavaScript untyped. Without a tsconfig,
+    /// Which imports of JavaScript the options make untyped. Without a tsconfig,
     /// `noImplicitAny` is off and such an import stays quiet.
-    untyped: bool,
+    untyped: UntypedJavaScript,
     /// Whether modules resolve as `node16` or `nodenext` do.
     node_resolution: bool,
     /// Whether the file layer holds a declaration of a script module, such as `x.d.svelte.ts`.
@@ -477,6 +385,10 @@ struct BaseProject {
     /// The directory of the project's tsconfig, when TypeScript checks files against `rootDir`
     /// and the tsconfig leaves it to that default.
     default_root_dir: Option<PathBuf>,
+    /// What the project the tsconfig selects holds beyond its roots, and of the JavaScript
+    /// documents where a package's JavaScript is untyped, those a search of `node_modules`
+    /// found.
+    selected: Selected,
 }
 
 fn base_project(
@@ -484,25 +396,40 @@ fn base_project(
     base: Option<&Path>,
     req: &CheckRequest<'_>,
     overlay: &Path,
+    store: &Path,
+    paths: &[PathBuf],
     layer: &mut Layer,
 ) -> Result<BaseProject, String> {
     let Some(base) = base else {
         return Ok(BaseProject::default());
     };
+    // Without a content mapper the tsconfig's own project is the selection's.
+    let selection =
+        (req.env.content_mapper.is_some()).then(|| selection::config(req, overlay, base, store));
+    layer.files.extend(selection.iter().cloned());
     let probe = untyped::any_javascript(req).then(|| untyped::probe(overlay, base));
     layer.files.extend(probe.iter().flatten().cloned());
     let mut configs = vec![base];
+    configs.extend(selection.iter().map(|(config, _)| config.as_path()));
     configs.extend(probe.iter().map(|[.., (config, _)]| config.as_path()));
-    // One snapshot holds both projects.
+    // One snapshot holds every project.
     let mut projects = session.open(&configs, layer)?.into_iter();
     let project = projects.next().ok_or("the checker opened no project")?;
+    let selection = match selection {
+        Some(_) => Some(projects.next().ok_or("the checker opened no selection")?),
+        None => None,
+    };
     let untyped = match projects.next() {
         Some(probe) => untyped::reported(session, &probe, overlay)?,
-        None => false,
+        None => UntypedJavaScript::None,
     };
+    let packages = untyped == UntypedJavaScript::Packages;
+    let ask = |file: usize| packages && untyped::javascript(req, file);
+    let selected =
+        selection::selected(session, selection.as_ref().unwrap_or(&project), paths, &ask)?;
     session.release(project.snapshot)?;
     Ok(BaseProject {
-        roots: project.root_files,
+        roots: selection.map_or(project.root_files, |selection| selection.root_files),
         paths: project.paths,
         untyped,
         node_resolution: project.node_resolution,
@@ -510,6 +437,7 @@ fn base_project(
         default_root_dir: (project.default_root_dir)
             .then(|| base.parent().map(Path::to_path_buf))
             .flatten(),
+        selected,
     })
 }
 
@@ -524,11 +452,9 @@ fn path_index(paths: &[PathBuf]) -> HashMap<&Path, usize> {
 }
 
 /// The document and byte range of a diagnostic in the document `index` names, whose texts
-/// `lines` index. A path below `root` in the message drops that root, so the message does not
-/// depend on where the project is.
+/// `lines` index.
 fn located(
     d: &rsvelte_typescript_api::Diagnostic,
-    root: &Path,
     index: &HashMap<&Path, usize>,
     lines: &[LineIndex],
     syntactic: bool,
@@ -538,10 +464,7 @@ fn located(
         let p = p?;
         lines[file].offset(p.line + 1, p.character)
     };
-    let message = d.flattened_message().replace(
-        &format!("{}{}", root.display(), std::path::MAIN_SEPARATOR),
-        "",
-    );
+    let message = d.flattened_message();
     // A finding in synthesized code may still carry a nearby position, beside this note.
     let span = offset(d.start_position)
         .zip(offset(d.end_position))
@@ -572,9 +495,8 @@ fn unlocated(checker: &TypeChecker, d: &rsvelte_typescript_api::Diagnostic) -> S
 mod mapped;
 mod project;
 mod script_module;
+mod selection;
+mod shares;
 mod untyped;
 pub(crate) use mapped::ContentMappedInput;
 pub(crate) use untyped::{CheckedImport, checked_imports};
-
-#[cfg(test)]
-mod tests;

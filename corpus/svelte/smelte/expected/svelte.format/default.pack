@@ -55,7 +55,7 @@
   </p>
 </div>
 
-=== 3814 src/routes/components/buttons.svelte	svelte
+=== 3817 src/routes/components/buttons.svelte	svelte
 <script>
   import Button from "components/Button";
   import Icon from "components/Icon";
@@ -215,8 +215,9 @@
   FAB <a
     class="a"
     href="https://material.io/components/buttons-floating-action-button/"
-    >(Floating action button)</a
   >
+    (Floating action button)
+  </a>
 </h6>
 <div class="py-2">
   <Button color="alert" icon="change_history" />
@@ -479,9 +480,9 @@
 </script>
 
 <div>
-  <small
-    >I selected {selected ? selected.toLocaleDateString() : "nothing"}</small
-  >
+  <small>
+    I selected {selected ? selected.toLocaleDateString() : "nothing"}
+  </small>
 </div>
 <DatePicker on:change={(i) => (selected = i.detail)} />
 
@@ -523,14 +524,14 @@
 </div>
 
 <div class="py-2">
-  <Button color="secondary" on:click={() => (showDialog2 = true)}
-    >Show persistent dialog</Button
-  >
+  <Button color="secondary" on:click={() => (showDialog2 = true)}>
+    Show persistent dialog
+  </Button>
 </div>
 
 <Code code={dialog} />
 
-=== 625 src/routes/components/images.svelte	svelte
+=== 633 src/routes/components/images.svelte	svelte
 <script>
   import Image from "components/Image";
   import Code from "docs/Code.svelte";
@@ -544,8 +545,10 @@
   Smelte includes convenience image component which is useful for lazyloading,
   but generally we recommend using <a
     class="a"
-    href="https://github.com/matyunya/svelte-image">Svelte Image</a
-  >.
+    href="https://github.com/matyunya/svelte-image"
+  >
+    Svelte Image
+  </a>.
 </p>
 
 <Code code={images} />
@@ -561,7 +564,7 @@
   </div>
 {/each}
 
-=== 2508 src/routes/components/index.svelte	svelte
+=== 2511 src/routes/components/index.svelte	svelte
 <script>
   import Button from "components/Button";
   import Code from "docs/Code.svelte";
@@ -576,10 +579,10 @@
   solution given utility-first nature of Tailwind. So for the most part
   components expose all of their elements' classes as strings like, for
   instance, Button component has "disabledClasses" prop defaulting to<br />
-  <span class="code-inline"
-    >bg-gray-300 text-gray-500 dark:bg-dark-400 pointer-events-none
-    hover:bg-gray-300 cursor-default</span
-  >
+  <span class="code-inline">
+    bg-gray-300 text-gray-500 dark:bg-dark-400 pointer-events-none
+    hover:bg-gray-300 cursor-default
+  </span>
 </p>
 
 <Code code="<Button disabled>Disabled button</Button>" />
@@ -591,10 +594,10 @@
 <p>
   Say you need to adjust that background color, you may the "disabledClasses"
   prop<br />
-  <span class="code-inline"
-    >bg-gray-100 text-gray-700 dark:bg-dark-100 pointer-events-none
-    hover:bg-gray-300 cursor-default</span
-  >
+  <span class="code-inline">
+    bg-gray-100 text-gray-700 dark:bg-dark-100 pointer-events-none
+    hover:bg-gray-300 cursor-default
+  </span>
 </p>
 
 <Code
@@ -608,7 +611,8 @@
   <Button
     disabledClasses="bg-gray-100 text-gray-500 dark:bg-dark-100 pointer-events-none hover:bg-gray-300 cursor-default"
     disabled
-    >Disabled button
+  >
+    Disabled button
   </Button>
 </div>
 
@@ -627,8 +631,8 @@
 />
 
 <div class="pt-8 pb-16">
-  <Button disabledClasses={(i) => i.replace(/(3|4)00/g, "100")} disabled
-    >Disabled button
+  <Button disabledClasses={(i) => i.replace(/(3|4)00/g, "100")} disabled>
+    Disabled button
   </Button>
 </div>
 
@@ -1206,7 +1210,7 @@
 
 <Code code={sliders} />
 
-=== 2596 src/routes/components/snackbars.svelte	svelte
+=== 2602 src/routes/components/snackbars.svelte	svelte
 <script>
   import Snackbar, { notifier, Notifications } from "components/Snackbar";
   import Button from "components/Button";
@@ -1283,14 +1287,14 @@
   <Button on:click={() => (showSnackbar = true)}>Show snackbar</Button>
 </div>
 <div class="py-2">
-  <Button color="secondary" on:click={() => (showSnackbarTop = true)}
-    >Show snackbar on top</Button
-  >
+  <Button color="secondary" on:click={() => (showSnackbarTop = true)}>
+    Show snackbar on top
+  </Button>
 </div>
 <div class="py-2">
-  <Button color="alert" on:click={() => (showSnackbarBottomLeft = true)}
-    >Show snackbar on the bottom left</Button
-  >
+  <Button color="alert" on:click={() => (showSnackbarBottomLeft = true)}>
+    Show snackbar on the bottom left
+  </Button>
 </div>
 
 <p class="mt-10">
@@ -1300,11 +1304,13 @@
 <TextField bind:value={message} label="Message text" />
 <Button disabled={!message} on:click={notify}>Add Notification to queue</Button>
 
-<Button disabled={!message} color="alert" on:click={alert}>Alert message</Button
->
+<Button disabled={!message} color="alert" on:click={alert}>
+  Alert message
+</Button>
 
-<Button disabled={!message} color="error" on:click={error}>Error message</Button
->
+<Button disabled={!message} color="error" on:click={error}>
+  Error message
+</Button>
 
 <Notifications />
 
@@ -1389,7 +1395,7 @@
 
 <Code code={tabsWithContent} />
 
-=== 4646 src/routes/components/text-fields.svelte	svelte
+=== 4654 src/routes/components/text-fields.svelte	svelte
 <script>
   import TextField, { Label } from "components/TextField";
   import DataTable from "components/DataTable";
@@ -1411,8 +1417,10 @@
 <h6>Props</h6>
 <p class="mb-5 mt-3">
   Inputs accept any props that a normal input element can take, like <span
-    class="code-inline">max-length</span
+    class="code-inline"
   >
+    max-length
+  </span>
   or <span class="code-inline">type</span>.
 </p>
 

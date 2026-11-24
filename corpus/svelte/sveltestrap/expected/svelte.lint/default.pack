@@ -3,7 +3,10 @@
 7:25 7:43 svelte/max-attributes-per-line "'class' should be on a new line."
 7:25 7:43 svelte/sort-attributes "Attribute 'class' should go before 'active'."
 
-=== 2412 src/Accordion/Accordion.stories.svelte	lint.txt
+=== 3007 src/Accordion/Accordion.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+66:7 66:9 svelte/valid-compile "`id` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+67:7 67:11 svelte/valid-compile "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 78:21 78:29 svelte/max-attributes-per-line "'let:args' should be on a new line."
 78:30 78:50 svelte/sort-attributes "Attribute 'source' should go before 'let:args'."
 91:25 91:32 no-undef "'console' is not defined."
@@ -37,7 +40,9 @@
 188:23 188:36 svelte/max-attributes-per-line "'slot' should be on a new line."
 188:23 188:36 svelte/sort-attributes "Attribute 'slot' should go before 'class'."
 
-=== 1945 src/Alert/Alert.stories.svelte	lint.txt
+=== 2337 src/Alert/Alert.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+125:7 125:13 svelte/valid-compile "`isOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 126:7 126:13 svelte/prefer-const "'toggle' is never reassigned. Use 'const' instead."
 130:20 130:28 svelte/max-attributes-per-line "'on:click' should be on a new line."
 130:28 130:37 svelte/html-self-closing "Require self-closing on Svelte custom components."
@@ -63,7 +68,8 @@
 174:46 174:61 svelte/sort-attributes "Attribute 'color' should go before 'theme'."
 174:62 174:75 svelte/sort-attributes "Attribute 'isOpen' should go before 'theme'."
 
-=== 1901 src/Badge/Badge.stories.svelte	lint.txt
+=== 2079 src/Badge/Badge.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 118:21 118:66 svelte/max-attributes-per-line "'args' should be on a new line."
 121:3 121:27 svelte/no-unused-class-name "Unused class \"horizontal\"."
 122:5 122:28 svelte/require-each-key "Each block should have a key"
@@ -89,12 +95,14 @@
 164:36 164:51 svelte/sort-attributes "Attribute 'color' should go before 'href'."
 168:3 168:33 svelte/no-unused-class-name "Unused class \"headings-example\"."
 
-=== 239 src/Breadcrumb/Breadcrumb.stories.svelte	lint.txt
+=== 417 src/Breadcrumb/Breadcrumb.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 59:21 59:29 svelte/max-attributes-per-line "'let:args' should be on a new line."
 60:3 60:36 svelte/no-unused-class-name "Unused class \"breadcrumbs-example\"."
 85:3 85:36 svelte/no-unused-class-name "Unused class \"breadcrumbs-example\"."
 
-=== 1556 src/Button/Button.stories.svelte	lint.txt
+=== 1734 src/Button/Button.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 105:21 105:29 svelte/max-attributes-per-line "'on:click' should be on a new line."
 105:29 105:39 svelte/html-self-closing "Require self-closing on Svelte custom components."
 108:21 108:79 svelte/max-attributes-per-line "'args' should be on a new line."
@@ -116,7 +124,8 @@
 136:29 136:35 svelte/max-attributes-per-line "'active' should be on a new line."
 136:29 136:35 svelte/sort-attributes "Attribute 'active' should go before 'color'."
 
-=== 706 src/ButtonGroup/ButtonGroup.stories.svelte	lint.txt
+=== 884 src/ButtonGroup/ButtonGroup.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 80:21 80:37 svelte/max-attributes-per-line "'let:args' should be on a new line."
 80:38 80:58 svelte/sort-attributes "Attribute 'source' should go before 'let:args'."
 82:33 82:56 svelte/max-attributes-per-line "'outline' should be on a new line."
@@ -127,7 +136,8 @@
 104:3 104:27 svelte/no-unused-class-name "Unused class \"horizontal\"."
 105:5 105:28 svelte/require-each-key "Each block should have a key"
 
-=== 2391 src/Card/Card.stories.svelte	lint.txt
+=== 2569 src/Card/Card.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 84:3 84:29 svelte/no-unused-class-name "Unused class \"card-example\"."
 85:5 85:29 svelte/no-unused-class-name "Unused class \"card-width\"."
 96:3 96:29 svelte/no-unused-class-name "Unused class \"card-example\"."
@@ -160,7 +170,9 @@
 148:26 148:38 svelte/sort-attributes "Attribute 'class' should go before 'theme'."
 162:5 162:29 svelte/no-unused-class-name "Unused class \"card-width\"."
 
-=== 5659 src/Carousel/Carousel.stories.svelte	lint.txt
+=== 6056 src/Carousel/Carousel.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+104:7 104:18 svelte/valid-compile "`activeIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 108:3 108:33 svelte/no-unused-class-name "Unused class \"carousel-example\"."
 109:5 109:32 svelte/no-unused-class-name "Unused class \"carousel-size\"."
 110:27 110:34 svelte/max-attributes-per-line "'items' should be on a new line."
@@ -230,10 +242,12 @@
 181:43 181:59 svelte/max-attributes-per-line "'bind:activeIndex' should be on a new line."
 181:60 181:67 svelte/sort-attributes "Attribute 'items' should go before 'bind:activeIndex'."
 
-=== 76 src/Colgroup/Colgroup.svelte	lint.txt
+=== 267 src/Colgroup/Colgroup.svelte	lint.txt
+8:3 8:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 8:9 8:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 706 src/Container/Container.stories.svelte	lint.txt
+=== 884 src/Container/Container.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 65:5 65:27 svelte/no-unused-class-name "Unused class \"container\"."
 70:3 70:29 svelte/no-unused-class-name "Unused class \"grid-example\"."
 71:5 71:36 svelte/no-unused-class-name "Unused class \"container-wrapper\"."
@@ -249,7 +263,9 @@
 9:25 9:40 svelte/max-attributes-per-line "'class' should be on a new line."
 9:25 9:40 svelte/sort-attributes "Attribute 'class' should go before 'caret'."
 
-=== 4815 src/Dropdown/Dropdown.stories.svelte	lint.txt
+=== 5207 src/Dropdown/Dropdown.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+119:7 119:13 svelte/valid-compile "`isOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 139:3 139:33 svelte/no-unused-class-name "Unused class \"dropdown-example\"."
 140:5 140:30 svelte/no-unused-class-name "Unused class \"drop-height\"."
 142:41 142:46 svelte/max-attributes-per-line "'caret' should be on a new line."
@@ -312,7 +328,10 @@
 307:39 307:44 svelte/max-attributes-per-line "'caret' should be on a new line."
 307:39 307:44 svelte/sort-attributes "Attribute 'caret' should go before 'color'."
 
-=== 1119 src/Fade/Fade.stories.svelte	lint.txt
+=== 1721 src/Fade/Fade.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+30:7 30:13 svelte/valid-compile "`isOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+31:7 31:13 svelte/valid-compile "`status` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 34:15 34:19 no-unused-vars "'args' is defined but never used."
 35:3 35:29 svelte/no-unused-class-name "Unused class \"fade-example\"."
 36:29 36:64 svelte/max-attributes-per-line "'on:click' should be on a new line."
@@ -329,7 +348,8 @@
 76:42 76:54 svelte/sort-attributes "Attribute 'class' should go before 'color'."
 78:7 78:31 svelte/no-unused-class-name "Unused class \"card-width\"."
 
-=== 966 src/FormGroup/FormGroup.stories.svelte	lint.txt
+=== 1144 src/FormGroup/FormGroup.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 93:3 93:47 svelte/no-unused-class-name "Unused class \"form-width\"."
 93:3 93:47 svelte/no-unused-class-name "Unused class \"form-groups-example\"."
 96:26 96:53 svelte/max-attributes-per-line "'placeholder' should be on a new line."
@@ -341,7 +361,8 @@
 113:11 113:21 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<option ...></option>` rather than `<option ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 113:19 113:21 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 2233 src/Grid/Grid.stories.svelte	lint.txt
+=== 2411 src/Grid/Grid.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 41:19 41:27 no-unused-vars "'Template' is defined but never used."
 49:3 49:29 svelte/no-unused-class-name "Unused class \"grid-example\"."
 51:22 51:33 svelte/max-attributes-per-line "'class' should be on a new line."
@@ -371,7 +392,8 @@
 138:43 138:54 svelte/max-attributes-per-line "'class' should be on a new line."
 138:43 138:54 svelte/sort-attributes "Attribute 'class' should go before 'cols'."
 
-=== 1309 src/Image/Image.stories.svelte	lint.txt
+=== 1487 src/Image/Image.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 96:3 96:27 svelte/no-unused-class-name "Unused class \"horizontal\"."
 97:5 97:36 svelte/require-each-key "Each block should have a key"
 98:24 98:55 svelte/max-attributes-per-line "'alt' should be on a new line."
@@ -390,10 +412,17 @@
 118:38 118:69 svelte/sort-attributes "Attribute 'alt' should go before 'theme'."
 118:70 118:85 svelte/sort-attributes "Attribute 'src' should go before 'theme'."
 
-=== 77 src/InlineContainer/InlineContainer.svelte	lint.txt
+=== 268 src/InlineContainer/InlineContainer.svelte	lint.txt
+1:6 1:14 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:12 1:14 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 8055 src/Input/Input.stories.svelte	lint.txt
+=== 9316 src/Input/Input.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+197:7 197:18 svelte/valid-compile "`changeValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+198:7 198:14 svelte/valid-compile "`focused` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+199:7 199:12 svelte/valid-compile "`inner` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+200:7 200:17 svelte/valid-compile "`inputValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+201:7 201:17 svelte/valid-compile "`radioGroup` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 218:3 218:27 svelte/no-unused-class-name "Unused class \"form-width\"."
 226:3 226:27 svelte/no-unused-class-name "Unused class \"form-width\"."
 227:5 227:32 svelte/no-unused-class-name "Unused class \"input-example\"."
@@ -495,7 +524,8 @@
 425:28 425:41 svelte/max-attributes-per-line "'type' should be on a new line."
 425:42 425:62 svelte/sort-attributes "Attribute 'label' should go before 'theme'."
 
-=== 1408 src/InputGroup/InputGroup.stories.svelte	lint.txt
+=== 1586 src/InputGroup/InputGroup.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 64:3 64:27 svelte/no-unused-class-name "Unused class \"form-width\"."
 75:3 75:27 svelte/no-unused-class-name "Unused class \"form-width\"."
 78:22 78:37 svelte/max-attributes-per-line "'type' should be on a new line."
@@ -515,7 +545,8 @@
 151:43 151:52 svelte/sort-attributes "Attribute 'max' should go before 'placeholder'."
 151:67 151:75 svelte/sort-attributes "Attribute 'step' should go before 'type'."
 
-=== 4605 src/ListGroup/ListGroup.stories.svelte	lint.txt
+=== 4783 src/ListGroup/ListGroup.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 71:3 71:34 svelte/no-unused-class-name "Unused class \"listgroup-example\"."
 72:5 72:38 svelte/no-unused-class-name "Unused class \"listgroup-item-size\"."
 88:3 88:34 svelte/no-unused-class-name "Unused class \"listgroup-example\"."
@@ -575,7 +606,13 @@
 168:5 168:38 svelte/no-unused-class-name "Unused class \"listgroup-item-size\"."
 178:5 178:38 svelte/no-unused-class-name "Unused class \"listgroup-item-size\"."
 
-=== 5009 src/Modal/Modal.stories.svelte	lint.txt
+=== 6265 src/Modal/Modal.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+208:7 208:11 svelte/valid-compile "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+209:7 209:21 svelte/valid-compile "`openScrollable` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+210:7 210:13 svelte/valid-compile "`status` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+211:7 211:17 svelte/valid-compile "`fullscreen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+212:7 212:11 svelte/valid-compile "`size` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 244:28 244:45 svelte/max-attributes-per-line "'on:click' should be on a new line."
 245:22 245:35 svelte/max-attributes-per-line "'isOpen' should be on a new line."
 245:45 245:117 svelte/sort-attributes "Attribute 'modalStyle' should go before 'toggle'."
@@ -638,8 +675,10 @@
 437:30 437:48 svelte/sort-attributes "Attribute 'class' should go before 'color'."
 438:26 438:36 svelte/max-attributes-per-line "'class' should be on a new line."
 
-=== 3964 src/Nav/Nav.stories.svelte	lint.txt
+=== 4354 src/Nav/Nav.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 91:19 91:27 no-unused-vars "'Template' is defined but never used."
+95:7 95:13 svelte/valid-compile "`isOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 97:7 97:18 svelte/prefer-const "'basicSource' is never reassigned. Use 'const' instead."
 99:2 99:3 no-useless-escape "Unnecessary escape character: \\/."
 130:21 130:29 svelte/max-attributes-per-line "'let:args' should be on a new line."
@@ -690,8 +729,10 @@
 300:27 300:33 svelte/sort-attributes "Attribute 'active' should go before 'href'."
 309:27 309:35 svelte/max-attributes-per-line "'href' should be on a new line."
 
-=== 3321 src/Navbar/Navbar.stories.svelte	lint.txt
+=== 3713 src/Navbar/Navbar.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 107:19 107:27 no-unused-vars "'Template' is defined but never used."
+122:7 122:13 svelte/valid-compile "`isOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 152:21 152:29 svelte/max-attributes-per-line "'let:args' should be on a new line."
 156:24 156:30 svelte/max-attributes-per-line "'navbar' should be on a new line."
 156:31 156:42 svelte/sort-attributes "Attribute 'expand' should go before 'isOpen'."
@@ -733,8 +774,14 @@
 254:38 254:50 svelte/sort-attributes "Attribute 'class' should go before 'on:click'."
 255:24 255:30 svelte/max-attributes-per-line "'navbar' should be on a new line."
 
-=== 5029 src/Offcanvas/Offcanvas.stories.svelte	lint.txt
+=== 6500 src/Offcanvas/Offcanvas.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 131:19 131:27 no-unused-vars "'Template' is defined but never used."
+134:7 134:13 svelte/valid-compile "`isOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+135:7 135:13 svelte/valid-compile "`status` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+136:7 136:14 svelte/valid-compile "`endOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+137:7 137:17 svelte/valid-compile "`bottomOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+138:7 138:14 svelte/valid-compile "`topOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 155:21 155:29 svelte/max-attributes-per-line "'let:args' should be on a new line."
 155:30 155:50 svelte/sort-attributes "Attribute 'source' should go before 'let:args'."
 156:38 156:55 svelte/max-attributes-per-line "'on:click' should be on a new line."
@@ -778,6 +825,7 @@
 314:57 314:74 svelte/sort-attributes "Attribute 'class' should go before 'isOpen'."
 315:5 317:11 svelte/valid-compile "Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 315:5 317:11 svelte/valid-compile "`<div>` with a click handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions(a11y_no_static_element_interactions)"
+315:10 315:43 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 316:49 316:74 svelte/max-attributes-per-line "'alt' should be on a new line."
 316:49 316:74 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
 322:24 322:41 svelte/max-attributes-per-line "'on:click' should be on a new line."
@@ -791,7 +839,8 @@
 330:64 330:84 svelte/sort-attributes "Attribute 'header' should go before 'theme'."
 330:85 330:100 svelte/sort-attributes "Attribute 'placement' should go before 'theme'."
 
-=== 2888 src/Pagination/Pagination.stories.svelte	lint.txt
+=== 3066 src/Pagination/Pagination.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 74:29 74:37 svelte/max-attributes-per-line "'href' should be on a new line."
 77:32 77:40 svelte/max-attributes-per-line "'href' should be on a new line."
 77:32 77:40 svelte/sort-attributes "Attribute 'href' should go before 'previous'."
@@ -829,7 +878,8 @@
 177:30 177:38 svelte/max-attributes-per-line "'href' should be on a new line."
 177:30 177:38 svelte/sort-attributes "Attribute 'href' should go before 'last'."
 
-=== 4698 src/Popover/Popover.stories.svelte	lint.txt
+=== 4876 src/Popover/Popover.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 133:21 133:29 svelte/max-attributes-per-line "'let:args' should be on a new line."
 133:30 133:50 svelte/sort-attributes "Attribute 'source' should go before 'let:args'."
 134:27 134:45 svelte/max-attributes-per-line "'id' should be on a new line."
@@ -888,7 +938,8 @@
 213:23 213:43 svelte/max-attributes-per-line "'style' should be on a new line."
 213:30 213:42 svelte/prefer-style-directive "Can use style directives instead."
 
-=== 9605 src/Progress/Progress.stories.svelte	lint.txt
+=== 9783 src/Progress/Progress.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 92:3 92:26 svelte/require-each-key "Each block should have a key"
 93:25 93:32 svelte/max-attributes-per-line "'color' should be on a new line."
 93:65 93:77 svelte/sort-attributes "Attribute 'class' should go before 'color'."
@@ -1009,7 +1060,8 @@
 221:29 221:37 svelte/sort-attributes "Attribute 'animated' should go before 'theme'."
 221:52 221:64 svelte/sort-attributes "Attribute 'class' should go before 'theme'."
 
-=== 1039 src/Spinner/Spinner.stories.svelte	lint.txt
+=== 1217 src/Spinner/Spinner.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 46:3 46:26 svelte/require-each-key "Each block should have a key"
 47:24 47:31 svelte/max-attributes-per-line "'color' should be on a new line."
 54:3 54:26 svelte/require-each-key "Each block should have a key"
@@ -1025,7 +1077,8 @@
 69:24 69:35 svelte/max-attributes-per-line "'type' should be on a new line."
 69:36 69:43 svelte/sort-attributes "Attribute 'color' should go before 'size'."
 
-=== 1093 src/Styles/Styles.stories.svelte	lint.txt
+=== 1271 src/Styles/Styles.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 20:5 20:17 no-unused-vars "'ThemeToggler' is defined but never used."
 22:5 22:20 no-unused-vars "'toggleColorMode' is defined but never used."
 23:5 23:17 no-unused-vars "'useColorMode' is defined but never used."
@@ -1041,7 +1094,8 @@
 55:29 55:36 svelte/max-attributes-per-line "'outline' should be on a new line."
 55:37 55:67 svelte/sort-attributes "Attribute 'active' should go before 'color'."
 
-=== 1926 src/Table/Table.stories.svelte	lint.txt
+=== 2104 src/Table/Table.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 178:11 178:40 svelte/require-each-key "Each block should have a key"
 178:31 178:32 no-unused-vars "'_' is defined but never used."
 191:11 191:40 svelte/require-each-key "Each block should have a key"
@@ -1070,7 +1124,9 @@
 278:32 278:45 svelte/max-attributes-per-line "'width' should be on a new line."
 278:46 278:64 svelte/sort-attributes "Attribute 'class' should go before 'header'."
 
-=== 4988 src/Tabs/Tabs.stories.svelte	lint.txt
+=== 5378 src/Tabs/Tabs.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+14:7 14:13 svelte/valid-compile "`status` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:15 17:19 no-unused-vars "'args' is defined but never used."
 18:3 18:28 svelte/no-unused-class-name "Unused class \"tab-example\"."
 20:29 20:42 svelte/max-attributes-per-line "'tabId' should be on a new line."
@@ -1136,7 +1192,8 @@
 150:45 150:58 svelte/sort-attributes "Attribute 'tab' should go before 'tabId'."
 151:9 151:34 svelte/no-unused-class-name "Unused class \"text-content\"."
 
-=== 1304 src/Theme/Theme.stories.svelte	lint.txt
+=== 1482 src/Theme/Theme.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 46:17 46:36 svelte/max-attributes-per-line "'header' should be on a new line."
 46:37 46:68 svelte/sort-attributes "Attribute 'style' should go before 'body'."
 55:27 55:34 svelte/max-attributes-per-line "'outline' should be on a new line."
@@ -1154,12 +1211,18 @@
 79:38 79:57 svelte/max-attributes-per-line "'let:toggleColorMode' should be on a new line."
 80:29 80:63 svelte/max-attributes-per-line "'on:click' should be on a new line."
 
-=== 271 src/Theme/ThemeToggler.svelte	lint.txt
+=== 684 src/Theme/ThemeToggler.svelte	lint.txt
+4:7 4:23 svelte/valid-compile "`currentColorMode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:13 6:22 svelte/no-ignored-unsubscribe "Ignoring returned value of the subscribe method is forbidden."
+11:1 11:46 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 11:26 11:43 svelte/max-attributes-per-line "'toggleColorMode' should be on a new line."
 11:44 11:46 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 2901 src/Toast/Toast.stories.svelte	lint.txt
+=== 3722 src/Toast/Toast.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+156:7 156:13 svelte/valid-compile "`isOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+157:7 157:13 svelte/valid-compile "`status` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+167:7 167:14 svelte/valid-compile "`seconds` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 171:25 171:36 no-undef "'setInterval' is not defined."
 173:9 173:22 no-undef "'clearInterval' is not defined."
 183:5 183:18 no-undef "'clearInterval' is not defined."
@@ -1200,8 +1263,12 @@
 303:26 303:57 svelte/max-attributes-per-line "'style' should be on a new line."
 303:26 303:57 svelte/sort-attributes "Attribute 'style' should go before 'theme'."
 
-=== 4023 src/Tooltip/Tooltip.stories.svelte	lint.txt
+=== 4854 src/Tooltip/Tooltip.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 92:9 92:19 no-unused-vars "'placements' is assigned a value but never used."
+94:7 94:13 svelte/valid-compile "`isOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+96:7 96:21 svelte/valid-compile "`myHtmlElementA` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+96:23 96:37 svelte/valid-compile "`myHtmlElementB` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 101:5 101:23 svelte/no-unused-class-name "Unused class \"mt-3\"."
 102:18 102:43 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
 102:44 102:59 svelte/max-attributes-per-line "'color' should be on a new line."
@@ -1250,8 +1317,10 @@
 163:26 163:50 svelte/sort-attributes "Attribute 'target' should go before 'theme'."
 163:51 163:66 svelte/sort-attributes "Attribute 'placement' should go before 'theme'."
 
-=== 1166 src/Validation/Validation.stories.svelte	lint.txt
+=== 1559 src/Validation/Validation.stories.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 11:19 11:25 no-unused-vars "'Source' is defined but never used."
+14:7 14:16 svelte/valid-compile "`validated` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:3 18:36 svelte/no-unused-class-name "Unused class \"vertical\"."
 18:3 18:36 svelte/no-unused-class-name "Unused class \"form-width\"."
 20:32 20:59 svelte/max-attributes-per-line "'feedback' should be on a new line."
@@ -1267,7 +1336,7 @@
 38:50 38:86 svelte/max-attributes-per-line "'placeholder' should be on a new line."
 40:29 40:64 svelte/max-attributes-per-line "'on:click' should be on a new line."
 
-=== 7058 tests/app/src/routes/+page.svelte	lint.txt
+=== 7499 tests/app/src/routes/+page.svelte	lint.txt
 10:5 10:19 no-unused-vars "'ButtonDropdown' is defined but never used."
 15:5 15:16 no-unused-vars "'CardColumns' is defined but never used."
 16:5 16:13 no-unused-vars "'CardDeck' is defined but never used."
@@ -1326,6 +1395,8 @@
 84:5 84:14 no-unused-vars "'ToastBody' is defined but never used."
 85:5 85:16 no-unused-vars "'ToastHeader' is defined but never used."
 86:5 86:12 no-unused-vars "'Tooltip' is defined but never used."
+115:7 115:18 svelte/valid-compile "`activeIndex` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+116:7 116:21 svelte/valid-compile "`isDropdownOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 127:9 127:39 svelte/no-unused-class-name "Unused class \"m-0\"."
 127:25 127:38 svelte/max-attributes-per-line "'slot' should be on a new line."
 127:25 127:38 svelte/sort-attributes "Attribute 'slot' should go before 'class'."

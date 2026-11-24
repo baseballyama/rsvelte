@@ -1221,10 +1221,12 @@
 71:2 71:6 svelte/consistent-selector-style "Selector should select by element type instead of class"
 83:3 83:8 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 1207 src/routes/ConfettiOnClick.svelte	lint.txt
+=== 1632 src/routes/ConfettiOnClick.svelte	lint.txt
+6:7 6:13 svelte/valid-compile "`things` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 20:5 20:17 no-undef "'clearTimeout' is not defined."
 22:15 22:25 no-undef "'setTimeout' is not defined."
 28:18 28:41 svelte/max-attributes-per-line "'on:click' should be on a new line."
+28:18 28:41 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 31:3 31:26 svelte/require-each-key "Each block should have a key"
 32:24 32:67 svelte/no-inline-styles "Found disallowed style attribute."
 32:24 32:67 svelte/max-attributes-per-line "'style' should be on a new line."

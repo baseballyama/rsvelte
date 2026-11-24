@@ -1,0 +1,267 @@
+[
+	{
+		"file": "/p/src/routes/+page.js",
+		"source": "export function load(event) {\n\treturn {};\n}\nexport const prerender = true;\nexport const ssr = false;\nexport const csr = true;\nexport const trailingSlash = 'never';\nexport function entries() {\n\treturn [];\n}\n",
+		"expected": "/** @param {import('./$types.js').PageLoadEvent} event */ export function load(event) {\n\treturn {};\n}\nexport const prerender = /** @type {boolean | 'auto'} */ (true);\nexport const ssr = /** @type {boolean} */ (false);\nexport const csr = /** @type {boolean} */ (true);\nexport const trailingSlash = /** @type {'never' | 'always' | 'ignore'} */ ('never');\n/** @type {import('./$types.js').EntryGenerator} */ export function entries() {\n\treturn [];\n}\n"
+	},
+	{
+		"file": "/p/src/routes/+layout.js",
+		"source": "export const load = async ({ params }) => {\n\treturn params;\n};\nexport function entries() {\n\treturn [];\n}\n",
+		"expected": "export const load = /** @param {import('./$types.js').LayoutLoadEvent} arg0 */ async ({ params }) => {\n\treturn params;\n};\nexport function entries() {\n\treturn [];\n}\n"
+	},
+	{
+		"file": "/p/src/routes/a/+page.js",
+		"source": "/** @param {any} event */\nexport function load(event) {\n\treturn {};\n}\n/** @type {boolean} */\nexport const prerender = true;\n",
+		"expected": "/** @param {any} event */\nexport function load(event) {\n\treturn {};\n}\n/** @type {boolean} */\nexport const prerender = true;\n"
+	},
+	{
+		"file": "/p/src/routes/b/+page.js",
+		"source": "/** @type {import('./$types').PageLoad} */\nexport const load = (event) => {\n\treturn {};\n};\n",
+		"expected": "/** @type {import('./$types').PageLoad} */\nexport const load = (event) => {\n\treturn {};\n};\n"
+	},
+	{
+		"file": "/p/src/routes/c/+page.js",
+		"source": "/** @param {any} event */\n/** another comment */\nexport function load(event) {\n\treturn {};\n}\n",
+		"expected": "/** @param {any} event */\n/** another comment */\n/** @param {import('./$types.js').PageLoadEvent} event */ export function load(event) {\n\treturn {};\n}\n"
+	},
+	{
+		"file": "/p/src/routes/d/+page.js",
+		"source": "foo(); /** @param {any} event */ export function load(event) {\n\treturn {};\n}\n",
+		"expected": "foo(); /** @param {any} event */ /** @param {import('./$types.js').PageLoadEvent} event */ export function load(event) {\n\treturn {};\n}\n"
+	},
+	{
+		"file": "/p/src/routes/e/+page.js",
+		"source": "/** @arg {any} event */\nexport function load(event) {}\n/** @argument {any} x */\nexport const ssr = true;\n",
+		"expected": "/** @arg {any} event */\nexport function load(event) {}\n/** @argument {any} x */\nexport const ssr = /** @type {boolean} */ (true);\n"
+	},
+	{
+		"file": "/p/src/routes/f/+page.js",
+		"source": "/** @param {any} other */\nexport function load(event) {}\n",
+		"expected": "/** @param {any} other */\n/** @param {import('./$types.js').PageLoadEvent} event */ export function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/g/+page.js",
+		"source": "/** @param {any} opts.x */\nexport function load({ x }) {}\n",
+		"expected": "/** @param {any} opts.x */\nexport function load({ x }) {}\n"
+	},
+	{
+		"file": "/p/src/routes/h/+page.js",
+		"source": "/** @param {any} [event] */\nexport function load(event) {}\n",
+		"expected": "/** @param {any} [event] */\nexport function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/i/+page.js",
+		"source": "/** @param {any} other */\nexport function load({ params }) {}\n",
+		"expected": "/** @param {any} other */\nexport function load({ params }) {}\n"
+	},
+	{
+		"file": "/p/src/routes/j/+page.js",
+		"source": "export const load = /** @param {any} event */ ((event) => {});\n",
+		"expected": "export const load = /** @param {any} event */ (/** @param {import('./$types.js').PageLoadEvent} event */ (event) => {});\n"
+	},
+	{
+		"file": "/p/src/routes/k/+page.js",
+		"source": "export const load = (/** @param {any} event */ (event) => {});\n",
+		"expected": "export const load = (/** @param {any} event */ (event) => {});\n"
+	},
+	{
+		"file": "/p/src/routes/l/+page.js",
+		"source": "export const /** @type {boolean} */ prerender = true;\nexport const /** @param {any} event */ load = (event) => {};\n",
+		"expected": "export const /** @type {boolean} */ prerender = true;\nexport const /** @param {any} event */ load = /** @param {import('./$types.js').PageLoadEvent} event */ (event) => {};\n"
+	},
+	{
+		"file": "/p/src/routes/m/+page.js",
+		"source": "export const load = /** @type {any} */ (event) => {};\nexport const ssr = /** @type {boolean} */ (true);\n",
+		"expected": "export const load = /** @type {any} */ (event) => {};\nexport const ssr = /** @type {boolean} */ /** @type {boolean} */ ((true));\n"
+	},
+	{
+		"file": "/p/src/routes/n/+page.js",
+		"source": "/** see @param {any} event */\nexport function load(event) {}\n",
+		"expected": "/** see @param {any} event */\nexport function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/o/+page.js",
+		"source": "/** @returns {any} @param {any} event */\nexport function load(event) {}\n",
+		"expected": "/** @returns {any} @param {any} event */\nexport function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/p/+page.js",
+		"source": "export async function load(event) {}\nexport const csr = async function () {};\n",
+		"expected": "/** @param {import('./$types.js').PageLoadEvent} event */ export async function load(event) {}\nexport const csr = async function () {};\n"
+	},
+	{
+		"file": "/p/src/routes/q/+page.js",
+		"source": "export const load = async function (event) {};\n",
+		"expected": "export const load = /** @param {import('./$types.js').PageLoadEvent} event */ async function (event) {};\n"
+	},
+	{
+		"file": "/p/src/routes/r/+page.js",
+		"source": "/** @type string */\nexport const ssr = true;\n/** @satisfies {boolean} */\nexport const csr = true;\n",
+		"expected": "/** @type string */\nexport const ssr = true;\n/** @satisfies {boolean} */\nexport const csr = true;\n"
+	},
+	{
+		"file": "/p/src/routes/s/+page.js",
+		"source": "export const load = (/** @type {any} */ event) => {};\n",
+		"expected": "export const load = /** @param {import('./$types.js').PageLoadEvent} event */ (/** @type {any} */ event) => {};\n"
+	},
+	{
+		"file": "/p/src/routes/t/+page.js",
+		"source": "export const load = event => event;\nexport const entries = () => [];\n",
+		"expected": "export const load = /** @param {import('./$types.js').PageLoadEvent} event */ event => event;\nexport const entries = /** @type {import('./$types.js').EntryGenerator} */ () => [];\n"
+	},
+	{
+		"file": "/p/src/routes/u/+page.js",
+		"source": "/**\n * Loads.\n * @param {any} event\n */\nexport function load(event) {}\n",
+		"expected": "/**\n * Loads.\n * @param {any} event\n */\nexport function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/v/+page.js",
+		"source": "/**\n * Loads. @param {any} event\n */\nexport function load(event) {}\n",
+		"expected": "/**\n * Loads. @param {any} event\n */\nexport function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/w/+page.js",
+		"source": "/** @param {{ a: string }} event */\nexport function load(event) {}\n",
+		"expected": "/** @param {{ a: string }} event */\nexport function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/x/+page.js",
+		"source": "/** @param {any} `event` */\nexport function load(event) {}\n",
+		"expected": "/** @param {any} `event` */\nexport function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/y/+page.js",
+		"source": "/** @param {any} event */ export function load(event) {}\n",
+		"expected": "/** @param {any} event */ export function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/z/+page.js",
+		"source": "export function load(event = {}) {}\nexport function entries(a) {}\n",
+		"expected": "/** @param {import('./$types.js').PageLoadEvent} event */ export function load(event = {}) {}\nexport function entries(a) {}\n"
+	},
+	{
+		"file": "/p/src/routes/rest/+page.js",
+		"source": "export function load(...events) {}\n",
+		"expected": "/** @param {import('./$types.js').PageLoadEvent} events */ export function load(...events) {}\n"
+	},
+	{
+		"file": "/p/src/routes/two/+page.js",
+		"source": "export function load(a, b) {}\n",
+		"expected": "export function load(a, b) {}\n"
+	},
+	{
+		"file": "/p/src/routes/none/+page.js",
+		"source": "export function load() {}\n",
+		"expected": "export function load() {}\n"
+	},
+	{
+		"file": "/p/src/routes/srv/+page.server.js",
+		"source": "export const actions = {\n\tdefault: async () => {}\n};\nexport async function load(event) {}\n",
+		"expected": "export const actions = /** @satisfies {import('./$types.js').Actions} */ ({\n\tdefault: async () => {}\n});\n/** @param {import('./$types.js').PageServerLoadEvent} event */ export async function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/srv2/+page.server.js",
+		"source": "/** @satisfies {import('./$types').Actions} */\nexport const actions = {};\n/** @type {any} */\nexport const load = {};\n",
+		"expected": "/** @satisfies {import('./$types').Actions} */\nexport const actions = {};\n/** @type {any} */\nexport const load = {};\n"
+	},
+	{
+		"file": "/p/src/routes/srv3/+layout.server.js",
+		"source": "export const load = async (event) => ({});\n",
+		"expected": "export const load = /** @param {import('./$types.js').LayoutServerLoadEvent} event */ async (event) => ({});\n"
+	},
+	{
+		"file": "/p/src/routes/api/+server.js",
+		"source": "export async function GET(event) {\n\treturn new Response();\n}\nexport const POST = async (event) => new Response();\nexport function PUT({ request }) {}\nexport const fallback = function (event) {};\n",
+		"expected": "/** @type {(arg0: import('./$types.js').RequestEvent) => Response | Promise<Response>} */ export async function GET(event) {\n\treturn new Response();\n}\nexport const POST = /** @type {(arg0: import('./$types.js').RequestEvent) => Response | Promise<Response>} */ async (event) => new Response();\n/** @type {(arg0: import('./$types.js').RequestEvent) => Response | Promise<Response>} */ export function PUT({ request }) {}\nexport const fallback = /** @type {(arg0: import('./$types.js').RequestEvent) => Response | Promise<Response>} */ function (event) {};\n"
+	},
+	{
+		"file": "/p/src/routes/api2/+server.js",
+		"source": "/** @type {import('./$types').RequestHandler} */\nexport async function GET(event) {}\n/** @type {import('./$types').RequestHandler} */\nexport const POST = async (event) => new Response();\n",
+		"expected": "/** @type {import('./$types').RequestHandler} */\nexport async function GET(event) {}\n/** @type {import('./$types').RequestHandler} */\nexport const POST = async (event) => new Response();\n"
+	},
+	{
+		"file": "/p/src/routes/at/+page@foo.js",
+		"source": "export function load(event) {}\n",
+		"expected": "/** @param {import('./$types.js').PageLoadEvent} event */ export function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/hooks.server.js",
+		"source": "export function handle({ event, resolve }) {\n\treturn resolve(event);\n}\nexport const handleError = ({ error }) => {};\nexport async function handleFetch({ request, fetch }) {}\n",
+		"expected": "/** @type {import('@sveltejs/kit').Handle} */ export function handle({ event, resolve }) {\n\treturn resolve(event);\n}\nexport const handleError = /** @type {import('@sveltejs/kit').HandleServerError} */ ({ error }) => {};\n/** @type {import('@sveltejs/kit').HandleFetch} */ export async function handleFetch({ request, fetch }) {}\n"
+	},
+	{
+		"file": "/p/src/hooks.client.js",
+		"source": "export const handleError = ({ error }) => {\n\tconsole.log(error);\n};\n",
+		"expected": "export const handleError = /** @type {import('@sveltejs/kit').HandleClientError} */ ({ error }) => {\n\tconsole.log(error);\n};\n"
+	},
+	{
+		"file": "/p/src/hooks.js",
+		"source": "export const reroute = ({ url }) => url.pathname;\n",
+		"expected": "export const reroute = /** @type {import('@sveltejs/kit').Reroute} */ ({ url }) => url.pathname;\n"
+	},
+	{
+		"file": "/p/src/hooks/index.js",
+		"source": "export function reroute({ url }) {}\n",
+		"expected": "/** @type {import('@sveltejs/kit').Reroute} */ export function reroute({ url }) {}\n"
+	},
+	{
+		"file": "/p/src/params/id.js",
+		"source": "export function match(param) {\n\treturn /^\\d+$/.test(param);\n}\n",
+		"expected": "/** @type {(arg0: string) => boolean} */ export function match(param) {\n\treturn /^\\d+$/.test(param);\n}\n"
+	},
+	{
+		"file": "/p/src/params/id.test.js",
+		"source": "export function match(param) {}\n",
+		"expected": "export function match(param) {}\n"
+	},
+	{
+		"file": "/p/src/lib/x.js",
+		"source": "export function load(event) {}\n",
+		"expected": "export function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/mjs/+page.mjs",
+		"source": "export function load(event) {}\n",
+		"expected": "/** @param {import('./$types.js').PageLoadEvent} event */ export function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/sp/+page.js",
+		"source": "export const load = (event) /* c */ => {};\n",
+		"expected": "export const load = /** @param {import('./$types.js').PageLoadEvent} event */ (event) /* c */ => {};\n"
+	},
+	{
+		"file": "/p/src/routes/aa/+page.js",
+		"source": "/**@param {any} event */\nexport function load(event) {}\n",
+		"expected": "/**@param {any} event */\nexport function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/ab/+page.js",
+		"source": "/**\n*@param {any} event\n*/\nexport function load(event) {}\n",
+		"expected": "/**\n*@param {any} event\n*/\nexport function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/ac/+page.js",
+		"source": "/** x@param {any} event */\nexport function load(event) {}\n",
+		"expected": "/** x@param {any} event */\n/** @param {import('./$types.js').PageLoadEvent} event */ export function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/ae/+page.js",
+		"source": "/** ** @param {any} event */\nexport function load(event) {}\n",
+		"expected": "/** ** @param {any} event */\nexport function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/af/+page.js",
+		"source": "/** @param {any} event-x */\nexport function load(event) {}\n",
+		"expected": "/** @param {any} event-x */\n/** @param {import('./$types.js').PageLoadEvent} event */ export function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/ad/+page.js",
+		"source": "/** @see x `@param {any} event` */\nexport function load(event) {}\n",
+		"expected": "/** @see x `@param {any} event` */\n/** @param {import('./$types.js').PageLoadEvent} event */ export function load(event) {}\n"
+	},
+	{
+		"file": "/p/src/routes/ag/+page.js",
+		"source": "/** see `@param {any} event` */\nexport function load(event) {}\n",
+		"expected": "/** see `@param {any} event` */\n/** @param {import('./$types.js').PageLoadEvent} event */ export function load(event) {}\n"
+	}
+]

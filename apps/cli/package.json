@@ -1,6 +1,6 @@
 {
 	"name": "@rsvelte/cli",
-	"version": "0.5.1",
+	"version": "0.6.0",
 	"private": true,
 	"description": "The version, changelog, user guide and command of @rsvelte/cli; tools/release writes the package npm publishes"
 }

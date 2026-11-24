@@ -1,8 +1,9 @@
 # rsvelte pack 1
-=== 2079 src/lib/utils/RendererUtils.svelte	lint.txt
+=== 2258 src/lib/utils/RendererUtils.svelte	lint.txt
 1:1 28:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:35 svelte/max-attributes-per-line "'context' should be on a new line."
 1:19 1:35 svelte/sort-attributes "Attribute 'context' should go before 'lang'."
+1:19 1:35 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

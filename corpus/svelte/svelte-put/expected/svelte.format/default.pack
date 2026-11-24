@@ -901,7 +901,7 @@
   }
 </style>
 
-=== 6454 packages/preprocess-markdown/src/enhance-code-block/FileIcon.svelte	svelte
+=== 6475 packages/preprocess-markdown/src/enhance-code-block/FileIcon.svelte	svelte
 <script lang="ts" module>
   export type FileIconProps = {
     lang: string;
@@ -921,10 +921,11 @@
     viewBox="0 0 24 24"
     xmlns="http://www.w3.org/2000/svg"
     fill="currentcolor"
-    ><title>JavaScript</title><path
-      d="M0 0h24v24H0V0zm22.034 18.276c-.175-1.095-.888-2.015-3.003-2.873-.736-.345-1.554-.585-1.797-1.14-.091-.33-.105-.51-.046-.705.15-.646.915-.84 1.515-.66.39.12.75.42.976.9 1.034-.676 1.034-.676 1.755-1.125-.27-.42-.404-.601-.586-.78-.63-.705-1.469-1.065-2.834-1.034l-.705.089c-.676.165-1.32.525-1.71 1.005-1.14 1.291-.811 3.541.569 4.471 1.365 1.02 3.361 1.244 3.616 2.205.24 1.17-.87 1.545-1.966 1.41-.811-.18-1.26-.586-1.755-1.336l-1.83 1.051c.21.48.45.689.81 1.109 1.74 1.756 6.09 1.666 6.871-1.004.029-.09.24-.705.074-1.65l.046.067zm-8.983-7.245h-2.248c0 1.938-.009 3.864-.009 5.805 0 1.232.063 2.363-.138 2.711-.33.689-1.18.601-1.566.48-.396-.196-.597-.466-.83-.855-.063-.105-.11-.196-.127-.196l-1.825 1.125c.305.63.75 1.172 1.324 1.517.855.51 2.004.675 3.207.405.783-.226 1.458-.691 1.811-1.411.51-.93.402-2.07.397-3.346.012-2.054 0-4.109 0-6.179l.004-.056z"
-    /></svg
   >
+    <title>JavaScript</title><path
+      d="M0 0h24v24H0V0zm22.034 18.276c-.175-1.095-.888-2.015-3.003-2.873-.736-.345-1.554-.585-1.797-1.14-.091-.33-.105-.51-.046-.705.15-.646.915-.84 1.515-.66.39.12.75.42.976.9 1.034-.676 1.034-.676 1.755-1.125-.27-.42-.404-.601-.586-.78-.63-.705-1.469-1.065-2.834-1.034l-.705.089c-.676.165-1.32.525-1.71 1.005-1.14 1.291-.811 3.541.569 4.471 1.365 1.02 3.361 1.244 3.616 2.205.24 1.17-.87 1.545-1.966 1.41-.811-.18-1.26-.586-1.755-1.336l-1.83 1.051c.21.48.45.689.81 1.109 1.74 1.756 6.09 1.666 6.871-1.004.029-.09.24-.705.074-1.65l.046.067zm-8.983-7.245h-2.248c0 1.938-.009 3.864-.009 5.805 0 1.232.063 2.363-.138 2.711-.33.689-1.18.601-1.566.48-.396-.196-.597-.466-.83-.855-.063-.105-.11-.196-.127-.196l-1.825 1.125c.305.63.75 1.172 1.324 1.517.855.51 2.004.675 3.207.405.783-.226 1.458-.691 1.811-1.411.51-.93.402-2.07.397-3.346.012-2.054 0-4.109 0-6.179l.004-.056z"
+    />
+  </svg>
 {:else if ["typescript", "ts"].includes(lang)}
   <svg
     role="img"
@@ -933,10 +934,11 @@
     viewBox="0 0 24 24"
     xmlns="http://www.w3.org/2000/svg"
     fill="currentcolor"
-    ><title>TypeScript</title><path
-      d="M1.125 0C.502 0 0 .502 0 1.125v21.75C0 23.498.502 24 1.125 24h21.75c.623 0 1.125-.502 1.125-1.125V1.125C24 .502 23.498 0 22.875 0zm17.363 9.75c.612 0 1.154.037 1.627.111a6.38 6.38 0 0 1 1.306.34v2.458a3.95 3.95 0 0 0-.643-.361 5.093 5.093 0 0 0-.717-.26 5.453 5.453 0 0 0-1.426-.2c-.3 0-.573.028-.819.086a2.1 2.1 0 0 0-.623.242c-.17.104-.3.229-.393.374a.888.888 0 0 0-.14.49c0 .196.053.373.156.529.104.156.252.304.443.444s.423.276.696.41c.273.135.582.274.926.416.47.197.892.407 1.266.628.374.222.695.473.963.753.268.279.472.598.614.957.142.359.214.776.214 1.253 0 .657-.125 1.21-.373 1.656a3.033 3.033 0 0 1-1.012 1.085 4.38 4.38 0 0 1-1.487.596c-.566.12-1.163.18-1.79.18a9.916 9.916 0 0 1-1.84-.164 5.544 5.544 0 0 1-1.512-.493v-2.63a5.033 5.033 0 0 0 3.237 1.2c.333 0 .624-.03.872-.09.249-.06.456-.144.623-.25.166-.108.29-.234.373-.38a1.023 1.023 0 0 0-.074-1.089 2.12 2.12 0 0 0-.537-.5 5.597 5.597 0 0 0-.807-.444 27.72 27.72 0 0 0-1.007-.436c-.918-.383-1.602-.852-2.053-1.405-.45-.553-.676-1.222-.676-2.005 0-.614.123-1.141.369-1.582.246-.441.58-.804 1.004-1.089a4.494 4.494 0 0 1 1.47-.629 7.536 7.536 0 0 1 1.77-.201zm-15.113.188h9.563v2.166H9.506v9.646H6.789v-9.646H3.375z"
-    /></svg
   >
+    <title>TypeScript</title><path
+      d="M1.125 0C.502 0 0 .502 0 1.125v21.75C0 23.498.502 24 1.125 24h21.75c.623 0 1.125-.502 1.125-1.125V1.125C24 .502 23.498 0 22.875 0zm17.363 9.75c.612 0 1.154.037 1.627.111a6.38 6.38 0 0 1 1.306.34v2.458a3.95 3.95 0 0 0-.643-.361 5.093 5.093 0 0 0-.717-.26 5.453 5.453 0 0 0-1.426-.2c-.3 0-.573.028-.819.086a2.1 2.1 0 0 0-.623.242c-.17.104-.3.229-.393.374a.888.888 0 0 0-.14.49c0 .196.053.373.156.529.104.156.252.304.443.444s.423.276.696.41c.273.135.582.274.926.416.47.197.892.407 1.266.628.374.222.695.473.963.753.268.279.472.598.614.957.142.359.214.776.214 1.253 0 .657-.125 1.21-.373 1.656a3.033 3.033 0 0 1-1.012 1.085 4.38 4.38 0 0 1-1.487.596c-.566.12-1.163.18-1.79.18a9.916 9.916 0 0 1-1.84-.164 5.544 5.544 0 0 1-1.512-.493v-2.63a5.033 5.033 0 0 0 3.237 1.2c.333 0 .624-.03.872-.09.249-.06.456-.144.623-.25.166-.108.29-.234.373-.38a1.023 1.023 0 0 0-.074-1.089 2.12 2.12 0 0 0-.537-.5 5.597 5.597 0 0 0-.807-.444 27.72 27.72 0 0 0-1.007-.436c-.918-.383-1.602-.852-2.053-1.405-.45-.553-.676-1.222-.676-2.005 0-.614.123-1.141.369-1.582.246-.441.58-.804 1.004-1.089a4.494 4.494 0 0 1 1.47-.629 7.536 7.536 0 0 1 1.77-.201zm-15.113.188h9.563v2.166H9.506v9.646H6.789v-9.646H3.375z"
+    />
+  </svg>
 {:else if ["markdown", "md"].includes(lang)}
   <svg
     role="img"
@@ -945,10 +947,11 @@
     viewBox="0 0 24 24"
     xmlns="http://www.w3.org/2000/svg"
     fill="currentcolor"
-    ><title>Markdown</title><path
-      d="M22.27 19.385H1.73A1.73 1.73 0 010 17.655V6.345a1.73 1.73 0 011.73-1.73h20.54A1.73 1.73 0 0124 6.345v11.308a1.73 1.73 0 01-1.73 1.731zM5.769 15.923v-4.5l2.308 2.885 2.307-2.885v4.5h2.308V8.078h-2.308l-2.307 2.885-2.308-2.885H3.46v7.847zM21.232 12h-2.309V8.077h-2.307V12h-2.308l3.461 4.039z"
-    /></svg
   >
+    <title>Markdown</title><path
+      d="M22.27 19.385H1.73A1.73 1.73 0 010 17.655V6.345a1.73 1.73 0 011.73-1.73h20.54A1.73 1.73 0 0124 6.345v11.308a1.73 1.73 0 01-1.73 1.731zM5.769 15.923v-4.5l2.308 2.885 2.307-2.885v4.5h2.308V8.078h-2.308l-2.307 2.885-2.308-2.885H3.46v7.847zM21.232 12h-2.309V8.077h-2.307V12h-2.308l3.461 4.039z"
+    />
+  </svg>
 {:else if lang === "html"}
   <svg
     role="img"
@@ -957,10 +960,11 @@
     viewBox="0 0 24 24"
     xmlns="http://www.w3.org/2000/svg"
     fill="currentcolor"
-    ><title>HTML5</title><path
-      d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.248l.33 4.171L12 19.351l5.379-1.443.744-8.157H8.531z"
-    /></svg
   >
+    <title>HTML5</title><path
+      d="M1.5 0h21l-1.91 21.563L11.977 24l-8.564-2.438L1.5 0zm7.031 9.75l-.232-2.718 10.059.003.23-2.622L5.412 4.41l.698 8.01h9.126l-.326 3.426-2.91.804-2.955-.81-.188-2.11H6.248l.33 4.171L12 19.351l5.379-1.443.744-8.157H8.531z"
+    />
+  </svg>
 {:else if lang === "css"}
   <svg
     role="img"
@@ -969,10 +973,11 @@
     viewBox="0 0 24 24"
     xmlns="http://www.w3.org/2000/svg"
     fill="currentcolor"
-    ><title>CSS3</title><path
-      d="M1.5 0h21l-1.91 21.563L11.977 24l-8.565-2.438L1.5 0zm17.09 4.413L5.41 4.41l.213 2.622 10.125.002-.255 2.716h-6.64l.24 2.573h6.182l-.366 3.523-2.91.804-2.956-.81-.188-2.11h-2.61l.29 3.855L12 19.288l5.373-1.53L18.59 4.414z"
-    /></svg
   >
+    <title>CSS3</title><path
+      d="M1.5 0h21l-1.91 21.563L11.977 24l-8.565-2.438L1.5 0zm17.09 4.413L5.41 4.41l.213 2.622 10.125.002-.255 2.716h-6.64l.24 2.573h6.182l-.366 3.523-2.91.804-2.956-.81-.188-2.11h-2.61l.29 3.855L12 19.288l5.373-1.53L18.59 4.414z"
+    />
+  </svg>
 {:else if lang === "svelte"}
   <svg
     role="img"
@@ -981,10 +986,11 @@
     viewBox="0 0 24 24"
     xmlns="http://www.w3.org/2000/svg"
     fill="currentcolor"
-    ><title>Svelte</title><path
-      d="M10.354 21.125a4.44 4.44 0 0 1-4.765-1.767 4.109 4.109 0 0 1-.703-3.107 3.898 3.898 0 0 1 .134-.522l.105-.321.287.21a7.21 7.21 0 0 0 2.186 1.092l.208.063-.02.208a1.253 1.253 0 0 0 .226.83 1.337 1.337 0 0 0 1.435.533 1.231 1.231 0 0 0 .343-.15l5.59-3.562a1.164 1.164 0 0 0 .524-.778 1.242 1.242 0 0 0-.211-.937 1.338 1.338 0 0 0-1.435-.533 1.23 1.23 0 0 0-.343.15l-2.133 1.36a4.078 4.078 0 0 1-1.135.499 4.44 4.44 0 0 1-4.765-1.766 4.108 4.108 0 0 1-.702-3.108 3.855 3.855 0 0 1 1.742-2.582l5.589-3.563a4.072 4.072 0 0 1 1.135-.499 4.44 4.44 0 0 1 4.765 1.767 4.109 4.109 0 0 1 .703 3.107 3.943 3.943 0 0 1-.134.522l-.105.321-.286-.21a7.204 7.204 0 0 0-2.187-1.093l-.208-.063.02-.207a1.255 1.255 0 0 0-.226-.831 1.337 1.337 0 0 0-1.435-.532 1.231 1.231 0 0 0-.343.15L8.62 9.368a1.162 1.162 0 0 0-.524.778 1.24 1.24 0 0 0 .211.937 1.338 1.338 0 0 0 1.435.533 1.235 1.235 0 0 0 .344-.151l2.132-1.36a4.067 4.067 0 0 1 1.135-.498 4.44 4.44 0 0 1 4.765 1.766 4.108 4.108 0 0 1 .702 3.108 3.857 3.857 0 0 1-1.742 2.583l-5.589 3.562a4.072 4.072 0 0 1-1.135.499m10.358-17.95C18.484-.015 14.082-.96 10.9 1.068L5.31 4.63a6.412 6.412 0 0 0-2.896 4.295 6.753 6.753 0 0 0 .666 4.336 6.43 6.43 0 0 0-.96 2.396 6.833 6.833 0 0 0 1.168 5.167c2.229 3.19 6.63 4.135 9.812 2.108l5.59-3.562a6.41 6.41 0 0 0 2.896-4.295 6.756 6.756 0 0 0-.665-4.336 6.429 6.429 0 0 0 .958-2.396 6.831 6.831 0 0 0-1.167-5.168Z"
-    /></svg
   >
+    <title>Svelte</title><path
+      d="M10.354 21.125a4.44 4.44 0 0 1-4.765-1.767 4.109 4.109 0 0 1-.703-3.107 3.898 3.898 0 0 1 .134-.522l.105-.321.287.21a7.21 7.21 0 0 0 2.186 1.092l.208.063-.02.208a1.253 1.253 0 0 0 .226.83 1.337 1.337 0 0 0 1.435.533 1.231 1.231 0 0 0 .343-.15l5.59-3.562a1.164 1.164 0 0 0 .524-.778 1.242 1.242 0 0 0-.211-.937 1.338 1.338 0 0 0-1.435-.533 1.23 1.23 0 0 0-.343.15l-2.133 1.36a4.078 4.078 0 0 1-1.135.499 4.44 4.44 0 0 1-4.765-1.766 4.108 4.108 0 0 1-.702-3.108 3.855 3.855 0 0 1 1.742-2.582l5.589-3.563a4.072 4.072 0 0 1 1.135-.499 4.44 4.44 0 0 1 4.765 1.767 4.109 4.109 0 0 1 .703 3.107 3.943 3.943 0 0 1-.134.522l-.105.321-.286-.21a7.204 7.204 0 0 0-2.187-1.093l-.208-.063.02-.207a1.255 1.255 0 0 0-.226-.831 1.337 1.337 0 0 0-1.435-.532 1.231 1.231 0 0 0-.343.15L8.62 9.368a1.162 1.162 0 0 0-.524.778 1.24 1.24 0 0 0 .211.937 1.338 1.338 0 0 0 1.435.533 1.235 1.235 0 0 0 .344-.151l2.132-1.36a4.067 4.067 0 0 1 1.135-.498 4.44 4.44 0 0 1 4.765 1.766 4.108 4.108 0 0 1 .702 3.108 3.857 3.857 0 0 1-1.742 2.583l-5.589 3.562a4.072 4.072 0 0 1-1.135.499m10.358-17.95C18.484-.015 14.082-.96 10.9 1.068L5.31 4.63a6.412 6.412 0 0 0-2.896 4.295 6.753 6.753 0 0 0 .666 4.336 6.43 6.43 0 0 0-.96 2.396 6.833 6.833 0 0 0 1.168 5.167c2.229 3.19 6.63 4.135 9.812 2.108l5.59-3.562a6.41 6.41 0 0 0 2.896-4.295 6.756 6.756 0 0 0-.665-4.336 6.429 6.429 0 0 0 .958-2.396 6.831 6.831 0 0 0-1.167-5.168Z"
+    />
+  </svg>
 {:else}
   <svg
     xmlns="http://www.w3.org/2000/svg"
@@ -992,10 +998,11 @@
     height="16"
     fill="currentcolor"
     viewBox="0 0 256 256"
-    ><path
-      d="M69.12,94.15,28.5,128l40.62,33.85a8,8,0,1,1-10.24,12.29l-48-40a8,8,0,0,1,0-12.29l48-40a8,8,0,0,1,10.24,12.3Zm176,27.7-48-40a8,8,0,1,0-10.24,12.3L227.5,128l-40.62,33.85a8,8,0,1,0,10.24,12.29l48-40a8,8,0,0,0,0-12.29ZM162.73,32.48a8,8,0,0,0-10.25,4.79l-64,176a8,8,0,0,0,4.79,10.26A8.14,8.14,0,0,0,96,224a8,8,0,0,0,7.52-5.27l64-176A8,8,0,0,0,162.73,32.48Z"
-    ></path></svg
   >
+    <path
+      d="M69.12,94.15,28.5,128l40.62,33.85a8,8,0,1,1-10.24,12.29l-48-40a8,8,0,0,1,0-12.29l48-40a8,8,0,0,1,10.24,12.3Zm176,27.7-48-40a8,8,0,1,0-10.24,12.3L227.5,128l-40.62,33.85a8,8,0,1,0,10.24,12.29l48-40a8,8,0,0,0,0-12.29ZM162.73,32.48a8,8,0,0,0-10.25,4.79l-64,176a8,8,0,0,0,4.79,10.26A8.14,8.14,0,0,0,96,224a8,8,0,0,0,7.52-5.27l64-176A8,8,0,0,0,162.73,32.48Z"
+    ></path>
+  </svg>
 {/if}
 
 <style>
@@ -1375,7 +1382,7 @@
   {/if}
 </label>
 
-=== 1025 sites/docs/src/lib/components/page-load-indicator/PageLoadIndicator.svelte	svelte
+=== 1033 sites/docs/src/lib/components/page-load-indicator/PageLoadIndicator.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
   import { cubicInOut } from "svelte/easing";
@@ -1410,8 +1417,10 @@
     max="100"
     value={$p * 100}
     aria-label="page loading indicator"
-    class="invisible">{$p}%</progress
+    class="invisible"
   >
+    {$p}%
+  </progress>
   <div
     class="absolute left-0 top-0 h-full bg-orange-500"
     style:width="var(--percentage)"
@@ -1810,7 +1819,7 @@
   }
 </style>
 
-=== 1100 sites/docs/src/lib/notifications/components/Svelte5.svelte	svelte
+=== 1141 sites/docs/src/lib/notifications/components/Svelte5.svelte	svelte
 <script lang="ts" module>
   import type { BaseNotificationProps } from "./BaseNotification.svelte";
 
@@ -1834,17 +1843,23 @@
   <div class="space-y-2">
     <p>
       The <code>svelte-put</code> collection has moved to
-      <a class="c-link" href="https://svelte.dev/docs/svelte/v5-migration-guide"
-        >Svelte 5</a
-      >. I recommend you do too. If you are still using Svelte 4, head over to
-      <a class="c-link" href="https://svelte-put-svelte-4.vnphanquang.com"
-        >the old documentation site</a
-      >.
+      <a
+        class="c-link"
+        href="https://svelte.dev/docs/svelte/v5-migration-guide"
+      >
+        Svelte 5
+      </a>. I recommend you do too. If you are still using Svelte 4, head over
+      to
+      <a class="c-link" href="https://svelte-put-svelte-4.vnphanquang.com">
+        the old documentation site
+      </a>.
     </p>
     <button
       class="c-btn c-btn--outlined text-fg ml-auto"
-      onclick={doNotShowAgain}>Don't show me again</button
+      onclick={doNotShowAgain}
     >
+      Don't show me again
+    </button>
   </div>
 </BaseNotification>
 
@@ -1918,9 +1933,9 @@
     <!-- :::highlight -->
     {#await promise}
       Notification is pushed and waiting for resolution. Either click the x
-      button on the notification, or <button class="c-link" onclick={popNoti}
-        >click here</button
-      > to pop the notification.
+      button on the notification, or <button class="c-link" onclick={popNoti}>
+        click here
+      </button> to pop the notification.
     {:then}
       Resolved (resetting in 2 seconds)
     {/await}
@@ -2036,9 +2051,9 @@
 </script>
 
 <!-- notification push triggers -->
-<button class="c-btn c-btn--outlined" onclick={pushInfo}
-  >Push an info notification</button
->
+<button class="c-btn c-btn--outlined" onclick={pushInfo}>
+  Push an info notification
+</button>
 <button class="c-btn" onclick={pushSpecial}>Push a special notification</button>
 
 === 723 sites/docs/src/packages/async-stack/_page/examples/interactive/InteractiveNotification.svelte	svelte
@@ -2525,18 +2540,18 @@
 </script>
 
 <div class="not-prose flex flex-wrap items-center gap-2">
-  <button class="c-btn c-btn--outlined" onclick={() => toast.info(message)}
-    >info</button
-  >
-  <button class="c-btn c-btn--outlined" onclick={() => toast.success(message)}
-    >success</button
-  >
-  <button class="c-btn c-btn--outlined" onclick={() => toast.warning(message)}
-    >warning</button
-  >
-  <button class="c-btn c-btn--outlined" onclick={() => toast.error(message)}
-    >error</button
-  >
+  <button class="c-btn c-btn--outlined" onclick={() => toast.info(message)}>
+    info
+  </button>
+  <button class="c-btn c-btn--outlined" onclick={() => toast.success(message)}>
+    success
+  </button>
+  <button class="c-btn c-btn--outlined" onclick={() => toast.warning(message)}>
+    warning
+  </button>
+  <button class="c-btn c-btn--outlined" onclick={() => toast.error(message)}>
+    error
+  </button>
 </div>
 
 === 309 sites/docs/src/packages/avatar/_page/examples/custom.markup.svelte	svelte
@@ -2796,9 +2811,9 @@
 </script>
 
 <button type="button" use:copy={{ event: "mousedown" }}>...</button>
-<button type="button" use:copy={{ event: ["pointerenter", "pointerleave"] }}
-  >...</button
->
+<button type="button" use:copy={{ event: ["pointerenter", "pointerleave"] }}>
+  ...
+</button>
 
 === 836 sites/docs/src/packages/copy/_page/examples/custom-text.svelte	svelte
 <script lang="ts">
@@ -3125,9 +3140,9 @@
     <p>
       {#if detail}
         <span>Scrolling {detail?.direction}</span> &
-        <span
-          >{detail?.entries[0]?.isIntersecting ? "entering" : "leaving"}</span
-        >
+        <span>
+          {detail?.entries[0]?.isIntersecting ? "entering" : "leaving"}
+        </span>
       {/if}
     </p>
   {/each}
@@ -3217,9 +3232,9 @@
 </script>
 
 <svelte:body use:lockscroll={locked} />
-<button class="c-btn mx-auto" onclick={toggleLockScroll}
-  >Toggle lock scroll on body</button
->
+<button class="c-btn mx-auto" onclick={toggleLockScroll}>
+  Toggle lock scroll on body
+</button>
 
 === 1052 sites/docs/src/packages/lockscroll/_page/examples/scroll-container.svelte	svelte
 <script lang="ts">
@@ -3228,9 +3243,9 @@
   let locked = $state(false);
 </script>
 
-<button class="c-btn mx-auto" onclick={() => (locked = !locked)}
-  >Toggle lock scroll for below section</button
->
+<button class="c-btn mx-auto" onclick={() => (locked = !locked)}>
+  Toggle lock scroll for below section
+</button>
 <section
   class="bg-bg-soft mt-4 max-h-[400px] overflow-auto rounded px-6"
   use:lockscroll={locked}
@@ -3250,7 +3265,7 @@
   {/each}
 </section>
 
-=== 620 sites/docs/src/packages/lockscroll/_page/examples/svelte-rune.svelte	svelte
+=== 625 sites/docs/src/packages/lockscroll/_page/examples/svelte-rune.svelte	svelte
 <script>
   import { lockscroll } from "@svelte-put/lockscroll";
 
@@ -3267,14 +3282,15 @@
 
 <svelte:body use:lockscroll={lock.locked} />
 <div class="flex justify-center gap-4">
-  <button class="c-btn" onclick={() => lock.toggle()}>Toggle lock scroll</button
-  >
-  <button class="c-btn c-btn--outlined" onclick={() => lock.toggle(true)}
-    >Force locked</button
-  >
-  <button class="c-btn c-btn--outlined" onclick={() => lock.toggle(false)}
-    >Force unlocked</button
-  >
+  <button class="c-btn" onclick={() => lock.toggle()}>
+    Toggle lock scroll
+  </button>
+  <button class="c-btn c-btn--outlined" onclick={() => lock.toggle(true)}>
+    Force locked
+  </button>
+  <button class="c-btn c-btn--outlined" onclick={() => lock.toggle(false)}>
+    Force unlocked
+  </button>
 </div>
 
 === 733 sites/docs/src/packages/modal/docs.md.svelte	svelte
@@ -3423,7 +3439,7 @@ documentation, [visit here](https://02e439f1.svelte-put.pages.dev/docs/modal).
   <p>Popover content. Click backdrop to dismiss</p>
 </div>
 
-=== 1435 sites/docs/src/packages/popover/_page/examples/tooltip/HintedText.svelte	svelte
+=== 1439 sites/docs/src/packages/popover/_page/examples/tooltip/HintedText.svelte	svelte
 <script lang="ts">
   import { Popover, type PopoverPlugin } from "@svelte-put/popover";
   import type { Snippet } from "svelte";
@@ -3476,8 +3492,10 @@ documentation, [visit here](https://02e439f1.svelte-put.pages.dev/docs/modal).
   class="inline-block {cls}"
   use:popover.control.actions
   {...popover.control.attributes}
-  {...rest}>{@render children()}</button
+  {...rest}
 >
+  {@render children()}
+</button>
 
 <span
   class="text-hint"
@@ -3495,10 +3513,10 @@ documentation, [visit here](https://02e439f1.svelte-put.pages.dev/docs/modal).
 </script>
 
 {#snippet hint()}
-  <span class="m-0"
-    >Built with ♡ using <code>@svelte-put/popover </code> and
-    <code>@floating-ui</code></span
-  >
+  <span class="m-0">
+    Built with ♡ using <code>@svelte-put/popover </code> and
+    <code>@floating-ui</code>
+  </span>
 {/snippet}
 
 <p class="m-0">
@@ -3899,9 +3917,9 @@ enhancement in case Javascript is not available. --- Happy migrating 😅
           width="32"
           height="32"
         />
-        <span class="font-fingerpaint text-gradient-brand text-sm font-bold"
-          >svelte-put</span
-        >
+        <span class="font-fingerpaint text-gradient-brand text-sm font-bold">
+          svelte-put
+        </span>
       </a>
       {#if hydrated}
         <a class="c-btn c-btn--outlined gap-2 py-1.5 pl-3 pr-4" href="/search">
@@ -3919,9 +3937,9 @@ enhancement in case Javascript is not available. --- Happy migrating 😅
       class="max-w-pad border-outline desktop:justify-end widescreen:hidden flex flex-1 items-center justify-between
 			border-t py-1"
     >
-      <MenuLabel class="desktop:hidden" for="pages-toggler"
-        >Navigation</MenuLabel
-      >
+      <MenuLabel class="desktop:hidden" for="pages-toggler">
+        Navigation
+      </MenuLabel>
       <MenuLabel align="right" for="toc-toggler">Table of Contents</MenuLabel>
     </div>
   </header>
@@ -4010,9 +4028,9 @@ enhancement in case Javascript is not available. --- Happy migrating 😅
         class="c-callout c-callout--success c-callout--icon-megaphone upto-widescreen:hidden mt-10"
       >
         Still on Svelte 4? See
-        <a class="c-link" href="https://svelte-put-svelte-4.vnphanquang.com"
-          >the old docs site here.</a
-        >
+        <a class="c-link" href="https://svelte-put-svelte-4.vnphanquang.com">
+          the old docs site here.
+        </a>
       </p>
       <div
         class="sveltevietnam-banner upto-widescreen:hidden mt-5 space-y-2 rounded border p-4"
@@ -4021,9 +4039,9 @@ enhancement in case Javascript is not available. --- Happy migrating 😅
         <div class="flex items-center gap-4">
           <div class="i i-sveltename h-10 w-10 shrink-0"></div>
           <p>
-            Join the <a class="c-link" href="https://www.sveltevietnam.dev"
-              >Svelte Vietnam</a
-            > community.
+            Join the <a class="c-link" href="https://www.sveltevietnam.dev">
+              Svelte Vietnam
+            </a> community.
           </p>
         </div>
       </div>
@@ -4374,9 +4392,9 @@ Happy coding! 👨‍💻
   class="c-callout c-callout--success c-callout--icon-megaphone max-w-md xl:hidden"
 >
   Still on Svelte 4? See
-  <a class="c-link" href="https://svelte-put-svelte-4.vnphanquang.com"
-    >the old docs site here.</a
-  >
+  <a class="c-link" href="https://svelte-put-svelte-4.vnphanquang.com">
+    the old docs site here.
+  </a>
 </p>
 
 {#if data.Content}
@@ -4464,7 +4482,7 @@ in Vietnam that I am proudly a part of.
   </a>
 </p>
 
-=== 3014 sites/docs/src/routes/(site)/search/+page.svelte	svelte
+=== 3043 sites/docs/src/routes/(site)/search/+page.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
 
@@ -4516,9 +4534,9 @@ in Vietnam that I am proudly a part of.
       </label>
       <button class="c-btn c-btn--outlined" type="submit">Search</button>
     </div>
-    <label class="text-fg-200 mt-1 block text-sm" for="q"
-      >Type and press enter or hit "search" button</label
-    >
+    <label class="text-fg-200 mt-1 block text-sm" for="q">
+      Type and press enter or hit "search" button
+    </label>
   </form>
   {#await promise then searched}
     {#if searched}
@@ -4537,8 +4555,9 @@ in Vietnam that I am proudly a part of.
                     {#each sub_results.slice(0, 5) as { title, url, excerpt }}
                       <li>
                         <p class="">
-                          <a class="c-link" href={transformLink(url)}>{title}</a
-                          >
+                          <a class="c-link" href={transformLink(url)}>
+                            {title}
+                          </a>
                         </p>
                         {#if sanitize}
                           <!-- eslint-disable-next-line svelte/no-at-html-tags -->
@@ -4661,14 +4680,14 @@ in Vietnam that I am proudly a part of.
     .c-link: <a class="c-link" href="https://example.com">www.example.com</a>
   </p>
   <p>
-    .c-link-preserved: <a class="c-link-preserved" href="https://example.com"
-      >www.example.com</a
-    >
+    .c-link-preserved: <a class="c-link-preserved" href="https://example.com">
+      www.example.com
+    </a>
   </p>
   <p>
-    c-link-lazy: <a class="c-link-lazy" href="https://example.com"
-      >www.example.com</a
-    >
+    c-link-lazy: <a class="c-link-lazy" href="https://example.com">
+      www.example.com
+    </a>
   </p>
   <p>
     c-link-icon:

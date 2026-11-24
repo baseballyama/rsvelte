@@ -4,12 +4,15 @@
 
 use rsvelte_svelte_compile::{Target, compile_to_javascript};
 
+mod ambient;
+mod ambient_initializers;
 mod class_names;
 mod const_tags;
 mod derived;
 mod enums;
 mod errors;
 mod exports;
+mod import_equals;
 mod keywords;
 mod lets;
 mod namespaces;
@@ -19,6 +22,7 @@ mod props;
 mod redeclarations;
 mod runes;
 mod signatures;
+mod strict_names;
 mod transitions;
 
 /// The output, or the code of the diagnostic that refuses the source.
