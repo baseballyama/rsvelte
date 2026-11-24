@@ -5,4 +5,6 @@ allow-panic-in-tests = true
 allow-print-in-tests = true
 # oxc's and wasm-bindgen's proc macros use syn 2, and serde_derive and displaydoc use syn 3.
 # oxc_transformer's browser data reads postcard, which takes two embedded-io versions.
-allowed-duplicate-crates = ["syn", "embedded-io"]
+# oxc_linter's resolver (dashmap, simd-json) and control flow graph (petgraph) each take their own
+# hashbrown, and petgraph's takes foldhash 0.1.
+allowed-duplicate-crates = ["syn", "embedded-io", "hashbrown", "foldhash"]

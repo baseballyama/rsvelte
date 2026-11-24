@@ -6,6 +6,7 @@
 /node_modules/
 /tools/*/node_modules/
 /apps/eslint-plugin/node_modules/
+/apps/rsvelte/node_modules/
 # Measurement output, kept next to the tool that writes it.
 /tools/*/generated/
 /tools/performance/workloads/*/generated/

@@ -5,35 +5,33 @@ use std::process::ExitCode;
 
 use rsvelte_plugin_interface::{Extension, Selection};
 
-use crate::commands::{lint, typecheck};
+use crate::commands::typecheck;
 use crate::{Installation, configuration, configured_registry, usage};
 
 mod combined;
 mod format;
 mod help;
+mod host_lint;
+mod node_configuration;
 mod version;
 
-/// The plugins `rsvelte` installs for `lint` and `typecheck`, in installation order.
+/// The plugins `rsvelte` installs for `typecheck`, in installation order.
 static EXTENSIONS: &[&Extension] = &[
-    &rsvelte_typescript_lint::EXTENSION,
     &rsvelte_typescript_check::EXTENSION,
-    &rsvelte_svelte_lint::EXTENSION,
     &rsvelte_svelte_typescript_projection::EXTENSION,
     &rsvelte_svelte_check::EXTENSION,
 ];
 
-/// The tasks of `lint` and then of `typecheck`, which a run of both runs together.
-const LINT_AND_TYPECHECK: &[&str] = &["svelte.lint/default", "ts.lint/default", "ts.check/default"];
-const LINT: &[&str] = LINT_AND_TYPECHECK.split_at(2).0;
-const TYPECHECK: &[&str] = LINT_AND_TYPECHECK.split_at(2).1;
+/// The tasks of `typecheck`.
+const TYPECHECK: &[&str] = &["ts.check/default"];
 
 /// The plugins `typecheck` runs with their defaults when nothing configures them, so that a
 /// project needs no configuration.
 const TYPECHECK_DEFAULTS: &[&str] = &["typescript.check", "svelte.check"];
 
-/// Each command but `format`, which takes oxfmt's arguments: its name, its tasks and its guide.
+/// Each command but `format` and `lint`, which take oxfmt's and oxlint's arguments: its name, its
+/// tasks and its guide.
 const COMMANDS: &[(&str, &[&str], &str)] = &[
-    ("lint", LINT, help::LINT),
     ("typecheck", TYPECHECK, help::TYPECHECK),
     ("version", &[], help::VERSION),
 ];
@@ -49,12 +47,17 @@ fn command(name: &str) -> Result<(&'static [&'static str], &'static str), ExitCo
 /// `rsvelte`.
 pub fn release() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
-    // `format` alone takes oxfmt's arguments; followed by a command, rsvelte's.
-    if let Some(("format", rest)) = arguments.split_first().map(|(c, r)| (c.as_str(), r))
+    // `format` or `lint` alone takes oxfmt's or oxlint's arguments; followed by a command,
+    // rsvelte's.
+    if let Some((command @ ("format" | "lint"), rest)) =
+        arguments.split_first().map(|(c, r)| (c.as_str(), r))
         && !rest
             .first()
             .is_some_and(|next| combined::COMBINABLE.contains(&next.as_str()))
     {
+        if command == "lint" {
+            return host_lint::lint(rest);
+        }
         return format::format(rest);
     }
     let mut config = configuration::Options::default();
@@ -103,13 +106,15 @@ pub fn release() -> ExitCode {
         eprint!("{}", help::OVERVIEW);
         return ExitCode::from(2);
     };
-    if name == "format" {
-        return usage("put `format` first: its options are oxfmt's");
+    if name == "format" || name == "lint" {
+        return usage(&format!(
+            "put `{name}` first: its options are {}'s",
+            if name == "format" { "oxfmt" } else { "oxlint" }
+        ));
     }
-    let tasks = match command(name) {
-        Ok((tasks, _)) => tasks,
-        Err(code) => return code,
-    };
+    if let Err(code) = command(name) {
+        return code;
+    }
     if name == "typecheck" && !paths.is_empty() {
         return usage("typecheck takes no paths: it checks the files its tsconfig.json selects");
     }
@@ -119,32 +124,22 @@ pub fn release() -> ExitCode {
         }
         return version::version(&config);
     }
-    alone(&config, tasks, paths)
+    typecheck_alone(&config)
 }
 
-/// `lint` over `paths` when `tasks` is [`LINT`], else `typecheck`.
-fn alone(config: &configuration::Options, tasks: &[&str], paths: &[&str]) -> ExitCode {
-    let (reg, _) = match configured_registry(config, &[], installation(tasks)) {
-        Ok(configured) => configured,
-        Err(error) => return usage(&error),
-    };
-    if tasks == LINT {
-        lint::lint(&reg, paths, tasks)
-    } else {
-        typecheck::typecheck(&reg, tasks)
+/// `typecheck`.
+fn typecheck_alone(config: &configuration::Options) -> ExitCode {
+    match configured_registry(config, &[], installation(TYPECHECK)) {
+        Ok((reg, _)) => typecheck::typecheck(&reg, TYPECHECK),
+        Err(error) => usage(&error),
     }
 }
 
-/// What `lint` and `typecheck` install to run `tasks`: the typecheck plugins' defaults when
-/// `tasks` type check.
+/// What `typecheck` installs to run `tasks`: the typecheck plugins with their defaults.
 fn installation(tasks: &[&str]) -> Installation {
-    let defaults = if tasks.iter().any(|task| TYPECHECK.contains(task)) {
-        (TYPECHECK_DEFAULTS.iter())
-            .map(|&plugin| (plugin, "{}".to_owned()))
-            .collect()
-    } else {
-        Vec::new()
-    };
+    let defaults = (TYPECHECK_DEFAULTS.iter())
+        .map(|&plugin| (plugin, "{}".to_owned()))
+        .collect();
     Installation {
         extensions: EXTENSIONS,
         selection: Selection::Named(tasks.iter().map(|&task| task.to_owned()).collect()),
@@ -163,6 +158,7 @@ fn print_help(positional: &[&str], flag: bool) -> ExitCode {
             return usage(&format!("help takes one command, not also `{extra}`"));
         }
         ["help", "format"] | ["format", ..] => return format::format(&["--help".to_owned()]),
+        ["help", "lint"] | ["lint", ..] => return host_lint::lint(&["--help".to_owned()]),
         ["help", name] | [name, ..] => match command(name) {
             Ok((_, guide)) => guide,
             Err(code) => return code,

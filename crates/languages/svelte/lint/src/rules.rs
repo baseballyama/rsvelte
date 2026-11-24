@@ -1,6 +1,9 @@
+/// What several rules share; every other module here is one rule.
+/// The globals `svelte-eslint-parser` declares in a module whose runes Svelte compiles.
+pub use shared::svelte_names::RUNE_GLOBALS;
+
 use crate::rule::RuleDefinition;
 
-/// What several rules share; every other module here is one rule.
 pub(crate) mod shared {
     pub(super) mod compile_warnings;
     pub(super) mod constant_string;

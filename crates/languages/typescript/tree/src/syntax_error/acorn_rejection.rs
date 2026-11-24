@@ -86,6 +86,9 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
         // acorn checks a class's name only where the class is a declaration, and a parameter's
         // only where its function has a body; acorn-typescript checks no type parameter's.
         "1100" => locate(start, end, Find::UncheckedName, visit).is_some(),
+        // acorn-typescript checks a variable's initializer in an ambient context once it has read
+        // the declaration, as the tree's walk does.
+        "1039" => locate(start, end, Find::VariableInitializer, visit).is_some(),
         // acorn-typescript checks no interface, public class member, enum member, nor parameter
         // of a signature or of a function without a body, and a type alias only against the
         // types before it.
