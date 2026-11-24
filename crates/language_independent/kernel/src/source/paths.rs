@@ -32,15 +32,16 @@ pub fn canonicalize(path: impl AsRef<Path>) -> io::Result<PathBuf> {
 /// `path` without the verbatim prefix of a Windows path, where the plain form names the same file.
 ///
 /// `\\?\C:\a` is `C:\a`, and `\\?\UNC\server\share\a` is `\\server\share\a`. A path the plain
-/// form would read otherwise stays verbatim: one longer than `MAX_PATH`, or with a component that
-/// Windows rewrites or reserves, such as `a.`, `a `, `..` or `NUL`.
+/// form would read otherwise stays verbatim: one with a component that Windows rewrites or
+/// reserves, such as `a.`, `a `, `..` or `NUL`. Length is not such a rule: Rust, Go and Node add
+/// the prefix to a long plain path themselves, so it names the same file.
 #[must_use]
 pub fn plain(path: &str) -> Cow<'_, str> {
     if let Some(rest) = path.strip_prefix(r"\\?\UNC\") {
         let mut parts = rest.split('\\');
         let named = parts.next().is_some_and(|server| !server.is_empty())
             && parts.next().is_some_and(|share| !share.is_empty());
-        if named && readable(rest, rest.len() + 2) {
+        if named && readable(rest) {
             return Cow::Owned(format!(r"\\{rest}"));
         }
     } else if let Some(rest) = path.strip_prefix(r"\\?\") {
@@ -49,21 +50,16 @@ pub fn plain(path: &str) -> Cow<'_, str> {
             && drive[0].is_ascii_alphabetic()
             && drive[1] == b':'
             && drive[2] == b'\\';
-        if rooted && readable(&rest[3..], rest.len()) {
+        if rooted && readable(&rest[3..]) {
             return Cow::Borrowed(rest);
         }
     }
     Cow::Borrowed(path)
 }
 
-/// The longest path that Windows reads without the verbatim prefix, `MAX_PATH` less its NUL.
-const MOST_PLAIN_LENGTH: usize = 259;
-
-/// Whether Windows reads `components`, a plain path's part after its root, as they are, in a
-/// path of `length` bytes.
-fn readable(components: &str, length: usize) -> bool {
-    length <= MOST_PLAIN_LENGTH
-        && (components.is_empty() || components.split('\\').all(readable_component))
+/// Whether Windows reads `components`, a plain path's part after its root, as they are.
+fn readable(components: &str) -> bool {
+    components.is_empty() || components.split('\\').all(readable_component)
 }
 
 fn readable_component(component: &str) -> bool {
@@ -71,20 +67,28 @@ fn readable_component(component: &str) -> bool {
         && !component.ends_with(['.', ' '])
         && !component
             .chars()
-            .any(|c| c.is_control() || matches!(c, '<' | '>' | ':' | '"' | '/' | '|' | '?' | '*'))
+            .any(|c| c < ' ' || matches!(c, '<' | '>' | ':' | '"' | '/' | '|' | '?' | '*'))
         && !reserved(component.split('.').next().unwrap_or(component))
 }
 
-/// Whether Windows reads `stem` as a device, with any extension and in any case.
+/// Whether Windows reads `stem`, a name before its first dot, as a device, in any case. The
+/// numbered devices are those Microsoft's file naming rules list, `0` among them.
 fn reserved(stem: &str) -> bool {
     let stem = stem.trim_end();
+    let numbered = |name: &str| {
+        let mut chars = stem.chars();
+        let prefix: String = chars.by_ref().take(3).collect();
+        prefix.eq_ignore_ascii_case(name)
+            && chars
+                .next()
+                .is_some_and(|n| n.is_ascii_digit() || matches!(n, '\u{b9}' | '\u{b2}' | '\u{b3}'))
+            && chars.next().is_none()
+    };
     ["CON", "PRN", "AUX", "NUL", "CONIN$", "CONOUT$"]
         .iter()
         .any(|device| stem.eq_ignore_ascii_case(device))
-        || (stem.chars().count() == 4
-            && stem.get(..3).is_some_and(|name| {
-                name.eq_ignore_ascii_case("COM") || name.eq_ignore_ascii_case("LPT")
-            }))
+        || numbered("COM")
+        || numbered("LPT")
 }
 
 #[cfg(test)]
