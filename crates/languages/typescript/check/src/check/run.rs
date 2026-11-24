@@ -78,7 +78,10 @@ impl Tsc {
     /// the current directory, as the command line resolves it. The checker names files by their
     /// real path, such as `/private/var` for `/var`, so both are real paths.
     fn root(&self) -> Result<(Option<PathBuf>, PathBuf), String> {
-        let real = |p: &Path| std::fs::canonicalize(p).map_err(|e| format!("{}: {e}", p.display()));
+        let real = |p: &Path| {
+            rsvelte_kernel::source::paths::canonicalize(p)
+                .map_err(|e| format!("{}: {e}", p.display()))
+        };
         match &self.tsconfig {
             Some(config) => {
                 let config = real(config)?;
@@ -280,7 +283,7 @@ fn in_temporary_directory<T>(
     ));
     let io = |e: std::io::Error| format!("{}: {e}", dir.display());
     std::fs::create_dir_all(&dir).map_err(io)?;
-    let result = std::fs::canonicalize(&dir)
+    let result = rsvelte_kernel::source::paths::canonicalize(&dir)
         .map_err(io)
         .and_then(|real| work(&real));
     // Best effort: a leftover temporary directory does not affect the result.

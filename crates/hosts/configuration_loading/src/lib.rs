@@ -41,7 +41,8 @@ pub struct JsonLoader;
 
 impl Loader for JsonLoader {
     fn load(&self, path: &Path) -> Result<LoadedConfiguration, CallError> {
-        let path = std::fs::canonicalize(path).map_err(|error| CallError(error.to_string()))?;
+        let path = rsvelte_kernel::source::paths::canonicalize(path)
+            .map_err(|error| CallError(error.to_string()))?;
         let text = wire::read(&path)?;
         let configuration = serde_json::from_str(&text)
             .map_err(|error| CallError(format!("{}: {error}", path.display())))?;

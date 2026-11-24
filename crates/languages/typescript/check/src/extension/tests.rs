@@ -123,7 +123,7 @@ fn without_a_command_the_first_installed_checker_runs_through_node_without_its_n
     let install = |package: &str, manifest: &str| {
         let directory = scratch.0.join("node_modules").join(package);
         write(&directory.join("package.json"), manifest);
-        std::fs::canonicalize(directory).unwrap()
+        rsvelte_kernel::source::paths::canonicalize(directory).unwrap()
     };
     let typescript = install(
         "typescript",
@@ -169,7 +169,10 @@ fn without_a_command_an_installed_typescript_starts_its_native_executable() {
     write(&executable, "");
     assert_eq!(
         found(&scratch.0),
-        (std::fs::canonicalize(executable).unwrap(), Vec::new())
+        (
+            rsvelte_kernel::source::paths::canonicalize(executable).unwrap(),
+            Vec::new()
+        )
     );
 }
 
@@ -193,7 +196,7 @@ fn without_a_command_an_installed_native_preview_starts_its_native_executable() 
     write(&executable, "");
     assert_eq!(
         found(&scratch.0).0,
-        std::fs::canonicalize(executable).unwrap()
+        rsvelte_kernel::source::paths::canonicalize(executable).unwrap()
     );
 }
 
@@ -211,7 +214,7 @@ fn without_a_command_an_installed_tsrs_starts_its_native_executable_or_the_one_t
     write(&native.join("package.json"), "{}");
     let executable = native.join("tsrs");
     write(&executable, "");
-    let executable = std::fs::canonicalize(executable).unwrap();
+    let executable = rsvelte_kernel::source::paths::canonicalize(executable).unwrap();
     assert_eq!(found(&scratch.0).0, executable);
     let chosen = scratch.0.join("built/tsrs");
     let with = |value: &Path| {
@@ -275,7 +278,7 @@ fn a_typescript_older_than_7_1_is_passed_over_and_named_with_the_install_command
         let directory = scratch.0.join("node_modules").join(package);
         std::fs::create_dir_all(&directory).unwrap();
         std::fs::write(directory.join("package.json"), manifest).unwrap();
-        std::fs::canonicalize(directory).unwrap()
+        rsvelte_kernel::source::paths::canonicalize(directory).unwrap()
     };
     install(
         "@typescript/native-preview",
