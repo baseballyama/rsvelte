@@ -3,6 +3,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
+import { TraceMap, originalPositionFor } from '@jridgewell/trace-mapping';
 import { parse } from 'acorn';
 import * as official from 'svelte/compiler';
 
@@ -118,8 +119,8 @@ test('an option this compiler does not take throws, and its default is taken', (
 	assert.throws(() => rsvelte.compile('', { dev: true }), /takes `dev` only as false/);
 	assert.throws(() => rsvelte.compile('', { css: 'injected' }), /takes `css` only as "external"/);
 	assert.throws(
-		() => rsvelte.compile('', { sourcemap: {} }),
-		/does not take the option `sourcemap`/,
+		() => rsvelte.compile('', { outputFilename: 'App.js' }),
+		/does not take the option `outputFilename`/,
 	);
 	assert.throws(() => rsvelte.compile('', invalid({ generate: 'ssr' })), /"client" or "server"/);
 	assert.throws(() => rsvelte.compile('', { generate: false }), /`generate: false`/);
@@ -138,4 +139,48 @@ test('an option this compiler does not take throws, and its default is taken', (
 
 test('VERSION names the svelte whose output it reproduces', () => {
 	assert.equal(rsvelte.VERSION, official.VERSION);
+});
+
+/** The fields of a source map other than its mappings, which differ with the printer. */
+function described({ version, file, sources, sourcesContent, names }: any) {
+	return { version, file, sources, sourcesContent, names };
+}
+
+test('the source map names the file and carries the source, as the official one does', () => {
+	const filename = `${process.cwd()}/src/App.svelte`;
+	assert.deepEqual(
+		described(rsvelte.compile(COMPONENT, { filename }).js.map),
+		described(official.compile(COMPONENT, { filename }).js.map),
+	);
+	const module = 'export const a = $state(1);\n';
+	const options = { filename: `${process.cwd()}/src/a.svelte.js` };
+	assert.deepEqual(
+		described(rsvelte.compileModule(module, options).js.map),
+		described(official.compileModule(module, options).js.map),
+	);
+});
+
+test("a preprocessor's map is merged under the compiler's, as the official one merges it", () => {
+	// The preprocessor dropped the first line, so each line came from the one below it.
+	const lines = COMPONENT.split('\n').length;
+	const map = { version: 3, names: [], mappings: Array(lines).fill('AACA').join(';') };
+	const filename = `${process.cwd()}/src/App.svelte`;
+	for (const sourcemap of [
+		{ ...map, sources: ['App.svelte'] },
+		JSON.stringify({ ...map, sources: [''] }),
+	]) {
+		const traced = (compiled: { js: { code: string; map: any } }) => {
+			const at = compiled.js.code.indexOf('count = ');
+			const before = compiled.js.code.slice(0, at).split('\n');
+			const generated = { line: before.length, column: before.at(-1)!.length };
+			return {
+				...described(compiled.js.map),
+				at: originalPositionFor(new TraceMap(compiled.js.map), generated),
+			};
+		};
+		const ours = traced(rsvelte.compile(COMPONENT, { filename, sourcemap: sourcemap as never }));
+		const theirs = traced(official.compile(COMPONENT, { filename, sourcemap: sourcemap as never }));
+		assert.deepEqual(ours, theirs);
+		assert.equal(ours.at.line, 3);
+	}
 });

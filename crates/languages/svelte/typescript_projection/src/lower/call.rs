@@ -9,8 +9,9 @@ use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
 impl Builder<'_> {
     /// `__rsvelte_component(C)(internals, properties)`, with the name it gives the component when
-    /// the snippets' names are declared from its props or its instance is checked. `bound`: a
-    /// `bind:this` assigns the call, which then makes the instance.
+    /// the snippets' names are declared from its props or its instance is checked. A named
+    /// component's call, or one a `bind:this` assigns (`bound`), makes the instance, of the
+    /// generics its props infer.
     pub(super) fn component_call(
         &mut self,
         component: NodeIdentifier,
@@ -32,7 +33,7 @@ impl Builder<'_> {
         if let Some(name) = named {
             callee = name;
         }
-        if bound {
+        if bound || named.is_some() {
             let bind_this = self.tree.push(Node::Identifier("__rsvelte_bind_this"));
             let arguments = self.tree.list(&[callee]);
             callee = self.tree.push(Node::Call {
@@ -193,7 +194,8 @@ impl Builder<'_> {
                 return Err(refuse("dynamic slot names", a.span));
             }
         };
-        self.slot_elements.push(attributes);
+        let element = self.slot_element(attributes);
+        self.slot_elements.push(element);
         let mut callee = self.tree.push(Node::Identifier("__rsvelte_slots"));
         if self.declares_slots() {
             let slots = self.tree.push(Node::Identifier("$$Slots"));

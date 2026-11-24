@@ -56,7 +56,7 @@ impl<'a> Template<'_, '_, '_, 'a> {
                     // always renders, even for `undefined`.
                     let with_class = b.object([
                         b.spread_property(b.id(a)),
-                        b.property(b.key("class"), merged, false),
+                        b.property(b.key("class"), merged),
                     ]);
                     (b.conditional(has, with_class, b.id(a)), None)
                 };

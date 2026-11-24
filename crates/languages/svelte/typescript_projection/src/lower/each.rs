@@ -6,6 +6,7 @@ use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::TemplateNode;
 use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, node_span};
 
+use super::slot_scope::Unpacks;
 use super::{Builder, Node, NodeIdentifier, Result, reads_any, source_expression};
 
 impl Builder<'_> {
@@ -25,6 +26,10 @@ impl Builder<'_> {
             unreachable!("the caller matched an each block");
         };
         let start = self.scratch.len();
+        let outer = self.slot_scope.len();
+        if let Some(context) = context {
+            self.declare_pattern(context, Unpacks::Item(expression), outer);
+        }
         let bound = [context, index];
         let iterable = self.expression_source(expression, None);
         let callee = self.tree.push(Node::Identifier("__rsvelte_each"));
@@ -54,6 +59,7 @@ impl Builder<'_> {
             let body = self.children(fallback)?;
             self.scratch.push(self.tree.push(Node::Block { body }));
         }
+        self.slot_scope.truncate(outer);
         let body = self.finish_list(start);
         Ok(Node::Block { body })
     }

@@ -93,7 +93,7 @@ pub(super) fn class_fields(
     let mut constructor = None;
     for element in &body.body {
         match element {
-            ClassElement::PropertyDefinition(p) if !p.computed && !p.r#static => {
+            ClassElement::PropertyDefinition(p) if !p.key.is_computed() && !p.r#static => {
                 analysis.handle(p.span, key_name(&p.key), p.value.as_ref(), false)?;
                 let Some(name) = key_name(&p.key) else {
                     continue;
@@ -111,7 +111,7 @@ pub(super) fn class_fields(
             ClassElement::MethodDefinition(m) if m.kind == MethodDefinitionKind::Constructor => {
                 constructor = Some(m);
             }
-            ClassElement::MethodDefinition(m) if !m.computed => {
+            ClassElement::MethodDefinition(m) if !m.key.is_computed() => {
                 let Some(name) = key_name(&m.key) else {
                     continue;
                 };
@@ -257,6 +257,11 @@ pub(super) fn key_name<'k>(key: &'k PropertyKey<'_>) -> Option<Cow<'k, str>> {
     match key {
         PropertyKey::StaticIdentifier(id) => Some(id.name.as_str().into()),
         PropertyKey::PrivateIdentifier(id) => Some(format!("#{}", id.name).into()),
+        PropertyKey::StaticStringLiteral(s) => Some(super::javascript::string_value(s.value)),
+        PropertyKey::StaticNumericLiteral(n) if n.value.abs() < 1e21 => {
+            Some(n.value.to_string().into())
+        }
+        PropertyKey::StaticBigIntLiteral(n) => Some(n.value.as_str().into()),
         key => key.as_expression().and_then(expression_name),
     }
 }

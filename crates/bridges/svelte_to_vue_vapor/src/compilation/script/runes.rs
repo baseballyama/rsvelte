@@ -136,7 +136,7 @@ impl<'a> Visit<'a> for Collect<'_> {
     }
 
     fn visit_property_definition(&mut self, it: &PropertyDefinition<'a>) {
-        if !it.computed
+        if !it.key.is_computed()
             && let Some(value) = &it.value
         {
             let named = matches!(

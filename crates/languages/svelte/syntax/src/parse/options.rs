@@ -225,9 +225,7 @@ fn option_property<'t>(
         return None;
     };
     match &property.key {
-        PropertyKey::StaticIdentifier(key) if !property.computed => {
-            Some((key.name.as_str(), &property.value))
-        }
+        PropertyKey::StaticIdentifier(key) => Some((key.name.as_str(), &property.value)),
         _ => None,
     }
 }

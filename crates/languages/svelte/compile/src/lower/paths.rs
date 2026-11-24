@@ -157,7 +157,7 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, 'o, D> {
                 value => value.clone_in(b.allocator()),
             };
             let member = match &property.key {
-                PropertyKey::StaticIdentifier(key) if !property.computed => {
+                PropertyKey::StaticIdentifier(key) => {
                     if self.hooks.reads_props(&value, &key.name) {
                         b.member(b.id("$$props"), &key.name)
                     } else {
@@ -165,8 +165,11 @@ impl<'a, 'o, D: Destructure<'a, 'o>> Paths<'_, 'o, D> {
                     }
                 }
                 key => {
-                    let key = key.as_expression().expect("a computed or literal key");
-                    b.computed(object, self.hooks.rewrite(key))
+                    let key = match key.as_expression() {
+                        Some(key) => self.hooks.rewrite(key),
+                        None => b.key_expression(key.clone_in(b.allocator())),
+                    };
+                    b.computed(object, key)
                 }
             };
             self.extract_paths(&property.value, member, default, paths);

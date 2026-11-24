@@ -41,7 +41,7 @@ fn string<'a>(e: &'a Expression<'a>) -> Option<&'a str> {
 pub(super) fn key_name<'a>(key: &'a PropertyKey<'a>) -> Option<&'a str> {
     match key {
         PropertyKey::StaticIdentifier(id) => Some(id.name.as_str()),
-        PropertyKey::StringLiteral(s) => s.value.as_str(),
+        PropertyKey::StaticStringLiteral(s) | PropertyKey::StringLiteral(s) => s.value.as_str(),
         _ => None,
     }
 }
@@ -52,7 +52,9 @@ pub(super) fn option<'a>(
     name: &str,
 ) -> Option<&'a Expression<'a>> {
     object.properties.iter().find_map(|p| match p {
-        ObjectPropertyKind::ObjectProperty(p) if !p.computed && key_name(&p.key) == Some(name) => {
+        ObjectPropertyKind::ObjectProperty(p)
+            if !p.key.is_computed() && key_name(&p.key) == Some(name) =>
+        {
             Some(&p.value)
         }
         _ => None,
@@ -129,7 +131,7 @@ fn custom_element(tree: &Tree, attribute: &Attribute) -> R<CustomElement> {
                 let ObjectPropertyKind::ObjectProperty(p) = property else {
                     return refuse();
                 };
-                if p.computed || p.method {
+                if p.key.is_computed() || p.method {
                     return refuse();
                 }
                 let Some(name) = key_name(&p.key) else {
@@ -169,7 +171,7 @@ fn check_properties(props: &ObjectExpression<'_>, attribute: &Attribute) -> R<()
         let ObjectPropertyKind::ObjectProperty(p) = property else {
             return Err(unsupported("this custom element prop", span));
         };
-        if p.computed || p.method {
+        if p.key.is_computed() || p.method {
             return Err(unsupported("this custom element prop", span));
         }
         if key_name(&p.key).is_none() {
@@ -182,7 +184,8 @@ fn check_properties(props: &ObjectExpression<'_>, attribute: &Attribute) -> R<()
             let ObjectPropertyKind::ObjectProperty(f) = field else {
                 return Err(unsupported("this custom element prop option", span));
             };
-            let (false, false, Some(name)) = (f.computed, f.method, key_name(&f.key)) else {
+            let (false, false, Some(name)) = (f.key.is_computed(), f.method, key_name(&f.key))
+            else {
                 return Err(unsupported("this custom element prop option", span));
             };
             let value = f.value.get_inner_expression();

@@ -3,19 +3,22 @@
 use std::borrow::Cow;
 
 use oxc_ast::AstType;
+use oxc_ast::ast::Expression;
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
-use oxc_span::SourceType;
+use oxc_span::{GetSpan, SourceType};
 
 use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
-use super::word::{Home, keyword, misused};
+use super::word::{Home, home, keyword, misused};
 
+mod arguments;
 mod lexer;
 mod pattern;
-use lexer::regular_expression;
-use pattern::parenthesized_element;
+use arguments::{ARGUMENTS_IN_STATIC_BLOCK, arguments_misused, in_static_block};
+use lexer::{after_number, regular_expression};
+use pattern::{parenthesized_element, reparsed};
 
 /// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one
 /// of `unchecked`, the rules the host's parser does not check, nor, for a host that reads
@@ -38,36 +41,6 @@ pub(crate) fn reported(
     })
 }
 
-/// oxc's errors for `arguments` in a class field initializer and in a class static block.
-const ARGUMENTS_IN_INITIALIZER: &str = "'arguments' is not allowed in class field initializer";
-const ARGUMENTS_IN_STATIC_BLOCK: &str = "'arguments' is not allowed in static initialization block";
-
-/// acorn's wording for oxc's error about `arguments` at `start`.
-fn arguments_misused(error: &OxcDiagnostic, start: u32) -> Option<Acorn> {
-    match error.message.as_ref() {
-        ARGUMENTS_IN_INITIALIZER => Some(fails(
-            "Cannot use 'arguments' in class field initializer",
-            start,
-        )),
-        ARGUMENTS_IN_STATIC_BLOCK => Some(fails(
-            "Cannot use arguments in class static initialization block",
-            start,
-        )),
-        _ => None,
-    }
-}
-
-/// Whether acorn reads the name `error` labels in a class static block: oxc also refuses
-/// `arguments` in an arrow function there, which acorn reads as a function of its own.
-fn in_static_block(error: &OxcDiagnostic, visit: impl FnOnce(&mut Locator)) -> bool {
-    let Some(label) = error.labels.first() else {
-        return true;
-    };
-    let mut locator = Locator::new(label.offset(), label.offset() + label.len(), Find::Home);
-    visit(&mut locator);
-    locator.home == Some(Home::StaticBlock)
-}
-
 /// Whether acorn reads the text oxc rejects with `error`, whose code is `number`, without failing.
 #[cold]
 fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Locator)) -> bool {
@@ -77,6 +50,8 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
     let (start, end) = (label.offset(), label.offset() + label.len());
     match number {
         "1047" => optional_rest(start, end, visit) == Some(Ok(())),
+        // An `await` where acorn reads it as the keyword: an enum at the top level is one.
+        "1308" => (home(start, end, std::iter::empty(), visit).0).is_some_and(Home::awaits),
         // acorn-typescript reads any statement in an ambient namespace, which upstream then
         // refuses as a namespace with values, and checks the body of a function declaration only.
         "1036" => true,
@@ -146,7 +121,8 @@ pub(crate) fn acorn(
             .then(|| keyword(kind.to_str(), at))
     };
     if error.code.scope.as_deref() != Some("TS") {
-        return arguments_misused(error, start)
+        return after_number(error, text, start, end)
+            .or_else(|| arguments_misused(error, start))
             .or_else(|| misused(start, end, read(), visit, false))
             .or_else(|| regular_expression(text, start, read()))
             // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
@@ -213,7 +189,7 @@ pub(crate) fn acorn(
                 .start(),
         )),
         number if let Some(message) = unassignable_message(number) => {
-            unassignable(message, text, start, &read().collect::<Vec<_>>())
+            unassignable(message, (text, start, end), read(), visit)
         }
         "1127" => unexpected_character(text, start, end),
         // A word reserved in strict code, or `await` outside an async function, which acorn reads
@@ -286,13 +262,35 @@ fn unassignable_message(number: &str) -> Option<&'static str> {
     }
 }
 
-/// What acorn reports for a target that cannot be assigned, which oxc labels from its outermost
-/// parentheses at `start`. In a destructuring pattern, acorn first checks the pattern as a whole:
-/// see [`parenthesized_element`]. Otherwise it reports `message` at the target inside the
-/// parentheses, or at them around an object or an array.
-fn unassignable(message: &'static str, text: &str, start: u32, tokens: &[Token]) -> Option<Acorn> {
-    if let Some(at) = parenthesized_element(text, start, tokens) {
-        return Some(fails("Assigning to rvalue", at));
+/// What acorn reports for a target that cannot be assigned, which oxc labels `start..end` with its
+/// outermost parentheses, in the part whose tokens are `tokens` and whose tree `visit` walks. In a
+/// destructuring pattern, acorn first checks the pattern as a whole: see [`parenthesized_element`].
+/// Otherwise it reports `message` where its node starts: at the expression inside the parentheses
+/// and type assertions, or at the outermost parenthesis around an object or an array, which it
+/// reads as a pattern. Both read the target where acorn does, which decides what `await` and
+/// `yield` are: where that is not known, the message stays, at the first token inside the
+/// parentheses or at them around a pattern.
+fn unassignable(
+    message: &'static str,
+    (text, start, end): (&str, u32, u32),
+    tokens: impl Iterator<Item = Token>,
+    visit: impl FnOnce(&mut Locator),
+) -> Option<Acorn> {
+    let tokens = &tokens.collect::<Vec<_>>();
+    let (home, _) = home(start, end, tokens.iter().copied(), visit);
+    if let Some(home) = home {
+        if let Some(at) = parenthesized_element(text, (start, end), tokens, home) {
+            return Some(fails("Assigning to rvalue", at));
+        }
+        let node = reparsed(text, (start, end), home, |target| {
+            match target.expression.get_inner_expression() {
+                Expression::ObjectExpression(_) | Expression::ArrayExpression(_) => start,
+                inner => target.at(inner.span().start),
+            }
+        });
+        if let Some(at) = node {
+            return Some(fails(message, at));
+        }
     }
     let mut after = tokens.iter().skip_while(|token| token.start() < start);
     let first = after.next()?;
@@ -361,6 +359,11 @@ fn early_error(
             second()?.0,
         )),
         "1117" => Some(fails("Redefinition of __proto__ property", second()?.0)),
+        // oxc labels the declaration, and acorn-typescript reports the module reference.
+        "1392" => Some(fails(
+            "An import alias can not use 'import type'.",
+            locate(start, end, Find::ModuleReference, visit)?.0,
+        )),
         // acorn tells a name declared from a name assigned to.
         "1100" => {
             let name = text.get(start as usize..end as usize)?;

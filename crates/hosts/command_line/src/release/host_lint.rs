@@ -48,10 +48,11 @@ pub(crate) fn lint(arguments: &[String]) -> ExitCode {
     oxfmt::cli::init_tracing();
     oxfmt::cli::init_rayon(command.misc_options.threads);
     let mut stdout = BufWriter::new(std::io::stdout());
+    let mut stderr = BufWriter::new(std::io::stderr());
     oxlint::cli::CliRunner::new(command, None)
         .with_hosts(vec![svelte()])
         .with_host_config_loader(super::node_configuration::Node)
-        .run(&mut stdout)
+        .run(&mut stdout, &mut stderr)
         .report()
 }
 
