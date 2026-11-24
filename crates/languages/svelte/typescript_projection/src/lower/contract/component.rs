@@ -4,10 +4,11 @@
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::super::{Builder, Node, NodeIdentifier, Range};
+use super::slot_def::SlotElement;
 use super::{ComponentMode, Contract};
 use crate::syntax_tree::Instance;
 
-impl Builder<'_> {
+impl<'s> Builder<'s> {
     /// The component the render function returns, of the contract and of the slots the template
     /// lowered: svelte2tsx's function component in runes mode without events or slots, and its
     /// isomorphic component otherwise.
@@ -66,7 +67,7 @@ impl Builder<'_> {
 
     /// The slots value svelte2tsx's render function returns: `$$Slots`, or else the object each
     /// `<slot>`'s attributes make.
-    fn slots_value(&mut self, elements: Vec<Range>) -> NodeIdentifier {
+    fn slots_value(&mut self, elements: Vec<SlotElement<'s>>) -> NodeIdentifier {
         if self.declares_slots() {
             let slots = self.tree.push(Node::Identifier("$$Slots"));
             self.instantiated("__rsvelte_value", &[slots])

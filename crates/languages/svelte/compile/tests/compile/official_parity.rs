@@ -12,6 +12,7 @@ mod derived;
 mod enums;
 mod errors;
 mod exports;
+mod import_aliases;
 mod import_equals;
 mod keywords;
 mod lets;

@@ -135,6 +135,8 @@ pub(super) enum Find {
     SuperHome,
     /// The initializer of the class field whose key is the label.
     Initializer,
+    /// The module reference of the import equals declaration that is the label.
+    ModuleReference,
     /// The variable declarator whose initializer is the label.
     VariableInitializer,
     /// The type alias, interface, class member with a public name or enum member whose name is
@@ -365,6 +367,21 @@ impl Locator {
         }
     }
 
+    /// For [`Find::Binding`], whether the innermost holder around the label declares it.
+    fn enter_around_binding(&mut self, kind: AstKind<'_>) {
+        match kind {
+            AstKind::Program(_)
+            | AstKind::ArrowFunctionExpression(_)
+            | AstKind::FormalParameters(_) => self.declares = true,
+            // acorn-typescript checks the name of a function without a body as assigned.
+            AstKind::Function(it) => {
+                self.declares =
+                    it.body.is_some() || it.id.as_ref().is_none_or(|id| id.span != self.label);
+            }
+            _ => {}
+        }
+    }
+
     /// Takes in a node of the walk, outer nodes before inner ones.
     pub fn enter(&mut self, kind: AstKind<'_>) {
         self.walked = true;
@@ -373,17 +390,7 @@ impl Locator {
             self.enter_head_check(kind);
         }
         if matches!(self.find, Find::Binding) && around {
-            match kind {
-                AstKind::Program(_)
-                | AstKind::ArrowFunctionExpression(_)
-                | AstKind::FormalParameters(_) => self.declares = true,
-                // acorn-typescript checks the name of a function without a body as assigned.
-                AstKind::Function(it) => {
-                    self.declares =
-                        it.body.is_some() || it.id.as_ref().is_none_or(|id| id.span != self.label);
-                }
-                _ => {}
-            }
+            self.enter_around_binding(kind);
         }
         if matches!(self.find, Find::OptionalRest) {
             if around {
@@ -435,6 +442,11 @@ impl Locator {
                 if self.found.is_none() && it.is_declaration() && implements(it, self.label) =>
             {
                 it.span.start
+            }
+            (Find::ModuleReference, AstKind::TSImportEqualsDeclaration(it))
+                if it.span == self.label =>
+            {
+                it.module_reference.span().start
             }
             (Find::VariableInitializer, AstKind::VariableDeclarator(it))
                 if it

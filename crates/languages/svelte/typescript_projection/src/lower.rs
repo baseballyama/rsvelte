@@ -13,6 +13,7 @@ pub use contract::store_reads;
 mod hoistable;
 mod render;
 mod root_snippets;
+mod slot_scope;
 mod tag;
 mod type_assertion;
 use std::cell::OnceCell;
@@ -96,6 +97,7 @@ pub fn lower<'a>(
         props_hoisted: false,
         module_snippets: None,
         slot_elements: Vec::new(),
+        slot_scope: Buffer::new(0),
         names: OnceCell::new(),
     };
     builder.tree.javascript = !component.checked_as_typescript(source);
@@ -175,8 +177,11 @@ struct Builder<'a> {
     props_hoisted: bool,
     /// The root snippets svelte2tsx moves before the render function.
     module_snippets: Option<NodeIdentifier>,
-    /// The attributes of each `<slot>` lowered, which type the slots without `$$Slots`.
-    slot_elements: Vec<Range>,
+    /// The attributes of each `<slot>` lowered, with its properties when svelte2tsx writes them
+    /// as an object, which type the slots without `$$Slots`.
+    slot_elements: Vec<contract::SlotElement<'a>>,
+    /// The names svelte2tsx unpacks for a `<slot>` prop that reads them, innermost last.
+    slot_scope: Buffer<slot_scope::Declared>,
     /// What the component's names say about generated names, read when first needed.
     names: OnceCell<names::Names<'a>>,
 }
