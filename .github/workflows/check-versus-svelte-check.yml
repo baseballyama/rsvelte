@@ -113,7 +113,7 @@ jobs:
         with:
           name: rsvelte
           path: bin
-      - run: chmod +x bin/rsvelte bin/rsvelte-svelte-content-mapper
+      - run: chmod +x bin/rsvelte-dev bin/rsvelte-svelte-content-mapper
       - name: Build svelte-check of language-tools#3193
         run: |
           git init -q "$RUNNER_TEMP/lt" && cd "$RUNNER_TEMP/lt"

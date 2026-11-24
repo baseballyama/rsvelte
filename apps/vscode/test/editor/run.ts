@@ -21,7 +21,7 @@ const scratch = fs.realpathSync(fs.mkdtempSync(path.join(os.tmpdir(), 'rsvelte-v
 const workspace = path.join(scratch, 'workspace');
 const files: Record<string, string> = {
 	'package.json': '{ "private": true }',
-	'rsvelte.config.json': fs.readFileSync(path.join(here, 'rsvelte.config.json'), 'utf8'),
+	'.oxlintrc.json': fs.readFileSync(path.join(here, 'oxlintrc.json'), 'utf8'),
 	'src/Lint.svelte': fs.readFileSync(path.join(here, 'Lint.svelte'), 'utf8'),
 	'src/Format.svelte': fs.readFileSync(path.join(here, 'Format.svelte'), 'utf8'),
 	'node_modules/@rsvelte/cli/package.json': '{ "name": "@rsvelte/cli", "type": "module" }',

@@ -2,12 +2,13 @@ import assert from 'node:assert/strict';
 import { test } from 'node:test';
 import { ruleUrl, rules } from './rules.ts';
 
-test('lists the Svelte, ESLint and TypeScript rules, not the Vue ones', () => {
+test('lists the Svelte rules and the core rules rsvelte runs in a component', () => {
 	const names = rules.map((rule) => rule.name);
 	assert.ok(names.includes('svelte/button-has-type'));
 	assert.ok(names.includes('no-unused-vars'));
-	assert.ok(names.includes('@typescript-eslint/no-unused-vars'));
-	assert.ok(!names.some((name) => name.startsWith('vue/')));
+	assert.ok(
+		!names.some((name) => name.startsWith('@typescript-eslint/') || name.startsWith('vue/')),
+	);
 });
 
 test('links each rule to the documentation of its original', () => {

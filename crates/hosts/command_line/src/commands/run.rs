@@ -11,24 +11,38 @@ use super::typecheck::{self, Project};
 use crate::usage;
 
 /// `ESLint`'s bound on fixing passes, which stops fixes that keep producing fixes.
-pub(crate) const MAX_FIX_PASSES: usize = 10;
+const MAX_FIX_PASSES: usize = 10;
 
 /// Runs `tasks` on `file` and prints their output. With `fix`, applies the findings' fixes pass by
 /// pass, writes the file, and prints the output for the fixed text. Exit code 1 means an error
 /// diagnostic or finding is left.
 pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -> ExitCode {
-    let read = match reg.read(file, tasks) {
+    let mut text = match reg.read(file, tasks) {
         Ok(t) => t,
         Err(e) => return usage(&format!("{}: {e}", file.display())),
     };
-    let passes = if fix { MAX_FIX_PASSES } else { 0 };
-    let (text, result) = match fixed(read.clone(), passes, &|text| {
-        run_once(reg, file, text, tasks)
-    }) {
-        Ok(fixed) => fixed,
-        Err(code) => return code,
+    let mut passes = 0;
+    let result = loop {
+        let result = match run_once(reg, file, &text, tasks) {
+            Ok(result) => result,
+            Err(code) => return code,
+        };
+        if !fix || passes == MAX_FIX_PASSES {
+            break result;
+        }
+        let replacements = result
+            .outputs
+            .iter()
+            .flat_map(|(_, out)| &out.findings)
+            .map(|finding| finding.fix.as_slice());
+        let fixed = apply_fixes(&text, replacements);
+        if fixed == text {
+            break result;
+        }
+        text = fixed;
+        passes += 1;
     };
-    if text != read
+    if passes > 0
         && let Err(e) = std::fs::write(file, &text)
     {
         return usage(&format!("{}: {e}", file.display()));
@@ -42,30 +56,6 @@ pub(crate) fn run_file(reg: &Registry, file: &Path, tasks: &[&str], fix: bool) -
     } else {
         ExitCode::SUCCESS
     }
-}
-
-/// `text` with the fixes of `lint`'s findings applied, pass after pass, in at most `passes`
-/// passes and until one changes nothing, with the lint of the text it returns.
-pub(crate) fn fixed<E>(
-    mut text: String,
-    passes: usize,
-    lint: &dyn Fn(&str) -> Result<DocumentResult, E>,
-) -> Result<(String, DocumentResult), E> {
-    for pass in 0.. {
-        let result = lint(&text)?;
-        if pass == passes {
-            return Ok((text, result));
-        }
-        let replacements = (result.outputs.iter())
-            .flat_map(|(_, out)| &out.findings)
-            .map(|finding| finding.fix.as_slice());
-        let fixed = apply_fixes(&text, replacements);
-        if fixed == text {
-            return Ok((text, result));
-        }
-        text = fixed;
-    }
-    unreachable!("the passes end")
 }
 
 /// Runs `tasks` on every file of the project they check, as the project's checker selects them.

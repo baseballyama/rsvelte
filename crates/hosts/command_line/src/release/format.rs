@@ -41,7 +41,7 @@ pub(super) fn hosts() -> HostFormatters {
     HostFormatters::default()
         .with(Language::Svelte, Svelte(tailwind.clone()))
         .with_tailwind_sorter(tailwind)
-        .with_config_loader(configuration::Node)
+        .with_config_loader(super::node_configuration::Node)
 }
 
 struct Svelte(tailwind::Tailwind);
@@ -133,7 +133,6 @@ fn panic_message(panic: &(dyn Any + Send)) -> &str {
         .unwrap_or("a payload that is not a string")
 }
 
-mod configuration;
 mod tailwind;
 
 #[cfg(test)]

@@ -9,22 +9,6 @@ pub const UNUSED_DIRECTIVE: &str = "unused-disable-directive";
 /// The code of the one finding of a document that does not parse, which names no rule.
 pub const PARSE_ERROR: &str = "parse_error";
 
-/// The rule a finding's code names; `None` for `ESLint`'s own reports.
-#[must_use]
-pub fn rule(code: &str) -> Option<&str> {
-    (code != PARSE_ERROR && code != UNUSED_DIRECTIVE).then_some(code)
-}
-
-/// A finding's message as `ESLint` reports it: a parse error's starts with `Parsing error: `.
-#[must_use]
-pub fn message(diagnostic: &Diagnostic) -> std::borrow::Cow<'_, str> {
-    if diagnostic.code == PARSE_ERROR {
-        crate::output::parsing_error(&diagnostic.message).into()
-    } else {
-        diagnostic.message.as_str().into()
-    }
-}
-
 #[derive(Clone, Debug)]
 pub struct Finding {
     pub diagnostic: Diagnostic,

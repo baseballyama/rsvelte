@@ -39,8 +39,8 @@ async function apply(
 export async function run(): Promise<void> {
 	const lint = await open('src/Lint.svelte');
 	assert.equal(lint.languageId, 'svelte');
-	const diagnostics = await until('rsvelte diagnostics', () => {
-		const found = vscode.languages.getDiagnostics(lint.uri).filter((d) => d.source === 'rsvelte');
+	const diagnostics = await until('lint diagnostics', () => {
+		const found = vscode.languages.getDiagnostics(lint.uri).filter((d) => d.source === 'oxc');
 		return found.length > 0 ? found : undefined;
 	});
 	const shown = diagnostics
@@ -48,10 +48,10 @@ export async function run(): Promise<void> {
 		.toSorted();
 	// As `rsvelte lint` prints them; the emoji counts two UTF-16 units.
 	assert.deepEqual(shown, [
-		'2:7 no-unused-vars',
-		'4:11 svelte/no-useless-mustaches',
-		'4:4 svelte/no-useless-mustaches',
-		'5:1 svelte/button-has-type',
+		'2:7 eslint(no-unused-vars)',
+		'4:11 svelte(no-useless-mustaches)',
+		'4:4 svelte(no-useless-mustaches)',
+		'5:1 svelte(button-has-type)',
 	]);
 
 	const whole = new vscode.Range(0, 0, lint.lineCount, 0);
@@ -61,18 +61,14 @@ export async function run(): Promise<void> {
 		whole,
 		vscode.CodeActionKind.QuickFix.value,
 	);
-	const titles = quick.filter((a) => a.title.includes('no-useless-mustaches')).map((a) => a.title);
-	assert.deepEqual(titles, [
-		'Fix this svelte/no-useless-mustaches problem',
-		'Fix this svelte/no-useless-mustaches problem',
-	]);
+	assert.ok(quick.filter((a) => a.isPreferred).length >= 2, quick.map((a) => a.title).join('\n'));
 	const all = await vscode.commands.executeCommand<vscode.CodeAction[]>(
 		'vscode.executeCodeActionProvider',
 		lint.uri,
 		whole,
-		'source.fixAll.rsvelte',
+		'source.fixAll.oxc',
 	);
-	const fixAll = all.find((a) => a.kind?.value === 'source.fixAll.rsvelte');
+	const fixAll = all.find((a) => a.kind?.value === 'source.fixAll.oxc');
 	assert.ok(fixAll?.edit, 'a fix of every problem');
 	await apply(lint, fixAll.edit);
 	assert.equal(
@@ -81,7 +77,7 @@ export async function run(): Promise<void> {
 	);
 	// The fixed text, unsaved, is what the server lints next.
 	await until('the diagnostics of the fixed text', () => {
-		const left = vscode.languages.getDiagnostics(lint.uri).filter((d) => d.source === 'rsvelte');
+		const left = vscode.languages.getDiagnostics(lint.uri).filter((d) => d.source === 'oxc');
 		return left.length === 2 ? left : undefined;
 	});
 

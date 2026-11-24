@@ -15,15 +15,13 @@ cannot set it.
 
 ## What it does
 
-- Problems: what `rsvelte lint <file>` reports, for the text in the editor, saved or not. Each
-  file uses the `rsvelte.config` of its directory or the nearest parent directory. As for a file
-  named on the command line, `.gitignore` does not count; files below the folder's
-  `node_modules` are not linted.
-- Fixes: a quick fix for each problem that has one, and "Fix all rsvelte problems". To fix on
-  save:
+- Problems: what `rsvelte lint` reports, for the text in the editor, saved or not, with
+  oxlint's configuration (`.oxlintrc.json` and the others oxlint reads). The language server of
+  oxlint reports them, with the Svelte rules of rsvelte.
+- Fixes: oxlint's quick fixes and its fix of all problems. To fix on save:
 
   ```json
-  { "editor.codeActionsOnSave": { "source.fixAll.rsvelte": "explicit" } }
+  { "editor.codeActionsOnSave": { "source.fixAll.oxc": "explicit" } }
   ```
 
 - Format: what `rsvelte format` writes when run in the workspace folder, with oxfmt's
@@ -33,6 +31,9 @@ cannot set it.
   { "[svelte]": { "editor.defaultFormatter": "rsvelte.rsvelte" } }
   ```
 
+It lints as oxc's extension does, with Svelte files too, so turn that one off in the
+folder: with both, each problem shows twice.
+
 It does not type check; run `rsvelte typecheck`. It does not highlight Svelte syntax or offer
 TypeScript features. The [Svelte extension](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode)
 does, and the two can run together.
@@ -40,7 +41,8 @@ does, and the two can run together.
 It runs only in a trusted workspace, because it runs the workspace's program and configuration
 files. A JavaScript or TypeScript configuration needs `node` on the `PATH` that the editor sees.
 After you upgrade `@rsvelte/cli`, or change a file that a configuration imports or a Tailwind CSS
-stylesheet, run "rsvelte: Restart the language server".
+stylesheet, run "rsvelte: Restart the language server". A file that does not format, such as one
+that does not parse, stays unchanged; `rsvelte format` prints why.
 
 ## Settings and commands
 

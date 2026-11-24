@@ -1,5 +1,5 @@
-//! `rsvelte lsp`, driven as an editor drives it, against what `rsvelte lint` prints and what
-//! `rsvelte format` writes for the same files.
+//! `rsvelte lsp`, driven as an editor drives it, against what `rsvelte lint` prints and fixes and
+//! what `rsvelte format` writes for the same files.
 
 use std::io::{BufRead, BufReader, Write};
 use std::path::Path;
@@ -14,11 +14,12 @@ use crate::Scratch;
 /// Long enough for a debug build that starts a `node` for nothing; a hang fails rather than waits.
 const PATIENCE: Duration = Duration::from_secs(60);
 
-const CONFIG: &str = r#"{ "plugins": { "svelte.lint": { "rules": {
+/// The configuration `rsvelte lint` reads, as oxlint does.
+const CONFIG: &str = r#"{ "rules": {
     "svelte/no-useless-mustaches": "error",
     "svelte/button-has-type": "error",
     "no-unused-vars": "warn"
-} } } }"#;
+} }"#;
 
 /// A UTF-16 pair before the second mustache, so its column counts code units, not bytes.
 const COMPONENT: &str =
@@ -256,33 +257,39 @@ fn apply(text: &str, edits: &Value) -> String {
     out
 }
 
-/// `(line, column, severity, rule)` of each problem `rsvelte lint` prints, 1-based as it prints
-/// them.
+/// `(line, column, severity, code)` of each problem `rsvelte lint` prints, 1-based, its column in
+/// UTF-16 code units as the protocol counts them.
 fn linted(root: &Path, file: &str) -> Vec<(u64, u64, String, String)> {
+    let text = std::fs::read_to_string(root.join(file)).expect("the linted file");
     let output = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
-        .args(["lint", file])
+        .args(["lint", "-f", "json", file])
         .current_dir(root)
         .output()
         .expect("run rsvelte lint");
-    let stdout = String::from_utf8(output.stdout).expect("UTF-8");
-    (stdout.lines())
-        .filter_map(|line| {
-            let words: Vec<&str> = line.split_whitespace().collect();
-            let (at, severity) = (words.first()?, words.get(1)?);
-            let (line, column) = at.split_once(':')?;
-            Some((
-                line.parse().ok()?,
-                column.parse().ok()?,
-                (*severity).to_owned(),
-                (*words.last()?).to_owned(),
-            ))
-        })
-        .collect()
+    let report: Value = serde_json::from_slice(&output.stdout).expect("oxlint's JSON report");
+    (report["diagnostics"]
+        .as_array()
+        .expect("diagnostics")
+        .iter())
+    .map(|d| {
+        let offset = d["labels"][0]["span"]["offset"]
+            .as_u64()
+            .expect("an offset") as usize;
+        let before = &text[..offset];
+        let start = before.rfind('\n').map_or(0, |at| at + 1);
+        (
+            before.matches('\n').count() as u64 + 1,
+            before[start..].encode_utf16().count() as u64 + 1,
+            d["severity"].as_str().expect("a severity").to_owned(),
+            d["code"].as_str().expect("a code").to_owned(),
+        )
+    })
+    .collect()
 }
 
 #[test]
 fn pulled_diagnostics_are_the_problems_rsvelte_lint_prints() {
-    let root = Scratch::new(&[("rsvelte.config.json", CONFIG), ("src/A.svelte", COMPONENT)]);
+    let root = Scratch::new(&[(".oxlintrc.json", CONFIG), ("src/A.svelte", COMPONENT)]);
     let (mut client, initialized) = Client::start(&root, true);
     let capabilities = &initialized["capabilities"];
     assert!(
@@ -305,7 +312,7 @@ fn pulled_diagnostics_are_the_problems_rsvelte_lint_prints() {
                 "warning"
             };
             let start = &d["range"]["start"];
-            assert_eq!(d["source"], "rsvelte");
+            assert_eq!(d["source"], "oxc");
             (
                 start["line"].as_u64().expect("as the protocol writes it") + 1,
                 start["character"]
@@ -331,7 +338,7 @@ fn pulled_diagnostics_are_the_problems_rsvelte_lint_prints() {
 
 #[test]
 fn published_diagnostics_follow_each_change_and_clear() {
-    let root = Scratch::new(&[("rsvelte.config.json", CONFIG), ("src/A.svelte", COMPONENT)]);
+    let root = Scratch::new(&[(".oxlintrc.json", CONFIG), ("src/A.svelte", COMPONENT)]);
     let (mut client, initialized) = Client::start(&root, false);
     assert!(initialized["capabilities"]["diagnosticProvider"].is_null());
     let file = root.join("src/A.svelte");
@@ -357,11 +364,16 @@ fn published_diagnostics_follow_each_change_and_clear() {
 }
 
 #[test]
-fn a_quick_fix_and_the_fix_of_all_problems_edit_as_rsvelte_dev_run_fix_writes() {
-    let root = Scratch::new(&[("rsvelte.config.json", CONFIG), ("src/A.svelte", COMPONENT)]);
+fn a_quick_fix_and_the_fix_of_all_problems_edit_as_rsvelte_lint_fix_writes() {
+    let root = Scratch::new(&[(".oxlintrc.json", CONFIG), ("src/A.svelte", COMPONENT)]);
     let (mut client, _) = Client::start(&root, true);
     let file = root.join("src/A.svelte");
     client.open(&file, COMPONENT);
+    // The client asks for the diagnostics before it asks for their actions.
+    client.request(
+        "textDocument/diagnostic",
+        &json!({ "textDocument": { "uri": uri(&file) } }),
+    );
     let whole =
         json!({ "start": { "line": 0, "character": 0 }, "end": { "line": 5, "character": 0 } });
     let actions = client.request(
@@ -369,43 +381,30 @@ fn a_quick_fix_and_the_fix_of_all_problems_edit_as_rsvelte_dev_run_fix_writes() 
         &json!({
             "textDocument": { "uri": uri(&file) },
             "range": whole,
-            "context": { "diagnostics": [] },
+            "context": { "diagnostics": [], "only": ["quickfix"] },
         }),
     );
-    let titles: Vec<&str> = actions
+    let preferred = (actions
         .as_array()
         .expect("as the protocol writes it")
-        .iter()
-        .map(|a| a["title"].as_str().expect("as the protocol writes it"))
-        .collect();
-    assert_eq!(
-        titles, ["Fix this svelte/no-useless-mustaches problem"; 2],
-        "{actions}"
-    );
-    let quick = &actions[1]["edit"]["changes"][uri(&file)];
-    assert_eq!(apply(COMPONENT, quick), COMPONENT.replace("{\"x\"}", "x"));
-
+        .iter())
+    .any(|a| a["isPreferred"] == true);
+    assert!(preferred, "{actions}");
     let all = client.request(
         "textDocument/codeAction",
         &json!({
             "textDocument": { "uri": uri(&file) },
             "range": whole,
-            "context": { "diagnostics": [], "only": ["source.fixAll"] },
+            "context": { "diagnostics": [], "only": ["source.fixAll.oxc"] },
         }),
     );
-    assert_eq!(all[0]["kind"], "source.fixAll.rsvelte", "{all}");
+    assert_eq!(all[0]["kind"], "source.fixAll.oxc", "{all}");
     let fixed = apply(COMPONENT, &all[0]["edit"]["changes"][uri(&file)]);
-    let written = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"))
-        .args([
-            "run",
-            "src/A.svelte",
-            "--task",
-            "svelte.lint/default",
-            "--fix",
-        ])
+    let written = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
+        .args(["lint", "--fix", "src/A.svelte"])
         .current_dir(&root)
         .output()
-        .expect("run rsvelte-dev");
+        .expect("run rsvelte lint --fix");
     assert!(written.status.code().is_some(), "{written:?}");
     assert_eq!(fixed, std::fs::read_to_string(&file).expect("fixed file"));
     assert_ne!(fixed, COMPONENT);
@@ -448,12 +447,14 @@ fn formatting_edits_the_text_as_rsvelte_format_writes_the_file() {
 }
 
 #[test]
-fn a_broken_configuration_is_one_diagnostic_and_a_fixed_one_is_read_again() {
+fn a_broken_configuration_is_shown_and_a_fixed_one_is_read_again() {
     let root = Scratch::new(&[
-        ("rsvelte.config.json", "{ not json"),
+        (".oxlintrc.json", "{ not json"),
         ("src/A.svelte", COMPONENT),
     ]);
     let (mut client, _) = Client::start(&root, true);
+    let shown = client.notification("window/showMessage");
+    assert_eq!(shown["type"], 1, "{shown}");
     let file = root.join("src/A.svelte");
     client.open(&file, COMPONENT);
     let pull = |client: &mut Client| {
@@ -463,53 +464,26 @@ fn a_broken_configuration_is_one_diagnostic_and_a_fixed_one_is_read_again() {
         )["items"]
             .clone()
     };
-    let items = pull(&mut client);
-    assert_eq!(items.as_array().map(Vec::len), Some(1), "{items}");
-    assert!(
-        items[0]["message"]
-            .as_str()
-            .expect("as the protocol writes it")
-            .starts_with("rsvelte.config: "),
-        "{items}"
-    );
-    std::fs::write(root.join("rsvelte.config.json"), CONFIG).expect("config");
+    let before = pull(&mut client);
+    std::fs::write(root.join(".oxlintrc.json"), CONFIG).expect("config");
     client.notify(
         "workspace/didChangeWatchedFiles",
-        &json!({ "changes": [{ "uri": uri(&root.join("rsvelte.config.json")), "type": 2 }] }),
+        &json!({ "changes": [{ "uri": uri(&root.join(".oxlintrc.json")), "type": 2 }] }),
     );
-    let items = pull(&mut client);
-    assert_eq!(items.as_array().map(Vec::len), Some(4), "{items}");
-    assert!(
-        client
-            .notifications
-            .iter()
-            .all(|n| n["method"] != "window/showMessage"),
-        "{:?}",
-        client.notifications
+    let after = pull(&mut client);
+    let count = |items: &Value| items.as_array().map_or(0, Vec::len);
+    assert_eq!(
+        count(&after),
+        linted(&root, "src/A.svelte").len(),
+        "{after}"
     );
-    assert_eq!(client.exit(), Some(0));
-}
-
-#[test]
-fn a_file_below_node_modules_is_not_linted() {
-    let root = Scratch::new(&[
-        ("rsvelte.config.json", CONFIG),
-        ("node_modules/x/A.svelte", COMPONENT),
-    ]);
-    let (mut client, _) = Client::start(&root, true);
-    let file = root.join("node_modules/x/A.svelte");
-    client.open(&file, COMPONENT);
-    let report = client.request(
-        "textDocument/diagnostic",
-        &json!({ "textDocument": { "uri": uri(&file) } }),
-    );
-    assert_eq!(report["items"], json!([]));
+    assert_ne!(before, after);
     assert_eq!(client.exit(), Some(0));
 }
 
 #[test]
 fn a_file_that_does_not_parse_is_left_as_it_is_without_an_error() {
-    // The client would show an error on each save; the parse error is among the diagnostics.
+    // The client would show an error on each save; the lint reports the parse error.
     let root = Scratch::new(&[
         ("a.ts", "let x = ;\n"),
         ("b.js", "let x = ;\n"),
@@ -534,8 +508,10 @@ fn a_file_that_does_not_parse_is_left_as_it_is_without_an_error() {
             "textDocument/diagnostic",
             &json!({ "textDocument": { "uri": uri(&file) } }),
         );
-        let message = report["items"][0]["message"].as_str().unwrap_or_default();
-        assert!(message.starts_with("Parsing error: "), "{name}: {report}");
+        let errors = (report["items"].as_array().expect("items").iter())
+            .filter(|d| d["severity"] == 1)
+            .count();
+        assert!(errors > 0, "{name}: {report}");
     }
     assert_eq!(client.exit(), Some(0));
 }

@@ -1,15 +1,11 @@
 {
 	"files": {
-		"js-ts": ["**/*.{js,mjs,cjs,ts,mts,cts}"],
 		"svelte": ["**/*.svelte"],
-		"svelte+js-ts+jsx-tsx": ["**/*.svelte", "**/*.{js,mjs,cjs,ts,mts,cts}", "**/*.{jsx,tsx}"],
-		"svelte+vue": ["**/*.svelte", "**/*.vue"],
-		"vue": ["**/*.vue"]
+		"svelte+js-ts+jsx-tsx": ["**/*.svelte", "**/*.{js,mjs,cjs,ts,mts,cts}", "**/*.{jsx,tsx}"]
 	},
 	"rules": [
-		{ "name": "@typescript-eslint/no-unused-vars", "scope": "typescript", "category": "correctness", "files": "js-ts" },
-		{ "name": "no-undef", "scope": "eslint", "category": "correctness", "files": "svelte" },
-		{ "name": "no-unused-vars", "scope": "eslint", "category": "correctness", "files": "svelte+vue" },
+		{ "name": "no-undef", "scope": "eslint", "category": "nursery", "files": "svelte" },
+		{ "name": "no-unused-vars", "scope": "eslint", "category": "correctness", "files": "svelte" },
 		{ "name": "svelte/@typescript-eslint/no-unnecessary-condition", "scope": "svelte", "category": "nursery", "files": "svelte" },
 		{ "name": "svelte/block-lang", "scope": "svelte", "category": "restriction", "files": "svelte" },
 		{ "name": "svelte/button-has-type", "scope": "svelte", "category": "restriction", "files": "svelte" },
@@ -89,9 +85,6 @@
 		{ "name": "svelte/valid-compile", "scope": "svelte", "category": "suspicious", "files": "svelte" },
 		{ "name": "svelte/valid-each-key", "scope": "svelte", "category": "correctness", "files": "svelte" },
 		{ "name": "svelte/valid-prop-names-in-kit-pages", "scope": "svelte", "category": "correctness", "files": "svelte" },
-		{ "name": "svelte/valid-style-parse", "scope": "svelte", "category": "correctness", "files": "svelte" },
-		{ "name": "vue/html-button-has-type", "scope": "vue", "category": "restriction", "files": "vue" },
-		{ "name": "vue/multi-word-component-names", "scope": "vue", "category": "style", "files": "vue" },
-		{ "name": "vue/no-unused-vars", "scope": "vue", "category": "correctness", "files": "vue" }
+		{ "name": "svelte/valid-style-parse", "scope": "svelte", "category": "correctness", "files": "svelte" }
 	]
 }

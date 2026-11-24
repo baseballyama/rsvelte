@@ -7,8 +7,8 @@ use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex};
 
-use super::Positions;
-use crate::finding::{PARSE_ERROR, UNUSED_DIRECTIVE, message, rule};
+use super::{Positions, parsing_error};
+use crate::finding::{PARSE_ERROR, UNUSED_DIRECTIVE};
 
 /// The report in `ESLint`'s `stylish` layout of each document with its result, and how many
 /// errors it lists.
@@ -127,11 +127,15 @@ fn row(d: &Diagnostic, positions: &Positions<'_>) -> (Severity, [String; 4]) {
         line.to_string(),
         (if parse_error { column } else { column + 1 }).to_string(),
         if parse_error {
-            without_period(message(d).into_owned())
+            without_period(parsing_error(&d.message))
         } else {
             without_period(d.message.replace('\n', " "))
         },
-        rule(&d.code).unwrap_or_default().to_owned(),
+        if parse_error || d.code == UNUSED_DIRECTIVE {
+            String::new()
+        } else {
+            d.code.to_string()
+        },
     ];
     (d.severity, text)
 }

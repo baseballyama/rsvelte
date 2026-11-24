@@ -1,5 +1,5 @@
-//! What `rsvelte --help` and `rsvelte help <command>` print, but for `format`, whose help is
-//! oxfmt's. The README of `@rsvelte/cli` gives the details these leave out.
+//! What `rsvelte --help` and `rsvelte help <command>` print, but for `format` and `lint`, whose
+//! help is oxfmt's and oxlint's. The README of `@rsvelte/cli` gives the details these leave out.
 
 /// The overview: every command and option.
 pub(super) const OVERVIEW: &str = "\
@@ -8,22 +8,22 @@ rsvelte lints, formats and type checks Svelte 5, TypeScript and JavaScript files
 Usage: rsvelte <command> [options]
 
 Commands:
-  lint [<path>...]               Lint the files below the paths (default: .)
+  lint [<oxlint arguments>...]   Lint files as oxlint does, Svelte files included
   format [<oxfmt arguments>...]  Format files as oxfmt does, Svelte files included
   typecheck                      Type check the project of a tsconfig.json
-  lsp                            Serve an editor: lint, fixes and format, as a language server
+  lsp                            Serve an editor the lint, its fixes and the format
   version                        Print the versions of the tools rsvelte matches and is built on
   help [<command>]               Print this help, or the guide to one command
 
   <command> <command>... [<path>...] [--check]
-                                 Run several of lint, format and typecheck. format runs
-                                 first; lint and typecheck then read each file once
+                                 Run several of lint, format and typecheck over the paths.
+                                 format runs first
 
 Options:
   -h, --help                     Print this help, or with a command, its guide
   -V, --version                  Print the version
 
-Options of lint, typecheck and lsp, which read rsvelte.config:
+Options of typecheck, which reads rsvelte.config:
   --config <file>                The configuration file (default: rsvelte.config.* found upward)
   --config-runtime <program>     The program that evaluates a JavaScript or TypeScript one
                                  (default: node)
@@ -32,29 +32,6 @@ Options of lint, typecheck and lsp, which read rsvelte.config:
   --config-loader-arg <arg>      An argument for that program; repeat for more
 
 Run `rsvelte help <command>` for what a command reads, prints and exits with.
-";
-
-pub(super) const LINT: &str = "\
-Usage: rsvelte lint [<path>...] [options]
-
-Lints the .svelte, .js, .mjs, .cjs, .ts, .mts and .cts files below each path, by default the
-current directory, and prints the problems as ESLint's stylish formatter does. It skips
-node_modules and what .gitignore skips, but reads a file named on the command line.
-A svelte.lint rule that applies to modules, such as svelte/no-inspect, also runs on JavaScript
-and TypeScript files, .jsx and .tsx included.
-
-The rules of Svelte files are set under svelte.lint, and those of the other files under
-typescript.lint, in rsvelte.config.json. A rules object replaces the default rules, which for
-Svelte files are no-unused-vars and svelte/button-has-type:
-
-  { \"plugins\": { \"svelte.lint\": { \"rules\": {
-      \"no-unused-vars\": \"warn\", \"svelte/button-has-type\": \"error\" } } } }
-
-Exits with 1 when an error is left, and with 2 when it cannot run.
-
-Examples:
-  rsvelte lint
-  rsvelte lint src tests
 ";
 
 pub(super) const TYPECHECK: &str = "\
@@ -79,16 +56,13 @@ Exits with 1 when it finds an error, and with 2 when it cannot run.
 ";
 
 pub(super) const LSP: &str = "\
-Usage: rsvelte lsp [options]
+Usage: rsvelte lsp [--stdio]
 
 Serves an editor over the Language Server Protocol, on standard input and output. For the text
-in the editor, it reports what rsvelte lint reports, with the configuration found from the
-file's directory; it offers each finding's fix and a fix of all of them (source.fixAll.rsvelte);
-and it formats as rsvelte format formats the file when run in the workspace folder. It does not
-lint files below the folder's node_modules, and it does not type check.
-
-Without --config, it reads the rsvelte.config of each file's directory or nearest parent
-directory, and reloads it when it changes. --stdio, which language clients add, is accepted.
+in the editor, it reports what rsvelte lint reports and offers its fixes, as oxlint's language
+server does with the configuration oxlint reads, and it formats as rsvelte format formats the
+file when run in the workspace folder. It does not type check. --stdio, which language clients
+add, is accepted.
 ";
 
 pub(super) const HELP: &str = "\

@@ -18,6 +18,19 @@ pub struct Configuration {
     /// The plugins whose rules configuration named, which a file's configuration comments may
     /// name too.
     plugins: Vec<&'static LintPlugin>,
+    directives: Directives,
+}
+
+/// Which directive comments turn a finding off.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Directives {
+    /// `ESLint`'s in scripts, and eslint-plugin-svelte's in the template while
+    /// `svelte/comment-directive` is on.
+    #[default]
+    Eslint,
+    /// oxlint's: it applies the scripts' itself, so only the template's apply, with `oxlint-`
+    /// beside `eslint-`, and those that turn nothing off are reported at `report_unused`.
+    Oxlint { report_unused: Option<Severity> },
 }
 
 /// A rule that configuration turned on, with the documents it runs on.
@@ -70,7 +83,18 @@ impl Configuration {
             settings: Arc::new(settings),
             globals: Declared::default(),
             plugins: Vec::new(),
+            directives: Directives::Eslint,
         }
+    }
+
+    pub(crate) const fn applied_directives(&self) -> Directives {
+        self.directives
+    }
+
+    /// Chooses which directive comments turn a finding off.
+    pub const fn directives(&mut self, directives: Directives) -> &mut Self {
+        self.directives = directives;
+        self
     }
 
     /// Declares the global variables of `ESLint`'s `languageOptions.globals`; without it, only

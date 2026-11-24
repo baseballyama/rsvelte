@@ -3,6 +3,7 @@
 import { preprocess } from 'svelte/compiler';
 
 import binding from './binding.js';
+import { sourceMap } from './source-map.js';
 
 export { preprocess };
 
@@ -31,6 +32,7 @@ const COMPONENT = new Set([
 	'generate',
 	'preserveWhitespace',
 	'rootDir',
+	'sourcemap',
 	'warningFilter',
 ]);
 const MODULE = new Set(['filename', 'generate', 'rootDir', 'warningFilter']);
@@ -101,26 +103,16 @@ function result(source, options, outcome) {
 		typeof options.warningFilter === 'function' ? options.warningFilter : () => true
 	);
 	return {
-		js: { code: js.code, map: sourceMap(/** @type {string} */ (js.map)) },
+		js: {
+			code: js.code,
+			map: sourceMap(/** @type {string} */ (js.map), source, options.sourcemap),
+		},
 		css: css ? { code: css.code, map: null } : null,
 		warnings: warnings
 			.map((warning) => diagnostic(source, filename, warning, 'CompileWarning'))
 			.filter((warning) => filter(warning)),
 		metadata: { runes: true },
 	};
-}
-
-/** @param {string} json */
-function sourceMap(json) {
-	const map = JSON.parse(json);
-	Object.defineProperties(map, {
-		toString: { value: () => JSON.stringify(map) },
-		toUrl: {
-			value: () =>
-				`data:application/json;charset=utf-8;base64,${Buffer.from(JSON.stringify(map)).toString('base64')}`,
-		},
-	});
-	return map;
 }
 
 /**
