@@ -1,7 +1,7 @@
 //! `rsvelte typecheck` where `allowJs` loads JavaScript but a JavaScript component a package's
 //! import reaches stays untyped, as `maxNodeModuleJsDepth` decides.
 
-use crate::typecheck::{Native, Project, link, text, typecheck_config};
+use crate::typecheck::{Native, Project, link, text, typecheck_config, typescript};
 
 /// A project whose page imports a JavaScript component and a TypeScript one through a linked
 /// package, and a JavaScript component by its path, under `compilerOptions` `options`. Beside
@@ -62,7 +62,7 @@ fn typecheck_reads_a_package_javascript_component_as_untyped_where_javascript_is
             "{LOCAL}src/Page.svelte(2,21): error TS7016: Could not find a declaration file for \
              module 'dep/src/Annotated.svelte'. '{}' implicitly has an 'any' type.\n\
              {TYPED}\nFound 4 errors in 2 files.\n",
-            linked.display()
+            typescript(&linked)
         )
         .native()
     );

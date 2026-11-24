@@ -56,6 +56,11 @@ impl Native for str {
     }
 }
 
+/// `path` as TypeScript writes it in a message: its `normalizeSlashes` reads every `\` as `/`.
+pub(crate) fn typescript(path: &std::path::Path) -> String {
+    path.display().to_string().replace('\\', "/")
+}
+
 /// Links `link` to the directory `original`, as a package manager links a package into
 /// `node_modules`. Windows reads a link's relative target only with its own separator.
 pub(crate) fn link(original: impl AsRef<std::path::Path>, link: impl AsRef<std::path::Path>) {
@@ -199,7 +204,7 @@ fn typecheck_reports_the_errors_of_the_tsconfig_instead_of_the_files() {
                 "tsconfig.json(1,1): error TS18003: No inputs were found in config file '{}'. \
                  Specified 'include' paths were '[\"missing/**/*.ts\"]' and 'exclude' paths were \
                  '[]'.\n\nFound 1 error in 1 file.\n",
-                tsconfig.display()
+                typescript(&tsconfig)
             )
             .native()
         ),
@@ -232,7 +237,7 @@ fn typecheck_reports_the_errors_of_the_tsconfig_instead_of_the_files() {
             format!(
                 "tsconfig.json(1,55): error TS18002: The 'files' list in config file '{}' is \
                  empty.\n\nFound 1 error in 1 file.\n",
-                tsconfig.display()
+                typescript(&tsconfig)
             )
             .native()
         ),
@@ -382,7 +387,11 @@ fn typecheck_reads_a_javascript_generics_list_after_the_ignore_start() {
         "src/C.svelte(3,9): error TS2304: Cannot find name 'n'.",
         "src/C.svelte(5,5): error TS2304: Cannot find name 'n'.",
     ] {
-        assert!(lines.contains(&oracle), "{oracle} missing from:\n{report}");
+        let oracle = oracle.native();
+        assert!(
+            lines.contains(&oracle.as_str()),
+            "{oracle} missing from:\n{report}"
+        );
     }
     // Without the ignore start, TypeScript reads `</` and then a regular expression.
     for text in ["TS1161", "TS2363", "Unterminated regular expression"] {

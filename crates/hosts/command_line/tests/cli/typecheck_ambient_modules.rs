@@ -2,7 +2,7 @@
 //! such as `declare module '*.svelte'`, matches its specifier: TypeScript reads that module
 //! instead of reporting TS7016.
 
-use crate::typecheck::{Native, text};
+use crate::typecheck::{Native, text, typescript};
 use crate::typecheck_linked_packages::linked;
 
 const ENV: &str = "declare module '*.svelte' {\n  import type { Component } from 'svelte';\n  \
@@ -56,7 +56,7 @@ fn typecheck_reads_an_untyped_import_as_the_ambient_module_its_specifier_matches
         format!(
             "error TS7016: Could not find a declaration file for module '{specifier}'. '{}' \
              implicitly has an 'any' type.",
-            project.0.join(file).display()
+            typescript(&project.0.join(file))
         )
     };
     let icon = "dep/src/Icon.svelte";

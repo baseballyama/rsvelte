@@ -1,7 +1,7 @@
 //! `rsvelte typecheck` where TypeScript reads JavaScript as untyped: which JavaScript components
 //! it checks, and the TS7016 of each import of one.
 
-use crate::typecheck::{Native, Project, link, text, typecheck_config};
+use crate::typecheck::{Native, Project, link, text, typecheck_config, typescript};
 
 /// A JavaScript component is untyped where TypeScript reads JavaScript as untyped: each import of
 /// it reports TS7016, from a component or a script and through a package or a relative path, and
@@ -48,9 +48,9 @@ fn typecheck_reads_a_javascript_component_as_untyped_javascript() {
         )
     };
     let dep = project.0.join("dep/src/Annotated.svelte");
-    let dep = dep.display().to_string();
+    let dep = typescript(&dep);
     let local = project.0.join("app/src/Annotated.svelte");
-    let local = local.display().to_string();
+    let local = typescript(&local);
     assert_eq!(
         format!("{}{}", text(&output.stdout), text(&output.stderr)),
         format!(
@@ -114,7 +114,7 @@ fn typecheck_does_not_check_a_javascript_component_only_javascript_reaches() {
             "src/Page.svelte(2,20): error TS7016: Could not find a declaration file for module \
              'dep/src/Chain.svelte'. '{}' implicitly has an 'any' type.\n\
              \nFound 1 error in 1 file.\n",
-            chain.display()
+            typescript(&chain)
         )
         .native()
     );
@@ -146,7 +146,7 @@ fn typecheck_names_an_untyped_javascript_module_by_its_absolute_path() {
             "src/Page.svelte(2,21): error TS7016: Could not find a declaration file for module \
              './s.js'. '{}' implicitly has an 'any' type.\n\
              \nFound 1 error in 1 file.\n",
-            module.display()
+            typescript(&module)
         )
         .native()
     );

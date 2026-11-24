@@ -7,6 +7,7 @@ use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::paths;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_api::{DiagnosticKind, Project, Session};
 
@@ -98,7 +99,7 @@ impl UntypedImport<'_> {
                 "Could not find a declaration file for module '{}'. '{}' implicitly has an 'any' \
                  type.",
                 self.import.specifier,
-                self.module.display()
+                paths::typescript(&self.module.to_string_lossy())
             ),
             span: Some(self.import.at),
             syntactic: false,

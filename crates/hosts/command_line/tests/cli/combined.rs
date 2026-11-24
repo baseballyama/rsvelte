@@ -5,6 +5,7 @@ use std::path::Path;
 use std::process::{Command, Output};
 
 use crate::Scratch;
+use crate::typecheck::Native;
 
 fn rsvelte(directory: &Path, arguments: &[&str]) -> Output {
     Command::new(env!("CARGO_BIN_EXE_rsvelte"))
@@ -98,9 +99,10 @@ fn lint_and_typecheck_print_and_exit_as_they_do_one_by_one() {
     for needle in [
         "[src/App.svelte:",
         "[other/Only.svelte:",
-        "src/wrong.ts(2,14)",
+        "src/wrong.ts(2,14): ",
     ] {
-        assert!(expected.1.contains(needle), "{needle}: {}", expected.1);
+        let needle = needle.native();
+        assert!(expected.1.contains(&needle), "{needle}: {}", expected.1);
     }
     // A configuration that discovery does not find, so only `--config` names it. `lint` followed by
     // an option takes oxlint's arguments, so the option goes after the commands or before them.

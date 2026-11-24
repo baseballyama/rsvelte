@@ -3,7 +3,7 @@
 
 use rsvelte_test_harness::NodePackages;
 
-use crate::typecheck::{Native, Project, link, text, typecheck_config};
+use crate::typecheck::{Native, Project, link, text, typecheck_config, typescript};
 
 /// `app`, whose tsconfig has `compilerOptions` `options` and selects `src`, beside `dep`, which
 /// `app/node_modules/dep` links to, with `files` added to both.
@@ -64,8 +64,8 @@ fn typecheck_does_not_check_a_linked_package_file_against_the_root_directory() {
                 "src/main.ts(1,21): error TS6059: File '{}' is not under 'rootDir' '{}'. \
                  'rootDir' is expected to contain all source files.\n\
                  \nFound 1 error in 1 file.\n",
-                file.display(),
-                app.display()
+                typescript(&file),
+                typescript(&app)
             )
             .native()
         )
@@ -117,7 +117,7 @@ fn typecheck_reports_a_linked_package_component_as_svelte_check_does() {
                  src/App.svelte(5,2): error TS2741: Property 'n' is missing in type '{{}}' but \
                  required in type '$$ComponentProps'.\n\
                  \nFound 3 errors in 2 files.\n",
-                project.0.join("dep/src/Icon.svelte").display()
+                typescript(&project.0.join("dep/src/Icon.svelte"))
             )
             .native(),
             "{options}"

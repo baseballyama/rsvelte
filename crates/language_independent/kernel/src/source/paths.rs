@@ -57,6 +57,17 @@ pub fn plain(path: &str) -> Cow<'_, str> {
     Cow::Borrowed(path)
 }
 
+/// `path` as TypeScript names a file. Its `normalizeSlashes` reads every `\` as `/` on every
+/// platform, so `C:\a\b.ts` is `C:/a/b.ts` in its messages and in what it asks a content mapper.
+#[must_use]
+pub fn typescript(path: &str) -> Cow<'_, str> {
+    if path.contains('\\') {
+        Cow::Owned(path.replace('\\', "/"))
+    } else {
+        Cow::Borrowed(path)
+    }
+}
+
 /// Whether Windows reads `components`, a plain path's part after its root, as they are.
 fn readable(components: &str) -> bool {
     components.is_empty() || components.split('\\').all(readable_component)
