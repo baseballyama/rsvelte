@@ -13,8 +13,10 @@ use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
 use super::word::{Home, home, keyword, misused};
 
+mod arguments;
 mod lexer;
 mod pattern;
+use arguments::{ARGUMENTS_IN_STATIC_BLOCK, arguments_misused, in_static_block};
 use lexer::{after_number, regular_expression};
 use pattern::{parenthesized_element, reparsed};
 
@@ -37,36 +39,6 @@ pub(crate) fn reported(
         let accepted = as_acorn && acorn_accepts(error, number, visit);
         !(unchecked.contains(&number) || accepted)
     })
-}
-
-/// oxc's errors for `arguments` in a class field initializer and in a class static block.
-const ARGUMENTS_IN_INITIALIZER: &str = "'arguments' is not allowed in class field initializer";
-const ARGUMENTS_IN_STATIC_BLOCK: &str = "'arguments' is not allowed in static initialization block";
-
-/// acorn's wording for oxc's error about `arguments` at `start`.
-fn arguments_misused(error: &OxcDiagnostic, start: u32) -> Option<Acorn> {
-    match error.message.as_ref() {
-        ARGUMENTS_IN_INITIALIZER => Some(fails(
-            "Cannot use 'arguments' in class field initializer",
-            start,
-        )),
-        ARGUMENTS_IN_STATIC_BLOCK => Some(fails(
-            "Cannot use arguments in class static initialization block",
-            start,
-        )),
-        _ => None,
-    }
-}
-
-/// Whether acorn reads the name `error` labels in a class static block: oxc also refuses
-/// `arguments` in an arrow function there, which acorn reads as a function of its own.
-fn in_static_block(error: &OxcDiagnostic, visit: impl FnOnce(&mut Locator)) -> bool {
-    let Some(label) = error.labels.first() else {
-        return true;
-    };
-    let mut locator = Locator::new(label.offset(), label.offset() + label.len(), Find::Home);
-    visit(&mut locator);
-    locator.home == Some(Home::StaticBlock)
 }
 
 /// Whether acorn reads the text oxc rejects with `error`, whose code is `number`, without failing.
