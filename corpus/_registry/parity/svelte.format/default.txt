@@ -1,2 +1,1 @@
-# svelte.format/default: 34778 match
-svelte/rsvelte-tests-formatter/typescript/plain_ts_script_ambiguous_generic_expr_formats_as_js/6f506a9c7c78c0d3.svelte	mismatch
+# svelte.format/default: 34779 match
