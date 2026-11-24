@@ -61,6 +61,14 @@ impl CheckRequest<'_> {
             .map(move |(path, text)| (normalized(&root.join(path)), text.as_str()))
     }
 
+    /// The extensions of the content-mapped documents, each once.
+    pub(super) fn mapped_extensions(&self) -> Vec<&'static str> {
+        let extensions: BTreeSet<_> = (self.mapped_files.iter().flatten())
+            .map(|file| file.extension)
+            .collect();
+        extensions.into_iter().collect()
+    }
+
     pub(super) fn write_mapper_config(
         &self,
         output: &mut StructuredDataWriter,
@@ -78,13 +86,7 @@ impl CheckRequest<'_> {
             .write_string(package)
             .key("extensions")
             .begin_array();
-        let extensions: BTreeSet<_> = self
-            .mapped_files
-            .iter()
-            .flatten()
-            .map(|file| file.extension)
-            .collect();
-        for extension in extensions {
+        for extension in self.mapped_extensions() {
             output.write_string(extension);
         }
         output
