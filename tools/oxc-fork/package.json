@@ -1,0 +1,14 @@
+{
+	"name": "@rsvelte-experimental/oxc-fork",
+	"private": true,
+	"description": "Keeps the oxc fork's patches on the latest oxlint release",
+	"type": "module",
+	"scripts": {
+		"oxc-fork": "node oxc-fork.ts",
+		"test": "node --test '*.test.ts' '*/*.test.ts'",
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
+	},
+	"engines": {
+		"node": ">=26"
+	}
+}

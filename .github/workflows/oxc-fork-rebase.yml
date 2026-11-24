@@ -1,0 +1,69 @@
+# Each week, replays the oxc fork's patches onto the latest oxlint release and tests them
+# (tools/oxc-fork). One issue carries the result while the patches are behind: it is opened or
+# commented on, and closed once rsvelte pins a fork revision on the latest release. Pushing the
+# rebased patches needs write access to the fork, so a person runs `oxc-fork rebase --push`.
+name: oxc fork rebase
+
+on:
+  schedule:
+    - cron: '0 3 * * 1'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+  issues: write
+
+concurrency:
+  group: oxc-fork-rebase
+  cancel-in-progress: false
+
+env:
+  CARGO_TERM_COLOR: always
+  TITLE: The oxc fork's patches are behind the latest oxlint release
+
+jobs:
+  rebase:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /Cargo.toml
+            /tools/oxc-fork/
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.0
+          package-manager-cache: false
+      # The rebase writes commits; oxc's rust-toolchain.toml chooses the toolchain of the tests.
+      - run: |
+          git config --global user.name 'github-actions[bot]'
+          git config --global user.email '41898282+github-actions[bot]@users.noreply.github.com'
+      - id: rebase
+        continue-on-error: true
+        run: node tools/oxc-fork/oxc-fork.ts rebase | tee "$RUNNER_TEMP/report.md"
+        shell: bash -o pipefail {0}
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          OUTCOME: ${{ steps.rebase.outputs.outcome }}
+          RUN: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: |
+          open=$(gh issue list --repo "$GITHUB_REPOSITORY" --state open --search "in:title \"$TITLE\"" \
+            --json number,title --jq "map(select(.title == env.TITLE)) | .[0].number // empty")
+          if [ -z "$OUTCOME" ]; then
+            echo "::error::the rebase did not run to an outcome; see the step above"
+            exit 1
+          fi
+          printf '\n%s\n' "$RUN" >> "$RUNNER_TEMP/report.md"
+          if [ "$OUTCOME" = current ]; then
+            [ -n "$open" ] && gh issue close "$open" --repo "$GITHUB_REPOSITORY" \
+              --comment-file "$RUNNER_TEMP/report.md"
+          elif [ -n "$open" ]; then
+            gh issue comment "$open" --repo "$GITHUB_REPOSITORY" --body-file "$RUNNER_TEMP/report.md"
+          else
+            gh issue create --repo "$GITHUB_REPOSITORY" --title "$TITLE" \
+              --body-file "$RUNNER_TEMP/report.md"
+          fi
+          true
