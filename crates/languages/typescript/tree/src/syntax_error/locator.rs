@@ -2,13 +2,14 @@
 
 use std::borrow::Cow;
 
-use oxc_ast::ast::{ArrowFunctionBody, FormalParameters};
+use oxc_ast::ast::{Declaration, FormalParameters, Function};
 use oxc_ast::{AstKind, AstType};
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
 
 use super::Acorn;
 use super::word::{Home, Read, Word};
+use crate::acorn_grammar::head_checked_at;
 
 /// What acorn reports about a node around oxc's label, found as the tree is walked.
 #[derive(Debug)]
@@ -122,6 +123,9 @@ pub(super) enum Find {
     /// expression's, a type parameter's, a mapped type's key, or a parameter of a signature or
     /// of a function without a body.
     UncheckedName,
+    /// The function declaration whose body is the label, which acorn-typescript reports an
+    /// implementation in an ambient context at; it reads a method's body without a check.
+    Implementation,
     /// The `break` or `continue` statement around the label.
     Jump,
     /// The `delete` around the label.
@@ -131,6 +135,8 @@ pub(super) enum Find {
     SuperHome,
     /// The initializer of the class field whose key is the label.
     Initializer,
+    /// The variable declarator whose initializer is the label.
+    VariableInitializer,
     /// The type alias, interface, class member with a public name or enum member whose name is
     /// the label, or the parameter list around it or the signature or function without a body
     /// that holds it, where the label redeclares the name the span is.
@@ -330,14 +336,13 @@ impl Locator {
                 // acorn checks a declaration's own name as it reads it.
                 let own =
                     (it.id.as_ref()).filter(|id| !it.is_declaration() && id.span == self.label);
-                (it.body.as_ref())
-                    .filter(|_| names(&it.params) || own.is_some())
-                    .map(|body| body.span.start)
+                (names(&it.params) || own.is_some())
+                    .then(|| head_checked_at(kind))
+                    .flatten()
             }
-            AstKind::ArrowFunctionExpression(it) => names(&it.params).then(|| match &it.body {
-                ArrowFunctionBody::FunctionBody(body) => body.span.start,
-                body => body.span().end,
-            }),
+            AstKind::ArrowFunctionExpression(it) => {
+                names(&it.params).then(|| head_checked_at(kind)).flatten()
+            }
             _ => self.head_checked,
         };
     }
@@ -367,17 +372,18 @@ impl Locator {
         if around {
             self.enter_head_check(kind);
         }
-        if matches!(self.find, Find::Binding)
-            && around
-            && matches!(
-                kind,
+        if matches!(self.find, Find::Binding) && around {
+            match kind {
                 AstKind::Program(_)
-                    | AstKind::Function(_)
-                    | AstKind::ArrowFunctionExpression(_)
-                    | AstKind::FormalParameters(_)
-            )
-        {
-            self.declares = true;
+                | AstKind::ArrowFunctionExpression(_)
+                | AstKind::FormalParameters(_) => self.declares = true,
+                // acorn-typescript checks the name of a function without a body as assigned.
+                AstKind::Function(it) => {
+                    self.declares =
+                        it.body.is_some() || it.id.as_ref().is_none_or(|id| id.span != self.label);
+                }
+                _ => {}
+            }
         }
         if matches!(self.find, Find::OptionalRest) {
             if around {
@@ -415,6 +421,26 @@ impl Locator {
                 if it.key.span() == self.label
                     && it.kind.is_accessor()
                     && it.value.body.is_none() =>
+            {
+                it.span.start
+            }
+            (Find::Implementation, AstKind::ExportDeclaration(it))
+                if let Declaration::FunctionDeclaration(function) = &it.declaration
+                    && function.declare
+                    && implements(function, self.label) =>
+            {
+                function.span.start
+            }
+            (Find::Implementation, AstKind::Function(it))
+                if self.found.is_none() && it.is_declaration() && implements(it, self.label) =>
+            {
+                it.span.start
+            }
+            (Find::VariableInitializer, AstKind::VariableDeclarator(it))
+                if it
+                    .init
+                    .as_ref()
+                    .is_some_and(|init| init.span() == self.label) =>
             {
                 it.span.start
             }
@@ -511,4 +537,9 @@ pub(super) fn locate(
     let mut locator = Locator::new(start, end, find);
     visit(&mut locator);
     locator.found
+}
+
+/// Whether the body of `function` is `label`.
+fn implements(function: &Function<'_>, label: oxc_span::Span) -> bool {
+    (function.body.as_ref()).is_some_and(|body| body.span.start == label.start)
 }

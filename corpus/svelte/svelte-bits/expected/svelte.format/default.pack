@@ -1,5 +1,5 @@
 # rsvelte pack 1
-=== 19544 src/lib/components/common/SearchDialog.svelte	svelte
+=== 19731 src/lib/components/common/SearchDialog.svelte	svelte
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { CATEGORIES, slug } from "$lib/constants/categories";
@@ -298,10 +298,11 @@
                             stroke-width="2"
                             stroke-linecap="round"
                             stroke-linejoin="round"
-                            ><path d="M4 7V4h16v3" /><path d="M9 20h6" /><path
-                              d="M12 4v16"
-                            /></svg
                           >
+                            <path d="M4 7V4h16v3" /><path d="M9 20h6" /><path
+                              d="M12 4v16"
+                            />
+                          </svg>
                         {:else if r.categoryName === "Components"}
                           <svg
                             width="20"
@@ -312,10 +313,11 @@
                             stroke-width="2"
                             stroke-linecap="round"
                             stroke-linejoin="round"
-                            ><path d="M12 2 2 7l10 5 10-5-10-5Z" /><path
-                              d="m2 17 10 5 10-5"
-                            /><path d="m2 12 10 5 10-5" /></svg
                           >
+                            <path d="M12 2 2 7l10 5 10-5-10-5Z" /><path
+                              d="m2 17 10 5 10-5"
+                            /><path d="m2 12 10 5 10-5" />
+                          </svg>
                         {:else if r.categoryName === "Backgrounds"}
                           <svg
                             width="20"
@@ -326,7 +328,8 @@
                             stroke-width="2"
                             stroke-linecap="round"
                             stroke-linejoin="round"
-                            ><rect
+                          >
+                            <rect
                               x="3"
                               y="3"
                               width="18"
@@ -334,8 +337,8 @@
                               rx="2"
                             /><circle cx="9" cy="9" r="2" /><path
                               d="m21 15-3.1-3.1a2 2 0 0 0-2.8 0L6 21"
-                            /></svg
-                          >
+                            />
+                          </svg>
                         {:else if r.categoryName === "Animations"}
                           <svg
                             width="20"
@@ -346,10 +349,11 @@
                             stroke-width="2"
                             stroke-linecap="round"
                             stroke-linejoin="round"
-                            ><circle cx="12" cy="12" r="10" /><path
-                              d="M8 12h8"
-                            /><path d="m12 8 4 4-4 4" /></svg
                           >
+                            <circle cx="12" cy="12" r="10" /><path
+                              d="M8 12h8"
+                            /><path d="m12 8 4 4-4 4" />
+                          </svg>
                         {:else}
                           <svg
                             width="20"
@@ -360,18 +364,20 @@
                             stroke-width="2"
                             stroke-linecap="round"
                             stroke-linejoin="round"
-                            ><path
-                              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"
-                            /><path d="M14 2v6h6" /></svg
                           >
+                            <path
+                              d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8Z"
+                            /><path d="M14 2v6h6" />
+                          </svg>
                         {/if}
                       </div>
                       <div class="search-result-text">
-                        <span class="search-result-name">{r.componentName}</span
-                        >
-                        <span class="search-result-category"
-                          >in {r.categoryName}</span
-                        >
+                        <span class="search-result-name">
+                          {r.componentName}
+                        </span>
+                        <span class="search-result-category">
+                          in {r.categoryName}
+                        </span>
                       </div>
                       <div class="search-result-enter">
                         <svg
@@ -384,10 +390,11 @@
                           stroke-linecap="round"
                           stroke-linejoin="round"
                           aria-hidden="true"
-                          ><path d="M20 4v7a4 4 0 0 1-4 4H5" /><path
-                            d="m9 11-4 4 4 4"
-                          /></svg
                         >
+                          <path d="M20 4v7a4 4 0 0 1-4 4H5" /><path
+                            d="m9 11-4 4 4 4"
+                          />
+                        </svg>
                       </div>
                     </div>
                   </div>
@@ -676,7 +683,7 @@
   }
 </style>
 
-=== 14902 src/lib/components/docs/ComponentList.svelte	svelte
+=== 14932 src/lib/components/docs/ComponentList.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
   import type { ComponentIndexItem } from "$lib/constants/componentIndex";
@@ -885,9 +892,9 @@
           : (emptyDescription ?? "Tap the heart on any component to save it")}
       </p>
       {#if items.length > 0}
-        <button type="button" class="pill-button" onclick={clearFilters}
-          >Clear Filters</button
-        >
+        <button type="button" class="pill-button" onclick={clearFilters}>
+          Clear Filters
+        </button>
       {:else}
         <a class="pill-button" href="/get-started/index">Browse Components</a>
       {/if}
@@ -952,10 +959,11 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 aria-hidden="true"
-                ><path d="M3 6h18" /><path d="M8 6V4h8v2" /><path
-                  d="M19 6l-1 14H6L5 6"
-                /><path d="M10 11v6" /><path d="M14 11v6" /></svg
               >
+                <path d="M3 6h18" /><path d="M8 6V4h8v2" /><path
+                  d="M19 6l-1 14H6L5 6"
+                /><path d="M10 11v6" /><path d="M14 11v6" />
+              </svg>
             {:else}
               <svg
                 width="14"
@@ -967,10 +975,11 @@
                 stroke-linecap="round"
                 stroke-linejoin="round"
                 aria-hidden="true"
-                ><path
-                  d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"
-                /></svg
               >
+                <path
+                  d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78L12 21.23l8.84-8.84a5.5 5.5 0 0 0 0-7.78Z"
+                />
+              </svg>
             {/if}
           </button>
         </div>
@@ -6297,7 +6306,7 @@ ${"</" + "script>"}
   {/snippet}
 </TabsLayout>
 
-=== 6851 src/lib/components/docs/pages/CounterDemo.svelte	svelte
+=== 6920 src/lib/components/docs/pages/CounterDemo.svelte	svelte
 <script lang="ts">
   import TabsLayout from "$lib/components/docs/preview/TabsLayout.svelte";
   import Customize from "$lib/components/docs/preview/Customize.svelte";
@@ -6459,24 +6468,31 @@ ${"</" + "script>"}
         <button
           type="button"
           class="counter-btn wide"
-          onclick={() => (value = roundToTenth(value - 0.4))}>- 0.4</button
+          onclick={() => (value = roundToTenth(value - 0.4))}
         >
+          - 0.4
+        </button>
         <button
           type="button"
           class="counter-btn"
-          onclick={() => (value = value - 1)}>-</button
+          onclick={() => (value = value - 1)}
         >
+          -
+        </button>
         <button
           type="button"
           class="counter-btn"
-          onclick={() => value < 999 && (value = value + 1)}>+</button
+          onclick={() => value < 999 && (value = value + 1)}
         >
+          +
+        </button>
         <button
           type="button"
           class="counter-btn wide"
           onclick={() => value < 999 && (value = roundToTenth(value + 0.4))}
-          >+ 0.4</button
         >
+          + 0.4
+        </button>
       </div>
     </div>
   {/snippet}
@@ -7634,9 +7650,9 @@ ${scriptClose}
           {maxDisplacement}
           {movementBound}
         >
-          {#snippet children()}<span style="color:#fff;"
-              >The<br />Decay<br />Card</span
-            >{/snippet}
+          {#snippet children()}<span style="color:#fff;">
+              The<br />Decay<br />Card
+            </span>{/snippet}
         </DecayCard>
       {/key}
     </div>
@@ -12711,7 +12727,7 @@ ${sC}
   {#snippet propTable()}<PropTable rows={props} />{/snippet}
 </TabsLayout>
 
-=== 4833 src/lib/components/docs/pages/GlassIconsDemo.svelte	svelte
+=== 4841 src/lib/components/docs/pages/GlassIconsDemo.svelte	svelte
 <script lang="ts">
   import TabsLayout from "$lib/components/docs/preview/TabsLayout.svelte";
   import Customize from "$lib/components/docs/preview/Customize.svelte";
@@ -12760,17 +12776,16 @@ ${sC}
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
-    ><path
+  >
+    <path
       d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"
     /><polyline points="14 2 14 8 20 8" /><line
       x1="16"
       y1="13"
       x2="8"
       y2="13"
-    /><line x1="16" y1="17" x2="8" y2="17" /><polyline
-      points="10 9 9 9 8 9"
-    /></svg
-  >
+    /><line x1="16" y1="17" x2="8" y2="17" /><polyline points="10 9 9 9 8 9" />
+  </svg>
 {/snippet}
 {#snippet book()}
   <svg
@@ -12782,10 +12797,11 @@ ${sC}
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
-    ><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path
-      d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"
-    /></svg
   >
+    <path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20" /><path
+      d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"
+    />
+  </svg>
 {/snippet}
 {#snippet heart()}
   <svg
@@ -12797,10 +12813,11 @@ ${sC}
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
-    ><path
-      d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
-    /></svg
   >
+    <path
+      d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"
+    />
+  </svg>
 {/snippet}
 {#snippet cloud()}
   <svg
@@ -12812,8 +12829,9 @@ ${sC}
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
-    ><path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" /></svg
   >
+    <path d="M18 10h-1.26A8 8 0 1 0 9 20h9a5 5 0 0 0 0-10z" />
+  </svg>
 {/snippet}
 {#snippet edit()}
   <svg
@@ -12825,10 +12843,11 @@ ${sC}
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
-    ><path
-      d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"
-    /><path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z" /></svg
   >
+    <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7" /><path
+      d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"
+    />
+  </svg>
 {/snippet}
 {#snippet barChart()}
   <svg
@@ -12840,13 +12859,14 @@ ${sC}
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
-    ><line x1="18" y1="20" x2="18" y2="10" /><line
+  >
+    <line x1="18" y1="20" x2="18" y2="10" /><line
       x1="12"
       y1="20"
       x2="12"
       y2="4"
-    /><line x1="6" y1="20" x2="6" y2="14" /></svg
-  >
+    /><line x1="6" y1="20" x2="6" y2="14" />
+  </svg>
 {/snippet}
 
 <svelte:head><title>Glass Icons - svelte-bits</title></svelte:head>
@@ -12889,7 +12909,7 @@ ${sC}
   {#snippet propTable()}<PropTable rows={props} />{/snippet}
 </TabsLayout>
 
-=== 9980 src/lib/components/docs/pages/GlassSurfaceDemo.svelte	svelte
+=== 9993 src/lib/components/docs/pages/GlassSurfaceDemo.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
   import TabsLayout from "$lib/components/docs/preview/TabsLayout.svelte";
@@ -13149,8 +13169,9 @@ ${sC}
           {#snippet children()}
             <span
               style="color:white;font-size:18px;font-weight:600;text-shadow:0 1px 4px rgba(0,0,0,0.4);"
-              >Glass Surface</span
             >
+              Glass Surface
+            </span>
           {/snippet}
         </GlassSurface>
       </div>
@@ -21982,7 +22003,7 @@ ${sC}
   {#snippet propTable()}<PropTable rows={props} />{/snippet}
 </TabsLayout>
 
-=== 2960 src/lib/components/docs/pages/PixelCardDemo.svelte	svelte
+=== 2971 src/lib/components/docs/pages/PixelCardDemo.svelte	svelte
 <script lang="ts">
   import TabsLayout from "$lib/components/docs/preview/TabsLayout.svelte";
   import Customize from "$lib/components/docs/preview/Customize.svelte";
@@ -22066,8 +22087,9 @@ ${sC}
         >
           <span
             style="font-size:3rem;font-weight:900;mix-blend-mode:screen;color:#222222;user-select:none;"
-            >Hover Me.</span
           >
+            Hover Me.
+          </span>
         </div>
       </PixelCard>
     </div>
@@ -25792,7 +25814,7 @@ ${scriptClose}
   {/snippet}
 </TabsLayout>
 
-=== 8299 src/lib/components/docs/pages/ScrollStackDemo.svelte	svelte
+=== 8308 src/lib/components/docs/pages/ScrollStackDemo.svelte	svelte
 <script lang="ts">
   import TabsLayout from "$lib/components/docs/preview/TabsLayout.svelte";
   import Customize from "$lib/components/docs/preview/Customize.svelte";
@@ -25975,12 +25997,13 @@ ${scriptClose}
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
-          ><polyline points="23 4 23 10 17 10" /><polyline
+        >
+          <polyline points="23 4 23 10 17 10" /><polyline
             points="1 20 1 14 7 14"
           /><path
             d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"
-          /></svg
-        >
+          />
+        </svg>
       </button>
       <div
         style="text-align:center;color:#222222;font-size:clamp(2rem,4vw,3rem);font-weight:900;position:absolute;top:25%;left:50%;transform:translate(-50%,-50%);pointer-events:none;transition:all 0.3s ease;z-index:1;"
@@ -28343,7 +28366,7 @@ ${scriptClose}
   {/snippet}
 </TabsLayout>
 
-=== 3039 src/lib/components/docs/pages/SpotlightCardDemo.svelte	svelte
+=== 3050 src/lib/components/docs/pages/SpotlightCardDemo.svelte	svelte
 <script lang="ts">
   import TabsLayout from "$lib/components/docs/preview/TabsLayout.svelte";
   import Customize from "$lib/components/docs/preview/Customize.svelte";
@@ -28405,10 +28428,11 @@ ${scriptClose}
             viewBox="0 0 24 24"
             fill="white"
             class="mb-3"
-            ><path
-              d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6L12 2zm7 11l.9 2.7L22 17l-2.1.9L19 21l-.9-2.1L16 17l2.1-1.3L19 13zM5 13l.7 2.3L8 17l-2.3.7L5 21l-.7-2.3L2 17l2.3-1.7L5 13z"
-            /></svg
           >
+            <path
+              d="M12 2l1.8 5.4L19 9l-5.2 1.6L12 16l-1.8-5.4L5 9l5.2-1.6L12 2zm7 11l.9 2.7L22 17l-2.1.9L19 21l-.9-2.1L16 17l2.1-1.3L19 13zM5 13l.7 2.3L8 17l-2.3.7L5 21l-.7-2.3L2 17l2.3-1.7L5 13z"
+            />
+          </svg>
           <p
             style="font-weight:600;font-size:1.4rem;letter-spacing:-0.5px;color:white;"
           >
@@ -29357,7 +29381,7 @@ ${"</" + "script>"}
   {#snippet propTable()}<PropTable rows={props} />{/snippet}
 </TabsLayout>
 
-=== 4655 src/lib/components/docs/pages/TargetCursorDemo.svelte	svelte
+=== 4676 src/lib/components/docs/pages/TargetCursorDemo.svelte	svelte
 <script lang="ts">
   import TabsLayout from "$lib/components/docs/preview/TabsLayout.svelte";
   import Customize from "$lib/components/docs/preview/Customize.svelte";
@@ -29458,18 +29482,21 @@ ${"</" + "script>"}
       <button
         class="cursor-target"
         style="padding:1em 2em;border-radius:12px;background:#1a1a1a;color:#fff;border:1px solid #333;font-weight:600;cursor:none;"
-        >Target 1</button
       >
+        Target 1
+      </button>
       <button
         class="cursor-target"
         style="padding:1em 2em;border-radius:12px;background:#1a1a1a;color:#fff;border:1px solid #333;font-weight:600;cursor:none;"
-        >Target 2</button
       >
+        Target 2
+      </button>
       <button
         class="cursor-target"
         style="padding:1em 2em;border-radius:12px;background:#1a1a1a;color:#fff;border:1px solid #333;font-weight:600;cursor:none;"
-        >Target 3</button
       >
+        Target 3
+      </button>
     </div>
   {/snippet}
   {#snippet code()}<DemoCodeTab
@@ -31767,9 +31794,9 @@ ${sC}
           source below.
         {:else}
           Pulls the component from
-          <a href={registryUrl(slug)} target="_blank" rel="noreferrer"
-            >{registryUrl(slug)}</a
-          >
+          <a href={registryUrl(slug)} target="_blank" rel="noreferrer">
+            {registryUrl(slug)}
+          </a>
           and copies it into your project.
         {/if}
       </p>
@@ -33266,7 +33293,7 @@ ${sourceShown}
   </div>
 </div>
 
-=== 2006 src/lib/components/landing/Features/ComponentMarquee.svelte	svelte
+=== 2046 src/lib/components/landing/Features/ComponentMarquee.svelte	svelte
 <script lang="ts">
   const toSlug = (s: string) => s.toLowerCase().replace(/\s+/g, "-");
 
@@ -33311,8 +33338,10 @@ ${sourceShown}
           href={HREF}
           data-slug={toSlug(c.name)}
           data-cat={c.cat}
-          class="ln-feat-pill">{c.name}</a
+          class="ln-feat-pill"
         >
+          {c.name}
+        </a>
       {/each}
     </div>
   </div>
@@ -33323,8 +33352,10 @@ ${sourceShown}
           href={HREF}
           data-slug={toSlug(c.name)}
           data-cat={c.cat}
-          class="ln-feat-pill">{c.name}</a
+          class="ln-feat-pill"
         >
+          {c.name}
+        </a>
       {/each}
     </div>
   </div>
@@ -35131,9 +35162,9 @@ void main() {
 </script>
 
 <div class="ln-loader {hiding ? 'ln-loader--hide' : ''}">
-  <span class="ln-loader-logo" aria-hidden="true"
-    ><img src={logo} alt="" /></span
-  >
+  <span class="ln-loader-logo" aria-hidden="true">
+    <img src={logo} alt="" />
+  </span>
 </div>
 
 === 7111 src/lib/components/landing/LiveDemo/DemoPlaceholder.svelte	svelte
@@ -62210,7 +62241,7 @@ void main() {
   class="w-full h-full overflow-hidden cursor-grab active:cursor-grabbing"
 ></div>
 
-=== 5007 src/lib/components/library/Components/Counter/Counter.svelte	svelte
+=== 5055 src/lib/components/library/Components/Counter/Counter.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Counter",
@@ -62339,8 +62370,10 @@ void main() {
       {#if place === "."}
         <span
           class="relative inline-flex items-center justify-center"
-          style="height:{height}px;width:fit-content;{digitStyle}">.</span
+          style="height:{height}px;width:fit-content;{digitStyle}"
         >
+          .
+        </span>
       {:else}
         <span
           class="relative inline-flex overflow-hidden"
@@ -62353,8 +62386,10 @@ void main() {
                   getValueRoundedToPlace(value, place as number),
                 n,
                 height,
-              )}px);">{n}</span
+              )}px);"
             >
+              {n}
+            </span>
           {/each}
         </span>
       {/if}
@@ -63527,7 +63562,7 @@ void main() {
   }
 </style>
 
-=== 8049 src/lib/components/library/Components/ElasticSlider/ElasticSlider.svelte	svelte
+=== 8071 src/lib/components/library/Components/ElasticSlider/ElasticSlider.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Elastic Slider",
@@ -63702,10 +63737,11 @@ void main() {
             height="24"
             viewBox="0 0 24 24"
             fill="currentColor"
-            ><path
+          >
+            <path
               d="M5 9v6h4l5 5V4L9 9H5zm11.5 3a4.5 4.5 0 0 0-2.5-4.03v8.05A4.5 4.5 0 0 0 16.5 12z"
-            /></svg
-          >{/if}
+            />
+          </svg>{/if}
       </div>
     </div>
     <div
@@ -63735,10 +63771,11 @@ void main() {
             height="24"
             viewBox="0 0 24 24"
             fill="currentColor"
-            ><path
+          >
+            <path
               d="M3 9v6h4l5 5V4L7 9H3zm13.5 3A4.5 4.5 0 0 0 14 7.97v8.05a4.5 4.5 0 0 0 2.5-4.02zM14 3.23v2.06a7 7 0 0 1 0 13.42v2.06a9 9 0 0 0 0-17.54z"
-            /></svg
-          >{/if}
+            />
+          </svg>{/if}
       </div>
     </div>
   </div>
@@ -63819,7 +63856,7 @@ void main() {
   }
 </style>
 
-=== 5400 src/lib/components/library/Components/FlowingMenu/FlowingMenu.svelte	svelte
+=== 5417 src/lib/components/library/Components/FlowingMenu/FlowingMenu.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Flowing Menu",
@@ -63982,8 +64019,9 @@ void main() {
               >
                 <span
                   class="whitespace-nowrap uppercase font-normal text-[4vh] leading-[1] px-[1vw]"
-                  >{item.text}</span
                 >
+                  {item.text}
+                </span>
                 <div
                   class="w-[200px] h-[7vh] my-[2em] mx-[2vw] py-[1em] rounded-[50px] bg-cover bg-center"
                   style="background-image:url({item.image});"
@@ -66161,9 +66199,9 @@ void main() {
         ? 'bottom-[-80px] opacity-0 pointer-events-none duration-[100ms] scale-0 -translate-x-1/2'
         : 'bottom-[3.8em] opacity-100 pointer-events-auto duration-[500ms] scale-100 -translate-x-1/2'}"
     >
-      <span class="select-none relative text-[#120F17] top-[2px] text-[26px]"
-        >&#x2197;</span
-      >
+      <span class="select-none relative text-[#120F17] top-[2px] text-[26px]">
+        &#x2197;
+      </span>
     </button>
   {/if}
 </div>
@@ -67017,7 +67055,7 @@ void main() {
   {/each}
 </div>
 
-=== 17062 src/lib/components/library/Components/ModelViewer/ModelViewer.svelte	svelte
+=== 17074 src/lib/components/library/Components/ModelViewer/ModelViewer.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Model Viewer",
@@ -67526,8 +67564,10 @@ void main() {
     <button
       onclick={takeScreenshot}
       class="absolute top-4 right-4 z-10 cursor-pointer px-4 py-2 border border-white rounded-xl bg-transparent text-white hover:bg-white hover:text-black transition-colors"
-      type="button">Take Screenshot</button
+      type="button"
     >
+      Take Screenshot
+    </button>
   {/if}
   <canvas
     bind:this={canvasEl}
@@ -67553,7 +67593,7 @@ void main() {
   {/if}
 </div>
 
-=== 13068 src/lib/components/library/Components/PillNav/PillNav.svelte	svelte
+=== 13092 src/lib/components/library/Components/PillNav/PillNav.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Pill Nav",
@@ -67805,9 +67845,9 @@ void main() {
               ></span>
               <span class="label-stack">
                 <span class="pill-label">{item.label}</span>
-                <span class="pill-label-hover" aria-hidden="true"
-                  >{item.label}</span
-                >
+                <span class="pill-label-hover" aria-hidden="true">
+                  {item.label}
+                </span>
               </span>
             </a>
           </li>
@@ -67840,8 +67880,10 @@ void main() {
             class="mobile-menu-link {activeHref === item.href
               ? 'is-active'
               : ''}"
-            onclick={() => (isMobileMenuOpen = false)}>{item.label}</a
+            onclick={() => (isMobileMenuOpen = false)}
           >
+            {item.label}
+          </a>
         </li>
       {/each}
     </ul>
@@ -68348,7 +68390,7 @@ void main() {
   {@render children?.()}
 </div>
 
-=== 23262 src/lib/components/library/Components/ProfileCard/ProfileCard.svelte	svelte
+=== 23294 src/lib/components/library/Components/ProfileCard/ProfileCard.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Profile Card",
@@ -68665,8 +68707,10 @@ void main() {
                 onclick={() => onContactClick?.()}
                 style="pointer-events:auto"
                 type="button"
-                aria-label={`Contact ${name || "user"}`}>{contactText}</button
+                aria-label={`Contact ${name || "user"}`}
               >
+                {contactText}
+              </button>
             </div>
           {/if}
         </div>
@@ -69234,7 +69278,7 @@ void main() {
   }
 </style>
 
-=== 8339 src/lib/components/library/Components/ReflectiveCard/ReflectiveCard.svelte	svelte
+=== 8364 src/lib/components/library/Components/ReflectiveCard/ReflectiveCard.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Reflective Card",
@@ -69426,10 +69470,11 @@ void main() {
           stroke-linecap="round"
           stroke-linejoin="round"
           class="opacity-80"
-          ><rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
-            d="M7 11V7a5 5 0 0 1 10 0v4"
-          /></svg
         >
+          <rect width="18" height="11" x="3" y="11" rx="2" ry="2" /><path
+            d="M7 11V7a5 5 0 0 1 10 0v4"
+          />
+        </svg>
         <span>SECURE ACCESS</span>
       </div>
       <svg
@@ -69442,10 +69487,11 @@ void main() {
         stroke-linecap="round"
         stroke-linejoin="round"
         class="opacity-80"
-        ><path
-          d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.5.5 0 0 1-.96 0L9.24 2.18a.5.5 0 0 0-.96 0l-2.35 8.36A2 2 0 0 1 4 12H2"
-        /></svg
       >
+        <path
+          d="M22 12h-2.48a2 2 0 0 0-1.93 1.46l-2.35 8.36a.5.5 0 0 1-.96 0L9.24 2.18a.5.5 0 0 0-.96 0l-2.35 8.36A2 2 0 0 1 4 12H2"
+        />
+      </svg>
     </div>
     <div
       class="flex-1 flex flex-col justify-end items-center text-center gap-6 mb-8"
@@ -69476,7 +69522,8 @@ void main() {
           stroke-width="2"
           stroke-linecap="round"
           stroke-linejoin="round"
-          ><path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" /><path
+        >
+          <path d="M12 10a2 2 0 0 0-2 2c0 1.02-.1 2.51-.26 4" /><path
             d="M14 13.12c0 2.38 0 6.38-1 8.88"
           /><path d="M17.29 21.02c.12-.6.43-2.3.5-3.02" /><path
             d="M2 12a10 10 0 0 1 18-6"
@@ -69484,8 +69531,8 @@ void main() {
             d="M5 19.5C5.5 18 6 15 6 12a6 6 0 0 1 .34-2"
           /><path d="M8.65 22c.21-.66.45-1.32.57-2" /><path
             d="M9 6.8a6 6 0 0 1 9 5.2v2"
-          /></svg
-        >
+          />
+        </svg>
       </div>
     </div>
   </div>
@@ -70061,7 +70108,7 @@ void main() {
   {/each}
 </div>
 
-=== 20673 src/lib/components/library/Components/StaggeredMenu/StaggeredMenu.svelte	svelte
+=== 20709 src/lib/components/library/Components/StaggeredMenu/StaggeredMenu.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Staggered Menu",
@@ -70516,8 +70563,10 @@ void main() {
                   href={s.link}
                   target="_blank"
                   rel="noopener noreferrer"
-                  class="sm-socials-link">{s.label}</a
+                  class="sm-socials-link"
                 >
+                  {s.label}
+                </a>
               </li>
             {/each}
           </ul>
@@ -70831,7 +70880,7 @@ void main() {
   }
 </style>
 
-=== 6473 src/lib/components/library/Components/Stepper/Stepper.svelte	svelte
+=== 6497 src/lib/components/library/Components/Stepper/Stepper.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Stepper",
@@ -71017,14 +71066,16 @@ void main() {
             <button
               onclick={back}
               class={`duration-350 rounded px-2 py-1 transition ${currentStep === 1 ? "pointer-events-none opacity-50 text-neutral-400" : "text-neutral-400 hover:text-neutral-700"}`}
-              >{backButtonText}</button
             >
+              {backButtonText}
+            </button>
           {/if}
           <button
             onclick={isLastStep ? complete : next}
             class="next-button duration-350 flex items-center justify-center rounded-full py-1.5 px-3.5 font-medium tracking-tight transition"
-            >{isLastStep ? "Complete" : nextButtonText}</button
           >
+            {isLastStep ? "Complete" : nextButtonText}
+          </button>
         </div>
       </div>
     {/if}
@@ -72321,7 +72372,7 @@ void main() {
 
 <span bind:this={spanEl} class={className}></span>
 
-=== 5028 src/lib/components/library/TextAnimations/CurvedLoop/CurvedLoop.svelte	svelte
+=== 5060 src/lib/components/library/TextAnimations/CurvedLoop/CurvedLoop.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Curved Loop",
@@ -72480,8 +72531,10 @@ void main() {
     <text
       bind:this={measureEl}
       xml:space="preserve"
-      style="visibility:hidden;opacity:0;pointer-events:none;">{text}</text
+      style="visibility:hidden;opacity:0;pointer-events:none;"
     >
+      {text}
+    </text>
     <defs>
       <path id={pathId} d={pathD} fill="none" stroke="transparent" />
     </defs>
@@ -72491,8 +72544,10 @@ void main() {
           bind:this={textPathEl}
           href={`#${pathId}`}
           startOffset={offset + "px"}
-          xml:space="preserve">{totalText}</textPath
+          xml:space="preserve"
         >
+          {totalText}
+        </textPath>
       </text>
     {/if}
   </svg>
@@ -72863,14 +72918,14 @@ void main() {
     {#each displayText.split("") as char, index (index)}
       {@const isRevealedOrDone =
         revealedIndices.has(index) || (!isAnimating && isDecrypted)}
-      <span class={isRevealedOrDone ? className : encryptedClassName}
-        >{char}</span
-      >
+      <span class={isRevealedOrDone ? className : encryptedClassName}>
+        {char}
+      </span>
     {/each}
   </span>
 </span>
 
-=== 5873 src/lib/components/library/TextAnimations/FallingText/FallingText.svelte	svelte
+=== 5889 src/lib/components/library/TextAnimations/FallingText/FallingText.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Falling Text",
@@ -73087,8 +73142,10 @@ void main() {
         bind:this={spanEls[index]}
         class="inline-block mx-0.5 select-none {isHighlighted
           ? highlightClass
-          : ''}">{word}</span
+          : ''}"
       >
+        {word}
+      </span>
     {/each}
   </div>
 
@@ -74465,9 +74522,9 @@ void main() {
 <h2 bind:this={containerEl} class="scroll-reveal {containerClassName}">
   <p class="scroll-reveal-text {textClassName}">
     {#each splitParts as part, i (i)}
-      {#if /^\s+$/.test(part)}{part}{:else}<span class="scroll-reveal-word"
-          >{part}</span
-        >{/if}
+      {#if /^\s+$/.test(part)}{part}{:else}<span class="scroll-reveal-word">
+          {part}
+        </span>{/if}
     {/each}
   </p>
 </h2>
@@ -76276,7 +76333,7 @@ void main() {
   </div>
 </div>
 
-=== 5499 src/lib/components/library/TextAnimations/VariableProximity/VariableProximity.svelte	svelte
+=== 5508 src/lib/components/library/TextAnimations/VariableProximity/VariableProximity.svelte	svelte
 <!-- @svelte-bits
 {
   "title": "Variable Proximity",
@@ -76434,8 +76491,9 @@ void main() {
           bind:this={letterEls[idx]}
           aria-hidden="true"
           style:font-variation-settings={fromFontVariationSettings}
-          >{letter}</span
         >
+          {letter}
+        </span>
       {/each}
       {#if wIdx < words.length - 1}
         <span class="vp-space">&nbsp;</span>

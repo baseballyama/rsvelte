@@ -1,5 +1,5 @@
 # rsvelte pack 1
-=== 1792 explorer-v2/src/lib/Header.svelte	svelte
+=== 1835 explorer-v2/src/lib/Header.svelte	svelte
 <script>
   import SnsBar from "./SnsBar.svelte";
   import { page } from "$app/stores";
@@ -20,30 +20,41 @@
   <a
     class="menu"
     class:active={isActive($page.url.pathname, `/`)}
-    href={resolve("/")}>AST</a
+    href={resolve("/")}
   >
+    AST
+  </a>
   <a
     class="menu"
     class:active={isActive($page.url.pathname, `/playground`)}
-    href={resolve("/playground")}>Playgroud</a
+    href={resolve("/playground")}
   >
+    Playgroud
+  </a>
   <a
     class="menu"
     class:active={isActive($page.url.pathname, `/scope`)}
-    href={resolve("/scope")}>Scope</a
+    href={resolve("/scope")}
   >
+    Scope
+  </a>
   <a
     class="menu"
     class:active={isActive($page.url.pathname, `/virtual-script-code`)}
-    href={resolve("/virtual-script-code")}>Virtual Script Code</a
+    href={resolve("/virtual-script-code")}
   >
+    Virtual Script Code
+  </a>
   <div class="debug">
     $page.url.pathname: {$page.url.pathname}
   </div>
   <SnsBar />
-  <a href="https://github.com/sveltejs/svelte-eslint-parser" class="github-link"
-    >View on GitHub</a
+  <a
+    href="https://github.com/sveltejs/svelte-eslint-parser"
+    class="github-link"
   >
+    View on GitHub
+  </a>
 </header>
 
 <style>
@@ -78,7 +89,7 @@
   }
 </style>
 
-=== 1402 explorer-v2/src/lib/SnsBar.svelte	svelte
+=== 1414 explorer-v2/src/lib/SnsBar.svelte	svelte
 <script>
   import { onMount } from "svelte";
 
@@ -116,8 +127,10 @@
       class="github-button"
       href="https://github.com/sveltejs/svelte-eslint-parser"
       data-show-count="true"
-      aria-label="Star sveltejs/svelte-eslint-parser on GitHub">Star</a
+      aria-label="Star sveltejs/svelte-eslint-parser on GitHub"
     >
+      Star
+    </a>
     <a href="https://www.npmjs.com/package/svelte-eslint-parser">
       <img
         src="https://img.shields.io/npm/v/svelte-eslint-parser.svg"
@@ -363,18 +376,22 @@
 
 <div data-text="{a} {b} {c}" />
 
-=== 169 tests/fixtures/parser/ast/await01-input.svelte	svelte
+=== 190 tests/fixtures/parser/ast/await01-input.svelte	svelte
 <script>
   let expression = new Promise();
 </script>
 
-{#await expression}{/await}
+{#await expression catch}
+
+{/await}
 
 {#await expression}{/await}
 
 {#await expression}{/await}
 
-{#await expression}{/await}
+{#await expression catch name}
+
+{/await}
 
 === 311 tests/fixtures/parser/ast/await02-input.svelte	svelte
 <script>
@@ -395,16 +412,16 @@
   <p>the promise is resolved</p>
 {/await}
 
-=== 140 tests/fixtures/parser/ast/await03-input.svelte	svelte
+=== 152 tests/fixtures/parser/ast/await03-input.svelte	svelte
 <script>
   let expression = new Promise();
 </script>
 
-{#await expression}{/await}
+{#await expression catch}{/await}
 
 {#await expression}{/await}
 
-{#await expression}{/await}
+{#await expression catch}{/await}
 
 === 80 tests/fixtures/parser/ast/await04-input.svelte	svelte
 <script lang="ts">
@@ -1825,11 +1842,13 @@
 
 <Button {@attach tooltip(content)}>Hover me</Button>
 
-=== 112 tests/fixtures/parser/ast/svelte5/comments-in-tags01-input.svelte	svelte
+=== 116 tests/fixtures/parser/ast/svelte5/comments-in-tags01-input.svelte	svelte
 <button
   // when the user clicks the button, the thing should happen
-  onclick={doTheThing}>click me</button
+  onclick={doTheThing}
 >
+  click me
+</button>
 
 === 315 tests/fixtures/parser/ast/svelte5/declaration-tag-input.svelte	svelte
 <script>
@@ -3200,7 +3219,7 @@
   }}
 />
 
-=== 318 tests/fixtures/parser/ast/svelte5/ts-event07-type-output.svelte	svelte
+=== 322 tests/fixtures/parser/ast/svelte5/ts-event07-type-output.svelte	svelte
 <script lang="ts">
   let count = $state(0); // count: number, $state(0): 0
 </script>
@@ -3210,8 +3229,10 @@
     // e: MouseEvent
     const next: number = count + 1; // next: number, count: number
     count = next; // count: number, next: number
-  }}>clicks: {count}</button
+  }}
 >
+  clicks: {count}
+</button>
 <!-- count: number -->
 
 === 150 tests/fixtures/parser/ast/svelte5/ts-event08-input.svelte	svelte
@@ -4208,7 +4229,7 @@
   }
 </style>
 
-=== 442 tests/fixtures/parser/ast/tutorial/adding-parameters-to-actions-input.svelte	svelte
+=== 446 tests/fixtures/parser/ast/tutorial/adding-parameters-to-actions-input.svelte	svelte
 <script>
   import { longpress } from "./longpress.js";
 
@@ -4224,8 +4245,10 @@
 <button
   use:longpress={duration}
   on:longpress={() => (pressed = true)}
-  on:mouseenter={() => (pressed = false)}>press and hold</button
+  on:mouseenter={() => (pressed = false)}
 >
+  press and hold
+</button>
 
 {#if pressed}
   <p>congratulations, you pressed and held for {duration}ms</p>
@@ -4563,23 +4586,25 @@
   }
 </style>
 
-=== 461 tests/fixtures/parser/ast/tutorial/classes-input.svelte	svelte
+=== 465 tests/fixtures/parser/ast/tutorial/classes-input.svelte	svelte
 <script>
   let current = "foo";
 </script>
 
-<button class:selected={current === "foo"} on:click={() => (current = "foo")}
-  >foo</button
->
+<button class:selected={current === "foo"} on:click={() => (current = "foo")}>
+  foo
+</button>
 
-<button class:selected={current === "bar"} on:click={() => (current = "bar")}
-  >bar</button
->
+<button class:selected={current === "bar"} on:click={() => (current = "bar")}>
+  bar
+</button>
 
 <button
   class={current === "baz" ? "selected" : ""}
-  on:click={() => (current = "baz")}>baz</button
+  on:click={() => (current = "baz")}
 >
+  baz
+</button>
 
 <style>
   button {
@@ -4656,9 +4681,9 @@
 </script>
 
 {#each confetti as c}
-  <span style="left: {c.x}%; top: {c.y}%; transform: scale({c.r})"
-    >{c.character}</span
-  >
+  <span style="left: {c.x}%; top: {c.y}%; transform: scale({c.r})">
+    {c.character}
+  </span>
 {/each}
 
 <style>
@@ -5537,9 +5562,9 @@
 
 <h1>Caminandes: Llamigos</h1>
 <p>
-  From <a href="https://cloud.blender.org/open-projects"
-    >Blender Open Projects</a
-  >. CC-BY
+  From <a href="https://cloud.blender.org/open-projects">
+    Blender Open Projects
+  </a>. CC-BY
 </p>
 
 <div>

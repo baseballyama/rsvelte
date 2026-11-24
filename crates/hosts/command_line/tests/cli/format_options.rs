@@ -284,8 +284,10 @@ const TEMPLATE_FORMATTED: &str = "\
      * @param {string} x   the x
      */
     function g(x) {}
-  }}>a</button
+  }}
 >
+  a
+</button>
 
 {#if a}
   {@const b =
@@ -320,7 +322,8 @@ const MARKDOWN_FORMATTED: &str = "\
 ```
 ";
 
-/// The expected texts are oxfmt 0.76's, with `"svelte": true` added to the configuration. The
+/// The expected texts are oxfmt 0.76's, with `"svelte": true` added to the configuration, except
+/// for the elements, which are laid out as prettier-plugin-svelte 4.2.0 lays them out. The
 /// template's code is Prettier's, so its comments stay as written.
 #[test]
 fn format_sorts_each_scripts_imports_and_formats_jsdoc_as_oxfmt_does() {

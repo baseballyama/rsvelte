@@ -408,7 +408,7 @@
   }
 </style>
 
-=== 2002 src/_components/AxisRadial.svelte	svelte
+=== 2007 src/_components/AxisRadial.svelte	svelte
 <!--
 	@component
 	Generates an SVG radial scale, useful for radar charts.
@@ -477,8 +477,9 @@
       font-size="12px"
       transform="translate({labelPlacement *
         Math.cos(thisAngleSlice)}, {labelPlacement * Math.sin(thisAngleSlice)})"
-      >{label}</text
     >
+      {label}
+    </text>
   {/each}
 </g>
 
@@ -623,7 +624,7 @@
   }
 </style>
 
-=== 4008 src/_components/AxisX.svelte	svelte
+=== 4024 src/_components/AxisX.svelte	svelte
 <!--
 	@component
 	Generates an SVG x-axis. This component is also configured to detect if your x-scale is an ordinal scale. If so, it will place the markers in the middle of the bandwidth.
@@ -726,8 +727,10 @@
         y={tickGutter + tickLen}
         {dx}
         {dy}
-        text-anchor={textAnchor(i, snapLabels)}>{format(tick)}</text
+        text-anchor={textAnchor(i, snapLabels)}
       >
+        {format(tick)}
+      </text>
     </g>
   {/each}
 </g>
@@ -901,7 +904,7 @@
   }
 </style>
 
-=== 3930 src/_components/AxisXTop.svelte	svelte
+=== 3946 src/_components/AxisXTop.svelte	svelte
 <!--
 	@component
 	Generates an SVG top x-axis. This component is also configured to detect if your x-scale is an ordinal scale. If so, it will place the markers in the middle of the bandwidth.
@@ -998,8 +1001,10 @@
         y={-tickGutter - tickLen}
         {dx}
         {dy}
-        text-anchor={textAnchor(i, snapLabels)}>{format(tick)}</text
+        text-anchor={textAnchor(i, snapLabels)}
       >
+        {format(tick)}
+      </text>
     </g>
   {/each}
 </g>
@@ -1197,7 +1202,7 @@
   }
 </style>
 
-=== 4471 src/_components/AxisY.svelte	svelte
+=== 4487 src/_components/AxisY.svelte	svelte
 <!--
 	@component
 	Generates an SVG y-axis. This component is also configured to detect if your y-scale is an ordinal scale. If so, it will place the tickMarks in the middle of the bandwidth.
@@ -1301,8 +1306,10 @@
           (labelPosition === "above" ||
           (snapBaselineLabel === true && tickValPx === maxTickValPx)
             ? -3
-            : 4)}>{format(tick)}</text
+            : 4)}
       >
+        {format(tick)}
+      </text>
     </g>
   {/each}
 </g>
@@ -1489,7 +1496,7 @@
   }
 </style>
 
-=== 4581 src/_components/AxisYRight.svelte	svelte
+=== 4597 src/_components/AxisYRight.svelte	svelte
 <!--
 	@component
 	Generates an SVG y-axis on the right-hand side of the chart. This component is also configured to detect if your y-scale is an ordinal scale. If so, it will place the markers in the middle of the bandwidth.
@@ -1599,8 +1606,10 @@
           (labelPosition === "above" ||
           (snapBaselineLabel === true && tickValPx === maxTickValPx)
             ? -3
-            : 4)}>{format(tick)}</text
+            : 4)}
       >
+        {format(tick)}
+      </text>
     </g>
   {/each}
 </g>
@@ -2300,7 +2309,7 @@
   }
 </style>
 
-=== 2396 src/_components/CalendarMonth.svelte	svelte
+=== 2404 src/_components/CalendarMonth.svelte	svelte
 <!--
 	@component
 	Generates an SVG calendar chart.
@@ -2382,8 +2391,10 @@
     y={rectY(day)}
     style="fill:{fillColor(day)};"
     onmouseenter={() => showCount(day)}
-    role="tooltip"><title>{getDate(day)}</title></rect
+    role="tooltip"
   >
+    <title>{getDate(day)}</title>
+  </rect>
 {/each}
 
 <style>
@@ -2797,7 +2808,7 @@
   }
 </style>
 
-=== 1637 src/_components/Column.svelte	svelte
+=== 1653 src/_components/Column.svelte	svelte
 <!--
   @component
   Generates an SVG column chart.
@@ -2858,8 +2869,10 @@
       <text
         x={xPos + colWidth / 2}
         y={$height - colHeight - 5}
-        text-anchor="middle">{yValue}</text
+        text-anchor="middle"
       >
+        {yValue}
+      </text>
     {/if}
   {/each}
 </g>
@@ -5180,7 +5193,7 @@
   }
 </style>
 
-=== 3248 src/lib/layouts/ScaledSvg.svelte	svelte
+=== 3255 src/lib/layouts/ScaledSvg.svelte	svelte
 <!--
 	@component
 	Scaled SVG layout component
@@ -5241,8 +5254,9 @@
   aria-labelledby={labelledBy}
   aria-describedby={describedBy}
 >
-  {#if typeof title === "function"}<title>{@render title()}</title
-    >{:else if titleText}<title>{titleText}</title>{/if}
+  {#if typeof title === "function"}<title>
+      {@render title()}
+    </title>{:else if titleText}<title>{titleText}</title>{/if}
 
   {#if typeof defs === "function"}
     <defs>
@@ -5265,7 +5279,7 @@
   }
 </style>
 
-=== 2926 src/lib/layouts/Svg.svelte	svelte
+=== 2933 src/lib/layouts/Svg.svelte	svelte
 <!--
 	@component
 	SVG layout component
@@ -5325,8 +5339,9 @@
   aria-labelledby={labelledBy}
   aria-describedby={describedBy}
 >
-  {#if typeof title === "function"}<title>{@render title()}</title
-    >{:else if titleText}<title>{titleText}</title>{/if}
+  {#if typeof title === "function"}<title>
+      {@render title()}
+    </title>{:else if titleText}<title>{titleText}</title>{/if}
 
   {#if typeof defs === "function"}
     <defs>
@@ -6934,12 +6949,12 @@
 </script>
 
 <div class="input-container">
-  <label
-    ><input type="radio" bind:group={groupBy} value="true" />GroupBy `true`</label
-  >
-  <label
-    ><input type="radio" bind:group={groupBy} value="false" />GroupBy `false`</label
-  >
+  <label>
+    <input type="radio" bind:group={groupBy} value="true" />GroupBy `true`
+  </label>
+  <label>
+    <input type="radio" bind:group={groupBy} value="false" />GroupBy `false`
+  </label>
 </div>
 
 <div class="chart-container">
@@ -9876,12 +9891,12 @@
 </script>
 
 <div class="input-container">
-  <label
-    ><input type="radio" bind:group={groupBy} value="true" />Group by category</label
-  >
-  <label
-    ><input type="radio" bind:group={groupBy} value="false" />Clump together</label
-  >
+  <label>
+    <input type="radio" bind:group={groupBy} value="true" />Group by category
+  </label>
+  <label>
+    <input type="radio" bind:group={groupBy} value="false" />Clump together
+  </label>
 </div>
 
 <div class="chart-container">
@@ -10182,7 +10197,7 @@
   }
 </style>
 
-=== 2066 src/routes/_examples/Histogram.svelte	svelte
+=== 2069 src/routes/_examples/Histogram.svelte	svelte
 <script>
   import { LayerCake, Svg, bin, takeEvery } from "layercake";
 
@@ -10230,8 +10245,9 @@
   <span
     class="counter-container"
     style="display:inline-block;vertical-align:top;width: 70px;text-align:right;"
-    >{binCount} bins</span
   >
+    {binCount} bins
+  </span>
 </div>
 
 <div class="chart-container">
@@ -10826,7 +10842,7 @@
   }
 </style>
 
-=== 1661 src/routes/_examples/SmallMultiples.svelte	svelte
+=== 1657 src/routes/_examples/SmallMultiples.svelte	svelte
 <script>
   import { calcExtents, flatten } from "layercake";
 
@@ -10855,13 +10871,12 @@
 </script>
 
 <div class="input-container">
-  <label
-    ><input type="radio" bind:group={scale} value="individual" />Individual
-    scale</label
-  >
-  <label
-    ><input type="radio" bind:group={scale} value="shared" />Shared scale</label
-  >
+  <label>
+    <input type="radio" bind:group={scale} value="individual" />Individual scale
+  </label>
+  <label>
+    <input type="radio" bind:group={scale} value="shared" />Shared scale
+  </label>
 </div>
 
 <div class="group-container">
@@ -11670,7 +11685,7 @@
   }
 </style>
 
-=== 2114 src/routes/_examples_ssr/Histogram.svelte	svelte
+=== 2117 src/routes/_examples_ssr/Histogram.svelte	svelte
 <script>
   import { LayerCake, ScaledSvg, Html, takeEvery } from "layercake";
   import { extent, bin } from "d3-array";
@@ -11712,8 +11727,9 @@
   <span
     class="counter-container"
     style="display:inline-block;vertical-align:top;width: 70px;text-align:right;"
-    >{binCount} bins</span
   >
+    {binCount} bins
+  </span>
 </div>
 
 <div class="chart-container">
@@ -12234,7 +12250,7 @@
   }
 </style>
 
-=== 1679 src/routes/_examples_ssr/SmallMultiples.svelte	svelte
+=== 1675 src/routes/_examples_ssr/SmallMultiples.svelte	svelte
 <script>
   import { calcExtents, flatten } from "layercake";
 
@@ -12263,13 +12279,12 @@
 </script>
 
 <div class="input-container">
-  <label
-    ><input type="radio" bind:group={scale} value="individual" />Individual
-    scale</label
-  >
-  <label
-    ><input type="radio" bind:group={scale} value="shared" />Shared scale</label
-  >
+  <label>
+    <input type="radio" bind:group={scale} value="individual" />Individual scale
+  </label>
+  <label>
+    <input type="radio" bind:group={scale} value="shared" />Shared scale
+  </label>
 </div>
 
 <div class="group-container">
@@ -12496,9 +12511,9 @@
   }
 </script>
 
-<button aria-label="Copy to clipboard" class="copy" onclick={copyToClipboard}
-  ><CopyIcon /></button
->
+<button aria-label="Copy to clipboard" class="copy" onclick={copyToClipboard}>
+  <CopyIcon />
+</button>
 
 <style>
   button {
@@ -12589,7 +12604,7 @@
   />
 </svg>
 
-=== 5628 src/routes/_site-components/DownloadBtn.svelte	svelte
+=== 5629 src/routes/_site-components/DownloadBtn.svelte	svelte
 <script>
   import { toAuto } from "do-not-zip";
   import { uniques } from "layercake";
@@ -12752,8 +12767,9 @@
   title="download zip file"
   class="icon"
   style="background-image: url(/icons/download.svg)"
-  >Download &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</button
 >
+  Download &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</button>
 
 <style>
   button {
@@ -12820,7 +12836,7 @@
   }
 </style>
 
-=== 4702 src/routes/_site-components/DownloadComponentBtn.svelte	svelte
+=== 4703 src/routes/_site-components/DownloadComponentBtn.svelte	svelte
 <script>
   import { toAuto } from "do-not-zip";
   import { uniques } from "layercake";
@@ -12930,8 +12946,9 @@
   title="download zip file"
   class="icon"
   style="background-image: url(/icons/download.svg)"
-  >Download &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;</button
 >
+  Download &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+</button>
 
 <style>
   button {
@@ -12998,7 +13015,7 @@
   }
 </style>
 
-=== 1958 src/routes/_site-components/GuideContents.svelte	svelte
+=== 1994 src/routes/_site-components/GuideContents.svelte	svelte
 <script>
   /**
    * @typedef {import('../../_modules/getSections.js').GuideSection} GuideSection
@@ -13040,16 +13057,20 @@
       <a
         class="section {section.slug === activeGuideSection ? 'active' : ''}"
         href="/guide#{section.slug}"
-        onclick={close}>{section.metadata.title}</a
+        onclick={close}
       >
+        {section.metadata.title}
+      </a>
       {#each section.subsections as subsection}
         <a
           class="subsection {subsection.slug === activeGuideSection
             ? 'active'
             : ''}"
           href="/guide#{subsection.slug}"
-          onclick={close}>{subsection.title}</a
+          onclick={close}
         >
+          {subsection.title}
+        </a>
       {/each}
     </li>
   {/each}
@@ -13569,9 +13590,9 @@
 <div class="main" data-label="Server-side">
   <h1>
     {example.title}{#await constructReplLink(example?.title, data.content) then replLink}
-      <a class="edit-repl" href={replLink} target="_blank" rel="noreferrer"
-        >Edit</a
-      >
+      <a class="edit-repl" href={replLink} target="_blank" rel="noreferrer">
+        Edit
+      </a>
     {/await}
   </h1>
 
@@ -13838,9 +13859,9 @@
   <h1>
     {example.title}
     {#await constructReplLink(example?.title, data.content) then replLink}
-      <a class="edit-repl" href={replLink} target="_blank" rel="noreferrer"
-        >Edit</a
-      >
+      <a class="edit-repl" href={replLink} target="_blank" rel="noreferrer">
+        Edit
+      </a>
     {/await}
   </h1>
 
@@ -14026,7 +14047,7 @@
   }
 </style>
 
-=== 8001 src/routes/guide/+page.svelte	svelte
+=== 8025 src/routes/guide/+page.svelte	svelte
 <script>
   import GuideContents from "../_site-components/GuideContents.svelte";
 
@@ -14102,11 +14123,11 @@
     <ul>
       {#each data.sections as section}
         <li>
-          <a href="#{section.slug}"
-            >- {section.slug
+          <a href="#{section.slug}">
+            - {section.slug
               .replace(/^\w/, /** @param {string} d */ (d) => d.toUpperCase())
-              .replaceAll("-", " ")}</a
-          >
+              .replaceAll("-", " ")}
+          </a>
         </li>
       {/each}
     </ul>
@@ -14115,13 +14136,15 @@
     <section id={section.slug}>
       <h2>
         {section.metadata.title}
-        <small
-          ><a
+        <small>
+          <a
             href="https://github.com/mhkeller/layercake/edit/master/src/content/guide/{section.file}"
             target="_blank"
-            rel="noreferrer">edit this section</a
-          ></small
-        >
+            rel="noreferrer"
+          >
+            edit this section
+          </a>
+        </small>
       </h2>
       <!-- eslint-disable-next-line svelte/no-at-html-tags -->
       {@html section.html}

@@ -111,15 +111,15 @@
   <div class="col">
     <article>
       <p>
-        <code
-          ><i>fetch: </i><u
-            >{#if loading}
+        <code>
+          <i>fetch: </i><u>
+            {#if loading}
               loading...
             {:else}
               done
-            {/if}</u
-          ></code
-        >
+            {/if}
+          </u>
+        </code>
       </p>
       <Formly
         {fields}

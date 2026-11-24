@@ -216,8 +216,7 @@ fn virtually_read(file: &File<'_>, runes: bool, out: &mut FxHashSet<SymbolId>) {
             match statement {
                 Statement::VariableDeclaration(declaration) if runes => {
                     for declarator in &declaration.declarations {
-                        if let Some(Expression::CallExpression(call)) = &declarator.init
-                            && nodes::is_named(&call.callee, "$props")
+                        if declarator.init.as_ref().is_some_and(nodes::is_props_call)
                             && matches!(declarator.id, BindingPattern::ObjectPattern(_))
                         {
                             bindable_names(&declarator.id, &mut |identifier| {

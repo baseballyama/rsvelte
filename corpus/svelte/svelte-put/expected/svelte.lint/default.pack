@@ -573,7 +573,7 @@
 93:16 94:2 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 94:1 94:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 5425 packages/qr/src/img/QR.svelte	lint.txt
+=== 5342 packages/qr/src/img/QR.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -637,7 +637,6 @@
 71:1 71:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 72:1 72:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 72:21 72:30 svelte/max-attributes-per-line "'{...rest}' should be on a new line."
-72:31 72:50 svelte/sort-attributes "Attribute 'bind:this' should go before 'src'."
 73:1 73:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 3750 packages/qr/src/svg/QR.svelte	lint.txt
@@ -1434,11 +1433,12 @@
 49:5 49:13 no-undef "'document' is not defined."
 54:19 54:22 no-undef "'App' is not defined."
 
-=== 4070 sites/docs/src/packages/async-stack/_page/examples/await.svelte	lint.txt
+=== 4281 sites/docs/src/packages/async-stack/_page/examples/await.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:38 svelte/valid-compile "`promise` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -1758,10 +1758,11 @@
 8:50 8:87 svelte/max-attributes-per-line "'use:modalStack.actions.render' should be on a new line."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1993 sites/docs/src/packages/async-stack/_page/examples/modal/usage.svelte	lint.txt
+=== 2206 sites/docs/src/packages/async-stack/_page/examples/modal/usage.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:36 svelte/valid-compile "`confirmed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -2689,9 +2690,10 @@
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 826 sites/docs/src/packages/intersect/_page/examples/initialization-options.svelte	lint.txt
+=== 1034 sites/docs/src/packages/intersect/_page/examples/initialization-options.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:10 svelte/valid-compile "`root` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -2820,10 +2822,11 @@
 9:2 9:59 svelte/no-unused-class-name "Unused class \"place-items-center\"."
 9:2 9:59 svelte/no-unused-class-name "Unused class \"self-stretch\"."
 
-=== 1856 sites/docs/src/packages/movable/_page/examples/ignore.svelte	lint.txt
+=== 2067 sites/docs/src/packages/movable/_page/examples/ignore.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:13 svelte/valid-compile "`mounted` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:3 7:13 no-undef "'setTimeout' is not defined."
@@ -2847,10 +2850,11 @@
 18:3 18:57 svelte/no-unused-class-name "Unused class \"text-sm\"."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1781 sites/docs/src/packages/movable/_page/examples/limit-ancestor.svelte	lint.txt
+=== 1995 sites/docs/src/packages/movable/_page/examples/limit-ancestor.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:29 svelte/valid-compile "`parentNode` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:18 4:29 no-undef "'HTMLElement' is not defined."
 7:1 7:92 svelte/no-unused-class-name "Unused class \"grid\"."
 7:1 7:92 svelte/no-unused-class-name "Unused class \"place-items-center\"."
@@ -3127,7 +3131,7 @@
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:2 11:14 svelte/sort-attributes "Attribute 'height' should go before 'moduleFill'."
 
-=== 1972 sites/docs/src/packages/qr/_page/examples/img-headless.svelte	lint.txt
+=== 2180 sites/docs/src/packages/qr/_page/examples/img-headless.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3138,6 +3142,7 @@
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:6 12:9 svelte/valid-compile "`src` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

@@ -3775,7 +3775,7 @@
 73:1 73:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 74:1 74:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 76:1 76:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
-77:1 77:5 svelte/indent "Expected indentation of 6 spaces but found 4 whitespaces."
+77:1 77:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 78:1 78:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 79:1 79:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 81:1 81:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."

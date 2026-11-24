@@ -146,12 +146,31 @@ pub(super) fn svelte_config(
     language_options: Option<LanguageOptions>,
     javascript: Option<SvelteConfig>,
 ) -> Result<Option<SvelteConfig>, String> {
-    if let Some(c) = language_options
-        .and_then(|l| l.parser_options)
-        .and_then(|p| p.svelte_config)
-    {
+    let parser_options = language_options.and_then(|l| l.parser_options);
+    let feature_runes = parser_options
+        .as_ref()
+        .and_then(|p| p.svelte_features.as_ref())
+        .and_then(|f| f.runes);
+    if let Some(runes) = feature_runes {
+        return Ok(Some(SvelteConfig {
+            runes: Some(runes),
+            ..SvelteConfig::default()
+        }));
+    }
+    if let Some(c) = parser_options.and_then(|p| p.svelte_config) {
+        let options = c.compiler_options;
+        let asynchronous = options
+            .as_ref()
+            .and_then(|o| o.experimental.as_ref())
+            .and_then(|e| e.asynchronous);
         return Ok(Some(SvelteConfig {
             kit: c.kit,
+            runes: options.as_ref().and_then(|o| o.runes),
+            experimental_async: if asynchronous == Some(true) {
+                rsvelte_svelte_lint::ExperimentalAsync::On
+            } else {
+                rsvelte_svelte_lint::ExperimentalAsync::Off
+            },
             ..SvelteConfig::default()
         }));
     }

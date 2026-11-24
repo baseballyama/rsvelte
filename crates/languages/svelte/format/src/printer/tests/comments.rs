@@ -11,8 +11,13 @@ fn what_the_template_printer_cannot_place_yet_is_refused() {
             Some("/* a */")
         )
     );
+    // Strict whitespace keeps the tag hugging its content.
+    let strict = Options {
+        markup_whitespace_sensitivity: crate::options::WhitespaceSensitivity::Strict,
+        ..Options::default()
+    };
     assert_eq!(
-        refusal("<span a // x\n>t</span>\n"),
+        refusal_with("<span a // x\n>t</span>\n", &strict),
         (
             "a comment after the last attribute where no line break follows",
             Some("// x")
@@ -37,6 +42,13 @@ fn a_comment_between_attributes_goes_with_the_attribute_as_the_plugin_attaches_i
             "<div\n  a\n  /* x */\n></div>\n",
         ),
         ("<input a // x\n/>", "<input\n  a // x\n/>\n"),
+        // From Prettier 3.10.1 with prettier-plugin-svelte 4.2.0.
+        (
+            "<span a // x\n>t</span>\n",
+            "<span\n  a // x\n>\n  t\n</span>\n",
+        ),
+        ("<div /* x */></div>", "<div /* x */></div>\n"),
+        ("<div a /* > */></div>", "<div a /* > */></div>\n"),
     ] {
         assert_eq!(formatted(source_text), expected, "{source_text}");
     }
@@ -45,16 +57,6 @@ fn a_comment_between_attributes_goes_with_the_attribute_as_the_plugin_attaches_i
 #[test]
 fn a_comment_the_plugin_deletes_is_refused() {
     for (source_text, why, at) in [
-        (
-            "<div /* x */></div>",
-            "a comment in a tag without attributes, which the plugin deletes",
-            "/* x */",
-        ),
-        (
-            "<div a /* > */></div>",
-            "a comment after the `>` the plugin takes for the tag's end, which it deletes",
-            "/* > */",
-        ),
         (
             "{#each xs as { a /* c */ }}{a}{/each}",
             "a comment in a block's pattern, which the plugin deletes",

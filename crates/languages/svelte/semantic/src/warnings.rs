@@ -180,13 +180,13 @@ pub struct Options {
 }
 
 impl Options {
-    /// What eslint-plugin-svelte compiles with: no `runes`, and `customElement` when
-    /// `<svelte:options>` names `tag` or `customElement`.
+    /// What eslint-plugin-svelte compiles with: the `runes` of `compilerOptions`, and
+    /// `customElement` when `<svelte:options>` names `tag` or `customElement`.
     #[must_use]
-    pub fn linting(component: &Component, source: &str) -> Self {
+    pub fn linting(component: &Component, source: &str, runes: Option<bool>) -> Self {
         let names = |name| component.svelte_option(source, name).is_some();
         Self {
-            runes: None,
+            runes,
             custom_element: names("tag") || names("customElement"),
         }
     }

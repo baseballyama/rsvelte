@@ -137,6 +137,13 @@ fn a_bindable_prop_is_used() {
         unused(&script("let { a } = $props(); a = 1;")),
         ["'a' is assigned a value but never used."]
     );
+    assert_eq!(
+        unused(&script(
+            "let { a = $bindable() } = $props() as { a: number }; a = 1; \
+             let { c } = $props() as { c: number }; c = 1;"
+        )),
+        ["'c' is assigned a value but never used."]
+    );
 }
 
 #[test]

@@ -681,9 +681,9 @@
         </div>
         <div class="info">
           <span class="name">{employee.firstName} {employee.lastName}</span>
-          <span class="position"
-            >{positions.find((p) => p.id === employee.position).name}</span
-          >
+          <span class="position">
+            {positions.find((p) => p.id === employee.position).name}
+          </span>
         </div>
       </div>
     {/each}
@@ -3153,7 +3153,7 @@
   </Locale>
 </div>
 
-=== 5149 svelte/demos/cases/Tooltips.svelte	svelte
+=== 5156 svelte/demos/cases/Tooltips.svelte	svelte
 <script>
   import {
     Button,
@@ -3243,8 +3243,9 @@
       <Button
         css="button-overflow"
         tooltip="With overflow=true, this is the only visible tooltip in this section"
-        >Overflowing text in button</Button
       >
+        Overflowing text in button
+      </Button>
     </div>
   </Tooltip>
 </div>
@@ -3434,7 +3435,7 @@
   </p>
 </div>
 
-=== 12374 svelte/demos/common/Index.svelte	svelte
+=== 12385 svelte/demos/common/Index.svelte	svelte
 <script>
   import {
     Globals,
@@ -3509,15 +3510,16 @@
             target="_blank"
             rel="noopener noreferrer"
           >
-            <img src={LogoIcon} alt="Logo icon" class="box-title-img" /></a
-          >
+            <img src={LogoIcon} alt="Logo icon" class="box-title-img" />
+          </a>
           <div class="separator"></div>
           <a
             href={`https://svar.dev/svelte/${productLink}/`}
             target="_blank"
             rel="noopener noreferrer"
-            ><h1 class="title">Svelte {publicName}</h1></a
           >
+            <h1 class="title">Svelte {publicName}</h1>
+          </a>
         </div>
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="btn-box">

@@ -2,20 +2,24 @@
 === 89 example/src/routes/+page.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 413 src/lib/internal/GatheringRound.svelte	lint.txt
+=== 784 src/lib/internal/GatheringRound.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:35 svelte/max-attributes-per-line "'context' should be on a new line."
 1:19 1:35 svelte/sort-attributes "Attribute 'context' should go before 'lang'."
+1:19 1:35 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 5:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+11:1 11:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 11:7 11:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 1709 src/routes/+layout.svelte	lint.txt
+=== 2111 src/routes/+layout.svelte	lint.txt
 1:1 54:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+9:7 9:12 svelte/valid-compile "`isRTL` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 52:1 52:3 svelte/indent "Expected indentation of 0 spaces but found 2 spaces."
 58:28 58:74 svelte/max-attributes-per-line "'content' should be on a new line."
 59:3 59:16 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
 63:28 63:55 svelte/max-attributes-per-line "'class' should be on a new line."
 63:28 63:55 svelte/sort-attributes "Attribute 'class' should go before 'role'."
+66:5 66:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 66:11 66:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 70:30 70:55 svelte/max-attributes-per-line "'class' should be on a new line."
 70:30 70:55 svelte/sort-attributes "Attribute 'class' should go before 'role'."
@@ -41,7 +45,9 @@
 === 89 src/routes/examples/change-orientation/+page.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 454 src/routes/examples/change-orientation/code.svelte	lint.txt
+=== 885 src/routes/examples/change-orientation/code.svelte	lint.txt
+6:7 6:17 svelte/valid-compile "`horizontal` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+7:7 7:20 svelte/valid-compile "`firstSplitter` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:5 13:5 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 19:5 19:5 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 22:35 22:50 svelte/max-attributes-per-line "'firstSplitter' should be on a new line."
@@ -66,8 +72,9 @@
 === 89 src/routes/examples/listen-to-events/+page.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 595 src/routes/examples/listen-to-events/code.svelte	lint.txt
+=== 802 src/routes/examples/listen-to-events/code.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+6:7 6:10 svelte/valid-compile "`val` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 23:36 23:36 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 24:3 24:32 svelte/require-each-key "Each block should have a key"
 24:27 24:28 no-unused-vars "'_' is defined but never used."
@@ -96,7 +103,8 @@
 === 89 src/routes/examples/prog-resize/+page.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 332 src/routes/examples/prog-resize/code.svelte	lint.txt
+=== 541 src/routes/examples/prog-resize/code.svelte	lint.txt
+6:7 6:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:20 9:39 svelte/max-attributes-per-line "'bind:values' should be on a new line."
 9:40 9:47 svelte/sort-attributes "Attribute 'min' should go before 'bind:values'."
 9:48 9:59 svelte/sort-attributes "Attribute 'step' should go before 'bind:values'."
@@ -203,7 +211,8 @@
 === 89 src/routes/examples/toggle-panes/+page.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 0 src/routes/examples/toggle-panes/code.svelte	lint.txt
+=== 213 src/routes/examples/toggle-panes/code.svelte	lint.txt
+10:7 10:14 svelte/valid-compile "`visible` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 
 === 163 src/routes/minified-size/+page.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

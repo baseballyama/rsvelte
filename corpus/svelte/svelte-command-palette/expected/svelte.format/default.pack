@@ -239,9 +239,9 @@
             <span class="demo-result-icon">🚀</span>
             <div class="demo-result-content">
               <span class="demo-result-title">Deploy to production</span>
-              <span class="demo-result-subtitle"
-                >Push changes to live server</span
-              >
+              <span class="demo-result-subtitle">
+                Push changes to live server
+              </span>
             </div>
             <div class="demo-result-kbd">
               <kbd class="kbd">D</kbd>
@@ -252,9 +252,9 @@
             <span class="demo-result-icon">🎨</span>
             <div class="demo-result-content">
               <span class="demo-result-title">Toggle dark mode</span>
-              <span class="demo-result-subtitle"
-                >Switch between light and dark</span
-              >
+              <span class="demo-result-subtitle">
+                Switch between light and dark
+              </span>
             </div>
             <div class="demo-result-kbd">
               <kbd class="kbd">⌘</kbd>
@@ -874,9 +874,9 @@
 
 <aside class="sidebar" class:open={isMobileMenuOpen}>
   <div class="sidebar-header">
-    <a href="/docs" class="sidebar-brand" onclick={closeMobileMenu}
-      >Documentation</a
-    >
+    <a href="/docs" class="sidebar-brand" onclick={closeMobileMenu}>
+      Documentation
+    </a>
     <button
       class="sidebar-close"
       onclick={closeMobileMenu}
@@ -1450,9 +1450,9 @@
               novalidate
               onsubmit={handleFormSubmit}
             >
-              <label for={searchInputId} class="sr-only"
-                >Search for an action</label
-              >
+              <label for={searchInputId} class="sr-only">
+                Search for an action
+              </label>
               <div class="cp-input-wrapper">
                 <svg
                   class="cp-search-icon"
@@ -2320,7 +2320,7 @@
   }
 </style>
 
-=== 6188 src/routes/+page.svelte	svelte
+=== 6220 src/routes/+page.svelte	svelte
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
@@ -2484,19 +2484,23 @@
       Built with ❤️ by <a
         href="https://twitter.com/rohitpotato"
         target="_blank"
-        rel="noopener">Rohit Kashyap</a
+        rel="noopener"
       >
+        Rohit Kashyap
+      </a>
     </p>
     <p class="footer-links">
       <a
         href="https://github.com/rohitpotato/svelte-command-palette"
         target="_blank"
-        rel="noopener">GitHub</a
+        rel="noopener"
       >
+        GitHub
+      </a>
       <span>•</span>
-      <a href="https://twitter.com/rohitpotato" target="_blank" rel="noopener"
-        >Twitter</a
-      >
+      <a href="https://twitter.com/rohitpotato" target="_blank" rel="noopener">
+        Twitter
+      </a>
       <span>•</span>
       <a href="/docs">Documentation</a>
     </p>
@@ -2895,7 +2899,7 @@
   }
 </style>
 
-=== 8468 src/routes/docs/define-actions/+page.svelte	svelte
+=== 8476 src/routes/docs/define-actions/+page.svelte	svelte
 <script lang="ts">
   const basicExample = `import { defineActions } from '$lib'; // Use 'svelte-command-palette' in your project
 
@@ -3132,8 +3136,10 @@ const actions = defineActions([
   Shortcuts use the <a
     href="https://github.com/jamiebuilds/tinykeys"
     target="_blank"
-    rel="noopener">tinykeys</a
-  > format:
+    rel="noopener"
+  >
+    tinykeys
+  </a> format:
 </p>
 
 <div class="shortcuts-examples">
@@ -3337,9 +3343,9 @@ const actions = defineActions([
 <h2>Next Steps</h2>
 
 <p>
-  After installation, head to the <a href="/docs/quick-start"
-    >Quick Start guide</a
-  > to set up your first command palette.
+  After installation, head to the <a href="/docs/quick-start">
+    Quick Start guide
+  </a> to set up your first command palette.
 </p>
 
 <style>
@@ -3731,9 +3737,9 @@ const actions = defineActions([
       <tr><td><code>.cp-group-header</code></td><td>Group name header</td></tr>
       <tr><td><code>.cp-result</code></td><td>Individual result</td></tr>
       <tr><td><code>.cp-result-active</code></td><td>Active result</td></tr>
-      <tr
-        ><td><code>.cp-result-icon</code></td><td>Result icon container</td></tr
-      >
+      <tr>
+        <td><code>.cp-result-icon</code></td><td>Result icon container</td>
+      </tr>
       <tr><td><code>.cp-result-title</code></td><td>Result title</td></tr>
       <tr><td><code>.cp-result-subtitle</code></td><td>Result subtitle</td></tr>
       <tr><td><code>.cp-kbd</code></td><td>Keyboard shortcut badge</td></tr>
