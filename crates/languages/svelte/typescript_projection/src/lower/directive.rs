@@ -8,6 +8,13 @@ use super::attributes::{Host, Kind};
 use super::{Builder, Node, NodeIdentifier, Result, SourceExpression, refuse};
 use crate::syntax_tree::Spelling;
 
+/// A named component and the name of the call that constructs its instance.
+#[derive(Clone, Copy)]
+pub(super) struct Constructed {
+    pub(super) component: NodeIdentifier,
+    pub(super) call: NodeIdentifier,
+}
+
 /// What an element's directives add around its `createElement` call.
 #[derive(Default)]
 pub(super) struct Directives {
@@ -123,7 +130,7 @@ impl Builder<'_> {
     }
 
     /// svelte2tsx's `const { … } = component.$$slot_def.default;` for a component's `let:`.
-    pub(super) fn component_lets(&mut self, component: NodeIdentifier, lets: &[NodeIdentifier]) {
+    pub(super) fn component_lets(&mut self, component: Constructed, lets: &[NodeIdentifier]) {
         if lets.is_empty() {
             return;
         }
@@ -189,28 +196,17 @@ impl Builder<'_> {
         Ok(())
     }
 
-    /// `__rsvelte_instance(component)`: the instance svelte2tsx constructs.
-    fn instance(&mut self, component: NodeIdentifier) -> NodeIdentifier {
-        let callee = self.tree.push(Node::Identifier("__rsvelte_instance"));
-        let arguments = self.tree.list(&[component]);
+    /// `__rsvelte_constructed(component, call)`: the instance svelte2tsx constructs.
+    fn instance(&mut self, constructed: Constructed) -> NodeIdentifier {
+        let callee = self.tree.push(Node::Identifier("__rsvelte_constructed"));
+        let arguments = self.tree.list(&[constructed.component, constructed.call]);
         self.tree.push(Node::Call { callee, arguments })
     }
 
-    /// `__rsvelte_constructed(component, constructed).$on(name, handler);` for each event, where
-    /// `constructed` names the component's call.
-    pub(super) fn component_events(
-        &mut self,
-        component: NodeIdentifier,
-        constructed: NodeIdentifier,
-        events: &[Range],
-    ) {
+    /// `instance.$on(name, handler);` for each event.
+    pub(super) fn component_events(&mut self, component: Constructed, events: &[Range]) {
         for &arguments in events {
-            let callee = self.tree.push(Node::Identifier("__rsvelte_constructed"));
-            let instance = self.tree.list(&[component, constructed]);
-            let object = self.tree.push(Node::Call {
-                callee,
-                arguments: instance,
-            });
+            let object = self.instance(component);
             let property = self.tree.push(Node::Identifier("$on"));
             let callee = self.tree.push(Node::Member { object, property });
             let call = self.tree.push(Node::Call { callee, arguments });

@@ -4,10 +4,11 @@
 use rsvelte_svelte_syntax::syntax_tree::{AttributeValue, Part, TemplateNode};
 
 use super::super::{Builder, Node, NodeIdentifier, Range};
+use super::slot_def::SlotElement;
 use super::{ComponentMode, Contract};
 use crate::syntax_tree::Instance;
 
-impl Builder<'_> {
+impl<'s> Builder<'s> {
     /// The component the render function returns, of the contract and of the slots the template
     /// lowered: svelte2tsx's function component in runes mode without events or slots, and its
     /// isomorphic component otherwise.
@@ -38,7 +39,8 @@ impl Builder<'_> {
                     self.instantiated("__rsvelte_export_generic", &[props, exports, bindings]);
                 let events =
                     self.events_value(events, events.strict || mode == ComponentMode::Runes);
-                let arguments = self.tree.list(&[events]);
+                let slots = self.slots_value(elements);
+                let arguments = self.tree.list(&[events, slots]);
                 let component = self.tree.push(Node::Call { callee, arguments });
                 (component, Instance::Returned)
             }
@@ -54,22 +56,28 @@ impl Builder<'_> {
                     "__rsvelte_export_isomorphic"
                 };
                 let callee = self.instantiated(helper, &[props, exports, bindings]);
-                let slots = if self.declares_slots() {
-                    let slots = self.tree.push(Node::Identifier("$$Slots"));
-                    self.instantiated("__rsvelte_value", &[slots])
-                } else if elements.is_empty() {
-                    self.tree.push(Node::Object {
-                        properties: Range::default(),
-                    })
-                } else {
-                    let slots = self.slot_def(elements);
-                    slots.unwrap_or_else(|| self.untyped_prop())
-                };
+                let slots = self.slots_value(elements);
                 let events = self.events_value(events, events.strict);
                 let arguments = self.tree.list(&[events, slots]);
                 let component = self.tree.push(Node::Call { callee, arguments });
                 (component, Instance::Constructed)
             }
+        }
+    }
+
+    /// The slots value svelte2tsx's render function returns: `$$Slots`, or else the object each
+    /// `<slot>`'s attributes make.
+    fn slots_value(&mut self, elements: Vec<SlotElement<'s>>) -> NodeIdentifier {
+        if self.declares_slots() {
+            let slots = self.tree.push(Node::Identifier("$$Slots"));
+            self.instantiated("__rsvelte_value", &[slots])
+        } else if elements.is_empty() {
+            self.tree.push(Node::Object {
+                properties: Range::default(),
+            })
+        } else {
+            let slots = self.slot_def(elements);
+            slots.unwrap_or_else(|| self.untyped_prop())
         }
     }
 
