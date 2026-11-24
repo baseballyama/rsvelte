@@ -114,12 +114,14 @@ impl Task for CountCoverage {
                     javascript_rejects(component, source, projection, &result, generics.as_ref());
                 let own = script_errors(component, source);
                 let rejected = rejected_default_exports(component, source);
-                // The projection keeps the script's own grammar, which may break these rules.
+                // The projection keeps the script's own grammar, which may break these rules, and
+                // moves its statements into a function, where an `await` is outside an async one.
                 let added = result.diagnostics.iter().any(|d| {
                     let unchecked = d.code.scope.as_deref() == Some("TS")
                         && d.code.number.as_deref().is_some_and(|n| {
-                            rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
-                                .contains(&n)
+                            n == "1308"
+                                || rsvelte_svelte_syntax::parse::ACORN_UNCHECKED_TYPESCRIPT_RULES
+                                    .contains(&n)
                         });
                     // A `generics` list that does not parse is copied as it is, so an error whose
                     // primary span lies within it is the source's own. An error in generated text

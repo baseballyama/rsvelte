@@ -124,7 +124,9 @@ impl Builder<'_> {
         self.class_expressions(attributes);
         let parent = std::mem::replace(&mut self.slot_parent, named);
         let component_parent = std::mem::replace(&mut self.component_parent, is_component);
-        self.element_children(children, snippet_props, lets)?;
+        // svelte2tsx types `<svelte:component>` and `<svelte:self>` as any component.
+        let lets_of = is_component.then_some((component.filter(|_| !dynamic), attributes));
+        self.element_children(children, snippet_props, lets, lets_of)?;
         self.slot_parent = parent;
         self.component_parent = component_parent;
         if let Some(end_name) = end_name {
@@ -185,17 +187,24 @@ impl Builder<'_> {
     }
 
     /// A component's snippets are its props; an element's come first.
-    /// svelte2tsx's block of a component's `let:` bindings, from `lets`, holds its children.
+    /// svelte2tsx's block of a component's `let:` bindings, from `lets`, holds its children, and
+    /// its scope the names of the `let:` directives of the component with `lets_of`.
     fn element_children(
         &mut self,
         children: Range,
         is_component: bool,
         lets: Option<usize>,
+        lets_of: Option<(Option<ExpressionIdentifier>, Range)>,
     ) -> Result<()> {
+        let outer = self.slot_scope.len();
+        if let Some((component, attributes)) = lets_of {
+            self.declare_lets(component, attributes, children, outer);
+        }
         if !is_component {
             self.append_matching(children, true)?;
         }
         self.append_matching(children, false)?;
+        self.slot_scope.truncate(outer);
         if let Some(lets) = lets {
             let body = self.finish_list(lets);
             self.scratch.push(self.tree.push(Node::Block { body }));

@@ -38,6 +38,29 @@ fn acorn_reports_each_error_in_its_own_words_and_place() {
             15,
         ),
         ("{(a + 1) = 2}", "Assigning to rvalue", 2),
+        ("{(f)() = 1}", "Assigning to rvalue", 1),
+        ("{((f))() = 1}", "Assigning to rvalue", 1),
+        ("{(f)()++}", "Assigning to rvalue", 1),
+        ("{(a) + 1 = 2}", "Assigning to rvalue", 1),
+        ("{((a) + 1) = 2}", "Assigning to rvalue", 2),
+        ("{(a)`t` = 1}", "Assigning to rvalue", 1),
+        ("{(a, b) = 1}", "Assigning to rvalue", 2),
+        ("{[(f)()] = x}", "Assigning to rvalue", 2),
+        (
+            "<script lang=\"ts\">((f)() as any) = 1</script>",
+            "Assigning to rvalue",
+            19,
+        ),
+        (
+            "<script lang=\"ts\">(f)()! = 1</script>",
+            "Assigning to rvalue",
+            18,
+        ),
+        (
+            "<script lang=\"ts\">(({}) as any) = x</script>",
+            "Assigning to rvalue",
+            18,
+        ),
         ("{++(f())}", "Assigning to rvalue", 4),
         ("{f()++}", "Assigning to rvalue", 1),
         (
@@ -154,6 +177,23 @@ fn an_optional_chain_target_is_its_own_error() {
         ("<script lang=\"ts\">a?.b = 1</script>", 18),
         ("<script lang=\"ts\">(a?.b)! = 1</script>", 19),
         ("<script lang=\"ts\">(a?.b as any) = 1</script>", 19),
+        // A parenthesized object starts the chain, as it starts acorn's node.
+        ("{(a)?.b = x}", 1),
+        ("{((a))?.b = x}", 1),
+        ("{(a).b?.c = x}", 1),
+        ("{((a)?.b) = x}", 2),
+        ("{(a)?.b++}", 1),
+        ("{++(a)?.b}", 3),
+        ("{[(a)?.b] = x}", 2),
+        ("{({x: (a)?.b} = y)}", 6),
+        ("{[...(a)?.b] = x}", 5),
+        ("<script>[(a)?.b] = o</script>", 9),
+        ("<script>for ((a)?.b of x);</script>", 13),
+        ("<script>for ((a)?.b in x);</script>", 13),
+        ("<script lang=\"ts\">((a)?.b)! = 1</script>", 19),
+        ("<script lang=\"ts\">((a)?.b as any) = 1</script>", 19),
+        ("<script lang=\"ts\">(a)?.b! = 1</script>", 18),
+        ("<script lang=\"ts\">(<any>(a)?.b) = 1</script>", 24),
     ] {
         let error = parse(source).expect_err(source);
         assert_eq!(
@@ -262,5 +302,267 @@ fn a_destructuring_pattern_fails_at_its_first_parenthesized_element() {
             .span
             .start_offset,
         2
+    );
+}
+
+#[test]
+fn a_target_is_read_where_acorn_reads_it() {
+    // What svelte 5.57.3 reports, in bytes of each source: `await`, `yield` and `new.target` are
+    // what the function around them makes them, in a target and in a pattern's element.
+    for (source, at) in [
+        ("<script>async function f() { (await x) = 1; }</script>", 30),
+        ("<script>function* g() { (yield x) = 1; }</script>", 25),
+        ("<script>function* g() { (yield) = 1; }</script>", 25),
+        ("<script>function f() { (new.target) = 1; }</script>", 24),
+        ("<script>async function f() { (await x)++; }</script>", 30),
+        (
+            "<script>async function f() { for ((await x) of o); }</script>",
+            35,
+        ),
+        (
+            "<script>const f = async () => { (await x) = 1 };</script>",
+            33,
+        ),
+        (
+            "<script>async function f() { ((await x))() = 1; }</script>",
+            29,
+        ),
+        (
+            "<script>function* g() { [(yield), (f())] = o; }</script>",
+            25,
+        ),
+        (
+            "<script>async function f() { [(await x), (f())] = o; }</script>",
+            30,
+        ),
+        ("<script>function* g() { [(yield x)] = o; }</script>", 25),
+        ("<script>(await x) = 1;</script>", 9),
+        (
+            "<script>function f() { [(new.target), (g())] = o; }</script>",
+            24,
+        ),
+        (
+            "<script>class A { x = () => { (new.target) = 1; } }</script>",
+            31,
+        ),
+        (
+            "<script>async function* g() { (yield await x) = 1; }</script>",
+            31,
+        ),
+        ("<script>[(f())(), x] = o;</script>", 9),
+        (
+            "<script lang=\"ts\">async function f() { (await x as any) = 1; }</script>",
+            40,
+        ),
+        (
+            "<script lang=\"ts\">function* g() { ((yield) as any) = 1; }</script>",
+            36,
+        ),
+        (
+            "<script>class A { static { [(f()), (g())] = o; } }</script>",
+            28,
+        ),
+        ("<script>class A { static { (f()) = 1; } }</script>", 28),
+        (
+            concat!(
+                "<script>async function f() { (await x) = 1; } ",
+                "async function g() { (await y) = 1; }</script>",
+            ),
+            30,
+        ),
+        ("<script>({ async m() { (await x) = 1; } })</script>", 24),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(
+            (
+                error.message.lines().next().unwrap_or_default(),
+                error.span.start_offset
+            ),
+            ("Assigning to rvalue", at),
+            "{source}"
+        );
+    }
+}
+
+/// What svelte 5.59.1 reports: a for statement's head and a method with a return type are where
+/// `await` and `yield` mean what the function around them makes them.
+const READ_WHERE_ACORN_READS: &[(bool, &str, &str, u32)] = &[
+    (
+        false,
+        "const h = ([(f())] = []) => 1;",
+        "Assigning to rvalue",
+        20,
+    ),
+    (
+        false,
+        "async function f() { for await ([(f())] of o); }",
+        "Assigning to rvalue",
+        41,
+    ),
+    (
+        false,
+        "async function f() { for ([(await x)] of o); }",
+        "Assigning to rvalue",
+        35,
+    ),
+    (
+        false,
+        "async function f() { for ([a = await x, (f())] of o); }",
+        "Assigning to rvalue",
+        48,
+    ),
+    (
+        false,
+        "async function f() { for ([a = await x, (f())] in o); }",
+        "Assigning to rvalue",
+        48,
+    ),
+    (
+        false,
+        "async function f() { for await ([a = await x, (f())] of o); }",
+        "Assigning to rvalue",
+        54,
+    ),
+    (
+        false,
+        "function* g() { for ([(yield)] of o); }",
+        "Assigning to rvalue",
+        30,
+    ),
+    (
+        false,
+        "function* g() { for ([(yield), (f())] of o); }",
+        "Assigning to rvalue",
+        30,
+    ),
+    (
+        false,
+        "function* g() { for ([(yield)] in o); }",
+        "Assigning to rvalue",
+        30,
+    ),
+    (
+        true,
+        "const o2 = { *m(): Generator<number> { for ([(yield), (f())] of o); } };",
+        "Assigning to rvalue",
+        63,
+    ),
+    (
+        true,
+        "const o2 = { async m(): Promise<void> { for ([(await x)] of o); } };",
+        "Assigning to rvalue",
+        64,
+    ),
+    (
+        true,
+        "const o2 = { get m(): number { for ([(await x)] of o); return 1; } };",
+        "Cannot use keyword 'await' outside an async function",
+        56,
+    ),
+    (
+        true,
+        "class C { get m(): number { for ([(await x)] of o); return 1; } }",
+        "Cannot use keyword 'await' outside an async function",
+        53,
+    ),
+    (
+        true,
+        "const o2 = { get m(): number { [(f()), (g())] = o; return 1; } };",
+        "Assigning to rvalue",
+        50,
+    ),
+    (
+        false,
+        concat!(
+            "async function f0() { for ([(await a), (await b)] of o); } ",
+            "async function f1() { for ([(await a), (await b)] of o); }",
+        ),
+        "Assigning to rvalue",
+        36,
+    ),
+    (
+        false,
+        "async function f() { for ([(await a), (await b), (await c)] of o); }",
+        "Assigning to rvalue",
+        35,
+    ),
+    (
+        false,
+        "async function f() { for ([(await a), (f())] of o); } for ((y()) of o);",
+        "Assigning to rvalue",
+        35,
+    ),
+    (
+        false,
+        "switch (a) { case 1: (f()) = 1; }",
+        "Assigning to rvalue",
+        30,
+    ),
+    (
+        false,
+        "async function f() { switch (a) { case 1: [(await x), (g())] = o; } }",
+        "Assigning to rvalue",
+        51,
+    ),
+    (
+        false,
+        "x = [async () => 1, (await y) = 1];",
+        "Assigning to rvalue",
+        29,
+    ),
+    (
+        false,
+        "async () => [(await x), (g())] = o;",
+        "Assigning to rvalue",
+        21,
+    ),
+];
+
+#[test]
+fn a_target_in_a_loop_head_or_a_typed_method_is_read_where_acorn_reads_it() {
+    for &(typescript, script, message, at) in READ_WHERE_ACORN_READS {
+        let open = if typescript {
+            "<script lang=\"ts\">"
+        } else {
+            "<script>"
+        };
+        let source = format!("{open}{script}</script>");
+        let error = parse(&source).expect_err(&source);
+        let read = error.message.lines().next().unwrap_or_default();
+        assert_eq!((read, error.span.start_offset), (message, at), "{source}");
+    }
+}
+
+#[test]
+fn many_unassignable_targets_are_located_in_time_linear_in_their_number() {
+    // Each function's target is an error that stops oxc, so finding the function around the first
+    // one reads the program again: once, not once per target after it.
+    let script = |n: usize| {
+        let functions = (0..n).map(|i| format!("async function f{i}() {{ (await x) = 1; }}\n"));
+        format!("<script>\n{}</script>", functions.collect::<String>())
+    };
+    let seconds = |source: &str| {
+        let started = std::time::Instant::now();
+        let error = parse(source).expect_err("an unassignable target");
+        let elapsed = started.elapsed().as_secs_f64();
+        // The control: the error is the first target's, at the node inside its parentheses, which
+        // only the function around it places.
+        assert_eq!(
+            (error.message.lines().next(), error.span.start_offset),
+            (Some("Assigning to rvalue"), 32)
+        );
+        elapsed
+    };
+    // Small inputs are dominated by noise, so the shorter one is not too short.
+    let (short, long) = (script(2000), script(8000));
+    let (mut short_time, mut long_time) = (f64::MAX, f64::MAX);
+    for _ in 0..5 {
+        short_time = short_time.min(seconds(&short));
+        long_time = long_time.min(seconds(&long));
+    }
+    // Four times the targets take about four times as long; re-reading per target, sixteen.
+    assert!(
+        long_time < 8.0 * short_time,
+        "2000 took {short_time} s, 8000 took {long_time} s"
     );
 }
