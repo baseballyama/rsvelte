@@ -17,6 +17,9 @@ use crate::{Configuration, CssHash, Target};
 /// The version of the official compiler whose output this compiler reproduces.
 pub const VERSION: &str = "5.59.1";
 
+/// The filename of a source the caller did not name.
+pub const UNKNOWN_FILENAME: &str = "(unknown)";
+
 /// The official `CompileOptions` that this compiler reads. Components are always in runes mode.
 #[derive(Clone, Debug)]
 pub struct CompileOptions {
@@ -30,7 +33,7 @@ pub struct CompileOptions {
 impl Default for CompileOptions {
     fn default() -> Self {
         Self {
-            filename: "(unknown)".to_owned(),
+            filename: UNKNOWN_FILENAME.to_owned(),
             generate: Target::Client,
             preserve_whitespace: false,
             css_hash: None,
@@ -48,7 +51,7 @@ pub struct ModuleCompileOptions {
 impl Default for ModuleCompileOptions {
     fn default() -> Self {
         Self {
-            filename: "(unknown)".to_owned(),
+            filename: UNKNOWN_FILENAME.to_owned(),
             generate: Target::Client,
         }
     }
