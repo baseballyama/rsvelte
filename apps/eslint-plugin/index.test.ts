@@ -1,4 +1,7 @@
 import assert from 'node:assert/strict';
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs';
+import { tmpdir } from 'node:os';
+import path from 'node:path';
 import { test } from 'node:test';
 import typescript from '@typescript-eslint/eslint-plugin';
 import { ESLint, type Linter } from 'eslint';
@@ -65,11 +68,9 @@ test('it has each configuration and export of eslint-plugin-oxlint for what both
 
 /** Each rule whose category follows a rule of oxlint: the same rule, or one that checks the same. */
 const ANALOGS: Record<string, string> = {
-	'@typescript-eslint/no-unused-vars': '@typescript-eslint/no-unused-vars',
+	// The core rules rsvelte runs in a component in oxlint's stead.
+	'no-undef': 'no-undef',
 	'no-unused-vars': 'no-unused-vars',
-	'vue/html-button-has-type': 'react/button-has-type',
-	'vue/multi-word-component-names': 'react/jsx-pascal-case',
-	'vue/no-unused-vars': 'no-unused-vars',
 	'svelte/@typescript-eslint/no-unnecessary-condition':
 		'@typescript-eslint/no-unnecessary-condition',
 	'svelte/button-has-type': 'react/button-has-type',
@@ -99,8 +100,6 @@ const ANALOGS: Record<string, string> = {
 
 /** Rules oxlint also has, or has a counterpart of, whose category differs on purpose. */
 const DIFFERS: Record<string, string> = {
-	// oxlint's port is in its nursery because it is unfinished; rsvelte's passes upstream's tests.
-	'no-undef': 'no-undef',
 	// React needs keys and warns without them; an unkeyed each is valid Svelte.
 	'svelte/require-each-key': 'react/jsx-key',
 	// oxlint's rule restricts how JSX spells DOM attributes; this one finds CSS properties that do
@@ -176,19 +175,20 @@ test('turns off the rules rsvelte runs on a component and keeps the others', asy
 		['eqeqeq', 'no-undef', 'svelte/button-has-type', 'svelte/no-at-html-tags'],
 		'the positive control',
 	);
+	// `no-undef` is in oxlint's nursery, which `flat/all` leaves out as eslint-plugin-oxlint does.
 	assert.deepEqual(
 		await lint([...project, ...plugin.configs['flat/all']], 'App.svelte', component),
-		['eqeqeq'],
+		['eqeqeq', 'no-undef'],
 	);
 	// `button-has-type` and `no-at-html-tags` restrict features, as their React counterparts do.
 	assert.deepEqual(
 		await lint([...project, ...plugin.configs['flat/recommended']], 'App.svelte', component),
-		['eqeqeq', 'svelte/button-has-type', 'svelte/no-at-html-tags'],
+		['eqeqeq', 'no-undef', 'svelte/button-has-type', 'svelte/no-at-html-tags'],
 	);
 });
 
 test('keeps a rule on in the files where rsvelte does not run it', async () => {
-	const config = [...project, ...plugin.configs['flat/correctness']];
+	const config = [...project, ...plugin.configs['flat/nursery']];
 	assert.deepEqual(await lint(config, 'App.svelte', '<script>b();</script>\n'), []);
 	assert.deepEqual(await lint(config, 'module.js', 'b();\n'), ['no-undef']);
 });
@@ -209,5 +209,66 @@ test('the legacy configurations turn off the same rules in the same files', () =
 			config.overrides?.map(({ files, rules }) => ({ files, rules })),
 			plugin.configs[flat].map(({ files, rules }) => ({ files, rules })),
 		);
+	}
+});
+
+/** The rules each configuration built from `config` turns off, by its files or `ignores`. */
+function built(config: object, options?: { withNursery?: boolean }) {
+	return plugin.buildFromOxlintConfig(config, options).map((entry) => ({
+		files: entry.files ?? entry.ignores,
+		rules: Object.keys(entry.rules ?? {}).toSorted(),
+	}));
+}
+
+test('buildFromOxlintConfig turns off what the categories and rules turn on', () => {
+	const byDefault = built({});
+	assert.ok(byDefault.length > 0);
+	const turnedOff = new Set(byDefault.flatMap((entry) => entry.rules));
+	assert.ok(turnedOff.has('no-unused-vars') && !turnedOff.has('svelte/no-at-html-tags'));
+	assert.ok(!turnedOff.has('no-undef'), 'nursery needs withNursery');
+	const config = {
+		categories: { correctness: 'off' },
+		rules: {
+			'svelte/no-at-html-tags': ['error', {}],
+			'eslint/no-unused-vars': 'warn',
+			'no-undef': 'error',
+			'svelte/button-has-type': 'off',
+			'typescript/no-explicit-any': 'error',
+		},
+		overrides: [{ files: ['src/**'], rules: { 'svelte/no-inspect': 'error' } }],
+		ignorePatterns: ['dist/**'],
+	};
+	assert.deepEqual(built(config), [
+		{ files: ['dist/**'], rules: [] },
+		{ files: ['**/*.svelte'], rules: ['no-unused-vars', 'svelte/no-at-html-tags'] },
+		{ files: ['src/**'], rules: ['svelte/no-inspect'] },
+	]);
+	assert.ok(built(config, { withNursery: true })[1]!.rules.includes('no-undef'));
+});
+
+test('buildFromOxlintConfigFile reads JSONC and the files it extends', () => {
+	const directory = mkdtempSync(path.join(tmpdir(), 'rsvelte-eslint-plugin-'));
+	try {
+		mkdirSync(path.join(directory, 'shared'));
+		writeFileSync(
+			path.join(directory, 'shared', 'base.json'),
+			'{ "rules": { "svelte/no-at-html-tags": "error", "svelte/no-inspect": "error" } }',
+		);
+		writeFileSync(
+			path.join(directory, '.oxlintrc.json'),
+			`{
+				// Comments and trailing commas, as oxlint reads them.
+				"extends": ["./shared/base.json"],
+				"categories": { "correctness": "off" },
+				"rules": { "svelte/no-inspect": "off", /* "svelte/x": "error" */ },
+			}`,
+		);
+		const file = path.join(directory, '.oxlintrc.json');
+		assert.deepEqual(
+			plugin.buildFromOxlintConfigFile(file).flatMap((entry) => Object.keys(entry.rules ?? {})),
+			['svelte/no-at-html-tags'],
+		);
+	} finally {
+		rmSync(directory, { recursive: true, force: true });
 	}
 });

@@ -1,14 +1,15 @@
 # `@rsvelte/eslint-plugin`
 
-Turn off all rules already supported by [rsvelte](https://github.com/baseballyama/rsvelte). It
-works like [`eslint-plugin-oxlint`](https://github.com/oxc-project/eslint-plugin-oxlint), with the
-same configurations, exports and categories, so each finding appears once when you run rsvelte
-and ESLint.
+Turn off the rules that [rsvelte](https://github.com/baseballyama/rsvelte) adds to oxlint.
+`rsvelte lint` is oxlint with a built-in Svelte linter, so use this plugin with
+[`eslint-plugin-oxlint`](https://github.com/oxc-project/eslint-plugin-oxlint), which turns off
+oxlint's own rules. It has the same configurations, exports and categories as
+`eslint-plugin-oxlint`, so each finding appears once when you run rsvelte and ESLint.
 
 ## Installation
 
 ```sh
-npm install --save-dev @rsvelte/eslint-plugin
+npm install --save-dev @rsvelte/eslint-plugin eslint-plugin-oxlint
 ```
 
 Use the version that matches your version of `@rsvelte/cli`.
@@ -32,12 +33,14 @@ Add this script to your `package.json`:
 ```js
 // eslint.config.js
 import svelte from 'eslint-plugin-svelte';
+import oxlint from 'eslint-plugin-oxlint';
 import rsvelte from '@rsvelte/eslint-plugin';
 
 export default [
   ...svelte.configs.recommended,
   // Other configurations.
-  ...rsvelte.configs['flat/recommended'], // Put rsvelte last.
+  ...oxlint.buildFromOxlintConfigFile('./.oxlintrc.json'),
+  ...rsvelte.buildFromOxlintConfigFile('./.oxlintrc.json'), // Put rsvelte last.
 ];
 ```
 
@@ -50,6 +53,7 @@ For ESLint's legacy configuration (ESLint 8 and earlier):
 module.exports = {
   extends: [
     // Other presets.
+    'plugin:oxlint/recommended',
     'plugin:@rsvelte/recommended',
   ],
 };
@@ -61,12 +65,22 @@ Each configuration turns a rule off only in the files where rsvelte runs it. For
 runs `no-undef` on `.svelte` files only, so ESLint still runs it on `.js` and `.ts` files. So a
 configuration is a list of flat configurations, one for each set of files.
 
-The plugin names rules of `eslint-plugin-svelte`, `eslint-plugin-vue` and `typescript-eslint`.
-You do not need to install those plugins: ESLint accepts `"off"` for a rule of a plugin that is
-not installed.
+The plugin names rules of `eslint-plugin-svelte` and two core rules, `no-unused-vars` and
+`no-undef`, which rsvelte runs in `.svelte` files instead of oxlint. You do not need to install
+`eslint-plugin-svelte`: ESLint accepts `"off"` for a rule of a plugin that is not installed.
 
-`buildFromOxlintConfig` and `buildFromConfigFile` have no counterpart yet. The configurations turn
-rules off even when your rsvelte configuration leaves them off.
+`buildFromOxlintConfig(config)` and `buildFromOxlintConfigFile(path)` turn off only the rules
+your `.oxlintrc.json` turns on, as the functions of `eslint-plugin-oxlint` do for oxlint's rules:
+
+```js
+...oxlint.buildFromOxlintConfigFile('./.oxlintrc.json'),
+...rsvelte.buildFromOxlintConfigFile('./.oxlintrc.json'),
+```
+
+They read `categories`, `rules`, `extends`, `overrides` and `ignorePatterns`. Without
+`categories`, `correctness` is on. They leave out `nursery` unless you pass
+`{ withNursery: true }`.
+`buildFromConfigFile`, which reads JavaScript configurations, has no counterpart.
 
 ## Categories
 
@@ -83,10 +97,9 @@ The categories are oxlint's, with oxlint's meanings:
 A rule that oxlint also has takes oxlint's category, and so does a rule that checks what an oxlint
 rule checks. For example, `svelte/no-at-html-tags` is `restriction` like `react/no-danger`, and
 `svelte/button-has-type` is `restriction` like `react/button-has-type`. Each other rule takes the
-category its effect calls for, not the upstream plugin's recommended set. Three rules differ from
+category its effect calls for, not the upstream plugin's recommended set. Two rules differ from
 their oxlint counterpart on purpose:
 
-- `no-undef` is `correctness`: oxlint keeps its own port in `nursery` while it develops it.
 - `svelte/require-each-key` is `pedantic`: React needs keys, but `{#each}` without a key is valid.
 - `svelte/no-unknown-style-directive-property` is `correctness`: it finds a CSS property that
   does not exist, while `react/no-unknown-property` restricts how JSX spells attributes.
@@ -107,9 +120,7 @@ configs: {
 
   // By plugin.
   'flat/eslint': [...],
-  'flat/typescript': [...],
   'flat/svelte': [...],
-  'flat/vue': [...],
 
   // By category.
   'flat/correctness': [...],

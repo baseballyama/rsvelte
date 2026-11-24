@@ -5,7 +5,7 @@ pub use lint::lint;
 
 mod computation;
 mod configuration;
-pub use configuration::{Configuration, ConfiguredRule, definition};
+pub use configuration::{Configuration, ConfiguredRule, Directives, definition};
 mod extension;
 pub use extension::EXTENSION;
 mod host_rule;
@@ -13,7 +13,7 @@ mod pattern;
 pub mod project;
 pub mod rule;
 mod rules;
-pub use rules::reporting as reporting_rules;
+pub use rules::{RUNE_GLOBALS, reporting as reporting_rules};
 mod settings;
 pub mod svelte_config;
 pub use settings::{
