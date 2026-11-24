@@ -17,15 +17,17 @@ function $$render() {
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      __rsvelte_component_0(__rsvelte_internals(), {});
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {});
       {
         const {
           foo,
-        } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
-        __rsvelte_slots()("default", {
-          foo,
-        });
-        foo;
+        } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def.default;
+        {
+          __rsvelte_slots()("default", {
+            foo,
+          });
+          foo;
+        }
       }
       {
         svelteHTML.createElement("div", {});
