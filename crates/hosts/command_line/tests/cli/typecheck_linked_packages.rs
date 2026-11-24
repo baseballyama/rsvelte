@@ -8,7 +8,7 @@ use crate::typecheck::{Project, text, typecheck_config};
 /// `app`, whose tsconfig has `compilerOptions` `options` and selects `src`, beside `dep`, which
 /// `app/node_modules/dep` links to, with `files` added to both.
 #[cfg(unix)]
-fn linked(options: &str, files: &[(&str, &str)]) -> Project {
+pub(crate) fn linked(options: &str, files: &[(&str, &str)]) -> Project {
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
     let tsconfig = format!(
         r#"{{"compilerOptions":{{"strict":true,"noEmit":true,"target":"es2022","module":"esnext",

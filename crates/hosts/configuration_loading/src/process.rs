@@ -174,7 +174,8 @@ impl FunctionResolver for Resolver {
 
 impl Loader for ProcessLoader {
     fn load(&self, path: &Path) -> Result<LoadedConfiguration, CallError> {
-        let path = std::fs::canonicalize(path).map_err(|error| CallError(error.to_string()))?;
+        let path = rsvelte_kernel::source::paths::canonicalize(path)
+            .map_err(|error| CallError(error.to_string()))?;
         let mut child = Command::new(&self.executable)
             .args(&self.arguments)
             .stdin(Stdio::piped())

@@ -8,6 +8,7 @@ test('the sources of the programs ship, their tests and docs do not', () => {
 		'crates/languages/typescript/check/Cargo.toml',
 		'crates/languages/svelte/typescript_projection/projection.d.ts',
 		'apps/cli/launcher.js',
+		'apps/cli/program.js',
 		'apps/cli/README.md',
 		'apps/eslint-plugin/configs.cjs',
 		'apps/eslint-plugin/rules.json',
