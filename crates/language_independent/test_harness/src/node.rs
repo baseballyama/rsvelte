@@ -35,7 +35,7 @@ impl NodePackages {
     #[must_use]
     pub fn package(&self, name: &str) -> PathBuf {
         let link = self.node_modules.join(name);
-        std::fs::canonicalize(&link)
+        rsvelte_kernel::source::paths::canonicalize(&link)
             .unwrap_or_else(|e| panic!("{}: {e}: {INSTALL_HINT}", link.display()))
     }
 

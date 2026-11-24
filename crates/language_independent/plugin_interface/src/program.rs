@@ -44,7 +44,7 @@ pub fn installed_package(name: &str, base: &Path) -> io::Result<Option<PathBuf>>
     base.ancestors()
         .map(|directory| directory.join("node_modules").join(name))
         .find(|candidate| candidate.join("package.json").is_file())
-        .map(std::fs::canonicalize)
+        .map(rsvelte_kernel::source::paths::canonicalize)
         .transpose()
 }
 

@@ -66,7 +66,7 @@ fn a_package_is_found_in_the_nearest_node_modules_and_its_bin_by_name() {
     .expect("manifest");
     let nested = scratch.0.join("app/src");
     std::fs::create_dir_all(&nested).expect("nested directory");
-    let real = std::fs::canonicalize(&package).expect("real path");
+    let real = rsvelte_kernel::source::paths::canonicalize(&package).expect("real path");
     assert_eq!(
         installed_package("checker", &nested).unwrap(),
         Some(real.clone())
