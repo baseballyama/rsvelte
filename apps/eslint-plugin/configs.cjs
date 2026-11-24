@@ -8,7 +8,7 @@
 const data = require('./rules.json');
 
 /** eslint-plugin-oxlint's scopes that rsvelte has rules in, and the ones it adds. */
-const SCOPES = ['eslint', 'typescript', 'svelte', 'vue'];
+const SCOPES = ['eslint', 'svelte'];
 const CATEGORIES = [
 	'correctness',
 	'suspicious',
@@ -81,4 +81,4 @@ const configs = {
 	),
 };
 
-module.exports = { configs, rulesByScope, rulesByCategory };
+module.exports = { configs, rulesByScope, rulesByCategory, flat };

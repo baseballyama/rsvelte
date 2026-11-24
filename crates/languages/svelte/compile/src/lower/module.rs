@@ -83,7 +83,10 @@ fn typescript_emit<'o>(
     out: &mut Program<'o>,
 ) -> Result<(), Diagnostic> {
     out.source_type = SourceType::ts();
-    let scoping = SemanticBuilder::new().build(out).semantic.into_scoping();
+    let scoping = (SemanticBuilder::new().with_build_jsdoc(false))
+        .build(out)
+        .semantic
+        .into_scoping();
     let mut options = TransformOptions::default();
     options.typescript.only_remove_type_imports = true;
     let transformed =

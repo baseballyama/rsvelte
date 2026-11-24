@@ -1,8 +1,10 @@
+use rsvelte_kernel::source::positions::Span;
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_svelte_syntax::syntax_tree::Component;
 use serde::Deserialize;
 
-use crate::lint::directive_comments::{Kind, markup_directives};
+use crate::lint::directive_comments::{ESLINT, Kind, markup_directives};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 /// Turns on `<!-- eslint-disable -->` and its kin; `lint` applies them. With
@@ -40,27 +42,40 @@ impl SvelteRule for CommentDirective {
             return;
         }
         let component = file.component().expect("a component rule");
-        let source = file.source();
-        for directive in markup_directives(component, source) {
-            let kind = directive.kind.keyword();
-            let enable = directive.kind == Kind::Enable;
-            if directive.rules.is_empty() {
-                let message = if enable {
-                    format!("Unused {kind} directive (reporting is not suppressed).")
-                } else {
-                    format!("Unused {kind} directive (no problems were reported).")
-                };
-                reporter.report(Report::range(message, directive.comment));
-            }
-            for &rule in &directive.rules {
-                let name = rule.text(source);
-                let message = if enable {
-                    format!("Unused {kind} directive (reporting from '{name}' is not suppressed).")
-                } else {
-                    format!("Unused {kind} directive (no problems were reported from '{name}').")
-                };
-                reporter.report(Report::range(message, rule));
-            }
+        for (message, span) in unused_reports(component, file.source(), ESLINT) {
+            reporter.report(Report::range(message, span));
         }
     }
+}
+
+/// A report of each template directive with one of `prefixes`, as if it turned nothing off;
+/// `lint` drops those of the directives that did.
+pub(crate) fn unused_reports(
+    component: &Component,
+    source: &str,
+    prefixes: &[&'static str],
+) -> Vec<(String, Span)> {
+    let mut out = Vec::new();
+    for directive in markup_directives(component, source, prefixes) {
+        let kind = directive.keyword();
+        let enable = directive.kind == Kind::Enable;
+        if directive.rules.is_empty() {
+            let message = if enable {
+                format!("Unused {kind} directive (reporting is not suppressed).")
+            } else {
+                format!("Unused {kind} directive (no problems were reported).")
+            };
+            out.push((message, directive.comment));
+        }
+        for &rule in &directive.rules {
+            let name = rule.text(source);
+            let message = if enable {
+                format!("Unused {kind} directive (reporting from '{name}' is not suppressed).")
+            } else {
+                format!("Unused {kind} directive (no problems were reported from '{name}').")
+            };
+            out.push((message, rule));
+        }
+    }
+    out
 }
