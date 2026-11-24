@@ -27,7 +27,7 @@ mimalloc.workspace = true
 oxc_diagnostics.workspace = true
 oxc_linter.workspace = true
 oxc_span.workspace = true
-oxlint.workspace = true
+oxlint = { workspace = true, features = ["lsp"] }
 rsvelte_configuration_loading.workspace = true
 rsvelte_plugin_interface.workspace = true
 serde.workspace = true
@@ -57,6 +57,9 @@ rayon.workspace = true
 libc.workspace = true
 ignore.workspace = true
 oxfmt.workspace = true
+oxc_language_server.workspace = true
+tower-lsp-server.workspace = true
+tokio.workspace = true
 oxc_formatter.workspace = true
 bpaf.workspace = true
 

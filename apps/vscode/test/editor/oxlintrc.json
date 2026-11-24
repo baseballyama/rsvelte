@@ -1,0 +1,7 @@
+{
+	"rules": {
+		"svelte/no-useless-mustaches": "error",
+		"svelte/button-has-type": "error",
+		"no-unused-vars": "warn"
+	}
+}

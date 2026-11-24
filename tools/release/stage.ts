@@ -120,6 +120,7 @@ export function stage(artifacts: string, out: string, version: string): string[]
 	fs.mkdirSync(path.join(command, 'bin'), { recursive: true });
 	const cli = path.join(ROOT, 'apps/cli');
 	fs.copyFileSync(path.join(cli, 'launcher.js'), path.join(command, 'bin/rsvelte.js'));
+	fs.copyFileSync(path.join(cli, 'program.js'), path.join(command, 'bin/program.js'));
 	fs.chmodSync(path.join(command, 'bin/rsvelte.js'), 0o755);
 	fs.copyFileSync(path.join(cli, 'README.md'), path.join(command, 'README.md'));
 	fs.copyFileSync(path.join(cli, 'CHANGELOG.md'), path.join(command, 'CHANGELOG.md'));

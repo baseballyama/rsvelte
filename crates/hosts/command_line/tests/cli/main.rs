@@ -13,6 +13,7 @@ mod eslint_plugin;
 mod format;
 mod format_options;
 mod format_tailwind;
+mod language_server;
 mod lint;
 mod lint_globals;
 mod project_check;

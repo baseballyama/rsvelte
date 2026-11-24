@@ -1,0 +1,8 @@
+{
+	"extends": "../../tsconfig.base.json",
+	"compilerOptions": {
+		"types": ["node", "vscode"]
+	},
+	"include": ["**/*.ts"],
+	"exclude": ["dist", "generated", "node_modules"]
+}
