@@ -368,9 +368,9 @@
   )}
 >
   {@render children?.()}
-  <button disabled={thinking} type="submit"
-    >{thinking ? thinking_text : text}</button
-  >
+  <button disabled={thinking} type="submit">
+    {thinking ? thinking_text : text}
+  </button>
 </form>
 
 === 1798 src/lib/FormWithLoader.svelte	svelte
@@ -501,7 +501,7 @@
   }
 </style>
 
-=== 30776 src/lib/Icon.svelte	svelte
+=== 30800 src/lib/Icon.svelte	svelte
 <script lang="ts" module>
   export type IconName =
     | "play"
@@ -614,8 +614,8 @@
       fill-rule="evenodd"
       d="m3 14l.53-.53l2.25-2.25a.75.75 0 0 0-1.06-1.061l-.97.97v-8.38a.75.75 0 0 0-1.5 0v8.38l-.97-.97a.75.75 0 1 0-1.06 1.06l2.25 2.25L3 14ZM8.75 4a.75.75 0 0 0 0 1.5h6.5a.75.75 0 0 0 0-1.5h-6.5Zm0 3.25a.75.75 0 0 0 0 1.5h4.5a.75.75 0 0 0 0-1.5h-4.5Zm-.75 4a.75.75 0 0 1 .75-.75h1.5a.75.75 0 0 1 0 1.5h-1.5a.75.75 0 0 1-.75-.75Z"
       clip-rule="evenodd"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 
 {#if name === "filter"}
@@ -630,8 +630,8 @@
       fill-rule="evenodd"
       d="m8.5 8.379l.44-.44l4.56-4.56V2.5h-11v.879l4.56 4.56l.44.44v4l1-1v-3ZM10 12l-2.5 2.5L6 16V9L1.293 4.293A1 1 0 0 1 1 3.586V2a1 1 0 0 1 1-1h12a1 1 0 0 1 1 1v1.586a1 1 0 0 1-.293.707L10 9v3Z"
       clip-rule="evenodd"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 
 {#if name === "double_left"}
@@ -646,8 +646,8 @@
       fill-rule="evenodd"
       d="M7.721 2.22a.75.75 0 0 1 1.061 1.06L4.061 8.002l4.721 4.721a.75.75 0 0 1-1.06 1.061L2.47 8.532a.75.75 0 0 1 0-1.06L7.722 2.22Zm5 0a.75.75 0 0 1 1.061 1.06L9.061 8.002l4.721 4.721a.75.75 0 0 1-1.06 1.061L7.47 8.532a.75.75 0 0 1 0-1.06l5.252-5.252Z"
       clip-rule="evenodd"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 {#if name === "double_right"}
   <svg
@@ -661,8 +661,8 @@
       fill-rule="evenodd"
       d="M3.53 2.22a.75.75 0 0 0-1.06 1.06l4.72 4.722l-4.72 4.721a.75.75 0 0 0 1.06 1.061l5.252-5.252a.75.75 0 0 0 0-1.06L3.53 2.22Zm5 0a.75.75 0 0 0-1.06 1.06l4.721 4.722l-4.721 4.721a.75.75 0 0 0 1.06 1.061l5.252-5.252a.75.75 0 0 0 0-1.06L8.53 2.22Z"
       clip-rule="evenodd"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 
 {#if name === "x"}
@@ -674,8 +674,8 @@
     <title>{title}</title>
     <path
       d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"
-    ></path></svg
-  >
+    ></path>
+  </svg>
 {/if}
 {#if name === "expand"}
   <svg
@@ -689,8 +689,8 @@
       fill-rule="evenodd"
       d="M11.78 5.841a.75.75 0 0 1-1.06 0l-1.97-1.97v7.379a.75.75 0 0 1-1.5 0V3.871l-1.97 1.97a.75.75 0 0 1-1.06-1.06l3.25-3.25L8 1l.53.53l3.25 3.25a.75.75 0 0 1 0 1.061ZM3.75 13.5a.75.75 0 0 0 0 1.5h8.5a.75.75 0 0 0 0-1.5h-8.5Z"
       clip-rule="evenodd"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 
 {#if name === "search"}
@@ -705,8 +705,8 @@
       fill-rule="evenodd"
       d="M11.5 7a4.5 4.5 0 1 1-9 0a4.5 4.5 0 0 1 9 0Zm-.82 4.74a6 6 0 1 1 1.06-1.06l3.04 3.04a.75.75 0 1 1-1.06 1.06l-3.04-3.04Z"
       clip-rule="evenodd"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 {#if name === "github"}
   <svg
@@ -720,8 +720,8 @@
       fill-rule="evenodd"
       d="M7.976 0A7.977 7.977 0 0 0 0 7.976c0 3.522 2.3 6.507 5.431 7.584c.392.049.538-.196.538-.392v-1.37c-2.201.49-2.69-1.076-2.69-1.076c-.343-.93-.881-1.175-.881-1.175c-.734-.489.048-.489.048-.489c.783.049 1.224.832 1.224.832c.734 1.223 1.859.88 2.3.685c.048-.538.293-.88.489-1.076c-1.762-.196-3.621-.881-3.621-3.964c0-.88.293-1.566.832-2.153c-.05-.147-.343-.978.098-2.055c0 0 .685-.196 2.201.832c.636-.196 1.322-.245 2.007-.245s1.37.098 2.006.245c1.517-1.027 2.202-.832 2.202-.832c.44 1.077.146 1.908.097 2.104a3.16 3.16 0 0 1 .832 2.153c0 3.083-1.86 3.719-3.62 3.915c.293.244.538.733.538 1.467v2.202c0 .196.146.44.538.392A7.984 7.984 0 0 0 16 7.976C15.951 3.572 12.38 0 7.976 0Z"
       clip-rule="evenodd"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 
 {#if name === "tiktok"}
@@ -749,8 +749,8 @@
       fill-rule="evenodd"
       d="M60.1045 4.8978C55.5792 2.8214 50.7265 1.2916 45.6527 0.41542C45.5603 0.39851 45.468 0.440769 45.4204 0.525289C44.7963 1.6353 44.105 3.0834 43.6209 4.2216C38.1637 3.4046 32.7345 3.4046 27.3892 4.2216C26.905 3.0581 26.1886 1.6353 25.5617 0.525289C25.5141 0.443589 25.4218 0.40133 25.3294 0.41542C20.2584 1.2888 15.4057 2.8186 10.8776 4.8978C10.8384 4.9147 10.8048 4.9429 10.7825 4.9795C1.57795 18.7309 -0.943561 32.1443 0.293408 45.3914C0.299005 45.4562 0.335386 45.5182 0.385761 45.5576C6.45866 50.0174 12.3413 52.7249 18.1147 54.5195C18.2071 54.5477 18.305 54.5139 18.3638 54.4378C19.7295 52.5728 20.9469 50.6063 21.9907 48.5383C22.0523 48.4172 21.9935 48.2735 21.8676 48.2256C19.9366 47.4931 18.0979 46.6 16.3292 45.5858C16.1893 45.5041 16.1781 45.304 16.3068 45.2082C16.679 44.9293 17.0513 44.6391 17.4067 44.3461C17.471 44.2926 17.5606 44.2813 17.6362 44.3151C29.2558 49.6202 41.8354 49.6202 53.3179 44.3151C53.3935 44.2785 53.4831 44.2898 53.5502 44.3433C53.9057 44.6363 54.2779 44.9293 54.6529 45.2082C54.7816 45.304 54.7732 45.5041 54.6333 45.5858C52.8646 46.6197 51.0259 47.4931 49.0921 48.2228C48.9662 48.2707 48.9102 48.4172 48.9718 48.5383C50.038 50.6034 51.2554 52.5699 52.5959 54.435C52.6519 54.5139 52.7526 54.5477 52.845 54.5195C58.6464 52.7249 64.529 50.0174 70.6019 45.5576C70.6551 45.5182 70.6887 45.459 70.6943 45.3942C72.1747 30.0791 68.2147 16.7757 60.1968 4.9823C60.1772 4.9429 60.1437 4.9147 60.1045 4.8978ZM23.7259 37.3253C20.2276 37.3253 17.3451 34.1136 17.3451 30.1693C17.3451 26.225 20.1717 23.0133 23.7259 23.0133C27.308 23.0133 30.1626 26.2532 30.1066 30.1693C30.1066 34.1136 27.28 37.3253 23.7259 37.3253ZM47.3178 37.3253C43.8196 37.3253 40.9371 34.1136 40.9371 30.1693C40.9371 26.225 43.7636 23.0133 47.3178 23.0133C50.9 23.0133 53.7545 26.2532 53.6986 30.1693C53.6986 34.1136 50.9 37.3253 47.3178 37.3253Z"
       clip-rule="evenodd"
-    ></path></svg
-  >
+    ></path>
+  </svg>
 {/if}
 {#if name === "download"}
   <svg
@@ -796,8 +796,8 @@
           </g>
         </g>
       </g>
-    </g></svg
-  >
+    </g>
+  </svg>
 {/if}
 {#if name === "edit"}
   <svg
@@ -894,13 +894,14 @@
     height="16"
     viewBox="0 0 16 16"
     xmlns="http://www.w3.org/2000/svg"
-    ><path
+  >
+    <path
       fill-rule="evenodd"
       clip-rule="evenodd"
       d="M11.78 5.841a.75.75 0 0 1-1.06 0l-1.97-1.97v7.379a.75.75 0 0 1-1.5 0V3.871l-1.97 1.97a.75.75 0 0 1-1.06-1.06l3.25-3.25L8 1l.53.53 3.25 3.25a.75.75 0 0 1 0 1.061ZM2.5 9.75a.75.75 0 0 0-1.5 0V13a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V9.75a.75.75 0 0 0-1.5 0V13a.5.5 0 0 1-.5.5H3a.5.5 0 0 1-.5-.5V9.75Z"
       fill="currentColor"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 {#if name === "minimize"}
   <svg
@@ -908,63 +909,68 @@
     height="16"
     viewBox="0 0 16 16"
     xmlns="http://www.w3.org/2000/svg"
-    ><path
+  >
+    <path
       fill-rule="evenodd"
       clip-rule="evenodd"
       d="M2.22 5.22a.75.75 0 0 0 0 1.06l5.252 5.252a.75.75 0 0 0 1.06 0l5.252-5.252a.75.75 0 1 0-1.06-1.06L8.001 9.94 3.28 5.22a.75.75 0 0 0-1.06 0Z"
       fill="currentColor"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 {#if name === "facebook"}
   <svg
     xmlns="http://www.w3.org/2000/svg"
     style="width: var(--icon_size, 16px);"
     viewBox="0 0 24 24"
-    ><path
+  >
+    <path
       fill="currentColor"
       d="M22 12c0-5.52-4.48-10-10-10S2 6.48 2 12c0 4.84 3.44 8.87 8 9.8V15H8v-3h2V9.5C10 7.57 11.57 6 13.5 6H16v3h-2c-.55 0-1 .45-1 1v2h3v3h-3v6.95c5.05-.5 9-4.76 9-9.95"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 {#if name === "code"}
   <svg
     style="width: var(--icon_size, 16px);"
     viewBox="0 0 16 16"
     xmlns="http://www.w3.org/2000/svg"
-    ><path
+  >
+    <path
       fill-rule="evenodd"
       clip-rule="evenodd"
       d="M9.424 2.023a.75.75 0 0 1 .556.904L7.48 13.42a.75.75 0 0 1-1.46-.348L8.52 2.58a.75.75 0 0 1 .904-.556ZM11.16 4.22a.75.75 0 0 1 1.06 0l3.25 3.25L16 8l-.53.53-3.25 3.25a.75.75 0 1 1-1.06-1.06L13.88 8l-2.72-2.72a.75.75 0 0 1 0-1.06ZM4.84 5.28a.75.75 0 1 0-1.06-1.06L.53 7.47 0 8l.53.53 3.25 3.25a.75.75 0 0 0 1.06-1.06L2.12 8l2.72-2.72Z"
       fill="currentColor"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 {#if name === "link"}
   <svg
     style="width: var(--icon_size, 16px);"
     viewBox="0 0 16 16"
     xmlns="http://www.w3.org/2000/svg"
-    ><path
+  >
+    <path
       fill-rule="evenodd"
       clip-rule="evenodd"
       d="M9.929 3.132a2.078 2.078 0 1 1 2.94 2.94l-.65.648a.75.75 0 0 0 1.061 1.06l.649-.648a3.579 3.579 0 0 0-5.06-5.06L6.218 4.72a3.578 3.578 0 0 0 0 5.06.75.75 0 0 0 1.061-1.06 2.078 2.078 0 0 1 0-2.94L9.93 3.132Zm-.15 3.086a.75.75 0 0 0-1.057 1.064c.816.81.818 2.13.004 2.942l-2.654 2.647a2.08 2.08 0 0 1-2.94-2.944l.647-.647a.75.75 0 0 0-1.06-1.06l-.648.647a3.58 3.58 0 0 0 5.06 5.066l2.654-2.647a3.575 3.575 0 0 0-.007-5.068Z"
       fill="currentColor"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 {#if name === "linkedin"}
   <svg
     style="width: var(--icon_size, 16px);"
     viewBox="0 0 16 16"
     xmlns="http://www.w3.org/2000/svg"
-    ><path
+  >
+    <path
       fill-rule="evenodd"
       clip-rule="evenodd"
       d="M3 1a2 2 0 0 0-2 2v10a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2V3a2 2 0 0 0-2-2H3Zm1.102 4.297a1.195 1.195 0 1 0 0-2.39 1.195 1.195 0 0 0 0 2.39Zm1 7.516V6.234h-2v6.579h2ZM6.43 6.234h2v.881c.295-.462.943-1.084 2.148-1.084 1.438 0 2.219.953 2.219 2.766 0 .087.008.484.008.484v3.531h-2v-3.53c0-.485-.102-1.438-1.18-1.438-1.079 0-1.17 1.198-1.195 1.982v2.986h-2V6.234Z"
       fill="currentColor"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 {#if name === "monitor"}
   <svg
@@ -996,10 +1002,11 @@
     fill="none"
     stroke-linecap="round"
     stroke-linejoin="round"
-    ><rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path
-      d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"
-    ></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line></svg
   >
+    <rect x="2" y="2" width="20" height="20" rx="5" ry="5"></rect><path
+      d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"
+    ></path><line x1="17.5" y1="6.5" x2="17.51" y2="6.5"></line>
+  </svg>
 {/if}
 
 {#if name === "threads"}
@@ -1046,13 +1053,14 @@
     style="width: var(--icon_size, 16px);"
     viewBox="0 0 16 16"
     xmlns="http://www.w3.org/2000/svg"
-    ><path
+  >
+    <path
       fill-rule="evenodd"
       clip-rule="evenodd"
       d="M11.28 1.22a.75.75 0 0 0-1.26.7L6.69 5.25H4.206c-1.114 0-1.671 1.346-.884 2.134l1.911 1.911-3.72 4.135A2 2 0 0 0 1 14.768V15h.233a2 2 0 0 0 1.337-.513l4.135-3.721 1.911 1.91c.788.788 2.134.23 2.134-.883V9.31l3.33-3.33a.75.75 0 0 0 .7-1.261l-.603-.604-2.293-2.293-.604-.603ZM12.94 5 11 3.06 8.06 6 10 7.94 12.94 5ZM6.69 6.75l2.56 2.56v1.88L4.81 6.75h1.88Z"
       fill="var(--fg)"
-    /></svg
-  >
+    />
+  </svg>
 {/if}
 
 <style>
@@ -1383,7 +1391,7 @@
   }
 </style>
 
-=== 2550 src/lib/Pagination.svelte	svelte
+=== 2555 src/lib/Pagination.svelte	svelte
 <script lang="ts">
   import { flip } from "svelte/animate";
   import { page as pageStore } from "$app/stores";
@@ -1434,13 +1442,14 @@
       class="page-number"
       class:current={page === pageNumber}
       href="?{generate_search_params('page', pageNumber)}"
-      >{pageNumber}
+    >
+      {pageNumber}
     </a>
   {/each}
   <a href="?{generate_search_params('page', page + 1)}">→</a>
-  <a title="Last Page" href="?{generate_search_params('page', totalPages)}"
-    >→→</a
-  >
+  <a title="Last Page" href="?{generate_search_params('page', totalPages)}">
+    →→
+  </a>
 </div>
 
 <style lang="postcss">
@@ -1537,12 +1546,12 @@
         class="naked"
         aria-label="sentry"
       >
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 44"
-          ><path
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 44">
+          <path
             d="M29,2.26a4.67,4.67,0,0,0-8,0L14.42,13.53A32.21,32.21,0,0,1,32.17,40.19H27.55A27.68,27.68,0,0,0,12.09,17.47L6,28a15.92,15.92,0,0,1,9.23,12.17H4.62A.76.76,0,0,1,4,39.06l2.94-5a10.74,10.74,0,0,0-3.36-1.9l-2.91,5a4.54,4.54,0,0,0,1.69,6.24A4.66,4.66,0,0,0,4.62,44H19.15a19.4,19.4,0,0,0-8-17.31l2.31-4A23.87,23.87,0,0,1,23.76,44H36.07a35.88,35.88,0,0,0-16.41-31.8l4.67-8a.77.77,0,0,1,1.05-.27c.53.29,20.29,34.77,20.66,35.17a.76.76,0,0,1-.68,1.13H40.6q.09,1.91,0,3.81h4.78A4.59,4.59,0,0,0,50,39.43a4.49,4.49,0,0,0-.62-2.28Z M124.32,28.28,109.56,9.22h-3.68V34.77h3.73V15.19l15.18,19.58h3.26V9.22h-3.73ZM87.15,23.54h13.23V20.22H87.14V12.53h14.93V9.21H83.34V34.77h18.92V31.45H87.14ZM71.59,20.3h0C66.44,19.06,65,18.08,65,15.7c0-2.14,1.89-3.59,4.71-3.59a12.06,12.06,0,0,1,7.07,2.55l2-2.83a14.1,14.1,0,0,0-9-3c-5.06,0-8.59,3-8.59,7.27,0,4.6,3,6.19,8.46,7.52C74.51,24.74,76,25.78,76,28.11s-2,3.77-5.09,3.77a12.34,12.34,0,0,1-8.3-3.26l-2.25,2.69a15.94,15.94,0,0,0,10.42,3.85c5.48,0,9-2.95,9-7.51C79.75,23.79,77.47,21.72,71.59,20.3ZM195.7,9.22l-7.69,12-7.64-12h-4.46L186,24.67V34.78h3.84V24.55L200,9.22Zm-64.63,3.46h8.37v22.1h3.84V12.68h8.37V9.22H131.08ZM169.41,24.8c3.86-1.07,6-3.77,6-7.63,0-4.91-3.59-8-9.38-8H154.67V34.76h3.8V25.58h6.45l6.48,9.2h4.44l-7-9.82Zm-10.95-2.5V12.6h7.17c3.74,0,5.88,1.77,5.88,4.84s-2.29,4.86-5.84,4.86Z"
             fill="#ffffff"
-          ></path></svg
-        >
+          ></path>
+        </svg>
       </a>
     </p>
     <PodcastLinks />
@@ -1635,7 +1644,7 @@
   }
 </style>
 
-=== 2449 src/lib/PodcastLinks.svelte	svelte
+=== 2461 src/lib/PodcastLinks.svelte	svelte
 <script lang="ts">
   import { PODCAST_LINKS } from "$const";
 </script>
@@ -1647,8 +1656,10 @@
       target="_blank"
       class="button subscribe subscribe--{text
         .toLowerCase()
-        .replaceAll(' ', '-')}">{text}</a
+        .replaceAll(' ', '-')}"
     >
+      {text}
+    </a>
   {/each}
 </div>
 
@@ -1754,7 +1765,7 @@
   }
 </style>
 
-=== 1798 src/lib/ProducedBySentry.svelte	svelte
+=== 1806 src/lib/ProducedBySentry.svelte	svelte
 <script>
   import Logo from "./Logo.svelte";
 </script>
@@ -1763,12 +1774,12 @@
   <div class="cred">
     <Logo height={35} />
     <span>×</span>
-    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 44" height="35px"
-      ><path
+    <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 50 44" height="35px">
+      <path
         d="M29,2.26a4.67,4.67,0,0,0-8,0L14.42,13.53A32.21,32.21,0,0,1,32.17,40.19H27.55A27.68,27.68,0,0,0,12.09,17.47L6,28a15.92,15.92,0,0,1,9.23,12.17H4.62A.76.76,0,0,1,4,39.06l2.94-5a10.74,10.74,0,0,0-3.36-1.9l-2.91,5a4.54,4.54,0,0,0,1.69,6.24A4.66,4.66,0,0,0,4.62,44H19.15a19.4,19.4,0,0,0-8-17.31l2.31-4A23.87,23.87,0,0,1,23.76,44H36.07a35.88,35.88,0,0,0-16.41-31.8l4.67-8a.77.77,0,0,1,1.05-.27c.53.29,20.29,34.77,20.66,35.17a.76.76,0,0,1-.68,1.13H40.6q.09,1.91,0,3.81h4.78A4.59,4.59,0,0,0,50,39.43a4.49,4.49,0,0,0-.62-2.28Z"
         fill="white"
-      ></path></svg
-    >
+      ></path>
+    </svg>
     <span>Syntax is Produced by Sentry</span>
   </div>
 
@@ -1779,8 +1790,10 @@
   </p>
   <a
     href="https://sentry.io/welcome/?utm_medium=site&utm_source=syntax&utm_campaign=syntax-sentry-evergreen&utm_content=footer"
-    class="button ghost">Try Sentry for Free</a
+    class="button ghost"
   >
+    Try Sentry for Free
+  </a>
 </div>
 
 <div class="bg-indigo-600 bg-opacity-25"></div>
@@ -1808,7 +1821,7 @@
   }
 </style>
 
-=== 3015 src/lib/SelectMenu.svelte	svelte
+=== 3024 src/lib/SelectMenu.svelte	svelte
 <script lang="ts">
   import { anchor } from "$actions/anchor";
   import type { IconName } from "./Icon.svelte";
@@ -1888,8 +1901,9 @@
         <a
           class:selected={option.value === value}
           href={`?${generate_search_params(id, option.value)}`}
-          >{option.label}</a
         >
+          {option.label}
+        </a>
       {/each}
     </div>
   </div>
@@ -1980,8 +1994,8 @@
                 {/if}
               </span>
               <br />
-              {format(show.date, "EEE MMM d")}</td
-            >
+              {format(show.date, "EEE MMM d")}
+            </td>
             <td><a href="/admin/shows/{show.number}">{show.number} [↗]</a></td>
             <td>
               <a href="/{show.number}" target="_blank">
@@ -1992,19 +2006,19 @@
             <td>
               <span class="topics">
                 {#each show.aiShowNote?.topics?.slice(0, 5) || [] as topic}
-                  <span class="topic"
-                    >{topic.name.startsWith("#") ? "" : "#"}{topic.name}</span
-                  >
+                  <span class="topic">
+                    {topic.name.startsWith("#") ? "" : "#"}{topic.name}
+                  </span>
                 {/each}
-              </span></td
-            >
+              </span>
+            </td>
           </tr>
         {/each}
       {:else}
         <tr>
-          <td class="td-full"
-            >No shows scheduled, if there should be, please let someone know</td
-          >
+          <td class="td-full">
+            No shows scheduled, if there should be, please let someone know
+          </td>
         </tr>
       {/if}
     </tbody>
@@ -2099,7 +2113,7 @@
   }
 </style>
 
-=== 669 src/lib/UnderConstruction.svelte	svelte
+=== 674 src/lib/UnderConstruction.svelte	svelte
 <script lang="ts">
   import underConstruction from "$assets/under-construction.gif";
 </script>
@@ -2112,8 +2126,9 @@
   <p>
     New site, mind the dust! Please <a
       href="https://github.com/syntaxfm/website/issues"
-      >log any issues or suggestions</a
     >
+      log any issues or suggestions
+    </a>
   </p>
 </div>
 
@@ -2477,9 +2492,9 @@
         {:else}
           {host.name}
         {/if}
-        <span class="host-guest-tag fst-900-i grit"
-          >{guest ? "Guest" : "Host"}</span
-        >
+        <span class="host-guest-tag fst-900-i grit">
+          {guest ? "Guest" : "Host"}
+        </span>
       </p>
       <div class="featuring_socials">
         <HostSocialLink {host} />
@@ -2641,9 +2656,9 @@
     <div class="hotkeys">
       {#each hotkeyNames as hotkey}
         <div class="hotkey-container">
-          <button class="hotkey-key"
-            >{formatShortcut(hotkeys[hotkey].trigger)}</button
-          >
+          <button class="hotkey-key">
+            {formatShortcut(hotkeys[hotkey].trigger)}
+          </button>
           <span class="hotkey-description">
             {hotkeys[hotkey].description}
           </span>
@@ -3057,7 +3072,7 @@
   }
 </style>
 
-=== 1943 src/lib/newsletter/SwaggyNewsletterForm.svelte	svelte
+=== 1952 src/lib/newsletter/SwaggyNewsletterForm.svelte	svelte
 <script lang="ts">
   import Input from "$lib/forms/Input.svelte";
   import swag from "./swag.png";
@@ -3084,8 +3099,9 @@
     <h5 class="h6">15% off your swag order</h5>
     <img src={swag} alt="Syntax Swag Photos" />
     <p>
-      Subscribe to the Syntax<br /><a href="/snackpack">Snack Pack Newsletter</a
-      >
+      Subscribe to the Syntax<br /><a href="/snackpack">
+        Snack Pack Newsletter
+      </a>
     </p>
     <form
       {action}
@@ -3322,7 +3338,7 @@
   }
 </style>
 
-=== 7302 src/lib/player/Player.svelte	svelte
+=== 7311 src/lib/player/Player.svelte	svelte
 <script lang="ts">
   import { player } from "$state/player";
   import { player_window_status } from "$state/player_window_status";
@@ -3356,14 +3372,18 @@
       class="minimize"
       onclick={player.toggle_minimize}
       aria-label={`${mix_max_verb} Player`}
-      title={`${mix_max_verb} Player`}><Icon name="minimize" /></button
+      title={`${mix_max_verb} Player`}
     >
+      <Icon name="minimize" />
+    </button>
     <button
       class="close"
       onclick={player.close}
       aria-label="Close Player"
-      title="Close Player">×</button
+      title="Close Player"
     >
+      ×
+    </button>
   </div>
 
   <div class="player-container">
@@ -3374,10 +3394,9 @@
     <div style="flex-grow: 1;">
       {#if $player.current_show}
         <p>
-          <a id="player_show_title" href={get_show_path($player.current_show)}
-            >Show #{$player.current_show?.number} - {$player.current_show
-              ?.title}</a
-          >
+          <a id="player_show_title" href={get_show_path($player.current_show)}>
+            Show #{$player.current_show?.number} - {$player.current_show?.title}
+          </a>
         </p>
       {/if}
       <media-controller
@@ -4454,9 +4473,9 @@
         </strong>
 
         {#if is_tree(result) && result.node?.content}
-          <span class="text-sm"
-            >{@html excerpt(result.node.content, query)}</span
-          >
+          <span class="text-sm">
+            {@html excerpt(result.node.content, query)}
+          </span>
         {/if}
       </a>
       {#if recent_searches}
@@ -4621,7 +4640,7 @@
   }
 </style>
 
-=== 1187 src/lib/share/HairButton.svelte	svelte
+=== 1191 src/lib/share/HairButton.svelte	svelte
 <script lang="ts">
   // Why is this file called HairButton? https://github.com/syntaxfm/website/issues/1563
   import { episode_share_status } from "$/state/player";
@@ -4660,8 +4679,10 @@
   class="share"
   onclick={share}
   title="Share this episode"
-  aria-label="Share this episode"><Icon name="share" /></button
+  aria-label="Share this episode"
 >
+  <Icon name="share" />
+</button>
 
 <style>
   button {
@@ -4671,7 +4692,7 @@
   }
 </style>
 
-=== 3086 src/lib/share/ShareActions.svelte	svelte
+=== 3092 src/lib/share/ShareActions.svelte	svelte
 <script lang="ts">
   import Icon from "$lib/Icon.svelte";
   import { player } from "$state/player";
@@ -4738,32 +4759,36 @@
   </p>
 {/if}
 <Toaster />
-<button onclick={copy_embed} aria-label="Copy Embed Code for this show"
-  ><Icon name="code" /> Embed</button
->
-<button onclick={() => copy(share_url)} aria-label="Copy link to this show"
-  ><Icon name="link" /> Link</button
->
+<button onclick={copy_embed} aria-label="Copy Embed Code for this show">
+  <Icon name="code" /> Embed
+</button>
+<button onclick={() => copy(share_url)} aria-label="Copy link to this show">
+  <Icon name="link" /> Link
+</button>
 <a
   class="button share--x"
   target="_blank"
   href="https://twitter.com/intent/tweet?url={share_url}&text={show.title}&via=syntaxfm"
-  aria-label="Share on Twitter"><Icon name="x" /></a
+  aria-label="Share on Twitter"
 >
+  <Icon name="x" />
+</a>
 <a
   class="button share--facebook"
   target="_blank"
   aria-label="Share on Facebook"
   href="https://facebook.com/sharer/sharer.php?u={share_url}&quote={show.title}"
-  ><Icon name="facebook" /> Facebook</a
 >
+  <Icon name="facebook" /> Facebook
+</a>
 <a
   target="_blank"
   class="button share--linkedin"
   aria-label="Share on LinkedIn"
   href="https://www.linkedin.com/sharing/share-offsite/?url={share_url}"
-  ><Icon name="linkedin" /> LinkedIn</a
 >
+  <Icon name="linkedin" /> LinkedIn
+</a>
 
 <style lang="postcss">
   .share--x {
@@ -4969,7 +4994,7 @@
   }
 </style>
 
-=== 9817 src/lib/transcript/Transcript.svelte	svelte
+=== 9849 src/lib/transcript/Transcript.svelte	svelte
 <script lang="ts">
   import { getSlimUtterances } from "$server/transcripts/utils";
   import { player } from "$state/player";
@@ -5147,8 +5172,10 @@
                 onclick={async () => {
                   await player.start_show(show);
                   player.update_time(utterance.start);
-                }}>{format_time(utterance.start)}</button
+                }}
               >
+                {format_time(utterance.start)}
+              </button>
               <p class="speaker fst-600">
                 {utterance.speakerName || `Guest ${utterance.speakerId}`}
               </p>
@@ -5651,7 +5678,7 @@
 
 {@render children?.()}
 
-=== 6019 src/routes/(blank)/embed/[show_number]/+page.svelte	svelte
+=== 6031 src/routes/(blank)/embed/[show_number]/+page.svelte	svelte
 <script lang="ts">
   import "$/routes/(site)/style.css";
   import { format } from "date-fns";
@@ -5677,8 +5704,10 @@
   <figure class="zone" style:--bg="var(--black)" style:--fg="var(--white)">
     <span
       style:--transition-name="show-date-{show.number}"
-      class="show-number fst-900 grit">{show.number}</span
+      class="show-number fst-900 grit"
     >
+      {show.number}
+    </span>
 
     <p class="show-page-date" style:--transition-name="show-date-{show.number}">
       {format(new Date(show.date), "MMMM do, yyyy")}
@@ -6040,7 +6069,7 @@
   }
 </style>
 
-=== 11466 src/routes/(blank)/og/[show_number_or_title]/ShowOg.svelte	svelte
+=== 11475 src/routes/(blank)/og/[show_number_or_title]/ShowOg.svelte	svelte
 <script lang="ts">
   import FacePile from "$/lib/FacePile.svelte";
   import type { LatestShow } from "$server/ai/queries";
@@ -6173,11 +6202,12 @@
           class="sentry"
           xmlns="http://www.w3.org/2000/svg"
           viewBox="0 0 200 44"
-          ><path
+        >
+          <path
             d="M29,2.26a4.67,4.67,0,0,0-8,0L14.42,13.53A32.21,32.21,0,0,1,32.17,40.19H27.55A27.68,27.68,0,0,0,12.09,17.47L6,28a15.92,15.92,0,0,1,9.23,12.17H4.62A.76.76,0,0,1,4,39.06l2.94-5a10.74,10.74,0,0,0-3.36-1.9l-2.91,5a4.54,4.54,0,0,0,1.69,6.24A4.66,4.66,0,0,0,4.62,44H19.15a19.4,19.4,0,0,0-8-17.31l2.31-4A23.87,23.87,0,0,1,23.76,44H36.07a35.88,35.88,0,0,0-16.41-31.8l4.67-8a.77.77,0,0,1,1.05-.27c.53.29,20.29,34.77,20.66,35.17a.76.76,0,0,1-.68,1.13H40.6q.09,1.91,0,3.81h4.78A4.59,4.59,0,0,0,50,39.43a4.49,4.49,0,0,0-.62-2.28Z M124.32,28.28,109.56,9.22h-3.68V34.77h3.73V15.19l15.18,19.58h3.26V9.22h-3.73ZM87.15,23.54h13.23V20.22H87.14V12.53h14.93V9.21H83.34V34.77h18.92V31.45H87.14ZM71.59,20.3h0C66.44,19.06,65,18.08,65,15.7c0-2.14,1.89-3.59,4.71-3.59a12.06,12.06,0,0,1,7.07,2.55l2-2.83a14.1,14.1,0,0,0-9-3c-5.06,0-8.59,3-8.59,7.27,0,4.6,3,6.19,8.46,7.52C74.51,24.74,76,25.78,76,28.11s-2,3.77-5.09,3.77a12.34,12.34,0,0,1-8.3-3.26l-2.25,2.69a15.94,15.94,0,0,0,10.42,3.85c5.48,0,9-2.95,9-7.51C79.75,23.79,77.47,21.72,71.59,20.3ZM195.7,9.22l-7.69,12-7.64-12h-4.46L186,24.67V34.78h3.84V24.55L200,9.22Zm-64.63,3.46h8.37v22.1h3.84V12.68h8.37V9.22H131.08ZM169.41,24.8c3.86-1.07,6-3.77,6-7.63,0-4.91-3.59-8-9.38-8H154.67V34.76h3.8V25.58h6.45l6.48,9.2h4.44l-7-9.82Zm-10.95-2.5V12.6h7.17c3.74,0,5.88,1.77,5.88,4.84s-2.29,4.86-5.84,4.86Z"
             fill="#ffffff"
-          /></svg
-        >
+          />
+        </svg>
       </div>
     </div>
   </div>
@@ -6424,7 +6454,7 @@
   }
 </style>
 
-=== 3191 src/routes/(site)/Footer.svelte	svelte
+=== 3249 src/routes/(site)/Footer.svelte	svelte
 <script lang="ts">
   import { CURRENT_YEAR } from "$const";
   import Icon from "$lib/Icon.svelte";
@@ -6440,9 +6470,9 @@
     <div class="grid">
       <div class="links-col">
         <a href="/shows">Podcast</a>
-        <a target="_blank" rel="noopener" href="https://feed.syntax.fm"
-          >RSS Feed</a
-        >
+        <a target="_blank" rel="noopener" href="https://feed.syntax.fm">
+          RSS Feed
+        </a>
         <a href="/about">About</a>
         <a href="/sickpicks">Sick Picks</a>
         <a href="/guests">Guest List</a>
@@ -6451,8 +6481,9 @@
           target="_blank"
           rel="noopener"
           href="https://sentry.io/welcome/?utm_medium=site&utm_source=syntax&utm_campaign=syntax-sentry-evergreen&utm_content=footer"
-          >Sentry.io</a
         >
+          Sentry.io
+        </a>
       </div>
       <div class="links-col">
         <a
@@ -6474,31 +6505,36 @@
         <!-- <a href="/system/components">Components</a> -->
       </div>
       <div class="links-col social-links">
-        <a target="_blank" rel="noopener" href="https://x.com/syntaxfm"
-          ><Icon name="x" /></a
-        >
-        <a target="_blank" rel="noopener" href="https://github.com/syntaxfm"
-          ><Icon name="github" /></a
-        >
-        <a target="_blank" rel="noopener" href="https://discord.gg/W5y68HMfZV"
-          ><Icon name="discord" /></a
-        >
+        <a target="_blank" rel="noopener" href="https://x.com/syntaxfm">
+          <Icon name="x" />
+        </a>
+        <a target="_blank" rel="noopener" href="https://github.com/syntaxfm">
+          <Icon name="github" />
+        </a>
+        <a target="_blank" rel="noopener" href="https://discord.gg/W5y68HMfZV">
+          <Icon name="discord" />
+        </a>
         <a
           target="_blank"
           rel="noopener"
-          href="https://www.youtube.com/@syntaxfm"><Icon name="youtube" /></a
+          href="https://www.youtube.com/@syntaxfm"
         >
+          <Icon name="youtube" />
+        </a>
         <a
           target="_blank"
           rel="noopener"
-          href="https://www.tiktok.com/@syntaxfm"><Icon name="tiktok" /></a
+          href="https://www.tiktok.com/@syntaxfm"
         >
+          <Icon name="tiktok" />
+        </a>
         <a
           target="_blank"
           rel="noopener"
           href="https://www.instagram.com/syntax_fm/"
-          ><Icon name="instagram" /></a
         >
+          <Icon name="instagram" />
+        </a>
       </div>
     </div>
 
@@ -6549,7 +6585,7 @@
   }
 </style>
 
-=== 3222 src/routes/(site)/Header.svelte	svelte
+=== 3302 src/routes/(site)/Header.svelte	svelte
 <script lang="ts">
   import Logo from "$lib/Logo.svelte";
   import Search from "$lib/search/Search.svelte";
@@ -6575,24 +6611,34 @@
     <nav class="desktop_nav content">
       <a
         class={$page.url.pathname.startsWith("/shows") ? "active" : ""}
-        href="/shows">Shows</a
+        href="/shows"
       >
+        Shows
+      </a>
       <a
         class={$page.url.pathname.startsWith("/videos") ? "active" : ""}
-        href="/videos">Video</a
+        href="/videos"
       >
+        Video
+      </a>
       <a
         class={$page.url.pathname.startsWith("/snackpack") ? "active" : ""}
-        href="/snackpack">Newsletter</a
+        href="/snackpack"
       >
+        Newsletter
+      </a>
       <a
         class={$page.url.pathname.startsWith("/about") ? "active" : ""}
-        href="/about">About</a
+        href="/about"
       >
+        About
+      </a>
       <a
         class={$page.url.pathname.startsWith("/potluck") ? "active" : ""}
-        href="/potluck">Potluck Qs</a
+        href="/potluck"
       >
+        Potluck Qs
+      </a>
       <a target="_blank" href="https://sentry.shop">Swag</a>
       <Search />
       <MobileNav />
@@ -6830,8 +6876,8 @@
     href="/api/oauth/github"
     rel="external"
   >
-    <img width="20" src={Github} alt="Github Logo" /> Login With Github</a
-  >
+    <img width="20" src={Github} alt="Github Logo" /> Login With Github
+  </a>
 {/if}
 
 <style lang="postcss">
@@ -6881,9 +6927,9 @@
 
 <nav>
   {#each LINKS as link}
-    <a class:active={$page.url.pathname === link.link} href={link.link}
-      >{link.name}</a
-    >
+    <a class:active={$page.url.pathname === link.link} href={link.link}>
+      {link.name}
+    </a>
   {/each}
 </nav>
 
@@ -7109,8 +7155,8 @@
         <th>Key</th>
         <th>Value</th>
       {/if}
-    </tr></thead
-  >
+    </tr>
+  </thead>
   <tbody>
     {#each entries as [key, val]}
       <tr>
@@ -7263,11 +7309,11 @@
       >
         <h4>
           From {submission.name || "Anon"}
-          <span class="pill"
-            >{formatDistance(new Date(submission.created_at), new Date(), {
+          <span class="pill">
+            {formatDistance(new Date(submission.created_at), new Date(), {
               addSuffix: true,
-            })}</span
-          >
+            })}
+          </span>
           <span class="pill">{submission.submission_type}</span>
           <span class="pill">{submission.email || "No Email"}</span>
           <span class="pill">{submission.status}</span>
@@ -7297,9 +7343,9 @@
                 <option value="REJECTED">REJECTED</option>
               </select>
               <input type="hidden" name="id" value={submission.id} />
-              <button style:display="none" type="submit"
-                >{loading ? "Updating" : "Update"}</button
-              >
+              <button style:display="none" type="submit">
+                {loading ? "Updating" : "Update"}
+              </button>
             {/snippet}
           </FormWithLoader>
           <FormWithLoader
@@ -7310,9 +7356,9 @@
           >
             {#snippet children({ loading })}
               <input type="hidden" name="id" value={submission.id} />
-              <button class="warning" type="submit"
-                >{loading ? "Deleting" : "Delete"}</button
-              >
+              <button class="warning" type="submit">
+                {loading ? "Deleting" : "Delete"}
+              </button>
             {/snippet}
           </FormWithLoader>
         </footer>
@@ -7591,29 +7637,29 @@
 <section>
   <h1 class="lines">Guests</h1>
   <p>
-    Every Friday we have an industry expert on the show - we call it <strong
-      >"Supper Club"</strong
-    >. This isn't a book tour, these are real developers who write the code and
-    shape what the future of web development looks like.
+    Every Friday we have an industry expert on the show - we call it <strong>
+      "Supper Club"
+    </strong>. This isn't a book tour, these are real developers who write the
+    code and shape what the future of web development looks like.
   </p>
   <p>
     We maintain a list of all {guests.length} guests on
-    <a href="https://twitter.com/i/lists/1719788389681987648"
-      ><strike>twitter</strike> 𝕏</a
-    >. You should follow it!
+    <a href="https://twitter.com/i/lists/1719788389681987648">
+      <strike>twitter</strike> 𝕏
+    </a>. You should follow it!
   </p>
 
   <div class="center" style:margin-bottom="1rem">
     <p class="text-sm lines">&hearts; hardly useful filters &hearts;</p>
     <button onclick={jumble}>Jumble</button>
     <button onclick={most_recent}>Most Recent</button>
-    <button onclick={name_size}
-      >Name Size {name_size_direction
+    <button onclick={name_size}>
+      Name Size {name_size_direction
         ? name_size_direction === "desc"
           ? "↓"
           : "↑"
-        : ""}</button
-    >
+        : ""}
+    </button>
   </div>
 
   <div class="guests">
@@ -7640,9 +7686,9 @@
           </div>
           <div class="show-links">
             {#each guest.shows as { Show }}
-              <a title={Show.title} class="grit" href={get_show_path(Show)}
-                >#{Show.number}</a
-              >
+              <a title={Show.title} class="grit" href={get_show_path(Show)}>
+                #{Show.number}
+              </a>
             {/each}
           </div>
         </div>
@@ -7752,8 +7798,8 @@
         href="/api/oauth/github"
         rel="external"
       >
-        <img width="20" src={Github} alt="Github Logo" /> Login With Github</a
-      >
+        <img width="20" src={Github} alt="Github Logo" /> Login With Github
+      </a>
     {/if}
   </div>
 </section>
@@ -7795,7 +7841,7 @@
   <SearchBox />
 {/if}
 
-=== 11576 src/routes/(site)/show/[show_number]/[slug]/+layout.svelte	svelte
+=== 11595 src/routes/(site)/show/[show_number]/[slug]/+layout.svelte	svelte
 <script lang="ts">
   import ShareButton from "$/lib/share/HairButton.svelte";
   import { replace_color } from "$/lib/theme/variable_color_svg.js";
@@ -7881,16 +7927,18 @@
     title="Show #{show.number}"
     aria-label="Show #{show.number}"
     style:--transition-name="show-date-{show.number}"
-    class="show-number fst-900 grit">{show.number}</span
+    class="show-number fst-900 grit"
   >
+    {show.number}
+  </span>
   <p class="show-page-date" style:--transition-name="show-date-{show.number}">
     {format(new Date(show.date), "MMMM do, yyyy")}
     ×
     <span class="topics">
       {#each show.aiShowNote?.topics?.slice(0, 5) || [] as topic}
-        <span class="topic"
-          >{topic.name.startsWith("#") ? "" : "#"}{topic.name}</span
-        >
+        <span class="topic">
+          {topic.name.startsWith("#") ? "" : "#"}{topic.name}
+        </span>
       {/each}
     </span>
   </p>
@@ -7948,8 +7996,8 @@
         class="icon"
         href={"https://github.com/syntaxfm/website/tree/main" + show.md_file}
       >
-        <Icon name="edit" /></a
-      >
+        <Icon name="edit" />
+      </a>
     </div>
     <div use:variable_svg class="variable-color-svg waves grit"></div>
   </div>
@@ -7959,14 +8007,17 @@
   <a
     data-sveltekit-noscroll
     class:active={!$page.url.pathname.includes("transcript")}
-    href="/show/{$page.params.show_number}/{$page.params.slug}">Show Notes</a
+    href="/show/{$page.params.show_number}/{$page.params.slug}"
   >
+    Show Notes
+  </a>
   <a
     class:active={$page.url.pathname.includes("transcript")}
     data-sveltekit-noscroll
     href="/show/{$page.params.show_number}/{$page.params.slug}/transcript"
-    >Transcript</a
   >
+    Transcript
+  </a>
 </Tabs>
 
 <!-- I don't feel great about this one, but it's hard, because these are click targets on show notes coming in from markdown -->
@@ -8439,9 +8490,9 @@ table {
     <ul>
       <li>Everyone is kept anonymous</li>
       <li>
-        Submit yours below, DM <a href="https://x.com/wesbos" target="_blank"
-          >@wesbos</a
-        >
+        Submit yours below, DM <a href="https://x.com/wesbos" target="_blank">
+          @wesbos
+        </a>
         or email
         <a href="mailto:wes@syntax.fm">wes@syntax.fm</a>
       </li>

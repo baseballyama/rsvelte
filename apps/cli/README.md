@@ -33,16 +33,35 @@ scripts, the command is `rsvelte`:
 }
 ```
 
-`lint` reads these files:
+`lint` is [oxlint](https://oxc.rs/docs/guide/usage/linter) with a built-in Svelte linter. It
+takes oxlint's options (`rsvelte lint --help`) and reads oxlint's configuration,
+`.oxlintrc.json`, or `oxlint.config.ts`, which Node evaluates. oxlint lints each file it lints, and the scripts of a `.svelte` file, with
+its own rules. The Svelte linter lints the whole `.svelte` file with the `svelte/*` rules of
+[eslint-plugin-svelte](https://sveltejs.github.io/eslint-plugin-svelte/rules/), and runs
+`no-unused-vars` and `no-undef` there instead of oxlint, because they read the template. A
+Svelte rule that applies to modules, such as `svelte/no-inspect`, also runs on JavaScript and
+TypeScript files.
 
-- Svelte: `.svelte`
-- JavaScript: `.js`, `.mjs` and `.cjs`
-- TypeScript: `.ts`, `.mts` and `.cts`
+The configuration turns Svelte rules on and off as it does oxlint's, under the `svelte/`
+prefix. They need no `plugins` entry. Each has one of oxlint's categories. By default only the
+rules of `correctness` run, as in oxlint:
 
-Without a path, it reads every such file below the current directory. It skips `node_modules`
-and what `.gitignore` skips.
-A `svelte.lint` rule that applies to modules, such as `svelte/no-inspect`, also runs on
-JavaScript and TypeScript files, `.jsx` and `.tsx` included.
+```json
+{
+  "categories": { "suspicious": "warn" },
+  "env": { "browser": true },
+  "rules": { "svelte/no-at-html-tags": "error", "svelte/no-inspect": "off" },
+  "settings": { "svelte": { "ignoreWarnings": ["a11y_autofocus"] } }
+}
+```
+
+The Svelte linter reads `settings.svelte` as eslint-plugin-svelte does, the globals of `env` and
+`globals`, and the nearest `svelte.config.js` above each file. In `.svelte.js` and `.svelte.ts`
+modules, oxlint's rules read the runes, such as `$state`, as globals.
+Comments such as `// oxlint-disable-next-line` turn off a Svelte rule as they turn off one of
+oxlint's. In the markup, write them as HTML comments: `<!-- oxlint-disable-next-line -->`.
+To run ESLint after rsvelte without reporting a finding twice, use
+[`@rsvelte/eslint-plugin`](https://www.npmjs.com/package/@rsvelte/eslint-plugin).
 
 `format` is [oxfmt](https://oxc.rs/docs/guide/usage/formatter) with a built-in Svelte
 formatter. It takes oxfmt's options (`rsvelte format --help`) and reads oxfmt's configuration:
@@ -73,17 +92,18 @@ type errors that svelte-check reports. It runs a TypeScript 7 type checker from 
 - [tsrs](https://www.npmjs.com/package/tsrs) (recommended): `npm install --save-dev tsrs`
 - TypeScript 7.1 or newer (`typescript`, or `@typescript/native-preview`)
 
-`lint` and `typecheck` exit with 1 when they find an error, and with 2 when they cannot run.
+`lint` exits with the codes of oxlint. It exits with 1 when it finds an error, or a warning
+with `--deny-warnings`, or when the configuration is invalid.
+`typecheck` exits with 1 when it finds an error, and with 2 when it cannot run.
 `format` exits with the codes of oxfmt. It exits with 1 when `--check` finds a file to format
 or when the configuration is invalid. It exits with 2 when a file does not format or when no
 path matches a file.
 
 Name more than one command to run them together, as `rsvelte format lint typecheck --check` in CI.
 The paths go to `lint` and `format`, `--check` goes to `format`, and the `--config` options go
-to `lint` and `typecheck`. To pass other oxfmt options, run `format` alone. `format` runs first,
-and the other commands read what it wrote. `lint` and `typecheck` then run together and read each
-file once. Each prints what it prints alone. The run exits with the worst exit code of its
-commands. rsvelte reads each leading `lint`, `format` or `typecheck` as a command, so write a
+to `typecheck`. To pass other oxlint or oxfmt options, run `lint` or `format` alone. `format`
+runs first, and the other commands read what it wrote. Each prints what it prints alone. The
+run exits with the worst exit code of its commands. rsvelte reads each leading `lint`, `format` or `typecheck` as a command, so write a
 directory named `lint` as `./lint`.
 
 ## Svelte 5 runes mode only
@@ -111,21 +131,19 @@ For a Svelte 4 project or legacy components, use the official tools:
 ## Configure
 
 rsvelte reads `rsvelte.config.json` (or `.js`, `.ts` and the other module extensions) from
-the current directory or the nearest parent directory that has one. Each plugin reads its
-options from `plugins`:
+the current directory or the nearest parent directory that has one, for `typecheck`. Each
+plugin reads its options from `plugins`:
 
 ```json
 {
   "plugins": {
-    "svelte.lint": { "rules": { "no-unused-vars": "warn", "svelte/button-has-type": "error" } },
     "typescript.check": { "tsconfig": "tsconfig.app.json" }
   }
 }
 ```
 
-A `rules` object replaces the default rules. For Svelte files, those are `no-unused-vars` and
-`svelte/button-has-type`. A path in the options starts from the directory of the configuration
-file.
+A path in the options starts from the directory of the configuration file. `lint` reads
+`.oxlintrc.json` and `format` reads `.oxfmtrc.json` instead.
 
 ## License
 

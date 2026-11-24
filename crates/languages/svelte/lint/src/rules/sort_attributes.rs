@@ -7,7 +7,7 @@ use rsvelte_lint_runner::rule::{Report, Reporter};
 use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, Component};
 use serde::Deserialize;
 
-use super::shared::markup::{TagAttribute, is_special_this, start_tags};
+use super::shared::markup::{TagAttribute, start_tags};
 use crate::pattern::Pattern;
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
@@ -139,7 +139,6 @@ struct Keyed<'a> {
     key: Cow<'a, str>,
     group: Option<usize>,
     spread: bool,
-    plain: bool,
 }
 
 impl SvelteRule for SortAttributes {
@@ -147,7 +146,6 @@ impl SvelteRule for SortAttributes {
         let component = file.component().expect("a component rule");
         let source = file.source();
         for tag in start_tags(component) {
-            let element = tag.name.text(source);
             let attributes: Vec<Keyed<'_>> = tag
                 .attributes(&component.tokens)
                 .map(|attribute| {
@@ -159,11 +157,6 @@ impl SvelteRule for SortAttributes {
                         key,
                         group,
                         spread: template.is_some_and(|a| a.kind == AttributeKind::Spread),
-                        plain: template.is_none_or(|a| {
-                            a.kind == AttributeKind::Attribute
-                                && !a.shorthand
-                                && !is_special_this(component, source, element, a)
-                        }),
                     }
                 })
                 .collect();
@@ -212,7 +205,7 @@ impl SortAttributes {
                 continue;
             };
             let spread_between = last_spread.is_some_and(|spread| spread > previous);
-            if !attribute.plain || !spread_between {
+            if !spread_between {
                 report(attributes, previous, index, source, reporter);
             } else if let Some(previous) = later_since_spread {
                 report(attributes, previous, index, source, reporter);

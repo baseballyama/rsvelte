@@ -36,7 +36,6 @@
 
 ["svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte".skip]
 "svelte.compile" = "upstream bug: acorn-typescript accepts a parameter with both `?` and an initializer, which TypeScript rejects (TS1015)"
-"svelte.format" = "upstream bug: acorn-typescript accepts a parameter with both `?` and an initializer, which TypeScript rejects (TS1015)"
 "svelte.lint" = "upstream bug: acorn-typescript accepts a parameter with both `?` and an initializer, which TypeScript rejects (TS1015)"
 
 ["svelte/svelte/packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte".skip]
@@ -2698,9 +2697,6 @@
 ["svelte/rsvelte-tests-core-1/comment_cursor_3603_await_snippet/client_await_header_comments_stay_with_the_promise_expression/7c2ca4397a1154e9.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
-["svelte/rsvelte-tests-core-1/compile_result_legacy_ast_3295/compilation_rebuilds_legacy_comment_locations_at_the_json_boundary/3e5801f545086334.svelte".skip]
-"svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 attaches a comment in a tag only to an attribute, so it deletes one in a tag without attributes"
-
 ["svelte/rsvelte-tests-core-2/each_header_comments/legal_forms_still_parse/5b30638cd1c613fd.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
@@ -4782,9 +4778,6 @@
 ["svelte/syntaxfm-website/src/routes/(site)/admin/videos/import/+page.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines to keep it on one line, which keeps hard line breaks and turns the other line breaks into spaces, so a member chain in the header breaks across lines and a call whose arguments broke gets a space inside each parenthesis"
 
-["svelte/svelte/packages/svelte/tests/css/samples/css-vars/input.svelte".skip]
-"svelte.format" = "upstream bug: Prettier 3.9.10 adds a space before `!important` in a custom property with no value on every pass (`--bar: !important` prints `--bar:  !important`, then `--bar:   !important`)"
-
 ["svelte/svelte-eslint-parser/tests/fixtures/parser/ast/each-with-comment-input.svelte".skip]
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a block header through removeLines, so the line after a line comment in it loses its indent and the closing parenthesis lands at the header's column; we keep that break inside the arguments' indent"
 
@@ -4848,16 +4841,16 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a comment in `<svelte:element this={...}>` again after the attribute when another attribute follows, and once more on every pass"
 
 ["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/6feaf383fddfb677.svelte".skip]
-"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+"svelte.format" = "upstream bug: Prettier 3.10.1 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
 
 ["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/a048d6180b48cb18.svelte".skip]
-"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+"svelte.format" = "upstream bug: Prettier 3.10.1 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
 
 ["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/a5712ab853e3a0de.svelte".skip]
-"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+"svelte.format" = "upstream bug: Prettier 3.10.1 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
 
 ["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/d214dcf990e39fa6.svelte".skip]
-"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+"svelte.format" = "upstream bug: Prettier 3.10.1 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
 
 ["svelte/rsvelte-tests-core-1/compiler/tests/typescript_is_stripped_on_the_parser_decision_not_the_script_lang/25cc84cda4760858.svelte".skip]
 "svelte.compile" = "upstream bug: svelte 5.57.3 picks the script language with a regex over the source text (`regex_lang_attribute`), so the `lang=\"ts\"` of a script nested in an element makes it read this JavaScript component as TypeScript"
@@ -5029,19 +5022,19 @@
 "svelte.check" = "checker: TS 7's lib.dom gives HTMLElement one more member than TS 6's, so a message counting its missing properties says 316 where TS 6 says 315"
 
 ["svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_not_check_are_not_parse_errors/3fbf11608512c3ee.svelte".skip]
-"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+"svelte.format" = "upstream bug: Prettier 3.10.1 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
 
 ["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/0c496554d8d17116.svelte".skip]
-"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+"svelte.format" = "upstream bug: Prettier 3.10.1 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
 
 ["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/1cd3a29251cd502b.svelte".skip]
-"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+"svelte.format" = "upstream bug: Prettier 3.10.1 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
 
 ["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/3a060750f3a359a4.svelte".skip]
-"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+"svelte.format" = "upstream bug: Prettier 3.10.1 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
 
 ["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/fac06b787974b4dc.svelte".skip]
-"svelte.format" = "upstream bug: Prettier 3.9.10 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
+"svelte.format" = "upstream bug: Prettier 3.10.1 drops the `?` of an optional rest parameter (`...p?: string[]` becomes `...p: string[]`) with both the typescript and babel-ts parsers"
 
 ["svelte/rsvelte-tests-core-3/real_world_false_positives/typescript_grammar_rules_acorn_does_check_stay_parse_errors/fd297002503b61c4.svelte".skip]
 "svelte.format" = "oxc ast: AccessorProperty has no `optional` modifier, so oxc cannot print `accessor x?: number`, which Prettier 3.9.10 keeps"
@@ -6663,3 +6656,15 @@
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/action-with-identifier/input.svelte".skip]
 "svelte.lint" = "upstream bug: svelte-eslint-parser gives a directive name a second reference at a span that is not the name, so no-undef reports it twice, once outside the name"
+
+["svelte/appwrite-console/src/lib/components/roles/default.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
+
+["svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/createApple.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
+
+["svelte/cmsaasstarter/src/routes/(marketing)/+page.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
+
+["svelte/svelte-spa-router/examples/dynamic-imports/src/routes/Wild.svelte".skip]
+"svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"

@@ -1,7 +1,8 @@
 # rsvelte pack 1
 === 0 apps/docs/scripts/example-template/App.svelte	lint.txt
 
-=== 363 apps/docs/scripts/example-template/Scene.svelte	lint.txt
+=== 575 apps/docs/scripts/example-template/Scene.svelte	lint.txt
+8:7 8:15 svelte/valid-compile "`rotation` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:3 19:5 svelte/sort-attributes "Attribute 'oncreate' should go before 'position'."
 26:3 26:17 svelte/sort-attributes "Attribute 'position.y' should go before 'rotation.y'."
 28:3 28:40 svelte/sort-attributes "Attribute 'onpointerenter' should go before 'rotation.y'."
@@ -29,8 +30,12 @@
 60:5 60:26 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
 67:7 67:190 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
 
-=== 2630 apps/docs/src/components/ContactForm/ContactForm.svelte	lint.txt
+=== 3485 apps/docs/src/components/ContactForm/ContactForm.svelte	lint.txt
 1:1 54:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:15 svelte/valid-compile "`formData` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+11:7 11:14 svelte/valid-compile "`sending` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+12:7 12:11 svelte/valid-compile "`sent` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+13:7 13:21 svelte/valid-compile "`sentPreviously` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:34 15:45 no-undef "'SubmitEvent' is not defined."
 19:13 19:18 no-undef "'fetch' is not defined."
 44:7 44:17 no-undef "'setTimeout' is not defined."
@@ -379,7 +384,7 @@
 16:6 16:27 svelte/no-inline-styles "Found disallowed style attribute."
 16:13 16:26 svelte/prefer-style-directive "Can use style directives instead."
 
-=== 6795 apps/docs/src/components/Hero/HeroWrapper.svelte	lint.txt
+=== 6716 apps/docs/src/components/Hero/HeroWrapper.svelte	lint.txt
 1:1 51:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 27:35 27:41 no-undef "'window' is not defined."
 27:52 27:58 no-undef "'window' is not defined."
@@ -387,7 +392,6 @@
 33:52 33:58 no-undef "'window' is not defined."
 40:22 40:39 no-unused-vars "'_e' is defined but never used."
 40:26 40:39 no-undef "'KeyboardEvent' is not defined."
-41:1 41:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 44:27 44:37 no-undef "'MouseEvent' is not defined."
 46:27 46:33 no-undef "'window' is not defined."
 47:27 47:33 no-undef "'window' is not defined."
@@ -628,10 +632,8 @@
 === 90 apps/docs/src/components/Hero/Trigger.svelte	lint.txt
 1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 292 apps/docs/src/components/Hero/materials/DissolveMaterial.svelte	lint.txt
+=== 90 apps/docs/src/components/Hero/materials/DissolveMaterial.svelte	lint.txt
 9:1 49:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-34:26 34:29 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
-36:3 36:6 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
 
 === 327 apps/docs/src/components/Icons/inline/Discord.svelte	lint.txt
 3:3 3:21 svelte/sort-attributes "Attribute 'aria-hidden' should go before 'viewBox'."
@@ -646,8 +648,9 @@
 6:3 6:24 svelte/sort-attributes "Attribute 'viewBox' should go before 'xmlns'."
 9:5 9:453 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
 
-=== 869 apps/docs/src/components/Intro/IntroExample.svelte	lint.txt
+=== 1079 apps/docs/src/components/Intro/IntroExample.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:13 svelte/valid-compile "`_class` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:7 14:15 svelte/sort-attributes "Attribute 'fov' should go before 'makeDefault'."
 19:9 19:22 svelte/sort-attributes "Attribute 'enableDamping' should go before 'enableZoom'."
 20:9 20:30 svelte/sort-attributes "Attribute 'autoRotateSpeed' should go before 'enableZoom'."
@@ -1561,9 +1564,10 @@
 === 89 apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/Ball.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 384 apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/BallOut.svelte	lint.txt
+=== 597 apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/BallOut.svelte	lint.txt
 3:44 3:48 no-unused-vars "'Mesh' is defined but never used."
 3:61 3:66 no-unused-vars "'Group' is defined but never used."
+12:7 12:14 svelte/valid-compile "`noBlink` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 20:3 20:35 svelte/sort-attributes "Attribute 'position.z' should go before 'visible'."
 21:3 21:35 svelte/sort-attributes "Attribute 'position.x' should go before 'visible'."
 22:3 22:38 svelte/sort-attributes "Attribute 'rotation.y' should go before 'visible'."
@@ -2920,9 +2924,8 @@
 87:7 87:43 svelte/sort-attributes "Attribute 'rotation.x' should go before 'scale'."
 92:9 92:24 svelte/sort-attributes "Attribute 'color' should go before 'flatShading'."
 
-=== 2489 apps/docs/src/examples/extras/positional-audio/Turntable.svelte	lint.txt
+=== 2384 apps/docs/src/examples/extras/positional-audio/Turntable.svelte	lint.txt
 1:1 78:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-10:39 10:45 no-useless-assignment "The value assigned to 'volume' is not used in subsequent statements."
 12:7 12:16 svelte/prefer-const "'discSpeed' is never reassigned. Use 'const' instead."
 16:7 16:13 svelte/prefer-const "'armPos' is never reassigned. Use 'const' instead."
 54:7 54:12 svelte/prefer-const "'sideA' is never reassigned. Use 'const' instead."
@@ -3173,8 +3176,9 @@
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 12:5 12:18 svelte/sort-attributes "Attribute 'opacity' should go before 'transparent'."
 
-=== 350 apps/docs/src/examples/extras/svg/App.svelte	lint.txt
+=== 565 apps/docs/src/examples/extras/svg/App.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+11:7 11:16 svelte/valid-compile "`selection` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 26:5 26:18 svelte/sort-attributes "Attribute 'label' should go before 'bind:value'."
 27:5 27:14 svelte/sort-attributes "Attribute 'options' should go before 'bind:value'."
 28:3 28:11 svelte/html-self-closing "Require self-closing on Svelte custom components."
@@ -3303,8 +3307,15 @@
 38:3 40:5 svelte/sort-attributes "Attribute 'oncreate' should go before 'zoom'."
 47:3 47:24 svelte/sort-attributes "Attribute 'autoRotateSpeed' should go before 'enableDamping'."
 
-=== 538 apps/docs/src/examples/extras/trackball-controls/App.svelte	lint.txt
+=== 2033 apps/docs/src/examples/extras/trackball-controls/App.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:7 7:28 svelte/valid-compile "`staticMoving` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+8:7 8:24 svelte/valid-compile "`noRotate` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+9:7 9:26 svelte/valid-compile "`rotateSpeed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+10:7 10:22 svelte/valid-compile "`noZoom` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+11:7 11:24 svelte/valid-compile "`zoomSpeed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+12:7 12:21 svelte/valid-compile "`noPan` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+13:7 13:23 svelte/valid-compile "`panSpeed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 20:7 20:17 svelte/sort-attributes "Attribute 'noRotate' should go before 'staticMoving'."
 21:7 21:20 svelte/sort-attributes "Attribute 'rotateSpeed' should go before 'staticMoving'."
 22:7 22:15 svelte/sort-attributes "Attribute 'noZoom' should go before 'staticMoving'."
@@ -3498,10 +3509,8 @@
 77:11 77:18 svelte/sort-attributes "Attribute 'max' should go before 'value'."
 78:11 78:19 svelte/sort-attributes "Attribute 'disabled' should go before 'value'."
 
-=== 7592 apps/docs/src/examples/extras/use-gamepad/Scene.svelte	lint.txt
+=== 7378 apps/docs/src/examples/extras/use-gamepad/Scene.svelte	lint.txt
 1:1 82:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-8:9 8:19 no-useless-assignment "The value assigned to 'gamepadRef' is not used in subsequent statements."
-11:3 11:13 no-useless-assignment "The value assigned to 'gamepadRef' is not used in subsequent statements."
 86:3 86:23 svelte/sort-attributes "Attribute 'position' should go before 'zoom'."
 87:3 87:14 svelte/sort-attributes "Attribute 'makeDefault' should go before 'zoom'."
 88:3 88:42 svelte/sort-attributes "Attribute 'oncreate' should go before 'zoom'."
@@ -3617,9 +3626,8 @@
 38:3 38:58 svelte/sort-attributes "Attribute 'url' should go before 'bind:gltf'."
 39:3 43:5 svelte/sort-attributes "Attribute 'oncreate' should go before 'bind:gltf'."
 
-=== 1393 apps/docs/src/examples/extras/use-input-map/Scene.svelte	lint.txt
+=== 1285 apps/docs/src/examples/extras/use-input-map/Scene.svelte	lint.txt
 1:1 91:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-9:5 9:17 no-useless-assignment "The value assigned to 'activeDevice' is not used in subsequent statements."
 95:3 95:42 svelte/sort-attributes "Attribute 'oncreate' should go before 'position'."
 96:3 96:14 svelte/sort-attributes "Attribute 'makeDefault' should go before 'position'."
 97:3 97:11 svelte/sort-attributes "Attribute 'fov' should go before 'position'."
@@ -4045,8 +4053,9 @@
 39:3 39:13 svelte/sort-attributes "Attribute 'castShadow' should go before 'rotation.y'."
 47:3 47:16 svelte/sort-attributes "Attribute 'receiveShadow' should go before 'rotation.x'."
 
-=== 293 apps/docs/src/examples/flex/create-class-parser/App.svelte	lint.txt
+=== 507 apps/docs/src/examples/flex/create-class-parser/App.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:7 7:17 svelte/valid-compile "`innerWidth` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:41 svelte/no-unused-class-name "Unused class \"relative\"."
 12:1 12:41 svelte/no-unused-class-name "Unused class \"h-screen\"."
 12:1 12:41 svelte/no-unused-class-name "Unused class \"w-screen\"."
@@ -4909,8 +4918,9 @@
 82:6 82:18 svelte/prefer-destructured-store-props "Destructure 1 from $splats for better change tracking & fewer redraws"
 83:29 83:39 svelte/prefer-destructured-store-props "Destructure 1 from $splats for better change tracking & fewer redraws"
 
-=== 246 apps/docs/src/examples/misc/gaussian-splatting/RenderIndicator.svelte	lint.txt
+=== 455 apps/docs/src/examples/misc/gaussian-splatting/RenderIndicator.svelte	lint.txt
 1:1 28:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+11:7 11:10 svelte/valid-compile "`log` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 32:3 32:11 svelte/sort-attributes "Attribute 'min' should go before 'value'."
 33:3 33:10 svelte/sort-attributes "Attribute 'max' should go before 'value'."
 
@@ -5121,15 +5131,17 @@
 37:3 37:64 svelte/no-unused-class-name "Unused class \"text-black\"."
 39:5 39:33 svelte/no-unused-class-name "Unused class \"leading-normal\"."
 
-=== 172 apps/docs/src/examples/rapier/collision-groups/App.svelte	lint.txt
+=== 381 apps/docs/src/examples/rapier/collision-groups/App.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+8:7 8:36 svelte/valid-compile "`reset` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:3 13:19 svelte/sort-attributes "Attribute 'position' should go before 'title'."
 
 === 89 apps/docs/src/examples/rapier/collision-groups/Ground.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 435 apps/docs/src/examples/rapier/collision-groups/Scene.svelte	lint.txt
+=== 651 apps/docs/src/examples/rapier/collision-groups/Scene.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:7 7:19 svelte/valid-compile "`resetCounter` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 19:3 19:11 svelte/sort-attributes "Attribute 'fov' should go before 'makeDefault'."
 36:5 36:17 svelte/sort-attributes "Attribute 'filter' should go before 'memberships'."
 53:5 53:20 svelte/sort-attributes "Attribute 'filter' should go before 'memberships'."
@@ -6084,21 +6096,24 @@
 
 === 0 apps/docs/src/examples/studio/static-state/config.svelte.ts	lint.txt
 
-=== 172 apps/docs/src/examples/template/App.svelte	lint.txt
+=== 385 apps/docs/src/examples/template/App.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+6:7 6:16 svelte/valid-compile "`showScene` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:3 11:19 svelte/sort-attributes "Attribute 'position' should go before 'title'."
 
-=== 261 apps/docs/src/examples/template/Scene.svelte	lint.txt
+=== 473 apps/docs/src/examples/template/Scene.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:15 svelte/valid-compile "`rotation` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:3 18:38 svelte/sort-attributes "Attribute 'geometry' should go before 'rotation'."
 19:3 19:40 svelte/sort-attributes "Attribute 'material' should go before 'rotation'."
 
 === 89 apps/docs/src/examples/theatre/action-sheet-object/App.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 301 apps/docs/src/examples/theatre/action-sheet-object/Scene.svelte	lint.txt
+=== 515 apps/docs/src/examples/theatre/action-sheet-object/Scene.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 12:3 22:4 svelte/button-has-type "Missing an explicit type attribute for button."
+13:5 13:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 24:6 24:23 svelte/prefer-destructured-store-props "Destructure toFixed from $position for better change tracking & fewer redraws"
 
 === 328 apps/docs/src/examples/theatre/action-sheet-object/icons/PauseIcon.svelte	lint.txt
@@ -6462,8 +6477,9 @@
 34:5 34:29 svelte/sort-attributes "Attribute 'type' should go before 'bind:rigidBody'."
 38:7 38:22 svelte/sort-attributes "Attribute 'args' should go before 'shape'."
 
-=== 982 apps/docs/src/examples/xr/use-hand-joint/Scene.svelte	lint.txt
+=== 1193 apps/docs/src/examples/xr/use-hand-joint/Scene.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+11:7 11:12 svelte/valid-compile "`debug` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 25:5 25:40 svelte/sort-attributes "Attribute 'onpinchend' should go before 'right'."
 29:5 29:44 svelte/require-each-key "Each block should have a key"
 29:30 29:31 no-unused-vars "'_' is defined but never used."
@@ -6881,16 +6897,8 @@
 === 90 packages/extras/src/lib/components/Float/Float.svelte	lint.txt
 1:1 61:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 1729 packages/extras/src/lib/components/GLTF/GLTF.svelte	lint.txt
+=== 889 packages/extras/src/lib/components/GLTF/GLTF.svelte	lint.txt
 1:1 84:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-17:5 17:15 no-useless-assignment "The value assigned to 'animations' is not used in subsequent statements."
-18:5 18:10 no-useless-assignment "The value assigned to 'asset' is not used in subsequent statements."
-19:5 19:12 no-useless-assignment "The value assigned to 'cameras' is not used in subsequent statements."
-20:5 20:11 no-useless-assignment "The value assigned to 'scenes' is not used in subsequent statements."
-21:5 21:13 no-useless-assignment "The value assigned to 'userData' is not used in subsequent statements."
-22:5 22:11 no-useless-assignment "The value assigned to 'parser' is not used in subsequent statements."
-23:5 23:14 no-useless-assignment "The value assigned to 'materials' is not used in subsequent statements."
-24:5 24:10 no-useless-assignment "The value assigned to 'nodes' is not used in subsequent statements."
 33:5 33:16 svelte/valid-compile "This reference only captures the initial value of `dracoLoader`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 34:5 34:19 svelte/valid-compile "This reference only captures the initial value of `meshoptDecoder`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 35:5 35:15 svelte/valid-compile "This reference only captures the initial value of `ktx2Loader`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -6912,10 +6920,9 @@
 27:22 27:37 no-undef "'OffscreenCanvas' is not defined."
 74:3 74:11 svelte/sort-attributes "Attribute 'attach' should go before 'is'."
 
-=== 225 packages/extras/src/lib/components/GradientTexture/radial/RadialGradientTexture.svelte	lint.txt
+=== 147 packages/extras/src/lib/components/GradientTexture/radial/RadialGradientTexture.svelte	lint.txt
 1:1 78:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 25:22 25:37 no-undef "'OffscreenCanvas' is not defined."
-84:3 84:11 svelte/sort-attributes "Attribute 'attach' should go before 'is'."
 
 === 453 packages/extras/src/lib/components/Grid/Grid.svelte	lint.txt
 2:1 193:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -7050,10 +7057,8 @@
 98:3 98:19 svelte/sort-attributes "Attribute 'fragmentShader' should go before 'is'."
 99:3 99:17 svelte/sort-attributes "Attribute 'vertexShader' should go before 'bind:ref'."
 
-=== 1400 packages/extras/src/lib/components/MeshRefractionMaterial/MeshRefractionMaterial.svelte	lint.txt
+=== 1200 packages/extras/src/lib/components/MeshRefractionMaterial/MeshRefractionMaterial.svelte	lint.txt
 1:1 102:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-18:5 18:8 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
-41:3 41:6 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
 46:7 46:38 svelte/prefer-const "'defines' is never reassigned. Use 'const' instead."
 97:30 97:35 svelte/valid-compile "This reference only captures the initial value of `color`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 107:3 107:35 svelte/sort-attributes "Attribute 'uniforms.bounces.value' should go before 'uniforms.envMap.value'."
@@ -7152,11 +7157,9 @@
 100:17 100:34 svelte/sort-attributes "Attribute 'side' should go before 'transparent'."
 101:17 101:35 svelte/sort-attributes "Attribute 'depthWrite' should go before 'opacity'."
 
-=== 337 packages/extras/src/lib/components/Text/Text.svelte	lint.txt
+=== 174 packages/extras/src/lib/components/Text/Text.svelte	lint.txt
 1:1 77:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-83:3 83:9 svelte/sort-attributes "Attribute 'font' should go before 'is'."
-84:3 84:15 svelte/sort-attributes "Attribute 'characters' should go before 'is'."
-85:3 85:17 svelte/sort-attributes "Attribute 'sdfGlyphSize' should go before 'bind:ref'."
+84:3 84:15 svelte/sort-attributes "Attribute 'characters' should go before 'font'."
 
 === 90 packages/extras/src/lib/components/Text3DGeometry/Text3DGeometry.svelte	lint.txt
 1:1 64:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -7462,8 +7465,10 @@
 12:5 12:12 no-undef "'console' is not defined."
 17:3 17:10 no-undef "'console' is not defined."
 
-=== 262 packages/extras/src/routes/Scene.svelte	lint.txt
+=== 697 packages/extras/src/routes/Scene.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+8:7 8:22 svelte/valid-compile "`listenToGamepad` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+9:7 9:19 svelte/valid-compile "`mountGamepad` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 35:3 35:42 svelte/sort-attributes "Attribute 'oncreate' should go before 'position'."
 47:5 47:18 svelte/sort-attributes "Attribute 'color' should go before 'transparent'."
 
@@ -8144,8 +8149,9 @@
 50:52 50:62 svelte/valid-compile "This reference only captures the initial value of `extensions`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 70:11 70:17 no-undef "'window' is not defined."
 
-=== 376 packages/studio/src/lib/components/Toolbar.svelte	lint.txt
+=== 590 packages/studio/src/lib/components/Toolbar.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:17 svelte/valid-compile "`innerWidth` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:30 5:36 no-undef "'window' is not defined."
 13:3 13:19 svelte/sort-attributes "Attribute 'position' should go before 'title'."
 15:3 15:38 svelte/sort-attributes "Attribute 'theme' should go before 'title'."
@@ -8562,7 +8568,7 @@
 38:3 38:12 svelte/sort-attributes "Attribute 'options' should go before 'value'."
 39:3 39:10 svelte/sort-attributes "Attribute 'label' should go before 'value'."
 
-=== 1073 packages/studio/src/lib/extensions/inspector/bindings/TransactionalTextureImage.svelte	lint.txt
+=== 994 packages/studio/src/lib/extensions/inspector/bindings/TransactionalTextureImage.svelte	lint.txt
 1:1 82:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 20:58 20:69 svelte/valid-compile "This reference only captures the initial value of `firstObject`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 20:71 20:74 svelte/valid-compile "This reference only captures the initial value of `key`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -8570,7 +8576,6 @@
 38:54 38:70 no-undef "'HTMLImageElement' is not defined."
 45:43 45:54 no-undef "'ImageBitmap' is not defined."
 46:20 46:28 no-undef "'document' is not defined."
-67:1 67:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
 86:3 86:19 svelte/sort-attributes "Attribute 'key' should go before 'object'."
 87:3 87:10 svelte/sort-attributes "Attribute 'label' should go before 'object'."
 89:3 91:5 svelte/sort-attributes "Attribute 'options' should go before 'plugin'."
@@ -8647,12 +8652,11 @@
 69:7 69:23 svelte/sort-attributes "Attribute 'position' should go before 'title'."
 71:7 71:12 svelte/sort-attributes "Attribute 'x' should go before 'y'."
 
-=== 521 packages/studio/src/lib/extensions/scene-hierarchy/Tree.svelte	lint.txt
+=== 438 packages/studio/src/lib/extensions/scene-hierarchy/Tree.svelte	lint.txt
 1:1 228:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 22:17 22:25 no-undef "'document' is not defined."
 59:25 59:48 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 87:20 87:29 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
-213:1 213:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 220:26 220:37 no-undef "'HTMLElement' is not defined."
 
 === 255 packages/studio/src/lib/extensions/snapping/Snapping.svelte	lint.txt
@@ -8667,13 +8671,12 @@
 43:7 45:9 svelte/sort-attributes "Attribute 'onclick' should go before 'tooltip'."
 52:7 54:9 svelte/sort-attributes "Attribute 'onclick' should go before 'tooltip'."
 
-=== 1204 packages/studio/src/lib/extensions/static-state/StaticState.svelte	lint.txt
+=== 1125 packages/studio/src/lib/extensions/static-state/StaticState.svelte	lint.txt
 1:1 114:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 44:7 44:70 svelte/prefer-const "'debounceTimeouts' is never reassigned. Use 'const' instead."
 44:58 44:68 no-undef "'setTimeout' is not defined."
 59:7 59:19 no-undef "'clearTimeout' is not defined."
 62:37 62:47 no-undef "'setTimeout' is not defined."
-93:1 93:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
 111:21 113:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 112:47 112:48 no-unused-vars "'_' is defined but never used."
 120:7 120:45 svelte/sort-attributes "Attribute 'active' should go before 'onclick'."
@@ -8732,12 +8735,10 @@
 207:7 207:48 svelte/sort-attributes "Attribute 'disabled' should go before 'icon'."
 209:7 209:31 svelte/sort-attributes "Attribute 'onclick' should go before 'tooltip'."
 
-=== 1278 packages/studio/src/lib/extensions/transform-controls/ContainerTransform.svelte	lint.txt
+=== 1120 packages/studio/src/lib/extensions/transform-controls/ContainerTransform.svelte	lint.txt
 1:1 153:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 58:7 58:19 svelte/prefer-const "'centerObject' is never reassigned. Use 'const' instead."
 59:7 59:19 svelte/prefer-const "'lastPosition' is never reassigned. Use 'const' instead."
-95:1 95:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
-97:1 97:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 137:1 137:17 svelte/indent "Expected indentation of 14 spaces but found 16 spaces."
 138:1 138:17 svelte/indent "Expected indentation of 14 spaces but found 16 spaces."
 139:1 139:17 svelte/indent "Expected indentation of 14 spaces but found 16 spaces."
@@ -8795,17 +8796,15 @@
 
 === 0 packages/studio/src/routes/config.svelte.ts	lint.txt
 
-=== 1081 packages/theatre/src/lib/project/Project.svelte	lint.txt
+=== 976 packages/theatre/src/lib/project/Project.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-19:5 19:12 no-useless-assignment "The value assigned to 'isReady' is not used in subsequent statements."
 23:32 23:36 svelte/valid-compile "This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 23:52 23:56 svelte/valid-compile "This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 23:58 23:64 svelte/valid-compile "This reference only captures the initial value of `config`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 24:22 24:26 svelte/valid-compile "This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
-=== 1532 packages/theatre/src/lib/sheet/Sheet.svelte	lint.txt
+=== 1428 packages/theatre/src/lib/sheet/Sheet.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-20:27 20:32 no-useless-assignment "The value assigned to 'sheet' is not used in subsequent statements."
 23:46 23:50 svelte/valid-compile "This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 23:54 23:62 svelte/valid-compile "This reference only captures the initial value of `instance`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 23:83 23:87 svelte/valid-compile "This reference only captures the initial value of `name`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -8929,7 +8928,7 @@
 === 91 packages/xr/src/lib/components/VRButton.svelte	lint.txt
 12:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 3299 packages/xr/src/lib/components/XR.svelte	lint.txt
+=== 3137 packages/xr/src/lib/components/XR.svelte	lint.txt
 20:1 29:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 22:3 22:12 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
 31:1 337:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -8958,7 +8957,6 @@
 195:5 195:61 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
 197:7 197:64 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
 228:5 228:69 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
-248:1 248:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 264:20 264:33 no-undef "'XRSessionMode' is not defined."
 278:19 278:28 no-undef "'navigator' is not defined."
 285:5 285:63 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
@@ -8969,9 +8967,8 @@
 302:17 302:30 no-undef "'XRSessionMode' is not defined."
 304:35 304:44 no-undef "'navigator' is not defined."
 319:35 319:44 no-undef "'navigator' is not defined."
-327:1 327:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
 
-=== 704 packages/xr/src/lib/components/XRButton.svelte	lint.txt
+=== 620 packages/xr/src/lib/components/XRButton.svelte	lint.txt
 20:1 103:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 29:11 29:24 no-undef "'XRSessionMode' is not defined."
 34:19 34:32 no-undef "'XRSessionInit' is not defined."
@@ -8980,7 +8977,6 @@
 42:59 42:69 no-undef "'MouseEvent' is not defined."
 43:16 43:28 no-unused-vars "'error' is defined but never used."
 59:49 59:59 no-undef "'MouseEvent' is not defined."
-111:5 111:12 svelte/sort-attributes "Attribute 'style' should go before 'onclick'."
 111:5 111:12 svelte/require-optimized-style-attribute "It cannot be optimized because style attribute is specified using shorthand."
 
 === 139 packages/xr/src/lib/components/XROrigin.svelte	lint.txt

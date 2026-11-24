@@ -1753,7 +1753,7 @@ dataset rendering: {stats.render}ms</pre>
   </div>
 </div>
 
-=== 1040 svelte/demos/cases/ExportCSV.svelte	svelte
+=== 1047 svelte/demos/cases/ExportCSV.svelte	svelte
 <script>
   import { Grid } from "../../src";
   import { Button } from "@svar-ui/svelte-core";
@@ -1793,8 +1793,9 @@ dataset rendering: {stats.render}ms</pre>
 
 <div style="padding: 20px;">
   <p>
-    <Button type="primary" onclick={() => exportCsv(api2)}>Export to CSV</Button
-    >
+    <Button type="primary" onclick={() => exportCsv(api2)}>
+      Export to CSV
+    </Button>
   </p>
   <div style="max-width: 800px;">
     <Grid
@@ -4869,7 +4870,7 @@ dataset rendering: {stats.render}ms</pre>
   {/if}
 </div>
 
-=== 1131 svelte/demos/cases/Styling.svelte	svelte
+=== 1138 svelte/demos/cases/Styling.svelte	svelte
 <script>
   import { getData, repeatColumns } from "../data";
   import { Button } from "@svar-ui/svelte-core";
@@ -4890,8 +4891,9 @@ dataset rendering: {stats.render}ms</pre>
 
 <div style="padding: 20px;">
   <p>
-    <Button type="primary" onclick={() => setCellStyle()}>Set cell style</Button
-    >
+    <Button type="primary" onclick={() => setCellStyle()}>
+      Set cell style
+    </Button>
   </p>
   <div>
     <Grid
@@ -5342,7 +5344,7 @@ dataset rendering: {stats.render}ms</pre>
   }
 </style>
 
-=== 1647 svelte/demos/cases/UndoRedo.svelte	svelte
+=== 1671 svelte/demos/cases/UndoRedo.svelte	svelte
 <script>
   import { Button } from "@svar-ui/svelte-core";
   import { getData } from "../data";
@@ -5398,13 +5400,17 @@ dataset rendering: {stats.render}ms</pre>
     <Button
       type="primary"
       onclick={() => handleUndo(api)}
-      disabled={history && !$history.undo}>Undo</Button
+      disabled={history && !$history.undo}
     >
+      Undo
+    </Button>
     <Button
       type="primary"
       onclick={() => handleRedo(api)}
-      disabled={history && !$history.redo}>Redo</Button
+      disabled={history && !$history.redo}
     >
+      Redo
+    </Button>
   </div>
   <div>
     <ContextMenu {api}>
@@ -5477,7 +5483,7 @@ dataset rendering: {stats.render}ms</pre>
   </div>
 </div>
 
-=== 12906 svelte/demos/common/Index.svelte	svelte
+=== 12917 svelte/demos/common/Index.svelte	svelte
 <script>
   import {
     Globals,
@@ -5552,15 +5558,16 @@ dataset rendering: {stats.render}ms</pre>
             target="_blank"
             rel="noopener noreferrer"
           >
-            <img src={LogoIcon} alt="Logo icon" class="box-title-img" /></a
-          >
+            <img src={LogoIcon} alt="Logo icon" class="box-title-img" />
+          </a>
           <div class="separator"></div>
           <a
             href={`https://svar.dev/svelte/${productLink}/`}
             target="_blank"
             rel="noopener noreferrer"
-            ><h1 class="title">Svelte {publicName}</h1></a
           >
+            <h1 class="title">Svelte {publicName}</h1>
+          </a>
         </div>
         <!-- svelte-ignore a11y_no_static_element_interactions -->
         <div class="btn-box">
@@ -6068,13 +6075,13 @@ dataset rendering: {stats.render}ms</pre>
   let { routes } = $props();
 </script>
 
-<code
-  ><pre>
+<code>
+  <pre>
 {#each routes as route}
       {'"' + route + '",\n'}
     {/each}
-</pre></code
->
+</pre>
+</code>
 
 <style>
   pre {
@@ -11651,9 +11658,9 @@ dataset rendering: {stats.render}ms</pre>
             onclick={showNext}
             disabled={currentSearchIndex === searchRows.length - 1}
           />
-          <span
-            >{currentSearchIndex + 1}/{searchRows.length} (rows matches)</span
-          >
+          <span>
+            {currentSearchIndex + 1}/{searchRows.length} (rows matches)
+          </span>
         </div>
       {/if}
     </div>

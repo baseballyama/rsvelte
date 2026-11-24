@@ -1,6 +1,7 @@
 packages:
   - apps/cli
   - apps/eslint-plugin
+  - apps/rsvelte
   - apps/site
   - tools/*
 allowBuilds:

@@ -11,7 +11,6 @@ use rsvelte_svelte_lint::rule::Files;
 #[derive(Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Debug)]
 enum Kind {
     Svelte,
-    Vue,
     JavaScript,
     Jsx,
 }
@@ -20,7 +19,6 @@ impl Kind {
     const fn label(self) -> &'static str {
         match self {
             Self::Svelte => "svelte",
-            Self::Vue => "vue",
             Self::JavaScript => "js-ts",
             Self::Jsx => "jsx-tsx",
         }
@@ -29,7 +27,6 @@ impl Kind {
     const fn glob(self) -> &'static str {
         match self {
             Self::Svelte => "**/*.svelte",
-            Self::Vue => "**/*.vue",
             Self::JavaScript => "**/*.{js,mjs,cjs,ts,mts,cts}",
             Self::Jsx => "**/*.{jsx,tsx}",
         }
@@ -41,7 +38,8 @@ struct Entry {
     kinds: Vec<Kind>,
 }
 
-/// Every rule `rsvelte lint` runs, with its category and the files it runs on.
+/// Every rule `rsvelte lint` runs beside oxlint's own, which eslint-plugin-oxlint turns off: the
+/// Svelte linter's, with its category and the files it runs on.
 fn rules() -> BTreeMap<&'static str, Entry> {
     let mut rules: BTreeMap<&'static str, Entry> = BTreeMap::new();
     let mut add = |name, category, kinds: &[Kind]| {
@@ -60,15 +58,33 @@ fn rules() -> BTreeMap<&'static str, Entry> {
             // Modules only once a configuration turns such a rule on.
             Files::All => &[Kind::Svelte, Kind::JavaScript, Kind::Jsx],
         };
-        add(rule.name, rule.category, kinds);
-    }
-    for (name, category) in rsvelte_typescript_lint::rules() {
-        add(name, category, &[Kind::JavaScript]);
-    }
-    for (name, category) in rsvelte_vue_lint::rules() {
-        add(name, category, &[Kind::Vue]);
+        // A core rule runs in a component in oxlint's stead, so oxlint's category turns it on.
+        let category = if rule.name.contains('/') {
+            rule.category
+        } else {
+            oxlint_category(rule.name)
+        };
+        add(rule.name, category, kinds);
     }
     rules
+}
+
+/// The category of oxlint's core rule `name`.
+fn oxlint_category(name: &str) -> Category {
+    let table = oxc_linter::table::RuleTable::new(None);
+    let row = (table.sections.iter())
+        .flat_map(|section| &section.rows)
+        .find(|row| row.plugin == "eslint" && row.name == name)
+        .unwrap_or_else(|| panic!("oxlint has no core rule {name}"));
+    match row.category {
+        oxc_linter::RuleCategory::Correctness => Category::Correctness,
+        oxc_linter::RuleCategory::Suspicious => Category::Suspicious,
+        oxc_linter::RuleCategory::Pedantic => Category::Pedantic,
+        oxc_linter::RuleCategory::Perf => Category::Perf,
+        oxc_linter::RuleCategory::Style => Category::Style,
+        oxc_linter::RuleCategory::Restriction => Category::Restriction,
+        oxc_linter::RuleCategory::Nursery => Category::Nursery,
+    }
 }
 
 /// eslint-plugin-oxlint's scope: the `ESLint` plugin a rule belongs to.

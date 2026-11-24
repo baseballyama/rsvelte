@@ -77,11 +77,18 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
     let (start, end) = (label.offset(), label.offset() + label.len());
     match number {
         "1047" => optional_rest(start, end, visit) == Some(Ok(())),
+        // acorn-typescript reads any statement in an ambient namespace, which upstream then
+        // refuses as a namespace with values, and checks the body of a function declaration only.
+        "1036" => true,
+        "1183" => locate(start, end, Find::Implementation, visit).is_none(),
         // acorn-typescript reads a class accessor without a body as a signature.
         "1005" => locate(start, end, Find::BodilessAccessor, visit).is_some(),
         // acorn checks a class's name only where the class is a declaration, and a parameter's
         // only where its function has a body; acorn-typescript checks no type parameter's.
         "1100" => locate(start, end, Find::UncheckedName, visit).is_some(),
+        // acorn-typescript checks a variable's initializer in an ambient context once it has read
+        // the declaration, as the tree's walk does.
+        "1039" => locate(start, end, Find::VariableInitializer, visit).is_some(),
         // acorn-typescript checks no interface, public class member, enum member, nor parameter
         // of a signature or of a function without a body, and a type alias only against the
         // types before it.
@@ -242,8 +249,29 @@ pub(crate) fn acorn(
             "Shorthand property assignments are valid only in destructuring patterns",
             token(start, Some(Kind::Eq))?,
         )),
+        "1183" => implementation(start, end, read(), visit),
         _ => early_error(error, number, text, (start, end), visit),
     }
+}
+
+/// acorn-typescript's error at a function declaration in an ambient context whose body is the
+/// label, at its start: after `declare` for one an export declares, as acorn-typescript reads the
+/// export's `declare` before the declaration.
+fn implementation(
+    start: u32,
+    end: u32,
+    mut tokens: impl Iterator<Item = Token>,
+    visit: impl FnOnce(&mut Locator),
+) -> Option<Acorn> {
+    let (at, found) = locate(start, end, Find::Implementation, visit)?;
+    let at = match found {
+        AstType::ExportDeclaration => tokens.find(|token| token.start() > at)?.start(),
+        _ => at,
+    };
+    Some(fails(
+        "An implementation cannot be declared in ambient contexts.",
+        at,
+    ))
 }
 
 /// Acorn's message for a target that tsc's code `number` says cannot be assigned, which names an
@@ -366,6 +394,7 @@ fn early_error(
             locate(start, end, Find::Member, visit)?.0,
         )),
         "1047" => optional_rest(start, end, visit)?.err(),
+        // acorn-typescript reports an implementation at the declaration that holds it.
         "1347" => Some(fails(
             "Illegal 'use strict' directive in function with non-simple parameter list",
             locate(start, end, Find::Function, visit)?.0,

@@ -46,7 +46,7 @@ impl SvelteRule for NoUnusedSvelteIgnore {
             return;
         }
         for (item, used) in ignores.items.iter().zip(&applied.used) {
-            if !used && decidable(item, source) {
+            if !used && decidable(item, source, applied.runes) {
                 reporter.report(Report::range(
                     "svelte-ignore comment is used, but not warned",
                     item.code,

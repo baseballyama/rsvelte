@@ -9,11 +9,13 @@
 121:1 121:11 svelte/indent "Expected indentation of 12 spaces but found 10 spaces."
 131:31 131:42 svelte/max-attributes-per-line "'rows' should be on a new line."
 
-=== 2612 example/Example5.svelte	lint.txt
+=== 4123 example/Example5.svelte	lint.txt
+8:7 8:16 svelte/valid-compile "`selection` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 67:11 67:12 svelte/prefer-const "'d' is never reassigned. Use 'const' instead."
 75:1 75:11 svelte/indent "Expected indentation of 12 spaces but found 10 spaces."
 76:1 76:11 svelte/indent "Expected indentation of 12 spaces but found 10 spaces."
 77:1 77:11 svelte/indent "Expected indentation of 12 spaces but found 10 spaces."
+96:7 96:19 svelte/valid-compile "`filteredRows` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 99:1 99:57 svelte/no-unused-class-name "Unused class \"card\"."
 99:19 99:56 svelte/no-inline-styles "Found disallowed style attribute."
 99:19 99:56 svelte/max-attributes-per-line "'style' should be on a new line."
@@ -32,18 +34,23 @@
 123:3 127:4 svelte/button-has-type "Missing an explicit type attribute for button."
 123:3 127:4 svelte/no-unused-class-name "Unused class \"btn\"."
 123:3 127:4 svelte/no-unused-class-name "Unused class \"btn-outline-primary\"."
+126:5 126:45 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 130:3 134:4 svelte/button-has-type "Missing an explicit type attribute for button."
 130:3 134:4 svelte/no-unused-class-name "Unused class \"btn\"."
 130:3 134:4 svelte/no-unused-class-name "Unused class \"btn-outline-primary\"."
+133:5 133:44 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 137:3 141:4 svelte/button-has-type "Missing an explicit type attribute for button."
 137:3 141:4 svelte/no-unused-class-name "Unused class \"btn\"."
 137:3 141:4 svelte/no-unused-class-name "Unused class \"btn-outline-primary\"."
+140:5 140:38 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 144:3 148:4 svelte/button-has-type "Missing an explicit type attribute for button."
 144:3 148:4 svelte/no-unused-class-name "Unused class \"btn\"."
 144:3 148:4 svelte/no-unused-class-name "Unused class \"btn-outline-primary\"."
+147:5 147:32 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 151:3 154:4 svelte/button-has-type "Missing an explicit type attribute for button."
 151:3 154:4 svelte/no-unused-class-name "Unused class \"btn\"."
 151:3 154:4 svelte/no-unused-class-name "Unused class \"btn-outline-primary\"."
+153:5 153:73 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
 === 449 example/Example6.svelte	lint.txt
 10:5 10:10 no-undef "'alert' is not defined."
@@ -69,8 +76,9 @@
 123:7 123:37 svelte/sort-attributes "Attribute 'classNameThead' should go before 'columns'."
 124:7 124:21 svelte/sort-attributes "Attribute 'classNameRow' should go before 'columns'."
 
-=== 363 example/example6/HelpButtonComponent.svelte	lint.txt
+=== 574 example/example6/HelpButtonComponent.svelte	lint.txt
 1:1 5:8 svelte/button-has-type "Missing an explicit type attribute for button."
+2:3 5:7 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 3:5 3:10 no-undef "'alert' is not defined."
 5:7 5:7 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 5:20 6:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."

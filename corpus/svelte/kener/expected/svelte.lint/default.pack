@@ -1151,10 +1151,8 @@
 89:56 89:81 svelte/max-attributes-per-line "'onSelect' should be on a new line."
 89:56 89:81 svelte/sort-attributes "Attribute 'onSelect' should go before 'value'."
 
-=== 4512 src/lib/components/NotificationsList.svelte	lint.txt
+=== 4328 src/lib/components/NotificationsList.svelte	lint.txt
 1:1 61:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-26:5 26:12 no-useless-assignment "The value assigned to 'loading' is not used in subsequent statements."
-46:1 46:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 64:3 64:71 svelte/no-unused-class-name "Unused class \"my-0.5\"."
 64:3 64:71 svelte/no-unused-class-name "Unused class \"flex\"."
 64:3 64:71 svelte/no-unused-class-name "Unused class \"items-center\"."
@@ -1215,9 +1213,8 @@
 109:9 112:10 svelte/no-unused-class-name "Unused class \"last:border-b-0\"."
 111:11 111:77 svelte/sort-attributes "Attribute 'class' should go before 'href'."
 
-=== 1569 src/lib/components/NotificationsPopover.svelte	lint.txt
+=== 1490 src/lib/components/NotificationsPopover.svelte	lint.txt
 1:1 37:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-28:1 28:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 45:9 45:42 svelte/sort-attributes "Attribute 'size' should go before 'variant'."
 46:9 46:147 svelte/sort-attributes "Attribute 'class' should go before 'variant'."
 47:9 47:41 svelte/sort-attributes "Attribute 'aria-label' should go before 'variant'."
@@ -1237,13 +1234,12 @@
 70:38 70:50 svelte/sort-attributes "Attribute 'eventsPath' should go before 'monitorTags'."
 70:51 70:71 svelte/sort-attributes "Attribute 'fetchOnMount' should go before 'monitorTags'."
 
-=== 1946 src/lib/components/PageList.svelte	lint.txt
+=== 1867 src/lib/components/PageList.svelte	lint.txt
 1:1 38:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:15 3:27 no-unused-vars "'DropdownMenu' is defined but never used."
 18:9 18:20 no-unused-vars "'currentPage' is assigned a value but never used."
 23:30 23:35 no-undef "'fetch' is not defined."
 26:9 26:16 no-undef "'console' is not defined."
-29:1 29:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 40:1 40:47 svelte/no-unused-class-name "Unused class \"flex\"."
 40:1 40:47 svelte/no-unused-class-name "Unused class \"shrink-0\"."
 40:1 40:47 svelte/no-unused-class-name "Unused class \"items-center\"."
@@ -1266,10 +1262,9 @@
 63:21 63:32 svelte/sort-attributes "Attribute 'height' should go before 'src'."
 64:21 64:56 svelte/sort-attributes "Attribute 'class' should go before 'src'."
 
-=== 1646 src/lib/components/PageSelector.svelte	lint.txt
+=== 1567 src/lib/components/PageSelector.svelte	lint.txt
 1:1 36:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 22:30 22:35 no-undef "'fetch' is not defined."
-27:1 27:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 38:1 38:47 svelte/no-unused-class-name "Unused class \"flex\"."
 38:1 38:47 svelte/no-unused-class-name "Unused class \"shrink-0\"."
 38:1 38:47 svelte/no-unused-class-name "Unused class \"items-center\"."
@@ -1979,11 +1974,10 @@
 14:15 14:21 svelte/prefer-const "'_theme' is never reassigned. Use 'const' instead."
 14:23 14:29 svelte/prefer-const "'prefix' is never reassigned. Use 'const' instead."
 
-=== 1978 src/lib/components/ui/chart/chart-tooltip.svelte	lint.txt
+=== 1878 src/lib/components/ui/chart/chart-tooltip.svelte	lint.txt
 1:1 72:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 8:3 8:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
 9:41 9:67 no-unused-vars "'_payload' is defined but never used."
-14:5 14:8 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
 27:52 27:66 no-undef "'HTMLDivElement' is not defined."
 35:22 35:84 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
 36:9 36:19 no-unused-vars "'value' is defined but never used."
@@ -3752,9 +3746,8 @@
 12:3 12:27 svelte/sort-attributes "Attribute 'data-sidebar' should go before 'bind:ref'."
 13:3 13:45 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 
-=== 699 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
+=== 601 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-9:5 9:8 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
 14:16 14:29 no-unused-vars "'e' is defined but never used."
 14:19 14:29 no-undef "'MouseEvent' is not defined."
 24:3 24:14 svelte/sort-attributes "Attribute 'size' should go before 'variant'."
@@ -6304,16 +6297,14 @@
 336:50 336:69 svelte/max-attributes-per-line "'disabled' should be on a new line."
 336:50 336:69 svelte/sort-attributes "Attribute 'disabled' should go before 'onclick'."
 
-=== 11570 src/routes/(manage)/manage/app/badges/+page.svelte	lint.txt
+=== 11408 src/routes/(manage)/manage/app/badges/+page.svelte	lint.txt
 1:1 161:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:10 13:17 no-unused-vars "'EyeIcon' is defined but never used."
 17:17 17:36 no-unused-vars "'SiteDataTransformed' is defined but never used."
 27:7 27:18 svelte/prefer-const "'badgeConfig' is never reassigned. Use 'const' instead."
 58:24 58:39 no-undef "'URLSearchParams' is not defined."
 110:30 110:35 no-undef "'fetch' is not defined."
-124:1 124:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 137:30 137:35 no-undef "'fetch' is not defined."
-150:1 150:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 155:16 155:22 no-undef "'window' is not defined."
 156:14 156:20 no-undef "'window' is not defined."
 163:1 163:45 svelte/no-unused-class-name "Unused class \"flex\"."
@@ -6461,7 +6452,7 @@
 422:17 422:103 svelte/no-unused-class-name "Unused class \"py-12\"."
 422:17 422:103 svelte/no-unused-class-name "Unused class \"text-center\"."
 
-=== 22800 src/routes/(manage)/manage/app/customizations/+page.svelte	lint.txt
+=== 22719 src/routes/(manage)/manage/app/customizations/+page.svelte	lint.txt
 1:1 456:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 8:15 8:25 no-unused-vars "'Breadcrumb' is defined but never used."
 128:30 128:35 no-undef "'fetch' is not defined."
@@ -6479,7 +6470,6 @@
 354:30 354:35 no-undef "'fetch' is not defined."
 370:14 370:15 no-unused-vars "'e' is defined but never used."
 380:30 380:35 no-undef "'fetch' is not defined."
-394:1 394:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 408:30 408:35 no-undef "'fetch' is not defined."
 423:14 423:15 no-unused-vars "'e' is defined but never used."
 458:1 458:57 svelte/no-unused-class-name "Unused class \"flex\"."
@@ -6750,14 +6740,13 @@
 998:41 998:61 svelte/max-attributes-per-line "'disabled' should be on a new line."
 998:41 998:61 svelte/sort-attributes "Attribute 'disabled' should go before 'onclick'."
 
-=== 12552 src/routes/(manage)/manage/app/embed/+page.svelte	lint.txt
+=== 12471 src/routes/(manage)/manage/app/embed/+page.svelte	lint.txt
 1:1 182:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 25:7 25:18 svelte/prefer-const "'embedConfig' is never reassigned. Use 'const' instead."
 80:24 80:39 no-undef "'URLSearchParams' is not defined."
 107:24 107:39 no-undef "'URLSearchParams' is not defined."
 147:23 149:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 153:30 153:35 no-undef "'fetch' is not defined."
-167:1 167:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 176:16 176:22 no-undef "'window' is not defined."
 177:14 177:20 no-undef "'window' is not defined."
 184:1 184:45 svelte/no-unused-class-name "Unused class \"flex\"."
@@ -7016,7 +7005,7 @@
 318:49 318:81 svelte/sort-attributes "Attribute 'disabled' should go before 'variant'."
 318:82 318:118 svelte/sort-attributes "Attribute 'onclick' should go before 'variant'."
 
-=== 20828 src/routes/(manage)/manage/app/incidents/[incident_id]/+page.svelte	lint.txt
+=== 20585 src/routes/(manage)/manage/app/incidents/[incident_id]/+page.svelte	lint.txt
 1:1 679:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:12 5:20 no-unused-vars "'Textarea' is defined but never used."
 19:10 19:15 no-unused-vars "'XIcon' is defined but never used."
@@ -7026,11 +7015,8 @@
 121:32 121:48 no-undef "'HTMLInputElement' is not defined."
 139:30 139:35 no-undef "'fetch' is not defined."
 173:30 173:35 no-undef "'fetch' is not defined."
-183:1 183:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 194:30 194:35 no-undef "'fetch' is not defined."
-215:1 215:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 222:30 222:35 no-undef "'fetch' is not defined."
-232:1 232:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 245:32 245:37 no-undef "'fetch' is not defined."
 269:19 269:24 no-undef "'fetch' is not defined."
 285:19 285:24 no-undef "'fetch' is not defined."
@@ -7490,7 +7476,7 @@
 384:49 384:81 svelte/sort-attributes "Attribute 'disabled' should go before 'variant'."
 384:82 384:118 svelte/sort-attributes "Attribute 'onclick' should go before 'variant'."
 
-=== 18183 src/routes/(manage)/manage/app/maintenances/[id]/+page.svelte	lint.txt
+=== 18021 src/routes/(manage)/manage/app/maintenances/[id]/+page.svelte	lint.txt
 1:1 575:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 207:14 207:15 no-unused-vars "'e' is defined but never used."
 223:14 223:15 no-unused-vars "'e' is defined but never used."
@@ -7498,9 +7484,7 @@
 232:22 232:56 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 264:30 264:35 no-undef "'fetch' is not defined."
 314:30 314:35 no-undef "'fetch' is not defined."
-324:1 324:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 333:30 333:35 no-undef "'fetch' is not defined."
-343:1 343:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 368:32 368:37 no-undef "'fetch' is not defined."
 393:32 393:37 no-undef "'fetch' is not defined."
 414:10 414:17 no-undef "'confirm' is not defined."
@@ -7998,16 +7982,14 @@
 333:51 333:83 svelte/sort-attributes "Attribute 'disabled' should go before 'variant'."
 333:84 333:120 svelte/sort-attributes "Attribute 'onclick' should go before 'variant'."
 
-=== 5349 src/routes/(manage)/manage/app/monitors/[tag]/+page.svelte	lint.txt
+=== 5187 src/routes/(manage)/manage/app/monitors/[tag]/+page.svelte	lint.txt
 1:1 271:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:15 13:26 no-unused-vars "'ButtonGroup' is defined but never used."
 98:30 98:35 no-undef "'fetch' is not defined."
 129:13 129:20 no-undef "'console' is not defined."
 148:13 148:20 no-undef "'console' is not defined."
 163:30 163:35 no-undef "'fetch' is not defined."
-173:1 173:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 179:30 179:35 no-undef "'fetch' is not defined."
-189:1 189:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 196:30 196:35 no-undef "'fetch' is not defined."
 207:7 207:14 no-undef "'console' is not defined."
 242:30 242:35 no-undef "'fetch' is not defined."
@@ -10283,11 +10265,10 @@
 1633:11 1633:59 svelte/sort-attributes "Attribute 'disabled' should go before 'onclick'."
 1634:11 1634:33 svelte/sort-attributes "Attribute 'class' should go before 'onclick'."
 
-=== 13107 src/routes/(manage)/manage/app/subscriptions/+page.svelte	lint.txt
+=== 13028 src/routes/(manage)/manage/app/subscriptions/+page.svelte	lint.txt
 1:1 341:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 41:7 41:19 no-unused-vars "'savingConfig' is assigned a value but never used."
 59:25 59:30 no-undef "'fetch' is not defined."
-73:1 73:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 82:25 82:30 no-undef "'fetch' is not defined."
 116:7 116:12 svelte/prefer-const "'limit' is never reassigned. Use 'const' instead."
 134:7 134:21 svelte/prefer-const "'updatingToggle' is never reassigned. Use 'const' instead."

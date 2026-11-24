@@ -9,11 +9,12 @@
 1:1 1:35 svelte/valid-compile "Non-interactive element `<h1>` cannot have interactive role 'button'\nhttps://svelte.dev/e/a11y_no_noninteractive_element_to_interactive_role(a11y_no_noninteractive_element_to_interactive_role)"
 1:15 1:28 svelte/max-attributes-per-line "'role' should be on a new line."
 
-=== 707 a11y_attribute_warning_span/codes_upstream_scopes_to_the_element_inside_the_attribute_loop/3dbab2b9fb63bfd3.svelte	lint.txt
+=== 920 a11y_attribute_warning_span/codes_upstream_scopes_to_the_element_inside_the_attribute_loop/3dbab2b9fb63bfd3.svelte	lint.txt
 1:1 1:43 svelte/no-unused-class-name "Unused class \"x\"."
 1:1 1:50 svelte/valid-compile "Elements with the 'button' interactive role must have a tabindex value\nhttps://svelte.dev/e/a11y_interactive_supports_focus(a11y_interactive_supports_focus)"
 1:1 1:50 svelte/valid-compile "Visible, non-interactive element `<div>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 1:16 1:29 svelte/max-attributes-per-line "'role' should be on a new line."
+1:30 1:42 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:40 1:41 no-undef "'f' is not defined."
 
 === 415 a11y_attribute_warning_span/codes_upstream_scopes_to_the_element_inside_the_attribute_loop/769ee0d6fa82bfba.svelte	lint.txt
@@ -812,22 +813,25 @@
 1:23 1:29 no-unassigned-vars "'a' is always 'undefined' because it's never assigned."
 1:46 1:52 no-unused-vars "'string' is defined but never used."
 
-=== 405 aligner_resync_4291/cell_a_statement_rewrite_does_not_outrun_the_weak_anchor/8e5583aa921c0c54.svelte	lint.txt
+=== 609 aligner_resync_4291/cell_a_statement_rewrite_does_not_outrun_the_weak_anchor/8e5583aa921c0c54.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:7 svelte/valid-compile "`m` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:6 2:7 no-useless-assignment "The value assigned to 'm' is not used in subsequent statements."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:24 3:30 no-unused-vars "'e' is defined but never used."
 
-=== 332 aligner_resync_4291/cell_first_fragment_after_an_import/c0dec4974f965134.svelte	lint.txt
+=== 541 aligner_resync_4291/cell_first_fragment_after_an_import/c0dec4974f965134.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:19 svelte/valid-compile "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 301 aligner_resync_4291/cell_update_expression_in_an_arrow/98d2e33c83baabf8.svelte	lint.txt
+=== 510 aligner_resync_4291/cell_update_expression_in_an_arrow/98d2e33c83baabf8.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:19 svelte/valid-compile "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:2 3:13 no-undef "'setInterval' is not defined."
 
@@ -977,18 +981,21 @@
 1:1 1:50 svelte/button-has-type "Missing an explicit type attribute for button."
 1:32 1:38 no-undef "'handle' is not defined."
 
-=== 127 arrow_param_spans/on_directive_event_handler_spans/ae9bca4c1e7652a6.svelte	lint.txt
+=== 339 arrow_param_spans/on_directive_event_handler_spans/ae9bca4c1e7652a6.svelte	lint.txt
 1:1 1:51 svelte/button-has-type "Missing an explicit type attribute for button."
+1:9 1:50 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:33 1:39 no-undef "'handle' is not defined."
 
 === 81 arrow_param_spans/single_param_event_handler_span/8037d0cd038c92b5.svelte	lint.txt
 1:1 1:28 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 570 arrow_parens_in_comment/a_comment_body_containing_an_arrow_paren_survives_verbatim/b71575970126162b.svelte	lint.txt
+=== 986 arrow_parens_in_comment/a_comment_body_containing_an_arrow_paren_survives_verbatim/b71575970126162b.svelte	lint.txt
+2:7 2:8 svelte/valid-compile "`x` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:25 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 9:1 9:25 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+9:4 9:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 848 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/093064edb3985d40.svelte	lint.txt
+=== 1060 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/093064edb3985d40.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
@@ -1000,8 +1007,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 848 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/13d6725ed16fd237.svelte	lint.txt
+=== 1060 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/13d6725ed16fd237.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
@@ -1013,8 +1021,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 848 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/1497f87c13840b6d.svelte	lint.txt
+=== 1060 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/1497f87c13840b6d.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
@@ -1026,8 +1035,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 759 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/5b5203e470016dae.svelte	lint.txt
+=== 971 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/5b5203e470016dae.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 no-unused-vars "'o' is assigned a value but never used."
@@ -1038,8 +1048,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 848 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/66bb3ccace420229.svelte	lint.txt
+=== 1060 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/66bb3ccace420229.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
@@ -1051,8 +1062,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 772 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/b773de086a13d92e.svelte	lint.txt
+=== 984 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/b773de086a13d92e.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
@@ -1063,21 +1075,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 848 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/d2534e012b3ca061.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:7 no-unused-vars "'a' is assigned a value but never used."
-4:6 4:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-4:13 4:14 no-unused-vars "'b' is assigned a value but never used."
-4:13 4:14 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
-
-=== 848 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/d6b8cc55d3303904.svelte	lint.txt
+=== 1060 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/d2534e012b3ca061.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
@@ -1089,8 +1089,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 848 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/df41ffd4a3361114.svelte	lint.txt
+=== 1060 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/d6b8cc55d3303904.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
@@ -1102,8 +1103,23 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 906 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/df57f32429bc1537.svelte	lint.txt
+=== 1060 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/df41ffd4a3361114.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:7 no-unused-vars "'a' is assigned a value but never used."
+4:6 4:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+4:13 4:14 no-unused-vars "'b' is assigned a value but never used."
+4:13 4:14 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
+
+=== 1118 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/df57f32429bc1537.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:11 2:12 no-unused-vars "'s' is defined but never used."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1116,8 +1132,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 772 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/e9b8b5010431abff.svelte	lint.txt
+=== 984 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/e9b8b5010431abff.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
@@ -1128,8 +1145,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 848 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/ecdf2a2b20c6d71d.svelte	lint.txt
+=== 1060 assign_chain_location/an_assignment_claims_the_site_of_its_own_left_hand_side/ecdf2a2b20c6d71d.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'o' is never reassigned. Use 'const' instead."
@@ -1141,6 +1159,7 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
+9:9 9:22 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
 === 319 assign_dev_binding_initial/a_sequence_expression_is_not_a_known_primitive/4efcd2c40d01dea7.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2309,10 +2328,11 @@
 5:10 5:11 no-unused-vars "'g' is defined but never used."
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 734 ast_handoff_coordinate_free/stripping_leaves_no_span_and_no_comment_behind/034c74f39d5efba7.svelte	lint.txt
+=== 898 ast_handoff_coordinate_free/stripping_leaves_no_span_and_no_comment_behind/034c74f39d5efba7.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:2 4:23 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:6 5:13 svelte/prefer-const "'doubled' is never reassigned. Use 'const' instead."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2586,7 +2606,8 @@
 
 === 0 attach_expression_metadata_3569/every_legal_host_populates_local_call_metadata/69be21ba661ee9ea.svelte	lint.txt
 
-=== 133 attach_expression_metadata_3569/every_legal_host_populates_local_call_metadata/a50c4f19353112e0.svelte	lint.txt
+=== 332 attach_expression_metadata_3569/every_legal_host_populates_local_call_metadata/a50c4f19353112e0.svelte	lint.txt
+1:36 1:87 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 1:60 1:66 no-undef "'Widget' is not defined."
 1:68 1:84 svelte/max-attributes-per-line "'{@attach make()}' should be on a new line."
 
@@ -2594,7 +2615,8 @@
 
 === 0 attach_expression_metadata_3569/global_call_is_not_promoted_to_an_impure_call/740173fbddb99a9a.svelte	lint.txt
 
-=== 0 attach_expression_metadata_3569/legacy_props_member_is_reactive_without_a_scope_binding/33ecec0ed8bd5b02.svelte	lint.txt
+=== 133 attach_expression_metadata_3569/legacy_props_member_is_reactive_without_a_scope_binding/33ecec0ed8bd5b02.svelte	lint.txt
+1:15 1:22 svelte/valid-compile "Cannot use `$$props` in runes mode\nhttps://svelte.dev/e/legacy_props_invalid(legacy_props_invalid)"
 
 === 0 attach_expression_metadata_3569/runes_prop_binding_is_reactive_without_inventing_a_call/4849592c60ca8fba.svelte	lint.txt
 
@@ -2606,11 +2628,13 @@
 
 === 0 attribute_expression_metadata_3569/every_legal_host_populates_local_call_metadata/116e72e4cbd42249.svelte	lint.txt
 
-=== 121 attribute_expression_metadata_3569/every_legal_host_populates_local_call_metadata/43a75cbad79b13d0.svelte	lint.txt
+=== 320 attribute_expression_metadata_3569/every_legal_host_populates_local_call_metadata/43a75cbad79b13d0.svelte	lint.txt
+1:36 1:84 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 1:60 1:66 no-undef "'Widget' is not defined."
 1:68 1:81 svelte/max-attributes-per-line "'prop' should be on a new line."
 
-=== 77 attribute_expression_metadata_3569/every_legal_host_populates_local_call_metadata/77881edaefd55560.svelte	lint.txt
+=== 269 attribute_expression_metadata_3569/every_legal_host_populates_local_call_metadata/77881edaefd55560.svelte	lint.txt
+1:36 1:59 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:57 1:59 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 304 attribute_expression_metadata_3569/every_legal_host_populates_local_call_metadata/cc44da6544c8dc16.svelte	lint.txt
@@ -2629,23 +2653,29 @@
 1:13 1:18 svelte/prefer-const "'title' is never reassigned. Use 'const' instead."
 1:44 1:57 svelte/shorthand-attribute "Expected shorthand attribute."
 
-=== 198 attribute_quoted_runes_only/legacy_component_attribute_is_not_flagged/665e2b6ed5b83a5c.svelte	lint.txt
+=== 438 attribute_quoted_runes_only/legacy_component_attribute_is_not_flagged/665e2b6ed5b83a5c.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 2:2 2:11 no-undef "'Component' is not defined."
+2:12 2:20 svelte/valid-compile "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted(attribute_quoted)"
 2:15 2:20 svelte/html-quotes "Unexpected to be enclosed by any quotes."
 
-=== 150 attribute_quoted_runes_only/legacy_custom_element_attribute_is_not_flagged/30b920a6d47f1b31.svelte	lint.txt
+=== 389 attribute_quoted_runes_only/legacy_custom_element_attribute_is_not_flagged/30b920a6d47f1b31.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
+2:8 2:16 svelte/valid-compile "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted(attribute_quoted)"
 2:11 2:16 svelte/html-quotes "Unexpected to be enclosed by any quotes."
 
-=== 264 attribute_quoted_runes_only/legacy_svelte_component_attribute_is_not_flagged/38d9aca83bac5add.svelte	lint.txt
+=== 702 attribute_quoted_runes_only/legacy_svelte_component_attribute_is_not_flagged/38d9aca83bac5add.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
+2:1 2:39 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 2:25 2:26 no-undef "'C' is not defined."
 2:28 2:36 svelte/max-attributes-per-line "'id' should be on a new line."
+2:28 2:36 svelte/valid-compile "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted(attribute_quoted)"
 2:31 2:36 svelte/html-quotes "Unexpected to be enclosed by any quotes."
 
-=== 150 attribute_quoted_runes_only/legacy_svelte_self_attribute_is_not_flagged/e73347eb15114f93.svelte	lint.txt
+=== 592 attribute_quoted_runes_only/legacy_svelte_self_attribute_is_not_flagged/e73347eb15114f93.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
+2:8 2:32 svelte/valid-compile "`<svelte:self>` is deprecated — use self-imports (e.g. `import Self from './Self.svelte'`) instead\nhttps://svelte.dev/e/svelte_self_deprecated(svelte_self_deprecated)"
+2:21 2:29 svelte/valid-compile "Quoted attributes on components and custom elements will be stringified in a future version of Svelte. If this isn't what you want, remove the quotes\nhttps://svelte.dev/e/attribute_quoted(attribute_quoted)"
 2:24 2:29 svelte/html-quotes "Unexpected to be enclosed by any quotes."
 
 === 401 attribute_quoted_runes_only/message_matches_upstream/b96804ed23304a4b.svelte	lint.txt
@@ -3037,8 +3067,9 @@
 === 44 await_comment_run_relocation/a_later_comment_does_not_break_the_moved_run/60f7c2b45f9f4304.svelte.js	lint.txt
 2:24 2:28 no-undef "'load' is not defined."
 
-=== 369 await_comment_run_relocation/a_legacy_instance_script_relocates_the_run_too/9722898dbeb88c58.svelte	lint.txt
+=== 533 await_comment_run_relocation/a_legacy_instance_script_relocates_the_run_too/9722898dbeb88c58.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:25 4:29 no-undef "'load' is not defined."
@@ -3465,7 +3496,8 @@
 === 294 bidirectional_control_characters_slots_3227/an_attribute_value_is_walked/eb278017e1f6ee99.svelte	lint.txt
 1:13 1:14 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 
-=== 371 bidirectional_control_characters_slots_3227/every_attribute_host_is_walked/00e374ad2c81083e.svelte	lint.txt
+=== 562 bidirectional_control_characters_slots_3227/every_attribute_host_is_walked/00e374ad2c81083e.svelte	lint.txt
+1:1 1:20 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:14 1:15 svelte/valid-compile "A bidirectional control character was detected in your code. These characters can be used to alter the visual direction of your code and could have unintended consequences\nhttps://svelte.dev/e/bidirectional_control_characters(bidirectional_control_characters)"
 1:18 1:20 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
@@ -6246,16 +6278,18 @@
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 392 binding_annotation_map_end_4319/cell_comment_then_annotated_declarator/0879d553971b083d.svelte	lint.txt
+=== 601 binding_annotation_map_end_4319/cell_comment_then_annotated_declarator/0879d553971b083d.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:19 svelte/valid-compile "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:11 6:14 no-unused-vars "'inc' is defined but never used."
 
-=== 392 binding_annotation_map_end_4319/cell_comment_then_plain_declarator/51297ab8504db93d.svelte	lint.txt
+=== 601 binding_annotation_map_end_4319/cell_comment_then_plain_declarator/51297ab8504db93d.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:11 svelte/valid-compile "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:11 6:14 no-unused-vars "'inc' is defined but never used."
@@ -6295,9 +6329,8 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:20 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
 
-=== 170 binding_ownership_ignore_4401/an_ignore_on_a_wrapping_block_reaches_the_binding/5634adef671c9d7a.svelte	lint.txt
+=== 81 binding_ownership_ignore_4401/an_ignore_on_a_wrapping_block_reaches_the_binding/5634adef671c9d7a.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:20 5:46 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 
 === 203 binding_ownership_ignore_4401/an_ignore_on_a_wrapping_block_reaches_the_binding/9fc508514913b90b.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6307,18 +6340,16 @@
 === 81 binding_ownership_ignore_4401/an_ignore_on_a_wrapping_block_reaches_the_binding/a17a41d44c754295.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 292 binding_ownership_ignore_4401/an_ignore_on_a_wrapping_block_reaches_the_binding/d891684fc76e80f3.svelte	lint.txt
+=== 203 binding_ownership_ignore_4401/an_ignore_on_a_wrapping_block_reaches_the_binding/d891684fc76e80f3.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:20 5:46 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 6:1 6:17 svelte/require-each-key "Each block should have a key"
 6:15 6:16 no-unused-vars "'i' is defined but never used."
 
 === 81 binding_ownership_ignore_4401/an_ignore_on_the_element_suppresses_its_binding/63eb823b707fc82d.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 170 binding_ownership_ignore_4401/the_same_ignore_does_not_reach_bind_this/c31cbb1c8cb33407.svelte	lint.txt
+=== 81 binding_ownership_ignore_4401/the_same_ignore_does_not_reach_bind_this/c31cbb1c8cb33407.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:20 5:46 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 
 === 117 block_close_mismatch/matching_block_closes_still_parse/00dd150e5ae1690e.svelte	lint.txt
 1:6 1:8 no-undef "'ok' is not defined."
@@ -7863,7 +7894,8 @@
 
 === 0 client_definedness_3259_3599_3601/option_values_with_defined_expression_shapes_have_no_guard/873665d93d4bc1a8.svelte	lint.txt
 
-=== 78 client_definedness_3259_3599_3601/title_resolves_a_binding_with_a_binary_initializer/436e2120fa17c666.svelte	lint.txt
+=== 242 client_definedness_3259_3599_3601/title_resolves_a_binding_with_a_binary_initializer/436e2120fa17c666.svelte	lint.txt
+1:9 1:26 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 1:31 1:32 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 
 === 441 client_each_scope_shadow_3215/a_non_shadowing_read_still_folds/384dfd3a0a8dacf1.svelte	lint.txt
@@ -7982,11 +8014,12 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
-=== 407 client_script_comments_pin/module_and_instance_script_comments/584522c43b93bda2.svelte	lint.txt
+=== 611 client_script_comments_pin/module_and_instance_script_comments/584522c43b93bda2.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:7 svelte/valid-compile "`n` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:29 svelte/button-has-type "Missing an explicit type attribute for button."
 
 === 319 client_script_comments_pin/trailing_script_comment_flushes_at_the_next_located_node/0e3254c7eb210965.svelte	lint.txt
@@ -8031,94 +8064,128 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 570 client_trailing_binary_operator/a_post_increment_still_ends_the_statement/1b7638a19bd7db5a.svelte	lint.txt
+=== 986 client_trailing_binary_operator/a_post_increment_still_ends_the_statement/1b7638a19bd7db5a.svelte	lint.txt
+2:7 2:8 svelte/valid-compile "`n` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:25 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 9:1 9:25 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+9:4 9:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 249 client_trailing_binary_operator/a_trailing_comma_keeps_its_right_operand/17e34ba6372f2b65.svelte	lint.txt
+=== 413 client_trailing_binary_operator/a_trailing_comma_keeps_its_right_operand/17e34ba6372f2b65.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 4:6 4:10 no-undef "'kind' is not defined."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 10:28 10:32 no-undef "'kind' is not defined."
 
-=== 659 client_trailing_binary_operator/a_typescript_annotation_tail_is_not_a_continuation/ad2f5091fcb73c01.svelte	lint.txt
+=== 1485 client_trailing_binary_operator/a_typescript_annotation_tail_is_not_a_continuation/ad2f5091fcb73c01.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:7 2:25 svelte/valid-compile "`u` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+3:7 3:29 svelte/valid-compile "`m` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+4:7 4:8 svelte/valid-compile "`n` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:31 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 8:1 8:31 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+8:4 8:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 652 client_trailing_binary_operator/an_identifier_ending_in_in_is_not_the_in_operator/a6d34c94b0367e31.svelte	lint.txt
+=== 1283 client_trailing_binary_operator/an_identifier_ending_in_in_is_not_the_in_operator/a6d34c94b0367e31.svelte	lint.txt
 2:7 2:13 svelte/prefer-const "'margin' is never reassigned. Use 'const' instead."
+3:7 3:13 svelte/valid-compile "`scaled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+4:7 4:12 svelte/valid-compile "`other` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:37 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 8:1 8:37 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+8:4 8:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 0 client_trailing_binary_operator/an_operator_inside_a_comment_is_not_a_continuation/e6919adfb1af8e25.svelte	lint.txt
+=== 164 client_trailing_binary_operator/an_operator_inside_a_comment_is_not_a_continuation/e6919adfb1af8e25.svelte	lint.txt
+2:3 2:20 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
-=== 654 client_trailing_binary_operator/client_keeps_the_operand_after_a_trailing_or/bf9e09b207a0c3c2.svelte	lint.txt
+=== 1074 client_trailing_binary_operator/client_keeps_the_operand_after_a_trailing_or/bf9e09b207a0c3c2.svelte	lint.txt
+2:7 2:11 svelte/valid-compile "`flag` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:14 2:17 no-undef "'foo' is not defined."
 3:5 3:8 no-undef "'foo' is not defined."
 7:1 7:28 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 7:1 7:28 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+7:4 7:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 0 client_trailing_binary_operator/client_keeps_the_operand_after_a_trailing_strict_equals/dd39afb8c8f33799.svelte	lint.txt
+=== 164 client_trailing_binary_operator/client_keeps_the_operand_after_a_trailing_strict_equals/dd39afb8c8f33799.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/35368d1b03c3de7b.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/35368d1b03c3de7b.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/4a2198f5d5aecbfc.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/4a2198f5d5aecbfc.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/4e0390373772d626.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/4e0390373772d626.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/575dba54dc97475f.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/575dba54dc97475f.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/6089f0b4cfc242be.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/6089f0b4cfc242be.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/63cca77419a03e41.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/63cca77419a03e41.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/6b006fde70ef459d.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/6b006fde70ef459d.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/7970b83192b5d3a5.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/7970b83192b5d3a5.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/7a390478cde6c372.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/7a390478cde6c372.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/7cd7cf0ba4e3c045.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/7cd7cf0ba4e3c045.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/8a2acb7c72efecec.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/8a2acb7c72efecec.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/9c7ffb773648d4b7.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/9c7ffb773648d4b7.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/a922f4929124159e.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/a922f4929124159e.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/b07bc8a7becea3dd.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/b07bc8a7becea3dd.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/bad63ea2e4fbfbde.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/bad63ea2e4fbfbde.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/c6cc985772155e8e.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/c6cc985772155e8e.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/ce446c7be931cb04.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/ce446c7be931cb04.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/d1fca52234b8b3bb.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/d1fca52234b8b3bb.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/d2c4bf27121af27b.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/d2c4bf27121af27b.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 83 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/fde5d9dbbd3d765b.svelte	lint.txt
+=== 247 client_trailing_binary_operator/every_continuing_operator_keeps_its_right_operand/fde5d9dbbd3d765b.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 10:1 10:27 svelte/button-has-type "Missing an explicit type attribute for button."
 
 === 58 client_transforms_pin/h024_nullish_compound_lowers_to_get_then_coalesce/1614cdc13d36c10e.svelte	lint.txt
@@ -8136,12 +8203,14 @@
 7:1 7:9 svelte/indent "Expected indentation of 0 spaces but found 8 spaces."
 8:1 8:9 svelte/indent "Expected indentation of 0 spaces but found 8 spaces."
 
-=== 163 comma_declaration_split/a_same_line_block_comment_between_declarators_stays_inline/a2c395f37e2f82fd.svelte	lint.txt
+=== 327 comma_declaration_split/a_same_line_block_comment_between_declarators_stays_inline/a2c395f37e2f82fd.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 3:20 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 
-=== 245 comma_declaration_split/an_own_line_block_comment_between_declarators_keeps_its_line/210080905eacfaec.svelte	lint.txt
+=== 408 comma_declaration_split/an_own_line_block_comment_between_declarators_keeps_its_line/210080905eacfaec.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 4:9 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 
@@ -8288,13 +8357,16 @@
 2:6 2:7 svelte/prefer-const "'p' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
 
-=== 613 comment_delimiters_in_initializer/a_closing_paren_in_a_comment_does_not_end_the_initializer/29667fc68cabedce.svelte	lint.txt
+=== 1029 comment_delimiters_in_initializer/a_closing_paren_in_a_comment_does_not_end_the_initializer/29667fc68cabedce.svelte	lint.txt
+2:7 2:8 svelte/valid-compile "`y` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:11 2:14 no-undef "'foo' is not defined."
 6:1 6:25 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 6:1 6:25 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+6:4 6:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 1020 comment_delimiters_in_initializer/a_comment_inside_a_call_argument_list_survives_the_server/f61be1a7fe65dc8c.svelte	lint.txt
+=== 1436 comment_delimiters_in_initializer/a_comment_inside_a_call_argument_list_survives_the_server/f61be1a7fe65dc8c.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:7 svelte/valid-compile "`v` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:10 2:13 no-undef "'foo' is not defined."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -8302,54 +8374,68 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:25 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 9:1 9:25 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+9:4 9:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 977 comment_delimiters_in_initializer/a_comment_inside_an_array_initializer_survives_the_server/eac7adb5bdd44e14.svelte	lint.txt
+=== 1398 comment_delimiters_in_initializer/a_comment_inside_an_array_initializer_survives_the_server/eac7adb5bdd44e14.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:11 svelte/valid-compile "`items` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:32 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 9:1 9:32 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+9:4 9:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 564 comment_delimiters_in_initializer/a_comment_inside_an_if_block_still_survives_the_server/9ca8e3bacb994eae.svelte	lint.txt
+=== 768 comment_delimiters_in_initializer/a_comment_inside_an_if_block_still_survives_the_server/9ca8e3bacb994eae.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:7 svelte/valid-compile "`b` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 977 comment_delimiters_in_initializer/a_comment_inside_an_object_initializer_survives_the_server/20457fb29d62676a.svelte	lint.txt
+=== 1397 comment_delimiters_in_initializer/a_comment_inside_an_object_initializer_survives_the_server/20457fb29d62676a.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:10 svelte/valid-compile "`data` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:30 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 9:1 9:30 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+9:4 9:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 732 comment_delimiters_in_initializer/a_multi_declarator_declaration_is_still_split/a70677a6aa39ab7a.svelte	lint.txt
+=== 1354 comment_delimiters_in_initializer/a_multi_declarator_declaration_is_still_split/a70677a6aa39ab7a.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:7 svelte/valid-compile "`a` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+2:13 2:14 svelte/valid-compile "`b` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:28 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 6:1 6:28 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+6:4 6:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 691 comment_delimiters_in_initializer/a_real_semicolon_still_ends_the_initializer/7b1f0cd92ed0d552.svelte	lint.txt
+=== 1107 comment_delimiters_in_initializer/a_real_semicolon_still_ends_the_initializer/7b1f0cd92ed0d552.svelte	lint.txt
+2:7 2:8 svelte/valid-compile "`x` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:11 2:14 no-undef "'foo' is not defined."
 2:23 2:24 svelte/prefer-const "'z' is never reassigned. Use 'const' instead."
 6:1 6:28 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 6:1 6:28 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+6:4 6:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 650 comment_delimiters_in_initializer/a_semicolon_in_a_comment_does_not_end_the_initializer/f33b934ef3d871b6.svelte	lint.txt
+=== 1066 comment_delimiters_in_initializer/a_semicolon_in_a_comment_does_not_end_the_initializer/f33b934ef3d871b6.svelte	lint.txt
+2:7 2:8 svelte/valid-compile "`x` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:11 2:12 no-undef "'a' is not defined."
 3:5 3:6 no-undef "'b' is not defined."
 7:1 7:25 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 7:1 7:25 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+7:4 7:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 326 comment_delimiters_in_initializer/an_exported_prop_is_still_prop_lowered/b683ecb8fbc3e5b5.svelte	lint.txt
+=== 489 comment_delimiters_in_initializer/an_exported_prop_is_still_prop_lowered/b683ecb8fbc3e5b5.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 5:4 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8399,45 +8485,55 @@
 3:6 3:7 no-unused-vars "'b' is assigned a value but never used."
 3:6 3:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 
-=== 613 comment_delimiters_in_initializer/the_generated_paren_starts_after_a_trailing_line_comment/11b7ee451bd20bbd.svelte	lint.txt
+=== 1029 comment_delimiters_in_initializer/the_generated_paren_starts_after_a_trailing_line_comment/11b7ee451bd20bbd.svelte	lint.txt
+2:7 2:8 svelte/valid-compile "`x` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:11 2:14 no-undef "'foo' is not defined."
 6:1 6:25 svelte/valid-compile "Visible, non-interactive element `<p>` with a click event must be accompanied by a keyboard event handler. Consider whether an interactive element such as `<button type=\"button\">` or `<a>` might be more appropriate\nhttps://svelte.dev/e/a11y_click_events_have_key_events(a11y_click_events_have_key_events)"
 6:1 6:25 svelte/valid-compile "Non-interactive element `<p>` should not be assigned mouse or keyboard event listeners\nhttps://svelte.dev/e/a11y_no_noninteractive_element_interactions(a11y_no_noninteractive_element_interactions)"
+6:4 6:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
-=== 81 comment_in_destructure_pattern_2434/block_comment_in_a_multi_line_object_pattern/d4609e67eee6e2ca.svelte	lint.txt
+=== 286 comment_in_destructure_pattern_2434/block_comment_in_a_multi_line_object_pattern/d4609e67eee6e2ca.svelte	lint.txt
+3:9 3:10 svelte/valid-compile "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:23 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 81 comment_in_destructure_pattern_2434/comment_containing_a_comma_is_not_a_separator/d22f41ebc7492fde.svelte	lint.txt
+=== 286 comment_in_destructure_pattern_2434/comment_containing_a_comma_is_not_a_separator/d22f41ebc7492fde.svelte	lint.txt
+3:9 3:10 svelte/valid-compile "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:23 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 158 comment_in_destructure_pattern_2434/comment_in_a_nested_object_pattern/0600679f4b1308ae.svelte	lint.txt
-4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+=== 287 comment_in_destructure_pattern_2434/comment_in_a_nested_object_pattern/0600679f4b1308ae.svelte	lint.txt
+3:10 3:11 svelte/valid-compile "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:23 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 158 comment_in_destructure_pattern_2434/comment_in_an_array_pattern/4fca9a775e006767.svelte	lint.txt
-4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+=== 285 comment_in_destructure_pattern_2434/comment_in_an_array_pattern/4fca9a775e006767.svelte	lint.txt
+3:5 3:6 svelte/valid-compile "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:23 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 222 comment_in_destructure_pattern_2434/comment_preceding_a_binding_in_the_same_segment/ea737dc5bd53a058.svelte	lint.txt
+=== 427 comment_in_destructure_pattern_2434/comment_preceding_a_binding_in_the_same_segment/ea737dc5bd53a058.svelte	lint.txt
 3:5 3:6 no-unused-vars "'a' is assigned a value but never used."
 3:5 3:6 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+5:9 5:10 svelte/valid-compile "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:23 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 81 comment_in_destructure_pattern_2434/line_comment_in_a_multi_line_object_pattern/e44e5f5c0f19570a.svelte	lint.txt
+=== 286 comment_in_destructure_pattern_2434/line_comment_in_a_multi_line_object_pattern/e44e5f5c0f19570a.svelte	lint.txt
+3:9 3:10 svelte/valid-compile "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:23 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 81 comment_in_destructure_pattern_2434/multi_line_pattern_without_a_comment_is_unaffected/92c708e6bc25d4ee.svelte	lint.txt
+=== 286 comment_in_destructure_pattern_2434/multi_line_pattern_without_a_comment_is_unaffected/92c708e6bc25d4ee.svelte	lint.txt
+3:9 3:10 svelte/valid-compile "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:23 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 226 comment_in_destructure_pattern_2434/regex_default_containing_a_comment_marker_survives/2ea759792031e93a.svelte	lint.txt
+=== 432 comment_in_destructure_pattern_2434/regex_default_containing_a_comment_marker_survives/2ea759792031e93a.svelte	lint.txt
+2:13 2:14 svelte/valid-compile "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:17 2:18 no-unused-vars "'e' is assigned a value but never used."
 2:17 2:18 svelte/prefer-const "'e' is never reassigned. Use 'const' instead."
 5:1 5:23 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 81 comment_in_destructure_pattern_2434/single_line_pattern_without_a_comment_is_unaffected/6945a00ec24aec66.svelte	lint.txt
+=== 287 comment_in_destructure_pattern_2434/single_line_pattern_without_a_comment_is_unaffected/6945a00ec24aec66.svelte	lint.txt
+2:13 2:14 svelte/valid-compile "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:23 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 226 comment_in_destructure_pattern_2434/stripping_a_comment_does_not_glue_the_tokens_around_it/c49baa1ccd8badaf.svelte	lint.txt
+=== 432 comment_in_destructure_pattern_2434/stripping_a_comment_does_not_glue_the_tokens_around_it/c49baa1ccd8badaf.svelte	lint.txt
+2:13 2:14 svelte/valid-compile "`d` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:17 2:18 no-unused-vars "'e' is assigned a value but never used."
 2:17 2:18 svelte/prefer-const "'e' is never reassigned. Use 'const' instead."
 5:1 5:23 svelte/button-has-type "Missing an explicit type attribute for button."
@@ -8458,16 +8554,14 @@
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1231 comment_quote_read_scans/a_svelte_ignore_apostrophe_does_not_swallow_a_prop_read/05b5641405ff3a64.svelte	lint.txt
+=== 1128 comment_quote_read_scans/a_svelte_ignore_apostrophe_does_not_swallow_a_prop_read/05b5641405ff3a64.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:23 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:33 5:34 no-unused-vars "'r' is defined but never used."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-7:21 7:56 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-7:57 7:61 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-7:62 7:65 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 8:1 8:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 9:1 9:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 10:1 10:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -8543,7 +8637,8 @@
 4:24 4:28 svelte/prefer-const "'step' is never reassigned. Use 'const' instead."
 6:1 6:23 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 81 compile_both_parity/compile_both_matches_two_separate_compiles/d4d62b31a21d9ce4.svelte	lint.txt
+=== 275 compile_both_parity/compile_both_matches_two_separate_compiles/d4d62b31a21d9ce4.svelte	lint.txt
+3:3 3:26 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 6:1 6:24 svelte/button-has-type "Missing an explicit type attribute for button."
 
 === 145 compile_both_parity/compile_both_matches_two_separate_compiles/efeea1d66ca641ed.svelte	lint.txt
@@ -8591,7 +8686,8 @@
 1:1 3:13 svelte/require-each-key "Each block should have a key"
 1:8 1:13 no-undef "'items' is not defined."
 
-=== 0 compile_result_legacy_ast_3295/default_options_return_the_legacy_ast/1d35445df89ba17e.svelte	lint.txt
+=== 164 compile_result_legacy_ast_3295/default_options_return_the_legacy_ast/1d35445df89ba17e.svelte	lint.txt
+2:3 2:21 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
 === 238 compile_script_directive_4133/a_client_directive_prologue_reaches_the_generated_module/ffd4a19cdd4be4dd.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8656,13 +8752,14 @@
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 9:6 9:24 svelte/no-inline-styles "Found disallowed style directive."
 
-=== 249 compiler/phases/phase2_analyze/legacy_reactive_stays_typed/adding_reactive_statements_serializes_no_json/8b797f056e9f754f.svelte	lint.txt
+=== 413 compiler/phases/phase2_analyze/legacy_reactive_stays_typed/adding_reactive_statements_serializes_no_json/8b797f056e9f754f.svelte	lint.txt
+2:3 2:25 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:7 3:12 no-useless-assignment "The value assigned to 'total' is not used in subsequent statements."
 4:7 4:12 no-useless-assignment "The value assigned to 'label' is not used in subsequent statements."
 7:23 7:30 no-undef "'console' is not defined."
 
-=== 381 compiler/phases/phase2_analyze/legacy_reactive_stays_typed/adding_reactive_statements_serializes_no_json/98965c255bcaac60.svelte	lint.txt
-2:14 2:19 svelte/valid-compile "Component has unused export property 'items'. If it is for external reference only, please consider using `export const items`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+=== 326 compiler/phases/phase2_analyze/legacy_reactive_stays_typed/adding_reactive_statements_serializes_no_json/98965c255bcaac60.svelte	lint.txt
+2:3 2:25 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:7 3:12 svelte/prefer-const "'total' is never reassigned. Use 'const' instead."
 4:7 4:12 svelte/prefer-const "'label' is never reassigned. Use 'const' instead."
 
@@ -8709,10 +8806,12 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 235 compiler/phases/phase2_analyze/store_subscriptions/tests/test_module_function_does_not_cause_false_scoped_subscription/26322438fcd2984f.svelte	lint.txt
+=== 625 compiler/phases/phase2_analyze/store_subscriptions/tests/test_module_function_does_not_cause_false_scoped_subscription/26322438fcd2984f.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:42 svelte/button-has-type "Missing an explicit type attribute for button."
+7:9 7:41 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
 === 743 compiler/phases/phase2_analyze/store_subscriptions/tests/test_module_function_does_not_cause_false_scoped_subscription/7bcf85f48f7f2473.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8724,12 +8823,11 @@
 8:32 8:38 svelte/valid-compile "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription(store_invalid_scoped_subscription)"
 8:59 8:61 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 1636 compiler/phases/phase2_analyze/store_subscriptions/tests/test_multiline_destructure_params_not_store_subs/59a386a00b135297.svelte	lint.txt
+=== 1352 compiler/phases/phase2_analyze/store_subscriptions/tests/test_multiline_destructure_params_not_store_subs/59a386a00b135297.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-3:16 3:24 svelte/valid-compile "Component has unused export property 'flatData'. If it is for external reference only, please consider using `export const flatData`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+3:5 3:30 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-4:16 4:23 svelte/valid-compile "Component has unused export property 'xDomain'. If it is for external reference only, please consider using `export const xDomain`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:23 14:6 svelte/require-stores-init "Always set a default value for svelte stores."
@@ -8769,9 +8867,10 @@
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:22 4:26 no-constant-condition "Unexpected constant condition."
 
-=== 219 compiler/phases/phase2_analyze/store_subscriptions/tests/test_ternary_consequent_unary_store_subscription_detected/005db86d77ff7346.svelte	lint.txt
+=== 413 compiler/phases/phase2_analyze/store_subscriptions/tests/test_ternary_consequent_unary_store_subscription_detected/005db86d77ff7346.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:5 3:52 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 3:26 3:30 no-constant-condition "Unexpected constant condition."
 
 === 1283 compiler/phases/phase2_analyze/tests/binding_declaration_positions_are_component_relative/f0178bbb17da57c7.svelte	lint.txt
@@ -8806,9 +8905,9 @@
 7:17 7:33 svelte/max-attributes-per-line "'transition:slide' should be on a new line."
 9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 296 compiler/phases/phase2_analyze/tests/each_binding_references_do_not_mark_shadowed_export_as_used/7351aaad581c76d9.svelte	lint.txt
+=== 241 compiler/phases/phase2_analyze/tests/each_binding_references_do_not_mark_shadowed_export_as_used/7351aaad581c76d9.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:12 2:17 svelte/valid-compile "Component has unused export property 'value'. If it is for external reference only, please consider using `export const value`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+2:1 2:28 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
 === 312 compiler/phases/phase2_analyze/tests/function_parameter_bindings_record_declaration_self_reference/505fb131a1546933.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -8824,19 +8923,21 @@
 4:10 4:19 no-unused-vars "'goto_page' is defined but never used."
 4:20 4:24 no-unused-vars "'page' is assigned a value but never used."
 
-=== 385 compiler/phases/phase2_analyze/tests/legacy_reactive_member_assignment_and_update_match_upstream_bindings/b4649c3ff76eeb46.svelte	lint.txt
+=== 549 compiler/phases/phase2_analyze/tests/legacy_reactive_member_assignment_and_update_match_upstream_bindings/b4649c3ff76eeb46.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:57 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 688 compiler/phases/phase2_analyze/tests/legacy_reactive_metadata_keeps_typed_identity_and_analysis_facts/9c0a45630cdd5e3e.svelte	lint.txt
+=== 882 compiler/phases/phase2_analyze/tests/legacy_reactive_metadata_keeps_typed_identity_and_analysis_facts/9c0a45630cdd5e3e.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:5 3:6 no-useless-assignment "The value assigned to 'b' is not used in subsequent statements."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+4:1 4:14 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 5:6 5:7 no-unused-vars "'b' is assigned a value but never used."
 5:6 5:7 no-useless-assignment "The value assigned to 'b' is not used in subsequent statements."
@@ -8862,8 +8963,9 @@
 1:9 1:35 svelte/valid-compile "Event attribute must be a JavaScript expression, not a string\nhttps://svelte.dev/e/attribute_invalid_event_handler(attribute_invalid_event_handler)"
 1:26 1:33 no-undef "'handler' is not defined."
 
-=== 635 compiler/phases/phase2_analyze/tests/reactive_cycle_graph_resolves_names_through_the_statement_scope/3a6322279547e079.svelte	lint.txt
+=== 799 compiler/phases/phase2_analyze/tests/reactive_cycle_graph_resolves_names_through_the_statement_scope/3a6322279547e079.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:18 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:5 3:6 no-useless-assignment "The value assigned to 'd' is not used in subsequent statements."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -8872,16 +8974,18 @@
 5:26 5:27 no-unused-vars "'e' is defined but never used."
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 481 compiler/phases/phase2_analyze/tests/reactive_cycle_graph_resolves_names_through_the_statement_scope/7193333392eb80fe.svelte	lint.txt
+=== 645 compiler/phases/phase2_analyze/tests/reactive_cycle_graph_resolves_names_through_the_statement_scope/7193333392eb80fe.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:18 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:5 4:6 no-useless-assignment "The value assigned to 'e' is not used in subsequent statements."
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 655 compiler/phases/phase2_analyze/tests/reactive_cycle_graph_resolves_names_through_the_statement_scope/b252bc3a1f30d87a.svelte	lint.txt
+=== 819 compiler/phases/phase2_analyze/tests/reactive_cycle_graph_resolves_names_through_the_statement_scope/b252bc3a1f30d87a.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:18 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:5 3:6 no-useless-assignment "The value assigned to 'd' is not used in subsequent statements."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -8890,8 +8994,9 @@
 5:10 5:11 svelte/prefer-const "'e' is never reassigned. Use 'const' instead."
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 577 compiler/phases/phase2_analyze/tests/reactive_cycle_graph_resolves_names_through_the_statement_scope/c302c83334ba835c.svelte	lint.txt
+=== 741 compiler/phases/phase2_analyze/tests/reactive_cycle_graph_resolves_names_through_the_statement_scope/c302c83334ba835c.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:18 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:5 3:6 no-useless-assignment "The value assigned to 'd' is not used in subsequent statements."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -8899,12 +9004,12 @@
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 557 compiler/phases/phase2_analyze/tests/reactive_cycle_graph_resolves_names_through_the_statement_scope/cf5348dff6706013.svelte	lint.txt
+=== 598 compiler/phases/phase2_analyze/tests/reactive_cycle_graph_resolves_names_through_the_statement_scope/cf5348dff6706013.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 no-useless-assignment "The value assigned to 'a' is not used in subsequent statements."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-4:1 4:20 svelte/valid-compile "Cyclical dependency detected: a → b → a\nhttps://svelte.dev/e/reactive_declaration_cycle(reactive_declaration_cycle)"
+4:1 4:20 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
 === 370 compiler/phases/phase2_analyze/tests/snippet_parameter_assignment_uses_the_assignment_or_binding_span/616b5b20e305a1bc.svelte	lint.txt
@@ -8944,30 +9049,26 @@
 2:14 2:24 svelte/valid-compile "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class(perf_avoid_nested_class)"
 3:27 3:37 svelte/valid-compile "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class(perf_avoid_nested_class)"
 
-=== 441 compiler/phases/phase2_analyze/visitors/class_declaration/tests/legacy_reactive_declaration_counts_as_nested_scope/0ad08e92dae9c07b.svelte	lint.txt
+=== 329 compiler/phases/phase2_analyze/visitors/class_declaration/tests/legacy_reactive_declaration_counts_as_nested_scope/0ad08e92dae9c07b.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:6 2:16 svelte/valid-compile "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class(perf_avoid_nested_class)"
-2:6 2:16 svelte/valid-compile "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class(perf_avoid_nested_class)"
+2:1 2:18 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 2:12 2:13 no-unused-vars "'A' is defined but never used."
 
-=== 604 compiler/phases/phase2_analyze/visitors/class_declaration/tests/legacy_reactive_iife_counts_as_nested_scope/8e8fd77aa77302d1.svelte	lint.txt
+=== 460 compiler/phases/phase2_analyze/visitors/class_declaration/tests/legacy_reactive_iife_counts_as_nested_scope/8e8fd77aa77302d1.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:14 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:4 4:5 no-unused-vars "'k' is assigned a value but never used."
-4:17 4:71 svelte/valid-compile "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class(perf_avoid_nested_class)"
-4:17 4:71 svelte/valid-compile "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class(perf_avoid_nested_class)"
 
-=== 341 compiler/phases/phase2_analyze/visitors/class_declaration/tests/module_legacy_label_does_not_make_a_top_level_class_nested/e42001e531eec750.svelte	lint.txt
+=== 135 compiler/phases/phase2_analyze/visitors/class_declaration/tests/module_legacy_label_does_not_make_a_top_level_class_nested/e42001e531eec750.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:18 svelte/valid-compile "Reactive declarations only exist at the top level of the instance script\nhttps://svelte.dev/e/reactive_declaration_invalid_placement(reactive_declaration_invalid_placement)"
 2:12 2:13 no-unused-vars "'A' is defined but never used."
 
-=== 615 compiler/phases/phase2_analyze/visitors/class_declaration/tests/nested_legacy_label_only_warns_once_for_the_class/714931f8a934cd2e.svelte	lint.txt
+=== 408 compiler/phases/phase2_analyze/visitors/class_declaration/tests/nested_legacy_label_only_warns_once_for_the_class/714931f8a934cd2e.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:10 2:11 no-unused-vars "'f' is defined but never used."
 2:16 2:17 no-unused-labels "'$:' is defined but never used."
-2:16 2:33 svelte/valid-compile "Reactive declarations only exist at the top level of the instance script\nhttps://svelte.dev/e/reactive_declaration_invalid_placement(reactive_declaration_invalid_placement)"
 2:21 2:31 svelte/valid-compile "Avoid declaring classes below the top level scope\nhttps://svelte.dev/e/perf_avoid_nested_class(perf_avoid_nested_class)"
 2:27 2:28 no-unused-vars "'A' is defined but never used."
 
@@ -9017,13 +9118,12 @@
 2:7 2:16 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 5:5 5:12 no-undef "'console' is not defined."
 
-=== 814 compiler/phases/phase3_transform/client/tests/await_reactivity_loss_is_wrapped_unless_ignored/1e71c11f95d6ba25.svelte	lint.txt
+=== 725 compiler/phases/phase3_transform/client/tests/await_reactivity_loss_is_wrapped_unless_ignored/1e71c11f95d6ba25.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:16 3:17 no-unused-vars "'f' is defined but never used."
 4:1 4:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
-4:19 4:40 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 5:19 5:43 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 6:1 6:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
 6:8 6:9 no-unused-vars "'a' is assigned a value but never used."
@@ -9040,13 +9140,12 @@
 4:18 4:22 no-undef "'load' is not defined."
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 725 compiler/phases/phase3_transform/client/tests/await_reactivity_loss_is_wrapped_unless_ignored/d13cedb330028daf.svelte	lint.txt
+=== 636 compiler/phases/phase3_transform/client/tests/await_reactivity_loss_is_wrapped_unless_ignored/d13cedb330028daf.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:16 3:17 no-unused-vars "'f' is defined but never used."
 4:1 4:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
-4:19 4:40 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 5:1 5:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
 5:8 5:9 no-unused-vars "'a' is assigned a value but never used."
 5:18 5:22 no-undef "'load' is not defined."
@@ -9131,7 +9230,7 @@
 1:40 1:60 svelte/require-each-key "Each block should have a key"
 1:60 1:97 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 1230 compiler/phases/phase3_transform/client/tests/erased_typescript_interface_comment_follows_the_declarator_count/4063c539d30068bc.svelte	lint.txt
+=== 962 compiler/phases/phase3_transform/client/tests/erased_typescript_interface_comment_follows_the_declarator_count/4063c539d30068bc.svelte	lint.txt
 1:1 7:14 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 2:19 2:26 no-unused-vars "'$$Props' is defined but never used."
@@ -9140,12 +9239,11 @@
 4:1 4:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 4:19 4:27 no-unused-vars "'$$Events' is defined but never used."
 5:1 5:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-5:20 5:33 svelte/valid-compile "Component has unused export property 'use'. If it is for external reference only, please consider using `export const use`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+5:9 6:33 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 6:1 6:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
-6:13 6:27 svelte/valid-compile "Component has unused export property 'elem'. If it is for external reference only, please consider using `export const elem`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
 7:1 7:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
 
-=== 934 compiler/phases/phase3_transform/client/tests/erased_typescript_interface_comment_follows_the_declarator_count/ebc115023e06fb9b.svelte	lint.txt
+=== 883 compiler/phases/phase3_transform/client/tests/erased_typescript_interface_comment_follows_the_declarator_count/ebc115023e06fb9b.svelte	lint.txt
 1:1 6:14 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 2:19 2:26 no-unused-vars "'$$Props' is defined but never used."
@@ -9154,7 +9252,7 @@
 4:1 4:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 4:19 4:27 no-unused-vars "'$$Events' is defined but never used."
 5:1 5:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-5:20 5:33 svelte/valid-compile "Component has unused export property 'use'. If it is for external reference only, please consider using `export const use`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+5:9 5:39 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 6:1 6:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
 
 === 165 compiler/phases/phase3_transform/client/tests/event_handler_identifier_stays_unwrapped_with_source_span/d002dea4397e020f.svelte	lint.txt
@@ -9176,9 +9274,10 @@
 1:35 1:37 svelte/consistent-selector-style "Selector should select by element type instead of class"
 1:42 1:44 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 227 compiler/phases/phase3_transform/client/tests/invalidation_single_dependency_keeps_sequence_parentheses/9aaac1e368f900de.svelte	lint.txt
+=== 558 compiler/phases/phase3_transform/client/tests/invalidation_single_dependency_keeps_sequence_parentheses/9aaac1e368f900de.svelte	lint.txt
 1:13 1:17 svelte/prefer-const "'list' is never reassigned. Use 'const' instead."
 1:33 1:53 svelte/require-each-key "Each block should have a key"
+1:60 1:77 svelte/valid-compile "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)\nhttps://svelte.dev/e/each_item_invalid_assignment(each_item_invalid_assignment)"
 1:77 1:78 svelte/html-self-closing "Require self-closing on HTML void elements."
 
 === 182 compiler/phases/phase3_transform/client/tests/is_argument_inherits_later_complex_scope_bump/fa0834d4de0a2415.svelte	lint.txt
@@ -9203,9 +9302,10 @@
 10:1 10:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
 
-=== 495 compiler/phases/phase3_transform/client/tests/legacy_prop_trailing_comment_stays_inside_generated_prop_call/dff40f2b1bc4fc42.svelte	lint.txt
+=== 659 compiler/phases/phase3_transform/client/tests/legacy_prop_trailing_comment_stays_inside_generated_prop_call/dff40f2b1bc4fc42.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:41 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9237,14 +9337,13 @@
 8:1 8:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 9:1 9:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 764 compiler/phases/phase3_transform/client/tests/module_comments_after_a_located_body_survive/1252483e25d8d829.svelte	lint.txt
+=== 685 compiler/phases/phase3_transform/client/tests/module_comments_after_a_located_body_survive/1252483e25d8d829.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:7 2:14 no-unused-vars "'Counter' is defined but never used."
-5:1 5:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+5:1 5:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
 7:1 7:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 8:1 8:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 9:1 9:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 12:1 12:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 13:1 13:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -9294,8 +9393,9 @@
 4:8 4:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
 4:15 4:22 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 145 compiler/phases/phase3_transform/client/tests/nonreactive_each_collection_does_not_invalidate_inner_signals/030c96a6c51ecc34.svelte	lint.txt
+=== 476 compiler/phases/phase3_transform/client/tests/nonreactive_each_collection_does_not_invalidate_inner_signals/030c96a6c51ecc34.svelte	lint.txt
 1:1 1:23 svelte/require-each-key "Each block should have a key"
+1:30 1:47 svelte/valid-compile "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)\nhttps://svelte.dev/e/each_item_invalid_assignment(each_item_invalid_assignment)"
 1:47 1:48 svelte/html-self-closing "Require self-closing on HTML void elements."
 
 === 81 compiler/phases/phase3_transform/client/tests/only_the_listed_global_constants_are_known_members/1d4acb77bfc5b39d.svelte	lint.txt
@@ -9592,15 +9692,17 @@
 3:8 3:12 no-unused-vars "'user' is assigned a value but never used."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 227 compiler/phases/phase3_transform/client/tests/reactive_each_collection_still_invalidates_inner_signals/7fd6030d27744f4a.svelte	lint.txt
+=== 558 compiler/phases/phase3_transform/client/tests/reactive_each_collection_still_invalidates_inner_signals/7fd6030d27744f4a.svelte	lint.txt
 1:13 1:17 svelte/prefer-const "'list' is never reassigned. Use 'const' instead."
 1:36 1:56 svelte/require-each-key "Each block should have a key"
+1:63 1:80 svelte/valid-compile "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)\nhttps://svelte.dev/e/each_item_invalid_assignment(each_item_invalid_assignment)"
 1:80 1:81 svelte/html-self-closing "Require self-closing on HTML void elements."
 
-=== 682 compiler/phases/phase3_transform/client/tests/reactive_iife_local_store_spelling_is_not_rewritten/f5bc6b420bfc7d93.svelte	lint.txt
+=== 876 compiler/phases/phase3_transform/client/tests/reactive_iife_local_store_spelling_is_not_rewritten/f5bc6b420bfc7d93.svelte	lint.txt
 2:1 2:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 3:1 3:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 4:1 4:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
+4:9 7:14 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 4:12 4:17 no-unused-vars "'label' is defined but never used."
 5:1 5:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
 6:1 6:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
@@ -9608,8 +9710,9 @@
 8:1 8:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
 9:1 9:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
 
-=== 581 compiler/phases/phase3_transform/client/tests/reactive_statement_order_ignores_whitespace_around_the_assignment/e9a09be062bd52ca.svelte	lint.txt
+=== 745 compiler/phases/phase3_transform/client/tests/reactive_statement_order_ignores_whitespace_around_the_assignment/e9a09be062bd52ca.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:21 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:5 4:8 no-useless-assignment "The value assigned to 'out' is not used in subsequent statements."
@@ -9617,8 +9720,9 @@
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 6:6 6:9 no-useless-assignment "The value assigned to 'mid' is not used in subsequent statements."
 
-=== 581 compiler/phases/phase3_transform/client/tests/reactive_statement_order_ignores_whitespace_around_the_assignment/f4eec37b8a1f43e4.svelte	lint.txt
+=== 745 compiler/phases/phase3_transform/client/tests/reactive_statement_order_ignores_whitespace_around_the_assignment/f4eec37b8a1f43e4.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:21 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:5 4:8 no-useless-assignment "The value assigned to 'out' is not used in subsequent statements."
@@ -9712,7 +9816,8 @@
 1:34 1:36 svelte/consistent-selector-style "Selector should select by element type instead of class"
 1:41 1:43 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 78 compiler/phases/phase3_transform/client/tests/same_line_legacy_export_declaration_does_not_consume_the_next_statement/389c9d6c86c37836.svelte	lint.txt
+=== 242 compiler/phases/phase3_transform/client/tests/same_line_legacy_export_declaration_does_not_consume_the_next_statement/389c9d6c86c37836.svelte	lint.txt
+1:9 1:31 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 1:36 1:37 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
 
 === 204 compiler/phases/phase3_transform/client/tests/scoped_static_class_keeps_its_hash_when_the_expression_is_spanned/a37a88afca8261d9.svelte	lint.txt
@@ -9776,8 +9881,9 @@
 
 === 0 compiler/phases/phase3_transform/client/tests/test_bindable_prop_setter_uses_function_call/5af1fe5bd36c0819.svelte	lint.txt
 
-=== 243 compiler/phases/phase3_transform/client/tests/test_bitmask_overflow_2_export_lets/cbfaf5010054177d.svelte	lint.txt
+=== 407 compiler/phases/phase3_transform/client/tests/test_bitmask_overflow_2_export_lets/cbfaf5010054177d.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:16 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -9820,13 +9926,15 @@
 === 77 compiler/phases/phase3_transform/client/tests/test_props_destructuring_comma_separated/e896b179bb118cd4.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 238 compiler/phases/phase3_transform/client/tests/title_uses_scope_definedness_for_binding_initializers/9907a8469661c369.svelte	lint.txt
+=== 402 compiler/phases/phase3_transform/client/tests/title_uses_scope_definedness_for_binding_initializers/9907a8469661c369.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 
-=== 238 compiler/phases/phase3_transform/client/tests/title_uses_scope_definedness_for_binding_initializers/b59dcf330430eab4.svelte	lint.txt
+=== 402 compiler/phases/phase3_transform/client/tests/title_uses_scope_definedness_for_binding_initializers/b59dcf330430eab4.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 
@@ -10089,8 +10197,9 @@
 1:11 1:12 no-sparse-arrays "Unexpected comma in middle of array."
 1:13 1:18 no-undef "'count' is not defined."
 
-=== 42 compiler/phases/phase3_transform/client/visitors/shared/utils/tests/typed_reactive_state_front_end_agrees_with_the_json_walk/4a89e19de85a512d.svelte	lint.txt
+=== 175 compiler/phases/phase3_transform/client/visitors/shared/utils/tests/typed_reactive_state_front_end_agrees_with_the_json_walk/4a89e19de85a512d.svelte	lint.txt
 1:2 1:6 no-undef "'Test' is not defined."
+1:10 1:17 svelte/valid-compile "Cannot use `$$props` in runes mode\nhttps://svelte.dev/e/legacy_props_invalid(legacy_props_invalid)"
 
 === 87 compiler/phases/phase3_transform/client/visitors/shared/utils/tests/typed_reactive_state_front_end_agrees_with_the_json_walk/507733f7b574c315.svelte	lint.txt
 1:2 1:6 no-undef "'Test' is not defined."
@@ -10109,8 +10218,9 @@
 1:11 1:16 no-undef "'konst' is not defined."
 1:18 1:23 no-undef "'count' is not defined."
 
-=== 42 compiler/phases/phase3_transform/client/visitors/shared/utils/tests/typed_reactive_state_front_end_agrees_with_the_json_walk/73162f7627501c98.svelte	lint.txt
+=== 189 compiler/phases/phase3_transform/client/visitors/shared/utils/tests/typed_reactive_state_front_end_agrees_with_the_json_walk/73162f7627501c98.svelte	lint.txt
 1:2 1:6 no-undef "'Test' is not defined."
+1:10 1:21 svelte/valid-compile "Cannot use `$$restProps` in runes mode\nhttps://svelte.dev/e/legacy_rest_props_invalid(legacy_rest_props_invalid)"
 
 === 42 compiler/phases/phase3_transform/client/visitors/shared/utils/tests/typed_reactive_state_front_end_agrees_with_the_json_walk/77b1bcaaf8c4ed4e.svelte	lint.txt
 1:2 1:6 no-undef "'Test' is not defined."
@@ -10200,8 +10310,9 @@
 3:7 3:8 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
 3:10 3:11 svelte/prefer-const "'d' is never reassigned. Use 'const' instead."
 
-=== 571 compiler/phases/phase3_transform/server/ast/tests/array_counter_is_shared_across_legacy_props_and_state_declarations/ce61b517d839c5a2.svelte	lint.txt
+=== 735 compiler/phases/phase3_transform/server/ast/tests/array_counter_is_shared_across_legacy_props_and_state_declarations/ce61b517d839c5a2.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:29 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -10429,9 +10540,11 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:22 3:27 svelte/valid-compile "This reference only captures the initial value of `props`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_bind_props_trailer/8b711ca8a23a5500.svelte	lint.txt
+=== 164 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_bind_props_trailer/8b711ca8a23a5500.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_bind_props_trailer/b8efaf700ccf38f3.svelte	lint.txt
+=== 164 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_bind_props_trailer/b8efaf700ccf38f3.svelte	lint.txt
+1:9 1:30 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
 === 223 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_block_close_anchor/0825989c77b18eab.svelte	lint.txt
 1:85 1:86 no-undef "'x' is not defined."
@@ -10759,12 +10872,11 @@
 === 104 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_debug_tags/eb19f8381ffb8562.svelte	lint.txt
 1:11 1:29 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 
-=== 903 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/1bc072884a4f64e9.svelte	lint.txt
+=== 800 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/1bc072884a4f64e9.svelte	lint.txt
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 svelte/prefer-const "'foos' is never reassigned. Use 'const' instead."
 4:1 4:27 svelte/require-each-key "Each block should have a key"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:2 10:5 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -10772,12 +10884,11 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 903 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/3d23525a1ea60c3b.svelte	lint.txt
+=== 800 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/3d23525a1ea60c3b.svelte	lint.txt
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 svelte/prefer-const "'foos' is never reassigned. Use 'const' instead."
 4:1 4:27 svelte/require-each-key "Each block should have a key"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:2 10:5 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -10785,18 +10896,16 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 329 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/84c042fec75b88ba.svelte	lint.txt
+=== 226 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/84c042fec75b88ba.svelte	lint.txt
 3:1 3:19 svelte/require-each-key "Each block should have a key"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:2 4:20 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 818 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/92c153601cf4d893.svelte	lint.txt
+=== 716 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_const_in_each/92c153601cf4d893.svelte	lint.txt
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 svelte/prefer-const "'foos' is never reassigned. Use 'const' instead."
 4:1 4:27 svelte/require-each-key "Each block should have a key"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:2 9:5 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -10955,8 +11064,9 @@
 17:1 17:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 387 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_each_and_let_destructure/8d9b20c860ad3677.svelte	lint.txt
+=== 551 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_each_and_let_destructure/8d9b20c860ad3677.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:27 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:184 svelte/require-each-key "Each block should have a key"
 6:182 6:184 svelte/mustache-spacing "Expected no space before '}', but found."
@@ -10990,9 +11100,10 @@
 21:1 21:35 svelte/no-unused-class-name "Unused class \"add\"."
 21:21 21:34 svelte/max-attributes-per-line "'onclick' should be on a new line."
 
-=== 1734 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_each_and_let_destructure/fe34e8c6a33d31ad.svelte	lint.txt
+=== 2153 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_each_and_let_destructure/fe34e8c6a33d31ad.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:7 svelte/valid-compile "`c` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 3:13 3:14 svelte/prefer-const "'d' is never reassigned. Use 'const' instead."
 3:20 3:21 svelte/prefer-const "'e' is never reassigned. Use 'const' instead."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11002,6 +11113,7 @@
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:2 10:39 svelte/button-has-type "Missing an explicit type attribute for button."
+10:10 10:38 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:37 13:55 svelte/max-attributes-per-line "'let:value' should be on a new line."
 13:56 13:70 svelte/sort-attributes "Attribute 'let:data' should go before 'let:value'."
@@ -11238,14 +11350,17 @@
 === 82 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_keyed_each/ecc7ac44342230b5.svelte	lint.txt
 1:13 1:18 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
 
-=== 211 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/375e9976956f6365.svelte	lint.txt
+=== 405 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/375e9976956f6365.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:14 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 2:4 2:5 no-unused-vars "'b' is defined but never used."
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/4ba40b8828cfcd35.svelte	lint.txt
+=== 164 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/4ba40b8828cfcd35.svelte	lint.txt
+1:9 1:33 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/980e4883906e40fb.svelte	lint.txt
+=== 164 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/980e4883906e40fb.svelte	lint.txt
+1:9 1:30 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
 === 363 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/d94092c8e67601f7.svelte	lint.txt
 1:13 1:14 no-unused-vars "'a' is assigned a value but never used."
@@ -11254,20 +11369,24 @@
 2:5 2:6 no-unused-vars "'b' is assigned a value but never used."
 2:5 2:6 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 
-=== 155 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_script_samples/2de2c1cb122be3dc.svelte	lint.txt
+=== 349 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_script_samples/2de2c1cb122be3dc.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:14 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_script_samples/3aac7af5934894d9.svelte	lint.txt
+=== 178 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_script_samples/3aac7af5934894d9.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 
-=== 217 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_script_samples/46e11a85a1662e78.svelte	lint.txt
-1:20 1:24 svelte/valid-compile "Component has unused export property 'opts'. If it is for external reference only, please consider using `export const opts`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+=== 164 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_script_samples/46e11a85a1662e78.svelte	lint.txt
+1:9 1:36 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
 === 78 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_script_samples/4f71d2ef9e3a5590.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 
-=== 82 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_script_samples/cd34ef028f0b29f8.svelte	lint.txt
+=== 501 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_script_samples/cd34ef028f0b29f8.svelte	lint.txt
+1:13 1:14 svelte/valid-compile "`x` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 1:28 1:57 svelte/button-has-type "Missing an explicit type attribute for button."
+1:36 1:56 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
 === 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/1e48a39ea721bdab.svelte	lint.txt
 
@@ -11280,11 +11399,13 @@
 
 === 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/cc5a0170371ad564.svelte	lint.txt
 
-=== 138 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/ebed4d1b2bd8825d.svelte	lint.txt
+=== 329 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/ebed4d1b2bd8825d.svelte	lint.txt
+1:1 1:18 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:11 1:15 no-unused-vars "'item' is defined but never used."
 1:16 1:18 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/f864cc9d8fba5124.svelte	lint.txt
+=== 191 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_let_directives/f864cc9d8fba5124.svelte	lint.txt
+1:1 1:29 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 
 === 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_needs_context_wrapper/f728ba526fb6819a.svelte	lint.txt
 
@@ -11307,7 +11428,8 @@
 
 === 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_read_wrapping/28c47051480e08f2.svelte	lint.txt
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_read_wrapping/5bf28dd3051f4adb.svelte	lint.txt
+=== 132 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_read_wrapping/5bf28dd3051f4adb.svelte	lint.txt
+1:5 1:12 svelte/valid-compile "Cannot use `$$props` in runes mode\nhttps://svelte.dev/e/legacy_props_invalid(legacy_props_invalid)"
 
 === 42 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_read_wrapping/6ae321f92196b13a.svelte	lint.txt
 1:26 1:28 no-undef "'fn' is not defined."
@@ -11367,7 +11489,8 @@
 
 === 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_select_option/0f89fa2d2cffdb65.svelte	lint.txt
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_select_option/1612d15a31158490.svelte	lint.txt
+=== 206 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_select_option/1612d15a31158490.svelte	lint.txt
+1:13 1:14 svelte/valid-compile "`v` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 
 === 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_select_option/5fefe984dcae47ab.svelte	lint.txt
 
@@ -11379,7 +11502,8 @@
 === 78 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_select_option/ea72113de891f962.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_select_option/f2cb05ba7ef80ca8.svelte	lint.txt
+=== 206 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_select_option/f2cb05ba7ef80ca8.svelte	lint.txt
+1:13 1:14 svelte/valid-compile "`v` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 
 === 241 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_simple_samples/29c45d27f42245b4.svelte	lint.txt
 1:20 1:28 svelte/max-attributes-per-line "'disabled' should be on a new line."
@@ -11408,15 +11532,19 @@
 1:6 1:7 no-undef "'a' is not defined."
 1:10 1:11 no-undef "'b' is not defined."
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_slot_element/014227eb66d24f6f.svelte	lint.txt
+=== 191 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_slot_element/014227eb66d24f6f.svelte	lint.txt
+1:1 1:36 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 
-=== 0 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_slot_element/3e19f3faf6f2c2ef.svelte	lint.txt
+=== 191 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_slot_element/3e19f3faf6f2c2ef.svelte	lint.txt
+1:1 1:25 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 
-=== 76 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_slot_element/88b99ee21fe57b94.svelte	lint.txt
+=== 267 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_slot_element/88b99ee21fe57b94.svelte	lint.txt
+1:1 1:44 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:19 1:29 svelte/max-attributes-per-line "'label' should be on a new line."
 
-=== 78 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_slot_element/f0b9553103a006d4.svelte	lint.txt
+=== 270 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_slot_element/f0b9553103a006d4.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
+1:28 1:45 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 
 === 77 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_snippet_params_and_hoist/2bebe39b1bc6776b.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -11668,98 +11796,115 @@
 === 69 compiler/phases/phase3_transform/server/ast/tests/props_id_dropped/1d91e40a805fc721.svelte	lint.txt
 1:15 1:18 no-unused-vars "'uid' is assigned a value but never used."
 
-=== 315 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/083092fce7fef3ab.svelte	lint.txt
+=== 509 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/083092fce7fef3ab.svelte	lint.txt
 1:13 1:16 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:10 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+3:1 3:18 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 157 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/0b5a8025d5ca0bca.svelte	lint.txt
+=== 290 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/0b5a8025d5ca0bca.svelte	lint.txt
 1:13 1:16 svelte/prefer-const "'foo' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:15 2:22 svelte/valid-compile "Cannot use `$$props` in runes mode\nhttps://svelte.dev/e/legacy_props_invalid(legacy_props_invalid)"
 
-=== 232 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/144788db2e2d0066.svelte	lint.txt
+=== 426 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/144788db2e2d0066.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+3:1 3:17 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 501 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/1e19d03035a28502.svelte	lint.txt
+=== 695 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/1e19d03035a28502.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:14 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:4 3:5 no-useless-assignment "The value assigned to 'c' is not used in subsequent statements."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:4 4:5 no-useless-assignment "The value assigned to 'b' is not used in subsequent statements."
 
-=== 232 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/340e6161b5164495.svelte	lint.txt
+=== 426 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/340e6161b5164495.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:14 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 77 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/39a871924fa3e007.svelte	lint.txt
+=== 241 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/39a871924fa3e007.svelte	lint.txt
+1:9 1:26 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 307 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/425d935488600244.svelte	lint.txt
+=== 501 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/425d935488600244.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+4:1 4:18 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 365 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/73041cc4dd7098c4.svelte	lint.txt
+=== 559 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/73041cc4dd7098c4.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:14 3:15 no-unused-vars "'v' is defined but never used."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+4:1 4:16 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 205 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/a8e1bd6718385d95.svelte	lint.txt
+=== 399 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/a8e1bd6718385d95.svelte	lint.txt
 1:13 1:18 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:23 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 2:4 2:11 no-undef "'console' is not defined."
 
-=== 159 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/c82a232736322131.svelte	lint.txt
+=== 353 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/c82a232736322131.svelte	lint.txt
 1:13 1:18 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:24 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 155 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/cc197f9cfe899399.svelte	lint.txt
+=== 349 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/cc197f9cfe899399.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:32 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 294 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/ccb9bfc9e2b511a6.svelte	lint.txt
+=== 488 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/ccb9bfc9e2b511a6.svelte	lint.txt
 1:13 1:18 svelte/prefer-const "'count' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:21 2:22 no-unused-vars "'x' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+3:1 3:26 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 385 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/e18ac4061d570632.svelte	lint.txt
+=== 579 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/e18ac4061d570632.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+3:1 3:10 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 328 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/e36338ed233043c0.svelte	lint.txt
+=== 522 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/e36338ed233043c0.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:14 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:4 3:5 no-useless-assignment "The value assigned to 'b' is not used in subsequent statements."
 
-=== 463 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/f13cb14b18bbc6fb.svelte	lint.txt
+=== 657 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/f13cb14b18bbc6fb.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:14 2:15 no-unused-vars "'v' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+3:1 3:11 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:4 4:5 no-useless-assignment "The value assigned to 'c' is not used in subsequent statements."
 
-=== 230 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/f6008cfdba5414b0.svelte	lint.txt
+=== 424 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/f6008cfdba5414b0.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:5 2:6 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+3:1 3:21 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 157 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/f9efb6e40714980d.svelte	lint.txt
+=== 351 compiler/phases/phase3_transform/server/ast/tests/reactive_statement_ssr_shapes/f9efb6e40714980d.svelte	lint.txt
 1:13 1:16 svelte/prefer-const "'obj' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:1 2:18 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
 === 483 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/1d19c0a136ce10a9.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11769,8 +11914,9 @@
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:6 8:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 
-=== 503 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/1f8915c7a49728c7.svelte	lint.txt
+=== 707 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/1f8915c7a49728c7.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:7 svelte/valid-compile "`b` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:6 2:7 no-useless-assignment "The value assigned to 'b' is not used in subsequent statements."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -11789,14 +11935,16 @@
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:6 9:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 
-=== 346 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/3e5bbdcb774e282f.svelte	lint.txt
+=== 758 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/3e5bbdcb774e282f.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:2 2:59 svelte/no-svelte-internal "Using svelte/internal is prohibited. This will be removed in Svelte 6."
+2:2 2:59 svelte/valid-compile "Imports of `svelte/internal/*` are forbidden. It contains private runtime code which is subject to change without notice. If you're importing from `svelte/internal/*` to work around a limitation of Svelte, please open an issue at https://github.com/sveltejs/svelte and explain your use case\nhttps://svelte.dev/e/import_svelte_internal_forbidden(import_svelte_internal_forbidden)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 
-=== 325 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/67b1ae4761482dd2.svelte	lint.txt
+=== 529 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/67b1ae4761482dd2.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:7 svelte/valid-compile "`b` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11809,29 +11957,32 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:6 6:7 svelte/prefer-const "'b' is never reassigned. Use 'const' instead."
 
-=== 660 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/a514236982bc5bad.svelte	lint.txt
+=== 853 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/a514236982bc5bad.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 no-useless-assignment "The value assigned to 'b' is not used in subsequent statements."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:2 7:3 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 564 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/ea04e16fed91f359.svelte	lint.txt
+=== 768 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/ea04e16fed91f359.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:7 svelte/valid-compile "`b` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 564 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/ec1bdfe4ad367165.svelte	lint.txt
+=== 768 compiler/phases/phase3_transform/server/ast/tests/server_ast_keeps_interior_script_comments/ec1bdfe4ad367165.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:7 svelte/valid-compile "`b` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -11863,13 +12014,15 @@
 1:1 1:48 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:23 1:32 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
 
-=== 209 compiler/phases/phase3_transform/server/ast/tests/typescript_script_oracle_parity/7aef93b3d06788aa.svelte	lint.txt
+=== 374 compiler/phases/phase3_transform/server/ast/tests/typescript_script_oracle_parity/7aef93b3d06788aa.svelte	lint.txt
 1:1 1:96 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:29 1:32 no-unused-vars "'Foo' is defined but never used."
 1:52 1:55 no-unused-vars "'Bar' is defined but never used."
+1:66 1:87 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
-=== 89 compiler/phases/phase3_transform/server/ast/tests/typescript_script_oracle_parity/95f88a37850856e3.svelte	lint.txt
+=== 254 compiler/phases/phase3_transform/server/ast/tests/typescript_script_oracle_parity/95f88a37850856e3.svelte	lint.txt
 1:1 1:49 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+1:19 1:40 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
 === 171 compiler/phases/phase3_transform/server/ast/tests/typescript_script_oracle_parity/f58d2872ceef793f.svelte	lint.txt
 1:1 1:158 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -11905,20 +12058,23 @@
 7:1 7:9 svelte/indent "Expected indentation of 0 spaces but found 8 spaces."
 8:1 8:9 svelte/indent "Expected indentation of 0 spaces but found 8 spaces."
 
-=== 162 compiler/phases/phase3_transform/tests/client_carries_bind_value_runtime_mappings_from_ast_spans/79543f8c79f228a7.svelte	lint.txt
+=== 326 compiler/phases/phase3_transform/tests/client_carries_bind_value_runtime_mappings_from_ast_spans/79543f8c79f228a7.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:17 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 5:32 5:33 svelte/html-self-closing "Require self-closing on HTML void elements."
 
-=== 81 compiler/phases/phase3_transform/tests/client_keeps_legacy_prop_read_carriers_after_merging/694682aa32ad1d73.svelte	lint.txt
+=== 245 compiler/phases/phase3_transform/tests/client_keeps_legacy_prop_read_carriers_after_merging/694682aa32ad1d73.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:17 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
 === 243 compiler/phases/phase3_transform/tests/client_maps_comment_bearing_default_function_boundaries_from_ast/87823730c4a56b85.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:11 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
 
-=== 215 compiler/phases/phase3_transform/tests/client_maps_component_bind_accessors_and_interpolation_without_text_matching/443f9c1fb31ba69a.svelte	lint.txt
+=== 379 compiler/phases/phase3_transform/tests/client_maps_component_bind_accessors_and_interpolation_without_text_matching/443f9c1fb31ba69a.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:20 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 6:2 6:8 no-undef "'Widget' is not defined."
 6:20 6:22 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
 
@@ -11929,7 +12085,7 @@
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 3:3 3:8 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
 
-=== 1149 compiler/phases/phase3_transform/tests/maps_every_rune_runtime_pair_without_a_text_matching_pass/adfba9af9c1004e9.svelte	lint.txt
+=== 1048 compiler/phases/phase3_transform/tests/maps_every_rune_runtime_pair_without_a_text_matching_pass/adfba9af9c1004e9.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:9 no-useless-assignment "The value assigned to 'raw' is not used in subsequent statements."
@@ -11939,7 +12095,6 @@
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:11 7:35 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:8 8:13 no-useless-assignment "The value assigned to 'value' is not used in subsequent statements."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11977,9 +12132,10 @@
 === 122 compiler/print/css_test/tests/test_print_simple_css_rule/4055e78d64905549.svelte	lint.txt
 5:1 5:4 svelte/valid-compile "Unused CSS selector \"div\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
-=== 616 compiler/print/tests/print_without_source_keeps_statement_bodies/ff3b94f4e70146ad.svelte	lint.txt
+=== 810 compiler/print/tests/print_without_source_keeps_statement_bodies/ff3b94f4e70146ad.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:2 3:25 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 3:5 3:12 no-unused-vars "'doubled' is defined but never used."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:8 4:9 no-unused-vars "'f' is assigned a value but never used."
@@ -12596,7 +12752,8 @@
 4:10 4:11 no-unused-vars "'f' is defined but never used."
 5:42 5:43 no-unused-vars "'v' is defined but never used."
 
-=== 42 component_bind_getter_setter/legacy_reactive_component_bind_setter_uses_set/c673eb3b198fa8bc.svelte	lint.txt
+=== 206 component_bind_getter_setter/legacy_reactive_component_bind_setter_uses_set/c673eb3b198fa8bc.svelte	lint.txt
+2:3 2:19 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 6:2 6:6 no-undef "'Tabs' is not defined."
 
 === 116 component_bind_getter_setter/two_getter_setter_binds_declare_unique_names/a7728cc1f3b93995.svelte	lint.txt
@@ -12620,10 +12777,11 @@
 4:2 4:3 no-undef "'X' is not defined."
 4:7 4:8 no-undef "'Y' is not defined."
 
-=== 243 component_call_comment_anchor_4529/the_dynamic_component_wrapper_claims_no_anchor/52fc07d3a253bb1c.svelte	lint.txt
+=== 441 component_call_comment_anchor_4529/the_dynamic_component_wrapper_claims_no_anchor/52fc07d3a253bb1c.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
+6:1 6:30 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 
 === 445 component_name_conflict_before_walk_2478/unconflicted_component_keeps_its_plain_name/e3034d0beb9441e0.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -16189,9 +16347,10 @@
 4:8 4:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
 4:13 4:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 489 css_wrapper_sibling_desync_1708/svelte_component_scopable_child_keeps_sibling/ab89d597d044422e.svelte	lint.txt
+=== 687 css_wrapper_sibling_desync_1708/svelte_component_scopable_child_keeps_sibling/ab89d597d044422e.svelte	lint.txt
 1:13 1:18 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
 1:33 1:37 svelte/prefer-const "'cond' is never reassigned. Use 'const' instead."
+2:1 2:67 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 2:31 2:44 svelte/no-unused-class-name "Unused class \"x\"."
 3:10 3:28 svelte/require-each-key "Each block should have a key"
 4:8 4:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -16207,9 +16366,10 @@
 4:8 4:10 svelte/consistent-selector-style "Selector should select by element type instead of class"
 4:13 4:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 489 css_wrapper_sibling_desync_1708/svelte_self_scopable_child_keeps_sibling/22665086cc9899ef.svelte	lint.txt
+=== 692 css_wrapper_sibling_desync_1708/svelte_self_scopable_child_keeps_sibling/22665086cc9899ef.svelte	lint.txt
 1:13 1:18 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
 1:33 1:37 svelte/prefer-const "'cond' is never reassigned. Use 'const' instead."
+2:11 2:55 svelte/valid-compile "`<svelte:self>` is deprecated — use self-imports (e.g. `import Self from './Self.svelte'`) instead\nhttps://svelte.dev/e/svelte_self_deprecated(svelte_self_deprecated)"
 2:24 2:37 svelte/no-unused-class-name "Unused class \"x\"."
 3:10 3:28 svelte/require-each-key "Each block should have a key"
 4:8 4:10 svelte/consistent-selector-style "Selector should select by element type instead of class"

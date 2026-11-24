@@ -1,3 +1,5 @@
+<svelte:options runes />
+
 <script>
 	const s = new globalThis.Set();
 	s.add(1);

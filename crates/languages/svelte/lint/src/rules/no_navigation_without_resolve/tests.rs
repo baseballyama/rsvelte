@@ -60,6 +60,9 @@ fn an_href_an_each_item_takes_from_resolve_is_accepted() {
     let through = "\tconst nav = { links: [{ href: resolve('/') }] };\n\tconst links = nav.links;";
     let template = "{#each links as link}<a href={link.href}>x</a>{/each}";
     assert_eq!(reported_lines(through, template), NONE);
+    // A `let` nothing writes holds what it starts with.
+    let written_once = "\tlet links = [{ href: resolve('/') }];";
+    assert_eq!(reported_lines(written_once, template), NONE);
 }
 
 #[test]
@@ -70,7 +73,7 @@ fn an_href_whose_values_are_not_all_known_to_come_from_resolve_is_reported() {
         "\tconst links = [{ href: resolve('/') }, { name: 'x' }];",
         "\tconst links = [{ href: resolve('/') }, ...more];",
         "\tconst links = makeLinks();",
-        "\tlet links = [{ href: resolve('/') }];",
+        "\tlet links = [{ href: resolve('/') }];\n\tlinks = [];",
         "\tconst links = [{ href: resolve('/') }];\n\tlinks.push({ href: '/x' });",
         "\tconst links = [{ href: resolve('/') }];\n\tlinks[0].href = '/x';",
         "\tconst links = [{ href: resolve('/') }];\n\tchange(links);",
@@ -103,10 +106,10 @@ fn hrefs_without_resolve_are_reported() {
     assert_eq!(reported_lines(declarations, template), [6, 7, 9]);
 }
 
-/// Upstream accepts an absolute, fragment or empty literal only as the URL itself or a constant's
-/// initializer; reached through an item or a member it is reported, typed or not.
+/// An absolute, fragment or empty literal is accepted through an item or a member as it is
+/// written.
 #[test]
-fn a_literal_url_reached_through_an_item_or_a_member_is_reported() {
+fn a_literal_url_reached_through_an_item_or_a_member_is_accepted() {
     let declarations = concat!(
         "\tconst links = [{ href: 'https://example.com' }];\n",
         "\tconst mixed = [{ href: resolve('/') }, { href: 'https://example.com' }];\n",
@@ -119,18 +122,56 @@ fn a_literal_url_reached_through_an_item_or_a_member_is_reported() {
         "{#each frag as { href }}<a {href}>x</a>{/each}\n",
         "<a href={nav.home}>x</a>\n<a href={nav.top}>x</a>",
     );
-    assert_eq!(reported_lines(declarations, template), [8, 9, 10, 11, 12]);
-}
-
-/// `pushState('')` is allowed as written or through a constant, not through a member.
-#[test]
-fn an_empty_url_reached_through_a_member_is_reported() {
+    assert_eq!(reported_lines(declarations, template), NONE);
     let declarations = concat!(
         "\timport { pushState } from '$app/navigation';\n",
-        "\tconst nav = { p: '' };\n\tconst p = nav.p;\n\tpushState(p, {});\n",
-        "\tconst e = '';\n\tpushState(e, {});",
+        "\tconst nav = { p: '' };\n\tconst p = nav.p;\n\tpushState(p, {});",
     );
-    assert_eq!(reported_lines(declarations, ""), [6]);
+    assert_eq!(reported_lines(declarations, ""), NONE);
+}
+
+#[test]
+fn elements_and_properties_are_read_through_indexes_spreads_and_computed_keys() {
+    let declarations = concat!(
+        "\tconst key = 'url';\n",
+        "\tconst front = [resolve('/a')];\n",
+        "\tconst paths = [...front, resolve('/b'), '/c'];\n",
+        "\tconst o = { url: '/x', ...{ [key]: resolve('/d') }, 0: resolve('/e') };\n",
+        "\tconst pairs = [['/x', resolve('/f')]];",
+    );
+    let template = concat!(
+        "<a href={paths[0]}>x</a>\n<a href={paths[1]}>x</a>\n<a href={paths[2]}>x</a>\n",
+        "<a href={o[key]}>x</a>\n<a href={o[0]}>x</a>\n",
+        "{#each pairs as [, href]}<a {href}>x</a>{/each}\n",
+        "{#each pairs as [href]}<a {href}>x</a>{/each}\n",
+        "{#each [...front, ...more] as href}<a {href}>x</a>{/each}",
+    );
+    assert_eq!(reported_lines(declarations, template), [11, 15, 16]);
+}
+
+/// A value reached twice in one URL is no cycle, and a value that holds itself ends.
+#[test]
+fn values_that_refer_to_themselves_end() {
+    let declarations = concat!(
+        "\tconst home = resolve('/');\n\tconst paths = [home];\n",
+        "\tconst a = { x: a.x };\n\tconst b = { ...b.y };",
+    );
+    let template = concat!(
+        "<a href={Math.random() ? paths[0] : paths[0]}>x</a>\n",
+        "<a href={a.x}>x</a>\n<a href={b.y}>x</a>",
+    );
+    assert_eq!(reported_lines(declarations, template), [9, 10]);
+}
+
+/// A navigation reads what it is given, so passing an element to one keeps the array known.
+#[test]
+fn an_element_given_to_a_navigation_keeps_its_array_known() {
+    let declarations = concat!(
+        "\timport { goto } from '$app/navigation';\n",
+        "\tconst paths = [resolve('/')];\n\tgoto(paths[0]);\n",
+        "\tconst other = [resolve('/')];\n\tgoto(other[0]);\n\tchange(other[0]);",
+    );
+    assert_eq!(reported_lines(declarations, ""), [7]);
 }
 
 /// typescript-eslint types these `href`s `ResolvedPathname | null`, which upstream accepts.

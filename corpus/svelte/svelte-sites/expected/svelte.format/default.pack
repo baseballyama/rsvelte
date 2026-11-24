@@ -1,5 +1,5 @@
 # rsvelte pack 1
-=== 1783 sites/hn.svelte.dev/src/lib/Nav.svelte	svelte
+=== 1803 sites/hn.svelte.dev/src/lib/Nav.svelte	svelte
 <script lang="ts">
   import { resolve } from "$app/paths";
 
@@ -18,8 +18,10 @@
       <li>
         <a
           href={resolve("/[list=category]/[page=numeric]", { list, page: "1" })}
-          class:selected={section === list}>{list}</a
+          class:selected={section === list}
         >
+          {list}
+        </a>
       </li>
     {/each}
 
@@ -409,7 +411,7 @@
   }
 </style>
 
-=== 1056 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	svelte
+=== 1064 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	svelte
 <script lang="ts">
   import type { PageProps } from "./$types";
   import { resolve } from "$app/paths";
@@ -445,13 +447,15 @@
     href={resolve("/[list=category]/[page=numeric]", {
       list: list as "top" | "new" | "best" | "show" | "ask" | "jobs",
       page: `${page + 1}`,
-    })}>More...</a
+    })}
   >
+    More...
+  </a>
 {:else}
   <p>That's all we can find...</p>
 {/if}
 
-=== 1663 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	svelte
+=== 1679 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	svelte
 <script lang="ts">
   import { resolve } from "$app/paths";
   import { timeAgo } from "$lib/utils";
@@ -471,8 +475,10 @@
       <a
         href={resolve("/item/[id=numeric]", {
           id: `${item.id}`,
-        })}>{item.title}</a
+        })}
       >
+        {item.title}
+      </a>
     {/if}
   </h2>
 
@@ -591,7 +597,7 @@
   }
 </style>
 
-=== 943 sites/hn.svelte.dev/src/routes/about/+page.svelte	svelte
+=== 967 sites/hn.svelte.dev/src/routes/about/+page.svelte	svelte
 <svelte:head>
   <title>About • Svelte Hacker News</title>
 </svelte:head>
@@ -601,8 +607,10 @@
 <p>
   This is a simple Hacker News clone, built with <a
     rel="external"
-    href="https://kit.svelte.dev">SvelteKit</a
-  >, an application framework for
+    href="https://kit.svelte.dev"
+  >
+    SvelteKit
+  </a>, an application framework for
   <a rel="external" href="https://svelte.dev">Svelte</a>.
 </p>
 
@@ -611,21 +619,25 @@
   into fast, compact JavaScript — either client-side or server-side. You can
   read more about the design and philosophy in the <a
     rel="external"
-    href="https://svelte.dev/tutorial">introductory tutorial</a
-  >.
+    href="https://svelte.dev/tutorial"
+  >
+    introductory tutorial
+  </a>.
 </p>
 
 <p>
   We're using a combination of the <a
     rel="external"
-    href="https://github.com/hackernews/api">Firebase HN API</a
+    href="https://github.com/hackernews/api"
   >
+    Firebase HN API
+  </a>
   and the <a rel="external" href="https://hn.algolia.com/api">Algolia HN API</a>
   as a backend. The app is hosted on
   <a rel="external" href="https://vercel.com">Vercel</a>.
 </p>
 
-=== 2094 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	svelte
+=== 2105 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	svelte
 <script lang="ts">
   import type { PageProps } from "./$types";
   import { resolve } from "$app/paths";
@@ -645,16 +657,17 @@
   <article class="item">
     <a class="main-link" rel="external" href={algoliaItem.url}>
       <h1>{algoliaItem.title}</h1>
-      {#if algoliaItem.url}<small>{new URL(algoliaItem.url).hostname}</small
-        >{/if}
+      {#if algoliaItem.url}<small>
+          {new URL(algoliaItem.url).hostname}
+        </small>{/if}
     </a>
 
     <p class="meta">
       {algoliaItem.points}
       {algoliaItem.points === 1 ? "point" : "points"} by
-      <a href={resolve("/user/[name]", { name: algoliaItem.author })}
-        >{algoliaItem.author}</a
-      >
+      <a href={resolve("/user/[name]", { name: algoliaItem.author })}>
+        {algoliaItem.author}
+      </a>
       {timeAgo(now - algoliaItem.created_at_i)}
     </p>
 
@@ -732,9 +745,9 @@
       <summary>
         <div class="meta-bar" role="button" tabindex="0">
           <span class="meta">
-            <a href={resolve("/user/[name]", { name: comment.author })}
-              >{comment.author}</a
-            >
+            <a href={resolve("/user/[name]", { name: comment.author })}>
+              {comment.author}
+            </a>
             {timeAgo(now - comment.created_at_i)}
           </span>
         </div>
@@ -821,7 +834,7 @@
   }
 </style>
 
-=== 935 sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	svelte
+=== 969 sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	svelte
 <script lang="ts">
   import type { PageProps } from "./$types";
   import SubsetHTML from "$lib/SubsetHTML.svelte";
@@ -844,17 +857,23 @@
   </p>
 
   <p>
-    <a rel="external" href="https://news.ycombinator.com/submitted?id={user.id}"
-      >submissions</a
+    <a
+      rel="external"
+      href="https://news.ycombinator.com/submitted?id={user.id}"
     >
+      submissions
+    </a>
     /
-    <a rel="external" href="https://news.ycombinator.com/threads?id={user.id}"
-      >comments</a
-    >
+    <a rel="external" href="https://news.ycombinator.com/threads?id={user.id}">
+      comments
+    </a>
     /
-    <a rel="external" href="https://news.ycombinator.com/favorites?id={user.id}"
-      >favourites</a
+    <a
+      rel="external"
+      href="https://news.ycombinator.com/favorites?id={user.id}"
     >
+      favourites
+    </a>
   </p>
 
   {#if user.about}

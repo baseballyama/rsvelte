@@ -33693,7 +33693,7 @@
 13:24 13:39 svelte/sort-attributes "Attribute 'bind:this' should go before 'class'."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 10364 src/lib/components/ui/button/animated-button.svelte	lint.txt
+=== 10266 src/lib/components/ui/button/animated-button.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -33704,7 +33704,6 @@
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:3 8:7 no-unused-vars "'size' is assigned a value but never used."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-9:3 9:6 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:3 11:7 no-unused-vars "'type' is assigned a value but never used."
@@ -34116,7 +34115,7 @@
 34:1 34:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 35:1 35:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1667 src/lib/components/ui/code/code-copy-button.svelte	lint.txt
+=== 1569 src/lib/components/ui/code/code-copy-button.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -34124,7 +34123,6 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-8:3 8:6 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -34626,7 +34624,7 @@
 12:38 12:83 svelte/max-attributes-per-line "'class' should be on a new line."
 12:38 12:83 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 
-=== 1300 src/lib/components/ui/command/command-shortcut.svelte	lint.txt
+=== 1216 src/lib/components/ui/command/command-shortcut.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -34641,7 +34639,6 @@
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-17:2 17:17 svelte/sort-attributes "Attribute 'bind:this' should go before 'class'."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 1327 src/lib/components/ui/command/command.svelte	lint.txt
@@ -37052,7 +37049,7 @@
 17:2 17:44 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2926 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
+=== 2828 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -37061,7 +37058,6 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-9:3 9:6 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -41985,7 +41981,7 @@
 44:1 44:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 45:1 45:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 20916 src/lib/components/veil/header/header-four.svelte	lint.txt
+=== 21560 src/lib/components/veil/header/header-four.svelte	lint.txt
 1:1 41:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -42000,8 +41996,11 @@
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+16:6 16:15 svelte/valid-compile "`menuState` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+17:6 17:16 svelte/valid-compile "`isScrolled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+18:6 18:13 svelte/valid-compile "`isLarge` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 21:17 21:23 no-undef "'window' is not defined."
@@ -42246,7 +42245,7 @@
 164:1 164:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 165:1 165:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 16729 src/lib/components/veil/header/header-one.svelte	lint.txt
+=== 17160 src/lib/components/veil/header/header-one.svelte	lint.txt
 1:1 27:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -42260,7 +42259,9 @@
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+15:6 15:15 svelte/valid-compile "`menuState` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+16:6 16:16 svelte/valid-compile "`isScrolled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:1 20:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -42461,7 +42462,7 @@
 116:1 116:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 117:1 117:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 20912 src/lib/components/veil/header/header-two.svelte	lint.txt
+=== 21556 src/lib/components/veil/header/header-two.svelte	lint.txt
 1:1 40:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -42476,8 +42477,11 @@
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+15:6 15:15 svelte/valid-compile "`menuState` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+16:6 16:16 svelte/valid-compile "`isScrolled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+17:6 17:13 svelte/valid-compile "`isLarge` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:17 20:23 no-undef "'window' is not defined."
@@ -44834,7 +44838,7 @@
 44:1 44:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 45:1 45:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 7496 src/lib/components/veil/logo-cloud/logo-cloud-two.svelte	lint.txt
+=== 7714 src/lib/components/veil/logo-cloud/logo-cloud-two.svelte	lint.txt
 1:1 61:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -44880,6 +44884,7 @@
 46:1 46:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 47:1 47:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 48:1 48:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+48:6 48:29 svelte/valid-compile "`currentGroup` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 49:1 49:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 49:31 49:42 no-undef "'setInterval' is not defined."
 51:1 51:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

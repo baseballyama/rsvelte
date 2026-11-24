@@ -14,6 +14,15 @@ pub(crate) fn is_named(expression: &Expression<'_>, name: &str) -> bool {
     matches!(expression, Expression::Identifier(identifier) if identifier.name == name)
 }
 
+/// A `$props()` call, also behind TypeScript's `!`, `as`, `satisfies` or `<T>`, which the compiler
+/// removes.
+pub(crate) fn is_props_call(expression: &Expression<'_>) -> bool {
+    matches!(
+        expression.get_inner_expression(),
+        Expression::CallExpression(call) if is_named(&call.callee, "$props")
+    )
+}
+
 /// The one statement of a body, a directive counting as a statement as in `ESTree`.
 pub(crate) fn only_statement<'a>(body: &'a FunctionBody<'a>) -> Option<&'a Statement<'a>> {
     match (body.directives.as_slice(), body.statements.as_slice()) {

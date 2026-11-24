@@ -425,8 +425,8 @@
 </script>
 
 <!-- Import 'SUSE' font from Google Fonts -->
-<svelte:head
-  ><link rel="preconnect" href="https://fonts.googleapis.com" />
+<svelte:head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
   <link
     href="https://fonts.googleapis.com/css2?family=SUSE:wght@800&display=swap"
@@ -527,8 +527,8 @@
 </script>
 
 <!-- Import 'SUSE' font from Google Fonts -->
-<svelte:head
-  ><link rel="preconnect" href="https://fonts.googleapis.com" />
+<svelte:head>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
   <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin="" />
   <link
     href="https://fonts.googleapis.com/css2?family=SUSE:wght@800&display=swap"

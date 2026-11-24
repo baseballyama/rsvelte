@@ -19,6 +19,6 @@
 <div class={`t-${size}`}>template</div>
 <div class={variant(size)}>call</div>
 <button onclick={() => (active = !active)}>toggle</button>
-<button onclick={() => (size = size === "small" ? "large" : "small")}
-  >resize</button
->
+<button onclick={() => (size = size === "small" ? "large" : "small")}>
+  resize
+</button>

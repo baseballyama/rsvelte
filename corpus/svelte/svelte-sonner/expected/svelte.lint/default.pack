@@ -271,10 +271,11 @@
 185:2 185:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
 190:3 190:16 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 6458 src/components/Installation.svelte	lint.txt
+=== 6669 src/components/Installation.svelte	lint.txt
 1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:13 svelte/valid-compile "`copying` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."

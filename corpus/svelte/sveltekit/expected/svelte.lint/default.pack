@@ -26,9 +26,10 @@
 === 81 packages/adapter-static/test/apps/spa/src/routes/+error.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 237 packages/adapter-static/test/apps/spa/src/routes/+layout.svelte	lint.txt
+=== 427 packages/adapter-static/test/apps/spa/src/routes/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:1 6:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 6:7 6:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/adapter-static/test/apps/spa/src/routes/+page.svelte	lint.txt
@@ -70,7 +71,7 @@
 
 === 0 packages/adapter-vercel/test/apps/split/src/routes/a/+page.svelte	lint.txt
 
-=== 5488 packages/enhanced-img/test/Input.svelte	lint.txt
+=== 5695 packages/enhanced-img/test/Input.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -78,6 +79,7 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:6 9:17 svelte/valid-compile "`foo` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:22 14:45 svelte/max-attributes-per-line "'alt' should be on a new line."
 14:22 14:45 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
 16:31 16:45 svelte/max-attributes-per-line "'alt' should be on a new line."
@@ -137,7 +139,7 @@
 58:1 58:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 59:1 59:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 14145 packages/enhanced-img/test/Output.svelte	lint.txt
+=== 14354 packages/enhanced-img/test/Output.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -147,6 +149,7 @@
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:17 svelte/valid-compile "`foo` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:22 16:45 svelte/max-attributes-per-line "'alt' should be on a new line."
 16:22 16:45 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
 18:45 18:62 svelte/max-attributes-per-line "'type' should be on a new line."
@@ -443,7 +446,7 @@
 === 81 packages/kit/src/runtime/components/layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 5006 packages/kit/src/runtime/components/root.svelte	lint.txt
+=== 4824 packages/kit/src/runtime/components/root.svelte	lint.txt
 1:1 19:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -470,14 +473,12 @@
 30:55 30:92 svelte/max-attributes-per-line "'onerror' should be on a new line."
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-32:23 32:52 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 33:1 33:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 33:45 33:51 svelte/max-attributes-per-line "'data' should be on a new line."
 34:1 34:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 35:1 35:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 36:1 36:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 37:1 37:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-37:23 37:52 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 38:1 38:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 38:45 38:51 svelte/max-attributes-per-line "'data' should be on a new line."
 38:80 38:87 svelte/sort-attributes "Attribute 'error' should go before 'form'."
@@ -1545,18 +1546,20 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 481 packages/kit/test/apps/basics/src/routes/accessibility/+layout.svelte	lint.txt
+=== 673 packages/kit/test/apps/basics/src/routes/accessibility/+layout.svelte	lint.txt
 1:1 1:9 svelte/button-has-type "Missing an explicit type attribute for button."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:1 10:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 10:7 10:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 81 packages/kit/test/apps/basics/src/routes/accessibility/a/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 75 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/+layout.svelte	lint.txt
+1:1 1:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:7 1:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 412 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/b/+page.svelte	lint.txt
@@ -1772,10 +1775,11 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:16 5:24 no-undef "'document' is not defined."
 
-=== 1636 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag-multiple/+page.svelte	lint.txt
+=== 1847 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag-multiple/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:13 svelte/valid-compile "`cookies` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:13 8:21 no-undef "'document' is not defined."
@@ -1795,10 +1799,11 @@
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1132 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag/+page.svelte	lint.txt
+=== 1343 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:13 svelte/valid-compile "`cookies` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:13 8:21 no-undef "'document' is not defined."
@@ -1822,15 +1827,17 @@
 14:1 14:18 svelte/no-unused-class-name "Unused class \"not\"."
 19:2 19:14 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 814 packages/kit/test/apps/basics/src/routes/css/dynamic/+page.svelte	lint.txt
+=== 1225 packages/kit/test/apps/basics/src/routes/css/dynamic/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:13 svelte/valid-compile "`Dynamic` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 9:5 svelte/button-has-type "Missing an explicit type attribute for button."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:4 9:4 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 9:27 10:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
+12:1 12:53 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 12:33 12:53 svelte/html-self-closing "Require self-closing on Svelte special elements."
 
 === 0 packages/kit/test/apps/basics/src/routes/css/dynamic/Dynamic.svelte	lint.txt
@@ -1869,8 +1876,9 @@
 15:13 15:59 svelte/max-attributes-per-line "'href' should be on a new line."
 15:60 15:93 svelte/sort-attributes "Attribute 'data-sveltekit-preload-code' should go before 'href'."
 
-=== 2701 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/+page.svelte	lint.txt
+=== 2905 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:7 svelte/valid-compile "`x` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:13 5:55 svelte/max-attributes-per-line "'href' should be on a new line."
 5:56 5:83 svelte/sort-attributes "Attribute 'data-sveltekit-preload-data' should go before 'href'."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1982,9 +1990,10 @@
 1:13 1:28 svelte/prefer-style-directive "Can use style directives instead."
 1:29 1:54 svelte/prefer-style-directive "Can use style directives instead."
 
-=== 1174 packages/kit/test/apps/basics/src/routes/delete-route/+page.svelte	lint.txt
+=== 1384 packages/kit/test/apps/basics/src/routes/delete-route/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:6 3:12 svelte/valid-compile "`status` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:3 6:8 no-undef "'fetch' is not defined."
@@ -2004,8 +2013,9 @@
 === 81 packages/kit/test/apps/basics/src/routes/encoded/@[username]/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 156 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/+layout.svelte	lint.txt
+=== 346 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:1 6:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 6:7 6:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[u+82d7]/+page.svelte	lint.txt
@@ -2039,7 +2049,8 @@
 
 === 0 packages/kit/test/apps/basics/src/routes/env/+page.svelte	lint.txt
 
-=== 75 packages/kit/test/apps/basics/src/routes/errors/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/errors/+layout.svelte	lint.txt
+1:1 1:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:7 1:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 325 packages/kit/test/apps/basics/src/routes/errors/clientside/+page.svelte	lint.txt
@@ -2078,13 +2089,15 @@
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 325 packages/kit/test/apps/basics/src/routes/errors/module-scope-client/+page.svelte	lint.txt
+=== 503 packages/kit/test/apps/basics/src/routes/errors/module-scope-client/+page.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 407 packages/kit/test/apps/basics/src/routes/errors/module-scope-server/+page.svelte	lint.txt
+=== 585 packages/kit/test/apps/basics/src/routes/errors/module-scope-server/+page.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -2136,9 +2149,10 @@
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:2 9:10 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 1068 packages/kit/test/apps/basics/src/routes/goto/+page.svelte	lint.txt
+=== 1279 packages/kit/test/apps/basics/src/routes/goto/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:13 svelte/valid-compile "`message` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 14:5 svelte/button-has-type "Missing an explicit type attribute for button."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -2189,8 +2203,9 @@
 
 === 0 packages/kit/test/apps/basics/src/routes/init-hooks/navigate/+page.svelte	lint.txt
 
-=== 989 packages/kit/test/apps/basics/src/routes/interactivity/toggle-element/+page.svelte	lint.txt
+=== 1200 packages/kit/test/apps/basics/src/routes/interactivity/toggle-element/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:13 svelte/valid-compile "`visible` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2203,13 +2218,14 @@
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 655 packages/kit/test/apps/basics/src/routes/keepfocus/+page.svelte	lint.txt
+=== 868 packages/kit/test/apps/basics/src/routes/keepfocus/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:2 12:4 svelte/valid-compile "Using `on:input` to listen to the input event is deprecated. Use the event attribute `oninput` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -2267,7 +2283,7 @@
 === 81 packages/kit/test/apps/basics/src/routes/load/invalidation/during-navigation/[slug]/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2167 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/+layout.svelte	lint.txt
+=== 2359 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2294,6 +2310,7 @@
 25:1 25:51 svelte/button-has-type "Missing an explicit type attribute for button."
 25:1 25:51 svelte/no-unused-class-name "Unused class \"all\"."
 25:21 25:50 svelte/max-attributes-per-line "'onclick' should be on a new line."
+29:1 29:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 29:7 29:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 793 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/redirect/+page.svelte	lint.txt
@@ -2331,7 +2348,8 @@
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:28 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 75 packages/kit/test/apps/basics/src/routes/load/no-server-load/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/load/no-server-load/+layout.svelte	lint.txt
+4:1 4:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 4:7 4:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/kit/test/apps/basics/src/routes/load/no-server-load/a/+page.svelte	lint.txt
@@ -2362,10 +2380,11 @@
 
 === 0 packages/kit/test/apps/basics/src/routes/load/url-to-string/+page.svelte	lint.txt
 
-=== 616 packages/kit/test/apps/basics/src/routes/load/window-fetch/outside-load/+page.svelte	lint.txt
+=== 826 packages/kit/test/apps/basics/src/routes/load/window-fetch/outside-load/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:12 svelte/valid-compile "`answer` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:21 8:26 no-undef "'fetch' is not defined."
@@ -2446,23 +2465,27 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:2 4:60 svelte/no-unused-class-name "Unused class \"nav-lifecycle-after-nav-removed-test-target\"."
 
-=== 739 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/a/+page.svelte	lint.txt
+=== 1152 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/a/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`from` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:8 svelte/valid-compile "`to` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 739 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/b/+page.svelte	lint.txt
+=== 1152 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/b/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`from` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:8 svelte/valid-compile "`to` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -2489,19 +2512,23 @@
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 406 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/hash-links/+page.svelte	lint.txt
+=== 629 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/hash-links/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:25 svelte/valid-compile "`before_navigate_ran` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1424 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/prevent-navigation/+page.svelte	lint.txt
+=== 2072 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/prevent-navigation/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:21 svelte/valid-compile "`times_triggered` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:12 svelte/valid-compile "`unload` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:6 7:21 svelte/valid-compile "`navigation_type` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -2515,16 +2542,21 @@
 22:46 22:62 svelte/sort-attributes "Attribute 'rel' should go before 'target'."
 25:13 25:20 svelte/max-attributes-per-line "'href' should be on a new line."
 
-=== 1740 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/on-navigate/[x]/+page.svelte	lint.txt
+=== 2795 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/on-navigate/[x]/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`from` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:6 8:8 svelte/valid-compile "`to` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:10 svelte/valid-compile "`type` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:6 12:13 svelte/valid-compile "`shallow` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:6 14:19 svelte/valid-compile "`called_return` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -2624,7 +2656,8 @@
 44:13 44:27 svelte/prefer-style-directive "Can use style directives instead."
 44:28 44:68 svelte/prefer-style-directive "Can use style directives instead."
 
-=== 75 packages/kit/test/apps/basics/src/routes/nested-layout/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/nested-layout/+layout.svelte	lint.txt
+1:1 1:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:7 1:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 81 packages/kit/test/apps/basics/src/routes/nested-layout/+page.svelte	lint.txt
@@ -2632,34 +2665,40 @@
 
 === 0 packages/kit/test/apps/basics/src/routes/nested-layout/error/+page.svelte	lint.txt
 
-=== 75 packages/kit/test/apps/basics/src/routes/nested-layout/foo/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/nested-layout/foo/+layout.svelte	lint.txt
+1:1 1:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:7 1:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 81 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+error.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 75 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+layout.svelte	lint.txt
+1:1 1:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:7 1:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/kit/test/apps/basics/src/routes/nested-layout/foo/baz/+page.svelte	lint.txt
 
-=== 75 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+layout@.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+layout@.svelte	lint.txt
+2:1 2:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:7 2:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+page.svelte	lint.txt
 
 === 0 packages/kit/test/apps/basics/src/routes/no-ssr/+page.svelte	lint.txt
 
-=== 571 packages/kit/test/apps/basics/src/routes/no-ssr/after-navigate/+page.svelte	lint.txt
+=== 988 packages/kit/test/apps/basics/src/routes/no-ssr/after-navigate/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/valid-compile "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`type` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 175 packages/kit/test/apps/basics/src/routes/no-ssr/browser-only-global/+page.svelte	lint.txt
+=== 353 packages/kit/test/apps/basics/src/routes/no-ssr/browser-only-global/+page.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:2 2:10 no-undef "'document' is not defined."
 5:2 5:10 no-undef "'document' is not defined."
@@ -2670,7 +2709,8 @@
 7:2 7:12 svelte/consistent-selector-style "Selector should select by ID instead of class"
 11:2 11:9 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 175 packages/kit/test/apps/basics/src/routes/no-ssr/ssr-page-config/layout/overwrite/+page.svelte	lint.txt
+=== 353 packages/kit/test/apps/basics/src/routes/no-ssr/ssr-page-config/layout/overwrite/+page.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:2 2:10 no-undef "'document' is not defined."
 5:2 5:10 no-undef "'document' is not defined."
@@ -2690,7 +2730,8 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 75 packages/kit/test/apps/basics/src/routes/prerendering/env/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/prerendering/env/+layout.svelte	lint.txt
+4:1 4:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 4:7 4:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 81 packages/kit/test/apps/basics/src/routes/prerendering/env/dynamic/+page.svelte	lint.txt
@@ -2698,9 +2739,10 @@
 
 === 0 packages/kit/test/apps/basics/src/routes/prerendering/env/prerendered/+page.svelte	lint.txt
 
-=== 675 packages/kit/test/apps/basics/src/routes/prerendering/log-url/+page.svelte	lint.txt
+=== 884 packages/kit/test/apps/basics/src/routes/prerendering/log-url/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/valid-compile "`error` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:3 7:10 no-undef "'console' is not defined."
@@ -2770,10 +2812,11 @@
 2:39 2:63 svelte/max-attributes-per-line "'data-test' should be on a new line."
 2:39 2:63 svelte/sort-attributes "Attribute 'data-test' should go before 'href'."
 
-=== 905 packages/kit/test/apps/basics/src/routes/reroute/preload-data/+page.svelte	lint.txt
+=== 1113 packages/kit/test/apps/basics/src/routes/reroute/preload-data/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`data` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -2800,7 +2843,8 @@
 === 81 packages/kit/test/apps/basics/src/routes/routing/[slug]/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 75 packages/kit/test/apps/basics/src/routes/routing/cancellation/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/routing/cancellation/+layout.svelte	lint.txt
+1:1 1:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:7 1:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/kit/test/apps/basics/src/routes/routing/cancellation/+page.svelte	lint.txt
@@ -2839,10 +2883,11 @@
 2:1 2:9 svelte/button-has-type "Missing an explicit type attribute for button."
 4:1 4:22 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 809 packages/kit/test/apps/basics/src/routes/routing/form-get/+page.svelte	lint.txt
+=== 1017 packages/kit/test/apps/basics/src/routes/routing/form-get/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`type` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2868,8 +2913,9 @@
 2:1 2:40 svelte/button-has-type "Missing an explicit type attribute for button."
 2:24 2:31 no-undef "'history' is not defined."
 
-=== 156 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+layout.svelte	lint.txt
+=== 346 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 75 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+page.svelte	lint.txt
@@ -2879,11 +2925,12 @@
 
 === 0 packages/kit/test/apps/basics/src/routes/routing/hashes/focus/+page.svelte	lint.txt
 
-=== 703 packages/kit/test/apps/basics/src/routes/routing/hashes/pagestate/+page.svelte	lint.txt
+=== 911 packages/kit/test/apps/basics/src/routes/routing/hashes/pagestate/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:10 svelte/valid-compile "`hash` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -2912,7 +2959,8 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:44 4:54 no-undef "'setTimeout' is not defined."
 
-=== 75 packages/kit/test/apps/basics/src/routes/routing/matched/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/routing/matched/+layout.svelte	lint.txt
+6:1 6:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 6:7 6:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/kit/test/apps/basics/src/routes/routing/matched/+page.svelte	lint.txt
@@ -2929,19 +2977,21 @@
 === 81 packages/kit/test/apps/basics/src/routes/routing/matched/[number=numeric]/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 406 packages/kit/test/apps/basics/src/routes/routing/missing-href/+page.svelte	lint.txt
+=== 615 packages/kit/test/apps/basics/src/routes/routing/missing-href/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:11 svelte/valid-compile "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 0 packages/kit/test/apps/basics/src/routes/routing/next-paint/+page.svelte	lint.txt
 
-=== 1553 packages/kit/test/apps/basics/src/routes/routing/preloading/error/+page.svelte	lint.txt
+=== 1761 packages/kit/test/apps/basics/src/routes/routing/preloading/error/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:10 svelte/valid-compile "`data` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:2 12:4 svelte/sort-attributes "Attribute 'onclick' should go before 'type'."
@@ -2989,13 +3039,15 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:47 11:61 svelte/max-attributes-per-line "'rel' should be on a new line."
 
-=== 75 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/+layout.svelte	lint.txt
+3:1 3:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 3:7 3:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 81 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/[dynamic]-bar/[...rest]/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 75 packages/kit/test/apps/basics/src/routes/routing/rest/path/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/routing/rest/path/+layout.svelte	lint.txt
+7:1 7:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 7:7 7:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/kit/test/apps/basics/src/routes/routing/route-id/+page.svelte	lint.txt
@@ -3037,11 +3089,12 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 401 packages/kit/test/apps/basics/src/routes/routing/trailing-slash/+layout.svelte	lint.txt
+=== 593 packages/kit/test/apps/basics/src/routes/routing/trailing-slash/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:1 13:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 13:7 13:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 296 packages/kit/test/apps/basics/src/routes/scroll/cross-document/a/+page.svelte	lint.txt
@@ -3080,7 +3133,8 @@
 1:25 1:39 svelte/prefer-style-directive "Can use style directives instead."
 1:40 1:67 svelte/prefer-style-directive "Can use style directives instead."
 
-=== 75 packages/kit/test/apps/basics/src/routes/selection/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/basics/src/routes/selection/+layout.svelte	lint.txt
+3:1 3:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 3:7 3:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 251 packages/kit/test/apps/basics/src/routes/serialization-basic/+page.svelte	lint.txt
@@ -3146,7 +3200,7 @@
 
 === 0 packages/kit/test/apps/basics/src/routes/shadowed/same-render-entry/+page.svelte	lint.txt
 
-=== 3864 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+layout.svelte	lint.txt
+=== 4056 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3195,6 +3249,7 @@
 47:1 47:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 48:1 48:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 49:1 49:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+56:1 56:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 56:7 56:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 8585 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+page.svelte	lint.txt
@@ -3371,7 +3426,7 @@
 20:1 20:2 svelte/indent "Expected indentation of 0 spaces but found 1 whitespace."
 20:24 21:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 
-=== 2928 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+layout.svelte	lint.txt
+=== 3120 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3408,6 +3463,7 @@
 35:1 35:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 36:1 36:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 37:1 37:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+44:1 44:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 44:7 44:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 2306 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+page.svelte	lint.txt
@@ -3451,13 +3507,15 @@
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:33 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 261 packages/kit/test/apps/basics/src/routes/snapshot/+layout.svelte	lint.txt
+=== 451 packages/kit/test/apps/basics/src/routes/snapshot/+layout.svelte	lint.txt
 3:23 3:44 svelte/max-attributes-per-line "'data-sveltekit-reload' should be on a new line."
 3:23 3:44 svelte/sort-attributes "Attribute 'data-sveltekit-reload' should go before 'href'."
+5:1 5:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 488 packages/kit/test/apps/basics/src/routes/snapshot/a/+page.svelte	lint.txt
+=== 699 packages/kit/test/apps/basics/src/routes/snapshot/a/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:13 svelte/valid-compile "`message` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -3568,10 +3626,11 @@
 6:1 6:70 svelte/button-has-type "Missing an explicit type attribute for button."
 6:28 6:69 svelte/max-attributes-per-line "'onclick' should be on a new line."
 
-=== 324 packages/kit/test/apps/basics/src/routes/state/data/+layout.svelte	lint.txt
+=== 516 packages/kit/test/apps/basics/src/routes/state/data/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:1 14:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 14:7 14:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 907 packages/kit/test/apps/basics/src/routes/state/data/state-update/+layout.svelte	lint.txt
@@ -3591,7 +3650,7 @@
 
 === 0 packages/kit/test/apps/basics/src/routes/state/data/state-update/b/+page.svelte	lint.txt
 
-=== 1070 packages/kit/test/apps/basics/src/routes/state/navigating/+layout.svelte	lint.txt
+=== 1262 packages/kit/test/apps/basics/src/routes/state/navigating/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3604,6 +3663,7 @@
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+22:1 22:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 22:7 22:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/kit/test/apps/basics/src/routes/state/navigating/a/+page.svelte	lint.txt
@@ -3676,14 +3736,16 @@
 === 81 packages/kit/test/apps/dev-only/src/routes/+error.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 237 packages/kit/test/apps/dev-only/src/routes/+layout.svelte	lint.txt
+=== 427 packages/kit/test/apps/dev-only/src/routes/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:1 7:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 7:7 7:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 406 packages/kit/test/apps/dev-only/src/routes/+page.svelte	lint.txt
+=== 617 packages/kit/test/apps/dev-only/src/routes/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:13 svelte/valid-compile "`message` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3704,16 +3766,18 @@
 === 81 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-modules/static-import/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 318 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+error.svelte	lint.txt
+=== 508 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+error.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:1 7:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 7:7 7:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 318 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+layout.svelte	lint.txt
+=== 508 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:1 7:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 7:7 7:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 243 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+page.svelte	lint.txt
@@ -3721,10 +3785,11 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1747 packages/kit/test/apps/dev-only/src/routes/request-abort/+page.svelte	lint.txt
+=== 1957 packages/kit/test/apps/dev-only/src/routes/request-abort/+page.svelte	lint.txt
 1:1 24:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:49 svelte/valid-compile "`result` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:26 7:41 no-undef "'AbortController' is not defined."
@@ -3789,7 +3854,8 @@
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 75 packages/kit/test/apps/no-csr/src/routes/+layout.svelte	lint.txt
+=== 265 packages/kit/test/apps/no-csr/src/routes/+layout.svelte	lint.txt
+1:1 1:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:7 1:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 230 packages/kit/test/apps/no-csr/src/routes/assets/+page.svelte	lint.txt
@@ -3874,9 +3940,10 @@
 === 81 packages/kit/test/apps/options-2/src/routes/trailing-slash-server/prerender/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 237 packages/kit/test/apps/options-3/src/routes/+layout.svelte	lint.txt
+=== 427 packages/kit/test/apps/options-3/src/routes/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:1 7:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 7:7 7:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 81 packages/kit/test/apps/options-3/src/routes/app-manifest/+page.svelte	lint.txt
@@ -3904,12 +3971,13 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 446 packages/kit/test/apps/options/source/pages/custom-extensions/+layout.svelte	lint.txt
+=== 636 packages/kit/test/apps/options/source/pages/custom-extensions/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 5:17 5:23 no-undef "'window' is not defined."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:1 9:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 9:7 9:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/kit/test/apps/options/source/pages/custom-extensions/unsafe-replacement/+page.svelte	lint.txt
@@ -3947,9 +4015,10 @@
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 326 packages/kit/test/apps/options/source/pages/inline-style/conditional-rendering/+page.svelte	lint.txt
+=== 534 packages/kit/test/apps/options/source/pages/inline-style/conditional-rendering/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:10 svelte/valid-compile "`show` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 9:1 9:40 svelte/button-has-type "Missing an explicit type attribute for button."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -4024,7 +4093,8 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1045 packages/kit/test/apps/writes/src/routes/double-mount/+page.svelte	lint.txt
+=== 1436 packages/kit/test/apps/writes/src/routes/double-mount/+page.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -4034,6 +4104,7 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:6 13:13 svelte/valid-compile "`mounted` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:13 16:19 no-undef "'window' is not defined."
@@ -4143,10 +4214,11 @@
 
 === 0 packages/kit/test/prerendering/options/src/routes/(group)/+page.svelte	lint.txt
 
-=== 307 packages/kit/test/prerendering/options/src/routes/+layout.svelte	lint.txt
+=== 497 packages/kit/test/prerendering/options/src/routes/+layout.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:24 2:49 svelte/max-attributes-per-line "'href' should be on a new line."
 2:24 2:49 svelte/sort-attributes "Attribute 'href' should go before 'rel'."
+5:1 5:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/kit/test/prerendering/options/src/routes/nested/+page.svelte	lint.txt
@@ -4169,30 +4241,33 @@
 === 81 packages/kit/test/prerendering/paths-base/src/routes/assets/emitted/+page.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 484 packages/package/test/fixtures/emitTypes-false/expected/Test.svelte	lint.txt
+=== 677 packages/package/test/fixtures/emitTypes-false/expected/Test.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:1 12:19 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 12:17 12:19 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/package/test/fixtures/javascript/expected/internal/runes.svelte.js	lint.txt
 
-=== 474 packages/package/test/fixtures/svelte-3-types/expected/Test.svelte	lint.txt
+=== 665 packages/package/test/fixtures/svelte-3-types/expected/Test.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+8:1 8:19 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 8:17 8:19 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 490 packages/package/test/fixtures/svelte-3-types/src/lib/Test.svelte	lint.txt
+=== 681 packages/package/test/fixtures/svelte-3-types/src/lib/Test.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:1 9:19 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 9:17 9:19 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 0 packages/package/test/fixtures/tsconfig-specified/src/lib/runes.svelte.ts	lint.txt
@@ -4215,8 +4290,9 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 124 packages/package/test/watch/expected/post-error.svelte	lint.txt
+=== 336 packages/package/test/watch/expected/post-error.svelte	lint.txt
 1:1 1:24 svelte/button-has-type "Missing an explicit type attribute for button."
+1:9 1:23 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 1:19 1:22 no-undef "'foo' is not defined."
 
 === 89 playgrounds/basic/src/routes/+page.svelte	lint.txt

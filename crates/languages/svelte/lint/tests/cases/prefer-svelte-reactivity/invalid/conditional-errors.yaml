@@ -1,4 +1,4 @@
 - message: Found a mutable instance of the built-in Date class. Use SvelteDate instead.
-  line: 3
+  line: 5
   column: 16
   suggestions: null

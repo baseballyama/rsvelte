@@ -167,12 +167,11 @@
 55:9 55:14 no-useless-assignment "The value assigned to 'color' is not used in subsequent statements."
 56:5 56:16 no-undef "'SvelteStore' is not defined."
 
-=== 3141 packages/button/src/Button.svelte	lint.txt
+=== 3065 packages/button/src/Button.svelte	lint.txt
 5:3 5:22 svelte/sort-attributes "Attribute 'bind:this' should go before 'tag'."
 21:3 39:6 svelte/sort-attributes "Attribute 'class' should go before 'tag'."
 40:3 43:16 svelte/sort-attributes "Attribute 'style' should go before 'tag'."
 40:9 43:16 svelte/require-optimized-style-attribute "It cannot be optimized because too complex."
-47:3 47:9 svelte/sort-attributes "Attribute 'href' should go before 'tag'."
 49:16 49:26 no-undef "'MouseEvent' is not defined."
 53:1 53:3 svelte/indent "Expected indentation of 0 spaces but found 2 spaces."
 53:4 53:36 svelte/no-unused-class-name "Unused class \"mdc-button__ripple\"."
@@ -318,7 +317,7 @@
 48:8 48:17 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 51:16 51:31 no-undef "'HTMLSpanElement' is not defined."
 
-=== 4547 packages/chips/src/Chip.svelte	lint.txt
+=== 4385 packages/chips/src/Chip.svelte	lint.txt
 5:3 5:22 svelte/sort-attributes "Attribute 'bind:this' should go before 'tag'."
 19:3 25:6 svelte/sort-attributes "Attribute 'class' should go before 'tag'."
 26:3 29:16 svelte/sort-attributes "Attribute 'style' should go before 'tag'."
@@ -367,8 +366,6 @@
 267:7 267:38 no-unused-vars "'accessor' is defined but never used."
 276:24 276:35 no-undef "'HTMLElement' is not defined."
 304:9 304:25 no-undef "'getComputedStyle' is not defined."
-329:1 329:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
-332:1 332:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
 415:9 415:25 no-undef "'getComputedStyle' is not defined."
 
 === 6000 packages/chips/src/ChipSet.svelte	lint.txt
@@ -514,10 +511,9 @@
 72:9 72:12 no-useless-assignment "The value assigned to 'svg' is not used in subsequent statements."
 76:9 76:16 no-useless-assignment "The value assigned to 'context' is not used in subsequent statements."
 
-=== 1625 packages/common/src/CommonLabel.svelte	lint.txt
+=== 1544 packages/common/src/CommonLabel.svelte	lint.txt
 5:3 5:22 svelte/sort-attributes "Attribute 'bind:this' should go before 'tag'."
 7:3 21:6 svelte/sort-attributes "Attribute 'class' should go before 'tag'."
-23:3 23:13 svelte/sort-attributes "Attribute 'tabindex' should go before 'tag'."
 24:17 24:17 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 24:53 25:1 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 27:1 78:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -706,23 +702,10 @@
 77:7 77:42 no-unused-vars "'accessor' is defined but never used."
 102:40 102:60 no-undef "'HTMLTableCellElement' is not defined."
 
-=== 1533 packages/data-table/src/Pagination.svelte	lint.txt
-6:3 9:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
-14:5 17:8 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
-21:7 21:61 svelte/no-unused-class-name "Unused class \"mdc-data-table__pagination-rows-per-page\"."
-26:5 26:56 svelte/no-unused-class-name "Unused class \"mdc-data-table__pagination-navigation\"."
-28:9 28:55 svelte/no-unused-class-name "Unused class \"mdc-data-table__pagination-total\"."
-38:1 103:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-79:5 79:8 no-useless-assignment "The value assigned to 'use' is not used in subsequent statements."
-80:12 80:21 no-useless-assignment "The value assigned to 'className' is not used in subsequent statements."
-81:5 81:17 no-useless-assignment "The value assigned to 'trailing$use' is not used in subsequent statements."
-82:5 82:19 no-useless-assignment "The value assigned to 'trailing$class' is not used in subsequent statements."
-83:5 83:13 no-useless-assignment "The value assigned to 'children' is not used in subsequent statements."
-84:5 84:16 no-useless-assignment "The value assigned to 'rowsPerPage' is not used in subsequent statements."
-85:5 85:10 no-useless-assignment "The value assigned to 'total' is not used in subsequent statements."
-86:8 86:17 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
-90:58 90:59 no-useless-escape "Unnecessary escape character: \\$."
-94:16 94:30 no-undef "'HTMLDivElement' is not defined."
+=== 139 packages/data-table/src/Pagination.svelte	error.txt
+Cannot read properties of null (reading 'range')
+Occurred while linting packages/data-table/src/Pagination.svelte:88
+Rule: "svelte/indent"
 
 === 4873 packages/data-table/src/Row.svelte	lint.txt
 6:3 12:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
@@ -1139,7 +1122,7 @@
 37:8 37:17 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 40:16 40:30 no-undef "'HTMLDivElement' is not defined."
 
-=== 939 packages/layout-grid/src/LayoutGrid.svelte	lint.txt
+=== 1335 packages/layout-grid/src/LayoutGrid.svelte	lint.txt
 6:3 11:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
 19:1 71:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 53:5 53:8 no-useless-assignment "The value assigned to 'use' is not used in subsequent statements."
@@ -1149,7 +1132,12 @@
 57:5 57:13 no-useless-assignment "The value assigned to 'children' is not used in subsequent statements."
 58:8 58:17 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 62:66 62:67 no-useless-escape "Unnecessary escape character: \\$."
+66:1 66:3 svelte/indent "Expected indentation of 8 spaces but found 2 spaces."
 66:16 66:30 no-undef "'HTMLDivElement' is not defined."
+68:1 68:3 svelte/indent "Expected indentation of 8 spaces but found 2 spaces."
+69:1 69:5 svelte/indent "Expected indentation of 10 spaces but found 4 spaces."
+70:1 70:3 svelte/indent "Expected indentation of 8 spaces but found 2 spaces."
+71:1 71:1 svelte/indent "Expected indentation of 8 spaces but found 0 spaces."
 
 === 1290 packages/line-ripple/src/LineRipple.svelte	lint.txt
 6:3 11:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
@@ -1230,7 +1218,7 @@
 25:22 25:31 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 28:7 28:29 no-unassigned-vars "'element' is always 'undefined' because it's never assigned."
 
-=== 5079 packages/list/src/Item.svelte	lint.txt
+=== 5003 packages/list/src/Item.svelte	lint.txt
 5:3 5:22 svelte/sort-attributes "Attribute 'bind:this' should go before 'tag'."
 10:1 10:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 11:1 11:13 svelte/indent "Expected indentation of 10 spaces but found 12 spaces."
@@ -1249,8 +1237,7 @@
 26:3 36:6 svelte/sort-attributes "Attribute 'class' should go before 'tag'."
 37:3 40:16 svelte/sort-attributes "Attribute 'style' should go before 'tag'."
 37:9 40:16 svelte/require-optimized-style-attribute "It cannot be optimized because too complex."
-51:3 51:13 svelte/sort-attributes "Attribute 'tabindex' should go before 'tag'."
-52:3 52:9 svelte/sort-attributes "Attribute 'href' should go before 'tag'."
+52:3 52:9 svelte/sort-attributes "Attribute 'href' should go before 'tabindex'."
 55:16 55:26 no-undef "'MouseEvent' is not defined."
 59:18 59:31 no-undef "'KeyboardEvent' is not defined."
 63:1 63:3 svelte/indent "Expected indentation of 0 spaces but found 2 spaces."
@@ -1453,7 +1440,7 @@
 25:22 25:31 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 28:7 28:29 no-unassigned-vars "'element' is always 'undefined' because it's never assigned."
 
-=== 2646 packages/menu-surface/src/MenuSurface.svelte	lint.txt
+=== 2563 packages/menu-surface/src/MenuSurface.svelte	lint.txt
 8:3 16:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
 17:3 20:16 svelte/no-inline-styles "Found disallowed style attribute."
 17:3 20:16 svelte/sort-attributes "Attribute 'style' should go before 'use:useActions'."
@@ -1489,10 +1476,9 @@
 332:25 332:31 no-undef "'window' is not defined."
 334:26 334:32 no-undef "'window' is not defined."
 367:18 367:24 no-unused-vars "'e' is defined but never used."
-368:1 368:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 397:35 397:45 no-undef "'MouseEvent' is not defined."
 
-=== 1478 packages/menu/src/Menu.svelte	lint.txt
+=== 1367 packages/menu/src/Menu.svelte	lint.txt
 6:3 9:6 svelte/sort-attributes "Attribute 'class' should go before 'use'."
 12:3 12:12 svelte/sort-attributes "Attribute 'managed' should go before 'use'."
 18:3 23:5 svelte/sort-attributes "Attribute 'onSMUIMenuSurfaceOpened' should go before 'onkeydown'."
@@ -1502,7 +1488,6 @@
 34:1 260:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 71:5 71:8 no-useless-assignment "The value assigned to 'use' is not used in subsequent statements."
 72:12 72:21 no-useless-assignment "The value assigned to 'className' is not used in subsequent statements."
-74:5 74:18 no-useless-assignment "The value assigned to 'anchorElement' is not used in subsequent statements."
 76:5 76:13 no-useless-assignment "The value assigned to 'children' is not used in subsequent statements."
 92:7 92:33 no-unused-vars "'accessor' is defined but never used."
 102:7 102:34 no-unused-vars "'accessor' is defined but never used."
@@ -1511,17 +1496,10 @@
 227:33 227:38 no-undef "'Event' is not defined."
 228:49 228:62 no-undef "'KeyboardEvent' is not defined."
 
-=== 911 packages/menu/src/SelectionGroup.svelte	lint.txt
-3:25 3:45 svelte/max-attributes-per-line "'use:useActions' should be on a new line."
-6:5 9:8 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
-16:1 64:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-45:5 45:8 no-useless-assignment "The value assigned to 'use' is not used in subsequent statements."
-46:5 46:13 no-useless-assignment "The value assigned to 'list$use' is not used in subsequent statements."
-47:5 47:15 no-useless-assignment "The value assigned to 'list$class' is not used in subsequent statements."
-48:5 48:13 no-useless-assignment "The value assigned to 'children' is not used in subsequent statements."
-49:8 49:17 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
-53:53 53:54 no-useless-escape "Unnecessary escape character: \\$."
-57:16 57:29 no-undef "'HTMLLIElement' is not defined."
+=== 137 packages/menu/src/SelectionGroup.svelte	error.txt
+Cannot read properties of null (reading 'range')
+Occurred while linting packages/menu/src/SelectionGroup.svelte:51
+Rule: "svelte/indent"
 
 === 809 packages/menu/src/SelectionGroupIcon.svelte	lint.txt
 6:3 6:39 svelte/sort-attributes "Attribute 'bind:this' should go before '_smuiClass'."
@@ -1636,7 +1614,7 @@
 140:7 140:51 no-unused-vars "'accessor' is defined but never used."
 143:7 143:51 no-unused-vars "'accessor' is defined but never used."
 
-=== 3912 packages/segmented-button/src/SegmentedButton.svelte	lint.txt
+=== 3829 packages/segmented-button/src/SegmentedButton.svelte	lint.txt
 6:3 10:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
 11:3 11:47 svelte/sort-attributes "Attribute 'role' should go before 'use:useActions'."
 19:64 19:73 svelte/max-attributes-per-line "'value' should be on a new line."
@@ -1671,7 +1649,6 @@
 221:1 221:17 svelte/indent "Expected indentation of 14 spaces but found 16 spaces."
 222:1 222:21 svelte/indent "Expected indentation of 16 spaces but found 20 spaces."
 223:1 223:19 svelte/indent "Expected indentation of 14 spaces but found 18 spaces."
-224:1 224:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 248:34 248:45 no-undef "'CustomEvent' is not defined."
 
 === 936 packages/select/src/Option.svelte	lint.txt
@@ -5972,7 +5949,7 @@
 25:22 25:31 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 28:7 28:29 no-unassigned-vars "'element' is always 'undefined' because it's never assigned."
 
-=== 1690 packages/textfield/src/Input.svelte	lint.txt
+=== 1379 packages/textfield/src/Input.svelte	lint.txt
 6:3 9:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
 10:3 10:9 svelte/sort-attributes "Attribute 'type' should go before 'use:useActions'."
 11:3 11:16 svelte/sort-attributes "Attribute 'placeholder' should go before 'use:useActions'."
@@ -5982,9 +5959,6 @@
 84:5 84:8 no-useless-assignment "The value assigned to 'use' is not used in subsequent statements."
 85:12 85:21 no-useless-assignment "The value assigned to 'className' is not used in subsequent statements."
 89:5 89:16 no-useless-assignment "The value assigned to 'placeholder' is not used in subsequent statements."
-91:5 91:10 no-useless-assignment "The value assigned to 'files' is not used in subsequent statements."
-92:5 92:10 no-useless-assignment "The value assigned to 'dirty' is not used in subsequent statements."
-93:5 93:12 no-useless-assignment "The value assigned to 'invalid' is not used in subsequent statements."
 101:16 101:32 no-undef "'HTMLInputElement' is not defined."
 102:7 102:57 svelte/prefer-const "'internalAttrs' is never reassigned. Use 'const' instead."
 103:7 103:45 svelte/prefer-const "'valueProp' is never reassigned. Use 'const' instead."
@@ -6015,7 +5989,7 @@
 25:22 25:31 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 28:7 28:29 no-unassigned-vars "'element' is always 'undefined' because it's never assigned."
 
-=== 1639 packages/textfield/src/Textarea.svelte	lint.txt
+=== 1328 packages/textfield/src/Textarea.svelte	lint.txt
 6:3 9:6 svelte/sort-attributes "Attribute 'class' should go before 'use:useActions'."
 10:3 10:57 svelte/no-inline-styles "Found disallowed style attribute."
 10:3 10:57 svelte/sort-attributes "Attribute 'style' should go before 'use:useActions'."
@@ -6027,9 +6001,6 @@
 64:5 64:8 no-useless-assignment "The value assigned to 'use' is not used in subsequent statements."
 65:12 65:21 no-useless-assignment "The value assigned to 'className' is not used in subsequent statements."
 66:5 66:10 no-useless-assignment "The value assigned to 'style' is not used in subsequent statements."
-67:5 67:10 no-useless-assignment "The value assigned to 'value' is not used in subsequent statements."
-68:5 68:10 no-useless-assignment "The value assigned to 'dirty' is not used in subsequent statements."
-69:5 69:12 no-useless-assignment "The value assigned to 'invalid' is not used in subsequent statements."
 72:5 72:14 no-useless-assignment "The value assigned to 'resizable' is not used in subsequent statements."
 76:16 76:35 no-undef "'HTMLTextAreaElement' is not defined."
 77:7 77:57 svelte/prefer-const "'internalAttrs' is never reassigned. Use 'const' instead."
@@ -6194,7 +6165,7 @@
 25:22 25:31 no-useless-assignment "The value assigned to 'restProps' is not used in subsequent statements."
 28:7 28:29 no-unassigned-vars "'element' is always 'undefined' because it's never assigned."
 
-=== 3028 packages/top-app-bar/src/TopAppBar.svelte	lint.txt
+=== 2919 packages/top-app-bar/src/TopAppBar.svelte	lint.txt
 6:1 6:5 svelte/indent "Expected indentation of 6 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 6 spaces but found 4 spaces."
 8:1 8:5 svelte/indent "Expected indentation of 6 spaces but found 4 spaces."
@@ -6210,7 +6181,6 @@
 112:5 112:10 no-useless-assignment "The value assigned to 'style' is not used in subsequent statements."
 114:5 114:10 no-useless-assignment "The value assigned to 'color' is not used in subsequent statements."
 119:5 119:13 no-useless-assignment "The value assigned to 'children' is not used in subsequent statements."
-126:5 126:14 no-useless-assignment "The value assigned to 'collapsed' is not used in subsequent statements."
 130:16 130:27 no-undef "'HTMLElement' is not defined."
 137:7 137:19 svelte/prefer-const "'eventManager' is never reassigned. Use 'const' instead."
 143:1 143:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."

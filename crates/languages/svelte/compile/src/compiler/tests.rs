@@ -53,6 +53,34 @@ fn compile_gives_what_the_task_writes() {
 }
 
 #[test]
+fn the_source_map_names_the_source_by_its_file_name() {
+    for filename in [
+        "src/lib/Button.svelte",
+        "C:\\app\\Button.svelte",
+        "Button.svelte",
+    ] {
+        let options = CompileOptions {
+            filename: filename.to_owned(),
+            ..CompileOptions::default()
+        };
+        let map = compile(BUTTON, &options).expect("compiles").js.map;
+        assert!(
+            map.contains("\"sources\":[\"Button.svelte\"]"),
+            "{filename}: {map}"
+        );
+    }
+    let options = ModuleCompileOptions {
+        filename: "src/lib/a.svelte.js".to_owned(),
+        generate: Target::Client,
+    };
+    let map = compile_module("export const a = 1;\n", &options)
+        .expect("compiles")
+        .js
+        .map;
+    assert!(map.contains("\"sources\":[\"a.svelte.js\"]"), "{map}");
+}
+
+#[test]
 fn compile_returns_the_warnings_the_task_reports() {
     let source = "<img src=\"a.png\">";
     let mut registry = Registry::new();
@@ -160,4 +188,20 @@ fn a_module_file_store_subscription_is_the_module_error() {
         // A `$name` the module does not declare is a global, as upstream's module loop leaves it.
         compiled("console.log($undeclared);\n").expect("compiles");
     }
+}
+
+#[test]
+fn the_stylesheet_hash_comes_from_the_filename_or_else_from_the_stylesheet() {
+    // svelte/compiler 5.57.3 gives these classes for this source.
+    let source = "<p class=\"a\">x</p><style>.a { color: red; }</style>";
+    let class = |filename: &str| {
+        let options = CompileOptions {
+            filename: filename.to_owned(),
+            ..CompileOptions::default()
+        };
+        let stylesheet = compile(source, &options).expect("it compiles").css;
+        stylesheet.expect("a stylesheet")
+    };
+    assert!(class("Logo.svelte").contains("svelte-70rkpb"));
+    assert!(class(UNKNOWN_FILENAME).contains("svelte-1erwqir"));
 }
