@@ -9,9 +9,9 @@ use rsvelte_kernel::source::positions::LineBreaks;
 
 use crate::Configuration;
 use crate::computation::{
-    ConditionTypes, LintConfiguration, LoweredAsSvelteEslintParser, ModuleAsTypeScript,
-    ModuleAsTypeScriptSemantic, NativeConditionTypes, ParsedAsSvelteEslintParser,
-    ResolvedAsSvelteEslintParser,
+    CompiledForLint, ConditionTypes, LintConfiguration, LoweredAsSvelteEslintParser,
+    ModuleAsTypeScript, ModuleAsTypeScriptSemantic, NativeConditionTypes,
+    ParsedAsSvelteEslintParser, ResolvedAsSvelteEslintParser,
 };
 use crate::project::{PostcssConfigurationOnDisk, SameNamedFileOnDisk};
 use crate::rules::shared::legacy_reactivity::LegacyReactivity;
@@ -55,6 +55,7 @@ pub fn register_artifacts(registry: &mut Registry) {
         .artifact::<LoweredAsSvelteEslintParser>()
         .artifact::<ResolvedAsSvelteEslintParser>()
         .artifact::<NativeConditionTypes>()
+        .artifact::<CompiledForLint>()
         .artifact::<LegacyReactivity>()
         .artifact::<SameNamedFileOnDisk>()
         .artifact::<PostcssConfigurationOnDisk>();

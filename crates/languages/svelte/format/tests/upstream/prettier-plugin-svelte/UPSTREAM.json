@@ -1,11 +1,11 @@
 {
 	"repository": "https://github.com/sveltejs/prettier-plugin-svelte",
-	"commit": "7809486a9716faa2234c8a45d88b601034de52d8",
+	"commit": "183298a9e3eabed84f7801ee6d39822384008a5b",
 	"fixtures": "test",
 	"license": "MIT",
 	"versions": {
-		"prettier-plugin-svelte": "4.1.1",
-		"prettier": "3.9.10",
-		"svelte": "5.57.3"
+		"prettier-plugin-svelte": "4.2.0",
+		"prettier": "3.10.1",
+		"svelte": "5.59.1"
 	}
 }

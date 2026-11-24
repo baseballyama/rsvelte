@@ -480,7 +480,7 @@
   }
 </style>
 
-=== 5998 apps/docs/src/routes/+page.svelte	svelte
+=== 5989 apps/docs/src/routes/+page.svelte	svelte
 <script>
   import {
     colorScheme,
@@ -548,9 +548,9 @@ index: true
           gradient={{ from: "blue", to: "cyan", deg: 45 }}
           override={{ "&:hover": { textDecoration: "none" } }}
         >
-          <Text weight="bold" override={{ color: "white !important" }}
-            >Get Started</Text
-          >
+          <Text weight="bold" override={{ color: "white !important" }}>
+            Get Started
+          </Text>
         </Button>
       </a>
       <a href="https://github.com/svelteuidev/svelteui">
@@ -600,10 +600,9 @@ index: true
       override={{ mt: "$10" }}
       direction={$mobile ? "column" : "row"}
     >
-      <a href="{base}/installation"
-        ><Button fullSize={$mobile ? true : false} size="lg">Yes I am</Button
-        ></a
-      >
+      <a href="{base}/installation">
+        <Button fullSize={$mobile ? true : false} size="lg">Yes I am</Button>
+      </a>
       <a href="{base}/introduction">
         <Button fullSize={$mobile ? true : false} size="lg" variant="outline">
           I'd like to learn more
@@ -789,9 +788,9 @@ index: true
 <Meta title="Composables/use-focus-trap" />
 
 <Template let:args>
-  <Button on:click={() => (active = !active)}
-    >{active ? "Deactivate Focus Trap" : "Activate Focus Trap"}</Button
-  >
+  <Button on:click={() => (active = !active)}>
+    {active ? "Deactivate Focus Trap" : "Activate Focus Trap"}
+  </Button>
   <div use:focustrap={active}>
     <Title>Form</Title>
     <Text>Please fill out this form</Text>
@@ -1023,7 +1022,7 @@ index: true
   </AspectRatio>
 </Story>
 
-=== 619 packages/svelteui-core/src/components/Badge/Badge.stories.svelte	svelte
+=== 631 packages/svelteui-core/src/components/Badge/Badge.stories.svelte	svelte
 <script lang="ts">
   import { Meta, Template, Story } from "@storybook/addon-svelte-csf";
   import { Group } from "../Group";
@@ -1047,8 +1046,10 @@ index: true
     <Badge variant="gradient">Hello</Badge>
     <Badge
       variant="gradient"
-      gradient={{ from: "green", to: "yellow", deg: 90 }}>Hello</Badge
+      gradient={{ from: "green", to: "yellow", deg: 90 }}
     >
+      Hello
+    </Badge>
   </Group>
 </Story>
 
@@ -1489,7 +1490,7 @@ index: true
   />
 </Story>
 
-=== 1143 packages/svelteui-core/src/components/Collapse/Collapse.stories.svelte	svelte
+=== 1175 packages/svelteui-core/src/components/Collapse/Collapse.stories.svelte	svelte
 <script lang="ts">
   import { Meta, Template, Story } from "@storybook/addon-svelte-csf";
   import { Button } from "../Button";
@@ -1506,8 +1507,10 @@ index: true
   <Button
     on:click={() => {
       open = !open;
-    }}>Toggle collapse text</Button
+    }}
   >
+    Toggle collapse text
+  </Button>
 
   <Collapse {open} {...args}>
     <Paper>This is a hidden text!</Paper>
@@ -1522,8 +1525,10 @@ index: true
   <Button
     on:click={() => {
       open = !open;
-    }}>Toggle collapse</Button
+    }}
   >
+    Toggle collapse
+  </Button>
 
   <Collapse {open}>
     <Paper>
@@ -1531,8 +1536,10 @@ index: true
       <Button
         on:click={() => {
           openInside = !openInside;
-        }}>Toggle nested collapse</Button
+        }}
       >
+        Toggle nested collapse
+      </Button>
 
       <Collapse open={openInside}>
         <Paper>This is a very hidden text, sshhhh!</Paper>
@@ -1619,9 +1626,9 @@ index: true
       on:selected={handleSelected}
     >
       <IconRenderer iconSize={48} icon={Download} />
-      <Text align="center" weight={"semibold"}
-        >Click or drag file to this area to FileUpload</Text
-      >
+      <Text align="center" weight={"semibold"}>
+        Click or drag file to this area to FileUpload
+      </Text>
       <Text align="center" size="sm" color="dimmed">
         Support for a single or bulk FileUpload. Strictly prohibit from
         FileUploading company data or other band files
@@ -1847,9 +1854,9 @@ index: true
     This alert uses a Svelte component for it's icon
   </Alert>
   <br />
-  <Alert icon={iconSvg} title="Example 2"
-    >This alert uses an SVG element for it's icon</Alert
-  >
+  <Alert icon={iconSvg} title="Example 2">
+    This alert uses an SVG element for it's icon
+  </Alert>
 </Story>
 
 <Story name="Button" id="iconRendererButtonStory">
@@ -1890,9 +1897,9 @@ index: true
 
 <Story name="Tabs" id="iconRendererTabsStory">
   <Tabs>
-    <Tab label="Svelte Component" icon={InfoCircled}
-      >A tab with an Svelte component icon</Tab
-    >
+    <Tab label="Svelte Component" icon={InfoCircled}>
+      A tab with an Svelte component icon
+    </Tab>
     <Tab label="SVG element" icon={iconSvg}>A tab with an SVG element icon</Tab>
   </Tabs>
 </Story>
@@ -2183,9 +2190,9 @@ index: true
 </Story>
 
 <Story name="Event listeners" id="menuEventListenersStory">
-  <Button on:click={() => (menuEvents = [...menuEvents, "button click"])}
-    >Test event</Button
-  >
+  <Button on:click={() => (menuEvents = [...menuEvents, "button click"])}>
+    Test event
+  </Button>
   <Menu
     on:open={() => (menuEvents = [...menuEvents, "opened"])}
     on:close={() => (menuEvents = [...menuEvents, "closed"])}
@@ -2691,10 +2698,10 @@ index: true
     </Tabs.Tab>
     <Tabs.Tab label="Messages" icon={EnvelopeClosed}>
       <Title align="left" mb="lg" order={3}>Your messages</Title>
-      <Text
-        >Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean
-        commodo ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et
-        magnis dis parturient montes, nascetur ridiculus mus. Donec quam felis,
+      <Text>
+        Lorem ipsum dolor sit amet, consectetuer adipiscing elit. Aenean commodo
+        ligula eget dolor. Aenean massa. Cum sociis natoque penatibus et magnis
+        dis parturient montes, nascetur ridiculus mus. Donec quam felis,
         ultricies nec, pellentesque eu, pretium quis, sem. Nulla consequat massa
         quis enim. Donec pede justo, fringilla vel, aliquet nec, vulputate eget,
         arcu. In enim justo, rhoncus ut, imperdiet a, venenatis vitae, justo.
@@ -2725,8 +2732,8 @@ index: true
         nulla eros, ultricies sit amet, nonummy id, imperdiet feugiat, pede. Sed
         lectus. Donec mollis hendrerit risus. Phasellus nec sem in justo
         pellentesque facilisis. Etiam imperdiet imperdiet orci. Nunc nec neque.
-        Phasellus leo dolor, tempus non, auctor et, hendrerit quis, nisi.</Text
-      >
+        Phasellus leo dolor, tempus non, auctor et, hendrerit quis, nisi.
+      </Text>
     </Tabs.Tab>
     <Tabs.Tab label="Settings" icon={Gear}>Settings tab content</Tabs.Tab>
   </Tabs>
@@ -3725,9 +3732,9 @@ index: true
   <Stack align="center">
     <Text>isSupported: {isSupported}</Text>
     <Text>
-      sRGBHex: <Text inherit override={{ color: `${$sRGBHex} !important` }}
-        >{$sRGBHex}</Text
-      >
+      sRGBHex: <Text inherit override={{ color: `${$sRGBHex} !important` }}>
+        {$sRGBHex}
+      </Text>
     </Text>
     <Button variant="outline" on:click={() => open()}>
       <EyeOpen slot="leftIcon" />
@@ -3795,9 +3802,9 @@ index: true
     mb="lg"
   >
     One of elements has focus:
-    <Text root="span" inherit variant="gradient"
-      >{upperFirst($focused.toString())}</Text
-    >
+    <Text root="span" inherit variant="gradient">
+      {upperFirst($focused.toString())}
+    </Text>
   </Text>
   <TextInput
     label="Focus this input"
@@ -3835,9 +3842,9 @@ index: true
 </script>
 
 <Stack align="center">
-  <Button on:click={() => window.location.reload()}
-    >Click to refresh the page</Button
-  >
+  <Button on:click={() => window.location.reload()}>
+    Click to refresh the page
+  </Button>
   <p>Generated hash that won't change: <b>{id}</b></p>
 </Stack>
 
@@ -4244,9 +4251,9 @@ index: true
 
 <svelte:window on:scroll={() => (scrollY = window.scrollY)} />
 
-<Text align="center"
-  >Affix is located at the bottom of the screen, scroll to see it</Text
->
+<Text align="center">
+  Affix is located at the bottom of the screen, scroll to see it
+</Text>
 <Affix position={{ bottom: 20, right: 20 }}>
   {#if scrollY > 0}
     <div transition:fly={{ y: 20, duration: 250 }}>
@@ -5012,7 +5019,7 @@ index: true
   <Button variant="default" compact>Click Me</Button>
 </Group>
 
-=== 1441 packages/svelteui-demos/src/demos/core/Button/Button.demo.customize.svelte	svelte
+=== 1449 packages/svelteui-demos/src/demos/core/Button/Button.demo.customize.svelte	svelte
 <script lang="ts" context="module">
   import type { CodeDemoType, CodeDemoConfiguration } from "$lib/types";
 
@@ -5062,8 +5069,10 @@ index: true
 <Group position="center">
   <Button
     override={{ bc: "red", "&:hover": { bc: "$indigo400" } }}
-    variant="outline">Click Me</Button
+    variant="outline"
   >
+    Click Me
+  </Button>
   <Button override={newStyles}>
     <GithubLogo slot="leftIcon" size={16} /> I love open source!
   </Button>
@@ -5107,18 +5116,18 @@ index: true
 
 <Group position="center">
   <Button variant="gradient">Default</Button>
-  <Button variant="gradient" gradient={{ from: "teal", to: "green", deg: 105 }}
-    >Lime Green</Button
-  >
-  <Button variant="gradient" gradient={{ from: "teal", to: "blue", deg: 60 }}
-    >Teal Blue</Button
-  >
-  <Button variant="gradient" gradient={{ from: "orange", to: "red", deg: 45 }}
-    >Orange red</Button
-  >
-  <Button variant="gradient" gradient={{ from: "grape", to: "pink", deg: 35 }}
-    >Grape Pink</Button
-  >
+  <Button variant="gradient" gradient={{ from: "teal", to: "green", deg: 105 }}>
+    Lime Green
+  </Button>
+  <Button variant="gradient" gradient={{ from: "teal", to: "blue", deg: 60 }}>
+    Teal Blue
+  </Button>
+  <Button variant="gradient" gradient={{ from: "orange", to: "red", deg: 45 }}>
+    Orange red
+  </Button>
+  <Button variant="gradient" gradient={{ from: "grape", to: "pink", deg: 35 }}>
+    Grape Pink
+  </Button>
 </Group>
 
 === 835 packages/svelteui-demos/src/demos/core/Button/Button.demo.icons.svelte	svelte
@@ -5248,9 +5257,9 @@ index: true
 </script>
 
 <Group position="center">
-  <Button href="https://github.com/svelteuidev/svelteui"
-    >I go to svelteuidev/svelteui</Button
-  >
+  <Button href="https://github.com/svelteuidev/svelteui">
+    I go to svelteuidev/svelteui
+  </Button>
 </Group>
 
 === 944 packages/svelteui-demos/src/demos/core/Button/Button.demo.variants.svelte	svelte
@@ -5732,7 +5741,7 @@ index: true
   <Code>This code will be inline</Code>
 </Center>
 
-=== 1466 packages/svelteui-demos/src/demos/core/Collapse/Collapse.demo.nested.svelte	svelte
+=== 1490 packages/svelteui-demos/src/demos/core/Collapse/Collapse.demo.nested.svelte	svelte
 <script lang="ts" context="module">
   import type { CodeDemoType, CodeDemoConfiguration } from "$lib/types";
 
@@ -5783,8 +5792,10 @@ index: true
   <Button
     on:click={() => {
       open = !open;
-    }}>Toggle collapse</Button
+    }}
   >
+    Toggle collapse
+  </Button>
 
   <Collapse {open}>
     <Paper>
@@ -5792,8 +5803,10 @@ index: true
       <Button
         on:click={() => {
           openInside = !openInside;
-        }}>Toggle nested collapse</Button
+        }}
       >
+        Toggle nested collapse
+      </Button>
 
       <Collapse open={openInside}>
         <Paper>This is a very hidden text, sshhhh!</Paper>
@@ -5928,9 +5941,9 @@ index: true
   const color = theme.colors["blue50"].value;
 </script>
 
-<Container override={{ backgroundColor: color, height: 50 }}
-  >Default container</Container
->
+<Container override={{ backgroundColor: color, height: 50 }}>
+  Default container
+</Container>
 
 <Container
   size="xs"
@@ -7507,9 +7520,9 @@ index: true
 
     <Menu.Label>Danger zone</Menu.Label>
     <Menu.Item icon={Width} class={classes.root}>Transfer my data</Menu.Item>
-    <Menu.Item color="red" icon={Trash} class={classes.root}
-      >Delete my account</Menu.Item
-    >
+    <Menu.Item color="red" icon={Trash} class={classes.root}>
+      Delete my account
+    </Menu.Item>
   </Menu>
 </Center>
 
@@ -7881,9 +7894,9 @@ index: true
   override={{ select: { padding: 0 } }}
   label="What is the best framework?"
 />
-<Text
-  >The best is <Text root="span" inline variant="gradient">{value}</Text></Text
->
+<Text>
+  The best is <Text root="span" inline variant="gradient">{value}</Text>
+</Text>
 
 === 617 packages/svelteui-demos/src/demos/core/NativeSelect/NativeSelect.demo.disabled.svelte	svelte
 <script lang="ts" context="module">
@@ -8118,9 +8131,9 @@ index: true
       This is the teal color notification with icon
     </Notification>
 
-    <Notification icon={Cross2} color="red"
-      >Oops, this notification has no title</Notification
-    >
+    <Notification icon={Cross2} color="red">
+      Oops, this notification has no title
+    </Notification>
 
     <Notification title="Uploading data" loading withCloseButton={false}>
       Please wait while your data is being uploaded, you can't close this
@@ -8226,7 +8239,7 @@ index: true
   />
 </Group>
 
-=== 1183 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.externalcontrols.svelte	svelte
+=== 1193 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.externalcontrols.svelte	svelte
 <script lang="ts" context="module">
   import type { CodeDemoType, CodeDemoConfiguration } from "$lib/types";
 
@@ -8273,8 +8286,9 @@ index: true
 </script>
 
 <Group position="center">
-  <ActionIcon variant="default" on:click={() => input.decrement()}>-</ActionIcon
-  >
+  <ActionIcon variant="default" on:click={() => input.decrement()}>
+    -
+  </ActionIcon>
   <Center inline override={{ width: "50px" }}>
     <NumberInput
       bind:this={input}
@@ -8285,8 +8299,9 @@ index: true
       step={2}
     />
   </Center>
-  <ActionIcon variant="default" on:click={() => input.increment()}>+</ActionIcon
-  >
+  <ActionIcon variant="default" on:click={() => input.increment()}>
+    +
+  </ActionIcon>
 </Group>
 
 === 1378 packages/svelteui-demos/src/demos/core/NumberInput/NumberInput.demo.hold.svelte	svelte
@@ -8749,9 +8764,9 @@ index: true
 </script>
 
 <Overlay opacity={0.6} color="#000" zIndex={5} center>
-  <Text override={{ color: "white", marginTop: "10px" }}
-    >This text is now selectable</Text
-  >
+  <Text override={{ color: "white", marginTop: "10px" }}>
+    This text is now selectable
+  </Text>
 </Overlay>
 
 === 929 packages/svelteui-demos/src/demos/core/Overlay/Overlay.demo.gradient.svelte	svelte
@@ -9294,9 +9309,9 @@ index: true
   cols={3}
 >
   {#each [...Array(5).keys()] as _, i}
-    <Center override={{ bc: "AliceBlue", padding: "$12", color: "$blue600" }}
-      >{i + 1}</Center
-    >
+    <Center override={{ bc: "AliceBlue", padding: "$12", color: "$blue600" }}>
+      {i + 1}
+    </Center>
   {/each}
 </SimpleGrid>
 
@@ -9482,9 +9497,9 @@ index: true
 
 <Tabs>
   <Tabs.Tab label="Gallery" icon={Camera}>Gallery tab content</Tabs.Tab>
-  <Tabs.Tab label="Messages" icon={EnvelopeClosed}
-    >Messages tab content</Tabs.Tab
-  >
+  <Tabs.Tab label="Messages" icon={EnvelopeClosed}>
+    Messages tab content
+  </Tabs.Tab>
   <Tabs.Tab icon={Gear}>Settings tab content</Tabs.Tab>
 </Tabs>
 
@@ -10035,7 +10050,7 @@ index: true
   </Timeline>
 </Center>
 
-=== 3482 packages/svelteui-demos/src/demos/core/Timeline/Timeline.demo.usage.svelte	svelte
+=== 3542 packages/svelteui-demos/src/demos/core/Timeline/Timeline.demo.usage.svelte	svelte
 <script lang="ts" context="module">
   import type { CodeDemoType, CodeDemoConfiguration } from "$lib/types";
 
@@ -10106,21 +10121,25 @@ index: true
           variant="link"
           root="span"
           href="#"
-          inherit>fix-notifications</Text
-        > from master</Text
-      >
+          inherit
+        >
+          fix-notifications
+        </Text> from master
+      </Text>
       <Text size="xs" override={{ marginTop: "4px" }}>2 hours ago</Text>
     </Timeline.Item>
 
     <Timeline.Item bullet={Commit} title="Commits">
-      <Text color="dimmed" size="sm"
-        >You&apos;ve pushed 23 commits to<Text
+      <Text color="dimmed" size="sm">
+        You&apos;ve pushed 23 commits to<Text
           variant="link"
           root="span"
           href="#"
-          inherit>fix-notifications branch</Text
-        ></Text
-      >
+          inherit
+        >
+          fix-notifications branch
+        </Text>
+      </Text>
       <Text size="xs" override={{ marginTop: "4px" }}>52 minutes ago</Text>
     </Timeline.Item>
 
@@ -10129,29 +10148,31 @@ index: true
       bullet={GithubLogo}
       lineVariant="dashed"
     >
-      <Text color="dimmed" size="sm"
-        >You&apos;ve submitted a pull request<Text
+      <Text color="dimmed" size="sm">
+        You&apos;ve submitted a pull request<Text
           variant="link"
           root="span"
           href="#"
-          inherit>Fix incorrect notification message (#187)</Text
-        ></Text
-      >
+          inherit
+        >
+          Fix incorrect notification message (#187)
+        </Text>
+      </Text>
       <Text size="xs" override={{ marginTop: "4px" }}>34 minutes ago</Text>
     </Timeline.Item>
 
     <Timeline.Item title="Code review" bullet={EyeOpen}>
-      <Text color="dimmed" size="sm"
-        ><Text variant="link" root="span" href="#" inherit
-          >Robert Gluesticker</Text
-        > left a code review on your pull request</Text
-      >
+      <Text color="dimmed" size="sm">
+        <Text variant="link" root="span" href="#" inherit>
+          Robert Gluesticker
+        </Text> left a code review on your pull request
+      </Text>
       <Text size="xs" override={{ marginTop: "4px" }}>12 minutes ago</Text>
     </Timeline.Item>
   </Timeline>
 </Center>
 
-=== 731 packages/svelteui-demos/src/demos/core/Title/Title.demo.shared.svelte	svelte
+=== 732 packages/svelteui-demos/src/demos/core/Title/Title.demo.shared.svelte	svelte
 <script lang="ts" context="module">
   import type { CodeDemoType, CodeDemoConfiguration } from "$lib/types";
 
@@ -10179,8 +10200,9 @@ index: true
   order={1}
   variant="gradient"
   gradient={{ from: "blue", to: "red", deg: 45 }}
-  >This is h1 title with a twist</Title
 >
+  This is h1 title with a twist
+</Title>
 
 === 898 packages/svelteui-demos/src/demos/core/Title/Title.demo.usage.svelte	svelte
 <script lang="ts" context="module">
@@ -10438,9 +10460,9 @@ index: true
         Use this button to save this information in your profile, after that you
         will be able to access it any time and share it via email.
       </Text>
-      <ActionIcon size="xs" color="white" on:click={() => (opened = false)}
-        >x</ActionIcon
-      >
+      <ActionIcon size="xs" color="white" on:click={() => (opened = false)}>
+        x
+      </ActionIcon>
     </div>
     <Button on:click={() => (opened = false)}>Save to profile</Button>
   </Tooltip>

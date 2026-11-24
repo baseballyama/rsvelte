@@ -1090,7 +1090,7 @@
   }
 </style>
 
-=== 2385 examples/example-sveltekit/src/routes/+layout.svelte	svelte
+=== 2421 examples/example-sveltekit/src/routes/+layout.svelte	svelte
 <script>
   import "./../gantt-default.css";
   import { showOptions, setView, moveView } from "./../stores/store";
@@ -1119,8 +1119,10 @@
       value="Day view"
       on:click={() => {
         setView.set("day");
-      }}>Day view</button
+      }}
     >
+      Day view
+    </button>
     <input
       type="button"
       value=">"
@@ -1133,13 +1135,17 @@
       value="Week view"
       on:click={() => {
         setView.set("week");
-      }}>Week view</button
+      }}
     >
+      Week view
+    </button>
     <button
       on:click={() => {
         showOptions.set(!$showOptions);
-      }}>|||</button
+      }}
     >
+      |||
+    </button>
   </div>
 </header>
 <slot></slot>
@@ -1213,7 +1219,7 @@
   }
 </style>
 
-=== 2709 packages/demo/src/routes/+layout.svelte	svelte
+=== 2725 packages/demo/src/routes/+layout.svelte	svelte
 <script>
   import "../gantt-default.css";
   import "../main.css";
@@ -1238,28 +1244,28 @@
     </div>
     <div class="header-controls">
       <div class="header-controls__row">
-        <a href="{base}/large-dataset"
-          ><button type="button">LargeDataset</button></a
-        >
-        <a href="{base}/dependencies"
-          ><button type="button">Dependencies</button></a
-        >
+        <a href="{base}/large-dataset">
+          <button type="button">LargeDataset</button>
+        </a>
+        <a href="{base}/dependencies">
+          <button type="button">Dependencies</button>
+        </a>
         <a href="{base}/tree"><button type="button">Tree</button></a>
         <a href="{base}/external"><button type="button">External</button></a>
         <a href="{base}/events"><button type="button">Events</button></a>
-        <a href="{base}/multiple-charts"
-          ><button type="button">Multiple gantt</button></a
-        >
-        <a href="{base}/svelte-component"
-          ><button type="button">Usage as svelte component</button></a
-        >
-        <a href="{base}/column-styles"
-          ><button type="button">Column styles</button></a
-        >
+        <a href="{base}/multiple-charts">
+          <button type="button">Multiple gantt</button>
+        </a>
+        <a href="{base}/svelte-component">
+          <button type="button">Usage as svelte component</button>
+        </a>
+        <a href="{base}/column-styles">
+          <button type="button">Column styles</button>
+        </a>
         <a href="{base}/pack-layout"><button type="button">Layouts</button></a>
-        <a href="{base}/create-tasks"
-          ><button type="button">Create tasks</button></a
-        >
+        <a href="{base}/create-tasks">
+          <button type="button">Create tasks</button>
+        </a>
       </div>
 
       <GanttViewNavigation
@@ -1270,8 +1276,10 @@
       <button
         on:click={() => {
           showOptions.set(!$showOptions);
-        }}>|||</button
+        }}
       >
+        |||
+      </button>
     </div>
   </header>
   <slot></slot>
@@ -1984,7 +1992,7 @@
   }
 </style>
 
-=== 3340 packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	svelte
+=== 3360 packages/docs-mdsvex/src/routes/docs/options/zoom/ZoomExample.svelte	svelte
 <script context="module">
   export const zoomLevels = [
     {
@@ -2066,8 +2074,10 @@
       <span>
         <button
           class="border hover:bg-slate-100 px-1 py-1 text-sm active:bg-slate-200"
-          on:click={() => applyZoom(zoomLevels[i])}>{value}</button
+          on:click={() => applyZoom(zoomLevels[i])}
         >
+          {value}
+        </button>
       </span>
     {/each}
   </div>

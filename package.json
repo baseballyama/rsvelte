@@ -14,14 +14,14 @@
 		"@changesets/cli": "3.0.3",
 		"@rsvelte/cli": "0.5.0",
 		"@types/node": "26.6.6",
-		"knip": "6.44.1",
-		"oxfmt": "0.75.0",
-		"oxlint": "1.90.0",
+		"knip": "6.46.1",
+		"oxfmt": "0.79.0",
+		"oxlint": "1.94.0",
 		"svelte": "5.59.1",
 		"typescript-7": "npm:typescript@7.1.0-dev.20261102.1"
 	},
 	"engines": {
 		"node": ">=26"
 	},
-	"packageManager": "pnpm@12.16.1"
+	"packageManager": "pnpm@12.21.0"
 }

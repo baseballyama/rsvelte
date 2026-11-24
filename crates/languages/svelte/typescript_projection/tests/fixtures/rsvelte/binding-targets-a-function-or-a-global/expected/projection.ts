@@ -41,9 +41,9 @@ function $$render() {
   };
   return (/** @type {typeof __rsvelte_export_isomorphic<{
     a?: typeof a;
-  }, { [evt: string]: CustomEvent<any> }, {
+  }, {
     a: typeof a;
-  }, string>} */ (__rsvelte_export_isomorphic))()({});
+  }, string>} */ (__rsvelte_export_isomorphic))()(__rsvelte_any_event({}), {});
 }
 export const BindingTargetsAFunctionOrAGlobal__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {InstanceType<typeof BindingTargetsAFunctionOrAGlobal__SvelteComponent_>} BindingTargetsAFunctionOrAGlobal__SvelteComponent_ */

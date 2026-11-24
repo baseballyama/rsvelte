@@ -57,7 +57,7 @@
   </span>
 </Popover.Root>
 
-=== 1620 docs/src/lib/components/api-ref/css-vars/css-vars-table.svelte	svelte
+=== 1633 docs/src/lib/components/api-ref/css-vars/css-vars-table.svelte	svelte
 <script lang="ts">
   import Code from "$lib/components/markdown/code.svelte";
   import * as Table from "$lib/components/ui/table/index.js";
@@ -72,12 +72,12 @@
   <Table.Root>
     <Table.Header>
       <Table.Row class="w-1/4">
-        <Table.Head class="w-[90%] whitespace-nowrap sm:w-[60%]"
-          >CSS Variable</Table.Head
-        >
-        <Table.Head class="hidden w-[40%] whitespace-nowrap sm:table-cell"
-          >Description</Table.Head
-        >
+        <Table.Head class="w-[90%] whitespace-nowrap sm:w-[60%]">
+          CSS Variable
+        </Table.Head>
+        <Table.Head class="hidden w-[40%] whitespace-nowrap sm:table-cell">
+          Description
+        </Table.Head>
         <Table.Head class="sr-only w-[10%] sm:hidden">Details</Table.Head>
       </Table.Row>
     </Table.Header>
@@ -87,8 +87,9 @@
           <Table.Cell class="align-baseline">
             <Code
               class="text-foreground h-fit py-1.5 font-semibold md:py-1 lg:h-[27px] lg:py-0"
-              >{attr.name}</Code
             >
+              {attr.name}
+            </Code>
           </Table.Cell>
           <Table.Cell class="hidden align-baseline sm:table-cell">
             {#if attr.description}
@@ -106,7 +107,7 @@
   </Table.Root>
 {/if}
 
-=== 1947 docs/src/lib/components/api-ref/data-attrs/data-attrs-table.svelte	svelte
+=== 1960 docs/src/lib/components/api-ref/data-attrs/data-attrs-table.svelte	svelte
 <script lang="ts">
   import Code from "$lib/components/markdown/code.svelte";
   import * as Table from "$lib/components/ui/table/index.js";
@@ -122,18 +123,18 @@
   <Table.Root>
     <Table.Header>
       <Table.Row>
-        <Table.Head class="w-[90%] whitespace-nowrap sm:w-[38%]"
-          >Data Attribute</Table.Head
-        >
-        <Table.Head class="hidden w-[22%] whitespace-nowrap sm:table-cell"
-          >Value</Table.Head
-        >
-        <Table.Head class="hidden w-[40%] whitespace-nowrap sm:table-cell"
-          >Description</Table.Head
-        >
-        <Table.Head class="sr-only w-[10%] whitespace-nowrap sm:hidden"
-          >Details</Table.Head
-        >
+        <Table.Head class="w-[90%] whitespace-nowrap sm:w-[38%]">
+          Data Attribute
+        </Table.Head>
+        <Table.Head class="hidden w-[22%] whitespace-nowrap sm:table-cell">
+          Value
+        </Table.Head>
+        <Table.Head class="hidden w-[40%] whitespace-nowrap sm:table-cell">
+          Description
+        </Table.Head>
+        <Table.Head class="sr-only w-[10%] whitespace-nowrap sm:hidden">
+          Details
+        </Table.Head>
       </Table.Row>
     </Table.Header>
     <Table.Body>
@@ -142,8 +143,9 @@
           <Table.Cell class="align-baseline">
             <Code
               class="text-foreground h-fit py-1.5 font-semibold md:py-1 lg:h-[27px] lg:py-0"
-              >data-{attr.name}</Code
             >
+              data-{attr.name}
+            </Code>
           </Table.Cell>
           <Table.Cell class="hidden pr-1 align-baseline sm:table-cell">
             <DataAttrValueContent {attr} />
@@ -248,9 +250,9 @@
 </script>
 
 <div class="flex items-center gap-1.5">
-  <Code class="bg-transparent px-0"
-    >{attr.variant === "enum" ? "enum" : attr.value}</Code
-  >
+  <Code class="bg-transparent px-0">
+    {attr.variant === "enum" ? "enum" : attr.value}
+  </Code>
   {#if attr.variant === "enum"}
     <Popover.Root>
       <Popover.Trigger
@@ -346,7 +348,7 @@
   required
 </Badge>
 
-=== 2891 docs/src/lib/components/api-ref/props/props-table.svelte	svelte
+=== 2904 docs/src/lib/components/api-ref/props/props-table.svelte	svelte
 <script lang="ts">
   import type { PropObj, PropSchema } from "$lib/types/index.js";
   import * as Table from "$lib/components/ui/table/index.js";
@@ -374,9 +376,9 @@
   <Table.Root>
     <Table.Header>
       <Table.Row>
-        <Table.Head class="w-[90%] whitespace-nowrap pr-1 sm:w-[38%]"
-          >Property</Table.Head
-        >
+        <Table.Head class="w-[90%] whitespace-nowrap pr-1 sm:w-[38%]">
+          Property
+        </Table.Head>
         <Table.Head class="hidden w-[22%] whitespace-nowrap pr-1 sm:table-cell">
           Type
         </Table.Head>
@@ -392,8 +394,9 @@
           <Table.Cell class="flex items-center gap-1 pr-1 align-baseline">
             <Code
               class="text-foreground h-fit py-1.5 font-semibold sm:h-[27px] sm:py-0"
-              >{p.name}</Code
             >
+              {p.name}
+            </Code>
             {#if p.required}
               <PropsRequiredBadge class="hidden sm:block" />
             {/if}
@@ -556,7 +559,7 @@
   {/if}
 </div>
 
-=== 2029 docs/src/lib/components/api-section.svelte	svelte
+=== 2042 docs/src/lib/components/api-section.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import CSSVarsTable from "$lib/components/api-ref/css-vars/css-vars-table.svelte";
@@ -581,8 +584,9 @@
           {#if schema.type !== "utility"}
             <span
               class="text-foreground/80 font-normal dark:text-neutral-900/80"
-              >{page.data.metadata.title.replaceAll(" ", "")}.</span
-            >{/if}{schema.title}
+            >
+              {page.data.metadata.title.replaceAll(" ", "")}.
+            </span>{/if}{schema.title}
         </h3>
       </div>
       <!-- eslint-disable-next-line svelte/no-at-html-tags -->
@@ -3452,9 +3456,9 @@
   </ContextMenu.Trigger>
   <ContextMenu.Portal>
     <ContextMenu.Content class={contentClass} sideOffset={8}>
-      <ContextMenu.Item class={itemClass} disabled
-        >Search issues…</ContextMenu.Item
-      >
+      <ContextMenu.Item class={itemClass} disabled>
+        Search issues…
+      </ContextMenu.Item>
 
       <ContextMenu.Sub>
         <ContextMenu.SubTrigger class={subTriggerClass}>
@@ -3585,18 +3589,18 @@
                         class={subContentClass}
                         sideOffset={10}
                       >
-                        <ContextMenu.Item class={itemClass}
-                          >Web app</ContextMenu.Item
-                        >
-                        <ContextMenu.Item class={itemClass}
-                          >Mobile</ContextMenu.Item
-                        >
-                        <ContextMenu.Item class={itemClass}
-                          >CLI</ContextMenu.Item
-                        >
-                        <ContextMenu.Item class={itemClass}
-                          >Marketing site</ContextMenu.Item
-                        >
+                        <ContextMenu.Item class={itemClass}>
+                          Web app
+                        </ContextMenu.Item>
+                        <ContextMenu.Item class={itemClass}>
+                          Mobile
+                        </ContextMenu.Item>
+                        <ContextMenu.Item class={itemClass}>
+                          CLI
+                        </ContextMenu.Item>
+                        <ContextMenu.Item class={itemClass}>
+                          Marketing site
+                        </ContextMenu.Item>
                       </ContextMenu.SubContent>
                     </ContextMenu.Portal>
                   </ContextMenu.Sub>
@@ -3891,9 +3895,9 @@
 
 <DateField.Root bind:value bind:placeholder {...restProps}>
   <div class="flex w-fit min-w-[280px] flex-col gap-1.5">
-    <DateField.Label class="block select-none text-sm font-medium"
-      >{labelText}</DateField.Label
-    >
+    <DateField.Label class="block select-none text-sm font-medium">
+      {labelText}
+    </DateField.Label>
     <DateField.Input
       {name}
       class="h-input rounded-input border-border-input bg-background text-foreground focus-within:border-border-input-hover focus-within:shadow-date-field-focus hover:border-border-input-hover data-invalid:border-destructive flex w-full select-none items-center border px-2 py-3 text-sm tracking-[0.01em] "
@@ -3927,9 +3931,9 @@
 
 <DateField.Root>
   <div class="flex w-full max-w-[280px] flex-col gap-1.5">
-    <DateField.Label class="block select-none text-sm font-medium"
-      >Birthday</DateField.Label
-    >
+    <DateField.Label class="block select-none text-sm font-medium">
+      Birthday
+    </DateField.Label>
     <DateField.Input
       class="h-input rounded-input border-border-input bg-background text-foreground focus-within:border-border-input-hover focus-within:shadow-date-field-focus hover:border-border-input-hover data-invalid:border-destructive flex w-full select-none items-center border px-2 py-3 text-sm tracking-[0.01em] "
     >
@@ -3965,9 +3969,9 @@
 
 <DatePicker.Root weekdayFormat="short" fixedWeeks={true}>
   <div class="flex w-full max-w-[232px] flex-col gap-1.5">
-    <DatePicker.Label class="block select-none text-sm font-medium"
-      >Birthday</DatePicker.Label
-    >
+    <DatePicker.Label class="block select-none text-sm font-medium">
+      Birthday
+    </DatePicker.Label>
     <DatePicker.Input
       class="h-input rounded-input border-border-input bg-background text-foreground focus-within:border-border-input-hover focus-within:shadow-date-field-focus hover:border-border-input-hover flex w-full max-w-[232px] select-none items-center border px-2 py-3 text-sm tracking-[0.01em]"
     >
@@ -4118,9 +4122,9 @@
   fixedWeeks={true}
   class="flex w-full max-w-[340px] flex-col gap-1.5"
 >
-  <DateRangePicker.Label class="block select-none text-sm font-medium"
-    >Rental Days</DateRangePicker.Label
-  >
+  <DateRangePicker.Label class="block select-none text-sm font-medium">
+    Rental Days
+  </DateRangePicker.Label>
   <div
     class="h-input rounded-input border-border-input bg-background text-foreground focus-within:border-border-input-hover focus-within:shadow-date-field-focus hover:border-border-input-hover flex w-full select-none items-center border px-2 py-3 text-sm tracking-[0.01em]"
   >
@@ -4367,7 +4371,7 @@
   </Dialog.Portal>
 </Dialog.Root>
 
-=== 3335 docs/src/lib/components/demos/dialog-demo.svelte	svelte
+=== 3346 docs/src/lib/components/demos/dialog-demo.svelte	svelte
 <script lang="ts">
   import { Dialog, Label, Separator } from "bits-ui";
   import LockKeyOpen from "phosphor-svelte/lib/LockKeyOpen";
@@ -4400,8 +4404,9 @@
         your applications.
       </Dialog.Description>
       <div class="flex flex-col items-start gap-1 pb-11 pt-7">
-        <Label.Root for="apiKey" class="text-sm font-medium">API Key</Label.Root
-        >
+        <Label.Root for="apiKey" class="text-sm font-medium">
+          API Key
+        </Label.Root>
         <div class="relative w-full">
           <input
             id="apiKey"
@@ -4513,9 +4518,9 @@
   </DropdownMenu.Trigger>
   <DropdownMenu.Portal>
     <DropdownMenu.Content class={contentClass} sideOffset={8}>
-      <DropdownMenu.Item class={itemClass} disabled
-        >Search issues…</DropdownMenu.Item
-      >
+      <DropdownMenu.Item class={itemClass} disabled>
+        Search issues…
+      </DropdownMenu.Item>
 
       <DropdownMenu.Sub>
         <DropdownMenu.SubTrigger class={subTriggerClass}>
@@ -4655,18 +4660,18 @@
                         class={subContentClass}
                         sideOffset={10}
                       >
-                        <DropdownMenu.Item class={itemClass}
-                          >Web app</DropdownMenu.Item
-                        >
-                        <DropdownMenu.Item class={itemClass}
-                          >Mobile</DropdownMenu.Item
-                        >
-                        <DropdownMenu.Item class={itemClass}
-                          >CLI</DropdownMenu.Item
-                        >
-                        <DropdownMenu.Item class={itemClass}
-                          >Marketing site</DropdownMenu.Item
-                        >
+                        <DropdownMenu.Item class={itemClass}>
+                          Web app
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item class={itemClass}>
+                          Mobile
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item class={itemClass}>
+                          CLI
+                        </DropdownMenu.Item>
+                        <DropdownMenu.Item class={itemClass}>
+                          Marketing site
+                        </DropdownMenu.Item>
                       </DropdownMenu.SubContent>
                     </DropdownMenu.Portal>
                   </DropdownMenu.Sub>
@@ -4680,7 +4685,7 @@
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
 
-=== 11645 docs/src/lib/components/demos/dropdown-menu-demo-transition.svelte	svelte
+=== 11726 docs/src/lib/components/demos/dropdown-menu-demo-transition.svelte	svelte
 <script lang="ts">
   import { Avatar, DropdownMenu } from "bits-ui";
   import Cardholder from "phosphor-svelte/lib/Cardholder";
@@ -4822,8 +4827,9 @@
                           />
                           <Avatar.Fallback
                             class="bg-muted text-xxs flex h-full w-full items-center justify-center rounded-full"
-                            >HJ</Avatar.Fallback
                           >
+                            HJ
+                          </Avatar.Fallback>
                         </Avatar.Root>
                         @huntabyte
                         {#if checked}
@@ -4846,8 +4852,9 @@
                           />
                           <Avatar.Fallback
                             class="bg-muted flex h-full w-full items-center justify-center rounded-full text-xs"
-                            >PS</Avatar.Fallback
                           >
+                            PS
+                          </Avatar.Fallback>
                         </Avatar.Root>
                         @pavel_stianko
                         {#if checked}
@@ -4870,8 +4877,9 @@
                           />
                           <Avatar.Fallback
                             class="bg-muted flex h-full w-full items-center justify-center rounded-full text-xs"
-                            >CK</Avatar.Fallback
                           >
+                            CK
+                          </Avatar.Fallback>
                         </Avatar.Root>
                         @cokakoala_
                         {#if checked}
@@ -4915,7 +4923,7 @@
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
 
-=== 10273 docs/src/lib/components/demos/dropdown-menu-demo.svelte	svelte
+=== 10336 docs/src/lib/components/demos/dropdown-menu-demo.svelte	svelte
 <script lang="ts">
   import { Avatar, DropdownMenu } from "bits-ui";
   import Cardholder from "phosphor-svelte/lib/Cardholder";
@@ -5052,8 +5060,9 @@
                     />
                     <Avatar.Fallback
                       class="bg-muted text-xxs flex h-full w-full items-center justify-center rounded-full"
-                      >HJ</Avatar.Fallback
                     >
+                      HJ
+                    </Avatar.Fallback>
                   </Avatar.Root>
                   @huntabyte
                   {#if checked}
@@ -5076,8 +5085,9 @@
                     />
                     <Avatar.Fallback
                       class="bg-muted flex h-full w-full items-center justify-center rounded-full text-xs"
-                      >PS</Avatar.Fallback
                     >
+                      PS
+                    </Avatar.Fallback>
                   </Avatar.Root>
                   @pavel_stianko
                   {#if checked}
@@ -5100,8 +5110,9 @@
                     />
                     <Avatar.Fallback
                       class="bg-muted flex h-full w-full items-center justify-center rounded-full text-xs"
-                      >CK</Avatar.Fallback
                     >
+                      CK
+                    </Avatar.Fallback>
                   </Avatar.Root>
                   @cokakoala_
                   {#if checked}
@@ -5230,9 +5241,9 @@
                   class="flex h-full w-full items-center justify-center overflow-hidden rounded-full border-2 border-transparent"
                 >
                   <Avatar.Image src="/avatar-1.png" alt="@huntabyte" />
-                  <Avatar.Fallback class="border-muted border"
-                    >HB</Avatar.Fallback
-                  >
+                  <Avatar.Fallback class="border-muted border">
+                    HB
+                  </Avatar.Fallback>
                 </div>
               </Avatar.Root>
               <div class="space-y-1 text-sm">
@@ -5259,7 +5270,7 @@
   </LinkPreview.Content>
 </LinkPreview.Root>
 
-=== 11707 docs/src/lib/components/demos/menubar-demo.svelte	svelte
+=== 11725 docs/src/lib/components/demos/menubar-demo.svelte	svelte
 <script lang="ts">
   import { Menubar } from "bits-ui";
   import CaretRight from "phosphor-svelte/lib/CaretRight";
@@ -5543,13 +5554,15 @@
         <Menubar.Separator />
         <Menubar.Item
           class="rounded-button data-highlighted:bg-muted flex h-10 select-none items-center py-3 pl-3 pr-1.5 text-sm font-medium focus-visible:outline-none"
-          >Edit...</Menubar.Item
         >
+          Edit...
+        </Menubar.Item>
         <Menubar.Separator />
         <Menubar.Item
           class="rounded-button data-highlighted:bg-muted flex h-10 select-none items-center py-3 pl-3 pr-1.5 text-sm font-medium focus-visible:outline-none"
-          >Add Profile...</Menubar.Item
         >
+          Add Profile...
+        </Menubar.Item>
       </Menubar.Content>
     </Menubar.Portal>
   </Menubar.Menu>
@@ -6979,9 +6992,9 @@
             />
           </div>
           <div class="flex flex-col gap-0.5">
-            <span class="text-[15px] font-semibold leading-5"
-              >Hunter Johnston</span
-            >
+            <span class="text-[15px] font-semibold leading-5">
+              Hunter Johnston
+            </span>
             <span class="text-muted-foreground text-sm">@huntabyte</span>
           </div>
         </div>
@@ -7011,7 +7024,7 @@
   </Popover.Portal>
 </Popover.Root>
 
-=== 3446 docs/src/lib/components/demos/popover-demo-overlay.svelte	svelte
+=== 3472 docs/src/lib/components/demos/popover-demo-overlay.svelte	svelte
 <script lang="ts">
   import { Popover, Separator, Toggle } from "bits-ui";
   import ImageSquare from "phosphor-svelte/lib/ImageSquare";
@@ -7059,8 +7072,9 @@
             <span
               aria-hidden="true"
               class="text-xxs text-muted-foreground absolute left-5 top-4"
-              >W</span
             >
+              W
+            </span>
             <input
               type="number"
               class="h-input rounded-10px border-border-input bg-background text-foreground w-[119px] border pl-10 pr-2 text-base sm:text-sm"
@@ -7072,8 +7086,9 @@
             <span
               aria-hidden="true"
               class="text-xxs text-muted-foreground absolute left-5 top-4"
-              >H</span
             >
+              H
+            </span>
             <input
               type="number"
               class="h-input rounded-10px border-border-input bg-background text-foreground w-[119px] border pl-10 pr-2 text-base sm:text-sm"
@@ -7092,7 +7107,7 @@
   </Popover.Portal>
 </Popover.Root>
 
-=== 3650 docs/src/lib/components/demos/popover-demo-transition.svelte	svelte
+=== 3692 docs/src/lib/components/demos/popover-demo-transition.svelte	svelte
 <script lang="ts">
   import { Popover, Separator, Toggle } from "bits-ui";
   import ImageSquare from "phosphor-svelte/lib/ImageSquare";
@@ -7147,8 +7162,9 @@
                     <span
                       aria-hidden="true"
                       class="text-xxs text-muted-foreground absolute left-5 top-4"
-                      >W</span
                     >
+                      W
+                    </span>
                     <input
                       type="number"
                       class="h-input rounded-10px border-border-input bg-background text-foreground w-[119px] border pl-10 pr-2 text-base sm:text-sm"
@@ -7160,8 +7176,9 @@
                     <span
                       aria-hidden="true"
                       class="text-xxs text-muted-foreground absolute left-5 top-4"
-                      >H</span
                     >
+                      H
+                    </span>
                     <input
                       type="number"
                       class="h-input rounded-10px border-border-input bg-background text-foreground w-[119px] border pl-10 pr-2 text-base sm:text-sm"
@@ -7184,7 +7201,7 @@
   </Popover.Portal>
 </Popover.Root>
 
-=== 3253 docs/src/lib/components/demos/popover-demo.svelte	svelte
+=== 3279 docs/src/lib/components/demos/popover-demo.svelte	svelte
 <script lang="ts">
   import { Popover, Separator, Toggle } from "bits-ui";
   import ImageSquare from "phosphor-svelte/lib/ImageSquare";
@@ -7229,8 +7246,9 @@
             <span
               aria-hidden="true"
               class="text-xxs text-muted-foreground absolute left-5 top-4"
-              >W</span
             >
+              W
+            </span>
             <input
               type="number"
               class="h-input rounded-10px border-border-input bg-background text-foreground w-[119px] border pl-10 pr-2 text-base sm:text-sm"
@@ -7242,8 +7260,9 @@
             <span
               aria-hidden="true"
               class="text-xxs text-muted-foreground absolute left-5 top-4"
-              >H</span
             >
+              H
+            </span>
             <input
               type="number"
               class="h-input rounded-10px border-border-input bg-background text-foreground w-[119px] border pl-10 pr-2 text-base sm:text-sm"
@@ -9082,7 +9101,7 @@
   </Slider.Root>
 </div>
 
-=== 1568 docs/src/lib/components/demos/switch-demo-custom.svelte	svelte
+=== 1573 docs/src/lib/components/demos/switch-demo-custom.svelte	svelte
 <script lang="ts">
   import { Label, Switch, type WithoutChildrenOrChild, useId } from "bits-ui";
   import DemoContainer from "../demo-container.svelte";
@@ -9112,8 +9131,9 @@
     <Label.Root
       for={id}
       class="peer-disabled:text-muted-foreground text-sm font-medium"
-      >{labelText}</Label.Root
     >
+      {labelText}
+    </Label.Root>
   </div>
 </DemoContainer>
 
@@ -9135,7 +9155,7 @@
   <Label.Root for="dnd" class="text-sm font-medium">Do not disturb</Label.Root>
 </div>
 
-=== 3290 docs/src/lib/components/demos/tabs-demo.svelte	svelte
+=== 3304 docs/src/lib/components/demos/tabs-demo.svelte	svelte
 <script lang="ts">
   import { Tabs } from "bits-ui";
   import Airplane from "phosphor-svelte/lib/Airplane";
@@ -9152,13 +9172,15 @@
       <Tabs.Trigger
         value="outbound"
         class="data-[state=active]:shadow-mini dark:data-[state=active]:bg-muted h-8 rounded-[7px] bg-transparent py-2 data-[state=active]:bg-white"
-        >Outbound</Tabs.Trigger
       >
+        Outbound
+      </Tabs.Trigger>
       <Tabs.Trigger
         value="inbound"
         class="data-[state=active]:shadow-mini dark:data-[state=active]:bg-muted h-8 rounded-[7px] bg-transparent py-2 data-[state=active]:bg-white"
-        >Inbound</Tabs.Trigger
       >
+        Inbound
+      </Tabs.Trigger>
     </Tabs.List>
     <Tabs.Content value="outbound" class="select-none pt-3">
       <div class="grid grid-cols-3 grid-rows-2 gap-0 p-4 pb-1">
@@ -9249,9 +9271,9 @@
 
 <TimeField.Root bind:value bind:placeholder {...restProps}>
   <div class="flex w-fit min-w-[280px] flex-col gap-1.5">
-    <TimeField.Label class="block select-none text-sm font-medium"
-      >{labelText}</TimeField.Label
-    >
+    <TimeField.Label class="block select-none text-sm font-medium">
+      {labelText}
+    </TimeField.Label>
     <TimeField.Input
       {name}
       class="h-input rounded-input border-border-input bg-background text-foreground focus-within:border-border-input-hover focus-within:shadow-date-field-focus hover:border-border-input-hover data-invalid:border-destructive flex w-full select-none items-center border px-2 py-3 text-sm tracking-[0.01em] "
@@ -9285,9 +9307,9 @@
 
 <TimeField.Root>
   <div class="flex w-full max-w-[280px] flex-col gap-1.5">
-    <TimeField.Label class="block select-none text-sm font-medium"
-      >Appointment Time</TimeField.Label
-    >
+    <TimeField.Label class="block select-none text-sm font-medium">
+      Appointment Time
+    </TimeField.Label>
     <TimeField.Input
       name="hello"
       class="h-input rounded-input border-border-input bg-background text-foreground focus-within:border-border-input-hover focus-within:shadow-date-field-focus hover:border-border-input-hover data-invalid:border-destructive flex w-full select-none items-center border px-2 py-3 text-sm tracking-[0.01em] "
@@ -9511,7 +9533,7 @@
   </div>
 </Toolbar.Root>
 
-=== 4708 docs/src/lib/components/demos/tooltip-demo-controlled-trigger-id.svelte	svelte
+=== 4733 docs/src/lib/components/demos/tooltip-demo-controlled-trigger-id.svelte	svelte
 <script lang="ts">
   import { Tooltip } from "bits-ui";
   import CursorClick from "phosphor-svelte/lib/CursorClick";
@@ -9578,8 +9600,9 @@
       <div class="bg-border h-px flex-1"></div>
       <span
         class="text-foreground/35 text-[10px] font-medium uppercase tracking-widest"
-        >open directly</span
       >
+        open directly
+      </span>
       <div class="bg-border h-px flex-1"></div>
     </div>
 
@@ -9594,8 +9617,9 @@
         />
         <span
           class="text-foreground/65 group-hover:text-foreground/80 transition-colors"
-          >Members</span
         >
+          Members
+        </span>
       </button>
       <button
         type="button"
@@ -9607,8 +9631,9 @@
         />
         <span
           class="text-foreground/65 group-hover:text-foreground/80 transition-colors"
-          >Deploy</span
         >
+          Deploy
+        </span>
       </button>
     </div>
   </div>
@@ -10326,9 +10351,9 @@
     {metadata.title}
     <span aria-hidden="true" class="hidden"> Documentation </span>
   </PageHeaderHeading>
-  <PageHeaderDescription class={metadata.llms ? "" : "mb-11"}
-    >{metadata.description}</PageHeaderDescription
-  >
+  <PageHeaderDescription class={metadata.llms ? "" : "mb-11"}>
+    {metadata.description}
+  </PageHeaderDescription>
   {#if metadata.llms}
     <span aria-hidden="true" class="hidden">
       This is a documentation section that potentially contains examples, demos,
@@ -11900,7 +11925,7 @@
   </Command.Root>
 </div>
 
-=== 3815 docs/src/lib/components/homepage/card-air.svelte	svelte
+=== 3859 docs/src/lib/components/homepage/card-air.svelte	svelte
 <script lang="ts">
   import Fan from "phosphor-svelte/lib/Fan";
   import { Tabs } from "bits-ui";
@@ -11920,31 +11945,35 @@
   >
     <div class="flex justify-between">
       <Tabs.Root value="c" class="flex items-center font-medium">
-        <Tabs.Content value="c" class="select-none"
-          ><span
+        <Tabs.Content value="c" class="select-none">
+          <span
             class="text-[2.70288rem] leading-none text-indigo-950 lg:text-[3.625rem]"
-            >21</span
-          ></Tabs.Content
-        >
-        <Tabs.Content value="f" class="select-none"
-          ><span
+          >
+            21
+          </span>
+        </Tabs.Content>
+        <Tabs.Content value="f" class="select-none">
+          <span
             class="text-[2.70288rem] leading-none text-indigo-950 lg:text-[3.625rem]"
-            >69</span
-          ></Tabs.Content
-        >
+          >
+            69
+          </span>
+        </Tabs.Content>
         <Tabs.List
           class="ml-1 flex flex-col gap-[4px] text-[11px] lg:gap-2 lg:text-[14px]"
         >
           <Tabs.Trigger
             value="c"
             class="cursor-pointer text-indigo-950/30 transition data-[state=active]:text-indigo-950 data-[state=inactive]:hover:text-indigo-950"
-            >°C</Tabs.Trigger
           >
+            °C
+          </Tabs.Trigger>
           <Tabs.Trigger
             value="f"
             class="cursor-pointer text-indigo-950/30 transition data-[state=active]:text-indigo-950 data-[state=inactive]:hover:text-indigo-950"
-            >°F</Tabs.Trigger
           >
+            °F
+          </Tabs.Trigger>
         </Tabs.List>
       </Tabs.Root>
 
@@ -12046,9 +12075,9 @@
         class="text-background ml-1.5 text-sm font-medium lg:mt-[7px] lg:text-xl dark:text-white"
       >
         <span class="">Sound</span>
-        <small class="block text-[10px] leading-none opacity-50 lg:text-xs"
-          >control</small
-        >
+        <small class="block text-[10px] leading-none opacity-50 lg:text-xs">
+          control
+        </small>
       </span>
       <HomeToolbar />
     </div>
@@ -12257,7 +12286,7 @@
   }
 </style>
 
-=== 8064 docs/src/lib/components/homepage/card-toggle.svelte	svelte
+=== 8082 docs/src/lib/components/homepage/card-toggle.svelte	svelte
 <script lang="ts">
   import { Avatar, DropdownMenu, Tabs } from "bits-ui";
   import Cardholder from "phosphor-svelte/lib/Cardholder";
@@ -12299,13 +12328,15 @@
         <Tabs.Trigger
           value="follow"
           class="text-xxs text-foreground/70 data-[state=active]:text-foreground data-[state=active]:shadow-mini h-[23px] w-full cursor-pointer rounded-[7px] font-medium data-[state=active]:bg-white lg:h-8 lg:text-sm dark:text-[#171717]/70 dark:data-[state=active]:text-[#171717] dark:data-[state=active]:shadow-[0px_1px_0px_1px_rgba(0,_0,_0,_0.04);]"
-          >Follow</Tabs.Trigger
         >
+          Follow
+        </Tabs.Trigger>
         <Tabs.Trigger
           value="other"
           class="text-xxs text-foreground/70 data-[state=active]:text-foreground data-[state=active]:shadow-mini h-[23px] w-full cursor-pointer rounded-[7px] font-medium data-[state=active]:bg-white lg:h-8 lg:text-sm dark:text-[#171717]/70 dark:data-[state=active]:text-[#171717] dark:data-[state=active]:shadow-[0px_1px_0px_1px_rgba(0,_0,_0,_0.04);]"
-          >Other</Tabs.Trigger
         >
+          Other
+        </Tabs.Trigger>
       </Tabs.List>
 
       <Tabs.Content value="follow" class="select-none ">
@@ -12370,9 +12401,9 @@
           class="flex h-full w-full items-center justify-center overflow-hidden rounded-full"
         >
           <Avatar.Image {src} {alt} />
-          <Avatar.Fallback class="border-muted border"
-            >{fallback}</Avatar.Fallback
-          >
+          <Avatar.Fallback class="border-muted border">
+            {fallback}
+          </Avatar.Fallback>
         </div>
       </Avatar.Root>
       <div class="name ml-1.5 lg:ml-2">
@@ -15519,12 +15550,12 @@
   let restProps: SVGAttributes<SVGElement> = $props();
 </script>
 
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" {...restProps}
-  ><path
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" {...restProps}>
+  <path
     d="m4.714 15.956 4.718-2.648.079-.23-.08-.128h-.23l-.79-.048-2.695-.073-2.337-.097-2.265-.122-.57-.121-.535-.704.055-.353.48-.321.685.06 1.518.104 2.277.157 1.651.098 2.447.255h.389l.054-.158-.133-.097-.103-.098-2.356-1.596-2.55-1.688-1.336-.972-.722-.491L2 6.223l-.158-1.008.655-.722.88.06.225.061.893.686 1.906 1.476 2.49 1.833.364.304.146-.104.018-.072-.164-.274-1.354-2.446-1.445-2.49-.644-1.032-.17-.619a2.972 2.972 0 0 1-.103-.729L6.287.133 6.7 0l.995.134.42.364.619 1.415L9.735 4.14l1.555 3.03.455.898.243.832.09.255h.159V9.01l.127-1.706.237-2.095.23-2.695.08-.76.376-.91.747-.492.583.28.48.685-.067.444-.286 1.851-.558 2.903-.365 1.942h.213l.243-.242.983-1.306 1.652-2.064.728-.82.85-.904.547-.431h1.032l.759 1.129-.34 1.166-1.063 1.347-.88 1.142-1.263 1.7-.79 1.36.074.11.188-.02 2.853-.606 1.542-.28 1.84-.315.832.388.09.395-.327.807-1.967.486-2.307.462-3.436.813-.043.03.049.061 1.548.146.662.036h1.62l3.018.225.79.522.473.638-.08.485-1.213.62-1.64-.389-3.825-.91-1.31-.329h-.183v.11l1.093 1.068 2.003 1.81 2.508 2.33.127.578-.321.455-.34-.049-2.204-1.657-.85-.747-1.925-1.62h-.127v.17l.443.649 2.343 3.521.122 1.08-.17.353-.607.213-.668-.122-1.372-1.924-1.415-2.168-1.141-1.943-.14.08-.674 7.254-.316.37-.728.28-.607-.461-.322-.747.322-1.476.388-1.924.316-1.53.285-1.9.17-.632-.012-.042-.14.018-1.432 1.967-2.18 2.945-1.724 1.845-.413.164-.716-.37.066-.662.401-.589 2.386-3.036 1.439-1.882.929-1.086-.006-.158h-.055L4.138 18.56l-1.13.146-.485-.456.06-.746.231-.243 1.907-1.312Z"
     fill="currentColor"
-  ></path></svg
->
+  ></path>
+</svg>
 
 === 2361 docs/src/lib/components/icons/github.svelte	svelte
 <script lang="ts">
@@ -15547,12 +15578,12 @@
   let props: SVGAttributes<SVGElement> = $props();
 </script>
 
-<svg viewBox="0 0 28 28" aria-hidden="true" height="24" width="24" {...props}
-  ><path
+<svg viewBox="0 0 28 28" aria-hidden="true" height="24" width="24" {...props}>
+  <path
     fill="currentColor"
     d="M12.747 16.273h-7.46L18.925 1.5l-3.671 10.227h7.46L9.075 26.5l3.671-10.227z"
-  ></path></svg
->
+  ></path>
+</svg>
 
 === 358 docs/src/lib/components/icons/switch-off.svelte	svelte
 <div
@@ -15572,7 +15603,7 @@
   ></span>
 </div>
 
-=== 453 docs/src/lib/components/icons/x-com.svelte	svelte
+=== 454 docs/src/lib/components/icons/x-com.svelte	svelte
 <script lang="ts">
   import type { SVGAttributes } from "svelte/elements";
 
@@ -15584,10 +15615,11 @@
   fill="currentColor"
   viewBox="0 0 22 20"
   {...restProps}
-  ><path
-    d="M16.99 0H20.298L13.071 8.26L21.573 19.5H14.916L9.702 12.683L3.736 19.5H0.426L8.156 10.665L0 0H6.826L11.539 6.231L16.99 0ZM15.829 17.52H17.662L5.83 1.876H3.863L15.829 17.52Z"
-  /></svg
 >
+  <path
+    d="M16.99 0H20.298L13.071 8.26L21.573 19.5H14.916L9.702 12.683L3.736 19.5H0.426L8.156 10.665L0 0H6.826L11.539 6.231L16.99 0ZM15.829 17.52H17.662L5.83 1.876H3.863L15.829 17.52Z"
+  />
+</svg>
 
 === 1384 docs/src/lib/components/light-switch.svelte	svelte
 <script lang="ts">
@@ -16494,7 +16526,7 @@
   />
 </Switch.Root>
 
-=== 6869 docs/src/lib/components/search.svelte	svelte
+=== 6880 docs/src/lib/components/search.svelte	svelte
 <script lang="ts">
   import MagnifyingGlass from "phosphor-svelte/lib/MagnifyingGlass";
   import { onMount } from "svelte";
@@ -16592,9 +16624,9 @@
       }}
     >
       <Dialog.Title class="sr-only">Search</Dialog.Title>
-      <Dialog.Description class="sr-only"
-        >Search for documentation</Dialog.Description
-      >
+      <Dialog.Description class="sr-only">
+        Search for documentation
+      </Dialog.Description>
       <Command.Root
         shouldFilter={false}
         class="bg-background flex h-full w-full flex-col self-start overflow-hidden rounded-xl"
@@ -16612,8 +16644,9 @@
           <Command.Empty
             forceMount
             class="text-foreground flex w-full items-center justify-center pb-6 pt-8 text-sm"
-            >No results found.</Command.Empty
           >
+            No results found.
+          </Command.Empty>
         {/if}
 
         {#if searchQuery !== "" && results.length > 0}
@@ -16639,9 +16672,9 @@
                       <div class="flex w-full items-center justify-between">
                         <span class="font-medium capitalize">{title}</span>
                         {#if category}
-                          <span class="text-muted-foreground text-xs"
-                            >{category}</span
-                          >
+                          <span class="text-muted-foreground text-xs">
+                            {category}
+                          </span>
                         {/if}
                       </div>
                       {#if snippet}
@@ -16663,7 +16696,7 @@
   </Dialog.Portal>
 </Dialog.Root>
 
-=== 1315 docs/src/lib/components/sidebar-sponsor-mobile.svelte	svelte
+=== 1318 docs/src/lib/components/sidebar-sponsor-mobile.svelte	svelte
 <a
   href="https://github.com/EpicenterHQ/epicenter"
   class="bg-muted/60 dark:bg-background border-foreground/5 hover:border-foreground/10 group relative flex w-full select-none items-center gap-3 overflow-hidden rounded-xl border px-4 py-3 transition-all xl:hidden"
@@ -16695,11 +16728,12 @@
 
   <span
     class="text-muted-foreground relative z-10 shrink-0 text-[10px] font-medium uppercase tracking-wide"
-    >Special Sponsor</span
   >
+    Special Sponsor
+  </span>
 </a>
 
-=== 1409 docs/src/lib/components/sidebar-sponsor.svelte	svelte
+=== 1416 docs/src/lib/components/sidebar-sponsor.svelte	svelte
 <a
   href="https://github.com/EpicenterHQ/epicenter"
   class="bg-muted/40 dark:bg-background border-foreground/5 hover:border-foreground/10 group relative block h-[150px] w-full select-none overflow-hidden rounded-xl border transition-all"
@@ -16715,8 +16749,9 @@
     <div class="mb-8 flex items-center justify-between">
       <span
         class="text-muted-foreground text-[10px] font-medium uppercase tracking-wide"
-        >Special Sponsor</span
       >
+        Special Sponsor
+      </span>
       <div
         class="size-10 opacity-80 transition-opacity group-hover:opacity-100"
       >
@@ -17556,9 +17591,9 @@
       >
         <input type="checkbox" bind:checked={debugMode} class="size-4" />
         <span class="font-medium">debugMode</span>
-        <span class="text-muted-foreground ml-auto text-xs"
-          >{debugMode ? "on" : "off"}</span
-        >
+        <span class="text-muted-foreground ml-auto text-xs">
+          {debugMode ? "on" : "off"}
+        </span>
       </label>
 
       <label
@@ -17573,9 +17608,9 @@
           bind:value={openDelay}
           class="w-full"
         />
-        <span class="text-muted-foreground min-w-[55px] text-right text-xs"
-          >{openDelay}ms</span
-        >
+        <span class="text-muted-foreground min-w-[55px] text-right text-xs">
+          {openDelay}ms
+        </span>
       </label>
 
       <div
@@ -17592,9 +17627,9 @@
             bind:value={contentSideOffset}
             class="w-full"
           />
-          <span class="text-muted-foreground min-w-[30px] text-right"
-            >{contentSideOffset}</span
-          >
+          <span class="text-muted-foreground min-w-[30px] text-right">
+            {contentSideOffset}
+          </span>
         </label>
         <label class="flex items-center gap-3 text-xs">
           <span class="min-w-[68px] font-medium">alignOffset</span>
@@ -17606,9 +17641,9 @@
             bind:value={contentAlignOffset}
             class="w-full"
           />
-          <span class="text-muted-foreground min-w-[30px] text-right"
-            >{contentAlignOffset}</span
-          >
+          <span class="text-muted-foreground min-w-[30px] text-right">
+            {contentAlignOffset}
+          </span>
         </label>
       </div>
 
@@ -17626,9 +17661,9 @@
             bind:value={subContentSideOffset}
             class="w-full"
           />
-          <span class="text-muted-foreground min-w-[30px] text-right"
-            >{subContentSideOffset}</span
-          >
+          <span class="text-muted-foreground min-w-[30px] text-right">
+            {subContentSideOffset}
+          </span>
         </label>
         <label class="flex items-center gap-3 text-xs">
           <span class="min-w-[68px] font-medium">alignOffset</span>
@@ -17640,9 +17675,9 @@
             bind:value={subContentAlignOffset}
             class="w-full"
           />
-          <span class="text-muted-foreground min-w-[30px] text-right"
-            >{subContentAlignOffset}</span
-          >
+          <span class="text-muted-foreground min-w-[30px] text-right">
+            {subContentAlignOffset}
+          </span>
         </label>
       </div>
     </div>
@@ -17666,9 +17701,9 @@
             sideOffset={contentSideOffset}
             alignOffset={contentAlignOffset}
           >
-            <DropdownMenu.Item class={itemClass} disabled
-              >Search all...</DropdownMenu.Item
-            >
+            <DropdownMenu.Item class={itemClass} disabled>
+              Search all...
+            </DropdownMenu.Item>
 
             <DropdownMenu.Sub>
               <DropdownMenu.SubTrigger class={subTriggerClass} {openDelay}>
@@ -17711,12 +17746,12 @@
                   sideOffset={subContentSideOffset}
                   alignOffset={subContentAlignOffset}
                 >
-                  <DropdownMenu.Item class={itemClass}
-                    >Project status</DropdownMenu.Item
-                  >
-                  <DropdownMenu.Item class={itemClass}
-                    >Project status type</DropdownMenu.Item
-                  >
+                  <DropdownMenu.Item class={itemClass}>
+                    Project status
+                  </DropdownMenu.Item>
+                  <DropdownMenu.Item class={itemClass}>
+                    Project status type
+                  </DropdownMenu.Item>
 
                   <DropdownMenu.Sub>
                     <DropdownMenu.SubTrigger
@@ -17797,18 +17832,18 @@
                               sideOffset={subContentSideOffset}
                               alignOffset={subContentAlignOffset}
                             >
-                              <DropdownMenu.Item class={itemClass}
-                                >Kubernetes</DropdownMenu.Item
-                              >
-                              <DropdownMenu.Item class={itemClass}
-                                >Database</DropdownMenu.Item
-                              >
-                              <DropdownMenu.Item class={itemClass}
-                                >CI Pipeline</DropdownMenu.Item
-                              >
-                              <DropdownMenu.Item class={itemClass}
-                                >Observability</DropdownMenu.Item
-                              >
+                              <DropdownMenu.Item class={itemClass}>
+                                Kubernetes
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item class={itemClass}>
+                                Database
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item class={itemClass}>
+                                CI Pipeline
+                              </DropdownMenu.Item>
+                              <DropdownMenu.Item class={itemClass}>
+                                Observability
+                              </DropdownMenu.Item>
                             </DropdownMenu.SubContent>
                           </DropdownMenu.Portal>
                         </DropdownMenu.Sub>
@@ -17888,9 +17923,9 @@
                   alignOffset={subContentAlignOffset}
                 >
                   <ContextMenu.Item class={itemClass}>Backlog</ContextMenu.Item>
-                  <ContextMenu.Item class={itemClass}
-                    >In Progress</ContextMenu.Item
-                  >
+                  <ContextMenu.Item class={itemClass}>
+                    In Progress
+                  </ContextMenu.Item>
                   <ContextMenu.Item class={itemClass}>Done</ContextMenu.Item>
                   <ContextMenu.Sub>
                     <ContextMenu.SubTrigger class={subTriggerClass} {openDelay}>
@@ -17903,18 +17938,18 @@
                         sideOffset={subContentSideOffset}
                         alignOffset={subContentAlignOffset}
                       >
-                        <ContextMenu.Item class={itemClass}
-                          >Q1 2026</ContextMenu.Item
-                        >
-                        <ContextMenu.Item class={itemClass}
-                          >Q2 2026</ContextMenu.Item
-                        >
-                        <ContextMenu.Item class={itemClass}
-                          >Q3 2026</ContextMenu.Item
-                        >
-                        <ContextMenu.Item class={itemClass}
-                          >Q4 2026</ContextMenu.Item
-                        >
+                        <ContextMenu.Item class={itemClass}>
+                          Q1 2026
+                        </ContextMenu.Item>
+                        <ContextMenu.Item class={itemClass}>
+                          Q2 2026
+                        </ContextMenu.Item>
+                        <ContextMenu.Item class={itemClass}>
+                          Q3 2026
+                        </ContextMenu.Item>
+                        <ContextMenu.Item class={itemClass}>
+                          Q4 2026
+                        </ContextMenu.Item>
                       </ContextMenu.SubContent>
                     </ContextMenu.Portal>
                   </ContextMenu.Sub>
@@ -18080,9 +18115,9 @@
       {...mergedInputProps}
       class="border-input bg-background placeholder:text-muted-foreground flex h-10 w-full rounded-md border px-3 py-2 text-base file:border-0 file:bg-transparent file:text-sm file:font-medium focus-visible:outline-none disabled:cursor-not-allowed disabled:opacity-50 md:text-sm"
     />
-    <Combobox.Trigger class="absolute end-3 top-1/2 size-6 -translate-y-1/2"
-      ><ChevronUpDown class="text-muted-foreground h-5 w-5" /></Combobox.Trigger
-    >
+    <Combobox.Trigger class="absolute end-3 top-1/2 size-6 -translate-y-1/2">
+      <ChevronUpDown class="text-muted-foreground h-5 w-5" />
+    </Combobox.Trigger>
   </div>
   <Combobox.Portal>
     <Combobox.Content
@@ -18097,9 +18132,9 @@
         >
           {#snippet children({ selected })}
             <div class="flex w-full flex-col">
-              <span class={selected ? "font-medium text-red-500" : ""}
-                >{item.label}</span
-              >
+              <span class={selected ? "font-medium text-red-500" : ""}>
+                {item.label}
+              </span>
             </div>
           {/snippet}
         </Combobox.Item>
@@ -18335,7 +18370,7 @@
 
 {@render children()}
 
-=== 14809 docs/src/routes/+page.svelte	svelte
+=== 14902 docs/src/routes/+page.svelte	svelte
 <script lang="ts">
   import "$lib/styles/app.css";
   import { Button } from "bits-ui";
@@ -18396,23 +18431,26 @@
             data-active
             href="/"
             class=" data-active:text-foreground data-active:bg-black/5 dark:data-active:bg-white/10 dark:data-active:text-white/100 rounded-[40px] px-[0.9em] pb-[0.4em] pt-[0.3em] text-sm font-medium leading-none tracking-[0.01em] dark:text-white/50"
-            >Home</a
           >
+            Home
+          </a>
         </li>
         <li class="inline-block">
           <a
             href="/docs"
             class="data-active:text-foreground data-active:bg-black/5 dark:data-active:bg-white/10 dark:data-active:text-white/100 rounded-[40px] px-[0.9em] pb-[0.4em] pt-[0.3em] text-sm font-medium leading-none tracking-[0.01em] transition hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/10"
-            >Docs</a
           >
+            Docs
+          </a>
         </li>
         <li class="inline-block">
           <a
             href="https://github.com/huntabyte/bits-ui"
             target="_blank"
             class="data-active:text-foreground data-active:bg-black/5 dark:data-active:bg-white/10 dark:data-active:text-white/100 rounded-[40px] px-[0.9em] pb-[0.4em] pt-[0.3em] text-sm font-medium leading-none tracking-[0.01em] transition hover:bg-black/5 dark:text-white/50 dark:hover:bg-white/10"
-            >GitHub</a
           >
+            GitHub
+          </a>
         </li>
       </ul>
       <div class="relative top-[1px] block lg:hidden">
@@ -18446,8 +18484,9 @@
         <Sparkle class="mt-[2px] size-3 lg:size-4" aria-label="Stars" />
         <span
           class="border-l-border-input text-foreground inline-block border-l pl-3 text-[11px] font-medium lg:text-[13px]"
-          >Bits UI v2 Now Available</span
         >
+          Bits UI v2 Now Available
+        </span>
       </a>
       <h1
         class="selection:text-foreground dark:selection:text-background font-display dark:text-[#EAEAEA]! mx-auto mb-[0.35em] mt-[0.2em] text-balance pb-[0.1em] text-[2.875rem] font-semibold leading-[102%] text-transparent antialiased lg:max-w-3xl lg:text-[4.25rem]"
@@ -18473,8 +18512,9 @@
         </kbd>
         <span
           class="text-background ml-4 mr-3 text-[14px] font-semibold leading-none tracking-[0.01em]"
-          >Start building</span
         >
+          Start building
+        </span>
       </Button.Root>
     </div>
 
@@ -18509,14 +18549,16 @@
   <h2 class="text-foreground mb-10 text-balance lg:w-1/3">
     <small
       class="border-foreground rounded-3xl border px-2 py-[3px] text-[13px] font-medium tracking-[0.01em]"
-      ><span
-        class="bg-foreground/90 mr-2.5 inline-block h-[7px] w-[7px] rounded-full"
-      ></span>explore</small
     >
+      <span
+        class="bg-foreground/90 mr-2.5 inline-block h-[7px] w-[7px] rounded-full"
+      ></span>explore
+    </small>
     <span
       class="font-display mt-2 block text-[28px] font-semibold leading-[118%] tracking-[0.02em] lg:text-[32px]"
-      >The foundation for your next web project</span
     >
+      The foundation for your next web project
+    </span>
   </h2>
   <div class="grid grid-cols-2 gap-3 lg:grid-cols-3 lg:gap-x-[15px]">
     <div
@@ -18625,15 +18667,19 @@
       <a
         href="https://github.com/huntabyte/bits-ui"
         target="_blank"
-        class="text-muted-foreground text-sm font-medium">GitHub</a
+        class="text-muted-foreground text-sm font-medium"
       >
+        GitHub
+      </a>
     </li>
     <li>
       <a
         href="https://github.com/huntabyte/bits-ui/releases"
         target="_blank"
-        class="text-muted-foreground text-sm font-medium">Changelog</a
+        class="text-muted-foreground text-sm font-medium"
       >
+        Changelog
+      </a>
     </li>
   </ul>
 </footer>
@@ -30892,9 +30938,9 @@
           {title}
         </Accordion.Trigger>
       </Accordion.Header>
-      <Accordion.Content data-testid="{value}-content"
-        >{content}</Accordion.Content
-      >
+      <Accordion.Content data-testid="{value}-content">
+        {content}
+      </Accordion.Content>
     </Accordion.Item>
   {/each}
 </Accordion.Root>
@@ -30940,9 +30986,9 @@
           {title}
         </Accordion.Trigger>
       </Accordion.Header>
-      <Accordion.Content data-testid="{value}-content"
-        >{content}</Accordion.Content
-      >
+      <Accordion.Content data-testid="{value}-content">
+        {content}
+      </Accordion.Content>
     </Accordion.Item>
   {/each}
 </Accordion.Root>
@@ -31050,9 +31096,9 @@
           {title}
         </Accordion.Trigger>
       </Accordion.Header>
-      <Accordion.Content data-testid="{value}-content"
-        >{content}</Accordion.Content
-      >
+      <Accordion.Content data-testid="{value}-content">
+        {content}
+      </Accordion.Content>
     </Accordion.Item>
   {/each}
 </Accordion.Root>
@@ -31093,9 +31139,9 @@
           {title}
         </Accordion.Trigger>
       </Accordion.Header>
-      <Accordion.Content data-testid="{value}-content"
-        >{content}</Accordion.Content
-      >
+      <Accordion.Content data-testid="{value}-content">
+        {content}
+      </Accordion.Content>
     </Accordion.Item>
   {/each}
 </Accordion.Root>
@@ -31116,9 +31162,9 @@
 <Accordion.Root type="single" value="1" data-testid="root">
   <Accordion.Item value="1" data-testid="item">
     <Accordion.Header data-testid="header">
-      <Accordion.Trigger data-testid="trigger" {...triggerProps}
-        >open</Accordion.Trigger
-      >
+      <Accordion.Trigger data-testid="trigger" {...triggerProps}>
+        open
+      </Accordion.Trigger>
     </Accordion.Header>
     <Accordion.Content data-testid="content">item 1</Accordion.Content>
   </Accordion.Item>
@@ -31177,21 +31223,21 @@
           {#snippet child({ props, open })}
             {#if open}
               <div {...props}>
-                <AlertDialog.Title {...titleProps} data-testid="title"
-                  >title</AlertDialog.Title
-                >
+                <AlertDialog.Title {...titleProps} data-testid="title">
+                  title
+                </AlertDialog.Title>
                 <AlertDialog.Description
                   {...descriptionProps}
                   data-testid="description"
                 >
                   description
                 </AlertDialog.Description>
-                <AlertDialog.Cancel data-testid="cancel"
-                  >cancel</AlertDialog.Cancel
-                >
-                <AlertDialog.Action data-testid="action"
-                  >action</AlertDialog.Action
-                >
+                <AlertDialog.Cancel data-testid="cancel">
+                  cancel
+                </AlertDialog.Cancel>
+                <AlertDialog.Action data-testid="action">
+                  action
+                </AlertDialog.Action>
                 <button
                   id="open-focus-override"
                   data-testid="open-focus-override"
@@ -31211,21 +31257,21 @@
         >
           {#snippet child({ props, open: _open })}
             <div {...props}>
-              <AlertDialog.Title {...titleProps} data-testid="title"
-                >title</AlertDialog.Title
-              >
+              <AlertDialog.Title {...titleProps} data-testid="title">
+                title
+              </AlertDialog.Title>
               <AlertDialog.Description
                 {...descriptionProps}
                 data-testid="description"
               >
                 description
               </AlertDialog.Description>
-              <AlertDialog.Cancel data-testid="cancel"
-                >cancel</AlertDialog.Cancel
-              >
-              <AlertDialog.Action data-testid="action"
-                >action</AlertDialog.Action
-              >
+              <AlertDialog.Cancel data-testid="cancel">
+                cancel
+              </AlertDialog.Cancel>
+              <AlertDialog.Action data-testid="action">
+                action
+              </AlertDialog.Action>
               <button
                 id="open-focus-override"
                 data-testid="open-focus-override"
@@ -31287,9 +31333,9 @@
         data-testid="content"
         class="tranlate-x-[50%] fixed left-[50%] top-[50%] translate-y-[50%] bg-white p-1"
       >
-        <AlertDialog.Title {...titleProps} data-testid="title"
-          >title</AlertDialog.Title
-        >
+        <AlertDialog.Title {...titleProps} data-testid="title">
+          title
+        </AlertDialog.Title>
         <AlertDialog.Description
           {...descriptionProps}
           data-testid="description"
@@ -31330,12 +31376,12 @@
     <Avatar.Fallback data-testid="fallback">HJ</Avatar.Fallback>
   </Avatar.Root>
 
-  <button onclick={() => (src = "")} data-testid="clear-button"
-    >clear src</button
-  >
+  <button onclick={() => (src = "")} data-testid="clear-button">
+    clear src
+  </button>
 </main>
 
-=== 2211 tests/src/tests/calendar/calendar-multi-test.svelte	svelte
+=== 2233 tests/src/tests/calendar/calendar-multi-test.svelte	svelte
 <script lang="ts" module>
   import { Calendar, type CalendarMultipleRootProps } from "bits-ui";
 
@@ -31362,11 +31408,13 @@
   >
     {#snippet children({ months, weekdays })}
       <Calendar.Header data-testid="header">
-        <Calendar.PrevButton data-testid="prev-button">Prev</Calendar.PrevButton
-        >
+        <Calendar.PrevButton data-testid="prev-button">
+          Prev
+        </Calendar.PrevButton>
         <Calendar.Heading data-testid="heading" />
-        <Calendar.NextButton data-testid="next-button">Next</Calendar.NextButton
-        >
+        <Calendar.NextButton data-testid="next-button">
+          Next
+        </Calendar.NextButton>
       </Calendar.Header>
       <div>
         {#each months as month, i (i)}
@@ -31474,7 +31522,7 @@
   {/snippet}
 </Calendar.Root>
 
-=== 3109 tests/src/tests/calendar/calendar-test.svelte	svelte
+=== 3131 tests/src/tests/calendar/calendar-test.svelte	svelte
 <script lang="ts" module>
   import { CalendarDateTime, ZonedDateTime } from "@internationalized/date";
   import { Calendar, type CalendarSingleRootProps } from "bits-ui";
@@ -31510,11 +31558,13 @@
   >
     {#snippet children({ months, weekdays })}
       <Calendar.Header data-testid="header">
-        <Calendar.PrevButton data-testid="prev-button">Prev</Calendar.PrevButton
-        >
+        <Calendar.PrevButton data-testid="prev-button">
+          Prev
+        </Calendar.PrevButton>
         <Calendar.Heading data-testid="heading" />
-        <Calendar.NextButton data-testid="next-button">Next</Calendar.NextButton
-        >
+        <Calendar.NextButton data-testid="next-button">
+          Next
+        </Calendar.NextButton>
       </Calendar.Header>
       <div>
         {#each months as month, i (i)}
@@ -31554,12 +31604,12 @@
   <button onclick={() => changeValue("day")} data-testid="add-day">
     Add Day
   </button>
-  <button onclick={() => changeValue("month")} data-testid="add-month"
-    >Add Month</button
-  >
-  <button onclick={() => changeValue("year")} data-testid="add-year"
-    >Add Year</button
-  >
+  <button onclick={() => changeValue("month")} data-testid="add-month">
+    Add Month
+  </button>
+  <button onclick={() => changeValue("year")} data-testid="add-year">
+    Add Year
+  </button>
   <button
     data-testid="set-time"
     onclick={() => {
@@ -31651,9 +31701,9 @@
       }
       {...restProps}
     >
-      <Checkbox.GroupLabel data-testid="group-label"
-        >My Group</Checkbox.GroupLabel
-      >
+      <Checkbox.GroupLabel data-testid="group-label">
+        My Group
+      </Checkbox.GroupLabel>
       {#each items as itemValue (itemValue)}
         {@render MyCheckbox({ itemValue })}
       {/each}
@@ -31736,9 +31786,9 @@
       </Collapsible.Content>
     {/if}
   </Collapsible.Root>
-  <button data-testid="alt-trigger" onclick={() => (open = !open)}
-    >Toggle</button
-  >
+  <button data-testid="alt-trigger" onclick={() => (open = !open)}>
+    Toggle
+  </button>
 </main>
 
 === 1004 tests/src/tests/collapsible/collapsible-hidden-until-found-test.svelte	svelte
@@ -31769,9 +31819,9 @@
       </div>
     </Collapsible.Content>
   </Collapsible.Root>
-  <button data-testid="alt-trigger" onclick={() => (open = !open)}
-    >Toggle</button
-  >
+  <button data-testid="alt-trigger" onclick={() => (open = !open)}>
+    Toggle
+  </button>
 </main>
 
 === 579 tests/src/tests/collapsible/collapsible-test.svelte	svelte
@@ -31790,9 +31840,9 @@
     <Collapsible.Trigger data-testid="trigger">Trigger</Collapsible.Trigger>
     <Collapsible.Content data-testid="content">Content</Collapsible.Content>
   </Collapsible.Root>
-  <button data-testid="alt-trigger" onclick={() => (open = !open)}
-    >Toggle</button
-  >
+  <button data-testid="alt-trigger" onclick={() => (open = !open)}>
+    Toggle
+  </button>
 </main>
 
 === 3522 tests/src/tests/combobox/combobox-force-mount-test.svelte	svelte
@@ -31853,9 +31903,9 @@
   <div {...wrapperProps}>
     <div {...props}>
       <Combobox.Group data-testid="group">
-        <Combobox.GroupHeading data-testid="group-label"
-          >Options</Combobox.GroupHeading
-        >
+        <Combobox.GroupHeading data-testid="group-label">
+          Options
+        </Combobox.GroupHeading>
         {#each filteredItems as { value, label, disabled } (value)}
           <Combobox.Item data-testid={value} {disabled} {value} {label}>
             {#snippet children({ selected, highlighted: _highlighted })}
@@ -32012,9 +32062,9 @@
       <Combobox.Portal {...portalProps}>
         <Combobox.Content data-testid="content" {...contentProps}>
           <Combobox.Group data-testid="group">
-            <Combobox.GroupHeading data-testid="group-label"
-              >Options</Combobox.GroupHeading
-            >
+            <Combobox.GroupHeading data-testid="group-label">
+              Options
+            </Combobox.GroupHeading>
             {#each filteredItems as { value, label, disabled } (value)}
               <Combobox.Item data-testid={value} {disabled} {value} {label}>
                 {#snippet children({ selected, highlighted: _highlighted })}
@@ -32132,9 +32182,9 @@
       if (!v) searchValue = "";
     }}
   >
-    <Combobox.Trigger data-testid="trigger" class="p-4"
-      >Open combobox</Combobox.Trigger
-    >
+    <Combobox.Trigger data-testid="trigger" class="p-4">
+      Open combobox
+    </Combobox.Trigger>
     <Combobox.Input
       data-testid="input"
       aria-label="open combobox"
@@ -32144,9 +32194,9 @@
     <Combobox.Portal {...portalProps}>
       <Combobox.Content data-testid="content" {...contentProps}>
         <Combobox.Group data-testid="group">
-          <Combobox.GroupHeading data-testid="group-label"
-            >Options</Combobox.GroupHeading
-          >
+          <Combobox.GroupHeading data-testid="group-label">
+            Options
+          </Combobox.GroupHeading>
           {#each filteredItems as { value, label, disabled }, i (i)}
             <Combobox.Item
               data-testid={value}
@@ -32196,7 +32246,7 @@
 </main>
 <div data-testid="portal-target" id="portal-target"></div>
 
-=== 2258 tests/src/tests/command/command-grid-test.svelte	svelte
+=== 2306 tests/src/tests/command/command-grid-test.svelte	svelte
 <script lang="ts">
   import { Command } from "bits-ui";
   import type { ComponentProps } from "svelte";
@@ -32241,18 +32291,22 @@
       </Command.Group>
       <Command.Separator data-testid="separator" {...separatorProps} />
       <Command.Group data-testid="group-b">
-        <Command.GroupHeading data-testid="group-b-heading"
-          >Components</Command.GroupHeading
-        >
+        <Command.GroupHeading data-testid="group-b-heading">
+          Components
+        </Command.GroupHeading>
         <Command.GroupItems data-testid="group-b-items">
           <Command.Item
             data-testid="item-calendar"
-            keywords={["dates", "times"]}>Calendar</Command.Item
+            keywords={["dates", "times"]}
           >
+            Calendar
+          </Command.Item>
           <Command.Item
             data-testid="item-radio-group"
-            keywords={["buttons", "forms"]}>Radio Group</Command.Item
+            keywords={["buttons", "forms"]}
           >
+            Radio Group
+          </Command.Item>
           <Command.Item
             data-testid="item-combobox"
             keywords={["inputs", "text", "autocomplete"]}
@@ -32316,9 +32370,9 @@
       </Command.Group>
       <Command.Separator data-testid="separator" {...separatorProps} />
       <Command.Group data-testid="group-b">
-        <Command.GroupHeading data-testid="group-b-heading"
-          >Components</Command.GroupHeading
-        >
+        <Command.GroupHeading data-testid="group-b-heading">
+          Components
+        </Command.GroupHeading>
         <Command.GroupItems data-testid="group-b-items">
           <Command.Item
             data-testid="item-calendar"
@@ -32368,7 +32422,7 @@
   </Command.List>
 </Command.Root>
 
-=== 2246 tests/src/tests/command/command-test.svelte	svelte
+=== 2294 tests/src/tests/command/command-test.svelte	svelte
 <script lang="ts">
   import { Command } from "bits-ui";
   import type { ComponentProps } from "svelte";
@@ -32413,18 +32467,22 @@
       </Command.Group>
       <Command.Separator data-testid="separator" {...separatorProps} />
       <Command.Group data-testid="group-b">
-        <Command.GroupHeading data-testid="group-b-heading"
-          >Components</Command.GroupHeading
-        >
+        <Command.GroupHeading data-testid="group-b-heading">
+          Components
+        </Command.GroupHeading>
         <Command.GroupItems data-testid="group-b-items">
           <Command.Item
             data-testid="item-calendar"
-            keywords={["dates", "times"]}>Calendar</Command.Item
+            keywords={["dates", "times"]}
           >
+            Calendar
+          </Command.Item>
           <Command.Item
             data-testid="item-radio-group"
-            keywords={["buttons", "forms"]}>Radio Group</Command.Item
+            keywords={["buttons", "forms"]}
           >
+            Radio Group
+          </Command.Item>
           <Command.Item
             data-testid="item-combobox"
             keywords={["inputs", "text", "autocomplete"]}
@@ -32437,7 +32495,7 @@
   </Command.List>
 </Command.Root>
 
-=== 5370 tests/src/tests/context-menu/context-menu-force-mount-test.svelte	svelte
+=== 5394 tests/src/tests/context-menu/context-menu-force-mount-test.svelte	svelte
 <script lang="ts" module>
   import { ContextMenu } from "bits-ui";
   export type ContextMenuForceMountTestProps = ContextMenu.RootProps & {
@@ -32512,12 +32570,12 @@
           </ContextMenu.CheckboxItem>
         </ContextMenu.SubContent>
       </ContextMenu.Sub>
-      <ContextMenu.Item disabled data-testid="disabled-item"
-        >disabled item</ContextMenu.Item
-      >
-      <ContextMenu.Item disabled data-testid="disabled-item-2"
-        >disabled item 2</ContextMenu.Item
-      >
+      <ContextMenu.Item disabled data-testid="disabled-item">
+        disabled item
+      </ContextMenu.Item>
+      <ContextMenu.Item disabled data-testid="disabled-item-2">
+        disabled item 2
+      </ContextMenu.Item>
       <ContextMenu.CheckboxItem bind:checked data-testid="checkbox-item">
         {#snippet children({ checked, indeterminate: _indeterminate })}
           <span data-testid="checkbox-indicator">
@@ -32591,23 +32649,29 @@
   <button data-testid="next-button">next button</button>
   <!-- Buttons to test binding -->
   <button data-testid="binding" onclick={() => (open = !open)}>{open}</button>
-  <button data-testid="checked-binding" onclick={() => (checked = !checked)}
-    >{checked}</button
-  >
+  <button data-testid="checked-binding" onclick={() => (checked = !checked)}>
+    {checked}
+  </button>
   <button
     data-testid="sub-checked-binding"
-    onclick={() => (subChecked = !subChecked)}>{subChecked}</button
+    onclick={() => (subChecked = !subChecked)}
   >
+    {subChecked}
+  </button>
   <button
     aria-label="radio-main"
     data-testid="radio-binding"
-    onclick={() => (radio = "")}>{radio}</button
+    onclick={() => (radio = "")}
   >
+    {radio}
+  </button>
   <button
     aria-label="radio-sub"
     data-testid="sub-radio-binding"
-    onclick={() => (subRadio = "")}>{subRadio}</button
+    onclick={() => (subRadio = "")}
   >
+    {subRadio}
+  </button>
   <div id="portal-target" data-testid="portal-target"></div>
   <div
     data-testid="outside"
@@ -32661,9 +32725,9 @@
 <main class="flex flex-col gap-16">
   {@render contextMenu({ id: "1" })}
   <DropdownMenu.Root>
-    <DropdownMenu.Trigger data-testid="dropdown-trigger"
-      >open</DropdownMenu.Trigger
-    >
+    <DropdownMenu.Trigger data-testid="dropdown-trigger">
+      open
+    </DropdownMenu.Trigger>
     <DropdownMenu.Portal>
       <DropdownMenu.Content data-testid="dropdown-content">
         <DropdownMenu.Item>Hello</DropdownMenu.Item>
@@ -32701,9 +32765,9 @@
       <Popover.Root>
         <Popover.Trigger data-testid="popover-trigger-1">open</Popover.Trigger>
         <Popover.Portal>
-          <Popover.Content data-testid="popover-content-1"
-            >Hello</Popover.Content
-          >
+          <Popover.Content data-testid="popover-content-1">
+            Hello
+          </Popover.Content>
         </Popover.Portal>
       </Popover.Root>
       <Select.Root type="single">
@@ -32733,29 +32797,30 @@
   </ContextMenu.Root>
 </main>
 
-=== 971 tests/src/tests/context-menu/context-menu-nested-submenu-test.svelte	svelte
+=== 976 tests/src/tests/context-menu/context-menu-nested-submenu-test.svelte	svelte
 <script lang="ts">
   import { ContextMenu } from "bits-ui";
 </script>
 
 <ContextMenu.Root>
-  <ContextMenu.Trigger data-testid="trigger">Right click me</ContextMenu.Trigger
-  >
+  <ContextMenu.Trigger data-testid="trigger">
+    Right click me
+  </ContextMenu.Trigger>
   <ContextMenu.Portal>
     <ContextMenu.Content data-testid="content">
       <ContextMenu.Sub>
-        <ContextMenu.SubTrigger data-testid="sub-trigger"
-          >Sub</ContextMenu.SubTrigger
-        >
+        <ContextMenu.SubTrigger data-testid="sub-trigger">
+          Sub
+        </ContextMenu.SubTrigger>
         <ContextMenu.SubContent data-testid="sub-content">
           <ContextMenu.Sub>
             <ContextMenu.SubTrigger data-testid="sub-sub-trigger">
               Sub-sub
             </ContextMenu.SubTrigger>
             <ContextMenu.SubContent data-testid="sub-sub-content">
-              <ContextMenu.Item data-testid="sub-sub-item"
-                >Hello</ContextMenu.Item
-              >
+              <ContextMenu.Item data-testid="sub-sub-item">
+                Hello
+              </ContextMenu.Item>
             </ContextMenu.SubContent>
           </ContextMenu.Sub>
         </ContextMenu.SubContent>
@@ -32789,7 +32854,7 @@
   </ContextMenu.Portal>
 </ContextMenu.Root>
 
-=== 6671 tests/src/tests/context-menu/context-menu-test.svelte	svelte
+=== 6731 tests/src/tests/context-menu/context-menu-test.svelte	svelte
 <script lang="ts" module>
   import { ContextMenu } from "bits-ui";
   export type ContextMenuTestProps = ContextMenu.RootProps & {
@@ -32878,12 +32943,12 @@
               </ContextMenu.CheckboxItem>
             </ContextMenu.SubContent>
           </ContextMenu.Sub>
-          <ContextMenu.Item disabled data-testid="disabled-item"
-            >disabled item</ContextMenu.Item
-          >
-          <ContextMenu.Item disabled data-testid="disabled-item-2"
-            >disabled item 2</ContextMenu.Item
-          >
+          <ContextMenu.Item disabled data-testid="disabled-item">
+            disabled item
+          </ContextMenu.Item>
+          <ContextMenu.Item disabled data-testid="disabled-item-2">
+            disabled item 2
+          </ContextMenu.Item>
           <ContextMenu.CheckboxItem bind:checked data-testid="checkbox-item">
             {#snippet children({ checked, indeterminate: _indeterminate })}
               <span data-testid="checkbox-indicator">
@@ -32936,8 +33001,10 @@
           {#if openFocusOverride}
             <button
               data-testid="on-open-focus-override"
-              id="on-open-focus-override">on-open-focus-override</button
+              id="on-open-focus-override"
             >
+              on-open-focus-override
+            </button>
           {/if}
         </ContextMenu.Content>
       </ContextMenu.Portal>
@@ -32947,31 +33014,39 @@
 
   <!-- Buttons to test binding -->
   <button data-testid="binding" onclick={() => (open = !open)}>{open}</button>
-  <button data-testid="checked-binding" onclick={() => (checked = !checked)}
-    >{checked}</button
-  >
+  <button data-testid="checked-binding" onclick={() => (checked = !checked)}>
+    {checked}
+  </button>
   <button
     data-testid="sub-checked-binding"
-    onclick={() => (subChecked = !subChecked)}>{subChecked}</button
+    onclick={() => (subChecked = !subChecked)}
   >
+    {subChecked}
+  </button>
   <button
     aria-label="radio-main"
     data-testid="radio-binding"
-    onclick={() => (radio = "")}>{radio}</button
+    onclick={() => (radio = "")}
   >
+    {radio}
+  </button>
   <button
     aria-label="radio-sub"
     data-testid="sub-radio-binding"
-    onclick={() => (subRadio = "")}>{subRadio}</button
+    onclick={() => (subRadio = "")}
   >
-  <button data-testid="on-close-focus-override" id="on-close-focus-override"
-    >on-close-focus-override</button
-  >
+    {subRadio}
+  </button>
+  <button data-testid="on-close-focus-override" id="on-close-focus-override">
+    on-close-focus-override
+  </button>
   <button
     aria-label="checkbox-group-binding"
     data-testid="checkbox-group-binding"
-    onclick={() => (group = [])}>Group value: {group}</button
+    onclick={() => (group = [])}
   >
+    Group value: {group}
+  </button>
   <div id="portal-target" data-testid="portal-target"></div>
   <div
     data-testid="outside"
@@ -32990,9 +33065,9 @@
   <Tooltip.Root delayDuration={0}>
     <Tooltip.Trigger data-testid="tooltip-trigger">
       <ContextMenu.Root>
-        <ContextMenu.Trigger data-testid="context-menu-trigger"
-          >Right click me</ContextMenu.Trigger
-        >
+        <ContextMenu.Trigger data-testid="context-menu-trigger">
+          Right click me
+        </ContextMenu.Trigger>
         <ContextMenu.Portal>
           <ContextMenu.Content data-testid="context-menu-content">
             <ContextMenu.Item>Item1</ContextMenu.Item>
@@ -33001,9 +33076,9 @@
         </ContextMenu.Portal>
       </ContextMenu.Root>
     </Tooltip.Trigger>
-    <Tooltip.Content data-testid="tooltip-content"
-      >Tooltip content</Tooltip.Content
-    >
+    <Tooltip.Content data-testid="tooltip-content">
+      Tooltip content
+    </Tooltip.Content>
   </Tooltip.Root>
 </Tooltip.Provider>
 
@@ -33070,9 +33145,9 @@
   <div data-testid="value">{String(value)}</div>
   <div data-testid="open">{open}</div>
   <button onclick={clear} data-testid="clear">clear</button>
-  <button onclick={() => (open = !open)} data-testid="toggle-open"
-    >toggle open</button
-  >
+  <button onclick={() => (open = !open)} data-testid="toggle-open">
+    toggle open
+  </button>
   <DatePicker.Root bind:value bind:placeholder bind:open {...restProps}>
     <DatePicker.Label data-testid="label">Date</DatePicker.Label>
     <DatePicker.Input data-testid="input">
@@ -33093,13 +33168,13 @@
       <DatePicker.Calendar data-testid="calendar">
         {#snippet children({ months, weekdays })}
           <DatePicker.Header data-testid="header">
-            <DatePicker.PrevButton data-testid="prev-button"
-              >Prev</DatePicker.PrevButton
-            >
+            <DatePicker.PrevButton data-testid="prev-button">
+              Prev
+            </DatePicker.PrevButton>
             <DatePicker.Heading data-testid="heading" />
-            <DatePicker.NextButton data-testid="next-button"
-              >Next</DatePicker.NextButton
-            >
+            <DatePicker.NextButton data-testid="next-button">
+              Next
+            </DatePicker.NextButton>
           </DatePicker.Header>
           <div>
             {#each months as month, i (i)}
@@ -33201,7 +33276,7 @@
   </DateRangeField.Root>
 </main>
 
-=== 4258 tests/src/tests/date-range-picker/date-range-picker-test.svelte	svelte
+=== 4265 tests/src/tests/date-range-picker/date-range-picker-test.svelte	svelte
 <script lang="ts" module>
   import {
     DateRangePicker,
@@ -33241,9 +33316,9 @@
   <button onclick={clear}>clear</button>
   <button onclick={() => (open = !open)}>toggle open</button>
   <DateRangePicker.Root bind:value bind:placeholder bind:open {...restProps}>
-    <DateRangePicker.Label data-testid="label"
-      >Rental Days</DateRangePicker.Label
-    >
+    <DateRangePicker.Label data-testid="label">
+      Rental Days
+    </DateRangePicker.Label>
     {#each ["start", "end"] as const as type (type)}
       {@const inputProps = type === "start" ? startProps : endProps}
       <DateRangePicker.Input {type} data-testid="{type}-input" {...inputProps}>
@@ -33260,19 +33335,20 @@
       </DateRangePicker.Input>
     {/each}
 
-    <DateRangePicker.Trigger data-testid="trigger">Open</DateRangePicker.Trigger
-    >
+    <DateRangePicker.Trigger data-testid="trigger">
+      Open
+    </DateRangePicker.Trigger>
     <DateRangePicker.Content data-testid="content">
       <DateRangePicker.Calendar data-testid="calendar">
         {#snippet children({ months, weekdays })}
           <DateRangePicker.Header data-testid="header">
-            <DateRangePicker.PrevButton data-testid="prev-button"
-              >Prev</DateRangePicker.PrevButton
-            >
+            <DateRangePicker.PrevButton data-testid="prev-button">
+              Prev
+            </DateRangePicker.PrevButton>
             <DateRangePicker.Heading data-testid="heading" />
-            <DateRangePicker.NextButton data-testid="next-button"
-              >Next</DateRangePicker.NextButton
-            >
+            <DateRangePicker.NextButton data-testid="next-button">
+              Next
+            </DateRangePicker.NextButton>
           </DateRangePicker.Header>
           <div>
             {#each months as month, i (i)}
@@ -33334,34 +33410,34 @@
       <Dialog.Content data-testid="dialog-content">
         <Dialog.Close data-testid="dialog-close">dialog close</Dialog.Close>
         <AlertDialog.Root>
-          <AlertDialog.Trigger data-testid="alert-open"
-            >alert open</AlertDialog.Trigger
-          >
+          <AlertDialog.Trigger data-testid="alert-open">
+            alert open
+          </AlertDialog.Trigger>
           <AlertDialog.Portal>
             <AlertDialog.Overlay data-testid="alert-overlay" />
             <AlertDialog.Content data-testid="alert-content">
-              <AlertDialog.Title data-testid="alert-title"
-                >Alert Title</AlertDialog.Title
-              >
-              <AlertDialog.Description data-testid="alert-description"
-                >Alert Description</AlertDialog.Description
-              >
-              <AlertDialog.Cancel data-testid="alert-cancel"
-                >alert cancel</AlertDialog.Cancel
-              >
-              <AlertDialog.Action data-testid="alert-action"
-                >alert action</AlertDialog.Action
-              >
+              <AlertDialog.Title data-testid="alert-title">
+                Alert Title
+              </AlertDialog.Title>
+              <AlertDialog.Description data-testid="alert-description">
+                Alert Description
+              </AlertDialog.Description>
+              <AlertDialog.Cancel data-testid="alert-cancel">
+                alert cancel
+              </AlertDialog.Cancel>
+              <AlertDialog.Action data-testid="alert-action">
+                alert action
+              </AlertDialog.Action>
               <Dialog.Root>
-                <Dialog.Trigger data-testid="nested-dialog-open"
-                  >nested dialog open</Dialog.Trigger
-                >
+                <Dialog.Trigger data-testid="nested-dialog-open">
+                  nested dialog open
+                </Dialog.Trigger>
                 <Dialog.Portal>
                   <Dialog.Overlay data-testid="nested-dialog-overlay" />
                   <Dialog.Content data-testid="nested-dialog-content">
-                    <Dialog.Close data-testid="nested-dialog-close"
-                      >nested dialog close</Dialog.Close
-                    >
+                    <Dialog.Close data-testid="nested-dialog-close">
+                      nested dialog close
+                    </Dialog.Close>
                   </Dialog.Content>
                 </Dialog.Portal>
               </Dialog.Root>
@@ -33374,34 +33450,34 @@
 
   <!-- Alert Dialog -> Dialog -->
   <AlertDialog.Root>
-    <AlertDialog.Trigger data-testid="alert-first-open"
-      >alert first open</AlertDialog.Trigger
-    >
+    <AlertDialog.Trigger data-testid="alert-first-open">
+      alert first open
+    </AlertDialog.Trigger>
     <AlertDialog.Portal>
       <AlertDialog.Overlay data-testid="alert-first-overlay" />
       <AlertDialog.Content data-testid="alert-first-content">
-        <AlertDialog.Title data-testid="alert-first-title"
-          >Alert First Title</AlertDialog.Title
-        >
-        <AlertDialog.Description data-testid="alert-first-description"
-          >Alert First Description</AlertDialog.Description
-        >
-        <AlertDialog.Cancel data-testid="alert-first-cancel"
-          >alert first cancel</AlertDialog.Cancel
-        >
-        <AlertDialog.Action data-testid="alert-first-action"
-          >alert first action</AlertDialog.Action
-        >
+        <AlertDialog.Title data-testid="alert-first-title">
+          Alert First Title
+        </AlertDialog.Title>
+        <AlertDialog.Description data-testid="alert-first-description">
+          Alert First Description
+        </AlertDialog.Description>
+        <AlertDialog.Cancel data-testid="alert-first-cancel">
+          alert first cancel
+        </AlertDialog.Cancel>
+        <AlertDialog.Action data-testid="alert-first-action">
+          alert first action
+        </AlertDialog.Action>
         <Dialog.Root>
-          <Dialog.Trigger data-testid="dialog-nested-open"
-            >dialog nested open</Dialog.Trigger
-          >
+          <Dialog.Trigger data-testid="dialog-nested-open">
+            dialog nested open
+          </Dialog.Trigger>
           <Dialog.Portal>
             <Dialog.Overlay data-testid="dialog-nested-overlay" />
             <Dialog.Content data-testid="dialog-nested-content">
-              <Dialog.Close data-testid="dialog-nested-close"
-                >dialog nested close</Dialog.Close
-              >
+              <Dialog.Close data-testid="dialog-nested-close">
+                dialog nested close
+              </Dialog.Close>
             </Dialog.Content>
           </Dialog.Portal>
         </Dialog.Root>
@@ -33465,9 +33541,9 @@
           {#snippet child({ props, open })}
             {#if open}
               <div {...props}>
-                <Dialog.Title {...titleProps} data-testid="title"
-                  >title</Dialog.Title
-                >
+                <Dialog.Title {...titleProps} data-testid="title">
+                  title
+                </Dialog.Title>
                 <Dialog.Description
                   {...descriptionProps}
                   data-testid="description"
@@ -33494,9 +33570,9 @@
         >
           {#snippet child({ props, open: _open })}
             <div {...props}>
-              <Dialog.Title {...titleProps} data-testid="title"
-                >title</Dialog.Title
-              >
+              <Dialog.Title {...titleProps} data-testid="title">
+                title
+              </Dialog.Title>
               <Dialog.Description
                 {...descriptionProps}
                 data-testid="description"
@@ -33537,9 +33613,9 @@
     <Dialog.Portal>
       <Dialog.Content data-testid="dialog-content">
         <DropdownMenu.Root>
-          <DropdownMenu.Trigger data-testid="dropdown-trigger"
-            >open</DropdownMenu.Trigger
-          >
+          <DropdownMenu.Trigger data-testid="dropdown-trigger">
+            open
+          </DropdownMenu.Trigger>
           <DropdownMenu.Portal>
             <DropdownMenu.Content data-testid="dropdown-content">
               <DropdownMenu.Item>item</DropdownMenu.Item>
@@ -33549,9 +33625,9 @@
         <Popover.Root>
           <Popover.Trigger data-testid="popover-trigger">open</Popover.Trigger>
           <Popover.Portal>
-            <Popover.Content data-testid="popover-content"
-              >content</Popover.Content
-            >
+            <Popover.Content data-testid="popover-content">
+              content
+            </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
         content
@@ -33577,19 +33653,19 @@
           <Dialog.Portal>
             <Dialog.Overlay data-testid="second-overlay" />
             <Dialog.Content data-testid="second-content">
-              <Dialog.Close data-testid="second-close"
-                >second close</Dialog.Close
-              >
+              <Dialog.Close data-testid="second-close">
+                second close
+              </Dialog.Close>
               <Dialog.Root>
-                <Dialog.Trigger data-testid="third-open"
-                  >third open</Dialog.Trigger
-                >
+                <Dialog.Trigger data-testid="third-open">
+                  third open
+                </Dialog.Trigger>
                 <Dialog.Portal>
                   <Dialog.Overlay data-testid="third-overlay" />
                   <Dialog.Content data-testid="third-content">
-                    <Dialog.Close data-testid="third-close"
-                      >third close</Dialog.Close
-                    >
+                    <Dialog.Close data-testid="third-close">
+                      third close
+                    </Dialog.Close>
                   </Dialog.Content>
                 </Dialog.Portal>
               </Dialog.Root>
@@ -33654,16 +33730,16 @@
         class="tranlate-x-[50%] fixed left-[50%] top-[50%] translate-y-[50%] bg-white p-1"
       >
         <Dialog.Title data-testid="title">title</Dialog.Title>
-        <Dialog.Description data-testid="description"
-          >description</Dialog.Description
-        >
+        <Dialog.Description data-testid="description">
+          description
+        </Dialog.Description>
         <Dialog.Close data-testid="close">close</Dialog.Close>
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>
 </main>
 
-=== 2318 tests/src/tests/dialog/dialog-test.svelte	svelte
+=== 2327 tests/src/tests/dialog/dialog-test.svelte	svelte
 <script lang="ts" module>
   import { Dialog, type WithoutChildrenOrChild } from "bits-ui";
   export type DialogTestProps = Dialog.RootProps & {
@@ -33717,19 +33793,20 @@
         <button
           data-testid="update-id"
           onclick={() => (descriptionId = "new-id")}
-          >Reactively update description id</button
         >
-        <button data-testid="open-focus-override" id="open-focus-override"
-          >open focus override</button
-        >
+          Reactively update description id
+        </button>
+        <button data-testid="open-focus-override" id="open-focus-override">
+          open focus override
+        </button>
       </Dialog.Content>
     </Dialog.Portal>
   </Dialog.Root>
   <p data-testid="binding">{open}</p>
   <button data-testid="toggle" onclick={() => (open = !open)}>toggle</button>
-  <button data-testid="close-focus-override" id="close-focus-override"
-    >close focus override</button
-  >
+  <button data-testid="close-focus-override" id="close-focus-override">
+    close focus override
+  </button>
   <div
     data-testid="outside"
     style="bottom: 0px; right: 10px; position: absolute;"
@@ -33770,7 +33847,7 @@
   </Dialog.Root>
 </Tooltip.Provider>
 
-=== 5418 tests/src/tests/dropdown-menu/dropdown-menu-force-mount-test.svelte	svelte
+=== 5442 tests/src/tests/dropdown-menu/dropdown-menu-force-mount-test.svelte	svelte
 <script lang="ts" module>
   import { DropdownMenu } from "bits-ui";
   export type DropdownMenuForceMountTestProps = DropdownMenu.RootProps & {
@@ -33845,12 +33922,12 @@
           </DropdownMenu.CheckboxItem>
         </DropdownMenu.SubContent>
       </DropdownMenu.Sub>
-      <DropdownMenu.Item disabled data-testid="disabled-item"
-        >disabled item</DropdownMenu.Item
-      >
-      <DropdownMenu.Item disabled data-testid="disabled-item-2"
-        >disabled item 2</DropdownMenu.Item
-      >
+      <DropdownMenu.Item disabled data-testid="disabled-item">
+        disabled item
+      </DropdownMenu.Item>
+      <DropdownMenu.Item disabled data-testid="disabled-item-2">
+        disabled item 2
+      </DropdownMenu.Item>
       <DropdownMenu.CheckboxItem bind:checked data-testid="checkbox-item">
         {#snippet children({ checked, indeterminate: _indeterminate })}
           <span data-testid="checkbox-indicator">
@@ -33931,23 +34008,29 @@
   <button data-testid="next-button">next button</button>
   <!-- Buttons to test binding -->
   <button data-testid="binding" onclick={() => (open = !open)}>{open}</button>
-  <button data-testid="checked-binding" onclick={() => (checked = !checked)}
-    >{checked}</button
-  >
+  <button data-testid="checked-binding" onclick={() => (checked = !checked)}>
+    {checked}
+  </button>
   <button
     data-testid="sub-checked-binding"
-    onclick={() => (subChecked = !subChecked)}>{subChecked}</button
+    onclick={() => (subChecked = !subChecked)}
   >
+    {subChecked}
+  </button>
   <button
     aria-label="radio-main"
     data-testid="radio-binding"
-    onclick={() => (radio = "")}>{radio}</button
+    onclick={() => (radio = "")}
   >
+    {radio}
+  </button>
   <button
     aria-label="radio-sub"
     data-testid="sub-radio-binding"
-    onclick={() => (subRadio = "")}>{subRadio}</button
+    onclick={() => (subRadio = "")}
   >
+    {subRadio}
+  </button>
   <div id="portal-target" data-testid="portal-target"></div>
 </main>
 
@@ -33971,9 +34054,9 @@
 
   <div data-testid="dropdown-1-container">
     <DropdownMenu.Root bind:open={open1}>
-      <DropdownMenu.Trigger data-testid="trigger-1"
-        >Open Dropdown 1</DropdownMenu.Trigger
-      >
+      <DropdownMenu.Trigger data-testid="trigger-1">
+        Open Dropdown 1
+      </DropdownMenu.Trigger>
       <DropdownMenu.Content data-testid="content-1" {...contentProps}>
         <DropdownMenu.Item data-testid="item-1">Item 1</DropdownMenu.Item>
         <DropdownMenu.Item data-testid="item-1-2">Item 2</DropdownMenu.Item>
@@ -33984,9 +34067,9 @@
 
   <div data-testid="dropdown-2-container">
     <DropdownMenu.Root bind:open={open2}>
-      <DropdownMenu.Trigger data-testid="trigger-2"
-        >Open Dropdown 2</DropdownMenu.Trigger
-      >
+      <DropdownMenu.Trigger data-testid="trigger-2">
+        Open Dropdown 2
+      </DropdownMenu.Trigger>
       <DropdownMenu.Content data-testid="content-2" {...contentProps}>
         <DropdownMenu.Item data-testid="item-2">Item 1</DropdownMenu.Item>
         <DropdownMenu.Item data-testid="item-2-2">Item 2</DropdownMenu.Item>
@@ -33997,9 +34080,9 @@
 
   <div data-testid="dropdown-3-container">
     <DropdownMenu.Root bind:open={open3}>
-      <DropdownMenu.Trigger data-testid="trigger-3"
-        >Open Dropdown 3</DropdownMenu.Trigger
-      >
+      <DropdownMenu.Trigger data-testid="trigger-3">
+        Open Dropdown 3
+      </DropdownMenu.Trigger>
       <DropdownMenu.Content data-testid="content-3" {...contentProps}>
         <DropdownMenu.Item data-testid="item-3">Item 1</DropdownMenu.Item>
         <DropdownMenu.Item data-testid="item-3-2">Item 2</DropdownMenu.Item>
@@ -34057,7 +34140,7 @@
   {/each}
 </div>
 
-=== 8657 tests/src/tests/dropdown-menu/dropdown-menu-test.svelte	svelte
+=== 8750 tests/src/tests/dropdown-menu/dropdown-menu-test.svelte	svelte
 <script lang="ts" module>
   import { DropdownMenu } from "bits-ui";
   export type DropdownMenuTestProps = DropdownMenu.RootProps & {
@@ -34172,14 +34255,16 @@
             disabled
             data-testid="disabled-item"
             class="focus:bg-gray-100 focus:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2"
-            >disabled item</DropdownMenu.Item
           >
+            disabled item
+          </DropdownMenu.Item>
           <DropdownMenu.Item
             disabled
             data-testid="disabled-item-2"
             class="focus:bg-gray-100 focus:text-gray-500 focus:outline-none focus:ring-2 focus:ring-gray-300 focus:ring-offset-2"
-            >disabled item 2</DropdownMenu.Item
           >
+            disabled item 2
+          </DropdownMenu.Item>
           <DropdownMenu.CheckboxItem
             bind:checked
             data-testid="checkbox-item"
@@ -34195,8 +34280,9 @@
           <DropdownMenu.Item
             data-testid="item-2"
             class="focus:bg-blue-100 focus:text-blue-900 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-            >item 2</DropdownMenu.Item
           >
+            item 2
+          </DropdownMenu.Item>
           <DropdownMenu.RadioGroup bind:value={radio} data-testid="radio-group">
             <DropdownMenu.RadioItem
               value="1"
@@ -34250,8 +34336,10 @@
           {#if openFocusOverride}
             <button
               data-testid="on-open-focus-override"
-              id="on-open-focus-override">on-open-focus-override</button
+              id="on-open-focus-override"
             >
+              on-open-focus-override
+            </button>
           {/if}
         </DropdownMenu.Content>
       </DropdownMenu.Portal>
@@ -34261,31 +34349,39 @@
 
   <!-- Buttons to test binding -->
   <button data-testid="binding" onclick={() => (open = !open)}>{open}</button>
-  <button data-testid="checked-binding" onclick={() => (checked = !checked)}
-    >{checked}</button
-  >
+  <button data-testid="checked-binding" onclick={() => (checked = !checked)}>
+    {checked}
+  </button>
   <button
     data-testid="sub-checked-binding"
-    onclick={() => (subChecked = !subChecked)}>{subChecked}</button
+    onclick={() => (subChecked = !subChecked)}
   >
+    {subChecked}
+  </button>
   <button
     aria-label="radio-main"
     data-testid="radio-binding"
-    onclick={() => (radio = "")}>{radio}</button
+    onclick={() => (radio = "")}
   >
+    {radio}
+  </button>
   <button
     aria-label="radio-sub"
     data-testid="sub-radio-binding"
-    onclick={() => (subRadio = "")}>{subRadio}</button
+    onclick={() => (subRadio = "")}
   >
-  <button data-testid="on-close-focus-override" id="on-close-focus-override"
-    >on-close-focus-override</button
-  >
+    {subRadio}
+  </button>
+  <button data-testid="on-close-focus-override" id="on-close-focus-override">
+    on-close-focus-override
+  </button>
   <button
     aria-label="checkbox-group-binding"
     data-testid="checkbox-group-binding"
-    onclick={() => (group = [])}>{group}</button
+    onclick={() => (group = [])}
   >
+    {group}
+  </button>
   <div id="portal-target" data-testid="portal-target"></div>
 </main>
 
@@ -34439,9 +34535,9 @@
   <Menubar.Content data-testid="{id}-content">
     <Menubar.Separator data-testid="{id}-separator" />
     <Menubar.Group data-testid="{id}-group">
-      <Menubar.GroupHeading data-testid="{id}-group-heading"
-        >Stuff</Menubar.GroupHeading
-      >
+      <Menubar.GroupHeading data-testid="{id}-group-heading">
+        Stuff
+      </Menubar.GroupHeading>
       <Menubar.Item data-testid="{id}-item">
         <span>item</span>
       </Menubar.Item>
@@ -34465,12 +34561,12 @@
         </Menubar.CheckboxItem>
       </Menubar.SubContent>
     </Menubar.Sub>
-    <Menubar.Item disabled data-testid="{id}-disabled-item"
-      >disabled item</Menubar.Item
-    >
-    <Menubar.Item disabled data-testid="{id}-disabled-item-2"
-      >disabled item 2</Menubar.Item
-    >
+    <Menubar.Item disabled data-testid="{id}-disabled-item">
+      disabled item
+    </Menubar.Item>
+    <Menubar.Item disabled data-testid="{id}-disabled-item-2">
+      disabled item 2
+    </Menubar.Item>
     <Menubar.CheckboxItem data-testid="{id}-checkbox-item">
       {#snippet children({ checked, indeterminate: _indeterminate })}
         {#if checked}
@@ -34604,8 +34700,8 @@
           forceMount={contentForceMount}
         >
           <button data-testid="group-item-content-button1">first button</button>
-          <button data-testid="group-item-content-button2"
-            >second button
+          <button data-testid="group-item-content-button2">
+            second button
           </button>
         </NavigationMenu.Content>
       </NavigationMenu.Item>
@@ -34872,9 +34968,9 @@
 >
   <div>
     <Popover.Root bind:open {...restProps}>
-      <Popover.Trigger data-testid="trigger" {...triggerProps}
-        >trigger</Popover.Trigger
-      >
+      <Popover.Trigger data-testid="trigger" {...triggerProps}>
+        trigger
+      </Popover.Trigger>
       <Popover.Portal {...portalProps}>
         {#if withOpenCheck}
           <Popover.Content {...contentProps} data-testid="content" forceMount>
@@ -34993,9 +35089,9 @@
 >
   <div>
     <Popover.Root bind:open {...restProps}>
-      <Popover.Trigger data-testid="trigger" {...triggerProps}
-        >trigger</Popover.Trigger
-      >
+      <Popover.Trigger data-testid="trigger" {...triggerProps}>
+        trigger
+      </Popover.Trigger>
       <Popover.Portal>
         <Popover.Content {...contentProps} data-testid="content">
           <div data-testid="content-text">content</div>
@@ -35511,13 +35607,13 @@
   >
     {#snippet children({ months, weekdays })}
       <RangeCalendar.Header data-testid="header">
-        <RangeCalendar.PrevButton data-testid="prev-button"
-          >Prev</RangeCalendar.PrevButton
-        >
+        <RangeCalendar.PrevButton data-testid="prev-button">
+          Prev
+        </RangeCalendar.PrevButton>
         <RangeCalendar.Heading data-testid="heading" />
-        <RangeCalendar.NextButton data-testid="next-button"
-          >Next</RangeCalendar.NextButton
-        >
+        <RangeCalendar.NextButton data-testid="next-button">
+          Next
+        </RangeCalendar.NextButton>
       </RangeCalendar.Header>
       <div>
         {#each months as month, i (i)}
@@ -35740,9 +35836,9 @@
   <div {...wrapperProps}>
     <div {...props}>
       <Select.Group data-testid="group">
-        <Select.GroupHeading data-testid="group-label"
-          >Options</Select.GroupHeading
-        >
+        <Select.GroupHeading data-testid="group-label">
+          Options
+        </Select.GroupHeading>
         {#each filteredItems as { value, label, disabled } (value)}
           {@const testId = generateTestId(value)}
           <Select.Item data-testid={testId} {disabled} {value} {label}>
@@ -35884,9 +35980,9 @@
       <Select.Portal {...portalProps}>
         <Select.Content data-testid="content" {...contentProps}>
           <Select.Group data-testid="group">
-            <Select.GroupHeading data-testid="group-label"
-              >Options</Select.GroupHeading
-            >
+            <Select.GroupHeading data-testid="group-label">
+              Options
+            </Select.GroupHeading>
             {#each filteredItems as { value, label, disabled } (value)}
               {@const testId = generateTestId(value)}
               <Select.Item data-testid={testId} {disabled} {value} {label}>
@@ -36047,9 +36143,9 @@
         class="bg-white p-4"
       >
         <Select.Group data-testid="group">
-          <Select.GroupHeading data-testid="group-label"
-            >Options</Select.GroupHeading
-          >
+          <Select.GroupHeading data-testid="group-label">
+            Options
+          </Select.GroupHeading>
           {#each filteredItems as { value, label, disabled } (value)}
             {@const testId = generateTestId(value)}
             <Select.Item
@@ -36148,9 +36244,9 @@
                 ? selection.selected.label
                 : currentPlaceholder}
             </span>
-            <span data-testid="selection-disabled"
-              >{disabled ? "true" : "false"}</span
-            >
+            <span data-testid="selection-disabled">
+              {disabled ? "true" : "false"}
+            </span>
           </span>
           <button
             type="button"
@@ -36243,9 +36339,9 @@
               ? selection.selected.map((v) => v.label).join(", ")
               : currentPlaceholder}
           </span>
-          <span data-testid="selection-disabled"
-            >{disabled ? "true" : "false"}</span
-          >
+          <span data-testid="selection-disabled">
+            {disabled ? "true" : "false"}
+          </span>
           <button
             type="button"
             data-testid="set-values-1-3"
@@ -36351,9 +36447,9 @@
   {#each items as item (item)}
     <Accordion.Item value={item}>
       <Accordion.Header>
-        <Accordion.Trigger data-testid="{item}-trigger"
-          >Slider {item}</Accordion.Trigger
-        >
+        <Accordion.Trigger data-testid="{item}-trigger">
+          Slider {item}
+        </Accordion.Trigger>
       </Accordion.Header>
       <Accordion.Content data-testid="{item}-content">
         <div style="padding: 8px 0;">
@@ -36581,9 +36677,9 @@
 </script>
 
 <main>
-  <button data-testid="binding" onclick={() => (checked = !checked)}
-    >{checked}</button
-  >
+  <button data-testid="binding" onclick={() => (checked = !checked)}>
+    {checked}
+  </button>
   <Switch.Root
     aria-label="airplane mode"
     data-testid="root"
@@ -36825,7 +36921,7 @@
   </ToggleGroup.Root>
 </main>
 
-=== 428 tests/src/tests/toggle/toggle-test.svelte	svelte
+=== 436 tests/src/tests/toggle/toggle-test.svelte	svelte
 <script lang="ts">
   import { Toggle, type WithoutChildrenOrChild } from "bits-ui";
 
@@ -36836,15 +36932,17 @@
 </script>
 
 <main>
-  <button data-testid="binding" onclick={() => (pressed = !pressed)}
-    >{pressed}</button
-  >
+  <button data-testid="binding" onclick={() => (pressed = !pressed)}>
+    {pressed}
+  </button>
   <Toggle.Root
     bind:pressed
     aria-label="toggle"
     data-testid="root"
-    {...restProps}>a</Toggle.Root
+    {...restProps}
   >
+    a
+  </Toggle.Root>
 </main>
 
 === 2528 tests/src/tests/toolbar/toolbar-test.svelte	svelte
@@ -36945,13 +37043,13 @@
       </Toolbar.GroupItem>
     </Toolbar.Group>
 
-    <Toolbar.Link data-testid="link" onclick={() => (clicked = "link")}
-      >Edited 2 hours ago</Toolbar.Link
-    >
+    <Toolbar.Link data-testid="link" onclick={() => (clicked = "link")}>
+      Edited 2 hours ago
+    </Toolbar.Link>
 
-    <Toolbar.Button data-testid="button" onclick={() => (clicked = "button")}
-      >Save</Toolbar.Button
-    >
+    <Toolbar.Button data-testid="button" onclick={() => (clicked = "button")}>
+      Save
+    </Toolbar.Button>
   </Toolbar.Root>
 </main>
 
@@ -37049,13 +37147,13 @@
 <Tooltip.Provider {delayDuration} {skipDelayDuration} {disableHoverableContent}>
   {#each items as item, index (index)}
     <Tooltip.Root>
-      <Tooltip.Trigger data-testid={`trigger-${item}`}
-        >trigger-{item}</Tooltip.Trigger
-      >
+      <Tooltip.Trigger data-testid={`trigger-${item}`}>
+        trigger-{item}
+      </Tooltip.Trigger>
       <Tooltip.Portal>
-        <Tooltip.Content data-testid={`content-${item}`}
-          >content-{item}</Tooltip.Content
-        >
+        <Tooltip.Content data-testid={`content-${item}`}>
+          content-{item}
+        </Tooltip.Content>
       </Tooltip.Portal>
     </Tooltip.Root>
   {/each}
@@ -37079,9 +37177,9 @@
       </Popover.Portal>
     </Popover.Root>
     <Tooltip.Portal>
-      <Tooltip.Content data-testid="tooltip-content"
-        >Hello World!</Tooltip.Content
-      >
+      <Tooltip.Content data-testid="tooltip-content">
+        Hello World!
+      </Tooltip.Content>
     </Tooltip.Portal>
   </Tooltip.Root>
 </Tooltip.Provider>
@@ -37288,7 +37386,7 @@
   <div data-testid="outside">outside</div>
 </main>
 
-=== 2276 tests/src/tests/tooltip/tooltip-singleton-force-mount-test.svelte	svelte
+=== 2299 tests/src/tests/tooltip/tooltip-singleton-force-mount-test.svelte	svelte
 <script lang="ts" module>
   import type { WithoutChildrenOrChild } from "bits-ui";
 
@@ -37339,17 +37437,18 @@
                 {#if contentOpen}
                   <div {...wrapperProps}>
                     <div {...props} data-testid="content-node">
-                      <span data-testid="payload"
-                        >{payload?.label ?? "null"}</span
-                      >
+                      <span data-testid="payload">
+                        {payload?.label ?? "null"}
+                      </span>
                     </div>
                   </div>
                 {/if}
               {:else}
                 <div {...wrapperProps}>
                   <div {...props} data-testid="content-node">
-                    <span data-testid="payload">{payload?.label ?? "null"}</span
-                    >
+                    <span data-testid="payload">
+                      {payload?.label ?? "null"}
+                    </span>
                   </div>
                 </div>
               {/if}
@@ -37450,9 +37549,9 @@
 <main data-testid="main">
   <Tooltip.Provider delayDuration={0} {...providerProps}>
     <Tooltip.Root bind:open {...restProps}>
-      <Tooltip.Trigger data-testid="trigger" {...triggerProps}
-        >@sveltejs</Tooltip.Trigger
-      >
+      <Tooltip.Trigger data-testid="trigger" {...triggerProps}>
+        @sveltejs
+      </Tooltip.Trigger>
       <Tooltip.Portal {...portalProps}>
         <Tooltip.Content
           {...contentProps}

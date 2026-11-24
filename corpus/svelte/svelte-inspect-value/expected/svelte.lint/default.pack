@@ -115,7 +115,7 @@
 === 91 apps/docs/src/components/global-opts/sltheme.svelte.ts	lint.txt
 1:12 1:26 svelte/prefer-const "'starlightTheme' is never reassigned. Use 'const' instead."
 
-=== 13322 apps/docs/src/components/theming/DefineTheme.svelte	lint.txt
+=== 13243 apps/docs/src/components/theming/DefineTheme.svelte	lint.txt
 1:20 1:44 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 2:1 76:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 15:9 15:12 svelte/prefer-const "'tim' is never reassigned. Use 'const' instead."
@@ -127,7 +127,6 @@
 37:7 37:17 svelte/prefer-const "'pickerOpen' is never reassigned. Use 'const' instead."
 38:24 38:28 svelte/valid-compile "This reference only captures the initial value of `keys`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 40:7 40:17 svelte/prefer-const "'historySrc' is never reassigned. Use 'const' instead."
-47:1 47:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 51:15 53:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 79:26 79:61 svelte/max-attributes-per-line "'href' should be on a new line."
 79:26 79:61 svelte/sort-attributes "Attribute 'href' should go before 'rel'."
@@ -1049,13 +1048,10 @@
 35:1 35:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 35:31 36:9 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 
-=== 1707 packages/svelte/src/lib/Resize.svelte	lint.txt
+=== 1394 packages/svelte/src/lib/Resize.svelte	lint.txt
 1:1 84:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 6:10 6:21 no-undef "'HTMLElement' is not defined."
 11:16 11:46 no-unused-vars "'dimensions' is defined but never used."
-18:5 18:13 no-useless-assignment "The value assigned to 'resizing' is not used in subsequent statements."
-19:5 19:10 no-useless-assignment "The value assigned to 'width' is not used in subsequent statements."
-20:5 20:11 no-useless-assignment "The value assigned to 'height' is not used in subsequent statements."
 24:20 24:27 no-undef "'DOMRect' is not defined."
 30:12 30:22 no-undef "'MouseEvent' is not defined."
 30:42 30:53 no-undef "'EventTarget' is not defined."
@@ -1334,15 +1330,13 @@
 49:11 49:17 svelte/consistent-selector-style "Selector should select by element type instead of class"
 49:17 49:26 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 5170 packages/svelte/src/lib/components/GetterSetter.svelte	lint.txt
+=== 5012 packages/svelte/src/lib/components/GetterSetter.svelte	lint.txt
 1:1 144:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 22:22 22:36 no-undef "'HTMLDivElement' is not defined."
 26:5 26:12 no-unused-vars "'display' is assigned a value but never used."
 30:5 30:13 no-unused-vars "'children' is assigned a value but never used."
 59:26 59:33 no-undef "'UIEvent' is not defined."
 73:26 73:33 no-undef "'UIEvent' is not defined."
-78:1 78:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
-81:1 81:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
 100:33 100:46 no-undef "'KeyboardEvent' is not defined."
 100:66 100:77 no-undef "'EventTarget' is not defined."
 100:80 100:96 no-undef "'HTMLInputElement' is not defined."
@@ -1545,9 +1539,8 @@
 29:34 29:40 svelte/max-attributes-per-line "'path' should be on a new line."
 29:41 29:52 svelte/sort-attributes "Attribute 'key' should go before 'path'."
 
-=== 1744 packages/svelte/src/lib/components/Node.svelte	lint.txt
+=== 1665 packages/svelte/src/lib/components/Node.svelte	lint.txt
 1:1 104:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-35:1 35:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 35:5 35:67 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
 37:9 37:14 svelte/prefer-const "'entry' is never reassigned. Use 'const' instead."
 40:12 40:21 svelte/prefer-const "'component' is never reassigned. Use 'const' instead."
@@ -1568,12 +1561,11 @@
 118:52 118:58 svelte/sort-attributes "Attribute 'path' should go before 'value'."
 118:59 118:66 svelte/sort-attributes "Attribute 'reset' should go before 'value'."
 
-=== 395 packages/svelte/src/lib/components/NodeActionButton.svelte	lint.txt
+=== 314 packages/svelte/src/lib/components/NodeActionButton.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 10:23 10:40 no-undef "'HTMLButtonElement' is not defined."
 20:3 20:30 svelte/sort-attributes "Attribute 'disabled' should go before 'type'."
 21:3 21:19 svelte/sort-attributes "Attribute 'aria-busy' should go before 'type'."
-23:3 23:12 svelte/sort-attributes "Attribute 'onclick' should go before 'type'."
 
 === 534 packages/svelte/src/lib/components/NodeIconButton.svelte	lint.txt
 1:1 28:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -2249,7 +2241,7 @@
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 8:3 8:20 svelte/no-unused-class-name "Unused class \"toc\"."
 
-=== 1183 packages/svelte/src/routes/(app)/playground/[...example]/+page.svelte	lint.txt
+=== 1102 packages/svelte/src/routes/(app)/playground/[...example]/+page.svelte	lint.txt
 1:1 67:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 72:3 72:57 svelte/no-unused-class-name "Unused class \"flex\"."
 72:3 72:57 svelte/no-unused-class-name "Unused class \"row\"."
@@ -2258,7 +2250,6 @@
 72:3 72:57 svelte/no-unused-class-name "Unused class \"w-max\"."
 73:5 73:37 svelte/button-has-type "Missing an explicit type attribute for button."
 78:9 83:11 svelte/sort-attributes "Attribute 'onchange' should go before 'value'."
-81:1 81:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 95:7 95:17 svelte/sort-attributes "Attribute 'onchange' should go before 'value'."
 96:7 96:29 svelte/sort-attributes "Attribute 'valid' should go before 'value'."
 97:7 97:22 svelte/sort-attributes "Attribute 'message' should go before 'value'."

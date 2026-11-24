@@ -7,6 +7,8 @@ pub use check::{
 };
 
 mod extension;
+mod imports;
+pub use imports::imports;
 mod kit;
 pub use extension::{EXTENSION, NEEDS_TYPE_CHECKER, TASK, type_checker};
 mod registration;

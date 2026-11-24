@@ -25,17 +25,18 @@ pub fn register(registry: &mut Registry) {
     let env = Arc::new(TypeScriptEnv::default());
     registry.artifact::<Parsed>();
     registry.provide::<TypeScriptView>("typescript", matches, move |context| {
-        if !is_typescript(context.document) {
-            return Ok(TypeScriptDocument::Unchecked);
-        }
         let source = context.source_text();
-        let insertions = context.get::<Parsed>().as_ref().map_or_else(
-            |_| Vec::new(),
+        let (insertions, imports) = context.get::<Parsed>().as_ref().map_or_else(
+            |_| (Vec::new(), Vec::new()),
             |script| {
                 let document = context.document;
                 let path = document.file_path();
                 let program = script.tree.get_program(script.root);
-                kit::insertions(path, source, program, || hooks_module(path))
+                let javascript = !is_typescript(document);
+                (
+                    kit::insertions(path, source, program, javascript, || hooks_module(path)),
+                    crate::imports(program),
+                )
             },
         );
         let mut projection = Emitter::default();
@@ -57,7 +58,7 @@ pub fn register(registry: &mut Registry) {
             map_back: Emitter::lookup_overlap,
             env: Arc::clone(&env),
             extension: ".ts",
-            imports: Vec::new(),
+            imports,
             store_reads: Vec::new(),
             hidden: Vec::new(),
             drops_unmapped: false,

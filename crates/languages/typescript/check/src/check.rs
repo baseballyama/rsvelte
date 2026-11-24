@@ -42,8 +42,8 @@ impl Facet for TypeScriptView {
 
 #[derive(Debug)]
 pub enum TypeScriptDocument {
-    /// Not type-checked: a JavaScript document, for which upstream reports no semantic
-    /// diagnostics (`checkJs` is off). Its findings are empty.
+    /// Not type-checked: a document of another language that the projection reads as
+    /// JavaScript it does not cover. Its findings are empty.
     Unchecked,
     /// A document the language's own parser rejects: svelte-check reports only that error, with
     /// the code `-1`, instead of type checking.
@@ -63,7 +63,7 @@ pub struct CheckedDocument {
     pub env: Arc<TypeScriptEnv>,
     /// The extension the checker reads a content-mapped projection as, such as `.ts`.
     pub extension: &'static str,
-    /// Each relative module the document imports.
+    /// Each module the document imports.
     pub imports: Vec<Import>,
     /// Each Svelte store by its name's range, with where the component reads `$store`:
     /// svelte-check reports a store that is no store at each of those reads.
@@ -78,8 +78,8 @@ pub struct CheckedDocument {
     pub inserted: Vec<(Span, Span)>,
 }
 
-/// A relative module specifier a document imports, by its string literal's range, with the
-/// names the import binds.
+/// A module specifier a document imports, by its string literal's range, with the names the
+/// import binds.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Import {
     pub at: Span,
@@ -292,7 +292,7 @@ impl FinishTask for Check {
             Ok(TypeScriptDocument::Unchecked) => {
                 out.file(
                     "json",
-                    render_findings(context.lines(LineBreaks::Newline), &[]),
+                    render_findings::<&str>(context.lines(LineBreaks::Newline), &[]),
                 );
                 self.stand_in(context)
             }
@@ -435,35 +435,26 @@ fn check_projected(
                                 ..*a
                             })
                             .collect(),
-                        imports: document
-                            .imports
-                            .iter()
-                            .filter(|import| import.at.start_offset >= bom)
-                            .map(|import| Import {
-                                at: Span::new(
-                                    import.at.start_offset - bom,
-                                    import.at.end_offset - bom,
-                                ),
-                                ..import.clone()
-                            })
-                            .collect(),
                     })
             })
             .collect(),
         env,
+        imports: (docs.iter())
+            .map(|d| run::checked_imports(&d.document, &d.source_text))
+            .collect(),
         files: docs
             .iter()
             .map(|d| d.document.projection.out.as_str())
             .collect(),
     };
-    let found = match tsc.check(&req) {
-        Ok(found) => found,
+    let report = match tsc.check(&req) {
+        Ok(report) => report,
         Err(msg) => {
             fail(outs, &msg);
             return;
         }
     };
-    write_findings(docs, outs, found);
+    write_findings(docs, outs, report);
 }
 
 mod findings;
@@ -471,7 +462,7 @@ pub(crate) use findings::render_findings;
 use findings::{byte_order_mark, write_findings};
 
 mod run;
-pub(crate) use run::{CheckRequest, ContentMappedInput, TypeScriptDiagnostic};
+pub(crate) use run::{CheckRequest, ContentMappedInput, Report};
 
 #[cfg(test)]
 mod tests;

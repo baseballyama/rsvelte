@@ -479,7 +479,7 @@
   }
 </style>
 
-=== 3455 sites/docs/src/lib/components/Sidebar.svelte	svelte
+=== 3527 sites/docs/src/lib/components/Sidebar.svelte	svelte
 <script>
   import { page } from "$app/state";
   import { base } from "$app/paths";
@@ -528,16 +528,20 @@
     <a
       href={`${base}/`}
       class:active={page.url.pathname === `${base}/`}
-      onclick={closeOnMobile}>Home</a
+      onclick={closeOnMobile}
     >
+      Home
+    </a>
 
     <h4>Charts</h4>
     {#each charts as { href, label }}
       <a
         href={`${base}${href}`}
         class:active={page.url.pathname === `${base}${href}`}
-        onclick={closeOnMobile}>{label}</a
+        onclick={closeOnMobile}
       >
+        {label}
+      </a>
     {/each}
 
     <h4>Examples</h4>
@@ -545,8 +549,10 @@
       <a
         href={`${base}${href}`}
         class:active={page.url.pathname === `${base}${href}`}
-        onclick={closeOnMobile}>{label}</a
+        onclick={closeOnMobile}
       >
+        {label}
+      </a>
     {/each}
 
     <h4>Guides</h4>
@@ -554,16 +560,20 @@
       <a
         href={`${base}${href}`}
         class:active={page.url.pathname === `${base}${href}`}
-        onclick={closeOnMobile}>{label}</a
+        onclick={closeOnMobile}
       >
+        {label}
+      </a>
     {/each}
 
     <h4>Reference</h4>
     <a
       href={`${base}/api`}
       class:active={page.url.pathname === `${base}/api`}
-      onclick={closeOnMobile}>API</a
+      onclick={closeOnMobile}
     >
+      API
+    </a>
   </nav>
 </aside>
 
@@ -1964,9 +1974,9 @@
     {@render children()}
 
     <footer class="edit-link">
-      <a href={editUrl()} target="_blank" rel="noopener noreferrer"
-        >Edit this page on GitHub</a
-      >
+      <a href={editUrl()} target="_blank" rel="noopener noreferrer">
+        Edit this page on GitHub
+      </a>
     </footer>
   </article>
 

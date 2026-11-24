@@ -5,7 +5,6 @@ use rsvelte_kernel::output::emitter::{Atom, Mapping};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 
 use super::CheckRequest;
-use crate::check::Import;
 
 #[derive(Debug)]
 pub(crate) struct ContentMappedInput {
@@ -15,8 +14,6 @@ pub(crate) struct ContentMappedInput {
     pub generated_extension: &'static str,
     pub mappings: Vec<Mapping>,
     pub atoms: Vec<Atom>,
-    /// Each relative module the document imports.
-    pub imports: Vec<Import>,
 }
 
 /// Extensions the checker reads as JavaScript or TypeScript without a content mapper.
@@ -102,8 +99,18 @@ impl CheckRequest<'_> {
     }
 }
 
-/// The precomputed mapper's store: each content-mapped document's projection by checked path.
-pub(super) fn store_json(req: &CheckRequest<'_>, root: &Path, paths: &[PathBuf]) -> String {
+/// What an untyped JavaScript projection ends with: a `__rsvelte_javascript_export` of its own,
+/// which the projection's export reads before the global one.
+const UNTYPED: &str = "\n/** @template T @typedef {any} __rsvelte_javascript_export */\n";
+
+/// The precomputed mapper's store: each content-mapped document's projection by checked path,
+/// with those of `untyped`, by index in ascending order, read as untyped JavaScript.
+pub(super) fn store_json(
+    req: &CheckRequest<'_>,
+    root: &Path,
+    paths: &[PathBuf],
+    untyped: &[usize],
+) -> String {
     let mut output = StructuredDataWriter::new(false);
     output.begin_object().key("files").begin_object();
     let mut entry = |path: &Path, [source, text, extension]: [&str; 3], mappings, atoms| {
@@ -119,8 +126,21 @@ pub(super) fn store_json(req: &CheckRequest<'_>, root: &Path, paths: &[PathBuf])
         rsvelte_typescript_content_mapper::write_mappings(mappings, atoms, &mut output);
         output.end_object();
     };
-    for ((file, text), path) in req.mapped_files.iter().zip(&req.files).zip(paths) {
+    for (index, ((file, text), path)) in req
+        .mapped_files
+        .iter()
+        .zip(&req.files)
+        .zip(paths)
+        .enumerate()
+    {
         let Some(file) = file else { continue };
+        let untyped_text;
+        let text = if untyped.binary_search(&index).is_ok() {
+            untyped_text = format!("{text}{UNTYPED}");
+            untyped_text.as_str()
+        } else {
+            text
+        };
         let strings = [file.source.as_str(), text, file.generated_extension];
         entry(path, strings, &file.mappings, &file.atoms);
     }
@@ -130,6 +150,26 @@ pub(super) fn store_json(req: &CheckRequest<'_>, root: &Path, paths: &[PathBuf])
     }
     output.end_object().end_object();
     output.finish()
+}
+
+/// The store to read where `untyped` documents read as untyped JavaScript: `store` where there
+/// are none, else one beside it whose projections of them make `__rsvelte_javascript_export`
+/// `any`, as an import of a JavaScript file TypeScript does not load is. The mapper reads a store
+/// once per options, so this one has a name of its own.
+pub(super) fn untyped_store(
+    req: &CheckRequest<'_>,
+    root: &Path,
+    paths: &[PathBuf],
+    untyped: &[usize],
+    store: PathBuf,
+) -> Result<PathBuf, String> {
+    if untyped.is_empty() {
+        return Ok(store);
+    }
+    let path = store.with_file_name("projections-untyped.json");
+    std::fs::write(&path, store_json(req, root, paths, untyped))
+        .map_err(|e| format!("{}: {e}", path.display()))?;
+    Ok(path)
 }
 
 /// Writes the store of `req`'s projections and the mapper's package in `support`, and returns
@@ -142,7 +182,7 @@ pub(super) fn write_mapper(
     root: &Path,
     paths: &[PathBuf],
 ) -> Result<PathBuf, String> {
-    std::fs::write(store, store_json(req, root, paths))
+    std::fs::write(store, store_json(req, root, paths, &[]))
         .map_err(|e| format!("{}: {e}", store.display()))?;
     let package = support.join(super::MAPPER_PACKAGE);
     std::fs::create_dir_all(&package).map_err(|e| e.to_string())?;

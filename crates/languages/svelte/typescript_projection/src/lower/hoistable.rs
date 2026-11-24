@@ -296,9 +296,7 @@ fn bound<'a>(pattern: &'a BindingPattern<'a>, names: &mut Vec<&'a str>) {
 fn parameters<'a>(
     declaration: Option<&'a oxc_ast::ast::TSTypeParameterDeclaration<'a>>,
 ) -> Vec<&'a str> {
-    declaration
-        .map(|d| d.params.iter().map(|p| p.name.name.as_str()).collect())
-        .unwrap_or_default()
+    declaration.map_or_default(|d| d.params.iter().map(|p| p.name.name.as_str()).collect())
 }
 
 /// svelte2tsx reads an interface's property and index signatures and its heritage only.

@@ -19,7 +19,9 @@ function $$render() {
       a;
     }
   };
-  return __rsvelte_export_isomorphic<$$ComponentProps, { [evt: string]: CustomEvent<any> }, {}, "">()({});
+  return __rsvelte_export_isomorphic<$$ComponentProps, {}, "">()(__rsvelte_any_event({
+    "go": __sveltets_2_customEvent,
+  }), {});
 }
 const DispatchedEvents__SvelteComponent_ = $$render();
 type DispatchedEvents__SvelteComponent_ = InstanceType<typeof DispatchedEvents__SvelteComponent_>;

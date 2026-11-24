@@ -92,9 +92,8 @@ impl<'a> Visit<'a> for Finder {
         }
     }
 
-    // acorn-typescript reads `export declare …` as an export of types, which upstream erases.
     fn visit_export_declaration(&mut self, it: &ExportDeclaration<'a>) {
-        if !it.declaration.declare() {
+        if !crate::strip::exports_only_types(it) {
             walk::walk_export_declaration(self, it);
         }
     }

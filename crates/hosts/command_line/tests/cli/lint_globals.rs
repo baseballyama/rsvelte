@@ -3,8 +3,12 @@ use crate::Scratch;
 struct Project(Scratch);
 
 impl Project {
+    /// In runes mode, where `svelte/prefer-svelte-reactivity` runs.
     fn new() -> Self {
-        Self(Scratch::new(&[]))
+        Self(Scratch::new(&[(
+            "svelte.config.js",
+            "export default { compilerOptions: { runes: true } };\n",
+        )]))
     }
 
     /// The `rule`'s findings on `source` under `languageOptions.globals`, as `"rule" line:column`.
@@ -40,8 +44,8 @@ impl Project {
     }
 }
 
-/// `ESLint` 10.14.0's findings with eslint-plugin-svelte 3.23.1 and @typescript-eslint/parser
-/// 8.72.1. A name no configuration declares is not a global a rule tracks, a `/* global */`
+/// `ESLint` 10.15.0's findings with eslint-plugin-svelte 3.24.1 and @typescript-eslint/parser
+/// 8.73.0. A name no configuration declares is not a global a rule tracks, a `/* global */`
 /// comment sets the file's globals over the configuration's, and typescript-eslint declares
 /// `Map` whatever `ESLint`'s globals say.
 #[test]

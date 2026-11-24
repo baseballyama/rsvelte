@@ -304,15 +304,13 @@ impl Builder<'_> {
         let Some(props) = props else {
             return Vec::new();
         };
-        let stores: Vec<&str> = (self.resolution)()
-            .map(|resolution| {
-                resolution
-                    .unresolved_names()
-                    .filter(|name| resolution.is_store_subscription(name))
-                    .map(|name| &name[1..])
-                    .collect()
-            })
-            .unwrap_or_default();
+        let stores: Vec<&str> = (self.resolution)().map_or_default(|resolution| {
+            resolution
+                .unresolved_names()
+                .filter(|name| resolution.is_store_subscription(name))
+                .map(|name| &name[1..])
+                .collect()
+        });
         hoisted(module, program, props, &stores)
     }
 

@@ -12,9 +12,9 @@ function $$render() {
   };
   return __rsvelte_export_isomorphic<{
     api?: typeof api;
-  }, { [evt: string]: CustomEvent<any> }, {
+  }, {
     api: typeof api;
-  }, string>()({});
+  }, string>()(__rsvelte_any_event({}), {});
 }
 const LegacyExport__SvelteComponent_ = $$render();
 type LegacyExport__SvelteComponent_ = InstanceType<typeof LegacyExport__SvelteComponent_>;

@@ -16,9 +16,9 @@ function $$render() {
   };
   return __rsvelte_export_isomorphic<{
     X?: typeof X;
-  }, { [evt: string]: CustomEvent<any> }, {
+  }, {
     X: typeof X;
-  }, string>()({});
+  }, string>()(__rsvelte_any_event({}), {});
 }
 const NamedFunction__SvelteComponent_ = $$render();
 type NamedFunction__SvelteComponent_ = InstanceType<typeof NamedFunction__SvelteComponent_>;

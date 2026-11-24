@@ -1,14 +1,17 @@
 # rsvelte pack 1
-=== 325 packages/svelte-ux/src/docs/Blockquote.svelte	lint.txt
+=== 518 packages/svelte-ux/src/docs/Blockquote.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:31 13:51 svelte/max-attributes-per-line "'class' should be on a new line."
 13:31 13:51 svelte/sort-attributes "Attribute 'class' should go before 'data'."
+14:3 14:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 14:9 14:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 306 packages/svelte-ux/src/docs/Layout.svelte	lint.txt
+=== 676 packages/svelte-ux/src/docs/Layout.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 5:10 5:12 no-unused-vars "'h1' is defined but never used."
 10:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 11:1 11:3 svelte/indent "Expected indentation of 0 spaces but found 2 spaces."
+15:1 15:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 15:7 15:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 246 packages/svelte-ux/src/lib/components/ThemeInit.svelte	lint.txt
@@ -16,11 +19,12 @@
 7:7 7:18 svelte/prefer-const "'headSnippet' is never reassigned. Use 'const' instead."
 11:3 11:22 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
 
-=== 168 packages/svelte-ux/src/lib/components/TogglePanel.svelte	lint.txt
+=== 361 packages/svelte-ux/src/lib/components/TogglePanel.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+17:3 17:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 17:9 17:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 820 packages/svelte-ux/src/lib/components/ViewportCenter.svelte	lint.txt
+=== 1011 packages/svelte-ux/src/lib/components/ViewportCenter.svelte	lint.txt
 1:1 3:2 svelte/no-unused-class-name "Unused class \"ViewportCenter\"."
 1:1 3:2 svelte/no-unused-class-name "Unused class \"fixed\"."
 1:1 3:2 svelte/no-unused-class-name "Unused class \"top-0\"."
@@ -32,6 +36,7 @@
 1:1 3:2 svelte/no-unused-class-name "Unused class \"items-center\"."
 1:1 3:2 svelte/no-unused-class-name "Unused class \"justify-center\"."
 2:3 2:104 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+4:3 4:11 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 4:9 4:11 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 2701 packages/svelte-ux/src/routes/+page.svelte	lint.txt
@@ -167,7 +172,7 @@
 21:7 21:88 svelte/no-unused-class-name "Unused class \"tracking-widest\"."
 21:7 21:88 svelte/no-unused-class-name "Unused class \"text-surface-content/50\"."
 
-=== 2023 packages/svelte-ux/src/routes/customization/+layout.svelte	lint.txt
+=== 2214 packages/svelte-ux/src/routes/customization/+layout.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:1 5:56 svelte/no-unused-class-name "Unused class \"grid\"."
 5:1 5:56 svelte/no-unused-class-name "Unused class \"grid-cols-[1fr,auto]\"."
@@ -183,6 +188,7 @@
 6:3 6:78 svelte/no-unused-class-name "Unused class \"overflow-auto\"."
 7:5 7:35 svelte/no-unused-class-name "Unused class \"prose\"."
 7:5 7:35 svelte/no-unused-class-name "Unused class \"max-w-none\"."
+8:7 8:15 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 8:13 8:15 svelte/html-self-closing "Disallow self-closing on HTML elements."
 12:3 12:42 svelte/no-unused-class-name "Unused class \"hidden\"."
 12:3 12:42 svelte/no-unused-class-name "Unused class \"lg:block\"."
@@ -227,9 +233,10 @@
 46:29 46:57 svelte/max-attributes-per-line "'class' should be on a new line."
 46:29 46:57 svelte/sort-attributes "Attribute 'class' should go before 'data'."
 
-=== 13098 packages/svelte-ux/src/routes/docs/components/Badge/+page.svelte	lint.txt
+=== 13307 packages/svelte-ux/src/routes/docs/components/Badge/+page.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:39 3:47 no-unused-vars "'mdiMinus' is defined but never used."
+7:7 7:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 25:18 25:23 svelte/max-attributes-per-line "'small' should be on a new line."
 25:18 25:23 svelte/sort-attributes "Attribute 'small' should go before 'value'."
 33:18 33:24 svelte/max-attributes-per-line "'circle' should be on a new line."
@@ -392,8 +399,9 @@
 269:41 269:59 svelte/max-attributes-per-line "'class' should be on a new line."
 269:41 269:59 svelte/sort-attributes "Attribute 'class' should go before 'icon'."
 
-=== 4105 packages/svelte-ux/src/routes/docs/components/BarStack/+page.svelte	lint.txt
+=== 4321 packages/svelte-ux/src/routes/docs/components/BarStack/+page.svelte	lint.txt
 1:1 34:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+31:7 31:17 svelte/valid-compile "`randomData` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 33:7 33:15 svelte/prefer-const "'duration' is never reassigned. Use 'const' instead."
 47:20 47:33 svelte/max-attributes-per-line "'class' should be on a new line."
 47:20 47:33 svelte/sort-attributes "Attribute 'class' should go before 'data'."
@@ -497,8 +505,9 @@
 123:25 123:46 svelte/max-attributes-per-line "'class' should be on a new line."
 123:56 123:68 svelte/sort-attributes "Attribute 'title' should go before 'let:item'."
 
-=== 18802 packages/svelte-ux/src/routes/docs/components/Button/+page.svelte	lint.txt
+=== 19012 packages/svelte-ux/src/routes/docs/components/Button/+page.svelte	lint.txt
 1:1 19:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+16:7 16:31 svelte/valid-compile "`size` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 26:27 26:32 no-undef "'alert' is not defined."
 32:41 32:56 svelte/max-attributes-per-line "'target' should be on a new line."
 32:41 32:56 svelte/no-target-blank "Using target=\"_blank\" without rel=\"noopener noreferrer\" is a security risk."
@@ -950,8 +959,10 @@
 138:23 138:46 svelte/max-attributes-per-line "'subheading' should be on a new line."
 138:23 138:46 svelte/sort-attributes "Attribute 'subheading' should go before 'title'."
 
-=== 8218 packages/svelte-ux/src/routes/docs/components/Checkbox/+page.svelte	lint.txt
+=== 8638 packages/svelte-ux/src/routes/docs/components/Checkbox/+page.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:14 svelte/valid-compile "`checked` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+6:7 6:12 svelte/valid-compile "`group` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 22:3 22:24 svelte/no-unused-class-name "Unused class \"text-sm\"."
 23:28 23:61 svelte/max-attributes-per-line "'on:click' should be on a new line."
 24:23 24:57 svelte/max-attributes-per-line "'on:click' should be on a new line."
@@ -1053,8 +1064,9 @@
 182:25 182:31 svelte/sort-attributes "Attribute 'circle' should go before 'size'."
 182:32 182:39 svelte/sort-attributes "Attribute 'checked' should go before 'size'."
 
-=== 3059 packages/svelte-ux/src/routes/docs/components/Collapse/+page.svelte	lint.txt
+=== 3268 packages/svelte-ux/src/routes/docs/components/Collapse/+page.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+8:7 8:17 svelte/valid-compile "`group` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:7 10:21 svelte/prefer-const "'controlledOpen' is never reassigned. Use 'const' instead."
 19:5 19:29 svelte/require-each-key "Each block should have a key"
 19:24 19:25 no-unused-vars "'_' is defined but never used."
@@ -1138,8 +1150,9 @@
 73:56 73:61 no-undef "'alert' is not defined."
 73:74 73:88 svelte/sort-attributes "Attribute 'message' should go before 'value'."
 
-=== 2412 packages/svelte-ux/src/routes/docs/components/DateField/+page.svelte	lint.txt
+=== 2841 packages/svelte-ux/src/routes/docs/components/DateField/+page.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+10:7 10:18 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 22:5 22:11 svelte/sort-attributes "Attribute 'picker' should go before 'value'."
 23:5 23:14 svelte/sort-attributes "Attribute 'clearable' should go before 'label'."
 33:6 33:32 svelte/prefer-destructured-store-props "Destructure dictionary from $localeSettings for better change tracking & fewer redraws"
@@ -1164,13 +1177,15 @@
 99:5 99:11 svelte/sort-attributes "Attribute 'picker' should go before 'value'."
 100:5 100:14 svelte/sort-attributes "Attribute 'clearable' should go before 'label'."
 101:5 101:24 svelte/sort-attributes "Attribute 'format' should go before 'label'."
+110:5 115:7 svelte/valid-compile "Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 113:28 113:36 no-undef "'FormData' is not defined."
 114:7 114:12 no-undef "'alert' is not defined."
 117:35 117:52 svelte/max-attributes-per-line "'name' should be on a new line."
 117:35 117:52 svelte/sort-attributes "Attribute 'name' should go before 'label'."
 
-=== 1773 packages/svelte-ux/src/routes/docs/components/DatePickerField/+page.svelte	lint.txt
+=== 2198 packages/svelte-ux/src/routes/docs/components/DatePickerField/+page.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+9:7 9:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 29:39 29:49 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 35:42 35:60 svelte/max-attributes-per-line "'icon' should be on a new line."
 35:42 35:60 svelte/sort-attributes "Attribute 'icon' should go before 'label'."
@@ -1187,22 +1202,25 @@
 59:47 59:53 svelte/sort-attributes "Attribute 'center' should go before 'bind:value'."
 77:39 77:48 svelte/max-attributes-per-line "'clearable' should be on a new line."
 77:39 77:48 svelte/sort-attributes "Attribute 'clearable' should go before 'label'."
+84:5 89:7 svelte/valid-compile "Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 87:28 87:36 no-undef "'FormData' is not defined."
 88:7 88:12 no-undef "'alert' is not defined."
 91:41 91:58 svelte/max-attributes-per-line "'name' should be on a new line."
 91:41 91:58 svelte/sort-attributes "Attribute 'name' should go before 'label'."
 91:59 91:68 svelte/sort-attributes "Attribute 'clearable' should go before 'label'."
 
-=== 465 packages/svelte-ux/src/routes/docs/components/DateRange/+page.svelte	lint.txt
+=== 679 packages/svelte-ux/src/routes/docs/components/DateRange/+page.svelte	lint.txt
 1:1 17:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+11:7 11:15 svelte/valid-compile "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:3 svelte/indent "Expected indentation of 0 spaces but found 2 spaces."
 55:45 55:76 svelte/max-attributes-per-line "'getPeriodTypePresets' should be on a new line."
 55:45 55:76 svelte/sort-attributes "Attribute 'getPeriodTypePresets' should go before 'periodTypes'."
 63:5 176:7 svelte/sort-attributes "Attribute 'getPeriodTypePresets' should go before 'periodTypes'."
 
-=== 1815 packages/svelte-ux/src/routes/docs/components/DateRangeField/+page.svelte	lint.txt
+=== 2026 packages/svelte-ux/src/routes/docs/components/DateRangeField/+page.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 10:7 10:12 svelte/prefer-const "'today' is never reassigned. Use 'const' instead."
+11:7 11:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 35:30 35:39 svelte/max-attributes-per-line "'clearable' should be on a new line."
 35:30 35:39 svelte/sort-attributes "Attribute 'clearable' should go before 'bind:value'."
 43:5 43:78 svelte/sort-attributes "Attribute 'periodTypes' should go before 'bind:value'."
@@ -1223,8 +1241,11 @@
 80:38 80:45 svelte/sort-attributes "Attribute 'rounded' should go before 'bind:value'."
 80:46 80:52 svelte/sort-attributes "Attribute 'center' should go before 'bind:value'."
 
-=== 7903 packages/svelte-ux/src/routes/docs/components/Dialog/+page.svelte	lint.txt
+=== 8535 packages/svelte-ux/src/routes/docs/components/Dialog/+page.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:7 7:11 svelte/valid-compile "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+8:7 8:16 svelte/valid-compile "`openAsync` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+9:7 9:14 svelte/valid-compile "`loading` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 21:30 21:45 svelte/max-attributes-per-line "'color' should be on a new line."
 21:30 21:45 svelte/sort-attributes "Attribute 'color' should go before 'variant'."
 29:25 29:35 svelte/max-attributes-per-line "'let:toggle' should be on a new line."
@@ -1322,8 +1343,13 @@
 267:32 267:47 svelte/sort-attributes "Attribute 'color' should go before 'variant'."
 267:48 267:56 svelte/sort-attributes "Attribute 'disabled' should go before 'variant'."
 
-=== 4420 packages/svelte-ux/src/routes/docs/components/Drawer/+page.svelte	lint.txt
+=== 5485 packages/svelte-ux/src/routes/docs/components/Drawer/+page.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:15 svelte/valid-compile "`leftOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+6:7 6:16 svelte/valid-compile "`rightOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+7:7 7:14 svelte/valid-compile "`topOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+8:7 8:17 svelte/valid-compile "`bottomOpen` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+10:7 10:16 svelte/valid-compile "`isChanged` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:31 18:46 svelte/max-attributes-per-line "'placement' should be on a new line."
 18:31 18:46 svelte/sort-attributes "Attribute 'placement' should go before 'bind:open'."
 18:47 18:59 svelte/sort-attributes "Attribute 'class' should go before 'bind:open'."
@@ -1443,8 +1469,9 @@
 157:5 157:22 svelte/sort-attributes "Attribute 'icon' should go before 'title'."
 158:5 158:68 svelte/sort-attributes "Attribute 'avatar' should go before 'title'."
 
-=== 9967 packages/svelte-ux/src/routes/docs/components/Field/+page.svelte	lint.txt
+=== 10178 packages/svelte-ux/src/routes/docs/components/Field/+page.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+22:7 22:22 svelte/valid-compile "`group` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 30:3 30:41 svelte/no-unused-class-name "Unused class \"grid\"."
 30:3 30:41 svelte/no-unused-class-name "Unused class \"grid-flow-col\"."
 30:3 30:41 svelte/no-unused-class-name "Unused class \"gap-2\"."
@@ -1576,8 +1603,10 @@
 223:25 223:45 svelte/max-attributes-per-line "'labelPlacement' should be on a new line."
 224:25 224:46 svelte/max-attributes-per-line "'labelPlacement' should be on a new line."
 
-=== 2139 packages/svelte-ux/src/routes/docs/components/Form/+page.svelte	lint.txt
+=== 2563 packages/svelte-ux/src/routes/docs/components/Form/+page.svelte	lint.txt
 1:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:7 7:11 svelte/valid-compile "`data` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+16:7 16:17 svelte/valid-compile "`schemaData` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 32:5 32:15 svelte/sort-attributes "Attribute 'let:commit' should go before 'let:draft'."
 33:5 33:15 svelte/sort-attributes "Attribute 'let:revert' should go before 'let:state'."
 34:5 34:18 svelte/sort-attributes "Attribute 'let:revertAll' should go before 'let:state'."
@@ -1808,8 +1837,9 @@
 39:27 39:43 svelte/max-attributes-per-line "'let:visibleItems' should be on a new line."
 40:5 40:33 svelte/require-each-key "Each block should have a key"
 
-=== 2195 packages/svelte-ux/src/routes/docs/components/Input/+page.svelte	lint.txt
+=== 2404 packages/svelte-ux/src/routes/docs/components/Input/+page.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:28 13:42 svelte/max-attributes-per-line "'replace' should be on a new line."
 19:34 19:48 svelte/max-attributes-per-line "'replace' should be on a new line."
 25:35 25:46 svelte/max-attributes-per-line "'replace' should be on a new line."
@@ -1857,8 +1887,9 @@
 30:37 30:49 svelte/max-attributes-per-line "'list' should be on a new line."
 30:37 30:49 svelte/sort-attributes "Attribute 'list' should go before 'title'."
 
-=== 3806 packages/svelte-ux/src/routes/docs/components/ListItem/+page.svelte	lint.txt
+=== 4020 packages/svelte-ux/src/routes/docs/components/ListItem/+page.svelte	lint.txt
 1:1 33:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+9:7 9:17 svelte/valid-compile "`selectedId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 46:27 46:50 svelte/max-attributes-per-line "'subheading' should be on a new line."
 46:27 46:50 svelte/sort-attributes "Attribute 'subheading' should go before 'title'."
 52:27 52:44 svelte/max-attributes-per-line "'icon' should be on a new line."
@@ -1960,14 +1991,23 @@
 2:12 2:16 no-unused-vars "'Menu' is defined but never used."
 2:18 2:26 no-unused-vars "'MenuItem' is defined but never used."
 
-=== 305 packages/svelte-ux/src/routes/docs/components/Month/+page.svelte	lint.txt
+=== 1397 packages/svelte-ux/src/routes/docs/components/Month/+page.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+17:7 17:28 svelte/valid-compile "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+18:7 18:26 svelte/valid-compile "`selectedArr` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+19:7 19:31 svelte/valid-compile "`selectedRange` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+20:7 20:30 svelte/valid-compile "`selectedWeek` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+21:7 21:36 svelte/valid-compile "`selectedMultiMonth` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 157:3 157:48 svelte/no-unused-class-name "Unused class \"grid\"."
 157:3 157:48 svelte/no-unused-class-name "Unused class \"grid-cols-[1fr,1fr]\"."
 157:3 157:48 svelte/no-unused-class-name "Unused class \"gap-10\"."
 
-=== 907 packages/svelte-ux/src/routes/docs/components/MonthList/+page.svelte	lint.txt
+=== 1778 packages/svelte-ux/src/routes/docs/components/MonthList/+page.svelte	lint.txt
 1:1 21:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+17:7 17:29 svelte/valid-compile "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+18:7 18:26 svelte/valid-compile "`selectedArr` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+19:7 19:31 svelte/valid-compile "`selectedRange` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+20:7 20:33 svelte/valid-compile "`selectedQuarter` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 34:3 34:35 svelte/no-unused-class-name "Unused class \"grid\"."
 34:3 34:35 svelte/no-unused-class-name "Unused class \"grid-flow-col\"."
 42:3 42:21 svelte/no-unused-class-name "Unused class \"grid\"."
@@ -1980,8 +2020,9 @@
 189:3 189:33 svelte/no-unused-class-name "Unused class \"grid\"."
 189:3 189:33 svelte/no-unused-class-name "Unused class \"grid-cols-6\"."
 
-=== 475 packages/svelte-ux/src/routes/docs/components/MonthListByYear/+page.svelte	lint.txt
+=== 687 packages/svelte-ux/src/routes/docs/components/MonthListByYear/+page.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:7 7:15 svelte/valid-compile "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 32:3 32:35 svelte/no-unused-class-name "Unused class \"overflow-auto\"."
 32:3 32:35 svelte/no-unused-class-name "Unused class \"h-64\"."
 35:7 35:39 svelte/sort-attributes "Attribute 'maxDate' should go before 'minDate'."
@@ -2083,14 +2124,16 @@
 203:9 203:33 svelte/sort-attributes "Attribute 'actionsPlacement' should go before 'title'."
 204:9 204:38 svelte/sort-attributes "Attribute 'classes' should go before 'title'."
 
-=== 291 packages/svelte-ux/src/routes/docs/components/NumberStepper/+page.svelte	lint.txt
+=== 500 packages/svelte-ux/src/routes/docs/components/NumberStepper/+page.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 26:36 26:43 no-undef "'console' is not defined."
 38:26 38:34 svelte/max-attributes-per-line "'max' should be on a new line."
 38:26 38:34 svelte/sort-attributes "Attribute 'max' should go before 'min'."
 
-=== 1322 packages/svelte-ux/src/routes/docs/components/Overflow/+page.svelte	lint.txt
+=== 1539 packages/svelte-ux/src/routes/docs/components/Overflow/+page.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:20 svelte/valid-compile "`overflowItems` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:29 14:66 svelte/max-attributes-per-line "'on:click' should be on a new line."
 15:29 15:90 svelte/max-attributes-per-line "'on:click' should be on a new line."
 15:90 16:5 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
@@ -2120,8 +2163,9 @@
 50:33 50:52 svelte/max-attributes-per-line "'class' should be on a new line."
 50:33 50:52 svelte/sort-attributes "Attribute 'class' should go before 'on:click'."
 
-=== 10391 packages/svelte-ux/src/routes/docs/components/Popover/+page.svelte	lint.txt
+=== 10599 packages/svelte-ux/src/routes/docs/components/Popover/+page.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:11 svelte/valid-compile "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:3 15:29 svelte/no-unused-class-name "Unused class \"inline-block\"."
 17:7 17:53 svelte/no-unused-class-name "Unused class \"p-2\"."
 17:7 17:53 svelte/no-unused-class-name "Unused class \"bg-surface-100\"."
@@ -2263,8 +2307,9 @@
 142:15 142:67 svelte/no-unused-class-name "Unused class \"border\"."
 142:15 142:67 svelte/no-unused-class-name "Unused class \"shadow\"."
 
-=== 1678 packages/svelte-ux/src/routes/docs/components/Progress/+page.svelte	lint.txt
+=== 1887 packages/svelte-ux/src/routes/docs/components/Progress/+page.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:7 7:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 27:24 27:33 svelte/max-attributes-per-line "'max' should be on a new line."
 27:24 27:33 svelte/sort-attributes "Attribute 'max' should go before 'value'."
 33:25 33:64 svelte/max-attributes-per-line "'class' should be on a new line."
@@ -2286,8 +2331,15 @@
 70:23 70:33 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 70:34 70:48 svelte/sort-attributes "Attribute 'class' should go before 'type'."
 
-=== 8288 packages/svelte-ux/src/routes/docs/components/ProgressCircle/+page.svelte	lint.txt
+=== 9763 packages/svelte-ux/src/routes/docs/components/ProgressCircle/+page.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+6:7 6:11 svelte/valid-compile "`size` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+7:7 7:12 svelte/valid-compile "`width` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+8:7 8:13 svelte/valid-compile "`rotate` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+9:7 9:12 svelte/valid-compile "`track` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+10:7 10:20 svelte/valid-compile "`indeterminate` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+11:7 11:12 svelte/valid-compile "`label` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:1 18:44 svelte/no-unused-class-name "Unused class \"border\"."
 18:1 18:44 svelte/no-unused-class-name "Unused class \"rounded\"."
 18:1 18:44 svelte/no-unused-class-name "Unused class \"bg-surface-100\"."
@@ -2398,8 +2450,9 @@
 182:84 182:89 svelte/max-attributes-per-line "'track' should be on a new line."
 183:84 183:89 svelte/max-attributes-per-line "'track' should be on a new line."
 
-=== 5276 packages/svelte-ux/src/routes/docs/components/Radio/+page.svelte	lint.txt
+=== 5485 packages/svelte-ux/src/routes/docs/components/Radio/+page.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:32 svelte/valid-compile "`group` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 21:29 21:39 svelte/max-attributes-per-line "'bind:group' should be on a new line."
 21:40 21:49 svelte/sort-attributes "Attribute 'value' should go before 'bind:group'."
 22:29 22:39 svelte/max-attributes-per-line "'bind:group' should be on a new line."
@@ -2466,8 +2519,9 @@
 101:22 101:31 svelte/max-attributes-per-line "'size' should be on a new line."
 101:32 101:39 svelte/sort-attributes "Attribute 'checked' should go before 'size'."
 
-=== 677 packages/svelte-ux/src/routes/docs/components/RangeField/+page.svelte	lint.txt
+=== 886 packages/svelte-ux/src/routes/docs/components/RangeField/+page.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 32:33 32:40 no-undef "'console' is not defined."
 38:23 38:31 svelte/max-attributes-per-line "'max' should be on a new line."
 38:23 38:31 svelte/sort-attributes "Attribute 'max' should go before 'min'."
@@ -2477,8 +2531,9 @@
 50:23 50:31 svelte/sort-attributes "Attribute 'max' should go before 'min'."
 50:43 50:59 svelte/sort-attributes "Attribute 'format' should go before 'min'."
 
-=== 396 packages/svelte-ux/src/routes/docs/components/RangeSlider/+page.svelte	lint.txt
+=== 605 packages/svelte-ux/src/routes/docs/components/RangeSlider/+page.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:7 5:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 33:25 33:34 svelte/max-attributes-per-line "'max' should be on a new line."
 33:25 33:34 svelte/sort-attributes "Attribute 'max' should go before 'min'."
 41:24 41:35 svelte/max-attributes-per-line "'step' should be on a new line."
@@ -2650,8 +2705,9 @@
 71:42 71:69 svelte/sort-attributes "Attribute 'class' should go before 'src'."
 71:70 71:87 svelte/sort-attributes "Attribute 'alt' should go before 'src'."
 
-=== 1612 packages/svelte-ux/src/routes/docs/components/SpringValue/+page.svelte	lint.txt
+=== 1821 packages/svelte-ux/src/routes/docs/components/SpringValue/+page.svelte	lint.txt
 1:1 28:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+9:7 9:27 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:25 11:38 no-undef "'KeyboardEvent' is not defined."
 34:1 34:51 svelte/no-unused-class-name "Unused class \"grid\"."
 34:1 34:51 svelte/no-unused-class-name "Unused class \"grid-cols-[1fr,auto,auto]\"."
@@ -3094,8 +3150,9 @@
 2:12 2:26 no-unused-vars "'StoreSubscribe' is defined but never used."
 3:10 3:17 no-unused-vars "'Preview' is defined but never used."
 
-=== 3223 packages/svelte-ux/src/routes/docs/components/Switch/+page.svelte	lint.txt
+=== 3434 packages/svelte-ux/src/routes/docs/components/Switch/+page.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:7 7:30 svelte/valid-compile "`checked` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:3 15:27 svelte/no-unused-class-name "Unused class \"grid\"."
 15:3 15:27 svelte/no-unused-class-name "Unused class \"gap-2\"."
 24:22 24:55 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
@@ -3140,8 +3197,9 @@
 107:3 107:27 svelte/no-unused-class-name "Unused class \"gap-2\"."
 110:7 110:96 svelte/sort-attributes "Attribute 'classes' should go before 'color'."
 
-=== 3391 packages/svelte-ux/src/routes/docs/components/Table/+page.svelte	lint.txt
+=== 3607 packages/svelte-ux/src/routes/docs/components/Table/+page.svelte	lint.txt
 1:1 54:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+48:7 48:17 svelte/valid-compile "`randomData` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 63:5 88:7 svelte/sort-attributes "Attribute 'columns' should go before 'data'."
 95:20 95:31 svelte/max-attributes-per-line "'perPage' should be on a new line."
 98:7 123:9 svelte/sort-attributes "Attribute 'columns' should go before 'data'."
@@ -3185,8 +3243,10 @@
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 48:42 48:54 svelte/max-attributes-per-line "'maxDepth' should be on a new line."
 
-=== 2878 packages/svelte-ux/src/routes/docs/components/Tabs/+page.svelte	lint.txt
+=== 3300 packages/svelte-ux/src/routes/docs/components/Tabs/+page.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+8:7 8:14 svelte/valid-compile "`options` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+15:7 15:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 23:19 23:29 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 24:37 24:46 svelte/max-attributes-per-line "'let:value' should be on a new line."
 34:5 34:34 svelte/require-each-key "Each block should have a key"
@@ -3223,8 +3283,12 @@
 150:28 150:81 svelte/max-attributes-per-line "'class' should be on a new line."
 150:28 150:81 svelte/sort-attributes "Attribute 'class' should go before 'data'."
 
-=== 15682 packages/svelte-ux/src/routes/docs/components/TextField/+page.svelte	lint.txt
+=== 16543 packages/svelte-ux/src/routes/docs/components/TextField/+page.svelte	lint.txt
 1:1 47:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+42:7 42:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+43:7 43:18 svelte/valid-compile "`numberValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+44:7 44:21 svelte/valid-compile "`multilineValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+46:7 46:61 svelte/valid-compile "`inputEl` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 46:16 46:32 no-undef "'HTMLInputElement' is not defined."
 46:35 46:54 no-undef "'HTMLTextAreaElement' is not defined."
 54:3 54:41 svelte/no-unused-class-name "Unused class \"grid\"."
@@ -3579,8 +3643,18 @@
 358:11 358:56 svelte/no-unused-class-name "Unused class \"text-surface-content/70\"."
 359:42 359:54 svelte/max-attributes-per-line "'size' should be on a new line."
 
-=== 8307 packages/svelte-ux/src/routes/docs/components/ToggleGroup/+page.svelte	lint.txt
+=== 10440 packages/svelte-ux/src/routes/docs/components/ToggleGroup/+page.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+15:7 15:15 svelte/valid-compile "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+16:7 16:45 svelte/valid-compile "`selectedStr` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+17:7 17:45 svelte/valid-compile "`selectedObj` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+19:7 19:54 svelte/valid-compile "`variant` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+20:7 20:48 svelte/valid-compile "`size` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+21:7 21:54 svelte/valid-compile "`rounded` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+22:7 22:50 svelte/valid-compile "`inset` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+23:7 23:46 svelte/valid-compile "`gap` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+24:7 24:56 svelte/valid-compile "`vertical` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+25:7 25:16 svelte/valid-compile "`showPanes` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 39:1 39:25 svelte/no-unused-class-name "Unused class \"grid\"."
 39:1 39:25 svelte/no-unused-class-name "Unused class \"gap-2\"."
 42:30 42:36 svelte/max-attributes-per-line "'size' should be on a new line."
@@ -3738,8 +3812,9 @@
 2:12 2:20 no-unused-vars "'TreeList' is defined but never used."
 3:10 3:17 no-unused-vars "'Preview' is defined but never used."
 
-=== 1612 packages/svelte-ux/src/routes/docs/components/TweenedValue/+page.svelte	lint.txt
+=== 1823 packages/svelte-ux/src/routes/docs/components/TweenedValue/+page.svelte	lint.txt
 1:1 30:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+11:7 11:27 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:25 13:38 no-undef "'KeyboardEvent' is not defined."
 36:1 36:51 svelte/no-unused-class-name "Unused class \"grid\"."
 36:1 36:51 svelte/no-unused-class-name "Unused class \"grid-cols-[1fr,auto,auto]\"."
@@ -3761,8 +3836,9 @@
 85:25 85:33 svelte/max-attributes-per-line "'disabled' should be on a new line."
 85:25 85:33 svelte/sort-attributes "Attribute 'disabled' should go before 'value'."
 
-=== 475 packages/svelte-ux/src/routes/docs/components/YearList/+page.svelte	lint.txt
+=== 687 packages/svelte-ux/src/routes/docs/components/YearList/+page.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:7 7:15 svelte/valid-compile "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 32:3 32:35 svelte/no-unused-class-name "Unused class \"overflow-auto\"."
 32:3 32:35 svelte/no-unused-class-name "Unused class \"h-64\"."
 35:7 35:39 svelte/sort-attributes "Attribute 'maxDate' should go before 'minDate'."

@@ -1,3 +1,5 @@
+<svelte:options runes />
+
 <script>
 	let c = 1;
 	const d = c ? new Date() : null;

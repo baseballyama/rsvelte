@@ -1,0 +1,4 @@
+- message: "'c' is never reassigned. Use 'const' instead."
+  line: 3
+  column: 8
+  suggestions: null

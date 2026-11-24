@@ -1197,9 +1197,9 @@
 </script>
 
 <C>
-  <svelte:fragment slot="a"
-    ><svelte:fragment slot="b">x</svelte:fragment></svelte:fragment
-  >
+  <svelte:fragment slot="a">
+    <svelte:fragment slot="b">x</svelte:fragment>
+  </svelte:fragment>
 </C>
 
 === 149 real_world_false_positives/a_slot_attribute_inside_a_fragment_is_invalid_placement/9a799d3d68afe053.svelte	svelte
@@ -1766,14 +1766,15 @@ https://svelte.dev/e/render_tag_invalid_expression
 
 {#if open}{@render row()}{/if}
 
-=== 153 render_tag_snippet_shadows_binding_2067/block_local_snippet_wins_over_a_same_named_prop/d104f29e64258ea8.svelte	svelte
+=== 160 render_tag_snippet_shadows_binding_2067/block_local_snippet_wins_over_a_same_named_prop/d104f29e64258ea8.svelte	svelte
 <script>
   let { row } = $props();
   let items = [1];
 </script>
 
-{#each items as item}{#snippet row()}<b>{item}</b
-    >{/snippet}{@render row()}{/each}
+{#each items as item}{#snippet row()}<b>
+      {item}
+    </b>{/snippet}{@render row()}{/each}
 
 === 183 render_tag_snippet_shadows_binding_2067/server_component_child_snippet_shadows_a_same_named_derived/40d6a66130dd8881.svelte	svelte
 <script>
@@ -1793,14 +1794,15 @@ https://svelte.dev/e/render_tag_invalid_expression
 
 {#if open}{#snippet row()}<b>local</b>{/snippet}{@render row()}{/if}
 
-=== 169 render_tag_snippet_shadows_binding_2067/sibling_branch_without_the_snippet_keeps_the_prop/bc94c29d83b38ef5.svelte	svelte
+=== 176 render_tag_snippet_shadows_binding_2067/sibling_branch_without_the_snippet_keeps_the_prop/bc94c29d83b38ef5.svelte	svelte
 <script>
   let { row } = $props();
   let open = $state(true);
 </script>
 
-{#if open}{#snippet row()}<b>local</b
-    >{/snippet}{@render row()}{:else}{@render row()}{/if}
+{#if open}{#snippet row()}<b>
+      local
+    </b>{/snippet}{@render row()}{:else}{@render row()}{/if}
 
 === 153 render_tag_snippet_shadows_binding_2067/snippet_inside_an_element_shadows_within_that_element/3915eb765c3a9a64.svelte	svelte
 <script>
@@ -6592,14 +6594,14 @@ https://svelte.dev/e/render_tag_invalid_expression
   let items = [1, 2];
 </script>
 
-<C
-  ><p slot="beta">
+<C>
+  <p slot="beta">
     {#each items as n}<b>{n}</b>{/each}
   </p>
-  <span
-    >{#each items as _, n}<u>{n}</u>{/each}</span
-  ></C
->
+  <span>
+    {#each items as _, n}<u>{n}</u>{/each}
+  </span>
+</C>
 
 === 79 server_const_alias_write_3530/a_chain_of_unwritten_aliases_is_still_folded/8b1f178d3f1cba12.svelte	svelte
 <script>
@@ -7343,13 +7345,13 @@ https://svelte.dev/e/render_tag_invalid_expression
   let p = $state(Promise.resolve(1));
 </script>
 
-<svelte:head
-  >{#if open}<title>{open}</title>{@const t = open}<Child
+<svelte:head>
+  {#if open}<title>{open}</title>{@const t = open}<Child
       bind:value={() => t, (v) => (open = v)}
-    />{/if}</svelte:head
->
+    />{/if}
+</svelte:head>
 
-=== 261 server_fragment_init_order/title_precedes_a_bind_pushed_by_a_later_sibling/15dd611416a9eecf.svelte	svelte
+=== 255 server_fragment_init_order/title_precedes_a_bind_pushed_by_a_later_sibling/15dd611416a9eecf.svelte	svelte
 <script>
   import Child from "./Child.svelte";
   let open = $state(null);
@@ -7357,11 +7359,9 @@ https://svelte.dev/e/render_tag_invalid_expression
   let p = $state(Promise.resolve(1));
 </script>
 
-<svelte:head
-  ><title>{open}</title><Child
-    bind:value={() => open, (v) => (open = v)}
-  /></svelte:head
->
+<svelte:head>
+  <title>{open}</title><Child bind:value={() => open, (v) => (open = v)} />
+</svelte:head>
 
 === 60 server_global_fold_fns_3388/a_lone_surrogate_is_not_folded/5c319c706b161143.svelte	svelte
 {#if true}{@const c = String.fromCodePoint(0xd800)}{c}{/if}
@@ -8019,9 +8019,9 @@ https://svelte.dev/e/render_tag_invalid_expression
   let rest = {};
 </script>
 
-<select {...rest} bind:value={() => v, (nv) => (v = nv)}
-  ><option>a</option></select
->
+<select {...rest} bind:value={() => v, (nv) => (v = nv)}>
+  <option>a</option>
+</select>
 
 === 138 server_select_get_set_3335/a_select_get_set_bind_renders_the_getters_result/0a3eea3524c58ccd.svelte	svelte
 <script>
@@ -8029,9 +8029,9 @@ https://svelte.dev/e/render_tag_invalid_expression
   let rest = {};
 </script>
 
-<select multiple bind:value={() => v, (nv) => (v = nv)}
-  ><option>a</option></select
->
+<select multiple bind:value={() => v, (nv) => (v = nv)}>
+  <option>a</option>
+</select>
 
 === 139 server_select_get_set_3335/a_select_get_set_bind_renders_the_getters_result/9fa6d649ee1fabf1.svelte	svelte
 <script>
@@ -8039,9 +8039,9 @@ https://svelte.dev/e/render_tag_invalid_expression
   let rest = {};
 </script>
 
-<select class="c" bind:value={() => v, (nv) => (v = nv)}
-  ><option>a</option></select
->
+<select class="c" bind:value={() => v, (nv) => (v = nv)}>
+  <option>a</option>
+</select>
 
 === 125 server_select_get_set_3335/a_select_get_set_bind_renders_the_getters_result/b7ec93309b55a121.svelte	svelte
 <script>
@@ -8397,7 +8397,7 @@ https://svelte.dev/e/render_tag_invalid_expression
   <slot name="head" />
 {/if}
 
-=== 252 slot_host_3598/a_dynamic_or_custom_element_owner_accepts_a_slot_at_any_depth/9274e4cc3e91478b.svelte	svelte
+=== 257 slot_host_3598/a_dynamic_or_custom_element_owner_accepts_a_slot_at_any_depth/9274e4cc3e91478b.svelte	svelte
 <svelte:options runes={false} />
 
 <script>
@@ -8406,8 +8406,9 @@ https://svelte.dev/e/render_tag_invalid_expression
 </script>
 
 {#if depth < 1}
-  <svelte:element this={"div"}><span><b slot="head">h</b></span></svelte:element
-  >
+  <svelte:element this={"div"}>
+    <span><b slot="head">h</b></span>
+  </svelte:element>
 {:else}
   <slot name="head" />
 {/if}
@@ -8442,7 +8443,7 @@ https://svelte.dev/e/render_tag_invalid_expression
   <slot name="head" />
 {/if}
 
-=== 271 slot_host_3598/an_intervening_host_breaks_the_direct_child_relation/17ca5da22dcf764c.svelte	svelte
+=== 264 slot_host_3598/an_intervening_host_breaks_the_direct_child_relation/17ca5da22dcf764c.svelte	svelte
 <svelte:options runes={false} />
 
 <script>
@@ -8451,15 +8452,14 @@ https://svelte.dev/e/render_tag_invalid_expression
 </script>
 
 {#if depth < 1}
-  <Comp
-    >{#snippet sn()}<svelte:fragment slot="head">h</svelte:fragment
-      >{/snippet}</Comp
-  >
+  <Comp>
+    {#snippet sn()}<svelte:fragment slot="head">h</svelte:fragment>{/snippet}
+  </Comp>
 {:else}
   <slot name="head" />
 {/if}
 
-=== 266 slot_host_3598/an_intervening_host_breaks_the_direct_child_relation/1df388e71d4081fd.svelte	svelte
+=== 261 slot_host_3598/an_intervening_host_breaks_the_direct_child_relation/1df388e71d4081fd.svelte	svelte
 <svelte:options runes={false} />
 
 <script>
@@ -8468,10 +8468,9 @@ https://svelte.dev/e/render_tag_invalid_expression
 </script>
 
 {#if depth < 1}
-  <Comp
-    ><slot name="s"><svelte:fragment slot="head">h</svelte:fragment></slot
-    ></Comp
-  >
+  <Comp>
+    <slot name="s"><svelte:fragment slot="head">h</svelte:fragment></slot>
+  </Comp>
 {:else}
   <slot name="head" />
 {/if}
@@ -8485,11 +8484,11 @@ https://svelte.dev/e/render_tag_invalid_expression
 </script>
 
 {#if depth < 1}
-  <Comp
-    ><svelte:element this={"div"}
-      ><svelte:fragment slot="head">h</svelte:fragment></svelte:element
-    ></Comp
-  >
+  <Comp>
+    <svelte:element this={"div"}>
+      <svelte:fragment slot="head">h</svelte:fragment>
+    </svelte:element>
+  </Comp>
 {:else}
   <slot name="head" />
 {/if}
@@ -8503,11 +8502,11 @@ https://svelte.dev/e/render_tag_invalid_expression
 </script>
 
 {#if depth < 1}
-  <Comp
-    ><svelte:boundary>
+  <Comp>
+    <svelte:boundary>
       <svelte:fragment slot="head">h</svelte:fragment>
-    </svelte:boundary></Comp
-  >
+    </svelte:boundary>
+  </Comp>
 {:else}
   <slot name="head" />
 {/if}
@@ -8535,11 +8534,11 @@ https://svelte.dev/e/render_tag_invalid_expression
 </script>
 
 {#if depth < 1}
-  <Comp
-    >{#await Promise.resolve(1) then _}<svelte:fragment slot="head"
-        >h</svelte:fragment
-      >{/await}</Comp
-  >
+  <Comp>
+    {#await Promise.resolve(1) then _}<svelte:fragment slot="head">
+        h
+      </svelte:fragment>{/await}
+  </Comp>
 {:else}
   <slot name="head" />
 {/if}
@@ -8558,7 +8557,7 @@ https://svelte.dev/e/render_tag_invalid_expression
   <slot name="head" />
 {/if}
 
-=== 252 slot_host_3598/an_intervening_host_breaks_the_direct_child_relation/a7439546b113fc67.svelte	svelte
+=== 257 slot_host_3598/an_intervening_host_breaks_the_direct_child_relation/a7439546b113fc67.svelte	svelte
 <svelte:options runes={false} />
 
 <script>
@@ -8567,8 +8566,9 @@ https://svelte.dev/e/render_tag_invalid_expression
 </script>
 
 {#if depth < 1}
-  <Comp><svelte:element this={"div"}><b slot="head">h</b></svelte:element></Comp
-  >
+  <Comp>
+    <svelte:element this={"div"}><b slot="head">h</b></svelte:element>
+  </Comp>
 {:else}
   <slot name="head" />
 {/if}
@@ -8610,11 +8610,11 @@ https://svelte.dev/e/render_tag_invalid_expression
 </script>
 
 {#if depth < 1}
-  <Comp
-    ><svelte:fragment slot="a"
-      ><svelte:fragment slot="head">h</svelte:fragment></svelte:fragment
-    ></Comp
-  >
+  <Comp>
+    <svelte:fragment slot="a">
+      <svelte:fragment slot="head">h</svelte:fragment>
+    </svelte:fragment>
+  </Comp>
 {:else}
   <slot name="head" />
 {/if}
@@ -9608,21 +9608,23 @@ https://svelte.dev/e/unexpected_eof
 {#snippet outer()}{itag`x`}{/snippet}
 {@render outer()}
 
-=== 152 snippet_hoist_optional_render_3269/a_state_dependency_still_blocks_the_hoist/d7de660880e14751.svelte	svelte
+=== 159 snippet_hoist_optional_render_3269/a_state_dependency_still_blocks_the_hoist/d7de660880e14751.svelte	svelte
 <script>
   let flag = $state(true);
 </script>
 
-{#snippet outer()}{#snippet sn()}<i>{flag}</i
-    >{/snippet}{@render sn?.()}{/snippet}{@render outer()}
+{#snippet outer()}{#snippet sn()}<i>
+      {flag}
+    </i>{/snippet}{@render sn?.()}{/snippet}{@render outer()}
 
-=== 147 snippet_hoist_optional_render_3269/an_optional_inner_render_still_hoists/a2ceaf161a056370.svelte	svelte
+=== 154 snippet_hoist_optional_render_3269/an_optional_inner_render_still_hoists/a2ceaf161a056370.svelte	svelte
 <script>
   let flag = $state(true);
 </script>
 
-{#snippet outer()}{#snippet sn()}<i>x</i
-    >{/snippet}{@render sn?.()}{/snippet}{@render outer()}
+{#snippet outer()}{#snippet sn()}<i>
+      x
+    </i>{/snippet}{@render sn?.()}{/snippet}{@render outer()}
 
 === 155 snippet_hoist_optional_render_3269/an_optional_render_with_an_argument_still_hoists/6d505cbb11b36263.svelte	svelte
 <script>
@@ -9991,17 +9993,19 @@ https://svelte.dev/e/js_parse_error
 
 {#snippet s(a?: boolean, b: string)}<i>x</i>{/snippet}{@render s()}
 
-=== 118 snippet_param_object_type_optional_4116/an_optional_member_in_an_object_type_keeps_every_parameter/a6c0791608cfbd33.svelte	svelte
+=== 123 snippet_param_object_type_optional_4116/an_optional_member_in_an_object_type_keeps_every_parameter/a6c0791608cfbd33.svelte	svelte
 <script lang="ts"></script>
 
-{#snippet s(a: boolean, b: { t: string; v?: string })}<i>x</i
-  >{/snippet}{@render s()}
+{#snippet s(a: boolean, b: { t: string; v?: string })}<i>
+    x
+  </i>{/snippet}{@render s()}
 
-=== 118 snippet_param_object_type_optional_4116/an_optional_member_in_an_object_type_keeps_every_parameter/ab096814a3c51a80.svelte	svelte
+=== 123 snippet_param_object_type_optional_4116/an_optional_member_in_an_object_type_keeps_every_parameter/ab096814a3c51a80.svelte	svelte
 <script lang="ts"></script>
 
-{#snippet s(a: boolean, b: { t: string; v?: string })}<i>x</i
-  >{/snippet}{@render s()}
+{#snippet s(a: boolean, b: { t: string; v?: string })}<i>
+    x
+  </i>{/snippet}{@render s()}
 
 === 117 snippet_param_ts_default_4383/a_typescript_default_keeps_the_whole_parameter_list/c8119f31201bb797.svelte	svelte
 <script lang="ts">
@@ -10395,18 +10399,18 @@ https://svelte.dev/e/js_parse_error
   import Child from "./C.svelte";
 </script>
 
-<Child let:value
-  >{#if true}{#snippet children()}{value}{/snippet}{/if}</Child
->
+<Child let:value>
+  {#if true}{#snippet children()}{value}{/snippet}{/if}
+</Child>
 
 === 157 snippet_template_errors/svelte_component_is_checked_too/fb85c1939a22f116.svelte	svelte
 <script>
   import Child from "./C.svelte";
 </script>
 
-<svelte:component this={Child} let:value
-  >{#snippet children()}{value}{/snippet}</svelte:component
->
+<svelte:component this={Child} let:value>
+  {#snippet children()}{value}{/snippet}
+</svelte:component>
 
 === 44 source_empty_statement_3410/a_lone_source_semicolon_pair_is_dropped_dev/7fa4cfa537a69793.svelte	svelte
 <script>
@@ -12177,7 +12181,7 @@ l2"
 <input bind:group={$x} />
 <div bind:clientWidth={$x}></div>
 
-=== 95 store_prop_bind_3273/template_member_mutation_of_a_prop_store_unwraps_the_getter/7d9fcad401765c87.svelte	svelte
+=== 99 store_prop_bind_3273/template_member_mutation_of_a_prop_store_unwraps_the_getter/7d9fcad401765c87.svelte	svelte
 <script>
   export let x;
 </script>
@@ -12185,8 +12189,10 @@ l2"
 <button
   onclick={() => {
     $x.k = 1;
-  }}>go</button
+  }}
 >
+  go
+</button>
 
 === 159 store_read_in_regex_3647/a_regex_after_a_keyword_is_still_a_regex/aa45fd4ee1d72824.svelte	svelte
 <script>
@@ -12334,7 +12340,7 @@ l2"
 
 <b>{typeof v}{typeof d}</b>
 
-=== 146 store_rune_conflict_3597/another_rune_reference_still_enables_runes_mode/85dae5221dd8bfac.svelte	svelte
+=== 150 store_rune_conflict_3597/another_rune_reference_still_enables_runes_mode/85dae5221dd8bfac.svelte	svelte
 <script>
   let v = $state(1);
   const state = { x: 1 };
@@ -12344,8 +12350,10 @@ l2"
   onclick={() => {
     let d = $derived(v);
     v = d;
-  }}>{typeof v}</b
+  }}
 >
+  {typeof v}
+</b>
 
 === 118 store_rune_conflict_3597/conflict_warning_uses_the_immediate_call_parent/049e9f2145ca560c.svelte	svelte
 <script>
@@ -13164,9 +13172,9 @@ https://svelte.dev/e/svelte_component_missing_this
   }
 </script>
 
-<svelte:element this={"i"} class:a={f(1)}
-  ><svelte:element this={"b"} class:x={f(2)}></svelte:element></svelte:element
->
+<svelte:element this={"i"} class:a={f(1)}>
+  <svelte:element this={"b"} class:x={f(2)}></svelte:element>
+</svelte:element>
 
 === 170 svelte_element_class_memo_3650/sibling_memo_numbering_is_independent/9edf95832b6229e2.svelte	svelte
 <script>
@@ -13240,7 +13248,7 @@ https://svelte.dev/e/svelte_component_missing_this
 
 <svelte:element this={"span"} class:x={f()}></svelte:element>
 
-=== 194 svelte_element_on_directive_deprecated_2497/both_parents_warn_once_each/474a3da10a986a5f.svelte	svelte
+=== 198 svelte_element_on_directive_deprecated_2497/both_parents_warn_once_each/474a3da10a986a5f.svelte	svelte
 <script>
   let count = $state(0);
   let tag = $state("button");
@@ -13248,8 +13256,10 @@ https://svelte.dev/e/svelte_component_missing_this
 
 <button on:click={() => count++}>a</button><svelte:element
   this={tag}
-  on:click={() => count++}>b</svelte:element
+  on:click={() => count++}
 >
+  b
+</svelte:element>
 
 === 129 svelte_element_on_directive_deprecated_2497/component_does_not_warn/b7766797f6f0c9b1.svelte	svelte
 <script>
@@ -16036,9 +16046,9 @@ https://svelte.dev/e/svelte_options_invalid_tagname
 </script>
 
 <svg>
-  <text
-    >{#if x}<tspan>a</tspan> <tspan>b</tspan>{/if}</text
-  >
+  <text>
+    {#if x}<tspan>a</tspan> <tspan>b</tspan>{/if}
+  </text>
 </svg>
 
 === 108 svg_text_whitespace_1994/whitespace_survives_in_text_with_dynamic_children/ad216d512ab00097.svelte	svelte
@@ -16050,7 +16060,7 @@ https://svelte.dev/e/svelte_options_invalid_tagname
   <text><tspan>{x}</tspan> <tspan>b</tspan></text>
 </svg>
 
-=== 269 switch_and_class_expr_transforms_2254/class_expression_computed_method_key_unwraps_each_item/6fdb64a01935440c.svelte	svelte
+=== 277 switch_and_class_expr_transforms_2254/class_expression_computed_method_key_unwraps_each_item/6fdb64a01935440c.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16064,11 +16074,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
           [item.value]() {}
         },
       );
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 267 switch_and_class_expr_transforms_2254/class_expression_field_initializer_unwraps_each_item/37bcb51bf9ff2ed9.svelte	svelte
+=== 275 switch_and_class_expr_transforms_2254/class_expression_field_initializer_unwraps_each_item/37bcb51bf9ff2ed9.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16082,11 +16094,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
           f = item.value;
         },
       );
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 299 switch_and_class_expr_transforms_2254/class_expression_method_body_unwraps_and_shadows/02a29754581026eb.svelte	svelte
+=== 307 switch_and_class_expr_transforms_2254/class_expression_method_body_unwraps_and_shadows/02a29754581026eb.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16102,11 +16116,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
           }
         },
       );
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 303 switch_and_class_expr_transforms_2254/class_expression_method_body_unwraps_and_shadows/b279d62365d6509f.svelte	svelte
+=== 311 switch_and_class_expr_transforms_2254/class_expression_method_body_unwraps_and_shadows/b279d62365d6509f.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16122,11 +16138,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
           }
         },
       );
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 263 switch_and_class_expr_transforms_2254/each_index_survives_class_expression_computed_key/5970e21878a82274.svelte	svelte
+=== 271 switch_and_class_expr_transforms_2254/each_index_survives_class_expression_computed_key/5970e21878a82274.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16140,11 +16158,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
           [i]() {}
         },
       );
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 261 switch_and_class_expr_transforms_2254/each_index_survives_class_expression_field/8d72f037f464bc0b.svelte	svelte
+=== 269 switch_and_class_expr_transforms_2254/each_index_survives_class_expression_field/8d72f037f464bc0b.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16158,11 +16178,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
           f = i;
         },
       );
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 262 switch_and_class_expr_transforms_2254/each_index_survives_switch_case_test/4e05e765ade38aea.svelte	svelte
+=== 270 switch_and_class_expr_transforms_2254/each_index_survives_switch_case_test/4e05e765ade38aea.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16175,11 +16197,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
         case i:
           sink(1);
       }
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 258 switch_and_class_expr_transforms_2254/each_index_survives_switch_discriminant/77ad9119a1f06812.svelte	svelte
+=== 266 switch_and_class_expr_transforms_2254/each_index_survives_switch_discriminant/77ad9119a1f06812.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16192,11 +16216,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
         case 0:
           sink(1);
       }
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 276 switch_and_class_expr_transforms_2254/if_and_while_tests_still_unwrap_each_item/8b91443cd47c61f5.svelte	svelte
+=== 284 switch_and_class_expr_transforms_2254/if_and_while_tests_still_unwrap_each_item/8b91443cd47c61f5.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16207,11 +16233,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
     onclick={() => {
       if (item.value === "a") sink(1);
       while (item.value === "never") break;
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 189 switch_and_class_expr_transforms_2254/object_property_key_is_still_not_a_store_reference/5251f4cf5d4e3e29.svelte	svelte
+=== 193 switch_and_class_expr_transforms_2254/object_property_key_is_still_not_a_store_reference/5251f4cf5d4e3e29.svelte	svelte
 <script>
   import { writable } from "svelte/store";
   const s = writable(1);
@@ -16221,10 +16249,12 @@ https://svelte.dev/e/svelte_options_invalid_tagname
 <button
   onclick={() => {
     sink({ $s: 1 });
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 227 switch_and_class_expr_transforms_2254/store_subscription_created_for_switch_case_test/67b4b1b98079ff72.svelte	svelte
+=== 231 switch_and_class_expr_transforms_2254/store_subscription_created_for_switch_case_test/67b4b1b98079ff72.svelte	svelte
 <script>
   import { writable } from "svelte/store";
   const s = writable(1);
@@ -16237,10 +16267,12 @@ https://svelte.dev/e/svelte_options_invalid_tagname
       case $s:
         sink(1);
     }
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 223 switch_and_class_expr_transforms_2254/store_subscription_created_for_switch_discriminant/d67077393748645b.svelte	svelte
+=== 227 switch_and_class_expr_transforms_2254/store_subscription_created_for_switch_discriminant/d67077393748645b.svelte	svelte
 <script>
   import { writable } from "svelte/store";
   const s = writable(1);
@@ -16253,10 +16285,12 @@ https://svelte.dev/e/svelte_options_invalid_tagname
       case 1:
         sink(1);
     }
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 298 switch_and_class_expr_transforms_2254/switch_case_local_declaration_shadows_each_item/f3d8ff85c9d1daae.svelte	svelte
+=== 306 switch_and_class_expr_transforms_2254/switch_case_local_declaration_shadows_each_item/f3d8ff85c9d1daae.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16271,11 +16305,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
           sink(item);
         }
       }
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 268 switch_and_class_expr_transforms_2254/switch_case_test_unwraps_each_item/41aa11caa68ffbe9.svelte	svelte
+=== 276 switch_and_class_expr_transforms_2254/switch_case_test_unwraps_each_item/41aa11caa68ffbe9.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16288,11 +16324,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
         case item.value:
           sink(1);
       }
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 266 switch_and_class_expr_transforms_2254/switch_discriminant_unwraps_each_item/8ff45a93ce7aa431.svelte	svelte
+=== 274 switch_and_class_expr_transforms_2254/switch_discriminant_unwraps_each_item/8ff45a93ce7aa431.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16305,11 +16343,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
         case "a":
           sink(1);
       }
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 253 switch_and_class_expr_transforms_2254/throw_and_return_still_unwrap_each_item/8448c3923c568d7c.svelte	svelte
+=== 261 switch_and_class_expr_transforms_2254/throw_and_return_still_unwrap_each_item/8448c3923c568d7c.svelte	svelte
 <script>
   const items = $state([{ value: "a" }]);
   const { sink, other } = $props();
@@ -16320,11 +16360,13 @@ https://svelte.dev/e/svelte_options_invalid_tagname
     onclick={() => {
       if (other) throw item.value;
       return item.value;
-    }}>x</button
+    }}
   >
+    x
+  </button>
 {/each}
 
-=== 201 switch_statement_codegen/switch_in_handler_is_preserved/e1d526fbcdf22528.svelte	svelte
+=== 205 switch_statement_codegen/switch_in_handler_is_preserved/e1d526fbcdf22528.svelte	svelte
 <script>
   let x = $state(0),
     y = $state(0);
@@ -16339,8 +16381,10 @@ https://svelte.dev/e/svelte_options_invalid_tagname
       default:
         y = 2;
     }
-  }}>b</button
+  }}
 >
+  b
+</button>
 
 === 286 synthesized_invalidation_comment_cursor_2262/synthesized_invalidation_does_not_rewind_comments/12670721400779ed.svelte	svelte
 <script>
@@ -16915,18 +16959,17 @@ https://svelte.dev/e/expected_token
 === 13 tag_scanning_3393_3395_3450/a_closing_tag_still_takes_whitespace_and_a_component_name/95a457797daa0f9d.svelte	svelte
 <div>y</div>
 
-=== 133 tag_scanning_3393_3395_3450/a_new_tag_closes_one_level_not_the_whole_ancestor_chain/4db174cb2c1fe3cf.svelte	svelte
-<select
-  ><optgroup label="g"
-    ><option>a</option><optgroup label="h"><option>b</option></optgroup
-    ></optgroup
-  ></select
->
+=== 128 tag_scanning_3393_3395_3450/a_new_tag_closes_one_level_not_the_whole_ancestor_chain/4db174cb2c1fe3cf.svelte	svelte
+<select>
+  <optgroup label="g">
+    <option>a</option><optgroup label="h"><option>b</option></optgroup>
+  </optgroup>
+</select>
 
 === 89 tag_scanning_3393_3395_3450/a_new_tag_closes_one_level_not_the_whole_ancestor_chain/8f67696e76214aac.svelte	svelte
-<select
-  ><optgroup label="g"><option>a</option><option>b</option></optgroup></select
->
+<select>
+  <optgroup label="g"><option>a</option><option>b</option></optgroup>
+</select>
 
 === 32 tag_scanning_3393_3395_3450/a_root_script_is_not_closed_by_a_closer_carrying_junk/1861257dbcd04089.svelte	svelte
 <script>
@@ -17100,11 +17143,11 @@ https://svelte.dev/e/element_unclosed
   let o = $state({ f: () => {} });
 </script>
 
-<Child
-  ><svelte:fragment slot="s" {@attach await Promise.resolve(att)}
-    >y</svelte:fragment
-  ></Child
->
+<Child>
+  <svelte:fragment slot="s" {@attach await Promise.resolve(att)}>
+    y
+  </svelte:fragment>
+</Child>
 
 === 186 tag_validation_grid_3317_3319/attach_tag_await_matches_official_on_every_host/239f43ee5a0059ce.svelte	svelte
 <script>
@@ -19694,7 +19737,7 @@ https://svelte.dev/e/js_parse_error
   }}
 ></div>
 
-=== 137 template_body_own_line_comment/block_comment_in_a_dev_named_handler_is_emitted_once/866f94a73d02d9d7.svelte	svelte
+=== 141 template_body_own_line_comment/block_comment_in_a_dev_named_handler_is_emitted_once/866f94a73d02d9d7.svelte	svelte
 <script>
   let v = 1;
   function z() {}
@@ -19705,10 +19748,12 @@ https://svelte.dev/e/js_parse_error
   onclick={(e) => {
     /* C */
     z();
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 169 template_body_own_line_comment/block_comment_in_a_handler_inside_an_each_block_is_emitted_once/d5a1f12f81ab92c0.svelte	svelte
+=== 177 template_body_own_line_comment/block_comment_in_a_handler_inside_an_each_block_is_emitted_once/d5a1f12f81ab92c0.svelte	svelte
 <script>
   let v = 1;
   function z() {}
@@ -19719,8 +19764,10 @@ https://svelte.dev/e/js_parse_error
     onclick={() => {
       /* C */
       z();
-    }}>x</button
-  >{/each}
+    }}
+  >
+    x
+  </button>{/each}
 
 === 124 template_body_own_line_comment/control_block_comment_in_a_script_function_body_is_unchanged/f6a3408c587b8e04.svelte	svelte
 <script>
@@ -19768,7 +19815,7 @@ https://svelte.dev/e/js_parse_error
   }}
 ></div>
 
-=== 134 template_body_own_line_comment/line_comment_in_a_dev_named_handler_is_emitted_once/ebe8002b44ec91ec.svelte	svelte
+=== 138 template_body_own_line_comment/line_comment_in_a_dev_named_handler_is_emitted_once/ebe8002b44ec91ec.svelte	svelte
 <script>
   let v = 1;
   function z() {}
@@ -19779,8 +19826,10 @@ https://svelte.dev/e/js_parse_error
   onclick={(e) => {
     // C
     z();
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 96 template_declaration_runes_autodetection/declaration_tag_rune_auto_detects_runes_mode_before_scope_validation/9bae2f399e9e4d72.svelte	svelte
 <script lang="ts">
@@ -23858,7 +23907,7 @@ https://svelte.dev/e/js_parse_error
     |            ^
   3 |
 
-=== 113 template_function_rune_3233/a_derived_local_in_a_handler_reads_through_get/38db9a590b3474fa.svelte	svelte
+=== 117 template_function_rune_3233/a_derived_local_in_a_handler_reads_through_get/38db9a590b3474fa.svelte	svelte
 <script>
   let v = $state(1);
 </script>
@@ -23867,10 +23916,12 @@ https://svelte.dev/e/js_parse_error
   onclick={() => {
     let x = $derived(v);
     v = x;
-  }}>{v}</b
+  }}
 >
+  {v}
+</b>
 
-=== 210 template_function_rune_3233/a_plain_local_still_shadows_an_outer_signal/65cd992d0fed9df9.svelte	svelte
+=== 214 template_function_rune_3233/a_plain_local_still_shadows_an_outer_signal/65cd992d0fed9df9.svelte	svelte
 <script>
   let count = $state(1);
   function use(a) {
@@ -23886,10 +23937,12 @@ https://svelte.dev/e/js_parse_error
     let count = 1;
     use(count);
     bump();
-  }}>{count}</b
+  }}
 >
+  {count}
+</b>
 
-=== 115 template_function_rune_3233/a_reassigned_raw_state_local_is_a_source/f0dc7496ab51e6ea.svelte	svelte
+=== 119 template_function_rune_3233/a_reassigned_raw_state_local_is_a_source/f0dc7496ab51e6ea.svelte	svelte
 <script>
   let v = $state(1);
 </script>
@@ -23898,10 +23951,12 @@ https://svelte.dev/e/js_parse_error
   onclick={() => {
     let x = $state.raw(1);
     x = 2;
-  }}>{v}</b
+  }}
 >
+  {v}
+</b>
 
-=== 161 template_function_rune_3233/a_reassigned_state_local_in_a_handler_is_a_source/d6e4fe8e1fc9de97.svelte	svelte
+=== 165 template_function_rune_3233/a_reassigned_state_local_in_a_handler_is_a_source/d6e4fe8e1fc9de97.svelte	svelte
 <script>
   let v = $state(1);
   function use(a) {
@@ -23914,10 +23969,12 @@ https://svelte.dev/e/js_parse_error
     let x = $state(1);
     x = 2;
     use(x);
-  }}>{v}</b
+  }}
 >
+  {v}
+</b>
 
-=== 111 template_function_rune_3233/a_state_local_that_is_never_reassigned_stays_a_plain_value/41b740762a32b567.svelte	svelte
+=== 115 template_function_rune_3233/a_state_local_that_is_never_reassigned_stays_a_plain_value/41b740762a32b567.svelte	svelte
 <script>
   let v = $state(1);
 </script>
@@ -23926,10 +23983,12 @@ https://svelte.dev/e/js_parse_error
   onclick={() => {
     let x = $state(1);
     v = x;
-  }}>{v}</b
+  }}
 >
+  {v}
+</b>
 
-=== 111 template_function_rune_3233/dev_tags_a_signal_declared_in_a_template_function/8d2bfe18523e6b9c.svelte	svelte
+=== 115 template_function_rune_3233/dev_tags_a_signal_declared_in_a_template_function/8d2bfe18523e6b9c.svelte	svelte
 <script>
   let v = $state(1);
 </script>
@@ -23938,8 +23997,10 @@ https://svelte.dev/e/js_parse_error
   onclick={() => {
     let x = $state(1);
     x = 2;
-  }}>{v}</b
+  }}
 >
+  {v}
+</b>
 
 === 60 template_keyword_head_3652/a_keyword_in_property_position_still_compiles/8fad470f770778c3.svelte	svelte
 <script>
@@ -25183,13 +25244,14 @@ b`;
     return z / 2;
   })()] as n}<span>{n}</span>{/each}
 
-=== 137 template_scan_lexical_state_3708_3709_3711/a_division_is_still_a_division/f448cacfb207b15a.svelte	svelte
+=== 142 template_scan_lexical_state_3708_3709_3711/a_division_is_still_a_division/f448cacfb207b15a.svelte	svelte
 <script>
   const obj = { a: 1 };
 </script>
 
-{#await Promise.resolve(obj.a / 2 + /x/.source.length)}p{:then v}<span>{v}</span
-  >{/await}
+{#await Promise.resolve(obj.a / 2 + /x/.source.length)}p{:then v}<span>
+    {v}
+  </span>{/await}
 
 === 176 template_scan_lexical_state_3708_3709_3711/a_leading_slash_is_still_a_block_close/aca124e57cd04753.svelte	error.txt
 Unexpected block closing tag
@@ -25312,7 +25374,7 @@ https://svelte.dev/e/attribute_empty_shorthand
 
 {#each ["A"] as v}{String(v)}{/each}
 
-=== 144 template_scope_shadow_3296/destructured_each_assignment_writes_back_without_promoting_the_outer_binding/87da3113de0dd4e4.svelte	svelte
+=== 152 template_scope_shadow_3296/destructured_each_assignment_writes_back_without_promoting_the_outer_binding/87da3113de0dd4e4.svelte	svelte
 <script>
   let v = "OUTER";
 </script>
@@ -25321,11 +25383,13 @@ https://svelte.dev/e/attribute_empty_shorthand
   <button
     onclick={() => {
       v = "W";
-    }}>b</button
+    }}
   >
+    b
+  </button>
 {/each}
 
-=== 206 template_scope_shadow_3296/destructured_each_compound_assignment_and_member_mutation_write_back/d657c5ac77d09945.svelte	svelte
+=== 214 template_scope_shadow_3296/destructured_each_compound_assignment_and_member_mutation_write_back/d657c5ac77d09945.svelte	svelte
 <script>
   let value = 0;
 </script>
@@ -25335,16 +25399,20 @@ https://svelte.dev/e/attribute_empty_shorthand
     onclick={() => {
       value += 2;
       nested.count += 1;
-    }}>b</button
+    }}
   >
+    b
+  </button>
 {/each}
 
-=== 123 template_scope_shadow_3296/nested_same_named_each_write_invalidates_only_the_owning_array/c729837a2b435958.svelte	svelte
+=== 135 template_scope_shadow_3296/nested_same_named_each_write_invalidates_only_the_owning_array/c729837a2b435958.svelte	svelte
 {#each ["A"] as v}{#each ["B"] as v}<button
       onclick={() => {
         v = "W";
-      }}>b</button
-    >{/each}{/each}
+      }}
+    >
+      b
+    </button>{/each}{/each}
 
 === 140 template_scope_shadow_3296/server_const_read_uses_the_shadowing_each_item/6793827e1002be44.svelte	svelte
 <script>
@@ -31288,7 +31356,7 @@ https://svelte.dev/e/expected_token
 
 <input bind:value={c} />
 
-=== 240 try_block_shadowing_scopes/a_bare_block_still_shadows/11479973594ba289.svelte	svelte
+=== 244 try_block_shadowing_scopes/a_bare_block_still_shadows/11479973594ba289.svelte	svelte
 <script>
   let models = null;
   function reload() {
@@ -31305,10 +31373,12 @@ https://svelte.dev/e/expected_token
       const models = [1];
       send(models);
     }
-  }}>{models}{reload}</button
+  }}
 >
+  {models}{reload}
+</button>
 
-=== 241 try_block_shadowing_scopes/a_catch_parameter_still_shadows/f4e0b8f75a9d55f9.svelte	svelte
+=== 245 try_block_shadowing_scopes/a_catch_parameter_still_shadows/f4e0b8f75a9d55f9.svelte	svelte
 <script>
   let models = null;
   function reload() {
@@ -31325,10 +31395,12 @@ https://svelte.dev/e/expected_token
     } catch (models) {
       send(models);
     }
-  }}>{models}{reload}</button
+  }}
 >
+  {models}{reload}
+</button>
 
-=== 260 try_block_shadowing_scopes/a_const_in_a_finally_body_shadows_an_outer_reactive_let/cd48b9cac192eed2.svelte	svelte
+=== 264 try_block_shadowing_scopes/a_const_in_a_finally_body_shadows_an_outer_reactive_let/cd48b9cac192eed2.svelte	svelte
 <script>
   let models = null;
   function reload() {
@@ -31346,10 +31418,12 @@ https://svelte.dev/e/expected_token
       const models = [1];
       send(models);
     }
-  }}>{models}{reload}</button
+  }}
 >
+  {models}{reload}
+</button>
 
-=== 257 try_block_shadowing_scopes/a_const_in_a_try_body_shadows_an_outer_reactive_let/f441583bf25052aa.svelte	svelte
+=== 261 try_block_shadowing_scopes/a_const_in_a_try_body_shadows_an_outer_reactive_let/f441583bf25052aa.svelte	svelte
 <script>
   let models = null;
   function reload() {
@@ -31366,10 +31440,12 @@ https://svelte.dev/e/expected_token
       const models = [1];
       send(models);
     } catch (e) {}
-  }}>{models}{reload}</button
+  }}
 >
+  {models}{reload}
+</button>
 
-=== 231 try_block_shadowing_scopes/an_unshadowed_read_in_a_try_body_still_reads_the_signal/8a5dc4a6129b6fac.svelte	svelte
+=== 235 try_block_shadowing_scopes/an_unshadowed_read_in_a_try_body_still_reads_the_signal/8a5dc4a6129b6fac.svelte	svelte
 <script>
   let models = null;
   function reload() {
@@ -31385,8 +31461,10 @@ https://svelte.dev/e/expected_token
     try {
       send(models);
     } catch (e) {}
-  }}>{models}{reload}</button
+  }}
 >
+  {models}{reload}
+</button>
 
 === 108 ts_assertion_assignment_targets/array_destructuring_element_preserves_wrapper/85ac2f37f648eb8d.svelte	svelte
 <script lang="ts">
@@ -31512,7 +31590,7 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-=== 254 ts_assertion_expressions/as_cast_inside_for_of_body_is_erased/3bc82466da4a8919.svelte	svelte
+=== 258 ts_assertion_expressions/as_cast_inside_for_of_body_is_erased/3bc82466da4a8919.svelte	svelte
 <script lang="ts"></script>
 
 <button
@@ -31523,8 +31601,10 @@ https://svelte.dev/e/expected_token
     for (const k in e) {
       console.log((k as string).length);
     }
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 64 ts_assertion_expressions/as_const_in_attribute_value_preserves_wrapper/3626944d7a97175e.svelte	svelte
 <script lang="ts"></script>
@@ -36872,7 +36952,7 @@ unknown node type: ArrowFunctionExpression
 
 <i on:click={bump}>{user}</i>
 
-=== 11984 unnamed/501859cd47a51547.svelte	svelte
+=== 9332 unnamed/501859cd47a51547.svelte	svelte
 <script>
   let x = 1;
 </script>
@@ -36915,61 +36995,35 @@ unknown node type: ArrowFunctionExpression
                                                                       <div>
                                                                         <div>
                                                                           <div>
-                                                                            <div
-                                                                            >
-                                                                              <div
-                                                                              >
-                                                                                <div
-                                                                                >
-                                                                                  <div
-                                                                                  >
-                                                                                    <div
-                                                                                    >
-                                                                                      <div
-                                                                                      >
-                                                                                        <div
-                                                                                        >
-                                                                                          <div
-                                                                                          >
-                                                                                            <div
-                                                                                            >
-                                                                                              <div
-                                                                                              >
-                                                                                                <div
-                                                                                                >
-                                                                                                  <div
-                                                                                                  >
-                                                                                                    <div
-                                                                                                    >
-                                                                                                      <div
-                                                                                                      >
-                                                                                                        <div
-                                                                                                        >
-                                                                                                          <div
-                                                                                                          >
-                                                                                                            <div
-                                                                                                            >
-                                                                                                              <div
-                                                                                                              >
-                                                                                                                <div
-                                                                                                                >
-                                                                                                                  <div
-                                                                                                                  >
-                                                                                                                    <div
-                                                                                                                    >
-                                                                                                                      <div
-                                                                                                                      >
-                                                                                                                        <div
-                                                                                                                        >
-                                                                                                                          <div
-                                                                                                                          >
-                                                                                                                            <div
-                                                                                                                            >
-                                                                                                                              <div
-                                                                                                                              >
-                                                                                                                                <span
-                                                                                                                                  >x</span
-                                                                                                                                >
+                                                                            <div>
+                                                                              <div>
+                                                                                <div>
+                                                                                  <div>
+                                                                                    <div>
+                                                                                      <div>
+                                                                                        <div>
+                                                                                          <div>
+                                                                                            <div>
+                                                                                              <div>
+                                                                                                <div>
+                                                                                                  <div>
+                                                                                                    <div>
+                                                                                                      <div>
+                                                                                                        <div>
+                                                                                                          <div>
+                                                                                                            <div>
+                                                                                                              <div>
+                                                                                                                <div>
+                                                                                                                  <div>
+                                                                                                                    <div>
+                                                                                                                      <div>
+                                                                                                                        <div>
+                                                                                                                          <div>
+                                                                                                                            <div>
+                                                                                                                              <div>
+                                                                                                                                <span>
+                                                                                                                                  x
+                                                                                                                                </span>
                                                                                                                               </div>
                                                                                                                             </div>
                                                                                                                           </div>
@@ -37035,7 +37089,7 @@ unknown node type: ArrowFunctionExpression
   </div>
 </div>
 
-=== 11951 unnamed/52dc19b0787b3d7a.svelte	svelte
+=== 9299 unnamed/52dc19b0787b3d7a.svelte	svelte
 <div>
   <div>
     <div>
@@ -37074,61 +37128,35 @@ unknown node type: ArrowFunctionExpression
                                                                       <div>
                                                                         <div>
                                                                           <div>
-                                                                            <div
-                                                                            >
-                                                                              <div
-                                                                              >
-                                                                                <div
-                                                                                >
-                                                                                  <div
-                                                                                  >
-                                                                                    <div
-                                                                                    >
-                                                                                      <div
-                                                                                      >
-                                                                                        <div
-                                                                                        >
-                                                                                          <div
-                                                                                          >
-                                                                                            <div
-                                                                                            >
-                                                                                              <div
-                                                                                              >
-                                                                                                <div
-                                                                                                >
-                                                                                                  <div
-                                                                                                  >
-                                                                                                    <div
-                                                                                                    >
-                                                                                                      <div
-                                                                                                      >
-                                                                                                        <div
-                                                                                                        >
-                                                                                                          <div
-                                                                                                          >
-                                                                                                            <div
-                                                                                                            >
-                                                                                                              <div
-                                                                                                              >
-                                                                                                                <div
-                                                                                                                >
-                                                                                                                  <div
-                                                                                                                  >
-                                                                                                                    <div
-                                                                                                                    >
-                                                                                                                      <div
-                                                                                                                      >
-                                                                                                                        <div
-                                                                                                                        >
-                                                                                                                          <div
-                                                                                                                          >
-                                                                                                                            <div
-                                                                                                                            >
-                                                                                                                              <div
-                                                                                                                              >
-                                                                                                                                <span
-                                                                                                                                  >x</span
-                                                                                                                                >
+                                                                            <div>
+                                                                              <div>
+                                                                                <div>
+                                                                                  <div>
+                                                                                    <div>
+                                                                                      <div>
+                                                                                        <div>
+                                                                                          <div>
+                                                                                            <div>
+                                                                                              <div>
+                                                                                                <div>
+                                                                                                  <div>
+                                                                                                    <div>
+                                                                                                      <div>
+                                                                                                        <div>
+                                                                                                          <div>
+                                                                                                            <div>
+                                                                                                              <div>
+                                                                                                                <div>
+                                                                                                                  <div>
+                                                                                                                    <div>
+                                                                                                                      <div>
+                                                                                                                        <div>
+                                                                                                                          <div>
+                                                                                                                            <div>
+                                                                                                                              <div>
+                                                                                                                                <span>
+                                                                                                                                  x
+                                                                                                                                </span>
                                                                                                                               </div>
                                                                                                                             </div>
                                                                                                                           </div>
@@ -37266,7 +37294,7 @@ unknown node type: ArrowFunctionExpression
   </div>
 </div>
 
-=== 48597 unnamed/a80af84111a4f1db.svelte	svelte
+=== 33912 unnamed/a80af84111a4f1db.svelte	svelte
 <div>
   <div>
     <div>
@@ -37305,184 +37333,95 @@ unknown node type: ArrowFunctionExpression
                                                                       <div>
                                                                         <div>
                                                                           <div>
-                                                                            <div
-                                                                            >
-                                                                              <div
-                                                                              >
-                                                                                <div
-                                                                                >
-                                                                                  <div
-                                                                                  >
-                                                                                    <div
-                                                                                    >
-                                                                                      <div
-                                                                                      >
-                                                                                        <div
-                                                                                        >
-                                                                                          <div
-                                                                                          >
-                                                                                            <div
-                                                                                            >
-                                                                                              <div
-                                                                                              >
-                                                                                                <div
-                                                                                                >
-                                                                                                  <div
-                                                                                                  >
-                                                                                                    <div
-                                                                                                    >
-                                                                                                      <div
-                                                                                                      >
-                                                                                                        <div
-                                                                                                        >
-                                                                                                          <div
-                                                                                                          >
-                                                                                                            <div
-                                                                                                            >
-                                                                                                              <div
-                                                                                                              >
-                                                                                                                <div
-                                                                                                                >
-                                                                                                                  <div
-                                                                                                                  >
-                                                                                                                    <div
-                                                                                                                    >
-                                                                                                                      <div
-                                                                                                                      >
-                                                                                                                        <div
-                                                                                                                        >
-                                                                                                                          <div
-                                                                                                                          >
-                                                                                                                            <div
-                                                                                                                            >
-                                                                                                                              <div
-                                                                                                                              >
-                                                                                                                                <div
-                                                                                                                                >
-                                                                                                                                  <div
-                                                                                                                                  >
-                                                                                                                                    <div
-                                                                                                                                    >
-                                                                                                                                      <div
-                                                                                                                                      >
-                                                                                                                                        <div
-                                                                                                                                        >
-                                                                                                                                          <div
-                                                                                                                                          >
-                                                                                                                                            <div
-                                                                                                                                            >
-                                                                                                                                              <div
-                                                                                                                                              >
-                                                                                                                                                <div
-                                                                                                                                                >
-                                                                                                                                                  <div
-                                                                                                                                                  >
-                                                                                                                                                    <div
-                                                                                                                                                    >
-                                                                                                                                                      <div
-                                                                                                                                                      >
-                                                                                                                                                        <div
-                                                                                                                                                        >
-                                                                                                                                                          <div
-                                                                                                                                                          >
-                                                                                                                                                            <div
-                                                                                                                                                            >
-                                                                                                                                                              <div
-                                                                                                                                                              >
-                                                                                                                                                                <div
-                                                                                                                                                                >
-                                                                                                                                                                  <div
-                                                                                                                                                                  >
-                                                                                                                                                                    <div
-                                                                                                                                                                    >
-                                                                                                                                                                      <div
-                                                                                                                                                                      >
-                                                                                                                                                                        <div
-                                                                                                                                                                        >
-                                                                                                                                                                          <div
-                                                                                                                                                                          >
-                                                                                                                                                                            <div
-                                                                                                                                                                            >
-                                                                                                                                                                              <div
-                                                                                                                                                                              >
-                                                                                                                                                                                <div
-                                                                                                                                                                                >
-                                                                                                                                                                                  <div
-                                                                                                                                                                                  >
-                                                                                                                                                                                    <div
-                                                                                                                                                                                    >
-                                                                                                                                                                                      <div
-                                                                                                                                                                                      >
-                                                                                                                                                                                        <div
-                                                                                                                                                                                        >
-                                                                                                                                                                                          <div
-                                                                                                                                                                                          >
-                                                                                                                                                                                            <div
-                                                                                                                                                                                            >
-                                                                                                                                                                                              <div
-                                                                                                                                                                                              >
-                                                                                                                                                                                                <div
-                                                                                                                                                                                                >
-                                                                                                                                                                                                  <div
-                                                                                                                                                                                                  >
-                                                                                                                                                                                                    <div
-                                                                                                                                                                                                    >
-                                                                                                                                                                                                      <div
-                                                                                                                                                                                                      >
-                                                                                                                                                                                                        <div
-                                                                                                                                                                                                        >
-                                                                                                                                                                                                          <div
-                                                                                                                                                                                                          >
-                                                                                                                                                                                                            <div
-                                                                                                                                                                                                            >
-                                                                                                                                                                                                              <div
-                                                                                                                                                                                                              >
-                                                                                                                                                                                                                <div
-                                                                                                                                                                                                                >
-                                                                                                                                                                                                                  <div
-                                                                                                                                                                                                                  >
-                                                                                                                                                                                                                    <div
-                                                                                                                                                                                                                    >
-                                                                                                                                                                                                                      <div
-                                                                                                                                                                                                                      >
-                                                                                                                                                                                                                        <div
-                                                                                                                                                                                                                        >
-                                                                                                                                                                                                                          <div
-                                                                                                                                                                                                                          >
-                                                                                                                                                                                                                            <div
-                                                                                                                                                                                                                            >
-                                                                                                                                                                                                                              <div
-                                                                                                                                                                                                                              >
-                                                                                                                                                                                                                                <div
-                                                                                                                                                                                                                                >
-                                                                                                                                                                                                                                  <div
-                                                                                                                                                                                                                                  >
-                                                                                                                                                                                                                                    <div
-                                                                                                                                                                                                                                    >
-                                                                                                                                                                                                                                      <div
-                                                                                                                                                                                                                                      >
-                                                                                                                                                                                                                                        <div
-                                                                                                                                                                                                                                        >
-                                                                                                                                                                                                                                          <div
-                                                                                                                                                                                                                                          >
-                                                                                                                                                                                                                                            <div
-                                                                                                                                                                                                                                            >
-                                                                                                                                                                                                                                              <div
-                                                                                                                                                                                                                                              >
-                                                                                                                                                                                                                                                <div
-                                                                                                                                                                                                                                                >
-                                                                                                                                                                                                                                                  <div
-                                                                                                                                                                                                                                                  >
-                                                                                                                                                                                                                                                    <div
-                                                                                                                                                                                                                                                    >
-                                                                                                                                                                                                                                                      <div
-                                                                                                                                                                                                                                                      >
-                                                                                                                                                                                                                                                        <div
-                                                                                                                                                                                                                                                        >
-                                                                                                                                                                                                                                                          <div
-                                                                                                                                                                                                                                                          >
-                                                                                                                                                                                                                                                            <div
-                                                                                                                                                                                                                                                            >
+                                                                            <div>
+                                                                              <div>
+                                                                                <div>
+                                                                                  <div>
+                                                                                    <div>
+                                                                                      <div>
+                                                                                        <div>
+                                                                                          <div>
+                                                                                            <div>
+                                                                                              <div>
+                                                                                                <div>
+                                                                                                  <div>
+                                                                                                    <div>
+                                                                                                      <div>
+                                                                                                        <div>
+                                                                                                          <div>
+                                                                                                            <div>
+                                                                                                              <div>
+                                                                                                                <div>
+                                                                                                                  <div>
+                                                                                                                    <div>
+                                                                                                                      <div>
+                                                                                                                        <div>
+                                                                                                                          <div>
+                                                                                                                            <div>
+                                                                                                                              <div>
+                                                                                                                                <div>
+                                                                                                                                  <div>
+                                                                                                                                    <div>
+                                                                                                                                      <div>
+                                                                                                                                        <div>
+                                                                                                                                          <div>
+                                                                                                                                            <div>
+                                                                                                                                              <div>
+                                                                                                                                                <div>
+                                                                                                                                                  <div>
+                                                                                                                                                    <div>
+                                                                                                                                                      <div>
+                                                                                                                                                        <div>
+                                                                                                                                                          <div>
+                                                                                                                                                            <div>
+                                                                                                                                                              <div>
+                                                                                                                                                                <div>
+                                                                                                                                                                  <div>
+                                                                                                                                                                    <div>
+                                                                                                                                                                      <div>
+                                                                                                                                                                        <div>
+                                                                                                                                                                          <div>
+                                                                                                                                                                            <div>
+                                                                                                                                                                              <div>
+                                                                                                                                                                                <div>
+                                                                                                                                                                                  <div>
+                                                                                                                                                                                    <div>
+                                                                                                                                                                                      <div>
+                                                                                                                                                                                        <div>
+                                                                                                                                                                                          <div>
+                                                                                                                                                                                            <div>
+                                                                                                                                                                                              <div>
+                                                                                                                                                                                                <div>
+                                                                                                                                                                                                  <div>
+                                                                                                                                                                                                    <div>
+                                                                                                                                                                                                      <div>
+                                                                                                                                                                                                        <div>
+                                                                                                                                                                                                          <div>
+                                                                                                                                                                                                            <div>
+                                                                                                                                                                                                              <div>
+                                                                                                                                                                                                                <div>
+                                                                                                                                                                                                                  <div>
+                                                                                                                                                                                                                    <div>
+                                                                                                                                                                                                                      <div>
+                                                                                                                                                                                                                        <div>
+                                                                                                                                                                                                                          <div>
+                                                                                                                                                                                                                            <div>
+                                                                                                                                                                                                                              <div>
+                                                                                                                                                                                                                                <div>
+                                                                                                                                                                                                                                  <div>
+                                                                                                                                                                                                                                    <div>
+                                                                                                                                                                                                                                      <div>
+                                                                                                                                                                                                                                        <div>
+                                                                                                                                                                                                                                          <div>
+                                                                                                                                                                                                                                            <div>
+                                                                                                                                                                                                                                              <div>
+                                                                                                                                                                                                                                                <div>
+                                                                                                                                                                                                                                                  <div>
+                                                                                                                                                                                                                                                    <div>
+                                                                                                                                                                                                                                                      <div>
+                                                                                                                                                                                                                                                        <div>
+                                                                                                                                                                                                                                                          <div>
+                                                                                                                                                                                                                                                            <div>
                                                                                                                                                                                                                                                               hi
                                                                                                                                                                                                                                                             </div>
                                                                                                                                                                                                                                                           </div>
@@ -37734,9 +37673,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={$s.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={$s.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 249 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/0ae5607d7debb5b4.svelte	svelte
@@ -37748,9 +37687,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={p.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={p.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 242 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/13e12db86d751470.svelte	svelte
@@ -37762,9 +37701,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={st.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={st.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 264 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/2e73682b1b6f525f.svelte	svelte
@@ -37777,9 +37716,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={p.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={p.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 318 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/2f0626c7ba5cdadf.svelte	svelte
@@ -37793,9 +37732,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={$s.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={$s.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 306 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/41b1e3fcacbd62f9.svelte	svelte
@@ -37808,9 +37747,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={$s.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={$s.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 263 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/4c1994b46e17d327.svelte	svelte
@@ -37823,9 +37762,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={p.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={p.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 248 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/62814f79aa52c9eb.svelte	svelte
@@ -37837,9 +37776,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={p.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={p.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 246 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/73569e19510e01a4.svelte	svelte
@@ -37851,9 +37790,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={p.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={p.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 320 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/753cc764b7e30c19.svelte	svelte
@@ -37867,9 +37806,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={$s.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={$s.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 321 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/7aaed8641a93ca4d.svelte	svelte
@@ -37883,9 +37822,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={$s.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={$s.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 257 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/81e2368769068e87.svelte	svelte
@@ -37898,9 +37837,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={st.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={st.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 261 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/9a0a177238f7e4a9.svelte	svelte
@@ -37913,9 +37852,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={p.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={p.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 303 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/b1a33df9b3f5917a.svelte	svelte
@@ -37928,9 +37867,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={$s.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={$s.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 260 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/c664803ff4ee0fb8.svelte	svelte
@@ -37943,9 +37882,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={st.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={st.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 245 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/cc9950ef28f6c52e.svelte	svelte
@@ -37957,9 +37896,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={st.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={st.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 259 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/d40c4893769be8b8.svelte	svelte
@@ -37972,9 +37911,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={st.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={st.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
 === 244 update_expression_has_no_invalidate_tail/an_update_expression_carries_no_invalidate_tail/e709e805b772307c.svelte	svelte
@@ -37986,16 +37925,17 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<select bind:value={st.t}
-  >{#each opts as o}<option value={o}>{o}</option>{/each}</select
->
+<select bind:value={st.t}>
+  {#each opts as o}<option value={o}>{o}</option>{/each}
+</select>
 <button on:click={() => {}}>go</button>
 
-=== 88 upstream_unparseable_3306/a_destructured_each_binding_update_writes_to_its_source_path/8143458e812351cd.svelte	svelte
-{#each [{ value: 1 }] as { value }}<button onclick={() => value++}>b</button
-  >{/each}
+=== 93 upstream_unparseable_3306/a_destructured_each_binding_update_writes_to_its_source_path/8143458e812351cd.svelte	svelte
+{#each [{ value: 1 }] as { value }}<button onclick={() => value++}>
+    b
+  </button>{/each}
 
-=== 162 upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/23ad7418aa0f36cd.svelte	svelte
+=== 166 upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/23ad7418aa0f36cd.svelte	svelte
 <script>
   let v = $state("OUTER");
 </script>
@@ -38003,10 +37943,12 @@ https://svelte.dev/e/expected_token
 {#await Promise.reject("A")}w{:catch v}{String(v)}{/await}<button
   onclick={() => {
     v = "W";
-  }}>b</button
+  }}
 >
+  b
+</button>
 
-=== 152 upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/6e483153331698b2.svelte	svelte
+=== 156 upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/6e483153331698b2.svelte	svelte
 <script>
   let v = $state("OUTER");
 </script>
@@ -38014,10 +37956,12 @@ https://svelte.dev/e/expected_token
 {#await Promise.reject("A")}w{:catch v}x{/await}<button
   onclick={() => {
     v = "W";
-  }}>b</button
+  }}
 >
+  b
+</button>
 
-=== 144 upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/a39cef6c28fe2987.svelte	svelte
+=== 148 upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/a39cef6c28fe2987.svelte	svelte
 <script>
   let v = "OUTER";
 </script>
@@ -38025,10 +37969,12 @@ https://svelte.dev/e/expected_token
 {#await Promise.reject("A")}w{:catch v}x{/await}<button
   onclick={() => {
     v = "W";
-  }}>b</button
+  }}
 >
+  b
+</button>
 
-=== 154 upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/c32a03c10d0346fb.svelte	svelte
+=== 158 upstream_unparseable_3306/a_write_past_a_catch_parameter_of_the_same_name_uses_the_setter/c32a03c10d0346fb.svelte	svelte
 <script>
   let v = "OUTER";
 </script>
@@ -38036,24 +37982,30 @@ https://svelte.dev/e/expected_token
 {#await Promise.reject("A")}w{:catch v}{String(v)}{/await}<button
   onclick={() => {
     v = "W";
-  }}>b</button
+  }}
 >
+  b
+</button>
 
-=== 109 upstream_unparseable_3306/an_each_rest_binding_is_written_through_its_name/17a7d7e475e9b5b8.svelte	svelte
+=== 117 upstream_unparseable_3306/an_each_rest_binding_is_written_through_its_name/17a7d7e475e9b5b8.svelte	svelte
 {#each [["A", "B"]] as [first, ...v]}<button
     onclick={() => {
       v = "W";
-    }}>b</button
-  >{/each}
+    }}
+  >
+    b
+  </button>{/each}
 
-=== 111 upstream_unparseable_3306/an_each_rest_binding_is_written_through_its_name/b763cf66b126c962.svelte	svelte
+=== 119 upstream_unparseable_3306/an_each_rest_binding_is_written_through_its_name/b763cf66b126c962.svelte	svelte
 {#each [{ a: 1, b: 2 }] as { a, ...v }}<button
     onclick={() => {
       v = "W";
-    }}>b</button
-  >{/each}
+    }}
+  >
+    b
+  </button>{/each}
 
-=== 151 upstream_unparseable_3306/the_shapes_that_already_agreed_are_unchanged/b0889affaa4873ca.svelte	svelte
+=== 155 upstream_unparseable_3306/the_shapes_that_already_agreed_are_unchanged/b0889affaa4873ca.svelte	svelte
 <script>
   let v = "OUTER";
 </script>
@@ -38061,17 +38013,21 @@ https://svelte.dev/e/expected_token
 {#await Promise.resolve("A") then v}{String(v)}{/await}<button
   onclick={() => {
     v = "W";
-  }}>b</button
+  }}
 >
+  b
+</button>
 
-=== 90 upstream_unparseable_3306/the_shapes_that_already_agreed_are_unchanged/b10a6d849230355b.svelte	svelte
+=== 98 upstream_unparseable_3306/the_shapes_that_already_agreed_are_unchanged/b10a6d849230355b.svelte	svelte
 {#each ["A"] as v}<button
     onclick={() => {
       v = "W";
-    }}>b</button
-  >{/each}
+    }}
+  >
+    b
+  </button>{/each}
 
-=== 132 upstream_unparseable_3306/the_shapes_that_already_agreed_are_unchanged/b2bed7e2bf1747e6.svelte	svelte
+=== 136 upstream_unparseable_3306/the_shapes_that_already_agreed_are_unchanged/b2bed7e2bf1747e6.svelte	svelte
 <script>
   let v = "OUTER";
 </script>
@@ -38079,10 +38035,12 @@ https://svelte.dev/e/expected_token
 {#each ["A"] as v}{String(v)}{/each}<button
   onclick={() => {
     v = "W";
-  }}>b</button
+  }}
 >
+  b
+</button>
 
-=== 132 upstream_unparseable_3306/the_shapes_that_already_agreed_are_unchanged/e62d26490c5d9196.svelte	svelte
+=== 136 upstream_unparseable_3306/the_shapes_that_already_agreed_are_unchanged/e62d26490c5d9196.svelte	svelte
 <script>
   let v = "OUTER";
 </script>
@@ -38090,10 +38048,12 @@ https://svelte.dev/e/expected_token
 {#snippet s(v)}{String(v)}{/snippet}<button
   onclick={() => {
     v = "W";
-  }}>b</button
+  }}
 >
+  b
+</button>
 
-=== 136 upstream_unparseable_3306/the_shapes_that_already_agreed_are_unchanged/f1fcd555b5838903.svelte	svelte
+=== 140 upstream_unparseable_3306/the_shapes_that_already_agreed_are_unchanged/f1fcd555b5838903.svelte	svelte
 <script>
   let v = "OUTER";
 </script>
@@ -38101,8 +38061,10 @@ https://svelte.dev/e/expected_token
 {#if true}{@const v = 1}{String(v)}{/if}<button
   onclick={() => {
     v = "W";
-  }}>b</button
+  }}
 >
+  b
+</button>
 
 === 20 utf16_locators_2099/add_locations_columns_are_utf16_code_units/20d4e2f118677f0e.svelte	svelte
 <p>あ</p>

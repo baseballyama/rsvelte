@@ -148,10 +148,10 @@
   {#if $author_mode === "files"}
     <div class="files-mode-banner" role="status">
       <strong>Read-only.</strong>
-      <span
-        >Files are authoritative this session — edits made here will be
-        discarded on the next sync. Restart with</span
-      >
+      <span>
+        Files are authoritative this session — edits made here will be discarded
+        on the next sync. Restart with
+      </span>
       <code>primo dev --author cms</code>
       <span>to author from the CMS.</span>
     </div>
@@ -3520,11 +3520,11 @@
       <div class="foreign-notice">
         <p>
           This Page Field points to
-          <strong
-            >{selected_page_field?.label ||
+          <strong>
+            {selected_page_field?.label ||
               selected_page_field?.key ||
-              "Unknown field"}</strong
-          >
+              "Unknown field"}
+          </strong>
           {#if selected_page_type}
             from <strong>{selected_page_type.name}</strong>
           {:else}
@@ -5503,7 +5503,7 @@
   }
 </style>
 
-=== 14084 src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte	svelte
+=== 14104 src/lib/builder/components/Sidebar/Sidebar_Symbol.svelte	svelte
 <script lang="ts">
   import * as _ from "lodash-es";
   import { fade } from "svelte/transition";
@@ -5719,8 +5719,10 @@
         <Button
           type="button"
           variant="outline"
-          onclick={() => (renaming = false)}>Cancel</Button
+          onclick={() => (renaming = false)}
         >
+          Cancel
+        </Button>
         <Button type="submit">Rename</Button>
       </Dialog.Footer>
     </form>
@@ -5747,9 +5749,9 @@
                 {/if}
               </Badge>
             </Tooltip.Trigger>
-            <Tooltip.Content side="top" align="start"
-              >{foreign_chip_title}</Tooltip.Content
-            >
+            <Tooltip.Content side="top" align="start">
+              {foreign_chip_title}
+            </Tooltip.Content>
           </Tooltip.Root>
         </Tooltip.Provider>
       {/if}
@@ -5866,11 +5868,11 @@
                 class="object-cover object-center"
               />
             {/if}
-            <Avatar.Fallback
-              >{(activity.user.name || activity.user.email)
+            <Avatar.Fallback>
+              {(activity.user.name || activity.user.email)
                 .slice(0, 2)
-                .toUpperCase()}</Avatar.Fallback
-            >
+                .toUpperCase()}
+            </Avatar.Fallback>
           </Avatar.Root>
         </div>
       {/each}
@@ -6256,9 +6258,9 @@
     <div class="group-entries">
       {#if subfields.length === 0}
         <div class="no-subfields">
-          <span
-            >No subfields in this group. Add subfields in the Field tab.</span
-          >
+          <span>
+            No subfields in this group. Add subfields in the Field tab.
+          </span>
         </div>
       {:else}
         {#each subfields as subfield (subfield.id)}
@@ -10654,9 +10656,9 @@
         {onfocus}
         {onblur}
       ></button>
-      {#if children}{@render children({ toggled })}{:else if on && off}<span
-          >{toggled ? on : off}</span
-        >{/if}
+      {#if children}{@render children({ toggled })}{:else if on && off}<span>
+          {toggled ? on : off}
+        </span>{/if}
     </div>
   {/snippet}
 </ToggleCore>
@@ -11059,9 +11061,9 @@
                 >
                   <Icon icon={page_type.icon} />
                 </div>
-                <span class="text-xs font-normal"
-                  >{layout_zone === "header" ? "Header" : "Footer"}</span
-                >
+                <span class="text-xs font-normal">
+                  {layout_zone === "header" ? "Header" : "Footer"}
+                </span>
               </svelte:element>
             </div>
           </Tooltip.Trigger>
@@ -11256,7 +11258,7 @@
   }
 </style>
 
-=== 58460 src/lib/builder/views/editor/Layout/ComponentNode.svelte	svelte
+=== 58478 src/lib/builder/views/editor/Layout/ComponentNode.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
   import { fade } from "svelte/transition";
@@ -12561,8 +12563,9 @@
         <button
           type="submit"
           class="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-md"
-          >Done</button
         >
+          Done
+        </button>
       </div>
     </form>
   </Dialog.Content>
@@ -12664,8 +12667,9 @@
         <button
           type="submit"
           class="px-4 py-2 text-sm bg-gray-100 hover:bg-gray-200 text-gray-900 rounded-md"
-          >Done</button
         >
+          Done
+        </button>
       </div>
     </form>
   </Dialog.Content>
@@ -12754,9 +12758,9 @@
               class="object-cover object-center"
             />
           {/if}
-          <Avatar.Fallback
-            >{(user.name || user.email).slice(0, 2)}</Avatar.Fallback
-          >
+          <Avatar.Fallback>
+            {(user.name || user.email).slice(0, 2)}
+          </Avatar.Fallback>
         </Avatar.Root>
       </div>
     {/each}
@@ -14126,9 +14130,9 @@
             {#if is_static_page_type}
               <span>Drag blocks here for static body content</span>
             {:else}
-              <span
-                >Drag blocks here for default body content (users can modify)</span
-              >
+              <span>
+                Drag blocks here for default body content (users can modify)
+              </span>
             {/if}
           </div>
         {/if}
@@ -14393,7 +14397,7 @@
   }
 </style>
 
-=== 20569 src/lib/builder/views/editor/Toolbar.svelte	svelte
+=== 20469 src/lib/builder/views/editor/Toolbar.svelte	svelte
 <script lang="ts">
   import * as Dialog from "$lib/components/ui/dialog";
   import { fade } from "svelte/transition";
@@ -14784,11 +14788,9 @@
                       class="grayscale hover:grayscale-0 object-cover object-center"
                     />
                   {/if}
-                  <Avatar.Fallback
-                    >{(user.name || user.email)
-                      .slice(0, 2)
-                      .toUpperCase()}</Avatar.Fallback
-                  >
+                  <Avatar.Fallback>
+                    {(user.name || user.email).slice(0, 2).toUpperCase()}
+                  </Avatar.Fallback>
                 </Avatar.Root>
               </Popover.Trigger>
               <Popover.Content class="w-auto z-[99]">
@@ -14806,11 +14808,9 @@
                           class="object-cover object-center"
                         />
                       {/if}
-                      <Avatar.Fallback class="border-muted border"
-                        >{(user.name || user.email)
-                          .slice(0, 2)
-                          .toUpperCase()}</Avatar.Fallback
-                      >
+                      <Avatar.Fallback class="border-muted border">
+                        {(user.name || user.email).slice(0, 2).toUpperCase()}
+                      </Avatar.Fallback>
                     </div>
                   </Avatar.Root>
                   <div class="space-y-1 text-sm">
@@ -14822,14 +14822,14 @@
                           <p>{site_symbol.name}</p>
                         {:else if page && page_page_type}
                           <Icon icon={page_page_type.icon} />
-                          <a href={page_url?.href} class="underline"
-                            >{page.name}</a
-                          >
+                          <a href={page_url?.href} class="underline">
+                            {page.name}
+                          </a>
                         {:else if page_type}
                           <Icon icon={page_type.icon} />
-                          <a href={page_type_url?.href} class="underline"
-                            >{page_type.name}</a
-                          >
+                          <a href={page_type_url?.href} class="underline">
+                            {page_type.name}
+                          </a>
                         {/if}
                       </div>
                     {/each}
@@ -15611,7 +15611,7 @@
 
 <BlockPickerPanel bind:selected />
 
-=== 15322 src/lib/builder/views/modal/Collaboration.svelte	svelte
+=== 15280 src/lib/builder/views/modal/Collaboration.svelte	svelte
 <script lang="ts">
   import { SiteRoleAssignment } from "$lib/common/models/SiteRoleAssignment";
   import type { User } from "$lib/common/models/User";
@@ -15860,9 +15860,9 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Are you sure?</AlertDialog.Title>
       <AlertDialog.Description>
-        You are about to remove collaborator <strong
-          >{collaborator_to_remove?.user.email}</strong
-        >
+        You are about to remove collaborator <strong>
+          {collaborator_to_remove?.user.email}
+        </strong>
         from the site.
       </AlertDialog.Description>
     </AlertDialog.Header>
@@ -15979,9 +15979,9 @@
                     class="object-cover object-center"
                   />
                 {/if}
-                <Avatar.Fallback class="text-xs"
-                  >{(name || email).slice(0, 2).toUpperCase()}</Avatar.Fallback
-                >
+                <Avatar.Fallback class="text-xs">
+                  {(name || email).slice(0, 2).toUpperCase()}
+                </Avatar.Fallback>
               </Avatar.Root>
               <span class="email">
                 {#if name}
@@ -16015,11 +16015,9 @@
                   alt={user.name || user.email}
                   class="object-cover object-center"
                 />
-                <Avatar.Fallback class="text-xs"
-                  >{(user.name || user.email)
-                    .slice(0, 2)
-                    .toUpperCase()}</Avatar.Fallback
-                >
+                <Avatar.Fallback class="text-xs">
+                  {(user.name || user.email).slice(0, 2).toUpperCase()}
+                </Avatar.Fallback>
               </Avatar.Root>
               <span class="email">
                 {#if user.name}
@@ -16196,7 +16194,7 @@
   </form>
 </div>
 
-=== 8065 src/lib/builder/views/modal/PageTypeModal/Item.svelte	svelte
+=== 8027 src/lib/builder/views/modal/PageTypeModal/Item.svelte	svelte
 <script lang="ts">
   import Icon from "@iconify/svelte";
   import { validate_url } from "$lib/builder/utilities";
@@ -16309,11 +16307,9 @@
                   class="object-cover object-center"
                 />
               {/if}
-              <Avatar.Fallback
-                >{(user.name || user.email)
-                  .slice(0, 2)
-                  .toUpperCase()}</Avatar.Fallback
-              >
+              <Avatar.Fallback>
+                {(user.name || user.email).slice(0, 2).toUpperCase()}
+              </Avatar.Fallback>
             </Avatar.Root>
           {/each}
         </div>
@@ -18183,7 +18179,7 @@
   }
 </style>
 
-=== 9814 src/lib/components/BlockPickerPanel.svelte	svelte
+=== 9842 src/lib/components/BlockPickerPanel.svelte	svelte
 <script lang="ts">
   import { tick } from "svelte";
   import { flip } from "svelte/animate";
@@ -18434,15 +18430,15 @@
       <div>
         <span>Selected Blocks</span>
         {#if selected_symbols.length > 0}
-          <span class="text-xs text-muted-foreground"
-            >({selected_symbols.length})</span
-          >
+          <span class="text-xs text-muted-foreground">
+            ({selected_symbols.length})
+          </span>
         {/if}
       </div>
       {#if selected_symbols.length > 0}
-        <button class="text-xs underline" onclick={() => (selected = [])}
-          >Clear</button
-        >
+        <button class="text-xs underline" onclick={() => (selected = [])}>
+          Clear
+        </button>
       {/if}
     </div>
     {#if selected_symbols.length > 0}
@@ -18452,8 +18448,10 @@
             <SymbolButton {symbol} />
             <button
               class="absolute top-2 right-2 text-xs bg-background/80 border rounded px-1"
-              onclick={() => remove_block(symbol.id)}>Remove</button
+              onclick={() => remove_block(symbol.id)}
             >
+              Remove
+            </button>
           </div>
         {/each}
       </div>
@@ -18465,7 +18463,7 @@
   </div>
 </Tabs.Root>
 
-=== 31893 src/lib/components/CreateSite.svelte	svelte
+=== 31997 src/lib/components/CreateSite.svelte	svelte
 <script lang="ts">
   import {
     Loader,
@@ -18948,8 +18946,10 @@
         <span
           class="text-sm {step === 'name'
             ? 'text-foreground font-medium'
-            : 'text-muted-foreground'}">Enter Name</span
+            : 'text-muted-foreground'}"
         >
+          Enter Name
+        </span>
       </button>
 
       <div class="border-t border-border h-px flex-1"></div>
@@ -18978,8 +18978,10 @@
         <span
           class="text-sm {step === 'starter'
             ? 'text-foreground font-medium'
-            : 'text-muted-foreground'}">Choose a Starter</span
+            : 'text-muted-foreground'}"
         >
+          Choose a Starter
+        </span>
       </button>
       <div class="border-t border-border h-px flex-1"></div>
 
@@ -19007,8 +19009,10 @@
         <span
           class="text-sm {step === 'blocks'
             ? 'text-foreground font-medium'
-            : 'text-muted-foreground'}">Add Blocks (optional)</span
+            : 'text-muted-foreground'}"
         >
+          Add Blocks (optional)
+        </span>
       </button>
     </div>
   </div>
@@ -19110,16 +19114,18 @@
                   <div class="rounded-md border bg-muted/50 p-2 space-y-2">
                     <div class="flex items-center gap-2">
                       <Check class="h-4 w-4 text-primary flex-shrink-0" />
-                      <span class="text-xs truncate"
-                        >{uploaded_snapshot_file.name}</span
-                      >
+                      <span class="text-xs truncate">
+                        {uploaded_snapshot_file.name}
+                      </span>
                     </div>
                     <Button
                       variant="ghost"
                       size="sm"
                       class="w-full h-7 text-xs"
-                      onclick={clear_uploaded_file}>Remove</Button
+                      onclick={clear_uploaded_file}
                     >
+                      Remove
+                    </Button>
                   </div>
                 {:else}
                   <label
@@ -19960,9 +19966,9 @@
           {instance.dev_mode
             ? "Your website will be previewed at"
             : "Your website will be published to"}
-          <a href="{page.url.protocol}//{site_host}" target="_blank"
-            >{site_host}</a
-          >
+          <a href="{page.url.protocol}//{site_host}" target="_blank">
+            {site_host}
+          </a>
         </p>
       {:else if instance.dev_mode}
         <p class="description">Ready to preview your website changes?</p>
@@ -19989,15 +19995,15 @@
                 : "entypo:publish"}
             class={$mod_key_held && !loading ? "invisible" : ""}
           />
-          <span class:invisible={$mod_key_held && !loading}
-            >{loading
+          <span class:invisible={$mod_key_held && !loading}>
+            {loading
               ? instance.dev_mode
                 ? "Building..."
                 : "Publishing..."
               : instance.dev_mode
                 ? "Build Preview"
-                : "Publish Changes"}</span
-          >
+                : "Publish Changes"}
+          </span>
           {#if $mod_key_held && !loading}
             <span class="key-hint">⌘P</span>
           {/if}
@@ -20014,9 +20020,9 @@
           {instance.dev_mode
             ? "Your website preview is ready at"
             : "Your website changes have been published to"}
-          <a href="{page.url.protocol}//{site_host}" target="_blank"
-            >{site_host}</a
-          >
+          <a href="{page.url.protocol}//{site_host}" target="_blank">
+            {site_host}
+          </a>
         {:else if instance.dev_mode}
           Your website preview is ready on your local server.
         {:else}
@@ -23259,9 +23265,9 @@
     <div class="box">
       {#if stage === "signin"}
         {#snippet footer()}
-          <button onclick={() => (stage = "reset_password")}
-            >Forgot your password?</button
-          >
+          <button onclick={() => (stage = "reset_password")}>
+            Forgot your password?
+          </button>
         {/snippet}
         <AuthForm action="sign_in" title="Sign In" bind:email {footer} />
       {:else if stage === "reset_password"}
@@ -23378,7 +23384,7 @@
   });
 </script>
 
-=== 24195 src/routes/dashboard/library/+page.svelte	svelte
+=== 24235 src/routes/dashboard/library/+page.svelte	svelte
 <script lang="ts">
   import * as Sidebar from "$lib/components/ui/sidebar";
   import * as Dialog from "$lib/components/ui/dialog";
@@ -23675,8 +23681,10 @@
         <Button
           type="button"
           variant="outline"
-          onclick={() => (is_rename_open = false)}>Cancel</Button
+          onclick={() => (is_rename_open = false)}
         >
+          Cancel
+        </Button>
         <Button type="submit">Rename</Button>
       </Dialog.Footer>
     </form>
@@ -23688,9 +23696,9 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Are you sure?</AlertDialog.Title>
       <AlertDialog.Description>
-        This action cannot be undone. This will permanently delete <strong
-          >{active_symbol_group?.name}</strong
-        >
+        This action cannot be undone. This will permanently delete <strong>
+          {active_symbol_group?.name}
+        </strong>
         and
         <strong>all</strong>
         it's blocks.
@@ -23994,8 +24002,10 @@
         <Button
           type="button"
           variant="outline"
-          onclick={() => (is_symbol_renamer_open = false)}>Cancel</Button
+          onclick={() => (is_symbol_renamer_open = false)}
         >
+          Cancel
+        </Button>
         <Button type="submit">Rename</Button>
       </Dialog.Footer>
     </form>
@@ -24007,9 +24017,9 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Are you sure?</AlertDialog.Title>
       <AlertDialog.Description>
-        This action cannot be undone. This will permanently delete <strong
-          >{symbol_being_deleted?.name}</strong
-        >
+        This action cannot be undone. This will permanently delete <strong>
+          {symbol_being_deleted?.name}
+        </strong>
         and remove all associated data.
       </AlertDialog.Description>
     </AlertDialog.Header>
@@ -24147,9 +24157,9 @@
     </div>
 
     <Dialog.Footer class="mt-6">
-      <Button type="button" onclick={() => (is_info_dialog_open = false)}
-        >Got it</Button
-      >
+      <Button type="button" onclick={() => (is_info_dialog_open = false)}>
+        Got it
+      </Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
@@ -24613,14 +24623,14 @@
     </div>
 
     <Dialog.Footer class="mt-6">
-      <Button type="button" onclick={() => (is_info_dialog_open = false)}
-        >Got it</Button
-      >
+      <Button type="button" onclick={() => (is_info_dialog_open = false)}>
+        Got it
+      </Button>
     </Dialog.Footer>
   </Dialog.Content>
 </Dialog.Root>
 
-=== 16726 src/routes/dashboard/sites/+page.svelte	svelte
+=== 16754 src/routes/dashboard/sites/+page.svelte	svelte
 <script lang="ts">
   import * as Dialog from "$lib/components/ui/dialog";
   import * as Sidebar from "$lib/components/ui/sidebar";
@@ -24868,9 +24878,9 @@
   </div>
   <div class="ml-auto mr-4 flex items-center gap-3">
     {#if instance.site_cap}
-      <span class="text-xs text-muted-foreground"
-        >{all_sites.length} of {instance.site_cap} sites</span
-      >
+      <span class="text-xs text-muted-foreground">
+        {all_sites.length} of {instance.site_cap} sites
+      </span>
     {/if}
     <Button
       size="sm"
@@ -24916,8 +24926,10 @@
       <div class="flex flex-col gap-1" style="max-width: calc(100% - 2rem)">
         <a
           href={site_editor_url(site)}
-          class="text-sm font-medium leading-none truncate">{site.name}</a
+          class="text-sm font-medium leading-none truncate"
         >
+          {site.name}
+        </a>
         <p class="text-xs text-muted-foreground leading-tight truncate">
           {is_host_assigned(site) ? site.host : "Unassigned"}
         </p>
@@ -24943,11 +24955,9 @@
             }}
           >
             <Globe class="h-4 w-4" />
-            <span
-              >{is_host_assigned(site)
-                ? "Change domain"
-                : "Assign domain"}</span
-            >
+            <span>
+              {is_host_assigned(site) ? "Change domain" : "Assign domain"}
+            </span>
           </DropdownMenu.Item>
           {#if site_groups.length > 1}
             <DropdownMenu.Item
@@ -25004,8 +25014,10 @@
         <Button
           type="button"
           variant="outline"
-          onclick={() => (is_rename_group_open = false)}>Cancel</Button
+          onclick={() => (is_rename_group_open = false)}
         >
+          Cancel
+        </Button>
         <Button type="submit">Rename</Button>
       </Dialog.Footer>
     </form>
@@ -25017,9 +25029,9 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Are you sure?</AlertDialog.Title>
       <AlertDialog.Description>
-        This action cannot be undone. This will permanently delete <strong
-          >{active_site_group?.name}</strong
-        >
+        This action cannot be undone. This will permanently delete <strong>
+          {active_site_group?.name}
+        </strong>
         and
         <strong>all</strong>
         its sites.
@@ -25083,8 +25095,10 @@
         <Button
           type="button"
           variant="outline"
-          onclick={() => (is_rename_site_open = false)}>Cancel</Button
+          onclick={() => (is_rename_site_open = false)}
         >
+          Cancel
+        </Button>
         <Button type="submit">Rename</Button>
       </Dialog.Footer>
     </form>
@@ -25102,9 +25116,9 @@
     <AlertDialog.Header>
       <AlertDialog.Title>Are you sure?</AlertDialog.Title>
       <AlertDialog.Description>
-        This action cannot be undone. This will permanently delete <strong
-          >{current_site?.name}</strong
-        >
+        This action cannot be undone. This will permanently delete <strong>
+          {current_site?.name}
+        </strong>
         and remove all associated data.
       </AlertDialog.Description>
     </AlertDialog.Header>

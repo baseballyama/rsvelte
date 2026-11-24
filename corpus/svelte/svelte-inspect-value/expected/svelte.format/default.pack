@@ -265,9 +265,9 @@
           </svg>
         </button>
       </div>
-      <span style="text-align: left; width: 100%; margin-left: 1.5rem;"
-        >Global Options</span
-      >
+      <span style="text-align: left; width: 100%; margin-left: 1.5rem;">
+        Global Options
+      </span>
       <a href="/api/type-aliases/inspectoptions" style="text-decoration: none;">
         docs
       </a>
@@ -286,22 +286,22 @@
       </label>
       <OptionToggle key="borderless">borderless</OptionToggle>
 
-      <OptionToggle key="parseJson" title="parse json strings"
-        >parse json</OptionToggle
-      >
-      <OptionToggle key="noanimate" title="disable animation"
-        >noanimate</OptionToggle
-      >
+      <OptionToggle key="parseJson" title="parse json strings">
+        parse json
+      </OptionToggle>
+      <OptionToggle key="noanimate" title="disable animation">
+        noanimate
+      </OptionToggle>
       <OptionToggle key="showTypes" title="show types">types</OptionToggle>
-      <OptionToggle key="showLength" title="show lengths / number of entries"
-        >lengths</OptionToggle
-      >
-      <OptionToggle key="showTools" title="show tools on row hover"
-        >tools</OptionToggle
-      >
-      <OptionToggle key="showPreview" title="enable entry previews"
-        >preview</OptionToggle
-      >
+      <OptionToggle key="showLength" title="show lengths / number of entries">
+        lengths
+      </OptionToggle>
+      <OptionToggle key="showTools" title="show tools on row hover">
+        tools
+      </OptionToggle>
+      <OptionToggle key="showPreview" title="enable entry previews">
+        preview
+      </OptionToggle>
 
       <label>
         preview depth
@@ -339,9 +339,9 @@
         easing
         <select bind:value={globalOpts.easing}>
           {#each Object.keys(easings) as easing}
-            <option value={easings[easing as keyof typeof easings]}
-              >{easing}</option
-            >
+            <option value={easings[easing as keyof typeof easings]}>
+              {easing}
+            </option>
           {/each}
         </select>
       </label>
@@ -830,12 +830,12 @@
     </svg>
   </button>
 
-  <button disabled={!history.canUndo} onclick={() => history.undo()}
-    >Undo</button
-  >
-  <button disabled={!history.canRedo} onclick={() => history.redo()}
-    >Redo</button
-  >
+  <button disabled={!history.canUndo} onclick={() => history.undo()}>
+    Undo
+  </button>
+  <button disabled={!history.canRedo} onclick={() => history.redo()}>
+    Redo
+  </button>
 </div>
 
 <Inspect values={{ style, history: history.log.map((h) => h.snapshot) }} />
@@ -865,9 +865,9 @@
 {"/>"}
 </pre>
 
-<em
-  >Note: these code blocks are updated with colors set in the theme editor above</em
->
+<em>
+  Note: these code blocks are updated with colors set in the theme editor above
+</em>
 
 <h2 id="extended-theming">Extended customization</h2>
 
@@ -1388,9 +1388,9 @@ Result:
 </script>
 
 <div class="editor">
-  <button class="reset-button" onclick={() => reset()} style="float: right;"
-    >reset</button
-  >
+  <button class="reset-button" onclick={() => reset()} style="float: right;">
+    reset
+  </button>
 
   <Editor
     bind:this={editor}
@@ -2835,9 +2835,9 @@ Result:
           />
           {todo.description}
           <button onclick={() => remove(todo)}>x</button>
-          <button onclick={() => addToPanel(`todo.${todo.id}`, () => todo)}
-            >i</button
-          >
+          <button onclick={() => addToPanel(`todo.${todo.id}`, () => todo)}>
+            i
+          </button>
         </label>
       {/each}
     </div>
@@ -3081,9 +3081,9 @@ Result:
           />
           {todo.description}
           <button onclick={() => remove(todo)}>x</button>
-          <button onclick={() => addToPanel(`todo.${todo.id}`, () => todo)}
-            >i</button
-          >
+          <button onclick={() => addToPanel(`todo.${todo.id}`, () => todo)}>
+            i
+          </button>
         </label>
       {/each}
     </div>
@@ -3452,9 +3452,9 @@ Result:
 
 <div class="wrapper" class:valid>
   <div class="ace" bind:this={div}></div>
-  <span
-    >{#if message}{message}{/if}</span
-  >
+  <span>
+    {#if message}{message}{/if}
+  </span>
 </div>
 
 <style>
@@ -3490,7 +3490,7 @@ Result:
   }
 </style>
 
-=== 2953 packages/svelte/src/doclib/Code.svelte	svelte
+=== 2962 packages/svelte/src/doclib/Code.svelte	svelte
 <script lang="ts">
   import Copy from "$doclib/icons/Copy.svelte";
   import Inspect from "$lib/Inspect.svelte";
@@ -3545,8 +3545,9 @@ Result:
       {#if label}
         <div class="label">{label}</div>
       {/if}
-      <button class:copied onclick={copyCode} title="copy code"><Copy /></button
-      >
+      <button class:copied onclick={copyCode} title="copy code">
+        <Copy />
+      </button>
     </div>
 
     {#if children}
@@ -5892,8 +5893,8 @@ Initializes collapse state and provides function for building search index
       title={handleLabel}
     >
       <div class="caret">
-        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024"
-          ><path
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1024 1024">
+          <path
             stroke="currentColor"
             stroke-width={openOnHover ? (open ? 0 : 80) : 0}
             stroke-linecap="butt"
@@ -5904,8 +5905,8 @@ Initializes collapse state and provides function for building search index
                 : "transparent"
               : "currentColor"}
             d="M715.8 493.5L335 165.1c-14.2-12.2-35-1.2-35 18.5v656.8c0 19.7 20.8 30.7 35 18.5l380.8-328.4c10.9-9.4 10.9-27.6 0-37"
-          /></svg
-        >
+          />
+        </svg>
       </div>
     </button>
     {#if !hideToolbar}
@@ -5964,9 +5965,9 @@ Initializes collapse state and provides function for building search index
             global values
           {/snippet}
           {#snippet headingExtra()}
-            <NodeActionButton onclick={() => globalValues.clear()}
-              >clear</NodeActionButton
-            >
+            <NodeActionButton onclick={() => globalValues.clear()}>
+              clear
+            </NodeActionButton>
           {/snippet}
           {#each globalValues as [key, entry] (key)}
             <Node
@@ -6598,7 +6599,7 @@ Initializes collapse state and provides function for building search index
   }
 </style>
 
-=== 1240 packages/svelte/src/lib/PanelValue.svelte	svelte
+=== 1260 packages/svelte/src/lib/PanelValue.svelte	svelte
 <script lang="ts">
   import NodeActionButton from "./components/NodeActionButton.svelte";
   import { addToPanel, globalValues } from "./global.svelte.js";
@@ -6632,15 +6633,17 @@ Initializes collapse state and provides function for building search index
   <Wrapper class={["borderless"]} style="max-width: 2em; min-width: 2em;">
     <div style="padding: 2px;">
       {#if !globalValues.has(key) && globalInspectState.mounted.size}
-        <NodeActionButton title="Add to panel" onclick={setAsPanelValue}
-          >+</NodeActionButton
-        >
+        <NodeActionButton title="Add to panel" onclick={setAsPanelValue}>
+          +
+        </NodeActionButton>
       {/if}
       {#if globalValues.has(key)}
         <NodeActionButton
           title="Remove from panel"
-          onclick={() => globalValues.delete(key)}>-</NodeActionButton
+          onclick={() => globalValues.delete(key)}
         >
+          -
+        </NodeActionButton>
       {/if}
     </div>
   </Wrapper>
@@ -7089,9 +7092,9 @@ Initializes collapse state and provides function for building search index
     >
       <svelte:boundary onerror={console.error}>
         {#snippet failed(_, reset)}
-          root error (see console) <NodeActionButton onclick={reset}
-            >reset</NodeActionButton
-          >
+          root error (see console) <NodeActionButton onclick={reset}>
+            reset
+          </NodeActionButton>
         {/snippet}
         {@render children()}
       </svelte:boundary>
@@ -8340,9 +8343,9 @@ Initializes collapse state and provides function for building search index
     })}
 
     {#if note && !previewLevel}
-      <NodeNote style="justify-self: right;" title={note.description}
-        >{note.title}</NodeNote
-      >
+      <NodeNote style="justify-self: right;" title={note.description}>
+        {note.title}
+      </NodeNote>
     {/if}
 
     {#if typeof length === "number" && showLength && optsShowLength && !previewLevel}
@@ -8507,7 +8510,7 @@ Initializes collapse state and provides function for building search index
   }
 </style>
 
-=== 1723 packages/svelte/src/lib/components/FunctionView.svelte	svelte
+=== 1732 packages/svelte/src/lib/components/FunctionView.svelte	svelte
 <script lang="ts">
   import { BROWSER } from "esm-env";
   import { getPreviewLevel } from "../contexts.js";
@@ -8558,8 +8561,9 @@ Initializes collapse state and provides function for building search index
 >
   {#snippet valuePreview({ showPreview }: { showPreview: boolean })}
     {#if previewLevel}
-      <span title={value.name} class="preview value function">{value.name}</span
-      >
+      <span title={value.name} class="preview value function">
+        {value.name}
+      </span>
     {:else if showPreview && isMultiLine && BROWSER}
       <FunctionBody value={oneLine} inline />
     {:else if BROWSER && !isMultiLine}
@@ -8943,9 +8947,9 @@ Initializes collapse state and provides function for building search index
 
 {#if BROWSER}
   <!-- eslint-disable-next-line svelte/no-at-html-tags -->
-  <code data-testid="value" class="value html hl" title=""
-    >{@html highlighted}</code
-  >
+  <code data-testid="value" class="value html hl" title="">
+    {@html highlighted}
+  </code>
 {/if}
 
 <style>
@@ -10759,9 +10763,9 @@ Initializes collapse state and provides function for building search index
       {...rest}
     >
       {#if prefix}
-        <span class="pre level-{previewLevel}" style={bracketStyle}
-          >{prefix}</span
-        >
+        <span class="pre level-{previewLevel}" style={bracketStyle}>
+          {prefix}
+        </span>
       {/if}
       <div
         class="inner"
@@ -10800,9 +10804,9 @@ Initializes collapse state and provides function for building search index
       </div>
       {#if hasMore}{@render comma()}<span class="ellipsis">&hellip;</span>{/if}
       {#if postfix}
-        <span class="post level-{previewLevel}" style={bracketStyle}
-          >{postfix}</span
-        >
+        <span class="post level-{previewLevel}" style={bracketStyle}>
+          {postfix}
+        </span>
       {/if}
     </div>
   </svelte:boundary>
@@ -11094,7 +11098,7 @@ Initializes collapse state and provides function for building search index
   }
 </style>
 
-=== 1701 packages/svelte/src/lib/components/PropertyList.svelte	svelte
+=== 1709 packages/svelte/src/lib/components/PropertyList.svelte	svelte
 <script
   lang="ts"
   generics="T, Key = T extends Map<infer K, unknown> ? K : (keyof T | PropertyKey)"
@@ -11160,8 +11164,10 @@ Initializes collapse state and provides function for building search index
     style="margin-left: 2em; text-align: center; margin-bottom: 0.5em; width: calc(100% - 5em)"
     onclick={() => {
       max += paging;
-    }}>{Math.abs(max - keys.length)} more</NodeActionButton
+    }}
   >
+    {Math.abs(max - keys.length)} more
+  </NodeActionButton>
 {/if}
 
 === 1274 packages/svelte/src/lib/components/RegexpView.svelte	svelte
@@ -12612,7 +12618,7 @@ Initializes collapse state and provides function for building search index
   />
 </svg>
 
-=== 389 packages/svelte/src/lib/components/icons/CircleSolid.svelte	svelte
+=== 390 packages/svelte/src/lib/components/icons/CircleSolid.svelte	svelte
 <script lang="ts">
   import { scale } from "svelte/transition";
 </script>
@@ -12621,11 +12627,12 @@ Initializes collapse state and provides function for building search index
   in:scale={{ opacity: 1 }}
   xmlns="http://www.w3.org/2000/svg"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M12 22q-2.075 0-3.9-.788t-3.175-2.137T2.788 15.9T2 12t.788-3.9t2.137-3.175T8.1 2.788T12 2t3.9.788t3.175 2.137T21.213 8.1T22 12t-.788 3.9t-2.137 3.175t-3.175 2.138T12 22"
-  /></svg
->
+  />
+</svg>
 
 === 939 packages/svelte/src/lib/components/icons/ClipBoardIcon.svelte	svelte
 <!-- @component ClipBoardIcon
@@ -12667,14 +12674,14 @@ Initializes collapse state and provides function for building search index
 </svg>
 
 === 394 packages/svelte/src/lib/components/icons/CloseIcon.svelte	svelte
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-  ><path
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <path
     fill="currentColor"
     d="m12 13.4l-4.9 4.9q-.275.275-.7.275t-.7-.275t-.275-.7t.275-.7l4.9-4.9l-4.9-4.9q-.275-.275-.275-.7t.275-.7t.7-.275t.7.275l4.9 4.9l4.9-4.9q.275-.275.7-.275t.7.275t.275.7t-.275.7L13.4 12l4.9 4.9q.275.275.275.7t-.275.7t-.7.275t-.7-.275z"
     stroke-width="0.5"
     stroke="currentColor"
-  /></svg
->
+  />
+</svg>
 
 === 313 packages/svelte/src/lib/components/icons/Console.svelte	svelte
 <!-- @component ConsoleIcon
@@ -12794,37 +12801,38 @@ Initializes collapse state and provides function for building search index
 </style>
 
 === 181 packages/svelte/src/lib/components/icons/Fullscreen.svelte	svelte
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-  ><path
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <path
     fill="currentColor"
     d="M3 21v-5h2v3h3v2zm13 0v-2h3v-3h2v5zM3 8V3h5v2H5v3zm16 0V5h-3V3h5v5z"
-  /></svg
->
+  />
+</svg>
 
 === 181 packages/svelte/src/lib/components/icons/FullscreenExit.svelte	svelte
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-  ><path
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <path
     fill="currentColor"
     d="M6 21v-3H3v-2h5v5zm10 0v-5h5v2h-3v3zM3 8V6h3V3h2v5zm13 0V3h2v3h3v2z"
-  /></svg
->
+  />
+</svg>
 
-=== 544 packages/svelte/src/lib/components/icons/LinkIcon.svelte	svelte
+=== 545 packages/svelte/src/lib/components/icons/LinkIcon.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1.15em"
   height="1.15em"
   viewBox="0 0 16 16"
-  ><g fill="currentColor"
-    ><path
+>
+  <g fill="currentColor">
+    <path
       d="M4.715 6.542L3.343 7.914a3 3 0 1 0 4.243 4.243l1.828-1.829A3 3 0 0 0 8.586 5.5L8 6.086a1 1 0 0 0-.154.199a2 2 0 0 1 .861 3.337L6.88 11.45a2 2 0 1 1-2.83-2.83l.793-.792a4 4 0 0 1-.128-1.287z"
     /><path
       d="M6.586 4.672A3 3 0 0 0 7.414 9.5l.775-.776a2 2 0 0 1-.896-3.346L9.12 3.55a2 2 0 1 1 2.83 2.83l-.793.792c.112.42.155.855.128 1.287l1.372-1.372a3 3 0 1 0-4.243-4.243z"
-    /></g
-  ></svg
->
+    />
+  </g>
+</svg>
 
-=== 801 packages/svelte/src/lib/components/icons/OpacityIcon.svelte	svelte
+=== 802 packages/svelte/src/lib/components/icons/OpacityIcon.svelte	svelte
 <script lang="ts">
   import { useOptions } from "../../options.svelte.js";
   import { scale } from "svelte/transition";
@@ -12836,7 +12844,8 @@ Initializes collapse state and provides function for building search index
   in:scale={{ opacity: 1, duration: options.transitionDuration }}
   xmlns="http://www.w3.org/2000/svg"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M18 10V8h2v2zm0 2v-2h-2v2zm0-4V6h-2v2zm-2-5.16V4h2c-.63-.46-1.29-.85-2-1.16M18 4v2h2c-.58-.75-1.25-1.42-2-2m2 2v2h1.16c-.31-.71-.7-1.37-1.16-2m2 6c0-.68-.07-1.35-.2-2H20v2zm-6-6V4h-2v2zm0 10h2v-2h-2zm2 2h2v-2h-2zm-2 2h2v-2h-2zm-2 1.8c.7-.14 1.36-.36 2-.64V20h-2zm4-7.8h2v-2h-2zm-2-6h-2v2h2zm4 8h1.16c.28-.64.5-1.3.64-2H20zm-4-4h-2v2h2zm-4 6v-2h2v-2h-2v-2h2v-2h-2V8h2V6h-2V4h2V2.2c-.65-.13-1.31-.2-2-.2C6.5 2 2 6.5 2 12s4.5 10 10 10v-2h2v-2zm2 0h2v-2h-2z"
   />
@@ -12916,14 +12925,14 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
 </svg>
 
 === 427 packages/svelte/src/lib/components/icons/SearchIcon.svelte	svelte
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"
-  ><path
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24">
+  <path
     fill="currentColor"
     d="M9.5 16q-2.725 0-4.612-1.888T3 9.5t1.888-4.612T9.5 3t4.613 1.888T16 9.5q0 1.1-.35 2.075T14.7 13.3l5.6 5.6q.275.275.275.7t-.275.7t-.7.275t-.7-.275l-5.6-5.6q-.75.6-1.725.95T9.5 16m0-2q1.875 0 3.188-1.312T14 9.5t-1.312-3.187T9.5 5T6.313 6.313T5 9.5t1.313 3.188T9.5 14"
     stroke-width="0.5"
     stroke="currentColor"
-  /></svg
->
+  />
+</svg>
 
 === 14226 packages/svelte/src/routes/(app)/+layout.svelte	svelte
 <script lang="ts">
@@ -13302,8 +13311,8 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
         <a href="/" class="title">
           <h1 aria-label="Svelte Inspect Value" class="header-lib-title">
             Svelte
-            <code
-              >&lt;<span class="inspect">Inspect</span>
+            <code>
+              &lt;<span class="inspect">Inspect</span>
               {"{"}<span class="value">value</span>} /&gt;
             </code>
           </h1>
@@ -13587,7 +13596,7 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
   }
 </style>
 
-=== 5044 packages/svelte/src/routes/(app)/GlobalOptions.svelte	svelte
+=== 5056 packages/svelte/src/routes/(app)/GlobalOptions.svelte	svelte
 <script lang="ts">
   import type { InspectOptions } from "$lib/options.svelte.js";
   import ToggleButton from "./ToggleButton.svelte";
@@ -13602,8 +13611,10 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
   <div class="options-title">
     global options (<a
       href="/docs/types/InspectOptions"
-      style="text-decoration: none;">docs</a
-    >)
+      style="text-decoration: none;"
+    >
+      docs
+    </a>)
   </div>
 
   <button class="reset-button" onclick={onreset}> reset </button>
@@ -13634,9 +13645,9 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
 
   <ToggleButton bind:checked={options.borderless}>borderless</ToggleButton>
 
-  <ToggleButton bind:checked={options.flashOnUpdate}
-    >flash on update</ToggleButton
-  >
+  <ToggleButton bind:checked={options.flashOnUpdate}>
+    flash on update
+  </ToggleButton>
 
   <ToggleButton bind:checked={options.embedMedia}>embed media</ToggleButton>
 
@@ -13724,9 +13735,9 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
   </label>
 
   {#if options.search}
-    <ToggleButton bind:checked={options.highlightMatches}
-      >highlight</ToggleButton
-    >
+    <ToggleButton bind:checked={options.highlightMatches}>
+      highlight
+    </ToggleButton>
   {/if}
 </div>
 
@@ -14118,9 +14129,9 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
 {#if data.meta.children}
   <div class="toc">
     {#if data.meta.title}
-      <a href="#{data.meta.title[0]}" style="font-weight: bold;"
-        >{data.meta.title[1]}</a
-      >
+      <a href="#{data.meta.title[0]}" style="font-weight: bold;">
+        {data.meta.title[1]}
+      </a>
     {/if}
     {#each data.meta.children as [id, title] (id)}
       <a href="#{id}">- {title}</a>
@@ -14679,9 +14690,9 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
         />
         {todo.description}
         <button onclick={() => remove(todo)}>x</button>
-        <button onclick={() => addToPanel(`todo.${todo.id}`, () => todo)}
-          >i</button
-        >
+        <button onclick={() => addToPanel(`todo.${todo.id}`, () => todo)}>
+          i
+        </button>
       </label>
     {/each}
   </div>
@@ -14803,9 +14814,9 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
 
 <div class="flex row">
   <button onclick={() => (array = [...array, array.length])}>+</button>
-  <button onclick={() => (array = array.filter((n) => n !== array.length - 1))}
-    >-</button
-  >
+  <button onclick={() => (array = array.filter((n) => n !== array.length - 1))}>
+    -
+  </button>
 </div>
 
 <Inspect values={{ array }} expandLevel={0} />
@@ -15016,7 +15027,7 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
 <ConfiguredInspect.Expand10 we are boolean props />
 <DarkInspect msg="i will have dark theme and whatever options i inherit" />
 
-=== 1875 packages/svelte/src/routes/(app)/testing/search/+page.svelte	svelte
+=== 1879 packages/svelte/src/routes/(app)/testing/search/+page.svelte	svelte
 <script lang="ts">
   import Inspect from "$lib/index.js";
   import { generateNestedNeedle, type NestedStructure } from "./haystack.js";
@@ -15063,8 +15074,10 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
 <button
   onclick={() => {
     value = generateNestedNeedle(maxDepth);
-  }}>generate</button
+  }}
 >
+  generate
+</button>
 
 <input type="number" bind:value={maxDepth} min="1" />
 
@@ -15169,7 +15182,7 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
 
 <!-- <Inspect.Values.Config.Borderless.Ok msg="quick config!" /> -->
 
-=== 10664 packages/svelte/src/routes/(app)/theming/define/+page.svelte	svelte
+=== 10704 packages/svelte/src/routes/(app)/theming/define/+page.svelte	svelte
 <script lang="ts">
   import DevOnly from "$lib/components/DevOnly.svelte";
   import Console from "$lib/components/icons/Console.svelte";
@@ -15318,8 +15331,10 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
               } else {
                 lockedColors.push(key);
               }
-            }}><small>{locked ? "unlock" : "lock"}</small></button
+            }}
           >
+            <small>{locked ? "unlock" : "lock"}</small>
+          </button>
         </DevOnly>
       </label>
     {/each}
@@ -15383,14 +15398,18 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
     class="unstyled"
     type="button"
     disabled={steps[currentStep - 1] == null}
-    onclick={undo}>undo</button
+    onclick={undo}
   >
+    undo
+  </button>
   <button
     class="unstyled"
     type="button"
     disabled={steps[currentStep + 1] == null}
-    onclick={redo}>redo</button
+    onclick={redo}
   >
+    redo
+  </button>
 </div>
 
 <HueRotate
@@ -15584,7 +15603,7 @@ Result:
   }
 </style>
 
-=== 911 packages/svelte/src/routes/(app)/theming/define/HueRotate.svelte	svelte
+=== 927 packages/svelte/src/routes/(app)/theming/define/HueRotate.svelte	svelte
 <script lang="ts">
   let {
     rotation = $bindable(0),
@@ -15622,15 +15641,19 @@ Result:
     title="clear rotation"
     class="unstyled"
     disabled={rotation === 0}
-    onclick={oncancel}>cancel</button
+    onclick={oncancel}
   >
+    cancel
+  </button>
   <button
     type="button"
     title="apply rotation"
     disabled={rotation === 0}
     class="unstyled"
-    onclick={onapply}>apply</button
+    onclick={onapply}
   >
+    apply
+  </button>
 </div>
 
 === 4270 packages/svelte/src/routes/(app)/theming/define/Theming.svelte	svelte

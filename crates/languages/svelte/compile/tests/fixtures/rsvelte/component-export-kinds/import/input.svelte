@@ -29,4 +29,3 @@
 <DispatchedEvents foo="s" />
 <ForwardedEvents foo="s" />
 <StoreNamedState foo="s" />
-<!-- The `{ [evt: string]: CustomEvent<any> }` event types in the findings for DispatchedEvents and ForwardedEvents (15:150, 15:168) are https://github.com/baseballyama/rsvelte/issues/5107, not the oracle. -->

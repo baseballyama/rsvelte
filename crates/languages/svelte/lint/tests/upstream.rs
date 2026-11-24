@@ -108,6 +108,8 @@ struct LanguageOptions {
 struct ParserOptions {
     #[serde(rename = "svelteConfig")]
     svelte_config: Option<CaseSvelteConfig>,
+    #[serde(rename = "svelteFeatures")]
+    svelte_features: Option<CaseSvelteFeatures>,
     /// The parser of `<script>`; this crate has one parser for JavaScript and TypeScript.
     #[serde(rename = "parser")]
     _parser: Option<IgnoredAny>,
@@ -120,6 +122,30 @@ struct ParserOptions {
 #[serde(deny_unknown_fields)]
 struct CaseSvelteConfig {
     kit: Option<Kit>,
+    #[serde(rename = "compilerOptions")]
+    compiler_options: Option<CaseCompilerOptions>,
+}
+
+/// The parser's own `runes`, which wins over `<svelte:options>`. The cases that set it have no
+/// `<svelte:options runes>` and no rule that compiles, so it is `compilerOptions.runes` here.
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CaseSvelteFeatures {
+    runes: Option<bool>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CaseCompilerOptions {
+    runes: Option<bool>,
+    experimental: Option<CaseExperimental>,
+}
+
+#[derive(Deserialize)]
+#[serde(deny_unknown_fields)]
+struct CaseExperimental {
+    #[serde(rename = "async")]
+    asynchronous: Option<bool>,
 }
 
 #[derive(Clone, Deserialize, PartialEq, Eq, Debug)]
@@ -392,8 +418,7 @@ fn run(case: &Case<'_>, deviation: Option<&Deviation>) -> Verdict {
     let settings: LintSettings = config
         .settings
         .and_then(|s| s.svelte)
-        .map(|raw| serde_json::from_str(raw.get()).expect("svelte settings"))
-        .unwrap_or_default();
+        .map_or_default(|raw| serde_json::from_str(raw.get()).expect("svelte settings"));
     let svelte_config = match svelte_config(case, config.language_options, javascript) {
         Ok(svelte_config) => svelte_config,
         Err(why) => return Verdict::Unmeasured(format!("a svelte.config.js {why}")),

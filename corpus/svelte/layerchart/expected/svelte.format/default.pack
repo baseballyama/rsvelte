@@ -11492,7 +11492,7 @@
   {/snippet}
 </BarChart>
 
-=== 2257 docs/src/examples/components/BarChart/histogram-date-time-count.svelte	svelte
+=== 2233 docs/src/examples/components/BarChart/histogram-date-time-count.svelte	svelte
 <script lang="ts">
   import {
     Chart,
@@ -11561,10 +11561,8 @@
     <Tooltip.Root>
       {#snippet children({ data })}
         <Tooltip.Header class="text-center">
-          {format(data.x0, "day") +
-            " - " +
-            format(data.x1, "day")}</Tooltip.Header
-        >
+          {format(data.x0, "day") + " - " + format(data.x1, "day")}
+        </Tooltip.Header>
         <Tooltip.List>
           <Tooltip.Item label="count" value={data.length} format="integer" />
           <Tooltip.Separator />
@@ -11581,7 +11579,7 @@
   {/snippet}
 </Chart>
 
-=== 2476 docs/src/examples/components/BarChart/histogram-date-time-interval.svelte	svelte
+=== 2452 docs/src/examples/components/BarChart/histogram-date-time-interval.svelte	svelte
 <script lang="ts">
   import { Chart, defaultChartPadding, Rect, Tooltip } from "layerchart";
   import { bin } from "d3-array";
@@ -11657,10 +11655,8 @@
     <Tooltip.Root>
       {#snippet children({ data })}
         <Tooltip.Header class="text-center">
-          {format(data.x0, "day") +
-            " - " +
-            format(data.x1, "day")}</Tooltip.Header
-        >
+          {format(data.x0, "day") + " - " + format(data.x1, "day")}
+        </Tooltip.Header>
         <Tooltip.List>
           <Tooltip.Item label="count" value={data.length} format="integer" />
           <Tooltip.Separator />
@@ -11727,9 +11723,9 @@
   {#snippet tooltip()}
     <Tooltip.Root>
       {#snippet children({ data })}
-        <Tooltip.Header class="text-center"
-          >{data.x0 + " - " + (data.x1 - 1)}</Tooltip.Header
-        >
+        <Tooltip.Header class="text-center">
+          {data.x0 + " - " + (data.x1 - 1)}
+        </Tooltip.Header>
         <Tooltip.List>
           <Tooltip.Item label="count" value={data.length} format="integer" />
           <Tooltip.Separator />
@@ -11793,9 +11789,9 @@
   {#snippet tooltip()}
     <Tooltip.Root>
       {#snippet children({ data })}
-        <Tooltip.Header class="text-center"
-          >{data.x0 + " - " + (data.x1 - 0.01)}</Tooltip.Header
-        >
+        <Tooltip.Header class="text-center">
+          {data.x0 + " - " + (data.x1 - 0.01)}
+        </Tooltip.Header>
         <Tooltip.List>
           <Tooltip.Item label="count" value={data.length} format="integer" />
           <Tooltip.Separator />
@@ -11865,9 +11861,9 @@
   {#snippet tooltip()}
     <Tooltip.Root>
       {#snippet children({ data })}
-        <Tooltip.Header class="text-center"
-          >{data.x0 + " - " + (data.x1 - 1)}</Tooltip.Header
-        >
+        <Tooltip.Header class="text-center">
+          {data.x0 + " - " + (data.x1 - 1)}
+        </Tooltip.Header>
         <Tooltip.List>
           <Tooltip.Item label="count" value={data.length} format="integer" />
           <Tooltip.Separator />
@@ -13532,15 +13528,15 @@
         <Tooltip.List>
           <Tooltip.Item label="male" color="var(--color-primary)">
             {format(data.male)}
-            <span class="text-xs text-surface-content/50"
-              >({format(data.male / totalPopulation, "percent")})</span
-            >
+            <span class="text-xs text-surface-content/50">
+              ({format(data.male / totalPopulation, "percent")})
+            </span>
           </Tooltip.Item>
           <Tooltip.Item label="female" color="var(--color-secondary)">
             {format(data.female)}
-            <span class="text-xs text-surface-content/50"
-              >({format(data.female / totalPopulation, "percent")})</span
-            >
+            <span class="text-xs text-surface-content/50">
+              ({format(data.female / totalPopulation, "percent")})
+            </span>
           </Tooltip.Item>
         </Tooltip.List>
       {/snippet}
@@ -13751,9 +13747,9 @@
             {@const value = Math.abs(valueAccessor(data))}
             <Tooltip.Item label={s.key} color={s.color}>
               {format(value)}
-              <span class="text-xs text-surface-content/50"
-                >({format(value / totalPopulation, "percent")})</span
-              >
+              <span class="text-xs text-surface-content/50">
+                ({format(value / totalPopulation, "percent")})
+              </span>
             </Tooltip.Item>
           {/each}
         </Tooltip.List>
@@ -18828,7 +18824,7 @@
   </Layer>
 </Chart>
 
-=== 1307 docs/src/examples/components/Brush/programmatic.svelte	svelte
+=== 1323 docs/src/examples/components/Brush/programmatic.svelte	svelte
 <script module lang="ts">
   import { getAppleStock } from "$lib/data.remote";
   const data = await getAppleStock();
@@ -18856,14 +18852,18 @@
     onclick={() => {
       const mid = Math.floor(data.length / 3);
       brush?.move({ x: [data[0].date, data[mid].date] });
-    }}>First Third</Button
+    }}
   >
+    First Third
+  </Button>
   <Button
     onclick={() => {
       const start = Math.floor((data.length / 3) * 2);
       brush?.move({ x: [data[start].date, data[data.length - 1].date] });
-    }}>Last Third</Button
+    }}
   >
+    Last Third
+  </Button>
   <Button onclick={() => brush?.selectAll()}>Select All</Button>
   <Button onclick={() => brush?.reset()}>Reset</Button>
 </ButtonGroup>
@@ -19159,10 +19159,10 @@
 <div
   class="flex items-center justify-between text-xs text-surface-content/50 mb-1 screenshot-hidden"
 >
-  <span
-    >Drag to pan · scroll to zoom · brush the overview above · gaps = idle / I/O
-    wait</span
-  >
+  <span>
+    Drag to pan · scroll to zoom · brush the overview above · gaps = idle / I/O
+    wait
+  </span>
   <Button
     size="sm"
     variant="fill-light"
@@ -19591,12 +19591,12 @@
 
 <div class="mb-2 text-sm">
   Window:
-  <span class="font-semibold"
-    >{selectedDays != null ? `${selectedDays} days` : "full range"}</span
-  >
-  <span class="text-surface-content/50"
-    >— drag the overview to brush; capped at {maxDays} days</span
-  >
+  <span class="font-semibold">
+    {selectedDays != null ? `${selectedDays} days` : "full range"}
+  </span>
+  <span class="text-surface-content/50">
+    — drag the overview to brush; capped at {maxDays} days
+  </span>
 </div>
 
 <!-- Detail — zooms to the (capped) brush selection -->
@@ -19675,9 +19675,9 @@
 
 <div class="mb-2 text-sm">
   Selection:
-  <span class="font-semibold"
-    >{selectedDays != null ? `${selectedDays} days` : "—"}</span
-  >
+  <span class="font-semibold">
+    {selectedDays != null ? `${selectedDays} days` : "—"}
+  </span>
   <span class="text-surface-content/50">
     — try to drag smaller than {minDays} or larger than {maxDays} days
   </span>
@@ -19815,7 +19815,7 @@
   </div>
 </div>
 
-=== 1593 docs/src/examples/components/BrushContext/programmatic-control.svelte	svelte
+=== 1617 docs/src/examples/components/BrushContext/programmatic-control.svelte	svelte
 <script module lang="ts">
   import { getAppleStock } from "$lib/data.remote";
   const data = await getAppleStock();
@@ -19835,23 +19835,29 @@
     onclick={() => {
       const mid = Math.floor(data.length / 3);
       context?.brush.move({ x: [data[0].date, data[mid].date] });
-    }}>First Third</Button
+    }}
   >
+    First Third
+  </Button>
   <Button
     onclick={() => {
       const start = Math.floor(data.length / 3);
       const end = Math.floor((data.length / 3) * 2);
       context?.brush.move({ x: [data[start].date, data[end].date] });
-    }}>Middle Third</Button
+    }}
   >
+    Middle Third
+  </Button>
   <Button
     onclick={() => {
       const start = Math.floor((data.length / 3) * 2);
       context?.brush.move({
         x: [data[start].date, data[data.length - 1].date],
       });
-    }}>Last Third</Button
+    }}
   >
+    Last Third
+  </Button>
 </ButtonGroup>
 
 <ButtonGroup variant="fill-light" size="sm" class="mb-2">
@@ -20188,13 +20194,13 @@
 <div class="mb-2 text-sm">
   {#if brushX?.[0] != null && brushX?.[1] != null}
     Snapped:
-    <span class="font-semibold"
-      >{monthLabel(brushX[0])} – {monthLabel(brushX[1])}</span
-    >
+    <span class="font-semibold">
+      {monthLabel(brushX[0])} – {monthLabel(brushX[1])}
+    </span>
   {:else}
-    <span class="text-surface-content/50"
-      >Drag to brush — edges snap to whole months</span
-    >
+    <span class="text-surface-content/50">
+      Drag to brush — edges snap to whole months
+    </span>
   {/if}
 </div>
 
@@ -23448,9 +23454,9 @@
       <Button onclick={() => step(-1)}>← Prev</Button>
       <Button onclick={() => step(1)}>Next →</Button>
     </ButtonGroup>
-    <Button variant="fill-light" size="sm" onclick={() => group.clearPointer()}
-      >Clear</Button
-    >
+    <Button variant="fill-light" size="sm" onclick={() => group.clearPointer()}>
+      Clear
+    </Button>
   </div>
 
   <div class="text-sm text-surface-content/70" aria-live="polite">
@@ -29587,12 +29593,12 @@
     <Switch {id} bind:checked={showGraticule} size="md" />
   </Field>
   <ButtonGroup size="sm" variant="fill-light">
-    <Button on:click={() => (animating = true)} disabled={animating}
-      >Play</Button
-    >
-    <Button on:click={() => (animating = false)} disabled={!animating}
-      >Pause</Button
-    >
+    <Button on:click={() => (animating = true)} disabled={animating}>
+      Play
+    </Button>
+    <Button on:click={() => (animating = false)} disabled={!animating}>
+      Pause
+    </Button>
   </ButtonGroup>
   <RangeField
     label="Blend"
@@ -30306,7 +30312,7 @@
   </Layer>
 </Chart>
 
-=== 4497 docs/src/examples/components/GeoPath/spike-map.svelte	svelte
+=== 4473 docs/src/examples/components/GeoPath/spike-map.svelte	svelte
 <script module lang="ts">
   import {
     getUsCountiesAlbersTopology,
@@ -30444,11 +30450,9 @@
     <Tooltip.Root>
       {#snippet children({ data })}
         {@const d = data.properties.data}
-        <Tooltip.Header
-          >{data.properties.name +
-            " - " +
-            data.properties.data?.state}</Tooltip.Header
-        >
+        <Tooltip.Header>
+          {data.properties.name + " - " + data.properties.data?.state}
+        </Tooltip.Header>
         <Tooltip.List>
           <Tooltip.Item
             label="Total Population"
@@ -32704,7 +32708,7 @@
   </div>
 </div>
 
-=== 9713 docs/src/examples/components/GeoProjection/true-size.svelte	svelte
+=== 9737 docs/src/examples/components/GeoProjection/true-size.svelte	svelte
 <script module lang="ts">
   import { getCountriesTopology, getUsStatesTopology } from "$lib/geo.remote";
   const countriesTopo = await getCountriesTopology();
@@ -32973,9 +32977,9 @@
             class="w-3 h-3 rounded-full inline-block shrink-0"
             style:background={shape.color}
           ></span>
-          <span class="text-sm whitespace-nowrap"
-            >{shape.feature.properties?.name ?? "Unknown"}</span
-          >
+          <span class="text-sm whitespace-nowrap">
+            {shape.feature.properties?.name ?? "Unknown"}
+          </span>
           <input
             type="range"
             min={-180}
@@ -32986,13 +32990,15 @@
             style:color={shape.color}
             title="Rotate: {shape.rotation}°"
           />
-          <span class="text-xs text-surface-content/50 w-8 text-right"
-            >{shape.rotation}°</span
-          >
+          <span class="text-xs text-surface-content/50 w-8 text-right">
+            {shape.rotation}°
+          </span>
           <button
             class="text-surface-content/40 hover:text-surface-content ml-1"
-            onclick={() => removeShape(i)}>×</button
+            onclick={() => removeShape(i)}
           >
+            ×
+          </button>
         </div>
       {/each}
     </div>
@@ -37455,17 +37461,17 @@
 
   <div class="m-2 flex items-end gap-2">
     <ButtonGroup _size="sm" variant="fill-light">
-      <Button onclick={() => animation.start()} disabled={animation.running}
-        >Start</Button
-      >
-      <Button onclick={() => animation.stop()} disabled={!animation.running}
-        >Stop</Button
-      >
+      <Button onclick={() => animation.start()} disabled={animation.running}>
+        Start
+      </Button>
+      <Button onclick={() => animation.stop()} disabled={!animation.running}>
+        Stop
+      </Button>
     </ButtonGroup>
     <Button onclick={() => clearData()} variant="fill-light">Clear</Button>
-    <Button onclick={() => loadRandomData()} variant="fill-light"
-      >Load more</Button
-    >
+    <Button onclick={() => loadRandomData()} variant="fill-light">
+      Load more
+    </Button>
 
     <TextField
       label="Frequency (Hz)"
@@ -38400,9 +38406,9 @@
   {/each}
 
   <ButtonGroup variant="fill-light" size="sm" class="ml-auto">
-    <Button onclick={() => context?.series?.selectedKeys?.clear()}
-      >Show All</Button
-    >
+    <Button onclick={() => context?.series?.selectedKeys?.clear()}>
+      Show All
+    </Button>
   </ButtonGroup>
 </div>
 
@@ -39527,9 +39533,9 @@
                 </Layer>
               {/snippet}
             </Chart>
-            <span class="text-xs text-surface-content/50 w-24 shrink-0"
-              >{curve.label}</span
-            >
+            <span class="text-xs text-surface-content/50 w-24 shrink-0">
+              {curve.label}
+            </span>
           </div>
         {/each}
       </div>
@@ -39721,9 +39727,9 @@
                 </Layer>
               {/snippet}
             </Chart>
-            <span class="text-xs text-surface-content/50 w-20 shrink-0"
-              >{type}</span
-            >
+            <span class="text-xs text-surface-content/50 w-20 shrink-0">
+              {type}
+            </span>
           </div>
         {/each}
       </div>
@@ -44004,9 +44010,9 @@
   {/each}
 
   <ButtonGroup variant="fill-light" size="sm" class="ml-auto">
-    <Button onclick={() => context?.series.selectedKeys.clear()}
-      >Show All</Button
-    >
+    <Button onclick={() => context?.series.selectedKeys.clear()}>
+      Show All
+    </Button>
   </ButtonGroup>
 </div>
 
@@ -51315,7 +51321,7 @@
   </Chart>
 </div>
 
-=== 2598 docs/src/examples/components/Tooltip/programmatic-control.svelte	svelte
+=== 2610 docs/src/examples/components/Tooltip/programmatic-control.svelte	svelte
 <script lang="ts">
   import { LineChart, type ChartState } from "layerchart";
   import { format } from "@layerstack/utils";
@@ -51390,8 +51396,10 @@
     <Button
       variant="fill-light"
       size="sm"
-      onclick={() => context?.tooltip.hide()}>Clear</Button
+      onclick={() => context?.tooltip.hide()}
     >
+      Clear
+    </Button>
   </div>
 
   <div class="text-sm text-surface-content/70" aria-live="polite">
@@ -51816,9 +51824,9 @@
                 />
               </Layer>
             </Chart>
-            <span class="text-xs text-surface-content/50 w-24 shrink-0"
-              >{curve.label}</span
-            >
+            <span class="text-xs text-surface-content/50 w-24 shrink-0">
+              {curve.label}
+            </span>
           </div>
         {/each}
       </div>
@@ -52469,9 +52477,9 @@
 </script>
 
 <p class="text-sm text-surface-content/50 mb-2">
-  Hold <kbd class="px-1 py-0.5 rounded bg-surface-200 text-xs font-mono"
-    >⌘ Command</kbd
-  > to zoom with scroll
+  Hold <kbd class="px-1 py-0.5 rounded bg-surface-200 text-xs font-mono">
+    ⌘ Command
+  </kbd> to zoom with scroll
 </p>
 
 <Chart
@@ -54166,7 +54174,7 @@
   {/snippet}
 </Chart>
 
-=== 4031 docs/src/examples/components/Vector/shapes.svelte	svelte
+=== 4115 docs/src/examples/components/Vector/shapes.svelte	svelte
 <script lang="ts">
   import {
     Chart,
@@ -54212,8 +54220,10 @@
       x={45}
       y={16}
       textAnchor="middle"
-      class="text-xs fill-surface-content/50">arrow</Text
+      class="text-xs fill-surface-content/50"
     >
+      arrow
+    </Text>
     <Vector x={45} y={120} {length} {rotate} {anchor} class="stroke-primary" />
 
     <!-- Arrow with fixed width -->
@@ -54221,8 +54231,10 @@
       x={125}
       y={16}
       textAnchor="middle"
-      class="text-xs fill-surface-content/50">arrow (width)</Text
+      class="text-xs fill-surface-content/50"
     >
+      arrow (width)
+    </Text>
     <Vector
       x={125}
       y={120}
@@ -54238,8 +54250,10 @@
       x={215}
       y={16}
       textAnchor="middle"
-      class="text-xs fill-surface-content/50">spike</Text
+      class="text-xs fill-surface-content/50"
     >
+      spike
+    </Text>
     <Vector
       x={215}
       y={120}
@@ -54255,8 +54269,10 @@
       x={305}
       y={16}
       textAnchor="middle"
-      class="text-xs fill-surface-content/50">spike (width)</Text
+      class="text-xs fill-surface-content/50"
     >
+      spike (width)
+    </Text>
     <Vector
       x={305}
       y={120}
@@ -54273,8 +54289,10 @@
       x={395}
       y={16}
       textAnchor="middle"
-      class="text-xs fill-surface-content/50">custom</Text
+      class="text-xs fill-surface-content/50"
     >
+      custom
+    </Text>
     <Vector x={395} y={120} {length} {rotate} {anchor}>
       {#snippet children({ length: len })}
         <line
@@ -54294,8 +54312,10 @@
       x={480}
       y={16}
       textAnchor="middle"
-      class="text-xs fill-surface-content/50">Polygon arrow</Text
+      class="text-xs fill-surface-content/50"
     >
+      Polygon arrow
+    </Text>
     <Vector x={480} y={120} {length} {rotate} {anchor}>
       {#snippet children({ length: len })}
         {@const s = len / 2}
@@ -54320,8 +54340,10 @@
       x={570}
       y={16}
       textAnchor="middle"
-      class="text-xs fill-surface-content/50">Polygon star</Text
+      class="text-xs fill-surface-content/50"
     >
+      Polygon star
+    </Text>
     <Vector x={570} y={120} {length} {rotate} {anchor}>
       {#snippet children({ length: len })}
         <Polygon
@@ -55726,7 +55748,7 @@
 
 <Json value={result} class="rounded-sm" />
 
-=== 6610 docs/src/lib/components/DocsMenu.svelte	svelte
+=== 6623 docs/src/lib/components/DocsMenu.svelte	svelte
 <script lang="ts">
   import { NavItem, type IconProp } from "svelte-ux";
   import { flatGroup } from "d3-array";
@@ -55832,8 +55854,9 @@
           >
             <span
               class="transition-transform duration-200 group-open:rotate-90 text-surface-content/40"
-              >&#9656;</span
             >
+              &#9656;
+            </span>
             {category}
           </summary>
           <div class="border-l border-surface-content/10">
@@ -55938,7 +55961,7 @@
   />
 {/snippet}
 
-=== 15674 docs/src/lib/components/Example.svelte	svelte
+=== 15710 docs/src/lib/components/Example.svelte	svelte
 <script lang="ts">
   import type { SvelteComponent } from "svelte";
   import { slide } from "svelte/transition";
@@ -56239,8 +56262,10 @@
                   color="danger"
                   size="sm"
                   class="mt-2"
-                  on:click={reset}>Retry</Button
+                  on:click={reset}
                 >
+                  Retry
+                </Button>
               </div>
             {/snippet}
             {#snippet pending()}
@@ -56388,9 +56413,9 @@
                 Export as PNG
               </MenuItem>
               {#if settings.layer !== "canvas"}
-                <MenuItem icon={LucideCopy} on:click={handleSvgCopy}
-                  >Copy as SVG</MenuItem
-                >
+                <MenuItem icon={LucideCopy} on:click={handleSvgCopy}>
+                  Copy as SVG
+                </MenuItem>
                 <MenuItem icon={LucideImageDown} on:click={handleSvgDownload}>
                   Export as SVG
                 </MenuItem>
@@ -61331,9 +61356,9 @@
 
     {#if page.params.example}
       <LucideChevronRight class="text-sm opacity-25" />
-      <a href="/docs/components/{page.params.name}" class="text-primary"
-        >{metadata.name}</a
-      >
+      <a href="/docs/components/{page.params.name}" class="text-primary">
+        {metadata.name}
+      </a>
     {/if}
   </div>
 
@@ -61426,7 +61451,7 @@
   {@render children()}
 </svelte:boundary>
 
-=== 4733 docs/src/routes/docs/components/[name]/+page.svelte	svelte
+=== 4813 docs/src/routes/docs/components/[name]/+page.svelte	svelte
 <script lang="ts">
   import { Table } from "svelte-ux";
   import { allComponents, type Component } from "content-collections";
@@ -61508,23 +61533,26 @@
                   <div class="flex items-center wrap gap-1">
                     <span
                       class="text-xs font-pixel bg-surface-content/10 px-2 py-1 rounded border"
-                      >{value}</span
                     >
+                      {value}
+                    </span>
                     {#if row.required}
                       <span
                         class="bg-danger/10 px-1 py-0.5 font-medium rounded border border-danger text-danger text-xs"
-                        >required</span
                       >
+                        required
+                      </span>
                     {/if}
                   </div>
                 {:else if column.name === "type"}
-                  <span class="font-pixel text-xs text-surface-content/70"
-                    >{value}</span
-                  >
+                  <span class="font-pixel text-xs text-surface-content/70">
+                    {value}
+                  </span>
                 {:else if column.name === "description"}
                   {#if row.descriptionHtml}
-                    <span class="prose-inline">{@html row.descriptionHtml}</span
-                    >
+                    <span class="prose-inline">
+                      {@html row.descriptionHtml}
+                    </span>
                   {:else}
                     <span class="whitespace-pre-line">{value}</span>
                   {/if}
@@ -61554,8 +61582,9 @@
           {#each entry.extends as extended}
             <span
               class="text-sm bg-surface-content/10 px-1 py-0.5 rounded border"
-              >{extended.name}</span
             >
+              {extended.name}
+            </span>
           {/each}
         </div>
       </div>
@@ -61886,9 +61915,9 @@
 <div class="grid gap-10">
   {#each visibleExamples as { component, examples } (component)}
     <div>
-      <H2 id={component} class="sticky top-42 sm:top-29 pt-2 pb-1"
-        >{component}</H2
-      >
+      <H2 id={component} class="sticky top-42 sm:top-29 pt-2 pb-1">
+        {component}
+      </H2>
       <div
         style:--column-count="repeat({columnCount}, 1fr)"
         class="grid grid-cols-(--column-count) gap-4"
@@ -61974,7 +62003,7 @@
 
 <PageComponent />
 
-=== 19564 docs/src/routes/docs/playground/+page.svelte	svelte
+=== 19546 docs/src/routes/docs/playground/+page.svelte	svelte
 <script lang="ts" module>
   import { WebContainer } from "@webcontainer/api";
   import { PaneGroup, Pane, PaneResizer } from "paneforge";
@@ -62394,8 +62423,8 @@
                   data={fileTreeShowing ? ChevronUp : ChevronDown}
                   class="text-surface-content/50"
                 />
-              {/key}</Button
-            >
+              {/key}
+            </Button>
           </div>
           <Tooltip title="Open in StackBlitz" placement="top" offset={6}>
             <Button
@@ -62524,8 +62553,9 @@
               />
               <span
                 class="group-hover/header:underline group-hover/header:decoration-current/50"
-                >Console</span
               >
+                Console
+              </span>
             </div>
             <button
               type="button"
@@ -62534,11 +62564,9 @@
                 e.stopPropagation();
                 consoleOutput = "";
               }}
-              >Clear <Icon
-                data={TrashIcon}
-                class="text-surface-content/50"
-              /></button
             >
+              Clear <Icon data={TrashIcon} class="text-surface-content/50" />
+            </button>
           </div>
         </Pane>
 
@@ -62966,8 +62994,8 @@
 </script>
 
 <div class="prose max-w-4xl">
-  <H1
-    >Releases
+  <H1>
+    Releases
     <span class="text-xl text-surface-content/70">
       ({pagination.totalReleases})
     </span>
@@ -63302,9 +63330,9 @@
 
     {#if page.params.example}
       <LucideChevronRight class="text-sm opacity-25" />
-      <a href="/docs/utils/{page.params.name}" class="text-primary"
-        >{metadata.name}</a
-      >
+      <a href="/docs/utils/{page.params.name}" class="text-primary">
+        {metadata.name}
+      </a>
     {/if}
   </div>
 
@@ -63331,7 +63359,7 @@
   {@render children()}
 </svelte:boundary>
 
-=== 7710 docs/src/routes/docs/utils/[name]/+page.svelte	svelte
+=== 7773 docs/src/routes/docs/utils/[name]/+page.svelte	svelte
 <script lang="ts">
   import { slide } from "svelte/transition";
   import { Button, Table, TextField, ToggleButton } from "svelte-ux";
@@ -63535,19 +63563,21 @@
                 <div class="flex items-center wrap gap-1">
                   <span
                     class="text-xs font-pixel bg-surface-content/10 px-2 py-1 rounded border"
-                    >{value}</span
                   >
+                    {value}
+                  </span>
                   {#if rowData.required}
                     <span
                       class="bg-danger/10 px-1 py-0.5 font-medium rounded border border-danger text-danger text-xs"
-                      >required</span
                     >
+                      required
+                    </span>
                   {/if}
                 </div>
               {:else if column.name === "type"}
-                <span class="font-pixel text-xs text-surface-content/70"
-                  >{value}</span
-                >
+                <span class="font-pixel text-xs text-surface-content/70">
+                  {value}
+                </span>
               {:else if column.name === "description"}
                 <span class="whitespace-pre-line">{value}</span>
                 {#if rowData.default != null}
@@ -63574,16 +63604,18 @@
       also available:
       <div class="inline-flex gap-2">
         {#each api.extends as extended}
-          <span class="text-sm bg-surface-content/10 px-1 py-0.5 rounded border"
-            >{extended.name}</span
+          <span
+            class="text-sm bg-surface-content/10 px-1 py-0.5 rounded border"
           >
+            {extended.name}
+          </span>
         {/each}
       </div>
     </div>
   {/if}
 {/if}
 
-=== 1576 docs/src/routes/og/Thumbnail.svelte	svelte
+=== 1592 docs/src/routes/og/Thumbnail.svelte	svelte
 <script lang="ts">
   type Props = {
     title: string;
@@ -63603,8 +63635,9 @@
     >
       <span
         style="display: flex; font-size: 30px; font-weight: 700; color: white;"
-        >LayerChart</span
       >
+        LayerChart
+      </span>
       {#if component}
         <span
           style="display: flex; padding: 4px 16px; border-radius: 9999px; font-size: 18px; color: white; background: rgba(255,255,255,0.15);"
@@ -63633,8 +63666,9 @@
     <div
       style="display: flex; justify-content: space-between; font-size: 22px; color: rgba(255,255,255,0.6);"
     >
-      <span style="display: flex;">Composable Svelte visualization library</span
-      >
+      <span style="display: flex;">
+        Composable Svelte visualization library
+      </span>
       <span style="display: flex;">layerchart.com</span>
     </div>
   </div>
@@ -89583,9 +89617,9 @@
   }
 </script>
 
-<button type="button" data-testid="toggle-child" onclick={toggleChild}
-  >toggle</button
->
+<button type="button" data-testid="toggle-child" onclick={toggleChild}>
+  toggle
+</button>
 
 <Chart
   data={[{ date: "2024-01", value: 10 }]}

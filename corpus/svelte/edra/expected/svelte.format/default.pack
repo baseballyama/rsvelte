@@ -135,9 +135,9 @@
         <Sidebar.MenuButton class="rounded-lg border" onclick={openSearch}>
           <Search />
           <span>Search Document</span>
-          <span class="ml-auto rounded bg-muted px-1 text-sm"
-            >{getKeyboardShortcut("K", true)}</span
-          >
+          <span class="ml-auto rounded bg-muted px-1 text-sm">
+            {getKeyboardShortcut("K", true)}
+          </span>
         </Sidebar.MenuButton>
       </Sidebar.MenuItem>
     </Sidebar.Menu>
@@ -3619,9 +3619,9 @@
             placeholder="Paste URL here..."
             required
           />
-          <button type="submit" class="edra-btn edra-btn-primary h-8-btn"
-            >Insert {mediaType}</button
-          >
+          <button type="submit" class="edra-btn edra-btn-primary h-8-btn">
+            Insert {mediaType}
+          </button>
         </form>
       </TabsContent>
       {#if mediaType !== "iframe"}
@@ -3633,9 +3633,9 @@
               class="edra-input file-input"
               required
             />
-            <button type="submit" class="edra-btn edra-btn-primary h-8-btn"
-              >Insert {mediaType}</button
-            >
+            <button type="submit" class="edra-btn edra-btn-primary h-8-btn">
+              Insert {mediaType}
+            </button>
           </form>
         </TabsContent>
       {/if}
@@ -3698,7 +3698,7 @@
   }
 </style>
 
-=== 18156 src/lib/edra/headless/components/Mermaid.svelte	svelte
+=== 18204 src/lib/edra/headless/components/Mermaid.svelte	svelte
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
   import type { NodeViewProps } from "@tiptap/core";
@@ -3977,12 +3977,16 @@
 
           <button
             class="edra-btn edra-btn-ghost btn-small"
-            onclick={handleCancel}>Cancel</button
+            onclick={handleCancel}
           >
+            Cancel
+          </button>
           <button
             class="edra-btn edra-btn-primary btn-small"
-            onclick={handleSave}>Apply</button
+            onclick={handleSave}
           >
+            Apply
+          </button>
         </div>
       </div>
 
@@ -4039,9 +4043,9 @@
       {#if !code || code.trim() === ""}
         <button class="placeholder-button" onclick={enterEditMode}>
           <Workflow class="workflow-icon text-mute" />
-          <span class="placeholder-text" contenteditable={false}
-            >Click to add a Mermaid diagram</span
-          >
+          <span class="placeholder-text" contenteditable={false}>
+            Click to add a Mermaid diagram
+          </span>
         </button>
       {:else}
         <div class="rendered-card">
@@ -4726,7 +4730,7 @@
   }
 </style>
 
-=== 19913 src/lib/edra/headless/components/menu/AI.svelte	svelte
+=== 19922 src/lib/edra/headless/components/menu/AI.svelte	svelte
 <script lang="ts">
   import {
     BubbleMenu,
@@ -5272,8 +5276,9 @@
         <button
           type="submit"
           class="edra-btn edra-btn-primary edra-btn-icon send-btn"
-          ><Send class="action-icon" /></button
         >
+          <Send class="action-icon" />
+        </button>
       </form>
 
       {#if isAIActive() && inputValue.trim()?.length === 0}
@@ -6833,7 +6838,7 @@
   }
 </style>
 
-=== 14190 src/lib/edra/headless/drag-handle.svelte	svelte
+=== 14205 src/lib/edra/headless/drag-handle.svelte	svelte
 <script lang="ts">
   import { autoPlacement } from "@floating-ui/dom";
   import {
@@ -7114,9 +7119,9 @@
                       .run();
                 }}
               >
-                <span style={`color: ${color.value}; font-weight: bold;`}
-                  >A</span
-                >
+                <span style={`color: ${color.value}; font-weight: bold;`}>
+                  A
+                </span>
                 <span class="capitalize-text">{color.label}</span>
               </Item>
             {/each}
@@ -7202,11 +7207,12 @@
                 height="16"
                 viewBox="0 0 20 20"
                 class="drag-icon"
-                ><path
+              >
+                <path
                   fill="currentColor"
                   d="M2.491 4.046a.75.75 0 0 1 .83.218L7 8.592l3.678-4.328A.75.75 0 0 1 12 4.75v9.5a.75.75 0 0 1-1.5 0V6.79l-2.929 3.446a.75.75 0 0 1-1.142 0L3.5 6.79v7.46a.75.75 0 0 1-1.5 0v-9.5a.75.75 0 0 1 .491-.704M13.22 11.72a.75.75 0 0 1 1.06 0l.72.72V4.75a.75.75 0 0 1 1.5 0v7.69l.72-.72a.75.75 0 1 1 1.06 1.06l-2 2a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 0-1.06"
-                /></svg
-              >
+                />
+              </svg>
               <span>Copy as Markdown</span>
             </Item>
             <Item onclick={() => handleCopyContentAs("json")}>
@@ -8145,7 +8151,7 @@
   }
 </style>
 
-=== 1908 src/lib/edra/shadcn/components/Callout.svelte	svelte
+=== 1919 src/lib/edra/shadcn/components/Callout.svelte	svelte
 <script lang="ts">
   import {
     NodeViewContent,
@@ -8195,8 +8201,9 @@
           <label
             for="emoji"
             class="text-[10px] font-bold text-muted-foreground uppercase"
-            >Emoji Icon</label
           >
+            Emoji Icon
+          </label>
           <Input
             id="emoji"
             value={emoji}
@@ -8326,9 +8333,9 @@
             placeholder={strings.extension.code.searchLanguagePlaceholder}
           />
           <Command.List>
-            <Command.Empty
-              >{strings.extension.code.searchLanguageEmpty}</Command.Empty
-            >
+            <Command.Empty>
+              {strings.extension.code.searchLanguageEmpty}
+            </Command.Empty>
             <Command.Group value="languages">
               {#each languages as language (language)}
                 <Command.Item
@@ -8696,7 +8703,7 @@
   </div>
 </NodeViewWrapper>
 
-=== 3611 src/lib/edra/shadcn/components/MediaPlaceHolder.svelte	svelte
+=== 3643 src/lib/edra/shadcn/components/MediaPlaceHolder.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { NodeViewWrapper } from "../../tiptap/index.js";
@@ -8770,9 +8777,9 @@
     onclick={() => (open = true)}
   >
     <Icon class="size-4 text-muted-foreground" />
-    <span class="text-sm text-muted-foreground" contenteditable={false}
-      >{text}</span
-    >
+    <span class="text-sm text-muted-foreground" contenteditable={false}>
+      {text}
+    </span>
 
     <Popover.Root bind:open>
       <Popover.Trigger class="sr-only left-1/2"></Popover.Trigger>
@@ -8790,17 +8797,19 @@
               <Button
                 type="submit"
                 class="capitalize"
-                onclick={() => setMediaFn(url)}>Insert {mediaType}</Button
+                onclick={() => setMediaFn(url)}
               >
+                Insert {mediaType}
+              </Button>
             </form>
           </Tabs.Content>
           {#if mediaType !== "iframe"}
             <Tabs.Content value="file">
               <form class="flex flex-col gap-2" onsubmit={handleFileSubmit}>
                 <Input type="file" bind:files />
-                <Button type="submit" class="capitalize"
-                  >Insert {mediaType}</Button
-                >
+                <Button type="submit" class="capitalize">
+                  Insert {mediaType}
+                </Button>
               </form>
             </Tabs.Content>
           {/if}
@@ -8810,7 +8819,7 @@
   </div>
 </NodeViewWrapper>
 
-=== 13992 src/lib/edra/shadcn/components/Mermaid.svelte	svelte
+=== 14003 src/lib/edra/shadcn/components/Mermaid.svelte	svelte
 <script lang="ts">
   import { onMount, onDestroy, tick } from "svelte";
   import type { NodeViewProps } from "@tiptap/core";
@@ -9069,11 +9078,12 @@
           <Workflow class="size-3.5 text-primary" />
           <span
             class="text-[11px] font-semibold tracking-wider text-muted-foreground uppercase"
-            >Mermaid</span
           >
-          <span class="text-[10px] text-muted-foreground/50"
-            >{lineCount} lines</span
-          >
+            Mermaid
+          </span>
+          <span class="text-[10px] text-muted-foreground/50">
+            {lineCount} lines
+          </span>
         </div>
         <div class="flex items-center gap-1">
           <Tabs.Root bind:value={mode}>
@@ -9104,9 +9114,9 @@
 
           <div class="mx-1 h-4 w-px bg-border"></div>
 
-          <Button size="sm" variant="ghost" onclick={handleCancel}
-            >Cancel</Button
-          >
+          <Button size="sm" variant="ghost" onclick={handleCancel}>
+            Cancel
+          </Button>
           <Button size="sm" onclick={handleSave}>Apply</Button>
         </div>
       </div>
@@ -9161,9 +9171,9 @@
                 <div
                   class="size-5 animate-spin rounded-full border-2 border-muted-foreground/20 border-t-primary"
                 ></div>
-                <span class="text-[10px] text-muted-foreground"
-                  >Rendering...</span
-                >
+                <span class="text-[10px] text-muted-foreground">
+                  Rendering...
+                </span>
               </div>
             {/if}
             <div
@@ -9186,9 +9196,9 @@
           onclick={enterEditMode}
         >
           <Workflow class="size-4 text-muted-foreground" />
-          <span class="text-sm text-muted-foreground" contenteditable={false}
-            >Click to add a Mermaid diagram</span
-          >
+          <span class="text-sm text-muted-foreground" contenteditable={false}>
+            Click to add a Mermaid diagram
+          </span>
         </button>
       {:else}
         <div class="overflow-hidden rounded-lg border">
@@ -10023,9 +10033,9 @@
     <Icon />
     <span class="ml-2 flex-1 text-start font-medium">{action.label}</span>
     {#if activeOptionIndex === idx}
-      <span class="rounded-sm bg-muted/75 px-1 text-muted-foreground"
-        >Enter</span
-      >
+      <span class="rounded-sm bg-muted/75 px-1 text-muted-foreground">
+        Enter
+      </span>
     {/if}
   </button>
 {/snippet}
@@ -10078,9 +10088,9 @@
           placeholder="Ask AI anything..."
           class="h-auto max-h-40 w-full resize-none border-0 outline-hidden"
         ></textarea>
-        <Button type="submit" size="icon-lg" class="rounded-full"
-          ><Send /></Button
-        >
+        <Button type="submit" size="icon-lg" class="rounded-full">
+          <Send />
+        </Button>
       </form>
 
       {#if isAIActive() && inputValue.trim()?.length === 0}
@@ -10104,8 +10114,8 @@
           <span
             class="bg-linear-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text font-semibold text-transparent"
           >
-            AI is writing</span
-          >
+            AI is writing
+          </span>
           <div class="flex h-5 items-center space-x-0.5">
             {#each Array(3) as id, i (i)}
               <div
@@ -10860,7 +10870,7 @@
   </DropdownMenu.Content>
 </DropdownMenu.Root>
 
-=== 3883 src/lib/edra/shadcn/components/tools/Colors.svelte	svelte
+=== 3911 src/lib/edra/shadcn/components/tools/Colors.svelte	svelte
 <script lang="ts">
   import { quickcolors } from "../../../utils.ts";
   import { buttonVariants } from "$lib/components/ui/button/index.js";
@@ -10921,8 +10931,10 @@
           <div class="flex items-center gap-2">
             <span
               class="w-4 text-center font-bold"
-              style={color.value ? `color: ${color.value};` : ""}>A</span
+              style={color.value ? `color: ${color.value};` : ""}
             >
+              A
+            </span>
             <span class="capitalize">{color.label}</span>
           </div>
           {#if isActive}
@@ -11038,20 +11050,20 @@
   <DropdownMenu.Portal>
     <DropdownMenu.Content>
       <DropdownMenu.Label>Export As</DropdownMenu.Label>
-      <DropdownMenu.Item onclick={() => handleExport("markdown")}
-        >Markdown</DropdownMenu.Item
-      >
-      <DropdownMenu.Item onclick={() => handleExport("html")}
-        >HTML</DropdownMenu.Item
-      >
-      <DropdownMenu.Item onclick={() => handleExport("json")}
-        >JSON</DropdownMenu.Item
-      >
+      <DropdownMenu.Item onclick={() => handleExport("markdown")}>
+        Markdown
+      </DropdownMenu.Item>
+      <DropdownMenu.Item onclick={() => handleExport("html")}>
+        HTML
+      </DropdownMenu.Item>
+      <DropdownMenu.Item onclick={() => handleExport("json")}>
+        JSON
+      </DropdownMenu.Item>
     </DropdownMenu.Content>
   </DropdownMenu.Portal>
 </DropdownMenu.Root>
 
-=== 1860 src/lib/edra/shadcn/components/tools/FontSize.svelte	svelte
+=== 1867 src/lib/edra/shadcn/components/tools/FontSize.svelte	svelte
 <script lang="ts">
   import { buttonVariants } from "$lib/components/ui/button/index.js";
   import * as DropdownMenu from "$lib/components/ui/dropdown-menu/index.js";
@@ -11104,7 +11116,8 @@
         onclick={() => {
           editor.chain().focus().setFontSize(fontSize.value).run();
         }}
-        >{fontSize.label}
+      >
+        {fontSize.label}
         <DropdownMenu.Shortcut>
           {fontSize.value}
         </DropdownMenu.Shortcut>
@@ -11235,7 +11248,7 @@
   </DropdownMenu.Content>
 </DropdownMenu.Root>
 
-=== 14435 src/lib/edra/shadcn/drag-handle.svelte	svelte
+=== 14475 src/lib/edra/shadcn/drag-handle.svelte	svelte
 <script lang="ts">
   import { autoPlacement } from "@floating-ui/dom";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -11465,8 +11478,8 @@
               <span
                 class="bg-linear-to-r from-blue-500 via-purple-500 to-pink-500 bg-clip-text font-bold text-transparent"
               >
-                Edit With AI</span
-              >
+                Edit With AI
+              </span>
             </DropdownMenu.Item>
           {/if}
           <DropdownMenu.Sub>
@@ -11479,9 +11492,9 @@
             >
               {#each Object.entries(turnIntos) as [key, turnIntoCommands] (key)}
                 <DropdownMenu.Group>
-                  <DropdownMenu.Label class="capitalize"
-                    >{key}</DropdownMenu.Label
-                  >
+                  <DropdownMenu.Label class="capitalize">
+                    {key}
+                  </DropdownMenu.Label>
                   {#each turnIntoCommands as command (command)}
                     {@const Icon = command.icon}
                     <DropdownMenu.Item
@@ -11499,8 +11512,9 @@
                       {#if command.shortCut}
                         <DropdownMenu.Shortcut
                           class="rounded border bg-background p-0.5"
-                          >{command.shortCut}</DropdownMenu.Shortcut
                         >
+                          {command.shortCut}
+                        </DropdownMenu.Shortcut>
                       {/if}
                     </DropdownMenu.Item>
                   {/each}
@@ -11634,11 +11648,12 @@
                 width="20"
                 height="20"
                 viewBox="0 0 20 20"
-                ><path
+              >
+                <path
                   fill="currentColor"
                   d="M2.491 4.046a.75.75 0 0 1 .83.218L7 8.592l3.678-4.328A.75.75 0 0 1 12 4.75v9.5a.75.75 0 0 1-1.5 0V6.79l-2.929 3.446a.75.75 0 0 1-1.142 0L3.5 6.79v7.46a.75.75 0 0 1-1.5 0v-9.5a.75.75 0 0 1 .491-.704M13.22 11.72a.75.75 0 0 1 1.06 0l.72.72V4.75a.75.75 0 0 1 1.5 0v7.69l.72-.72a.75.75 0 1 1 1.06 1.06l-2 2a.75.75 0 0 1-1.06 0l-2-2a.75.75 0 0 1 0-1.06"
-                /></svg
-              >
+                />
+              </svg>
               Copy as Markdown
             </DropdownMenu.Item>
             <DropdownMenu.Item onclick={() => handleCopyContentAs("json")}>
@@ -12083,14 +12098,14 @@
     >
       <div class="flex items-center gap-2">
         <Sidebar.Trigger class="-ml-1" />
-        <span class="text-sm font-medium text-muted-foreground"
-          >Documentation</span
-        >
+        <span class="text-sm font-medium text-muted-foreground">
+          Documentation
+        </span>
       </div>
       <div class="flex items-center gap-4">
-        <Button variant="ghost" class="text-sm font-medium" href="/"
-          >Back to Home</Button
-        >
+        <Button variant="ghost" class="text-sm font-medium" href="/">
+          Back to Home
+        </Button>
         <ToggleMode />
       </div>
     </header>
@@ -12210,9 +12225,9 @@ export const createEditor = (props) =>
   </p>
   <p>
     👉 <strong>Learn more here:</strong>
-    <a href={resolve("/docs/customization/styling")}
-      >Typography & Styling Docs</a
-    >
+    <a href={resolve("/docs/customization/styling")}>
+      Typography & Styling Docs
+    </a>
   </p>
 
   <div class="mt-12 flex">
@@ -12774,9 +12789,9 @@ editor.commands.setContent(markdown);`;
       <Button variant="ghost" size="icon" href={resolve("/")} class="nodefault">
         <ArrowLeft class="size-4" />
       </Button>
-      <span class="max-w-40 truncate text-sm font-semibold md:max-w-64"
-        >{pageTitle || "Untitled"}</span
-      >
+      <span class="max-w-40 truncate text-sm font-semibold md:max-w-64">
+        {pageTitle || "Untitled"}
+      </span>
     </div>
     <div class="flex items-center gap-2">
       <!-- Full Width Toggle -->

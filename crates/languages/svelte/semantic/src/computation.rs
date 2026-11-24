@@ -75,7 +75,8 @@ impl Artifact for Analyzed {
     }
 }
 
-/// The compiler's warnings and analysis errors, without generating code.
+/// The compiler's warnings and analysis errors, without generating code, as eslint-plugin-svelte
+/// compiles a component without a `compilerOptions.runes`.
 #[derive(Debug)]
 pub struct Warned;
 
@@ -86,26 +87,36 @@ impl Artifact for Warned {
     const NAME: &'static str = "svelte.warnings";
 
     fn compute(context: &DocumentContext<'_>) -> Self::Output {
-        let c = context.get::<Parsed>().as_ref().ok()?;
-        let compiler_syntax_tree = context.get::<Lowered>().as_ref()?;
-        let res = context.get::<Resolved>().as_ref()?;
-        // Only the style sheet's selectors need the analysis.
-        let analysis = if c.style.is_some() {
-            context.get::<Analyzed>().as_ref()
-        } else {
-            None
-        };
-        Some(crate::warnings::warnings(
-            c,
-            compiler_syntax_tree,
-            res,
-            analysis,
-            context.source_text(),
-            // eslint-plugin-svelte compiles without a filename.
-            None,
-            crate::warnings::Options::linting(c, context.source_text()),
-        ))
+        linting_warnings(context, None)
     }
+}
+
+/// The compiler's warnings and analysis errors as eslint-plugin-svelte compiles the component,
+/// with the `runes` option `runes`; `None` when the document did not parse.
+#[must_use]
+pub fn linting_warnings(
+    context: &DocumentContext<'_>,
+    runes: Option<bool>,
+) -> Option<crate::warnings::CompileWarnings> {
+    let c = context.get::<Parsed>().as_ref().ok()?;
+    let compiler_syntax_tree = context.get::<Lowered>().as_ref()?;
+    let res = context.get::<Resolved>().as_ref()?;
+    // Only the style sheet's selectors need the analysis.
+    let analysis = if c.style.is_some() {
+        context.get::<Analyzed>().as_ref()
+    } else {
+        None
+    };
+    Some(crate::warnings::warnings(
+        c,
+        compiler_syntax_tree,
+        res,
+        analysis,
+        context.source_text(),
+        // eslint-plugin-svelte compiles without a filename.
+        None,
+        crate::warnings::Options::linting(c, context.source_text(), runes),
+    ))
 }
 
 /// What the compiler reads of a Svelte component: its script from [`Parsed`], its template from

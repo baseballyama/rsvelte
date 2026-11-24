@@ -11,6 +11,7 @@ use oxc_transformer::{TransformOptions, Transformer};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
+use rsvelte_typescript_compile::strip::ErasedComments;
 use rsvelte_typescript_tree::document_span;
 
 use super::validation::check_runes;
@@ -55,7 +56,7 @@ pub(crate) fn lower_module<'o>(
         SourceType::mjs(),
         b.str(component.source_text),
         b.vec(
-            (program.comments.iter())
+            (ErasedComments::new(program).kept(program))
                 .filter(|comment| script::outside(&rewrite.removed, comment.span))
                 .cloned(),
         ),

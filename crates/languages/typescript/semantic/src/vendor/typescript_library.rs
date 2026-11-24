@@ -1,4 +1,4 @@
-// @typescript-eslint/scope-manager 8.72.1
+// @typescript-eslint/scope-manager 8.73.0
 [
     ("AggregateError", true),
     ("AggregateErrorConstructor", false),

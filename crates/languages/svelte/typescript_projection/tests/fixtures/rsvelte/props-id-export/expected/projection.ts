@@ -7,9 +7,9 @@ function $$render() {
 
   return (/** @type {typeof __rsvelte_export_isomorphic<{
     id?: typeof id;
-  }, { [evt: string]: CustomEvent<any> }, {
+  }, {
     id: typeof id;
-  }, string>} */ (__rsvelte_export_isomorphic))()({});
+  }, string>} */ (__rsvelte_export_isomorphic))()(__rsvelte_any_event({}), {});
 }
 export const PropsIdExport__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {InstanceType<typeof PropsIdExport__SvelteComponent_>} PropsIdExport__SvelteComponent_ */

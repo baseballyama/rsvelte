@@ -248,14 +248,21 @@ impl Builder<'_> {
         })
     }
 
-    /// Pushes `call` as a statement, with what `bindings` assign around it.
-    pub(super) fn bound_call(&mut self, call: NodeIdentifier, bindings: Vec<Binding>) {
-        let needs_name = bindings.iter().any(|b| {
-            matches!(
-                b,
-                Binding::Property { .. } | Binding::This { set: true, .. }
-            )
-        });
+    /// Pushes `call` as a statement, with what `bindings` assign around it, and returns the name
+    /// it gives the call when the bindings or `named` need one.
+    pub(super) fn bound_call(
+        &mut self,
+        call: NodeIdentifier,
+        bindings: Vec<Binding>,
+        named: bool,
+    ) -> Option<NodeIdentifier> {
+        let needs_name = named
+            || bindings.iter().any(|b| {
+                matches!(
+                    b,
+                    Binding::Property { .. } | Binding::This { set: true, .. }
+                )
+            });
         let instance = if needs_name {
             let name = self.unused_name("__rsvelte_element");
             self.scratch
@@ -316,6 +323,7 @@ impl Builder<'_> {
             self.scratch
                 .push(self.tree.push(Node::Statement(statement)));
         }
+        needs_name.then_some(instance)
     }
 
     /// svelte2tsx's `component.$$bindings = "name"` for each of `bindable`, whose finding

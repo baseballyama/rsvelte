@@ -17,6 +17,8 @@ use crate::settings::ExperimentalAsync;
 use crate::words::words;
 use crate::{LintSettings, SvelteConfig, settings};
 
+mod nested;
+
 /// One code of a `svelte-ignore` comment.
 #[derive(Debug)]
 pub(crate) struct IgnoreItem {
@@ -26,6 +28,9 @@ pub(crate) struct IgnoreItem {
     pub(crate) code_for_v5: String,
     /// The whole comment.
     pub(crate) comment: Span,
+    /// Whether Svelte reads the code in runes mode, where it stops at the first code that no
+    /// comma follows.
+    pub(crate) read_in_runes_mode: bool,
 }
 
 /// The `svelte-ignore` comments: their codes, and the comments that name none.
@@ -94,14 +99,37 @@ fn read(value: Span, comment: Span, source: &str, out: &mut Ignores) {
     if spans.is_empty() {
         out.missing_code.push(comment);
     }
+    let read_in_runes_mode = runes_mode_code_starts(codes);
     for span in spans {
         let code = span.text(source);
         out.items.push(IgnoreItem {
             code: span,
             code_for_v5: code_for_v5(code),
             comment,
+            read_in_runes_mode: read_in_runes_mode.contains(&((span.start_offset - base) as usize)),
         });
     }
+}
+
+/// The offsets in `codes` of the codes Svelte reads in runes mode: each run of `[\w$-]`, up to
+/// the first that no comma follows.
+fn runes_mode_code_starts(codes: &str) -> Vec<usize> {
+    let is_code = |b: u8| b.is_ascii_alphanumeric() || matches!(b, b'_' | b'$' | b'-');
+    let bytes = codes.as_bytes();
+    let mut starts = Vec::new();
+    let mut i = 0;
+    while let Some(start) = bytes[i..].iter().position(|&b| is_code(b)).map(|k| i + k) {
+        let end = bytes[start..]
+            .iter()
+            .position(|&b| !is_code(b))
+            .map_or(bytes.len(), |k| start + k);
+        starts.push(start);
+        if bytes.get(end) != Some(&b',') {
+            break;
+        }
+        i = end + 1;
+    }
+    starts
 }
 
 impl Ignores {
@@ -137,6 +165,8 @@ impl IgnoreItem {
 
 /// The compiler's result once `svelte-ignore` comments are applied.
 pub(crate) struct Applied<'a> {
+    /// Whether the component compiled in runes mode.
+    pub(crate) runes: bool,
     pub(crate) warnings: Vec<&'a Diagnostic>,
     /// The first analysis error; then there are no warnings.
     pub(crate) error: Option<Diagnostic>,
@@ -218,6 +248,7 @@ fn apply<'a>(
 ) -> Applied<'a> {
     let mut used = vec![false; ignores.items.len()];
     let failed = |error: Diagnostic| Applied {
+        runes: false,
         warnings: Vec::new(),
         error: Some(error),
         used: vec![false; ignores.items.len()],
@@ -266,6 +297,7 @@ fn apply<'a>(
         return failed(error);
     }
     let targets = Targets { component };
+    let nested = nested::Nested::new(file, ignores);
     let mut warnings = Vec::new();
     for warning in &compile.warnings {
         if stripped.is_some_and(|s| contains(s, warning.span.start_offset))
@@ -274,13 +306,19 @@ fn apply<'a>(
             continue;
         }
         let mut silenced = false;
-        for leading in targets.chain(warning.span) {
+        let chain = targets.chain(warning.span);
+        let outer = chain.iter().map(Vec::as_slice);
+        for leading in nested.leading(warning.span.start_offset).chain(outer) {
             // The comment nearest the node that names the code wins.
-            let hit = leading.iter().rev().find_map(|&comment| {
-                ignores
-                    .of(comment)
-                    .find(|(_, item)| item.names(&warning.code, source))
-            });
+            let hit = leading
+                .iter()
+                .rev()
+                .filter(|&&comment| !nested.is_trailing(comment))
+                .find_map(|&comment| {
+                    ignores
+                        .of(comment)
+                        .find(|(_, item)| item.names(&warning.code, source))
+                });
             if let Some((i, _)) = hit {
                 used[i] = true;
                 silenced = true;
@@ -303,6 +341,7 @@ fn apply<'a>(
         }
     }
     Applied {
+        runes: compile.runes,
         warnings,
         error: None,
         used,
@@ -359,10 +398,9 @@ impl Targets<'_> {
             .iter()
             .rposition(|(node, _)| matches!(component.node(*node), TemplateNode::Element { .. }))
         else {
-            return path
-                .first()
-                .map(|&(node, fragment)| vec![self.leading(fragment, self.start(node))])
-                .unwrap_or_default();
+            return path.first().map_or_default(|&(node, fragment)| {
+                vec![self.leading(fragment, self.start(node))]
+            });
         };
         let mut out = Vec::new();
         loop {
@@ -503,12 +541,23 @@ impl Targets<'_> {
 }
 
 /// Whether a warning code is one the compiler warnings check, so an ignore of it that ignored
-/// nothing is unused; a Svelte code they do not check cannot be told apart.
-pub(crate) fn decidable(item: &IgnoreItem, source: &str) -> bool {
+/// nothing is unused; a Svelte code they do not check cannot be told apart. Nor can a runtime
+/// warning that Svelte reads the comment for, in the mode `runes` the component compiles in.
+pub(crate) fn decidable(item: &IgnoreItem, source: &str, runes: bool) -> bool {
     let named = |codes: &[&str]| {
         codes.contains(&item.code.text(source)) || codes.contains(&item.code_for_v5.as_str())
     };
-    named(CompileWarnings::CODES) || named(&RUNTIME_CODES) || !named(CompileWarnings::SVELTE_CODES)
+    // In runes mode Svelte reads only the codes as written, so `ownership-invalid-binding` is
+    // not the runtime warning there.
+    let runtime = if runes {
+        item.read_in_runes_mode && RUNTIME_CODES.contains(&item.code.text(source))
+    } else {
+        RUNTIME_CODES.contains(&item.code_for_v5.as_str())
+    };
+    !runtime
+        && (named(CompileWarnings::CODES)
+            || named(&RUNTIME_CODES)
+            || !named(CompileWarnings::SVELTE_CODES))
 }
 
 /// Svelte's `IGNORABLE_RUNTIME_WARNINGS`, which `compile` never returns.

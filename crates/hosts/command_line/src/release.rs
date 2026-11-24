@@ -45,7 +45,6 @@ fn command(name: &str) -> Result<(&'static [&'static str], &'static str), ExitCo
 }
 
 /// `rsvelte`.
-#[must_use]
 pub fn release() -> ExitCode {
     let arguments: Vec<String> = std::env::args().skip(1).collect();
     // `format` or `lint` alone takes oxfmt's or oxlint's arguments; followed by a command,

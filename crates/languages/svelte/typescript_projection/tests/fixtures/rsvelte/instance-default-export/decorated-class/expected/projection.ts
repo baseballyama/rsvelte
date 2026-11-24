@@ -12,7 +12,7 @@ const s = 1;
       s ? 'ok' : '';
     }
   };
-  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, { [evt: string]: CustomEvent<any> }, {}, string>()({});
+  return __rsvelte_export_isomorphic<globalThis.Record<string, never>, {}, string>()(__rsvelte_any_event({}), {});
 }
 const DecoratedClass__SvelteComponent_ = $$render();
 type DecoratedClass__SvelteComponent_ = InstanceType<typeof DecoratedClass__SvelteComponent_>;

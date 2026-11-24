@@ -108,9 +108,9 @@
   <Dialog.Content class="max-w-md rounded-3xl">
     <Dialog.Header>
       <Dialog.Title>{$t("Badges")}</Dialog.Title>
-      <Dialog.Description
-        >{$t("Get badges for this monitor")}</Dialog.Description
-      >
+      <Dialog.Description>
+        {$t("Get badges for this monitor")}
+      </Dialog.Description>
     </Dialog.Header>
 
     <div class="flex flex-col gap-6">
@@ -438,17 +438,17 @@
   <Dialog.Content class="max-w-2xl rounded-3xl">
     <Dialog.Header>
       <Dialog.Title>{$t("Embed Monitor")}</Dialog.Title>
-      <Dialog.Description
-        >{$t("Embed this monitor in your website or app")}</Dialog.Description
-      >
+      <Dialog.Description>
+        {$t("Embed this monitor in your website or app")}
+      </Dialog.Description>
     </Dialog.Header>
 
     <div class="flex flex-col gap-4">
       <!-- Status Embed -->
       <div>
-        <Label class="mb-2 block text-sm font-semibold"
-          >{$t("Status Embed")}</Label
-        >
+        <Label class="mb-2 block text-sm font-semibold">
+          {$t("Status Embed")}
+        </Label>
         <div class="flex flex-col gap-3 rounded-3xl border p-4">
           <iframe
             title="status embed preview"
@@ -524,9 +524,9 @@
 
       <!-- Latency Embed -->
       <div>
-        <Label class="mb-2 block text-sm font-semibold"
-          >{$t("Latency Embed")}</Label
-        >
+        <Label class="mb-2 block text-sm font-semibold">
+          {$t("Latency Embed")}
+        </Label>
         <div class="flex flex-col gap-3 rounded-3xl border p-4">
           <iframe
             title="latency embed preview"
@@ -640,7 +640,7 @@
   </div>
 </div>
 
-=== 2682 src/lib/components/GroupMonitorPopover.svelte	svelte
+=== 2659 src/lib/components/GroupMonitorPopover.svelte	svelte
 <script lang="ts">
   import { browser } from "$app/environment";
   import type { Snippet } from "svelte";
@@ -684,11 +684,9 @@
     </Drawer.Trigger>
     <Drawer.Content class="max-h-[80vh]">
       <Drawer.Header>
-        <Drawer.Title
-          >{$t("Included Monitors (%count)", {
-            count: String(tags.length),
-          })}</Drawer.Title
-        >
+        <Drawer.Title>
+          {$t("Included Monitors (%count)", { count: String(tags.length) })}
+        </Drawer.Title>
       </Drawer.Header>
       <div class="scrollbar-hidden flex flex-col overflow-y-auto px-4 pb-4">
         {#if tags.length === 0}
@@ -773,9 +771,9 @@
 <Item.Root class="items-start  p-0 {className} sm:items-center">
   <Item.Content class="min-w-0 flex-1">
     <div class="flex flex-col items-start justify-start gap-0.5">
-      <span class="text-xs font-medium text-{incident.state.toLowerCase()}"
-        >{$t(incident.state)}</span
-      >
+      <span class="text-xs font-medium text-{incident.state.toLowerCase()}">
+        {$t(incident.state)}
+      </span>
       <Item.Title class="min-w-0 text-base wrap-break-word break-all">
         <a
           {target}
@@ -812,15 +810,15 @@
                           alt={monitor.monitor_name}
                         />
                       {/if}
-                      <Avatar.Fallback
-                        >{GetInitials(monitor.monitor_name)}</Avatar.Fallback
-                      >
+                      <Avatar.Fallback>
+                        {GetInitials(monitor.monitor_name)}
+                      </Avatar.Fallback>
                     </Avatar.Root>
                     <div class="flex flex-col">
                       <span class="font-medium">{monitor.monitor_name}</span>
-                      <span class="text-muted-foreground text-xs"
-                        >{monitor.monitor_tag}</span
-                      >
+                      <span class="text-muted-foreground text-xs">
+                        {monitor.monitor_tag}
+                      </span>
                     </div>
                   </div>
                   <div class="flex items-center justify-between">
@@ -890,12 +888,12 @@
           class="text-muted-foreground bg-secondary flex items-center justify-between rounded-full border p-2 px-4"
         >
           <span>{$t("Last Updated")}</span>
-          <span
-            >{$formatDate(
+          <span>
+            {$formatDate(
               incident.updated_at,
               page.data.dateAndTimeFormat.datePlusTime,
-            )}</span
-          >
+            )}
+          </span>
         </div>
         <div
           class="text-muted-foreground bg-secondary flex items-center justify-between rounded-full border p-2 px-4"
@@ -1313,14 +1311,14 @@
                 <div
                   class="flex flex-1 flex-col items-start justify-between gap-1 leading-none"
                 >
-                  <span class="text-muted-foreground text-xs"
-                    >{item.payload?.date
+                  <span class="text-muted-foreground text-xs">
+                    {item.payload?.date
                       ? $formatDate(
                           item.payload.date,
                           page.data.dateAndTimeFormat.dateOnly,
                         )
-                      : ""}</span
-                  >
+                      : ""}
+                  </span>
                   <div class="flex items-center gap-2">
                     <span
                       class="text-foreground font-mono font-medium tabular-nums"
@@ -1344,7 +1342,7 @@
   {/if}
 </div>
 
-=== 5800 src/lib/components/MaintenanceItem.svelte	svelte
+=== 5809 src/lib/components/MaintenanceItem.svelte	svelte
 <script lang="ts">
   import * as Item from "$lib/components/ui/item/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -1388,16 +1386,17 @@
 <Item.Root class="items-start p-0 {className} sm:items-center">
   <Item.Content class="min-w-0 flex-1">
     <div class="flex flex-col items-start justify-start gap-0.5">
-      <span class="text-xs font-medium text-{maintenance.status.toLowerCase()}"
-        >{$t(maintenance.status)}</span
-      >
+      <span class="text-xs font-medium text-{maintenance.status.toLowerCase()}">
+        {$t(maintenance.status)}
+      </span>
       <Item.Title class="min-w-0 text-base wrap-break-word break-all">
         <a
           {target}
           class="hover:underline"
           href={clientResolver(resolve, `/maintenances/${maintenance.id}`)}
-          >{maintenance.title}</a
         >
+          {maintenance.title}
+        </a>
       </Item.Title>
     </div>
 
@@ -1431,15 +1430,15 @@
                         alt={monitor.monitor_name}
                       />
                     {/if}
-                    <Avatar.Fallback
-                      >{GetInitials(monitor.monitor_name)}</Avatar.Fallback
-                    >
+                    <Avatar.Fallback>
+                      {GetInitials(monitor.monitor_name)}
+                    </Avatar.Fallback>
                   </Avatar.Root>
                   <div class="flex flex-col">
                     <span class="font-medium">{monitor.monitor_name}</span>
-                    <span class="text-muted-foreground text-xs"
-                      >{monitor.monitor_tag}</span
-                    >
+                    <span class="text-muted-foreground text-xs">
+                      {monitor.monitor_tag}
+                    </span>
                   </div>
                 </div>
                 <div class="flex items-center justify-between">
@@ -1858,7 +1857,7 @@
   }
 </style>
 
-=== 6159 src/lib/components/MonitorBar.svelte	svelte
+=== 6183 src/lib/components/MonitorBar.svelte	svelte
 <script lang="ts">
   import * as Item from "$lib/components/ui/item/index.js";
   import { Skeleton } from "$lib/components/ui/skeleton/index.js";
@@ -1983,13 +1982,15 @@
         <Item.Title class="w-full truncate">
           <a
             class="hover:underline"
-            href={clientResolver(resolve, `/monitors/${tag}`)}>{data.name}</a
+            href={clientResolver(resolve, `/monitors/${tag}`)}
           >
+            {data.name}
+          </a>
         </Item.Title>
         {#if data.description}
-          <Item.Description class="line-clamp-2 wrap-break-word"
-            >{data.description}</Item.Description
-          >
+          <Item.Description class="line-clamp-2 wrap-break-word">
+            {data.description}
+          </Item.Description>
         {/if}
       </Item.Content>
 
@@ -2003,9 +2004,9 @@
               : 'mt-1.5 size-6'}"
           />
           <div class="flex flex-col items-start gap-1 sm:items-end">
-            <span class={grid ? "text-base sm:text-lg" : "text-lg sm:text-xl"}
-              >{data.uptime}%</span
-            >
+            <span class={grid ? "text-base sm:text-lg" : "text-lg sm:text-xl"}>
+              {data.uptime}%
+            </span>
             <span class="text-muted-foreground text-right text-xs">
               {data.avgLatency}
             </span>
@@ -2056,7 +2057,7 @@
   {/if}
 </div>
 
-=== 16770 src/lib/components/MonitorDayDetail.svelte	svelte
+=== 16806 src/lib/components/MonitorDayDetail.svelte	svelte
 <script lang="ts">
   import { t } from "$lib/stores/i18n";
   import * as Tooltip from "$lib/components/ui/tooltip/index.js";
@@ -2310,9 +2311,9 @@
             : ""}
         </span>
       </Dialog.Title>
-      <Dialog.Description class="text-xs sm:text-sm"
-        >{$t("Minute-by-minute status data for this day")}</Dialog.Description
-      >
+      <Dialog.Description class="text-xs sm:text-sm">
+        {$t("Minute-by-minute status data for this day")}
+      </Dialog.Description>
     </Dialog.Header>
 
     <Tabs.Root
@@ -2325,23 +2326,27 @@
         <Tabs.Trigger
           value="status"
           class="shrink-0 rounded-3xl px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm"
-          >{$t("Status")}</Tabs.Trigger
         >
+          {$t("Status")}
+        </Tabs.Trigger>
         <Tabs.Trigger
           value="latency"
           class="shrink-0 rounded-3xl px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm"
-          >{$t("Latency")}</Tabs.Trigger
         >
+          {$t("Latency")}
+        </Tabs.Trigger>
         <Tabs.Trigger
           value="incidents"
           class="shrink-0 rounded-3xl px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm"
-          >{$t("Incidents")}</Tabs.Trigger
         >
+          {$t("Incidents")}
+        </Tabs.Trigger>
         <Tabs.Trigger
           value="maintenances"
           class="shrink-0 rounded-3xl px-2 py-1.5 text-xs sm:px-3 sm:py-2 sm:text-sm"
-          >{$t("Maintenances")}</Tabs.Trigger
         >
+          {$t("Maintenances")}
+        </Tabs.Trigger>
       </Tabs.List>
       <!-- status view -->
       <Tabs.Content value="status" class="p-2 sm:p-4">
@@ -2723,9 +2728,9 @@
   <Card.Header class="pb-2">
     <div class="flex items-center justify-between">
       <div>
-        <Card.Title class="text-base font-medium"
-          >{dayOptions[selectedDayIndex].text}</Card.Title
-        >
+        <Card.Title class="text-base font-medium">
+          {dayOptions[selectedDayIndex].text}
+        </Card.Title>
         <Card.Description class="text-xs">
           {$t("Status history and latency trend")}
         </Card.Description>
@@ -2845,9 +2850,9 @@
         <p class="text-muted-foreground mb-2 text-sm font-medium">
           {$t("Latency Trend")}
           <Popover.Root>
-            <Popover.Trigger class="text-foreground cursor-pointer underline"
-              >{latencyChartLabel}</Popover.Trigger
-            >
+            <Popover.Trigger class="text-foreground cursor-pointer underline">
+              {latencyChartLabel}
+            </Popover.Trigger>
             <Popover.Content class="flex w-fit flex-col gap-2">
               <p class="text-muted-foreground text-xs font-medium">
                 {$t("Select latency metric to display")}
@@ -2862,15 +2867,15 @@
                 }}
                 class="flex justify-between"
               >
-                <ToggleGroup.Item value="average" aria-label="Average latency"
-                  >{$t("Avg Latency")}</ToggleGroup.Item
-                >
-                <ToggleGroup.Item value="maximum" aria-label="Maximum latency"
-                  >{$t("Max Latency")}</ToggleGroup.Item
-                >
-                <ToggleGroup.Item value="minimum" aria-label="Minimum latency"
-                  >{$t("Min Latency")}</ToggleGroup.Item
-                >
+                <ToggleGroup.Item value="average" aria-label="Average latency">
+                  {$t("Avg Latency")}
+                </ToggleGroup.Item>
+                <ToggleGroup.Item value="maximum" aria-label="Maximum latency">
+                  {$t("Max Latency")}
+                </ToggleGroup.Item>
+                <ToggleGroup.Item value="minimum" aria-label="Minimum latency">
+                  {$t("Min Latency")}
+                </ToggleGroup.Item>
               </ToggleGroup.Root>
             </Popover.Content>
           </Popover.Root>
@@ -3002,9 +3007,9 @@
                 </div>
               {/if}
               <span class="truncate">{monitor.name}</span>
-              <span class="text-muted-foreground ml-auto truncate text-xs"
-                >{monitor.tag}</span
-              >
+              <span class="text-muted-foreground ml-auto truncate text-xs">
+                {monitor.tag}
+              </span>
             </Command.Item>
           {/each}
         </Command.Group>
@@ -3025,7 +3030,7 @@
   </Popover.Content>
 </Popover.Root>
 
-=== 4113 src/lib/components/NotificationsList.svelte	svelte
+=== 4088 src/lib/components/NotificationsList.svelte	svelte
 <script lang="ts">
   import { resolve } from "$app/paths";
   import { page } from "$app/state";
@@ -3094,12 +3099,12 @@
 
 {#snippet notificationItem(item: NotificationEvent)}
   <div class="my-0.5 flex items-center justify-between gap-2 text-xs">
-    <span class="text-muted-foreground text-[11px] uppercase"
-      >{$t(item.eventType)}</span
-    >
-    <span class="text-{item.eventStatus.toLowerCase()}"
-      >{$t(item.eventStatus)}</span
-    >
+    <span class="text-muted-foreground text-[11px] uppercase">
+      {$t(item.eventType)}
+    </span>
+    <span class="text-{item.eventStatus.toLowerCase()}">
+      {$t(item.eventStatus)}
+    </span>
   </div>
   <div class="flex items-start justify-between gap-2">
     <p class="line-clamp-2 text-sm">{item.eventTitle}</p>
@@ -3107,21 +3112,18 @@
   <div
     class="text-muted-foreground mt-1 flex flex-wrap items-center gap-2 text-xs"
   >
-    <span
-      >{$formatDate(
-        item.eventDate,
-        page.data.dateAndTimeFormat.datePlusTime,
-      )}</span
-    >
+    <span>
+      {$formatDate(item.eventDate, page.data.dateAndTimeFormat.datePlusTime)}
+    </span>
 
     <span>•</span>
-    <span
-      >{$formatDuration(
+    <span>
+      {$formatDuration(
         item.eventStartDateTime,
         item.eventEndDateTime,
         $t("Ongoing"),
-      )}</span
-    >
+      )}
+    </span>
   </div>
 {/snippet}
 
@@ -3401,12 +3403,12 @@
             size="sm"
             class="bg-background/80 dark:bg-background/70 border-foreground/10 flex items-center justify-center rounded-full border text-xs shadow-none backdrop-blur-md"
           >
-            <span class="hidden max-w-[16rem] truncate sm:inline"
-              >{currentPage?.page_title || "Home"}</span
-            >
-            <span class="sr-only sm:hidden"
-              >{currentPage?.page_title || "Home"}</span
-            >
+            <span class="hidden max-w-[16rem] truncate sm:inline">
+              {currentPage?.page_title || "Home"}
+            </span>
+            <span class="sr-only sm:hidden">
+              {currentPage?.page_title || "Home"}
+            </span>
             <ChevronDown class="h-4 w-4" />
           </Button>
         {/snippet}
@@ -3512,9 +3514,9 @@
     class="bg-background relative flex w-full flex-col gap-0 rounded-3xl border border-{typeClasses} px-4 pt-2 pb-4"
   >
     <div class="relative flex items-center justify-between gap-2 pr-2">
-      <span class="text-foreground text-base text-{typeClasses} font-medium"
-        >{announcement.title}</span
-      >
+      <span class="text-foreground text-base text-{typeClasses} font-medium">
+        {announcement.title}
+      </span>
       {#if announcement.ctaURL && announcement.ctaText}
         <div>
           <Button
@@ -3964,9 +3966,9 @@
       class="bg-popover text-popver-foreground pointer-events-none absolute z-20 w-max -translate-x-1/2 rounded-md border px-2 py-1 text-xs font-medium whitespace-nowrap"
       style={tooltipStyle}
     >
-      <span class={getStatusColor(hoveredBar.data)}
-        >{$t(GetStatusSummary(hoveredBar.data))}</span
-      >
+      <span class={getStatusColor(hoveredBar.data)}>
+        {$t(GetStatusSummary(hoveredBar.data))}
+      </span>
       <span class="text-muted-foreground">@</span>
       {$formatDate(hoveredBar.data.ts, page.data.dateAndTimeFormat.dateOnly)}
       {#if hoveredBar.data.avgLatency > 0}
@@ -4444,9 +4446,9 @@
                 <div class="flex items-center gap-3">
                   <Wrench class="h-5 w-5 text-blue-500" />
                   <div>
-                    <Label class="font-medium"
-                      >{$t("Maintenance Updates")}</Label
-                    >
+                    <Label class="font-medium">
+                      {$t("Maintenance Updates")}
+                    </Label>
                     <p class="text-muted-foreground text-xs">
                       {$t("Get notified about scheduled maintenance")}
                     </p>
@@ -10247,7 +10249,7 @@
   {...restProps}
 ></div>
 
-=== 1132 src/lib/components/ui/sonner/sonner.svelte	svelte
+=== 1133 src/lib/components/ui/sonner/sonner.svelte	svelte
 <script lang="ts">
   import CircleCheckIcon from "@lucide/svelte/icons/circle-check";
   import InfoIcon from "@lucide/svelte/icons/info";
@@ -10269,7 +10271,8 @@
   class="toaster group"
   style="--normal-bg: var(--color-popover); --normal-text: var(--color-popover-foreground); --normal-border: var(--color-border);"
   {...restProps}
-  >{#snippet loadingIcon()}
+>
+  {#snippet loadingIcon()}
     <Loader2Icon class="size-4 animate-spin" />
   {/snippet}
   {#snippet successIcon()}
@@ -10954,7 +10957,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   }
 </style>
 
-=== 11418 src/routes/(account)/account/forgot/+page.svelte	svelte
+=== 11461 src/routes/(account)/account/forgot/+page.svelte	svelte
 <script lang="ts">
   import { toast } from "svelte-sonner";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -11105,9 +11108,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       {:else}
         <Card.Header>
           <Card.Title>Set New Password</Card.Title>
-          <Card.Description
-            >Enter your new password below to complete the reset process.</Card.Description
-          >
+          <Card.Description>
+            Enter your new password below to complete the reset process.
+          </Card.Description>
         </Card.Header>
         <Card.Content>
           <form onsubmit={handleSubmit}>
@@ -11143,14 +11146,15 @@ get along, so we shut typescript up by casting `value` to `never`.
                     </InputGroup.Button>
                   </InputGroup.Addon>
                 </InputGroup.Root>
-                <Field.Description
-                  >Password must be at least 8 characters.</Field.Description
-                >
+                <Field.Description>
+                  Password must be at least 8 characters.
+                </Field.Description>
               </Field.Field>
 
               <Field.Field class="relative flex flex-col gap-1">
-                <Field.Label for="confirmPassword">Confirm Password</Field.Label
-                >
+                <Field.Label for="confirmPassword">
+                  Confirm Password
+                </Field.Label>
                 <InputGroup.Root>
                   <InputGroup.Addon>
                     <LockIcon />
@@ -11231,8 +11235,10 @@ get along, so we shut typescript up by casting `value` to `never`.
           <Button
             variant="outline"
             class="w-full"
-            onclick={() => (emailSent = false)}>Try Again</Button
+            onclick={() => (emailSent = false)}
           >
+            Try Again
+          </Button>
           <div class="mt-4 text-center">
             <Button
               variant="link"
@@ -11539,7 +11545,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </Card.Root>
 </div>
 
-=== 6877 src/routes/(account)/account/signin/+page.svelte	svelte
+=== 6821 src/routes/(account)/account/signin/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import * as Card from "$lib/components/ui/card/index.js";
@@ -11576,11 +11582,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 <div class="flex min-h-screen items-center justify-center p-4">
   <Card.Root class="kener-card w-full max-w-md">
     <Card.Header>
-      <Card.Title
-        >{!isAdminAccountCreated
-          ? "Create Admin Account"
-          : "Sign In"}</Card.Title
-      >
+      <Card.Title>
+        {!isAdminAccountCreated ? "Create Admin Account" : "Sign In"}
+      </Card.Title>
       <Card.Description>
         {!isAdminAccountCreated
           ? "Set up your admin account to get started"
@@ -11620,11 +11624,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           {#if form?.error}
             <Alert.Root variant="destructive" class="mb-4">
               <AlertCircleIcon />
-              <Alert.Title
-                >{!isAdminAccountCreated
-                  ? "Signup failed"
-                  : "Login failed"}</Alert.Title
-              >
+              <Alert.Title>
+                {!isAdminAccountCreated ? "Signup failed" : "Login failed"}
+              </Alert.Title>
               <Alert.Description>{form.error}</Alert.Description>
             </Alert.Root>
           {/if}
@@ -12254,7 +12256,7 @@ get along, so we shut typescript up by casting `value` to `never`.
 
 {@render children()}
 
-=== 8612 src/routes/(docs)/docs/DocsNavbar.svelte	svelte
+=== 8625 src/routes/(docs)/docs/DocsNavbar.svelte	svelte
 <script lang="ts">
   import type { DocsConfig } from "$lib/types/docs";
 
@@ -12427,8 +12429,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               {...props}
               variant="link"
               class="text-muted-foreground h-8 px-0 text-xs "
-              >{getActiveVersionLabel()}</Button
             >
+              {getActiveVersionLabel()}
+            </Button>
           {/snippet}
         </DropdownMenu.Trigger>
         <DropdownMenu.Content class="w-56" align="start">
@@ -12563,9 +12566,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       >
         <ChevronLeft class="h-4 w-4" />
         <div class="flex flex-col gap-1">
-          <span class="text-muted-foreground text-xs tracking-wide uppercase"
-            >Previous</span
-          >
+          <span class="text-muted-foreground text-xs tracking-wide uppercase">
+            Previous
+          </span>
           <span class="text-[0.9375rem] font-medium">{prevPage.title}</span>
         </div>
       </a>
@@ -12579,9 +12582,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         class="text-foreground hover:bg-accent flex items-center justify-end gap-3 rounded p-4 text-right no-underline transition-all duration-200"
       >
         <div class="flex flex-col gap-1">
-          <span class="text-muted-foreground text-xs tracking-wide uppercase"
-            >Next</span
-          >
+          <span class="text-muted-foreground text-xs tracking-wide uppercase">
+            Next
+          </span>
           <span class="text-[0.9375rem] font-medium">{nextPage.title}</span>
         </div>
         <ChevronRight class="h-4 w-4" />
@@ -12753,14 +12756,14 @@ get along, so we shut typescript up by casting `value` to `never`.
                 <div class="flex items-center gap-2">
                   <span class="font-medium">{result.title}</span>
                   {#if result.sectionTitle}
-                    <span class="text-muted-foreground text-xs"
-                      >› {result.sectionTitle}</span
-                    >
+                    <span class="text-muted-foreground text-xs">
+                      › {result.sectionTitle}
+                    </span>
                   {/if}
                 </div>
-                <span class="text-muted-foreground line-clamp-1 text-xs"
-                  >{result.excerpt}</span
-                >
+                <span class="text-muted-foreground line-clamp-1 text-xs">
+                  {result.excerpt}
+                </span>
               </div>
             </Command.Item>
           {/each}
@@ -13584,12 +13587,12 @@ get along, so we shut typescript up by casting `value` to `never`.
     <div class="flex items-center justify-between text-xs font-semibold">
       <span class="text-foreground">{displayUptime}% {$t("Uptime")}</span>
       {#if !!displayLatency && displayLatency !== "--"}
-        <span class=""
-          >{$t("%latency %metric latency", {
+        <span class="">
+          {$t("%latency %metric latency", {
             latency: String(displayLatency),
             metric: $t(data.metric),
-          })}</span
-        >
+          })}
+        </span>
       {/if}
     </div>
 
@@ -14061,9 +14064,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <Item.Content>
         {#if data.pageDetails?.page_header}
           <h1>
-            <Item.Title class="text-2xl sm:text-3xl"
-              >{data.pageDetails.page_header}</Item.Title
-            >
+            <Item.Title class="text-2xl sm:text-3xl">
+              {data.pageDetails.page_header}
+            </Item.Title>
           </h1>
         {/if}
         {#if data.pageDetails?.page_subheader}
@@ -14365,9 +14368,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <Item.Content>
         {#if data.pageDetails?.page_header}
           <h1>
-            <Item.Title class="text-2xl sm:text-3xl"
-              >{data.pageDetails.page_header}</Item.Title
-            >
+            <Item.Title class="text-2xl sm:text-3xl">
+              {data.pageDetails.page_header}
+            </Item.Title>
           </h1>
         {/if}
         {#if data.pageDetails?.page_subheader}
@@ -15194,9 +15197,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Item.Root class="mb-4 px-0">
       <Item.Content class="min-w-0 flex-1 px-0">
         <h1>
-          <Item.Title class="text-3xl wrap-break-word"
-            >{data.incident.title}</Item.Title
-          >
+          <Item.Title class="text-3xl wrap-break-word">
+            {data.incident.title}
+          </Item.Title>
         </h1>
       </Item.Content>
     </Item.Root>
@@ -15422,9 +15425,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     >
       <Item.Content class="min-w-0 flex-1 px-0">
         <h1>
-          <Item.Title class="text-3xl wrap-break-word"
-            >{data.maintenance.title}</Item.Title
-          >
+          <Item.Title class="text-3xl wrap-break-word">
+            {data.maintenance.title}
+          </Item.Title>
         </h1>
       </Item.Content>
     </Item.Root>
@@ -15447,30 +15450,30 @@ get along, so we shut typescript up by casting `value` to `never`.
     >
       <div class="flex flex-col items-start gap-1.5">
         <span class="text-muted-foreground">{$t("Start Time")}</span>
-        <span
-          >{$formatDate(
+        <span>
+          {$formatDate(
             data.maintenanceEvent.start_date_time,
             page.data.dateAndTimeFormat.datePlusTime,
-          )}</span
-        >
+          )}
+        </span>
       </div>
       <div class="flex flex-col items-start gap-1.5 sm:items-center">
         <span class="text-muted-foreground">{$t("End Time")}</span>
-        <span
-          >{$formatDate(
+        <span>
+          {$formatDate(
             data.maintenanceEvent.end_date_time,
             page.data.dateAndTimeFormat.datePlusTime,
-          )}</span
-        >
+          )}
+        </span>
       </div>
       <div class="flex flex-col items-start gap-1.5 sm:items-end">
         <span class="text-muted-foreground">{$t("Duration")}</span>
-        <span
-          >{$formatDuration(
+        <span>
+          {$formatDuration(
             data.maintenanceEvent.start_date_time,
             data.maintenanceEvent.end_date_time,
-          )}</span
-        >
+          )}
+        </span>
       </div>
     </div>
   </div>
@@ -15537,19 +15540,19 @@ get along, so we shut typescript up by casting `value` to `never`.
                 <div
                   class="text-muted-foreground flex flex-col gap-1 text-sm sm:flex-row sm:items-center sm:justify-between"
                 >
-                  <span
-                    >{$formatDate(
+                  <span>
+                    {$formatDate(
                       event.start_date_time,
                       page.data.dateAndTimeFormat.datePlusTime,
-                    )}</span
-                  >
+                    )}
+                  </span>
                   <span class="hidden sm:inline">→</span>
-                  <span
-                    >{$formatDate(
+                  <span>
+                    {$formatDate(
                       event.end_date_time,
                       page.data.dateAndTimeFormat.datePlusTime,
-                    )}</span
-                  >
+                    )}
+                  </span>
                 </div>
               </div>
             {/each}
@@ -15752,12 +15755,12 @@ get along, so we shut typescript up by casting `value` to `never`.
     <div class="relative flex flex-col px-2">
       <h2 class="text-base font-medium">{$t("Last Updated")}</h2>
       <p class="text-muted-foreground text-xs">
-        <span
-          >{$formatDate(
+        <span>
+          {$formatDate(
             data.monitorLastStatusTimestamp * 1000,
             page.data.dateAndTimeFormat.datePlusTime,
-          )}</span
-        >
+          )}
+        </span>
       </p>
       {#if !!data.externalUrl}
         <Button
@@ -16400,9 +16403,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     {@const startItem = (pageNo - 1) * limit + 1}
     {@const endItem = Math.min(pageNo * limit, totalCount)}
     <div class="flex items-center justify-between">
-      <span class="text-muted-foreground text-sm"
-        >Showing {startItem}-{endItem} of {totalCount}</span
-      >
+      <span class="text-muted-foreground text-sm">
+        Showing {startItem}-{endItem} of {totalCount}
+      </span>
       {#if totalPages > 1}
         <div class="flex items-center gap-2">
           <Button
@@ -16442,7 +16445,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 21949 src/routes/(manage)/manage/app/alerts/[alert_config_id]/+page.svelte	svelte
+=== 21971 src/routes/(manage)/manage/app/alerts/[alert_config_id]/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/stores";
   import { goto } from "$app/navigation";
@@ -16740,17 +16743,15 @@ get along, so we shut typescript up by casting `value` to `never`.
   <Breadcrumb.Root>
     <Breadcrumb.List>
       <Breadcrumb.Item>
-        <Breadcrumb.Link href={clientResolver(resolve, "/manage/app/alerts")}
-          >Alerts</Breadcrumb.Link
-        >
+        <Breadcrumb.Link href={clientResolver(resolve, "/manage/app/alerts")}>
+          Alerts
+        </Breadcrumb.Link>
       </Breadcrumb.Item>
       <Breadcrumb.Separator />
       <Breadcrumb.Item>
-        <Breadcrumb.Page
-          >{isNew
-            ? "New Alert"
-            : `Edit Alert #${alertConfigId}`}</Breadcrumb.Page
-        >
+        <Breadcrumb.Page>
+          {isNew ? "New Alert" : `Edit Alert #${alertConfigId}`}
+        </Breadcrumb.Page>
       </Breadcrumb.Item>
     </Breadcrumb.List>
   </Breadcrumb.Root>
@@ -17017,9 +17018,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                       </p>
                     {/if}
                   </div>
-                  <Badge variant="outline" class="text-xs capitalize"
-                    >{trigger.trigger_type}</Badge
-                  >
+                  <Badge variant="outline" class="text-xs capitalize">
+                    {trigger.trigger_type}
+                  </Badge>
                 </label>
               {/each}
             </div>
@@ -17028,8 +17029,10 @@ get along, so we shut typescript up by casting `value` to `never`.
           <p class="text-muted-foreground text-sm">
             No notification triggers available. <a
               href={clientResolver(resolve, "/manage/app/triggers")}
-              class="text-primary underline">Create a trigger</a
-            > to receive notifications.
+              class="text-primary underline"
+            >
+              Create a trigger
+            </a> to receive notifications.
           </p>
         {/if}
       </Card.Content>
@@ -17038,8 +17041,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         <Button
           variant="outline"
           onclick={() => goto(clientResolver(resolve, "/manage/app/alerts"))}
-          >Cancel</Button
         >
+          Cancel
+        </Button>
         <Button onclick={saveAlertConfig} disabled={saving}>
           {#if saving}
             <Spinner class="size-4" />
@@ -17054,9 +17058,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <Card.Root class="border-destructive">
         <Card.Header>
           <Card.Title class="text-destructive">Danger Zone</Card.Title>
-          <Card.Description
-            >Irreversible actions for this alert configuration.</Card.Description
-          >
+          <Card.Description>
+            Irreversible actions for this alert configuration.
+          </Card.Description>
         </Card.Header>
         <Card.Content>
           <Button
@@ -17084,13 +17088,14 @@ get along, so we shut typescript up by casting `value` to `never`.
     </AlertDialog.Header>
     <AlertDialog.Footer>
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-      <AlertDialog.Action onclick={deleteAlertConfig}>Delete</AlertDialog.Action
-      >
+      <AlertDialog.Action onclick={deleteAlertConfig}>
+        Delete
+      </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>
 
-=== 13056 src/routes/(manage)/manage/app/alerts/logs/[alert_config_id]/+page.svelte	svelte
+=== 13079 src/routes/(manage)/manage/app/alerts/logs/[alert_config_id]/+page.svelte	svelte
 <script lang="ts">
   import { goto } from "$app/navigation";
   import { onMount } from "svelte";
@@ -17284,9 +17289,9 @@ get along, so we shut typescript up by casting `value` to `never`.
   <Breadcrumb.Root>
     <Breadcrumb.List>
       <Breadcrumb.Item>
-        <Breadcrumb.Link href={clientResolver(resolve, "/manage/app/alerts")}
-          >Alerts</Breadcrumb.Link
-        >
+        <Breadcrumb.Link href={clientResolver(resolve, "/manage/app/alerts")}>
+          Alerts
+        </Breadcrumb.Link>
       </Breadcrumb.Item>
       <Breadcrumb.Separator />
       <Breadcrumb.Item>
@@ -17365,9 +17370,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                     v &&
                     updateAlertStatus(alert.id, v as "TRIGGERED" | "RESOLVED")}
                 >
-                  <Select.Trigger class="h-8 w-32"
-                    >{alert.alert_status}</Select.Trigger
-                  >
+                  <Select.Trigger class="h-8 w-32">
+                    {alert.alert_status}
+                  </Select.Trigger>
                   <Select.Content>
                     <Select.Item value="TRIGGERED">TRIGGERED</Select.Item>
                     <Select.Item value="RESOLVED">RESOLVED</Select.Item>
@@ -17390,12 +17395,12 @@ get along, so we shut typescript up by casting `value` to `never`.
                   <span class="text-muted-foreground text-sm">—</span>
                 {/if}
               </Table.Cell>
-              <Table.Cell class="text-muted-foreground text-sm"
-                >{formatDate(alert.created_at)}</Table.Cell
-              >
-              <Table.Cell class="text-muted-foreground text-sm"
-                >{formatDate(alert.updated_at)}</Table.Cell
-              >
+              <Table.Cell class="text-muted-foreground text-sm">
+                {formatDate(alert.created_at)}
+              </Table.Cell>
+              <Table.Cell class="text-muted-foreground text-sm">
+                {formatDate(alert.updated_at)}
+              </Table.Cell>
               <Table.Cell class="text-right">
                 <Button
                   variant="destructive"
@@ -17418,9 +17423,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     {@const startItem = (pageNo - 1) * limit + 1}
     {@const endItem = Math.min(pageNo * limit, totalCount)}
     <div class="flex items-center justify-between">
-      <span class="text-muted-foreground text-sm"
-        >Showing {startItem}-{endItem} of {totalCount}</span
-      >
+      <span class="text-muted-foreground text-sm">
+        Showing {startItem}-{endItem} of {totalCount}
+      </span>
       {#if totalPages > 1}
         <div class="flex items-center gap-2">
           <Button
@@ -17475,9 +17480,11 @@ get along, so we shut typescript up by casting `value` to `never`.
       <div class="flex items-center gap-3 py-2">
         <Checkbox id="delete-incident" bind:checked={deleteIncident} />
         <label for="delete-incident" class="text-sm">
-          Also delete associated incident <span class="text-primary font-medium"
-            >#{alertToDelete.incident_id}</span
+          Also delete associated incident <span
+            class="text-primary font-medium"
           >
+            #{alertToDelete.incident_id}
+          </span>
         </label>
       </div>
     {/if}
@@ -17489,7 +17496,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </AlertDialog.Content>
 </AlertDialog.Root>
 
-=== 12407 src/routes/(manage)/manage/app/analytics-providers/+page.svelte	svelte
+=== 12419 src/routes/(manage)/manage/app/analytics-providers/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -17803,8 +17810,10 @@ get along, so we shut typescript up by casting `value` to `never`.
       href="https://kener.ing/docs/v4/analytics"
       target="_blank"
       rel="noopener noreferrer"
-      class="text-primary ml-1 underline underline-offset-2">Learn more</a
-    >.
+      class="text-primary ml-1 underline underline-offset-2"
+    >
+      Learn more
+    </a>.
   </div>
   {#if loading}
     <div class="flex items-center justify-center py-8">
@@ -17909,7 +17918,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 11625 src/routes/(manage)/manage/app/api-keys/+page.svelte	svelte
+=== 11677 src/routes/(manage)/manage/app/api-keys/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -18135,13 +18144,15 @@ get along, so we shut typescript up by casting `value` to `never`.
             </div>
             <p class="text-muted-foreground mt-2 text-xs">
               Your new API key has been created. It will <strong
-                class="uppercase underline">not be shown again</strong
-              >, so make sure to save it.
+                class="uppercase underline"
+              >
+                not be shown again
+              </strong>, so make sure to save it.
             </p>
           </div>
-          <Button size="sm" variant="ghost" onclick={dismissNewKey}
-            >Dismiss</Button
-          >
+          <Button size="sm" variant="ghost" onclick={dismissNewKey}>
+            Dismiss
+          </Button>
         </div>
       </Card.Content>
     </Card.Root>
@@ -18245,8 +18256,10 @@ get along, so we shut typescript up by casting `value` to `never`.
         <Button
           type="button"
           variant="outline"
-          onclick={() => (showCreateDialog = false)}>Cancel</Button
+          onclick={() => (showCreateDialog = false)}
         >
+          Cancel
+        </Button>
         <Button type="submit" disabled={creating}>
           {#if creating}
             <Loader class="h-4 w-4 animate-spin" />
@@ -18279,7 +18292,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </AlertDialog.Content>
 </AlertDialog.Root>
 
-=== 36639 src/routes/(manage)/manage/app/customizations/+page.svelte	svelte
+=== 36659 src/routes/(manage)/manage/app/customizations/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -18794,8 +18807,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         </div>
       </Card.Content>
       <Card.Footer class="flex justify-between border-t pt-6">
-        <Button variant="outline" onclick={resetFooter}>Reset to Default</Button
-        >
+        <Button variant="outline" onclick={resetFooter}>
+          Reset to Default
+        </Button>
         <Button onclick={saveFooter} disabled={savingFooter}>
           {#if savingFooter}
             <Loader class="h-4 w-4 animate-spin" />
@@ -18809,10 +18823,10 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header class="border-b">
         <Card.Title>Status Colors</Card.Title>
-        <Card.Description
-          >Customize the colors used to represent different monitor statuses.
-          Set separate colors for light and dark themes.</Card.Description
-        >
+        <Card.Description>
+          Customize the colors used to represent different monitor statuses. Set
+          separate colors for light and dark themes.
+        </Card.Description>
       </Card.Header>
       <Card.Content class="pt-6">
         <div class="ktable rounded-lg border">
@@ -18851,8 +18865,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 </Table.Cell>
               </Table.Row>
               <Table.Row>
-                <Table.Cell class="font-medium">{constants.DEGRADED}</Table.Cell
-                >
+                <Table.Cell class="font-medium">
+                  {constants.DEGRADED}
+                </Table.Cell>
                 <Table.Cell>
                   <ColorPicker
                     bind:hex={colors.DEGRADED}
@@ -18902,9 +18917,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 </Table.Cell>
               </Table.Row>
               <Table.Row>
-                <Table.Cell class="font-medium"
-                  >{constants.MAINTENANCE}</Table.Cell
-                >
+                <Table.Cell class="font-medium">
+                  {constants.MAINTENANCE}
+                </Table.Cell>
                 <Table.Cell>
                   <ColorPicker
                     bind:hex={colors.MAINTENANCE}
@@ -19010,9 +19025,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             </Tooltip.Content>
           </Tooltip.Root>
         </Card.Title>
-        <Card.Description
-          >Customize the font used throughout your status page.</Card.Description
-        >
+        <Card.Description>
+          Customize the font used throughout your status page.
+        </Card.Description>
       </Card.Header>
       <Card.Content class="pt-6">
         <div class="grid gap-4 md:grid-cols-2">
@@ -19069,10 +19084,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header class="border-b">
         <Card.Title>Theme</Card.Title>
-        <Card.Description
-          >Configure the default theme and user preferences for your status
-          page.</Card.Description
-        >
+        <Card.Description>
+          Configure the default theme and user preferences for your status page.
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-6 pt-6">
         <div class="space-y-3">
@@ -19080,21 +19094,21 @@ get along, so we shut typescript up by casting `value` to `never`.
           <RadioGroup.Root bind:value={theme} class="flex flex-col gap-3">
             <div class="flex items-center space-x-2">
               <RadioGroup.Item value="light" id="theme-light" />
-              <Label for="theme-light" class="cursor-pointer font-normal"
-                >Light</Label
-              >
+              <Label for="theme-light" class="cursor-pointer font-normal">
+                Light
+              </Label>
             </div>
             <div class="flex items-center space-x-2">
               <RadioGroup.Item value="dark" id="theme-dark" />
-              <Label for="theme-dark" class="cursor-pointer font-normal"
-                >Dark</Label
-              >
+              <Label for="theme-dark" class="cursor-pointer font-normal">
+                Dark
+              </Label>
             </div>
             <div class="flex items-center space-x-2">
               <RadioGroup.Item value="system" id="theme-system" />
-              <Label for="theme-system" class="cursor-pointer font-normal"
-                >System</Label
-              >
+              <Label for="theme-system" class="cursor-pointer font-normal">
+                System
+              </Label>
             </div>
           </RadioGroup.Root>
           <p class="text-muted-foreground text-xs">
@@ -19111,9 +19125,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               (themeToggle = checked ? "YES" : "NO")}
           />
           <div class="space-y-1">
-            <Label for="theme-toggle" class="cursor-pointer"
-              >Allow users to toggle theme</Label
-            >
+            <Label for="theme-toggle" class="cursor-pointer">
+              Allow users to toggle theme
+            </Label>
             <p class="text-muted-foreground text-sm">
               When enabled, users can switch between light and dark themes using
               a toggle button.
@@ -19135,9 +19149,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header class="border-b">
         <Card.Title>Announcement</Card.Title>
-        <Card.Description
-          >Configure a site-wide announcement message shown to visitors.</Card.Description
-        >
+        <Card.Description>
+          Configure a site-wide announcement message shown to visitors.
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-4 pt-6">
         <div class="grid gap-4 md:grid-cols-2">
@@ -19157,9 +19171,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               onValueChange={(v: string | undefined) =>
                 v && (announcement.type = v as "INFO" | "WARNING" | "ERROR")}
             >
-              <Select.Trigger id="announcement-type" class="w-full"
-                >{announcement.type}</Select.Trigger
-              >
+              <Select.Trigger id="announcement-type" class="w-full">
+                {announcement.type}
+              </Select.Trigger>
               <Select.Content>
                 <Select.Item value="INFO">INFO</Select.Item>
                 <Select.Item value="WARNING">WARNING</Select.Item>
@@ -19217,9 +19231,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               (announcement.cancellable = checked === true)}
           />
           <div class="space-y-1">
-            <Label for="announcement-cancellable" class="cursor-pointer"
-              >Cancellable</Label
-            >
+            <Label for="announcement-cancellable" class="cursor-pointer">
+              Cancellable
+            </Label>
             <p class="text-muted-foreground text-sm">
               Allow users to dismiss the announcement.
             </p>
@@ -19254,9 +19268,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               (pageOrderingEnabled = checked === true)}
           />
           <div class="space-y-1">
-            <Label for="page-ordering-enabled" class="cursor-pointer"
-              >Enable custom page ordering</Label
-            >
+            <Label for="page-ordering-enabled" class="cursor-pointer">
+              Enable custom page ordering
+            </Label>
             <p class="text-muted-foreground text-sm">
               When enabled, pages will be displayed in the order below instead
               of the default creation order.
@@ -19378,7 +19392,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 12948 src/routes/(manage)/manage/app/incidents/+page.svelte	svelte
+=== 12961 src/routes/(manage)/manage/app/incidents/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Spinner } from "$lib/components/ui/spinner/index.js";
@@ -19575,8 +19589,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             <Table.Cell
               colspan={7}
               class="text-muted-foreground py-8 text-center"
-              >No incidents found</Table.Cell
             >
+              No incidents found
+            </Table.Cell>
           </Table.Row>
         {:else}
           {#each incidents as incident}
@@ -19603,9 +19618,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               <Table.Cell>
                 <Tooltip.Root>
                   <Tooltip.Trigger>
-                    <span class="text-muted-foreground text-sm"
-                      >{incident.duration}</span
-                    >
+                    <span class="text-muted-foreground text-sm">
+                      {incident.duration}
+                    </span>
                   </Tooltip.Trigger>
                   <Tooltip.Content>
                     <div class="text-sm">
@@ -19643,21 +19658,20 @@ get along, so we shut typescript up by casting `value` to `never`.
                 {#if incident.monitors && incident.monitors.length > 0}
                   <Tooltip.Root>
                     <Tooltip.Trigger>
-                      <Badge variant="outline"
-                        >{incident.monitors.length} monitor(s)</Badge
-                      >
+                      <Badge variant="outline">
+                        {incident.monitors.length} monitor(s)
+                      </Badge>
                     </Tooltip.Trigger>
                     <Tooltip.Content>
                       <div class="space-y-1">
                         {#each incident.monitors as monitor}
                           <div class="text-sm">
-                            <span class="font-medium"
-                              >{monitor.tag || monitor.monitor_tag}</span
-                            >
-                            <span class="text-muted-foreground ml-1"
-                              >({monitor.impact_type ||
-                                monitor.monitor_impact})</span
-                            >
+                            <span class="font-medium">
+                              {monitor.tag || monitor.monitor_tag}
+                            </span>
+                            <span class="text-muted-foreground ml-1">
+                              ({monitor.impact_type || monitor.monitor_impact})
+                            </span>
                           </div>
                         {/each}
                       </div>
@@ -19721,8 +19735,10 @@ get along, so we shut typescript up by casting `value` to `never`.
               <Button
                 variant={pageNo === 1 ? "default" : "ghost"}
                 size="sm"
-                onclick={() => goToPage(1)}>1</Button
+                onclick={() => goToPage(1)}
               >
+                1
+              </Button>
 
               {#if pageNo > 3}
                 <span class="text-muted-foreground px-2">...</span>
@@ -19767,7 +19783,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 45555 src/routes/(manage)/manage/app/incidents/[incident_id]/+page.svelte	svelte
+=== 45694 src/routes/(manage)/manage/app/incidents/[incident_id]/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -20496,16 +20512,15 @@ get along, so we shut typescript up by casting `value` to `never`.
         <Breadcrumb.Item>
           <Breadcrumb.Link
             href={clientResolver(resolve, "/manage/app/incidents")}
-            >Incidents</Breadcrumb.Link
           >
+            Incidents
+          </Breadcrumb.Link>
         </Breadcrumb.Item>
         <Breadcrumb.Separator />
         <Breadcrumb.Item>
-          <Breadcrumb.Page
-            >{isNew
-              ? "New Incident"
-              : `Edit Incident #${params.incident_id}`}</Breadcrumb.Page
-          >
+          <Breadcrumb.Page>
+            {isNew ? "New Incident" : `Edit Incident #${params.incident_id}`}
+          </Breadcrumb.Page>
         </Breadcrumb.Item>
       </Breadcrumb.List>
     </Breadcrumb.Root>
@@ -20541,11 +20556,11 @@ get along, so we shut typescript up by casting `value` to `never`.
             </Dialog.Header>
             <div class="space-y-4 py-4">
               <div class="flex flex-col gap-2">
-                <Label
-                  >Type <span class="font-mono font-semibold"
-                    >{deleteConfirmPhrase}</span
-                  > to confirm</Label
-                >
+                <Label>
+                  Type <span class="font-mono font-semibold">
+                    {deleteConfirmPhrase}
+                  </span> to confirm
+                </Label>
                 <Input
                   bind:value={deleteConfirmText}
                   placeholder={deleteConfirmPhrase}
@@ -20555,8 +20570,10 @@ get along, so we shut typescript up by casting `value` to `never`.
             <Dialog.Footer>
               <Button
                 variant="outline"
-                onclick={() => (deleteDialogOpen = false)}>Cancel</Button
+                onclick={() => (deleteDialogOpen = false)}
               >
+                Cancel
+              </Button>
               <Button
                 variant="destructive"
                 onclick={deleteIncident}
@@ -20591,9 +20608,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <!-- Incident Details -->
     <Card.Root>
       <Card.Header>
-        <Card.Title
-          >{isNew ? "Create New Incident" : "Incident Details"}</Card.Title
-        >
+        <Card.Title>
+          {isNew ? "Create New Incident" : "Incident Details"}
+        </Card.Title>
         <Card.Description>
           {#if isNew}
             Create a new incident to track
@@ -20609,16 +20626,17 @@ get along, so we shut typescript up by casting `value` to `never`.
             <Badge
               variant="outline"
               class="text-{incident.state.toLowerCase()} border-{incident.state.toLowerCase()} font-semibold"
-              >{incident.state}</Badge
             >
+              {incident.state}
+            </Badge>
           </div>
         {/if}
 
         <!-- Title -->
         <div class="flex flex-col gap-2">
-          <Label for="incident-title"
-            >Title <span class="text-destructive">*</span></Label
-          >
+          <Label for="incident-title">
+            Title <span class="text-destructive">*</span>
+          </Label>
           <Input
             id="incident-title"
             bind:value={incident.title}
@@ -20628,9 +20646,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
         <!-- Start Date/Time -->
         <div class="flex flex-col gap-2">
-          <Label for="incident-start"
-            >Start Date/Time <span class="text-destructive">*</span></Label
-          >
+          <Label for="incident-start">
+            Start Date/Time <span class="text-destructive">*</span>
+          </Label>
           <Input
             id="incident-start"
             type="datetime-local"
@@ -20705,9 +20723,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               <Dialog.Content>
                 <Dialog.Header>
                   <Dialog.Title>Add Affected Monitor</Dialog.Title>
-                  <Dialog.Description
-                    >Select a monitor and its impact level</Dialog.Description
-                  >
+                  <Dialog.Description>
+                    Select a monitor and its impact level
+                  </Dialog.Description>
                 </Dialog.Header>
                 <div class="space-y-4 py-4">
                   <div class="flex flex-col gap-2">
@@ -20726,9 +20744,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                       </Select.Trigger>
                       <Select.Content>
                         {#each unassignedMonitors as monitor}
-                          <Select.Item value={monitor.tag}
-                            >{monitor.name}</Select.Item
-                          >
+                          <Select.Item value={monitor.tag}>
+                            {monitor.name}
+                          </Select.Item>
                         {/each}
                       </Select.Content>
                     </Select.Root>
@@ -20756,12 +20774,15 @@ get along, so we shut typescript up by casting `value` to `never`.
                   <Button
                     variant="outline"
                     onclick={() => (addMonitorDialogOpen = false)}
-                    >Cancel</Button
                   >
+                    Cancel
+                  </Button>
                   <Button
                     onclick={addMonitorToList}
-                    disabled={!selectedMonitorTag}>Add Monitor</Button
+                    disabled={!selectedMonitorTag}
                   >
+                    Add Monitor
+                  </Button>
                 </Dialog.Footer>
               </Dialog.Content>
             </Dialog.Root>
@@ -20775,9 +20796,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                   class="flex items-center justify-between rounded-md border p-3"
                 >
                   <div class="flex items-center gap-3">
-                    <span class="font-medium"
-                      >{getMonitorName(monitor.monitor_tag)}</span
-                    >
+                    <span class="font-medium">
+                      {getMonitorName(monitor.monitor_tag)}
+                    </span>
                     <Badge
                       variant="outline"
                       class="text-{monitor.monitor_impact?.toLowerCase() ||
@@ -20866,9 +20887,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           <div class="flex items-center justify-between">
             <div>
               <Card.Title>Updates</Card.Title>
-              <Card.Description
-                >Timeline of status updates for this incident</Card.Description
-              >
+              <Card.Description>
+                Timeline of status updates for this incident
+              </Card.Description>
             </div>
             {#if !addingNewComment}
               <Button size="sm" onclick={startAddComment}>
@@ -20912,9 +20933,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                       if (v) commentState = v;
                     }}
                   >
-                    <Select.Trigger class="w-full"
-                      >{commentState}</Select.Trigger
-                    >
+                    <Select.Trigger class="w-full">
+                      {commentState}
+                    </Select.Trigger>
                     <Select.Content>
                       {#each states as state}
                         <Select.Item value={state}>{state}</Select.Item>
@@ -20928,9 +20949,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 </div>
               </div>
               <div class="flex justify-end gap-2">
-                <Button variant="outline" size="sm" onclick={cancelAddComment}
-                  >Cancel</Button
-                >
+                <Button variant="outline" size="sm" onclick={cancelAddComment}>
+                  Cancel
+                </Button>
                 <Button
                   size="sm"
                   onclick={saveComment}
@@ -20992,9 +21013,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                               if (v) commentState = v;
                             }}
                           >
-                            <Select.Trigger class="w-full"
-                              >{commentState}</Select.Trigger
-                            >
+                            <Select.Trigger class="w-full">
+                              {commentState}
+                            </Select.Trigger>
                             <Select.Content>
                               {#each states as state}
                                 <Select.Item value={state}>{state}</Select.Item>
@@ -21014,8 +21035,10 @@ get along, so we shut typescript up by casting `value` to `never`.
                         <Button
                           variant="outline"
                           size="sm"
-                          onclick={cancelEditComment}>Cancel</Button
+                          onclick={cancelEditComment}
                         >
+                          Cancel
+                        </Button>
                         <Button
                           size="sm"
                           onclick={saveComment}
@@ -21033,9 +21056,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                     <div class="flex items-start justify-between">
                       <div class="flex-1 space-y-2">
                         <div class="flex items-center gap-2">
-                          <Badge variant={getStateBadgeVariant(comment.state)}
-                            >{comment.state}</Badge
-                          >
+                          <Badge variant={getStateBadgeVariant(comment.state)}>
+                            {comment.state}
+                          </Badge>
                           <span class="text-muted-foreground text-sm">
                             {format(
                               new Date(comment.commented_at * 1000),
@@ -21077,7 +21100,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 16643 src/routes/(manage)/manage/app/internationalization/+page.svelte	svelte
+=== 16673 src/routes/(manage)/manage/app/internationalization/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
@@ -21334,9 +21357,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           <GlobeIcon class="h-5 w-5" />
           <div>
             <Card.Title>Languages</Card.Title>
-            <Card.Description
-              >Configure the available languages for your status page</Card.Description
-            >
+            <Card.Description>
+              Configure the available languages for your status page
+            </Card.Description>
           </div>
         </div>
       </Card.Header>
@@ -21419,9 +21442,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           <ClockIcon class="h-5 w-5" />
           <div>
             <Card.Title>Timezone Settings</Card.Title>
-            <Card.Description
-              >Configure timezone switching for your status page</Card.Description
-            >
+            <Card.Description>
+              Configure timezone switching for your status page
+            </Card.Description>
           </div>
         </div>
       </Card.Header>
@@ -21437,9 +21460,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             checked={tzToggle === "YES"}
             onCheckedChange={(checked) => (tzToggle = checked ? "YES" : "NO")}
           />
-          <Label for="tz-toggle" class="font-normal"
-            >Allow users to switch timezones</Label
-          >
+          <Label for="tz-toggle" class="font-normal">
+            Allow users to switch timezones
+          </Label>
         </div>
       </Card.Content>
       <Card.Footer class="flex justify-end">
@@ -21468,8 +21491,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 href="https://date-fns.org/docs/format"
                 target="_blank"
                 class="hover:text-foreground underline underline-offset-2"
-                >date-fns format tokens</a
-              >.
+              >
+                date-fns format tokens
+              </a>.
             </Card.Description>
           </div>
         </div>
@@ -21503,8 +21527,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             {/each}
           </div>
           <p class="text-muted-foreground text-xs">
-            Preview: <code>{formatPreview(dateAndTimeFormat.datePlusTime)}</code
-            >
+            Preview: <code>
+              {formatPreview(dateAndTimeFormat.datePlusTime)}
+            </code>
           </p>
         </div>
 
@@ -21586,7 +21611,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 15016 src/routes/(manage)/manage/app/maintenances/+page.svelte	svelte
+=== 15029 src/routes/(manage)/manage/app/maintenances/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Spinner } from "$lib/components/ui/spinner/index.js";
@@ -21840,8 +21865,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             <Table.Cell
               colspan={8}
               class="text-muted-foreground py-8 text-center"
-              >No maintenances found</Table.Cell
             >
+              No maintenances found
+            </Table.Cell>
           </Table.Row>
         {:else}
           {#each maintenances as maintenance}
@@ -21853,9 +21879,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               <Table.Cell>
                 <Tooltip.Root>
                   <Tooltip.Trigger>
-                    <span class="line-clamp-1 max-w-xs"
-                      >{maintenance.title}</span
-                    >
+                    <span class="line-clamp-1 max-w-xs">
+                      {maintenance.title}
+                    </span>
                   </Tooltip.Trigger>
                   <Tooltip.Content>
                     <p class="max-w-md">{maintenance.title}</p>
@@ -21883,9 +21909,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                   <Tooltip.Trigger>
                     <div class="flex items-center gap-1">
                       <ClockIcon class="text-muted-foreground size-3" />
-                      <span class="text-muted-foreground text-sm"
-                        >{formatDuration(maintenance.duration_seconds)}</span
-                      >
+                      <span class="text-muted-foreground text-sm">
+                        {formatDuration(maintenance.duration_seconds)}
+                      </span>
                     </div>
                   </Tooltip.Trigger>
                   <Tooltip.Content>
@@ -21915,9 +21941,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                     <Tooltip.Trigger>
                       <div class="flex items-center gap-1">
                         <BlendIcon class="text-muted-foreground size-3" />
-                        <span class="text-sm"
-                          >{maintenance.monitors.length}</span
-                        >
+                        <span class="text-sm">
+                          {maintenance.monitors.length}
+                        </span>
                       </div>
                     </Tooltip.Trigger>
                     <Tooltip.Content>
@@ -21999,9 +22025,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     {@const startItem = (pageNo - 1) * limit + 1}
     {@const endItem = Math.min(pageNo * limit, totalCount)}
     <div class="flex items-center justify-between">
-      <span class="text-muted-foreground text-sm"
-        >Showing {startItem}-{endItem} of {totalCount}</span
-      >
+      <span class="text-muted-foreground text-sm">
+        Showing {startItem}-{endItem} of {totalCount}
+      </span>
       {#if totalPages > 1}
         <div class="flex items-center gap-2">
           <Button
@@ -22041,7 +22067,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 38515 src/routes/(manage)/manage/app/maintenances/[id]/+page.svelte	svelte
+=== 38483 src/routes/(manage)/manage/app/maintenances/[id]/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -22698,14 +22724,15 @@ get along, so we shut typescript up by casting `value` to `never`.
         <Breadcrumb.Item>
           <Breadcrumb.Link
             href={clientResolver(resolve, "/manage/app/maintenances")}
-            >Maintenances</Breadcrumb.Link
           >
+            Maintenances
+          </Breadcrumb.Link>
         </Breadcrumb.Item>
         <Breadcrumb.Separator />
         <Breadcrumb.Item>
-          <Breadcrumb.Page
-            >{isNew ? "New Maintenance" : `Edit #${params.id}`}</Breadcrumb.Page
-          >
+          <Breadcrumb.Page>
+            {isNew ? "New Maintenance" : `Edit #${params.id}`}
+          </Breadcrumb.Page>
         </Breadcrumb.Item>
       </Breadcrumb.List>
     </Breadcrumb.Root>
@@ -22744,11 +22771,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <!-- Main Details Card -->
     <Card.Root>
       <Card.Header>
-        <Card.Title
-          >{isNew
-            ? "Create New Maintenance"
-            : "Maintenance Details"}</Card.Title
-        >
+        <Card.Title>
+          {isNew ? "Create New Maintenance" : "Maintenance Details"}
+        </Card.Title>
         <Card.Description>
           {#if isNew}
             Schedule a new maintenance window using iCalendar RRULE format
@@ -22787,9 +22812,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
         <!-- Title -->
         <div class="flex flex-col gap-2">
-          <Label for="title"
-            >Title <span class="text-destructive">*</span></Label
-          >
+          <Label for="title">
+            Title <span class="text-destructive">*</span>
+          </Label>
           <Input
             id="title"
             bind:value={maintenance.title}
@@ -22892,9 +22917,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             {#if scheduleType === "ONE_TIME"}
               <!-- One-time: Show readonly RRULE -->
               <div class="flex flex-col gap-2">
-                <Label class="text-muted-foreground text-xs"
-                  >iCalendar RRULE (auto-generated)</Label
-                >
+                <Label class="text-muted-foreground text-xs">
+                  iCalendar RRULE (auto-generated)
+                </Label>
                 <Input
                   value="FREQ=MINUTELY;COUNT=1"
                   disabled
@@ -22908,10 +22933,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             {:else}
               <!-- Recurring: Editable RRULE -->
               <div class="flex flex-col gap-2">
-                <Label for="rrule"
-                  >iCalendar RRULE <span class="text-destructive">*</span
-                  ></Label
-                >
+                <Label for="rrule">
+                  iCalendar RRULE <span class="text-destructive">*</span>
+                </Label>
                 <Input
                   id="rrule"
                   bind:value={customRrule}
@@ -22926,9 +22950,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               <!-- Sample Patterns -->
               {#if isNew}
                 <div class="flex flex-col gap-2">
-                  <Label class="text-muted-foreground text-xs"
-                    >Quick Patterns:</Label
-                  >
+                  <Label class="text-muted-foreground text-xs">
+                    Quick Patterns:
+                  </Label>
                   <div class="flex flex-wrap gap-2">
                     {#each sampleRrules as sample (sample.value)}
                       <Button
@@ -22948,9 +22972,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               <!-- Preview Dates -->
               {#if previewDates.length > 0}
                 <div class="bg-background rounded-md border p-3">
-                  <Label class="text-muted-foreground text-xs"
-                    >Upcoming Occurrences:</Label
-                  >
+                  <Label class="text-muted-foreground text-xs">
+                    Upcoming Occurrences:
+                  </Label>
                   <ul class="mt-2 space-y-1 text-sm">
                     {#each previewDates as date (date)}
                       <li class="flex items-center gap-2">
@@ -22971,9 +22995,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
           <!-- Available monitors to add -->
           <div class="rounded-md border p-3">
-            <Label class="text-muted-foreground mb-2 block text-xs"
-              >Select monitors to add:</Label
-            >
+            <Label class="text-muted-foreground mb-2 block text-xs">
+              Select monitors to add:
+            </Label>
             <div class="grid max-h-32 grid-cols-2 gap-2 overflow-y-auto">
               {#each availableMonitors as monitor (monitor.tag)}
                 <div class="flex items-center gap-2">
@@ -23001,18 +23025,18 @@ get along, so we shut typescript up by casting `value` to `never`.
           <!-- Selected monitors with status -->
           {#if selectedMonitors.length > 0}
             <div class="rounded-md border p-3">
-              <Label class="text-muted-foreground mb-2 block text-xs"
-                >Monitor status during maintenance:</Label
-              >
+              <Label class="text-muted-foreground mb-2 block text-xs">
+                Monitor status during maintenance:
+              </Label>
               <div class="space-y-2">
                 {#each selectedMonitors as selectedMonitor, index (selectedMonitor.tag)}
                   {@const currentStatus = selectedMonitor.status}
                   <div
                     class="bg-muted/30 flex items-center justify-between gap-3 rounded border p-2"
                   >
-                    <span class="text-sm font-medium"
-                      >{getMonitorName(selectedMonitor.tag)}</span
-                    >
+                    <span class="text-sm font-medium">
+                      {getMonitorName(selectedMonitor.tag)}
+                    </span>
                     <Select.Root
                       type="single"
                       value={currentStatus}
@@ -23031,9 +23055,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                         <Select.Item value="UP">UP</Select.Item>
                         <Select.Item value="DOWN">DOWN</Select.Item>
                         <Select.Item value="DEGRADED">DEGRADED</Select.Item>
-                        <Select.Item value="MAINTENANCE"
-                          >MAINTENANCE</Select.Item
-                        >
+                        <Select.Item value="MAINTENANCE">
+                          MAINTENANCE
+                        </Select.Item>
                       </Select.Content>
                     </Select.Root>
                   </div>
@@ -23097,9 +23121,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         <Card.Header>
           <div>
             <Card.Title>Maintenance Events</Card.Title>
-            <Card.Description
-              >Pre-generated maintenance windows for the next 7 days</Card.Description
-            >
+            <Card.Description>
+              Pre-generated maintenance windows for the next 7 days
+            </Card.Description>
           </div>
         </Card.Header>
         <Card.Content>
@@ -23135,9 +23159,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                     </div>
                     <div class="space-y-1">
                       <div class="flex items-center gap-2">
-                        <Badge variant={displayStatus.variant}
-                          >{displayStatus.label}</Badge
-                        >
+                        <Badge variant={displayStatus.variant}>
+                          {displayStatus.label}
+                        </Badge>
                       </div>
                       <p class="text-muted-foreground text-sm">
                         {format(
@@ -23197,9 +23221,9 @@ get along, so we shut typescript up by casting `value` to `never`.
   <Dialog.Content>
     <Dialog.Header>
       <Dialog.Title>{eventStatusDialogCopy.title}</Dialog.Title>
-      <Dialog.Description
-        >{eventStatusDialogCopy.description}</Dialog.Description
-      >
+      <Dialog.Description>
+        {eventStatusDialogCopy.description}
+      </Dialog.Description>
     </Dialog.Header>
     <Dialog.Footer>
       <Button
@@ -23223,7 +23247,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </Dialog.Content>
 </Dialog.Root>
 
-=== 17438 src/routes/(manage)/manage/app/monitoring-data/+page.svelte	svelte
+=== 17522 src/routes/(manage)/manage/app/monitoring-data/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Spinner } from "$lib/components/ui/spinner/index.js";
@@ -23511,9 +23535,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         <FilterIcon class="size-4" />
         Filters
         {#if hasActiveFilters}
-          <Badge variant="secondary" class="ml-1 px-1.5 py-0 text-[10px]"
-            >ON</Badge
-          >
+          <Badge variant="secondary" class="ml-1 px-1.5 py-0 text-[10px]">
+            ON
+          </Badge>
         {/if}
       </Button>
       {#if loading}
@@ -23528,8 +23552,10 @@ get along, so we shut typescript up by casting `value` to `never`.
         <div class="flex flex-col gap-1">
           <Label
             for="start-datetime"
-            class="text-muted-foreground text-xs font-medium">From</Label
+            class="text-muted-foreground text-xs font-medium"
           >
+            From
+          </Label>
           <Input
             id="start-datetime"
             type="datetime-local"
@@ -23541,8 +23567,10 @@ get along, so we shut typescript up by casting `value` to `never`.
         <div class="flex flex-col gap-1">
           <Label
             for="end-datetime"
-            class="text-muted-foreground text-xs font-medium">To</Label
+            class="text-muted-foreground text-xs font-medium"
           >
+            To
+          </Label>
           <Input
             id="end-datetime"
             type="datetime-local"
@@ -23564,9 +23592,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             <Select.Content>
               <Select.Item value="ALL">All Monitors</Select.Item>
               {#each monitors as monitor (monitor.tag)}
-                <Select.Item value={monitor.tag}
-                  >{monitor.name || monitor.tag}</Select.Item
-                >
+                <Select.Item value={monitor.tag}>
+                  {monitor.name || monitor.tag}
+                </Select.Item>
               {/each}
             </Select.Content>
           </Select.Root>
@@ -23636,8 +23664,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             <Table.Cell
               colspan={6}
               class="text-muted-foreground py-8 text-center"
-              >No monitoring data found</Table.Cell
             >
+              No monitoring data found
+            </Table.Cell>
           </Table.Row>
         {:else}
           {#each monitoringData as row (row.monitor_tag + "_" + row.timestamp)}
@@ -23645,9 +23674,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               <Table.Cell>
                 <Tooltip.Root>
                   <Tooltip.Trigger>
-                    <span class="line-clamp-1 max-w-xs font-medium"
-                      >{row.monitor_tag}</span
-                    >
+                    <span class="line-clamp-1 max-w-xs font-medium">
+                      {row.monitor_tag}
+                    </span>
                   </Tooltip.Trigger>
                   <Tooltip.Content>
                     <p>{row.monitor_tag}</p>
@@ -23655,9 +23684,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 </Tooltip.Root>
               </Table.Cell>
               <Table.Cell>
-                <span class="text-muted-foreground text-sm"
-                  >{formatTimestamp(row.timestamp)}</span
-                >
+                <span class="text-muted-foreground text-sm">
+                  {formatTimestamp(row.timestamp)}
+                </span>
               </Table.Cell>
               <Table.Cell>
                 <span
@@ -23686,8 +23715,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                     <Tooltip.Trigger>
                       <span
                         class="text-destructive line-clamp-1 max-w-xs text-sm"
-                        >{row.error_message}</span
                       >
+                        {row.error_message}
+                      </span>
                     </Tooltip.Trigger>
                     <Tooltip.Content class="max-w-md">
                       <p class="wrap-break-word">{row.error_message}</p>
@@ -23709,9 +23739,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     {@const startItem = (pageNo - 1) * limit + 1}
     {@const endItem = Math.min(pageNo * limit, totalCount)}
     <div class="flex items-center justify-between">
-      <span class="text-muted-foreground text-sm"
-        >Showing {startItem}-{endItem} of {totalCount}</span
-      >
+      <span class="text-muted-foreground text-sm">
+        Showing {startItem}-{endItem} of {totalCount}
+      </span>
       {#if totalPages > 1}
         <div class="flex items-center gap-2">
           <Button
@@ -23770,14 +23800,14 @@ get along, so we shut typescript up by casting `value` to `never`.
     </AlertDialog.Header>
     <AlertDialog.Footer>
       <AlertDialog.Cancel>Cancel</AlertDialog.Cancel>
-      <AlertDialog.Action onclick={deleteFilteredData}
-        >Delete</AlertDialog.Action
-      >
+      <AlertDialog.Action onclick={deleteFilteredData}>
+        Delete
+      </AlertDialog.Action>
     </AlertDialog.Footer>
   </AlertDialog.Content>
 </AlertDialog.Root>
 
-=== 14420 src/routes/(manage)/manage/app/monitors/+page.svelte	svelte
+=== 14456 src/routes/(manage)/manage/app/monitors/+page.svelte	svelte
 <script lang="ts">
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -23955,9 +23985,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           <FilterIcon class="size-4" />
           Filters
           {#if hasActiveFilters}
-            <Badge variant="secondary" class="ml-1 px-1.5 py-0 text-[10px]"
-              >ON</Badge
-            >
+            <Badge variant="secondary" class="ml-1 px-1.5 py-0 text-[10px]">
+              ON
+            </Badge>
           {/if}
         </Button>
         {#if loading}
@@ -24108,9 +24138,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 </div>
               </Table.Cell>
               <Table.Cell>
-                <span class="text-muted-foreground text-xs"
-                  >{data.cron || "-"}</span
-                >
+                <span class="text-muted-foreground text-xs">
+                  {data.cron || "-"}
+                </span>
               </Table.Cell>
               <Table.Cell class="text-right">
                 <Button
@@ -24165,8 +24195,10 @@ get along, so we shut typescript up by casting `value` to `never`.
                 <Button
                   variant={pageNo === 1 ? "default" : "ghost"}
                   size="sm"
-                  onclick={() => goToPage(1)}>1</Button
+                  onclick={() => goToPage(1)}
                 >
+                  1
+                </Button>
                 {#if pageNo > 3}
                   <span class="text-muted-foreground px-2">...</span>
                 {/if}
@@ -24206,7 +24238,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 17027 src/routes/(manage)/manage/app/monitors/[tag]/+page.svelte	svelte
+=== 17026 src/routes/(manage)/manage/app/monitors/[tag]/+page.svelte	svelte
 <script lang="ts">
   import { Spinner } from "$lib/components/ui/spinner/index.js";
   import * as Card from "$lib/components/ui/card/index.js";
@@ -24509,24 +24541,23 @@ get along, so we shut typescript up by casting `value` to `never`.
         <Breadcrumb.Item>
           <Breadcrumb.Link
             href={clientResolver(resolve, "/manage/app/monitors")}
-            >Monitors</Breadcrumb.Link
           >
+            Monitors
+          </Breadcrumb.Link>
         </Breadcrumb.Item>
         <Breadcrumb.Separator />
         <Breadcrumb.Item>
-          <Breadcrumb.Page
-            >{isNew
-              ? "New Monitor"
-              : monitor.name || params.tag}</Breadcrumb.Page
-          >
+          <Breadcrumb.Page>
+            {isNew ? "New Monitor" : monitor.name || params.tag}
+          </Breadcrumb.Page>
         </Breadcrumb.Item>
       </Breadcrumb.List>
     </Breadcrumb.Root>
     <div class="flex gap-2">
       {#if !isNew}
-        <Button size="sm" variant="outline" onclick={openCloneDialog}
-          >Clone</Button
-        >
+        <Button size="sm" variant="outline" onclick={openCloneDialog}>
+          Clone
+        </Button>
       {/if}
       <HoverCard.Root>
         <HoverCard.Trigger>
@@ -24695,9 +24726,9 @@ get along, so we shut typescript up by casting `value` to `never`.
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
       <Dialog.Title>Clone Monitor</Dialog.Title>
-      <Dialog.Description
-        >Enter a new tag and name for the cloned monitor.</Dialog.Description
-      >
+      <Dialog.Description>
+        Enter a new tag and name for the cloned monitor.
+      </Dialog.Description>
     </Dialog.Header>
 
     <div class="space-y-4 py-2">
@@ -24723,8 +24754,10 @@ get along, so we shut typescript up by casting `value` to `never`.
       <Button
         variant="outline"
         onclick={() => (cloneDialogOpen = false)}
-        disabled={cloning}>Cancel</Button
+        disabled={cloning}
       >
+        Cancel
+      </Button>
       <Button
         onclick={cloneMonitor}
         disabled={cloning || !cloneTag.trim() || !cloneName.trim()}
@@ -24932,9 +24965,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <h2 class="text-lg font-semibold">Delete Monitoring Data</h2>
       <div class="grid grid-cols-2 gap-4">
         <div class="space-y-2">
-          <Label for="deleteDataStart"
-            >Start Date & Time <span class="text-destructive">*</span></Label
-          >
+          <Label for="deleteDataStart">
+            Start Date & Time <span class="text-destructive">*</span>
+          </Label>
           <Input
             id="deleteDataStart"
             type="datetime-local"
@@ -24942,9 +24975,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           />
         </div>
         <div class="space-y-2">
-          <Label for="deleteDataEnd"
-            >End Date & Time <span class="text-destructive">*</span></Label
-          >
+          <Label for="deleteDataEnd">
+            End Date & Time <span class="text-destructive">*</span>
+          </Label>
           <Input
             id="deleteDataEnd"
             type="datetime-local"
@@ -24956,9 +24989,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <div class="flex items-end gap-4">
         <div class="flex-1 space-y-2">
           <Label for="deleteDataConfirm">
-            Type <span class="text-destructive font-mono"
-              >delete {monitorTag} data</span
-            > to confirm
+            Type <span class="text-destructive font-mono">
+              delete {monitorTag} data
+            </span> to confirm
           </Label>
           <p class="text-muted-foreground">
             This will delete monitoring data for the selected time range. The
@@ -24991,9 +25024,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <div class="flex items-end gap-4">
         <div class="flex-1 space-y-2">
           <Label for="deleteConfirm">
-            Type <span class="text-destructive font-mono"
-              >delete {monitorTag}</span
-            > to confirm
+            Type <span class="text-destructive font-mono">
+              delete {monitorTag}
+            </span> to confirm
           </Label>
           <p class="text-muted-foreground">
             Deleting monitor is irreversible. Please be sure before deleting.
@@ -25181,9 +25214,9 @@ get along, so we shut typescript up by casting `value` to `never`.
   <Card.Content class="space-y-4">
     <div class="grid grid-cols-2 gap-4">
       <div class="flex flex-col gap-2">
-        <Label for="monitor-name"
-          >Name <span class="text-destructive">*</span></Label
-        >
+        <Label for="monitor-name">
+          Name <span class="text-destructive">*</span>
+        </Label>
         <Input
           id="monitor-name"
           bind:value={monitor.name}
@@ -25191,9 +25224,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         />
       </div>
       <div class="flex flex-col gap-2">
-        <Label for="monitor-tag"
-          >Tag <span class="text-destructive">*</span></Label
-        >
+        <Label for="monitor-tag">
+          Tag <span class="text-destructive">*</span>
+        </Label>
         <Input
           id="monitor-tag"
           bind:value={monitor.tag}
@@ -25471,17 +25504,17 @@ get along, so we shut typescript up by casting `value` to `never`.
       <DatabaseIcon class="size-5" />
       Modify Monitoring Data
     </Card.Title>
-    <Card.Description
-      >Change the status of monitoring data for a given time range</Card.Description
-    >
+    <Card.Description>
+      Change the status of monitoring data for a given time range
+    </Card.Description>
   </Card.Header>
   <Card.Content>
     <div class="grid gap-4">
       <div class="grid grid-cols-2 gap-4">
         <div class="space-y-2">
-          <Label for="start_date"
-            >Start Date & Time <span class="text-destructive">*</span></Label
-          >
+          <Label for="start_date">
+            Start Date & Time <span class="text-destructive">*</span>
+          </Label>
           <Input
             id="start_date"
             type="datetime-local"
@@ -25489,9 +25522,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           />
         </div>
         <div class="space-y-2">
-          <Label for="end_date"
-            >End Date & Time <span class="text-destructive">*</span></Label
-          >
+          <Label for="end_date">
+            End Date & Time <span class="text-destructive">*</span>
+          </Label>
           <Input
             id="end_date"
             type="datetime-local"
@@ -25564,7 +25597,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </Card.Footer>
 </Card.Root>
 
-=== 6188 src/routes/(manage)/manage/app/monitors/[tag]/components/MonitorRecentLogs.svelte	svelte
+=== 6236 src/routes/(manage)/manage/app/monitors/[tag]/components/MonitorRecentLogs.svelte	svelte
 <script lang="ts">
   import { Badge } from "$lib/components/ui/badge/index.js";
   import { Spinner } from "$lib/components/ui/spinner/index.js";
@@ -25716,9 +25749,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             {#each logs as log (log.timestamp)}
               <Table.Row class="hover:bg-muted/50">
                 <Table.Cell>
-                  <span class="text-muted-foreground text-sm"
-                    >{formatTimestamp(log.timestamp)}</span
-                  >
+                  <span class="text-muted-foreground text-sm">
+                    {formatTimestamp(log.timestamp)}
+                  </span>
                 </Table.Cell>
                 <Table.Cell>
                   <Badge variant={getStatusBadgeVariant(log.status)}>
@@ -25734,8 +25767,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 </Table.Cell>
                 <Table.Cell>
                   {#if log.type}
-                    <Badge variant="secondary" class="text-xs">{log.type}</Badge
-                    >
+                    <Badge variant="secondary" class="text-xs">
+                      {log.type}
+                    </Badge>
                   {:else}
                     <span class="text-muted-foreground text-sm">—</span>
                   {/if}
@@ -25746,8 +25780,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                       <Tooltip.Trigger>
                         <span
                           class="text-destructive line-clamp-1 max-w-xs text-sm"
-                          >{log.error_message}</span
                         >
+                          {log.error_message}
+                        </span>
                       </Tooltip.Trigger>
                       <Tooltip.Content class="max-w-md">
                         <p class="break-words">{log.error_message}</p>
@@ -25876,9 +25911,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 <Card.Root>
   <Card.Header>
     <Card.Title>Sharing Options</Card.Title>
-    <Card.Description
-      >Control which sharing actions are available for this monitor</Card.Description
-    >
+    <Card.Description>
+      Control which sharing actions are available for this monitor
+    </Card.Description>
   </Card.Header>
   <Card.Content class="space-y-6">
     <div class="flex items-center justify-between">
@@ -26305,9 +26340,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 <Card.Root>
   <Card.Header>
     <Card.Title>Monitor Type Configuration</Card.Title>
-    <Card.Description
-      >Configure how this monitor checks your service</Card.Description
-    >
+    <Card.Description>
+      Configure how this monitor checks your service
+    </Card.Description>
   </Card.Header>
   <Card.Content class="space-y-4">
     <div class="flex flex-col gap-2">
@@ -26457,7 +26492,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </Card.Footer>
 </Card.Root>
 
-=== 3193 src/routes/(manage)/manage/app/monitors/[tag]/components/PageVisibilityCard.svelte	svelte
+=== 3210 src/routes/(manage)/manage/app/monitors/[tag]/components/PageVisibilityCard.svelte	svelte
 <script lang="ts">
   import { Label } from "$lib/components/ui/label/index.js";
   import * as Card from "$lib/components/ui/card/index.js";
@@ -26530,9 +26565,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <FileTextIcon class="size-5" />
       Page Visibility
     </Card.Title>
-    <Card.Description
-      >Select which pages this monitor should appear on</Card.Description
-    >
+    <Card.Description>
+      Select which pages this monitor should appear on
+    </Card.Description>
   </Card.Header>
   <Card.Content>
     {#if allPages.length === 0}
@@ -26554,8 +26589,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             />
             <Label for="page-{page.id}" class="flex cursor-pointer flex-row">
               <span class="font-medium">{page.page_title}</span>
-              <span class="text-muted-foreground text-xs">{page.page_path}</span
-              >
+              <span class="text-muted-foreground text-xs">
+                {page.page_path}
+              </span>
             </Label>
           </div>
         {/each}
@@ -26841,9 +26877,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 <Card.Root>
   <Card.Header>
     <Card.Title>Uptime Calculation</Card.Title>
-    <Card.Description
-      >Customize how uptime percentage is calculated for this monitor</Card.Description
-    >
+    <Card.Description>
+      Customize how uptime percentage is calculated for this monitor
+    </Card.Description>
   </Card.Header>
   <Card.Content class="space-y-4">
     <div class="flex gap-2">
@@ -27076,7 +27112,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </div>
 </div>
 
-=== 6906 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-dns.svelte	svelte
+=== 6919 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-dns.svelte	svelte
 <script lang="ts">
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
@@ -27237,8 +27273,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           {data.matchType}
         </Select.Trigger>
         <Select.Content>
-          <Select.Item value="ANY">ANY - At least one value matches</Select.Item
-          >
+          <Select.Item value="ANY">
+            ANY - At least one value matches
+          </Select.Item>
           <Select.Item value="ALL">ALL - All values must match</Select.Item>
         </Select.Content>
       </Select.Root>
@@ -27258,9 +27295,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         {#each data.values as value, index}
           <InputGroup.Root>
             <InputGroup.Addon class="">
-              <InputGroup.Text class="border-r-2 pr-2"
-                >Value {index + 1}</InputGroup.Text
-              >
+              <InputGroup.Text class="border-r-2 pr-2">
+                Value {index + 1}
+              </InputGroup.Text>
             </InputGroup.Addon>
             <InputGroup.Input
               bind:value={data.values[index]}
@@ -27332,9 +27369,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
 <div class="space-y-4">
   <div class="flex flex-col gap-2">
-    <Label for="gamedig-game"
-      >Game <span class="text-destructive">*</span></Label
-    >
+    <Label for="gamedig-game">
+      Game <span class="text-destructive">*</span>
+    </Label>
     <Select.Root
       type="single"
       value={data.gameId}
@@ -27365,9 +27402,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
   <div class="grid grid-cols-3 gap-4">
     <div class="flex flex-col gap-2">
-      <Label for="gamedig-host"
-        >Host <span class="text-destructive">*</span></Label
-      >
+      <Label for="gamedig-host">
+        Host <span class="text-destructive">*</span>
+      </Label>
       <Input
         id="gamedig-host"
         bind:value={data.host}
@@ -27447,7 +27484,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </div>
 </div>
 
-=== 13021 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-group.svelte	svelte
+=== 13053 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-group.svelte	svelte
 <script lang="ts">
   import { Label } from "$lib/components/ui/label/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -27677,9 +27714,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <div class="space-y-2">
       <div class="flex items-center justify-between">
         <Label for="group-execution-delay">Execution Delay (ms)</Label>
-        <span class="text-muted-foreground text-xs"
-          >Minimum {MIN_DELAY_MS}ms</span
-        >
+        <span class="text-muted-foreground text-xs">
+          Minimum {MIN_DELAY_MS}ms
+        </span>
       </div>
       <Input
         id="group-execution-delay"
@@ -27717,9 +27754,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         </Select.Trigger>
         <Select.Content>
           {#each LATENCY_CALCULATION_OPTIONS as option (option)}
-            <Select.Item value={option}
-              >{LATENCY_CALCULATION_LABELS[option]}</Select.Item
-            >
+            <Select.Item value={option}>
+              {LATENCY_CALCULATION_LABELS[option]}
+            </Select.Item>
           {/each}
         </Select.Content>
       </Select.Root>
@@ -27750,9 +27787,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         >
           <div class="flex min-w-0 items-center gap-2">
             <GripVertical class="text-muted-foreground h-4 w-4 shrink-0" />
-            <span class="text-muted-foreground text-xs font-medium"
-              >{index + 1}.</span
-            >
+            <span class="text-muted-foreground text-xs font-medium">
+              {index + 1}.
+            </span>
             {#if monitorInfo?.image}
               <img
                 src={clientResolver(resolve, monitorInfo.image)}
@@ -27786,8 +27823,10 @@ get along, so we shut typescript up by casting `value` to `never`.
             <div class="flex items-center gap-1.5">
               <Label
                 class="text-muted-foreground text-xs"
-                for="group-member-weight-{m.tag}">Weight</Label
+                for="group-member-weight-{m.tag}"
               >
+                Weight
+              </Label>
               <Input
                 id="group-member-weight-{m.tag}"
                 type="number"
@@ -27836,7 +27875,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 2289 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-grpc.svelte	svelte
+=== 2307 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-grpc.svelte	svelte
 <script lang="ts">
   import { Input } from "$lib/components/ui/input/index.js";
   import { Label } from "$lib/components/ui/label/index.js";
@@ -27861,13 +27900,15 @@ get along, so we shut typescript up by casting `value` to `never`.
 <div class="space-y-4">
   <div class="grid grid-cols-3 gap-4">
     <div class="col-span-2 flex flex-col gap-2">
-      <Label for="grpc-host">Host <span class="text-destructive">*</span></Label
-      >
+      <Label for="grpc-host">
+        Host <span class="text-destructive">*</span>
+      </Label>
       <Input id="grpc-host" bind:value={data.host} placeholder="localhost" />
     </div>
     <div class="col-span-1 flex flex-col gap-2">
-      <Label for="grpc-port">Port <span class="text-destructive">*</span></Label
-      >
+      <Label for="grpc-port">
+        Port <span class="text-destructive">*</span>
+      </Label>
       <Input
         id="grpc-port"
         type="number"
@@ -27908,9 +27949,9 @@ get along, so we shut typescript up by casting `value` to `never`.
   {#if data.tls}
     <div class="flex items-center space-x-2">
       <Switch id="grpc-insecure" bind:checked={data.insecure} />
-      <Label for="grpc-insecure"
-        >Allow Insecure TLS (skip certificate verification)</Label
-      >
+      <Label for="grpc-insecure">
+        Allow Insecure TLS (skip certificate verification)
+      </Label>
     </div>
   {/if}
 </div>
@@ -28021,9 +28062,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             readonly
           />
           <InputGroup.Addon align="inline-end">
-            <InputGroup.Button variant="secondary" onclick={refreshSecret}
-              >New URL</InputGroup.Button
-            >
+            <InputGroup.Button variant="secondary" onclick={refreshSecret}>
+              New URL
+            </InputGroup.Button>
 
             <CopyButton variant="ghost" size="icon-sm" text={heartbeatUrl}>
               <Copy class="size-4" />
@@ -28065,9 +28106,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       bind:checked={data.overrideWithLastKnownStatus}
     />
     <div class="grid gap-1.5 leading-none">
-      <Label for="none-override-last-known-status" class="cursor-pointer"
-        >Override with last known status</Label
-      >
+      <Label for="none-override-last-known-status" class="cursor-pointer">
+        Override with last known status
+      </Label>
       <p class="text-muted-foreground text-sm">
         On each scheduled run, reuse the last manual status (created using the
         API) so this monitor keeps that state in status history, uptime, and
@@ -28340,9 +28381,9 @@ get along, so we shut typescript up by casting `value` to `never`.
   <div>
     <InputGroup.Root>
       <InputGroup.Addon>
-        <InputGroup.Text class="border-r-2 pr-2"
-          >Connection String for {selectedDbType}</InputGroup.Text
-        >
+        <InputGroup.Text class="border-r-2 pr-2">
+          Connection String for {selectedDbType}
+        </InputGroup.Text>
       </InputGroup.Addon>
       <InputGroup.Input
         id="sql-connection"
@@ -28691,15 +28732,15 @@ get along, so we shut typescript up by casting `value` to `never`.
               </Table.Cell>
               <Table.Cell>
                 {#if page.monitors && page.monitors.length > 0}
-                  <Badge variant="secondary"
-                    >{page.monitors.length} monitor{page.monitors.length > 1
+                  <Badge variant="secondary">
+                    {page.monitors.length} monitor{page.monitors.length > 1
                       ? "s"
-                      : ""}</Badge
-                  >
+                      : ""}
+                  </Badge>
                 {:else}
-                  <Badge variant="outline" class="text-muted-foreground"
-                    >No monitors</Badge
-                  >
+                  <Badge variant="outline" class="text-muted-foreground">
+                    No monitors
+                  </Badge>
                 {/if}
               </Table.Cell>
 
@@ -28731,7 +28772,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 37783 src/routes/(manage)/manage/app/pages/[page_id]/+page.svelte	svelte
+=== 37795 src/routes/(manage)/manage/app/pages/[page_id]/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
@@ -29314,17 +29355,17 @@ get along, so we shut typescript up by casting `value` to `never`.
       <Breadcrumb.Root>
         <Breadcrumb.List>
           <Breadcrumb.Item>
-            <Breadcrumb.Link href={clientResolver(resolve, "/manage/app/pages")}
-              >Pages</Breadcrumb.Link
+            <Breadcrumb.Link
+              href={clientResolver(resolve, "/manage/app/pages")}
             >
+              Pages
+            </Breadcrumb.Link>
           </Breadcrumb.Item>
           <Breadcrumb.Separator />
           <Breadcrumb.Item>
-            <Breadcrumb.Page
-              >{isNew
-                ? "New Page"
-                : currentPage?.page_title || "Edit Page"}</Breadcrumb.Page
-            >
+            <Breadcrumb.Page>
+              {isNew ? "New Page" : currentPage?.page_title || "Edit Page"}
+            </Breadcrumb.Page>
           </Breadcrumb.Item>
         </Breadcrumb.List>
       </Breadcrumb.Root>
@@ -29496,9 +29537,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <Card.Root>
         <Card.Header>
           <Card.Title>Page Monitors</Card.Title>
-          <Card.Description
-            >Select which monitors to display on this page</Card.Description
-          >
+          <Card.Description>
+            Select which monitors to display on this page
+          </Card.Description>
         </Card.Header>
         <Card.Content class="space-y-4">
           <!-- Add Monitor -->
@@ -29514,9 +29555,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               </Select.Trigger>
               <Select.Content>
                 {#each availableMonitors as monitor (monitor.tag)}
-                  <Select.Item value={monitor.tag}
-                    >{monitor.name} ({monitor.tag})</Select.Item
-                  >
+                  <Select.Item value={monitor.tag}>
+                    {monitor.name} ({monitor.tag})
+                  </Select.Item>
                 {/each}
                 {#if availableMonitors.length === 0}
                   <div class="text-muted-foreground px-2 py-1 text-sm">
@@ -29601,16 +29642,17 @@ get along, so we shut typescript up by casting `value` to `never`.
       <Card.Root>
         <Card.Header>
           <Card.Title>Display Settings</Card.Title>
-          <Card.Description
-            >Configure what content is shown on this status page</Card.Description
-          >
+          <Card.Description>
+            Configure what content is shown on this status page
+          </Card.Description>
         </Card.Header>
         <Card.Content class="space-y-6">
           <!-- Monitor Status History Days -->
           <div class="space-y-4">
             <div>
-              <Label class="text-base font-medium">Monitor Status History</Label
-              >
+              <Label class="text-base font-medium">
+                Monitor Status History
+              </Label>
               <p class="text-muted-foreground text-sm">
                 Configure how many days of status history to display on the
                 status page
@@ -29684,9 +29726,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               </Select.Content>
             </Select.Root>
             <p class="text-muted-foreground text-xs">
-              Default is <code class="bg-muted rounded px-1 font-mono"
-                >default-list</code
-              >
+              Default is <code class="bg-muted rounded px-1 font-mono">
+                default-list
+              </code>
             </p>
           </div>
         </Card.Content>
@@ -29710,10 +29752,10 @@ get along, so we shut typescript up by casting `value` to `never`.
       <Card.Root>
         <Card.Header>
           <Card.Title>Social Preview & SEO</Card.Title>
-          <Card.Description
-            >Optional social preview image and meta tags for this page. Leave
-            empty to use site defaults.</Card.Description
-          >
+          <Card.Description>
+            Optional social preview image and meta tags for this page. Leave
+            empty to use site defaults.
+          </Card.Description>
         </Card.Header>
         <Card.Content class="space-y-4">
           <div class="flex items-start gap-4">
@@ -29831,9 +29873,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         <Card.Root class="border-destructive">
           <Card.Header>
             <Card.Title class="text-destructive">Danger Zone</Card.Title>
-            <Card.Description
-              >Irreversible actions for this page</Card.Description
-            >
+            <Card.Description>
+              Irreversible actions for this page
+            </Card.Description>
           </Card.Header>
           <Card.Content class="space-y-4">
             <div class="space-y-2">
@@ -29843,9 +29885,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 certain.
               </p>
               <p class="text-muted-foreground text-sm">
-                Type <code class="bg-muted rounded px-1 font-mono"
-                  >delete {currentPage.page_path || "home"}</code
-                > to confirm:
+                Type <code class="bg-muted rounded px-1 font-mono">
+                  delete {currentPage.page_path || "home"}
+                </code> to confirm:
               </p>
               <Input
                 id="delete-confirm"
@@ -29876,7 +29918,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 30035 src/routes/(manage)/manage/app/roles/+page.svelte	svelte
+=== 30084 src/routes/(manage)/manage/app/roles/+page.svelte	svelte
 <script lang="ts">
   import * as Accordion from "$lib/components/ui/accordion/index.js";
   import * as Card from "$lib/components/ui/card/index.js";
@@ -30433,9 +30475,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       {/if}
     </div>
     <Dialog.Footer>
-      <Button variant="outline" onclick={() => (showEditDialog = false)}
-        >Cancel</Button
-      >
+      <Button variant="outline" onclick={() => (showEditDialog = false)}>
+        Cancel
+      </Button>
       <Button onclick={handleEditRole} disabled={editingRole}>
         {#if editingRole}
           <Spinner class="mr-2 h-4 w-4" />
@@ -30451,9 +30493,9 @@ get along, so we shut typescript up by casting `value` to `never`.
   <Dialog.Content>
     <Dialog.Header>
       <Dialog.Title>Create Role</Dialog.Title>
-      <Dialog.Description
-        >Create a new custom role with its own permissions.</Dialog.Description
-      >
+      <Dialog.Description>
+        Create a new custom role with its own permissions.
+      </Dialog.Description>
     </Dialog.Header>
     <div class="grid gap-4 py-4">
       <div class="grid gap-2">
@@ -30517,9 +30559,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       {/if}
     </div>
     <Dialog.Footer>
-      <Button variant="outline" onclick={() => (showCreateDialog = false)}
-        >Cancel</Button
-      >
+      <Button variant="outline" onclick={() => (showCreateDialog = false)}>
+        Cancel
+      </Button>
       <Button onclick={handleCreateRole} disabled={creatingRole}>
         {#if creatingRole}
           <Spinner class="mr-2 h-4 w-4" />
@@ -30536,9 +30578,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Dialog.Header>
       <Dialog.Title>Delete Role</Dialog.Title>
       <Dialog.Description>
-        Are you sure you want to delete <span class="font-semibold"
-          >{roleToDelete?.role_name}</span
-        >?
+        Are you sure you want to delete <span class="font-semibold">
+          {roleToDelete?.role_name}
+        </span>?
       </Dialog.Description>
     </Dialog.Header>
     <div class="grid gap-4 py-4">
@@ -30578,9 +30620,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       {/if}
     </div>
     <Dialog.Footer>
-      <Button variant="outline" onclick={() => (showDeleteDialog = false)}
-        >Cancel</Button
-      >
+      <Button variant="outline" onclick={() => (showDeleteDialog = false)}>
+        Cancel
+      </Button>
       <Button
         variant="destructive"
         onclick={handleDeleteRole}
@@ -30659,9 +30701,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                             !hasPermission("roles.assign_permissions")}
                         />
                         <div class="flex flex-col">
-                          <span class="text-sm font-medium"
-                            >{perm.permission_name}</span
-                          >
+                          <span class="text-sm font-medium">
+                            {perm.permission_name}
+                          </span>
                         </div>
                       </Button>
                     {/each}
@@ -30676,8 +30718,10 @@ get along, so we shut typescript up by casting `value` to `never`.
           <div class="flex justify-end gap-2 p-4">
             <Button
               variant="outline"
-              onclick={() => (showPermissionsSheet = false)}>Cancel</Button
+              onclick={() => (showPermissionsSheet = false)}
             >
+              Cancel
+            </Button>
             <Button onclick={savePermissions} disabled={savingPermissions}>
               {#if savingPermissions}
                 <Spinner class="mr-2 h-4 w-4" />
@@ -30723,8 +30767,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               >
                 <div class="flex flex-col">
                   <span class="text-sm font-medium">{user.name}</span>
-                  <span class="text-muted-foreground text-xs">{user.email}</span
-                  >
+                  <span class="text-muted-foreground text-xs">
+                    {user.email}
+                  </span>
                 </div>
                 {#if hasPermission("roles.assign_users")}
                   <Button
@@ -30764,9 +30809,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 >
                   <div class="flex flex-col">
                     <span class="text-sm font-medium">{user.name}</span>
-                    <span class="text-muted-foreground text-xs"
-                      >{user.email}</span
-                    >
+                    <span class="text-muted-foreground text-xs">
+                      {user.email}
+                    </span>
                   </div>
                   <Button
                     variant="ghost"
@@ -30790,7 +30835,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </Sheet.Content>
 </Sheet.Root>
 
-=== 64660 src/routes/(manage)/manage/app/site-configurations/+page.svelte	svelte
+=== 64675 src/routes/(manage)/manage/app/site-configurations/+page.svelte	svelte
 <script lang="ts">
   import { Button } from "$lib/components/ui/button/index.js";
   import { Input } from "$lib/components/ui/input/index.js";
@@ -31653,9 +31698,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>Site Information</Card.Title>
-        <Card.Description
-          >Basic information about your status page</Card.Description
-        >
+        <Card.Description>
+          Basic information about your status page
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-4">
         <div class="grid gap-4 md:grid-cols-2">
@@ -31723,9 +31768,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>Logo</Card.Title>
-        <Card.Description
-          >Upload your site logo (max 256x256px, PNG/JPG/SVG/WebP)</Card.Description
-        >
+        <Card.Description>
+          Upload your site logo (max 256x256px, PNG/JPG/SVG/WebP)
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-4">
         <div class="flex items-start gap-4">
@@ -31803,9 +31848,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>Favicon</Card.Title>
-        <Card.Description
-          >Upload your site favicon (max 64x64px, PNG/JPG/SVG/WebP)</Card.Description
-        >
+        <Card.Description>
+          Upload your site favicon (max 64x64px, PNG/JPG/SVG/WebP)
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-4">
         <div class="flex items-start gap-4">
@@ -31888,9 +31933,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>Social Preview & SEO</Card.Title>
-        <Card.Description
-          >Configure social preview image and meta tags for search engines</Card.Description
-        >
+        <Card.Description>
+          Configure social preview image and meta tags for search engines
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-4">
         <div class="flex items-start gap-4">
@@ -32004,9 +32049,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>Navigation Menu</Card.Title>
-        <Card.Description
-          >Add custom navigation links to your status page header</Card.Description
-        >
+        <Card.Description>
+          Add custom navigation links to your status page header
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-4">
         {#each nav as item, index (index)}
@@ -32108,10 +32153,10 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>Monitor Sub Menu Options</Card.Title>
-        <Card.Description
-          >Configure which options appear in the monitor sub menu on the status
-          page</Card.Description
-        >
+        <Card.Description>
+          Configure which options appear in the monitor sub menu on the status
+          page
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-6">
         <div class="flex items-center justify-between">
@@ -32222,9 +32267,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>Data Retention Policy</Card.Title>
-        <Card.Description
-          >Configure automatic cleanup for old monitor status data</Card.Description
-        >
+        <Card.Description>
+          Configure automatic cleanup for old monitor status data
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-6">
         <div class="flex items-center justify-between">
@@ -32272,9 +32317,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>Event Display Settings</Card.Title>
-        <Card.Description
-          >Configure which incidents and maintenances are shown on the site</Card.Description
-        >
+        <Card.Description>
+          Configure which incidents and maintenances are shown on the site
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-6">
         <div class="flex items-center justify-between rounded-lg border p-4">
@@ -32332,9 +32377,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               {#if eventDisplaySettings.incidents.resolved.show}
                 <div class="grid gap-4 md:grid-cols-2">
                   <div class="space-y-2">
-                    <Label for="events-incidents-max-count"
-                      >Max Resolved Count</Label
-                    >
+                    <Label for="events-incidents-max-count">
+                      Max Resolved Count
+                    </Label>
                     <Input
                       id="events-incidents-max-count"
                       type="number"
@@ -32346,9 +32391,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                     />
                   </div>
                   <div class="space-y-2">
-                    <Label for="events-incidents-days-in-past"
-                      >Days in Past</Label
-                    >
+                    <Label for="events-incidents-days-in-past">
+                      Days in Past
+                    </Label>
                     <Input
                       id="events-incidents-days-in-past"
                       type="number"
@@ -32408,9 +32453,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               {#if eventDisplaySettings.maintenances.past.show}
                 <div class="grid gap-4 md:grid-cols-2">
                   <div class="space-y-2">
-                    <Label for="events-maint-past-max-count"
-                      >Max Past Count</Label
-                    >
+                    <Label for="events-maint-past-max-count">
+                      Max Past Count
+                    </Label>
                     <Input
                       id="events-maint-past-max-count"
                       type="number"
@@ -32422,9 +32467,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                     />
                   </div>
                   <div class="space-y-2">
-                    <Label for="events-maint-past-days-in-past"
-                      >Days in Past</Label
-                    >
+                    <Label for="events-maint-past-days-in-past">
+                      Days in Past
+                    </Label>
                     <Input
                       id="events-maint-past-days-in-past"
                       type="number"
@@ -32453,9 +32498,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               {#if eventDisplaySettings.maintenances.upcoming.show}
                 <div class="grid gap-4 md:grid-cols-2">
                   <div class="space-y-2">
-                    <Label for="events-maint-upcoming-max-count"
-                      >Max Upcoming Count</Label
-                    >
+                    <Label for="events-maint-upcoming-max-count">
+                      Max Upcoming Count
+                    </Label>
                     <Input
                       id="events-maint-upcoming-max-count"
                       type="number"
@@ -32467,9 +32512,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                     />
                   </div>
                   <div class="space-y-2">
-                    <Label for="events-maint-upcoming-days-in-future"
-                      >Days in Future</Label
-                    >
+                    <Label for="events-maint-upcoming-days-in-future">
+                      Days in Future
+                    </Label>
                     <Input
                       id="events-maint-upcoming-days-in-future"
                       type="number"
@@ -32507,9 +32552,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>Sitemap</Card.Title>
-        <Card.Description
-          >Configure how your sitemap.xml is generated</Card.Description
-        >
+        <Card.Description>
+          Configure how your sitemap.xml is generated
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-6">
         <div class="space-y-3">
@@ -32526,21 +32571,21 @@ get along, so we shut typescript up by casting `value` to `never`.
           >
             <div class="flex items-center space-x-2">
               <RadioGroup.Item value="auto" id="sitemap-auto" />
-              <Label for="sitemap-auto" class="cursor-pointer font-normal"
-                >Auto</Label
-              >
+              <Label for="sitemap-auto" class="cursor-pointer font-normal">
+                Auto
+              </Label>
             </div>
             <div class="flex items-center space-x-2">
               <RadioGroup.Item value="manual" id="sitemap-manual" />
-              <Label for="sitemap-manual" class="cursor-pointer font-normal"
-                >Manual</Label
-              >
+              <Label for="sitemap-manual" class="cursor-pointer font-normal">
+                Manual
+              </Label>
             </div>
             <div class="flex items-center space-x-2">
               <RadioGroup.Item value="off" id="sitemap-off" />
-              <Label for="sitemap-off" class="cursor-pointer font-normal"
-                >Off</Label
-              >
+              <Label for="sitemap-off" class="cursor-pointer font-normal">
+                Off
+              </Label>
             </div>
           </RadioGroup.Root>
           <p class="text-muted-foreground text-xs">
@@ -32557,8 +32602,9 @@ get along, so we shut typescript up by casting `value` to `never`.
 
         {#if sitemap.mode === "manual" || sitemap.mode === "auto"}
           <div class="space-y-3">
-            <Label>{sitemap.mode === "auto" ? "Additional URLs" : "URLs"}</Label
-            >
+            <Label>
+              {sitemap.mode === "auto" ? "Additional URLs" : "URLs"}
+            </Label>
             {#each sitemap.urls as url, index (index)}
               <div class="flex items-center gap-2">
                 <Input
@@ -32626,10 +32672,10 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>Maintenance Notification Settings</Card.Title>
-        <Card.Description
-          >Configure which maintenance lifecycle events trigger subscriber
-          notifications</Card.Description
-        >
+        <Card.Description>
+          Configure which maintenance lifecycle events trigger subscriber
+          notifications
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-6">
         <div class="space-y-4">
@@ -32741,7 +32787,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 24458 src/routes/(manage)/manage/app/subscriptions/+page.svelte	svelte
+=== 24511 src/routes/(manage)/manage/app/subscriptions/+page.svelte	svelte
 <script lang="ts">
   import { onMount } from "svelte";
   import { Button } from "$lib/components/ui/button/index.js";
@@ -33099,9 +33145,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         <Bell class="h-5 w-5" />
         Subscriptions Settings
       </Card.Title>
-      <Card.Description
-        >Configure subscription options for your status page</Card.Description
-      >
+      <Card.Description>
+        Configure subscription options for your status page
+      </Card.Description>
     </Card.Header>
     <Card.Content class="space-y-4">
       {#if pageData.data.canSendEmail === false}
@@ -33115,8 +33161,10 @@ get along, so we shut typescript up by casting `value` to `never`.
                 href={clientResolver(
                   resolve,
                   "https://kener.ing/docs/v4/setup/email-setup",
-                )}>here</a
-              >.
+                )}
+              >
+                here
+              </a>.
             </p>
           </Alert.Description>
         </Alert.Root>
@@ -33128,9 +33176,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       {:else}
         <div class="space-y-6">
           <div class="flex items-center justify-between">
-            <Label for="enable-subscriptions" class="mb-0"
-              >Enable Subscriptions</Label
-            >
+            <Label for="enable-subscriptions" class="mb-0">
+              Enable Subscriptions
+            </Label>
             <Switch
               id="enable-subscriptions"
               checked={config.enable}
@@ -33153,9 +33201,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
                     <AlertTriangle class="h-4 w-4 text-orange-500" />
-                    <Label for="enable-email-incidents" class="mb-0"
-                      >Incident Updates</Label
-                    >
+                    <Label for="enable-email-incidents" class="mb-0">
+                      Incident Updates
+                    </Label>
                   </div>
                   <Switch
                     id="enable-email-incidents"
@@ -33169,9 +33217,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 <div class="flex items-center justify-between">
                   <div class="flex items-center gap-2">
                     <Wrench class="h-4 w-4 text-blue-500" />
-                    <Label for="enable-email-maintenances" class="mb-0"
-                      >Maintenance Updates</Label
-                    >
+                    <Label for="enable-email-maintenances" class="mb-0">
+                      Maintenance Updates
+                    </Label>
                   </div>
                   <Switch
                     id="enable-email-maintenances"
@@ -33197,9 +33245,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             <div class="space-y-4 pl-4">
               <div class="flex items-center justify-between">
                 <div class="space-y-0.5">
-                  <Label for="enable-rss-feed" class="mb-0"
-                    >Show RSS feed link</Label
-                  >
+                  <Label for="enable-rss-feed" class="mb-0">
+                    Show RSS feed link
+                  </Label>
                   <p class="text-muted-foreground text-xs">
                     Adds an RSS icon to the public page header. The feed routes
                     (<code class="text-xs">/rss.xml</code>) remain reachable
@@ -33226,9 +33274,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <div class="flex items-center justify-between">
         <div>
           <Card.Title>Subscribers</Card.Title>
-          <Card.Description
-            >Manage email subscribers for notifications</Card.Description
-          >
+          <Card.Description>
+            Manage email subscribers for notifications
+          </Card.Description>
         </div>
         <div class="flex items-center gap-2">
           {#if loadingSubscribers}
@@ -33269,9 +33317,9 @@ get along, so we shut typescript up by casting `value` to `never`.
                 <Table.Cell colspan={5} class="py-8 text-center">
                   <div class="flex items-center justify-center gap-2">
                     <Spinner class="size-4" />
-                    <span class="text-muted-foreground text-sm"
-                      >Loading subscribers...</span
-                    >
+                    <span class="text-muted-foreground text-sm">
+                      Loading subscribers...
+                    </span>
                   </div>
                 </Table.Cell>
               </Table.Row>
@@ -33287,8 +33335,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             {:else}
               {#each subscribers as subscriber (subscriber.method_id)}
                 <Table.Row>
-                  <Table.Cell class="font-medium">{subscriber.email}</Table.Cell
-                  >
+                  <Table.Cell class="font-medium">
+                    {subscriber.email}
+                  </Table.Cell>
                   <Table.Cell class="text-center">
                     <Switch
                       checked={subscriber.incidents_enabled}
@@ -33334,9 +33383,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         {@const startItem = (page - 1) * limit + 1}
         {@const endItem = Math.min(page * limit, total)}
         <div class="mt-4 flex items-center justify-between">
-          <span class="text-muted-foreground text-sm"
-            >Showing {startItem}-{endItem} of {total}</span
-          >
+          <span class="text-muted-foreground text-sm">
+            Showing {startItem}-{endItem} of {total}
+          </span>
           {#if totalPages > 1}
             <div class="flex items-center gap-2">
               <Button
@@ -33383,9 +33432,9 @@ get along, so we shut typescript up by casting `value` to `never`.
   <Dialog.Content class="sm:max-w-md">
     <Dialog.Header>
       <Dialog.Title>Add Subscriber</Dialog.Title>
-      <Dialog.Description
-        >Add a new email subscriber for notifications</Dialog.Description
-      >
+      <Dialog.Description>
+        Add a new email subscriber for notifications
+      </Dialog.Description>
     </Dialog.Header>
     <div class="space-y-4 py-4">
       <div class="space-y-2">
@@ -33402,9 +33451,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <AlertTriangle class="h-4 w-4 text-orange-500" />
-            <Label for="new-incidents" class="mb-0"
-              >Subscribe to Incidents</Label
-            >
+            <Label for="new-incidents" class="mb-0">
+              Subscribe to Incidents
+            </Label>
           </div>
           <Switch
             id="new-incidents"
@@ -33415,9 +33464,9 @@ get along, so we shut typescript up by casting `value` to `never`.
         <div class="flex items-center justify-between">
           <div class="flex items-center gap-2">
             <Wrench class="h-4 w-4 text-blue-500" />
-            <Label for="new-maintenances" class="mb-0"
-              >Subscribe to Maintenances</Label
-            >
+            <Label for="new-maintenances" class="mb-0">
+              Subscribe to Maintenances
+            </Label>
           </div>
           <Switch
             id="new-maintenances"
@@ -33672,9 +33721,9 @@ get along, so we shut typescript up by casting `value` to `never`.
           <FileTextIcon class="size-5" />
           Edit Template
         </Card.Title>
-        <Card.Description
-          >Select a template from the dropdown to view and edit its content</Card.Description
-        >
+        <Card.Description>
+          Select a template from the dropdown to view and edit its content
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-6">
         <!-- Template Selector -->
@@ -33902,9 +33951,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               <Table.Cell class="font-medium">{trigger.name}</Table.Cell>
 
               <Table.Cell>
-                <Badge variant="outline" class="capitalize"
-                  >{trigger.trigger_type}</Badge
-                >
+                <Badge variant="outline" class="capitalize">
+                  {trigger.trigger_type}
+                </Badge>
               </Table.Cell>
               <Table.Cell>
                 <Badge
@@ -33940,9 +33989,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     {@const startItem = (pageNo - 1) * limit + 1}
     {@const endItem = Math.min(pageNo * limit, totalCount)}
     <div class="flex items-center justify-between">
-      <span class="text-muted-foreground text-sm"
-        >Showing {startItem}-{endItem} of {totalCount}</span
-      >
+      <span class="text-muted-foreground text-sm">
+        Showing {startItem}-{endItem} of {totalCount}
+      </span>
       {#if totalPages > 1}
         <div class="flex items-center gap-2">
           <Button
@@ -33982,7 +34031,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   {/if}
 </div>
 
-=== 23532 src/routes/(manage)/manage/app/triggers/[trigger_id]/+page.svelte	svelte
+=== 23573 src/routes/(manage)/manage/app/triggers/[trigger_id]/+page.svelte	svelte
 <script lang="ts">
   import { page } from "$app/state";
   import { goto } from "$app/navigation";
@@ -34288,17 +34337,15 @@ get along, so we shut typescript up by casting `value` to `never`.
   <Breadcrumb.Root>
     <Breadcrumb.List>
       <Breadcrumb.Item>
-        <Breadcrumb.Link href={clientResolver(resolve, "/manage/app/triggers")}
-          >Triggers</Breadcrumb.Link
-        >
+        <Breadcrumb.Link href={clientResolver(resolve, "/manage/app/triggers")}>
+          Triggers
+        </Breadcrumb.Link>
       </Breadcrumb.Item>
       <Breadcrumb.Separator />
       <Breadcrumb.Item>
-        <Breadcrumb.Page
-          >{isNew
-            ? "New Trigger"
-            : trigger.name || "Edit Trigger"}</Breadcrumb.Page
-        >
+        <Breadcrumb.Page>
+          {isNew ? "New Trigger" : trigger.name || "Edit Trigger"}
+        </Breadcrumb.Page>
       </Breadcrumb.Item>
     </Breadcrumb.List>
   </Breadcrumb.Root>
@@ -34311,9 +34358,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     <Card.Root>
       <Card.Header>
         <Card.Title>{isNew ? "New Trigger" : "Edit Trigger"}</Card.Title>
-        <Card.Description
-          >Configure notification triggers for your monitors</Card.Description
-        >
+        <Card.Description>
+          Configure notification triggers for your monitors
+        </Card.Description>
       </Card.Header>
       <Card.Content class="space-y-6">
         <!-- Error Message -->
@@ -34338,9 +34385,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               if (value) trigger.trigger_type = value;
             }}
           >
-            <Select.Trigger class="w-full max-w-sm capitalize"
-              >{trigger.trigger_type}</Select.Trigger
-            >
+            <Select.Trigger class="w-full max-w-sm capitalize">
+              {trigger.trigger_type}
+            </Select.Trigger>
             <Select.Content>
               <Select.Item value="webhook">Webhook</Select.Item>
               <Select.Item value="discord">Discord</Select.Item>
@@ -34447,9 +34494,9 @@ get along, so we shut typescript up by casting `value` to `never`.
               </p>
             </div>
             <p class="text-muted-foreground text-xs">
-              Use Mustache variables like <code class="bg-muted rounded px-1"
-                >{"{{variable}}"}</code
-              >. Available: alert_id, alert_name, alert_for, alert_value,
+              Use Mustache variables like <code class="bg-muted rounded px-1">
+                {"{{variable}}"}
+              </code>. Available: alert_id, alert_name, alert_for, alert_value,
               alert_status, alert_severity, alert_message, alert_source,
               alert_timestamp, alert_cta_url, alert_cta_text, alert_incident_id,
               alert_incident_url, alert_failure_threshold,
@@ -34525,8 +34572,10 @@ get along, so we shut typescript up by casting `value` to `never`.
                     href={clientResolver(
                       resolve,
                       "https://kener.ing/docs/v4/setup/email-setup",
-                    )}>here</a
-                  >.
+                    )}
+                  >
+                    here
+                  </a>.
                 </p>
               </Alert.Description>
             </Alert.Root>
@@ -34616,9 +34665,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <Card.Root class="border-destructive">
         <Card.Header>
           <Card.Title class="text-destructive">Danger Zone</Card.Title>
-          <Card.Description
-            >Permanently delete this trigger. This action cannot be undone.</Card.Description
-          >
+          <Card.Description>
+            Permanently delete this trigger. This action cannot be undone.
+          </Card.Description>
         </Card.Header>
         <Card.Content>
           <p class="text-muted-foreground text-sm">
@@ -34654,8 +34703,9 @@ get along, so we shut typescript up by casting `value` to `never`.
       <p class="text-sm">
         To confirm, type <span
           class="bg-muted rounded px-1.5 py-0.5 font-mono text-sm"
-          >{trigger.name}</span
-        > below:
+        >
+          {trigger.name}
+        </span> below:
       </p>
       <Input
         bind:value={deleteConfirmName}
@@ -34667,8 +34717,10 @@ get along, so we shut typescript up by casting `value` to `never`.
         disabled={isDeleting}
         onclick={() => {
           deleteConfirmName = "";
-        }}>Cancel</AlertDialog.Cancel
+        }}
       >
+        Cancel
+      </AlertDialog.Cancel>
       <Button
         variant="destructive"
         onclick={deleteTrigger}
@@ -34685,7 +34737,7 @@ get along, so we shut typescript up by casting `value` to `never`.
   </AlertDialog.Content>
 </AlertDialog.Root>
 
-=== 26254 src/routes/(manage)/manage/app/users/+page.svelte	svelte
+=== 26317 src/routes/(manage)/manage/app/users/+page.svelte	svelte
 <script lang="ts">
   import * as Card from "$lib/components/ui/card/index.js";
   import * as Table from "$lib/components/ui/table/index.js";
@@ -35128,9 +35180,9 @@ get along, so we shut typescript up by casting `value` to `never`.
             <Table.Cell colspan={6} class="py-8 text-center">
               <div class="flex items-center justify-center gap-2">
                 <Spinner class="size-4" />
-                <span class="text-muted-foreground text-sm"
-                  >Loading users...</span
-                >
+                <span class="text-muted-foreground text-sm">
+                  Loading users...
+                </span>
               </div>
             </Table.Cell>
           </Table.Row>
@@ -35139,17 +35191,19 @@ get along, so we shut typescript up by casting `value` to `never`.
             <Table.Cell
               colspan={6}
               class="text-muted-foreground py-8 text-center"
-              >No users found.</Table.Cell
             >
+              No users found.
+            </Table.Cell>
           </Table.Row>
         {:else}
           {#each users as user (user.id)}
             <Table.Row class={currentUser.id === user.id ? "bg-muted/50" : ""}>
-              <Table.Cell class="font-medium"
-                >{user.name}{#if currentUser.id === user.id}
-                  <Badge variant="outline" class="ml-1 text-[10px]">You</Badge
-                  >{/if}</Table.Cell
-              >
+              <Table.Cell class="font-medium">
+                {user.name}{#if currentUser.id === user.id}
+                  <Badge variant="outline" class="ml-1 text-[10px]">
+                    You
+                  </Badge>{/if}
+              </Table.Cell>
               <Table.Cell>{user.email}</Table.Cell>
               <Table.Cell class="text-center">
                 {#if user.is_verified}
@@ -35168,13 +35222,13 @@ get along, so we shut typescript up by casting `value` to `never`.
               </Table.Cell>
               <Table.Cell>
                 {#if user.is_active}
-                  <span class="text-sm font-semibold text-green-500"
-                    >ACTIVE</span
-                  >
+                  <span class="text-sm font-semibold text-green-500">
+                    ACTIVE
+                  </span>
                 {:else}
-                  <span class="text-sm font-semibold text-pink-500"
-                    >INACTIVE</span
-                  >
+                  <span class="text-sm font-semibold text-pink-500">
+                    INACTIVE
+                  </span>
                 {/if}
               </Table.Cell>
               <Table.Cell class="text-center">
@@ -35213,9 +35267,9 @@ get along, so we shut typescript up by casting `value` to `never`.
     {@const startItem = (page - 1) * limit + 1}
     {@const endItem = Math.min(page * limit, total)}
     <div class="flex items-center justify-between">
-      <span class="text-muted-foreground text-sm"
-        >Showing {startItem}-{endItem} of {total}</span
-      >
+      <span class="text-muted-foreground text-sm">
+        Showing {startItem}-{endItem} of {total}
+      </span>
       {#if totalPages > 1}
         <div class="flex items-center gap-2">
           <Button
@@ -35319,8 +35373,10 @@ get along, so we shut typescript up by casting `value` to `never`.
         <Button
           type="button"
           variant="outline"
-          onclick={() => (showAddUserDialog = false)}>Cancel</Button
+          onclick={() => (showAddUserDialog = false)}
         >
+          Cancel
+        </Button>
         <Button type="submit" disabled={creatingUser}>
           {#if creatingUser}
             <Spinner class="size-4" />
@@ -35337,8 +35393,9 @@ get along, so we shut typescript up by casting `value` to `never`.
   <Sheet.Content side="right" class="w-full overflow-y-auto sm:max-w-xl">
     <Sheet.Header>
       <Sheet.Title>Settings - {toEditUser?.name}</Sheet.Title>
-      <Sheet.Description>Manage user settings and permissions</Sheet.Description
-      >
+      <Sheet.Description>
+        Manage user settings and permissions
+      </Sheet.Description>
     </Sheet.Header>
     <div class="px-4">
       {#if toEditUser}
@@ -35368,10 +35425,10 @@ get along, so we shut typescript up by casting `value` to `never`.
                 </p>
                 {#if !canSendEmail}
                   <Alert.Root variant="destructive" class="mb-4">
-                    <Alert.Description
-                      >Email service not configured. Cannot resend invitation
-                      email.</Alert.Description
-                    >
+                    <Alert.Description>
+                      Email service not configured. Cannot resend invitation
+                      email.
+                    </Alert.Description>
                   </Alert.Root>
                 {/if}
                 <Button

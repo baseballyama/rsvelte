@@ -209,8 +209,7 @@ fn nested_output_is_readable_and_copied_literals_keep_their_bytes() {
             "  };\n",
             // A component without a TypeScript script projects to JavaScript, its types in JSDoc.
             "  return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, ",
-            "{ [evt: string]: CustomEvent<any> }, {}, string>} */ ",
-            "(__rsvelte_export_isomorphic))()({});\n",
+            "{}, string>} */ (__rsvelte_export_isomorphic))()(__rsvelte_any_event({}), {});\n",
             "}\n",
             "export const $$Component = /** @type {__rsvelte_javascript_export<",
             "Awaited<ReturnType<typeof $$render>>>} */ ($$render());\n",

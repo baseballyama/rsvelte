@@ -13,6 +13,11 @@ use rsvelte_kernel::source::positions::Span;
 
 use crate::syntax_error::{Acorn, SyntaxError};
 
+mod ambient;
+mod names;
+
+pub(crate) use names::head_checked_at;
+
 /// Why acorn rejects a part.
 #[derive(Clone, Copy, Debug)]
 pub(crate) enum Rejection {
@@ -27,6 +32,17 @@ pub(crate) enum Rejection {
     /// U+0085 or U+200B, which oxc reads as whitespace, as tsc does, and ECMAScript does not.
     NextLine,
     ZeroWidthSpace,
+    /// `eval` or `arguments` where acorn checks a name in strict mode: one a declaration, an
+    /// import or a parameter list binds, or the name of a function without a body, which
+    /// acorn-typescript checks as a name assigned.
+    StrictName {
+        name: names::Restricted,
+        binds: bool,
+    },
+    /// An initializer in an ambient context, where only a `const` without a type may have one.
+    AmbientInitializer,
+    /// A `const`'s initializer in an ambient context that is not a literal or an enum reference.
+    AmbientConstInitializer,
 }
 
 impl Rejection {
@@ -41,6 +57,39 @@ impl Rejection {
             Self::At => "Unexpected character '@'",
             Self::NextLine => "Unexpected character '\u{85}'",
             Self::ZeroWidthSpace => "Unexpected character '\u{200B}'",
+            Self::StrictName { name, binds } => name.message(binds),
+            Self::AmbientInitializer => "Initializers are not allowed in ambient contexts.",
+            Self::AmbientConstInitializer => concat!(
+                "A 'const' initializer in an ambient context must be a string or numeric literal ",
+                "or literal enum reference."
+            ),
+        }
+    }
+}
+
+/// Where acorn rejects, and why. acorn raises once it has read up to `raised`, which orders the
+/// rejection among the errors it meets; that is past `at` where it checks a node after reading it.
+#[derive(Clone, Copy, Debug)]
+pub(crate) struct Stop {
+    pub(crate) at: u32,
+    pub(crate) raised: u32,
+    why: Rejection,
+}
+
+impl Stop {
+    const fn at(at: u32, why: Rejection) -> Self {
+        Self {
+            at,
+            raised: at,
+            why,
+        }
+    }
+
+    pub(crate) const fn shifted(self, shift: u32) -> Self {
+        Self {
+            at: self.at + shift,
+            raised: self.raised + shift,
+            why: self.why,
         }
     }
 }
@@ -141,11 +190,29 @@ pub(crate) const fn bodies(kind: AstKind<'_>) -> [Option<&Statement<'_>>; 2] {
     }
 }
 
-/// The earliest place acorn rejects in the part it walks.
+/// Visits each of the nodes `$ty`, counting the ambient context a `declare`d one opens.
+macro_rules! ambient_at {
+    ($($visit:ident($ty:ident) => $walk:ident;)*) => {$(
+        fn $visit(&mut self, it: &oxc_ast::ast::$ty<'a>) {
+            let declared = u32::from(it.declare);
+            self.ambient += declared;
+            oxc_ast_visit::walk::$walk(self, it);
+            self.ambient -= declared;
+        }
+    )*};
+}
+
+/// The first rejection acorn raises in the part it walks.
 pub(crate) struct Unsupported<'t> {
     typescript: bool,
     tokens: &'t [Token],
-    pub(crate) first: Option<(u32, Rejection)>,
+    pub(crate) first: Option<Stop>,
+    /// How many `declare`d declarations are around the walk, each of which puts what it holds in
+    /// an ambient context.
+    ambient: u32,
+    /// The namespace the next part of a dotted namespace name declares, whose name acorn does
+    /// not check.
+    dotted: Option<oxc_span::Span>,
 }
 
 impl<'t> Unsupported<'t> {
@@ -154,45 +221,103 @@ impl<'t> Unsupported<'t> {
             typescript,
             tokens,
             first: None,
+            ambient: 0,
+            dotted: None,
         }
     }
 }
 
 impl<'a> Visit<'a> for Unsupported<'_> {
+    // oxc's checker opens an ambient context at each of these nodes that is `declare`d
+    // (`SemanticBuilder::enter_ambient_context`), and acorn-typescript reads what a `declare`d
+    // declaration holds in one.
+    ambient_at! {
+        visit_variable_declaration(VariableDeclaration) => walk_variable_declaration;
+        visit_class(Class) => walk_class;
+        visit_property_definition(PropertyDefinition) => walk_property_definition;
+        visit_ts_namespace_declaration(TSNamespaceDeclaration) => walk_ts_namespace_declaration;
+        visit_ts_external_module_declaration(TSExternalModuleDeclaration)
+            => walk_ts_external_module_declaration;
+        visit_ts_global_declaration(TSGlobalDeclaration) => walk_ts_global_declaration;
+        visit_ts_type_alias_declaration(TSTypeAliasDeclaration) => walk_ts_type_alias_declaration;
+        visit_ts_interface_declaration(TSInterfaceDeclaration) => walk_ts_interface_declaration;
+        visit_ts_enum_declaration(TSEnumDeclaration) => walk_ts_enum_declaration;
+    }
+
     fn enter_node(&mut self, kind: AstKind<'a>) {
-        if let Some(found) = stop(kind, self.typescript, self.tokens)
-            && self.first.is_none_or(|(first, _)| found.0 < first)
+        let mut found = stop(kind, self.typescript, self.tokens).map(|(at, why)| Stop::at(at, why));
+        // oxc's checker reports these names and initializers outside an ambient context itself.
+        if self.ambient > 0 {
+            found = self.ambient_stop(kind, found);
+        }
+        if let Some(found) = found
+            && self.first.is_none_or(|first| found.raised < first.raised)
         {
             self.first = Some(found);
         }
+    }
+
+    fn visit_function(
+        &mut self,
+        it: &oxc_ast::ast::Function<'a>,
+        flags: oxc_syntax::scope::ScopeFlags,
+    ) {
+        let declared = u32::from(it.declare);
+        self.ambient += declared;
+        oxc_ast_visit::walk::walk_function(self, it, flags);
+        self.ambient -= declared;
+    }
+}
+
+impl Unsupported<'_> {
+    /// The first of `found` and what acorn-typescript rejects at `kind` in an ambient context.
+    #[cold]
+    fn ambient_stop(&mut self, kind: AstKind<'_>, found: Option<Stop>) -> Option<Stop> {
+        let nested = self.dotted.take_if(|next| *next == kind.span()).is_some();
+        if let Some(next) = names::dotted(kind) {
+            self.dotted = Some(next);
+        }
+        [
+            found,
+            names::strict_name(kind, nested),
+            ambient::initializer(kind),
+        ]
+        .into_iter()
+        .flatten()
+        .min_by_key(|found| found.raised)
     }
 }
 
 /// Where acorn stops at the first whitespace in `irregular`, the spans oxc lists in `text`, that
 /// ECMAScript does not allow; `shift` moves them into the document.
-pub(crate) fn whitespace(
-    text: &str,
-    irregular: &[oxc_span::Span],
-    shift: u32,
-) -> Option<(u32, Rejection)> {
+pub(crate) fn whitespace(text: &str, irregular: &[oxc_span::Span], shift: u32) -> Option<Stop> {
     irregular.iter().find_map(|span| {
         let rejection = match text.get(span.start as usize..)?.chars().next()? {
             '\u{85}' => Rejection::NextLine,
             '\u{200B}' => Rejection::ZeroWidthSpace,
             _ => return None,
         };
-        Some((span.start + shift, rejection))
+        Some(Stop::at(span.start + shift, rejection))
     })
 }
 
-/// What acorn throws where it rejects at `at`.
-pub(crate) fn rejection((at, why): (u32, Rejection)) -> SyntaxError {
+/// What acorn throws where it rejects.
+pub(crate) fn rejection(Stop { at, raised, why }: Stop) -> SyntaxError {
     let message = why.message();
+    let acorn_message = std::borrow::Cow::Borrowed(message);
     SyntaxError {
         diagnostic: Diagnostic::error("parse_error", message, Span::new(at, at)),
-        acorn: Some(Acorn::Fails {
-            message: std::borrow::Cow::Borrowed(message),
-            at,
+        acorn: Some(if raised == at {
+            Acorn::Fails {
+                message: acorn_message,
+                at,
+            }
+        } else {
+            Acorn::FailsLater {
+                message: acorn_message,
+                at,
+                raised,
+            }
         }),
         typescript_code: None,
         typescript_eslint_at: None,

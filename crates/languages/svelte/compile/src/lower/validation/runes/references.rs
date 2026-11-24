@@ -12,23 +12,36 @@ use super::RuneWalk;
 use crate::lower::invalid;
 
 impl RuneWalk<'_> {
+    /// Whether the name `identifier` is `arguments` outside a function. Upstream checks every
+    /// identifier `is_reference` keeps, which takes in a declared name.
+    pub(super) fn check_arguments(&self, identifier: AstKind<'_>) -> Result<(), Diagnostic> {
+        let name = match identifier {
+            AstKind::IdentifierReference(it) => &it.name,
+            AstKind::BindingIdentifier(it) => &it.name,
+            _ => return Ok(()),
+        };
+        // Upstream counts a method as a function expression, and an arrow or a method overload
+        // (which acorn-typescript reads as a TSDeclareMethod) as no function.
+        if name == "arguments"
+            && !(self.frames.iter())
+                .any(|frame| matches!(frame.kind, AstKind::Function(f) if f.body.is_some()))
+        {
+            return invalid(
+                "invalid_arguments_usage",
+                "The arguments keyword cannot be used within the template or at the top level of \
+                    a component",
+                node_span(&identifier),
+            );
+        }
+        Ok(())
+    }
+
     /// `reference` is the node being entered; its ancestors are the walk's frames.
     pub(super) fn check_rune_reference(
         &self,
         reference: &IdentifierReference<'_>,
     ) -> Result<(), Diagnostic> {
         let name = reference.name.as_str();
-        // Upstream counts a method as a function expression, and an arrow as no function.
-        if name == "arguments"
-            && !(self.frames.iter()).any(|frame| matches!(frame.kind, AstKind::Function(_)))
-        {
-            return invalid(
-                "invalid_arguments_usage",
-                "The arguments keyword cannot be used within the template or at the top level of \
-                    a component",
-                node_span(reference),
-            );
-        }
         if !is_rune(name)
             || self.res.symbol(reference).is_some()
             || self.res.is_store_subscription(name)
