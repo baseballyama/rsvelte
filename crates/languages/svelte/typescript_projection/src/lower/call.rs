@@ -193,7 +193,8 @@ impl Builder<'_> {
                 return Err(refuse("dynamic slot names", a.span));
             }
         };
-        self.slot_elements.push(attributes);
+        let element = self.slot_element(attributes);
+        self.slot_elements.push(element);
         let mut callee = self.tree.push(Node::Identifier("__rsvelte_slots"));
         if self.declares_slots() {
             let slots = self.tree.push(Node::Identifier("$$Slots"));

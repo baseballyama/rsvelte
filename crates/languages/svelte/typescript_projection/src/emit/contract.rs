@@ -13,11 +13,13 @@ use crate::syntax_tree::{Instance, Node, NodeIdentifier, TypeParameters};
 impl Printer<'_> {
     pub(super) fn contract_node(&mut self, node: Node) {
         match node {
-            Node::ProgramParts { parts, end_tag } => {
+            Node::ProgramParts { parts, .. } | Node::Parts(parts) => {
                 for &part in self.tree.children(parts) {
                     self.node(part);
                 }
-                self.program_end(end_tag);
+                if let Node::ProgramParts { end_tag, .. } = node {
+                    self.program_end(end_tag);
+                }
             }
             Node::Bare(value) => {
                 self.source_expression(value);
