@@ -27,6 +27,10 @@ export default {
 			// The command of the npm package, which a release copies there, not an import.
 			entry: ['launcher.js'],
 		},
+		'apps/rsvelte': {
+			// crates/hosts/node's test runs it with the addon it builds, not a package script.
+			entry: ['compiler.test.ts'],
+		},
 		'tools/writing': {
 			// The spelling rule loads the dictionary by its language name.
 			ignoreDependencies: ['dictionary-en'],
