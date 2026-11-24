@@ -4,6 +4,7 @@ use oxc_span::GetSpan;
 use rsvelte_svelte_syntax::syntax_tree::{Range, TemplateNode};
 use rsvelte_typescript_tree::{ExpressionIdentifier, PatternIdentifier, node_span};
 
+use super::slot_scope::Unpacks;
 use super::{Builder, Node, Result, SourceExpression, source_expression};
 
 impl Builder<'_> {
@@ -85,6 +86,13 @@ impl Builder<'_> {
         [pending, then, catch]: [Range; 3],
     ) -> Result<Node> {
         let start = self.scratch.len();
+        let outer = self.slot_scope.len();
+        if let Some(value) = value {
+            self.declare_pattern(value, Unpacks::Awaited(expression), outer);
+        }
+        if let Some(error) = error {
+            self.declare_pattern(error, Unpacks::Error, outer);
+        }
         if let Some(pending) = pending.present() {
             self.append_children(pending)?;
         }
@@ -133,6 +141,7 @@ impl Builder<'_> {
             let catch = self.finish_list(handler);
             self.scratch.push(self.tree.push(Node::Try { body, catch }));
         }
+        self.slot_scope.truncate(outer);
         Ok(Node::Block {
             body: self.finish_list(start),
         })

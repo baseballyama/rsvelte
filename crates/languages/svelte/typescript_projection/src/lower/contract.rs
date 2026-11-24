@@ -527,6 +527,7 @@ mod route;
 pub(super) use route::Route;
 mod siblings;
 mod slot_def;
+pub(super) use slot_def::SlotElement;
 mod slot_flags;
 mod stores;
 use siblings::Siblings;

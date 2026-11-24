@@ -1,28 +1,56 @@
 //! svelte2tsx's `slots` in the render function's return: each `<slot>`'s attributes, which type
 //! the `let:` of a parent when the component declares no `$$Slots`.
 
-use oxc_ast::ast::{Expression, IdentifierReference};
-use oxc_ast_visit::Visit;
+use oxc_ast::ast::Expression;
 use oxc_syntax::identifier::is_identifier_name;
-use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_svelte_syntax::syntax_tree::{Attribute, AttributeKind, AttributeValue, Part, Range};
-use rsvelte_typescript_tree::node_span;
+use rsvelte_svelte_syntax::syntax_tree::{AttributeKind, AttributeValue, Part, Range};
 
 use super::super::{Builder, Node, NodeIdentifier, Span};
 
-/// A slot's name, as text and as a node, and its properties: each name with the property.
-type Slot<'a> = (&'a str, NodeIdentifier, Vec<(&'a str, NodeIdentifier)>);
+/// A slot's properties: each name with the property.
+type Properties<'a> = Vec<(&'a str, NodeIdentifier)>;
+
+/// A slot's name, as text and as a node, and its properties.
+type Slot<'a> = (&'a str, NodeIdentifier, Properties<'a>);
+
+/// A `<slot>`'s attributes, and its properties, which svelte2tsx writes where the element is:
+/// `None` when it would print them as something other than an object literal.
+#[derive(Debug)]
+pub(in crate::lower) struct SlotElement<'a> {
+    attributes: Range,
+    properties: Option<Properties<'a>>,
+}
 
 impl<'s> Builder<'s> {
+    /// The `<slot>` with `attributes`, its properties read where it is.
+    pub(in crate::lower) fn slot_element(&mut self, attributes: Range) -> SlotElement<'s> {
+        let properties = if self.declares_slots() {
+            None
+        } else {
+            self.slot_properties(attributes)
+        };
+        SlotElement {
+            attributes,
+            properties,
+        }
+    }
+
     /// The object of each slot's properties, from the attributes of each `<slot>`, or `None`
     /// when svelte2tsx would print one as something other than an object literal.
-    pub(super) fn slot_def(&mut self, mut elements: Vec<Range>) -> Option<NodeIdentifier> {
+    pub(super) fn slot_def(
+        &mut self,
+        mut elements: Vec<SlotElement<'s>>,
+    ) -> Option<NodeIdentifier> {
         // Root snippets lower first; svelte2tsx reads the slots in source order. An empty list
         // starts where the next element's does, and comes before it.
-        elements.sort_unstable_by_key(|range| (range.start, range.len));
-        elements.dedup_by_key(|range| (range.start, range.len));
+        elements.sort_unstable_by_key(|e| (e.attributes.start, e.attributes.len));
+        elements.dedup_by_key(|e| (e.attributes.start, e.attributes.len));
         let mut slots: Vec<Slot<'s>> = Vec::new();
-        for attributes in elements {
+        for SlotElement {
+            attributes,
+            properties,
+        } in elements
+        {
             let attributes = self.component.attributes(attributes);
             let named = attributes
                 .iter()
@@ -50,7 +78,7 @@ impl<'s> Builder<'s> {
                 },
                 Some(AttributeValue::True) => return None,
             };
-            let properties = self.slot_properties(attributes)?;
+            let properties = properties?;
             let slot_node = self.tree.push(slot_node);
             match slots.iter_mut().find(|(name, ..)| *name == slot) {
                 Some(existing) => existing.2 = properties,
@@ -74,12 +102,10 @@ impl<'s> Builder<'s> {
 
     /// A slot's properties, each name with the property, or `None` when svelte2tsx would print
     /// one as something other than a property.
-    fn slot_properties(
-        &mut self,
-        attributes: &'s [Attribute],
-    ) -> Option<Vec<(&'s str, NodeIdentifier)>> {
-        let mut properties: Vec<(&'s str, NodeIdentifier)> = Vec::new();
-        for attribute in attributes {
+    fn slot_properties(&mut self, attributes: Range) -> Option<Properties<'s>> {
+        let tree = self.component;
+        let mut properties: Properties<'s> = Vec::new();
+        for attribute in tree.attributes(attributes) {
             let property = match attribute.kind {
                 AttributeKind::Attribute => attribute.name.text(self.source),
                 AttributeKind::Spread => "...",
@@ -91,20 +117,15 @@ impl<'s> Builder<'s> {
             let AttributeValue::Parts(parts) = attribute.value else {
                 continue;
             };
-            let value = match self.component.parts(parts) {
+            let value = match tree.parts(parts) {
                 [] => continue,
                 [Part::Expression { expression, .. }] => {
-                    let expression = self.expression(*expression);
+                    let expression = tree.javascript.get_expression(*expression);
                     if property == "..." && !matches!(expression, Expression::Identifier(_)) {
                         // svelte2tsx spreads the name of a spread's identifier, here none.
                         continue;
                     }
-                    // svelte2tsx unpacks a name the template declares; until that is ported, any.
-                    if reads_template(expression, (self.resolution)()?) {
-                        self.tree.push(Node::Identifier("__rsvelte_untyped_prop()"))
-                    } else {
-                        self.tree.push(Node::UnmappedSource(node_span(expression)))
-                    }
+                    self.slot_value(expression, self.slot_scope.len())?
                 }
                 // svelte2tsx types text, or text with expressions, as a string.
                 _ => self.tree.push(Node::Identifier("\"\"")),
@@ -135,31 +156,4 @@ impl<'s> Builder<'s> {
         }
         Some(properties)
     }
-}
-
-/// Whether `expression` reads a name the template declares, which svelte2tsx resolves to the
-/// value it unpacks.
-fn reads_template(expression: &Expression<'_>, resolution: &Resolution) -> bool {
-    struct Reads<'r> {
-        resolution: &'r Resolution,
-        template: bool,
-    }
-    impl<'a> Visit<'a> for Reads<'_> {
-        fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
-            let Some(symbol) = self.resolution.symbol(it) else {
-                return;
-            };
-            let scoping = self.resolution.scoping();
-            let scope = scoping.symbol_scope_id(symbol);
-            if scope != self.resolution.instance_scope() && scope != scoping.root_scope_id() {
-                self.template = true;
-            }
-        }
-    }
-    let mut reads = Reads {
-        resolution,
-        template: false,
-    };
-    reads.visit_expression(expression);
-    reads.template
 }
