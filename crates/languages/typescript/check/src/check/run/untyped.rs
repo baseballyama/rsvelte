@@ -1,9 +1,9 @@
-//! TS7016 for an import of a content-mapped JavaScript document. The checker reads every mapped
-//! document as typed, whatever its generated extension, so it never reports this itself, and
-//! loads such a document where TypeScript would not load a JavaScript file; a probe asks whether
-//! the project's options would report it for a plain JavaScript file.
+//! TS7016 for an import of a JavaScript document of another language, checked or not. The checker
+//! reads every mapped document and stand-in as typed, so it never reports this itself, and loads
+//! such a document where TypeScript would not load a JavaScript file; a probe asks whether the
+//! project's options would report it for a plain JavaScript file.
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
@@ -79,7 +79,7 @@ pub(crate) fn checked_imports(document: &CheckedDocument, source: &str) -> Vec<C
         .collect()
 }
 
-/// An import of a typed document that reads an untyped content-mapped JavaScript document.
+/// An import of a typed document that reads an untyped JavaScript document.
 pub(super) struct UntypedImport<'a> {
     /// The importing document.
     pub file: usize,
@@ -123,13 +123,11 @@ pub(super) fn modules(
     session.modules_at(project, &paths[file], &positions)
 }
 
-/// Each import of a typed document that `modules` resolves to an untyped content-mapped
-/// JavaScript document.
+/// Each import of a typed document that `modules` resolves to one of `untyped_documents`.
 pub(super) fn imports<'a>(
     req: &'a CheckRequest<'_>,
     modules: &[(usize, Vec<Option<PathBuf>>)],
-    index: &HashMap<&Path, usize>,
-    untyped_document: &dyn Fn(usize) -> bool,
+    untyped_documents: &UntypedDocuments,
 ) -> Vec<UntypedImport<'a>> {
     let mut untyped = Vec::new();
     for (file, modules) in modules {
@@ -137,7 +135,7 @@ pub(super) fn imports<'a>(
             let Some(module) = module.as_deref().map(normalized) else {
                 continue;
             };
-            if (index.get(module.as_path())).is_some_and(|&read| untyped_document(read)) {
+            if untyped_documents.is(&module) {
                 untyped.push(UntypedImport {
                     file: *file,
                     import,
@@ -174,9 +172,28 @@ pub(super) fn hides(
         })
 }
 
-/// Whether any document projects to JavaScript.
+/// Whether any document, checked or not, is JavaScript.
 pub(super) fn any_javascript(req: &CheckRequest<'_>) -> bool {
     (0..req.mapped_files.len()).any(|file| javascript(req, file))
+        || req
+            .stand_ins
+            .iter()
+            .any(|(_, stand_in)| stand_in.javascript)
+}
+
+/// The paths of the JavaScript documents, checked at `paths` or not.
+pub(super) fn javascript_documents(
+    req: &CheckRequest<'_>,
+    root: &Path,
+    paths: &[PathBuf],
+) -> HashSet<PathBuf> {
+    let checked = (paths.iter().enumerate())
+        .filter(|&(file, _)| javascript(req, file))
+        .map(|(_, path)| path.clone());
+    let unchecked = (req.stand_ins(root))
+        .filter(|(_, stand_in)| stand_in.javascript)
+        .map(|(path, _)| path);
+    checked.chain(unchecked).collect()
 }
 
 /// The probes, the JavaScript files they import and the tsconfig of their own project, which
@@ -241,20 +258,17 @@ pub(super) enum UntypedJavaScript {
     All,
 }
 
-/// The JavaScript documents whose imports are untyped: all of them, or those a search of
-/// `node_modules` finds, by index in ascending order.
+/// The JavaScript documents whose imports are untyped, by path: all of them, or those a search of
+/// `node_modules` finds.
 pub(super) struct UntypedDocuments {
     pub(super) all: bool,
-    pub(super) external: Vec<usize>,
+    pub(super) javascript: HashSet<PathBuf>,
+    pub(super) external: HashSet<PathBuf>,
 }
 
 impl UntypedDocuments {
-    pub(super) fn is(&self, req: &CheckRequest<'_>, file: usize) -> bool {
-        javascript(req, file) && (self.all || self.external(file))
-    }
-
-    pub(super) fn external(&self, file: usize) -> bool {
-        self.external.binary_search(&file).is_ok()
+    fn is(&self, path: &Path) -> bool {
+        self.external.contains(path) || self.all && self.javascript.contains(path)
     }
 }
 

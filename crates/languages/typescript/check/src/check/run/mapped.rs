@@ -1,10 +1,11 @@
-use std::collections::BTreeSet;
+use std::collections::{BTreeSet, HashSet};
 use std::path::{Component, Path, PathBuf};
 
 use rsvelte_kernel::output::emitter::{Atom, Mapping};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 
 use super::CheckRequest;
+use crate::check::StandIn;
 
 #[derive(Debug)]
 pub(crate) struct ContentMappedInput {
@@ -51,14 +52,14 @@ impl CheckRequest<'_> {
             .map_or(self.files[index], |mapped| &mapped.source)
     }
 
-    /// Where the checker reads each stand-in, and its text.
+    /// Where the checker reads each stand-in, and the stand-in.
     pub(super) fn stand_ins<'a>(
         &'a self,
         root: &'a Path,
-    ) -> impl Iterator<Item = (PathBuf, &'a str)> + 'a {
+    ) -> impl Iterator<Item = (PathBuf, &'a StandIn)> + 'a {
         self.stand_ins
             .iter()
-            .map(move |(path, text)| (normalized(&root.join(path)), text.as_str()))
+            .map(move |(path, stand_in)| (normalized(&root.join(path)), stand_in))
     }
 
     /// The extensions of the content-mapped documents, each once.
@@ -106,12 +107,12 @@ impl CheckRequest<'_> {
 const UNTYPED: &str = "\n/** @template T @typedef {any} __rsvelte_javascript_export */\n";
 
 /// The precomputed mapper's store: each content-mapped document's projection by checked path,
-/// with those of `untyped`, by index in ascending order, read as untyped JavaScript.
+/// with those at the paths of `untyped` read as untyped JavaScript.
 pub(super) fn store_json(
     req: &CheckRequest<'_>,
     root: &Path,
     paths: &[PathBuf],
-    untyped: &[usize],
+    untyped: &HashSet<PathBuf>,
 ) -> String {
     let mut output = StructuredDataWriter::new(false);
     output.begin_object().key("files").begin_object();
@@ -128,16 +129,10 @@ pub(super) fn store_json(
         rsvelte_typescript_content_mapper::write_mappings(mappings, atoms, &mut output);
         output.end_object();
     };
-    for (index, ((file, text), path)) in req
-        .mapped_files
-        .iter()
-        .zip(&req.files)
-        .zip(paths)
-        .enumerate()
-    {
+    for ((file, text), path) in req.mapped_files.iter().zip(&req.files).zip(paths) {
         let Some(file) = file else { continue };
         let untyped_text;
-        let text = if untyped.binary_search(&index).is_ok() {
+        let text = if untyped.contains(path) {
             untyped_text = format!("{text}{UNTYPED}");
             untyped_text.as_str()
         } else {
@@ -147,25 +142,25 @@ pub(super) fn store_json(
         entry(path, strings, &file.mappings, &file.atoms);
     }
     // A stand-in reads as the script it is.
-    for (path, text) in req.stand_ins(root) {
+    for (path, StandIn { text, .. }) in req.stand_ins(root) {
         entry(&path, [text, text, ".ts"], &[], &[]);
     }
     output.end_object().end_object();
     output.finish()
 }
 
-/// The store to read where `untyped` documents read as untyped JavaScript: `store` where there
-/// are none, else one beside it whose projections of them make `__rsvelte_javascript_export`
-/// `any`, as an import of a JavaScript file TypeScript does not load is. The mapper reads a store
-/// once per options, so this one has a name of its own.
+/// The store to read where the documents at the paths of `untyped` read as untyped JavaScript:
+/// `store` where no projection is among them, else one beside it whose projections of them make
+/// `__rsvelte_javascript_export` `any`, as an import of a JavaScript file TypeScript does not load
+/// is. The mapper reads a store once per options, so this one has a name of its own.
 pub(super) fn untyped_store(
     req: &CheckRequest<'_>,
     root: &Path,
     paths: &[PathBuf],
-    untyped: &[usize],
+    untyped: &HashSet<PathBuf>,
     store: PathBuf,
 ) -> Result<PathBuf, String> {
-    if untyped.is_empty() {
+    if !paths.iter().any(|path| untyped.contains(path)) {
         return Ok(store);
     }
     let path = store.with_file_name("projections-untyped.json");
@@ -184,7 +179,7 @@ pub(super) fn write_mapper(
     root: &Path,
     paths: &[PathBuf],
 ) -> Result<PathBuf, String> {
-    std::fs::write(store, store_json(req, root, paths, &[]))
+    std::fs::write(store, store_json(req, root, paths, &HashSet::new()))
         .map_err(|e| format!("{}: {e}", store.display()))?;
     let package = support.join(super::MAPPER_PACKAGE);
     std::fs::create_dir_all(&package).map_err(|e| e.to_string())?;
