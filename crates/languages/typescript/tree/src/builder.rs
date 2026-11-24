@@ -22,7 +22,7 @@ pub use recorded::{Part as RecordedPart, Recorded};
 /// No rule unchecked: the list a host starts with.
 const NOTHING: &[&str] = &[];
 
-use crate::acorn_grammar::Rejection;
+use crate::acorn_grammar::Stop;
 use crate::syntax_error::SyntaxError;
 use crate::{
     DeclarationIdentifier, ExpressionIdentifier, ParametersIdentifier, PatternIdentifier,
@@ -44,7 +44,7 @@ pub struct TreeBuilder<'a> {
     unchecked: &'static &'static [&'static str],
     unchecked_errors: Vec<SyntaxError>,
     as_acorn: bool,
-    acorn_rejection: Option<(u32, Rejection)>,
+    acorn_rejection: Option<Stop>,
     parentheses: Vec<(oxc_span::Span, u8)>,
 }
 

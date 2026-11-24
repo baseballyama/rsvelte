@@ -2,7 +2,8 @@
 
 `rsvelte_svelte_check` reads the cached output of `rsvelte_svelte_typescript_projection` and
 runs native TypeScript 7.1 through its content mapper. Projection and type checking share one
-implementation. The task name stays `svelte.check/default` to match the existing oracle
+implementation. Where TypeScript 7.1 prints otherwise than svelte-check's TypeScript 6, the output
+follows TypeScript 7.1; [`DIVERGENCES.md`](DIVERGENCES.md) lists these cases. The task name stays `svelte.check/default` to match the existing oracle
 identifier.
 
 Configure the type checker, `content_mapper` and the Svelte package types through

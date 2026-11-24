@@ -56,7 +56,7 @@ impl Drop for Kept {
 
 /// What few documents have.
 struct Rare {
-    acorn_rejection: Option<(u32, acorn_grammar::Rejection)>,
+    acorn_rejection: Option<acorn_grammar::Stop>,
     /// How many pairs of parentheses wrapped each node that had any where upstream's parser keeps
     /// them, sorted by span.
     parentheses: Vec<(oxc_span::Span, u8)>,
