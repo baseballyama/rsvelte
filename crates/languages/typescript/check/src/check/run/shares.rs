@@ -17,16 +17,6 @@ pub(super) struct Checked {
     pub(super) found: [Found; 3],
     /// The modules each document's imports read, by document, when asked to resolve them.
     pub(super) modules: Modules,
-    /// What the project of the selection config, if any, holds beyond the files the tsconfig
-    /// selects.
-    pub(super) selected: untyped::Selected,
-}
-
-/// The config of a project whose root files are those the tsconfig selects, and the documents
-/// to ask whether a search of `node_modules` found them.
-pub(super) struct Selection<'s> {
-    pub(super) config: PathBuf,
-    pub(super) packages: Resolve<'s>,
 }
 
 /// The documents whose imports the processes resolve, at their paths.
@@ -35,12 +25,11 @@ pub(super) type Resolve<'r> = Option<(&'r CheckRequest<'r>, &'r [PathBuf])>;
 /// The program, syntactic and semantic findings of `files` in the project of `config`, and the
 /// modules their imports read when `resolve` asks. Every process opens the project at the same
 /// time and takes shares of the files from `Shares` until none is left; `session` also asks for
-/// the program and syntactic findings, and opens the project of `selection` in its snapshot.
+/// the program and syntactic findings.
 pub(super) fn check_shares(
     session: &mut Session,
     helpers: Vec<Helper>,
     config: &Path,
-    selection: Option<&Selection<'_>>,
     layer: &Layer,
     files: &[&Path],
     resolve: Resolve<'_>,
@@ -60,16 +49,8 @@ pub(super) fn check_shares(
                 })
             })
             .collect();
-        let mut configs = vec![config];
-        configs.extend(selection.map(|selection| selection.config.as_path()));
-        let mut projects = session.open(&configs, layer)?.into_iter();
-        let project = projects.next().ok_or("the checker opened no project")?;
-        let selected = match (projects.next(), selection) {
-            (Some(project), Some(selection)) => {
-                untyped::selected(session, &project, selection.packages)?
-            }
-            _ => untyped::Selected::default(),
-        };
+        let project = (session.open(&[config], layer)?.into_iter().next())
+            .ok_or("the checker opened no project")?;
         let program = session.diagnostics(&project, DiagnosticKind::Program, None)?;
         let syntactic = session.diagnostics(&project, DiagnosticKind::Syntactic, Some(files))?;
         let (mut semantic, mut modules) = shares.check(session, &project)?;
@@ -83,7 +64,6 @@ pub(super) fn check_shares(
         Ok(Checked {
             found: [program, syntactic, semantic],
             modules,
-            selected,
         })
     })
 }

@@ -5,6 +5,7 @@
 	"files": [
 		"binding.js",
 		"compiler.js",
+		"source-map.js",
 		"compiler.d.ts"
 	],
 	"type": "module",
@@ -18,7 +19,11 @@
 	"scripts": {
 		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
 	},
+	"dependencies": {
+		"@jridgewell/remapping": "2.3.5"
+	},
 	"devDependencies": {
+		"@jridgewell/trace-mapping": "0.3.31",
 		"@types/node": "26.6.6",
 		"acorn": "8.19.0",
 		"svelte": "5.59.1"
