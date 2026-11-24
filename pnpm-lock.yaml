@@ -223,6 +223,25 @@ importers:
         specifier: 6.0.3
         version: 6.0.3
 
+  apps/rsvelte:
+    dependencies:
+      '@jridgewell/remapping':
+        specifier: 2.3.5
+        version: 2.3.5
+    devDependencies:
+      '@jridgewell/trace-mapping':
+        specifier: 0.3.31
+        version: 0.3.31
+      '@types/node':
+        specifier: 26.6.6
+        version: 26.6.6
+      acorn:
+        specifier: 8.19.0
+        version: 8.19.0
+      svelte:
+        specifier: 5.59.1
+        version: 5.59.1(@typescript-eslint/types@8.73.0)
+
   apps/site:
     devDependencies:
       '@codemirror/commands':
@@ -5148,9 +5167,6 @@ packages:
   zimmerframe@1.1.5:
     resolution: {integrity: sha512-msJxIvYDYcoNL+PJsu+7qmpDWsYmAxTY+2TNYXXF0hzBzBk0BMecOqDOG/EckUoKCuKwObfbugIl8QpqHDXeFA==}
 
-  zod@4.6.5:
-    resolution: {integrity: sha512-v5l/aFXZQeai4awLbOpSoHecE9UiMrnfx75tEXLjNonXVARxQ5mOeipTjROUchszUNCqnE+hqAMujRsRHsut2Q==}
-
   zod@4.6.7:
     resolution: {integrity: sha512-g8W2D2kU6a8untc053fX1uVBKzM7yqAxW/3zwk83+6RyF2+SKOuV+c0wBDhUwzV1PaGapmZH+rmcUzPf+3CGwg==}
 
@@ -6299,7 +6315,7 @@ snapshots:
 
   '@types/concat-stream@2.0.3':
     dependencies:
-      '@types/node': 18.19.130
+      '@types/node': 26.6.6
 
   '@types/debug@4.1.13':
     dependencies:
@@ -10453,8 +10469,6 @@ snapshots:
   yocto-queue@1.2.2: {}
 
   zimmerframe@1.1.5: {}
-
-  zod@4.6.5: {}
 
   zod@4.6.7: {}
 

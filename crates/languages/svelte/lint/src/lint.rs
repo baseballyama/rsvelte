@@ -5,6 +5,7 @@ use rsvelte_lint_runner::finding::Finding;
 use rsvelte_lint_runner::findings::Findings;
 
 use crate::Configuration;
+use crate::configuration::Directives;
 use crate::rule::File;
 use crate::rules::{comment_directive, system};
 
@@ -39,7 +40,11 @@ pub(crate) fn check(
     // Directive lines are `ESLint`'s, which any ECMAScript line terminator ends.
     let lines = || file.context.lines(LineBreaks::Ecmascript);
     let on = |name: &str| rules.running(configuration, file).any(|r| r.name == name);
-    let unused = javascript::apply(&mut findings, comments, source, &lines, on);
+    let directives = configuration.applied_directives();
+    let unused = match directives {
+        Directives::Eslint => javascript::apply(&mut findings, comments, source, &lines, on),
+        Directives::Oxlint { .. } => Vec::new(),
+    };
     // The processor keeps a report without a rule, so the unused reports join after it.
     let add_unused = |mut findings: Vec<Finding>| {
         if !unused.is_empty() {
@@ -52,12 +57,36 @@ pub(crate) fn check(
         return Ok((add_unused(findings), rules));
     };
     // Upstream's processor applies the plugin's directives after `ESLint`'s, in rule order.
-    if on(comment_directive::RULE.name) {
-        processor::template(component, source, lines()).apply(
-            &mut findings,
-            lines(),
-            Some(comment_directive::RULE.name),
-        );
+    match directives {
+        Directives::Eslint if on(comment_directive::RULE.name) => {
+            processor::template(component, source, lines(), ESLINT).apply(
+                &mut findings,
+                lines(),
+                Some(comment_directive::RULE.name),
+            );
+        }
+        Directives::Eslint => {}
+        Directives::Oxlint { report_unused } => {
+            let name = comment_directive::RULE.name;
+            if let Some(severity) = report_unused {
+                let reports = comment_directive::unused_reports(component, source, OXLINT);
+                findings.extend(reports.into_iter().map(|(message, span)| {
+                    Finding::from(Diagnostic {
+                        severity,
+                        code: name.into(),
+                        message,
+                        span,
+                        has_end: true,
+                    })
+                }));
+                findings.sort_by_key(|f| f.diagnostic.span.start_offset);
+            }
+            processor::template(component, source, lines(), OXLINT).apply(
+                &mut findings,
+                lines(),
+                report_unused.map(|_| name),
+            );
+        }
     }
     if on(system::RULE.name) {
         let patterns = configuration.settings().ignored_rules();
@@ -76,7 +105,7 @@ mod configuration_comments;
 pub(crate) mod directive_comments;
 pub(crate) mod global_comments;
 pub(crate) use configuration_comments::FileRules;
-use directive_comments::{javascript, processor};
+use directive_comments::{ESLINT, OXLINT, javascript, processor};
 
 #[cfg(test)]
 mod tests;

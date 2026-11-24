@@ -1,5 +1,5 @@
-//! What `rsvelte --help` and `rsvelte help <command>` print, but for `format`, whose help is
-//! oxfmt's. The README of `@rsvelte/cli` gives the details these leave out.
+//! What `rsvelte --help` and `rsvelte help <command>` print, but for `format` and `lint`, whose
+//! help is oxfmt's and oxlint's. The README of `@rsvelte/cli` gives the details these leave out.
 
 /// The overview: every command and option.
 pub(super) const OVERVIEW: &str = "\
@@ -8,21 +8,21 @@ rsvelte lints, formats and type checks Svelte 5, TypeScript and JavaScript files
 Usage: rsvelte <command> [options]
 
 Commands:
-  lint [<path>...]               Lint the files below the paths (default: .)
+  lint [<oxlint arguments>...]   Lint files as oxlint does, Svelte files included
   format [<oxfmt arguments>...]  Format files as oxfmt does, Svelte files included
   typecheck                      Type check the project of a tsconfig.json
   version                        Print the versions of the tools rsvelte matches and is built on
   help [<command>]               Print this help, or the guide to one command
 
   <command> <command>... [<path>...] [--check]
-                                 Run several of lint, format and typecheck. format runs
-                                 first; lint and typecheck then read each file once
+                                 Run several of lint, format and typecheck over the paths.
+                                 format runs first
 
 Options:
   -h, --help                     Print this help, or with a command, its guide
   -V, --version                  Print the version
 
-Options of lint and typecheck, which read rsvelte.config:
+Options of typecheck, which reads rsvelte.config:
   --config <file>                The configuration file (default: rsvelte.config.* found upward)
   --config-runtime <program>     The program that evaluates a JavaScript or TypeScript one
                                  (default: node)
@@ -31,29 +31,6 @@ Options of lint and typecheck, which read rsvelte.config:
   --config-loader-arg <arg>      An argument for that program; repeat for more
 
 Run `rsvelte help <command>` for what a command reads, prints and exits with.
-";
-
-pub(super) const LINT: &str = "\
-Usage: rsvelte lint [<path>...] [options]
-
-Lints the .svelte, .js, .mjs, .cjs, .ts, .mts and .cts files below each path, by default the
-current directory, and prints the problems as ESLint's stylish formatter does. It skips
-node_modules and what .gitignore skips, but reads a file named on the command line.
-A svelte.lint rule that applies to modules, such as svelte/no-inspect, also runs on JavaScript
-and TypeScript files, .jsx and .tsx included.
-
-The rules of Svelte files are set under svelte.lint, and those of the other files under
-typescript.lint, in rsvelte.config.json. A rules object replaces the default rules, which for
-Svelte files are no-unused-vars and svelte/button-has-type:
-
-  { \"plugins\": { \"svelte.lint\": { \"rules\": {
-      \"no-unused-vars\": \"warn\", \"svelte/button-has-type\": \"error\" } } } }
-
-Exits with 1 when an error is left, and with 2 when it cannot run.
-
-Examples:
-  rsvelte lint
-  rsvelte lint src tests
 ";
 
 pub(super) const TYPECHECK: &str = "\

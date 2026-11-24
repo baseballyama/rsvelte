@@ -411,6 +411,41 @@ impl Session {
         self.decode("getSourceFileNames", &response)
     }
 
+    /// Whether `file` of the project's program came from a search of `node_modules`
+    /// (`isSourceFileFromExternalLibrary`); `None` where the program does not hold it.
+    ///
+    /// # Errors
+    /// The checker fails or answers in an unknown shape.
+    pub fn from_external_library(
+        &mut self,
+        project: &Project,
+        file: &Path,
+    ) -> Result<Option<bool>, String> {
+        #[derive(Deserialize)]
+        #[serde(rename_all = "camelCase")]
+        struct Metadata {
+            is_from_external_library: bool,
+        }
+        let mut w = StructuredDataWriter::new(false);
+        w.begin_object()
+            .key("snapshot")
+            .write_number(project.snapshot)
+            .key("project");
+        match &project.id {
+            ProjectId::Handle(handle) => w.write_number(*handle),
+            ProjectId::Id(id) => w.write_string(id),
+        };
+        w.key("file").write_string(&file.to_string_lossy());
+        w.end_object();
+        let method = "getSourceFileMetadata";
+        let response = self.request(method, w.finish().as_bytes())?;
+        if response.is_empty() {
+            return Ok(None);
+        }
+        let metadata: Option<Metadata> = self.decode(method, &response)?;
+        Ok(metadata.map(|m| m.is_from_external_library))
+    }
+
     /// The module each of `positions` in `file` names, by its file name, such as the module an
     /// import's specifier resolves to; `None` where the position names no module. Positions are
     /// in UTF-16 code units.

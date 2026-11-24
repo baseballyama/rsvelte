@@ -14,7 +14,7 @@ use crate::rule::File;
 /// `svelte-eslint-parser`'s globals, which subscribe to nothing (`globalsForSvelte`).
 const SVELTE_GLOBALS: [&str; 3] = ["$$slots", "$$props", "$$restProps"];
 /// Its globals outside legacy mode (`globalsForRunes`).
-const RUNE_GLOBALS: [&str; 7] = [
+pub const RUNE_GLOBALS: [&str; 7] = [
     "$state",
     "$derived",
     "$effect",

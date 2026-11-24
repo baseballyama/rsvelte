@@ -23,8 +23,10 @@ mod typecheck;
 mod typecheck_checker;
 mod typecheck_events;
 mod typecheck_javascript;
+mod typecheck_linked_packages;
 mod typecheck_slot_attribute;
 mod typecheck_untyped;
+mod typecheck_untyped_packages;
 mod unit_names;
 
 /// `rsvelte-dev`, to be run in `directory`.

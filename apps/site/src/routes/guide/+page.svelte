@@ -34,45 +34,48 @@
 
 <h2 id="lint"><code>lint</code></h2>
 
-<pre><code class="language-sh">rsvelte lint [path...]</code></pre>
+<pre><code class="language-sh">rsvelte lint [oxlint options] [path...]</code></pre>
 
 <p>
-	<code>lint</code> checks the Svelte, JavaScript and TypeScript files below each path. By default,
-	the path is the current directory. It reads these extensions:
-</p>
-
-<ul class="inline">
-	<li><code>.svelte</code></li>
-	<li><code>.js</code></li>
-	<li><code>.mjs</code></li>
-	<li><code>.cjs</code></li>
-	<li><code>.ts</code></li>
-	<li><code>.mts</code></li>
-	<li><code>.cts</code></li>
-</ul>
-
-<p>
-	It skips <code>node_modules</code>, <code>.git</code>, and files that <code>.gitignore</code> or
-	<code>.ignore</code> excludes, but it reads a file you name on the command line.
+	<code>lint</code> is <a href="https://oxc.rs/docs/guide/usage/linter">oxlint</a> with a built-in
+	Svelte linter. It takes oxlint's options (<code>rsvelte lint --help</code>), reads oxlint's
+	configuration, <code>.oxlintrc.json</code> or <code>oxlint.config.ts</code> (which Node
+	evaluates), and prints and exits as oxlint does. oxlint checks each file it checks, and the
+	scripts of each <code>.svelte</code> file, with its own rules. The Svelte linter checks the whole
+	<code>.svelte</code>
+	file with the <code>svelte/</code> rules, and runs
+	<code>no-unused-vars</code> and <code>no-undef</code> there instead of oxlint, because they read
+	the template.
 </p>
 
 <p>
-	It prints problems as ESLint's <code>stylish</code> formatter does. When you turn on a Svelte rule
-	that also applies to scripts, such as <code>svelte/no-inspect</code>, it also checks
-	<code>.jsx</code>
-	and
-	<code>.tsx</code> files.
+	The configuration turns Svelte rules on and off as it does oxlint's, under the
+	<code>svelte/</code> prefix, with no <code>plugins</code> entry. Each rule has one of oxlint's
+	<a href={resolve('/rules')}>categories</a>, and by default only <code>correctness</code> runs:
+</p>
+
+<pre><code class="language-json"
+		>{`{
+  "categories": { "suspicious": "warn" },
+  "env": { "browser": true },
+  "rules": { "svelte/no-at-html-tags": "error", "svelte/no-inspect": "off" },
+  "settings": { "svelte": { "ignoreWarnings": ["a11y_autofocus"] } }
+}`}</code
+	></pre>
+
+<p>
+	The Svelte linter reads <code>settings.svelte</code> as eslint-plugin-svelte does, the globals of
+	<code>env</code> and <code>globals</code>, and the nearest <code>svelte.config.js</code>. A Svelte
+	rule that also applies to scripts, such as <code>svelte/no-inspect</code>, also checks JavaScript
+	and TypeScript files. In <code>.svelte.js</code> and <code>.svelte.ts</code> modules, oxlint's
+	rules read the runes as globals.
 </p>
 
 <p>
-	Without a configuration, these rules run. The <a href={resolve('/rules')}>rules page</a> lists the
-	others.
+	Comments such as <code>// oxlint-disable-next-line</code> turn off a Svelte rule as they turn off
+	one of oxlint's. In the markup, write them as HTML comments:
+	<code>&lt;!-- oxlint-disable-next-line --&gt;</code>.
 </p>
-
-<ul>
-	<li>Svelte files: <code>no-unused-vars</code> and <code>svelte/button-has-type</code></li>
-	<li>TypeScript and JavaScript files: <code>@typescript-eslint/no-unused-vars</code></li>
-</ul>
 
 <h2 id="format"><code>format</code></h2>
 
@@ -145,57 +148,28 @@ npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
 <h2 id="config">Configuration</h2>
 
 <p>
-	<code>lint</code> and <code>typecheck</code> read <code>rsvelte.config.json</code>. The file can
-	also be a <code>rsvelte.config.js</code> or <code>rsvelte.config.ts</code>, which Node evaluates.
-	rsvelte looks for the file in the current directory, then in each parent. Use
+	<code>typecheck</code> reads <code>rsvelte.config.json</code>. The file can also be a
+	<code>rsvelte.config.js</code> or <code>rsvelte.config.ts</code>, which Node evaluates. rsvelte
+	looks for the file in the current directory, then in each parent. Use
 	<code>--config &lt;file&gt;</code> to choose a file. Two configuration files in one directory are
-	an error.
+	an error. <code>lint</code> reads <code>.oxlintrc.json</code> and <code>format</code> reads
+	<code>.oxfmtrc.json</code> instead.
 </p>
 
 <pre><code class="language-json"
 		>{`{
   "plugins": {
-    "svelte.lint": {
-      "rules": { "no-unused-vars": "warn", "svelte/button-has-type": "error" }
-    },
     "typescript.check": { "tsconfig": "tsconfig.app.json" }
   }
 }`}</code
 	></pre>
 
-<p>Each key below <code>plugins</code> configures one part of rsvelte:</p>
-
-<table>
-	<thead>
-		<tr><th>Key</th><th>Main options</th></tr>
-	</thead>
-	<tbody>
-		<tr>
-			<td><code>svelte.lint</code></td>
-			<td>
-				<code>rules</code>: every rule but <code>@typescript-eslint/no-unused-vars</code>, with
-				options as in ESLint. <code>languageOptions.globals</code>: the declared global variables.
-			</td>
-		</tr>
-		<tr>
-			<td><code>typescript.lint</code></td>
-			<td><code>rules</code>: <code>@typescript-eslint/no-unused-vars</code></td>
-		</tr>
-		<tr>
-			<td><code>typescript.check</code></td>
-			<td>
-				<code>command</code>: the type checker. Without it, rsvelte runs the first of
-				<code>tsrs</code>, <code>@typescript/native-preview</code> and <code>typescript</code> that
-				the project installs.
-				<code>tsconfig</code>: the <code>tsconfig.json</code> to check.
-			</td>
-		</tr>
-	</tbody>
-</table>
-
 <p>
-	A <code>rules</code> object replaces the default rules of its key. Paths start from the directory
-	of the configuration file. An unknown key is an error.
+	<code>typescript.check</code> takes <code>command</code>, the type checker. Without it, rsvelte
+	runs the first of <code>tsrs</code>, <code>@typescript/native-preview</code> and
+	<code>typescript</code> that the project installs. It also takes <code>tsconfig</code>, the
+	<code>tsconfig.json</code> to check. Paths start from the directory of the configuration file. An
+	unknown key is an error.
 	<a
 		href="https://github.com/baseballyama/rsvelte/blob/main/crates/hosts/configuration_loading/README.md"
 		>The configuration reference</a
@@ -210,7 +184,15 @@ npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
 	</thead>
 	<tbody>
 		<tr>
-			<td><code>lint</code>, <code>typecheck</code></td>
+			<td><code>lint</code></td>
+			<td>
+				It found an error, or a warning with <code>--deny-warnings</code>, or the oxlint
+				configuration is invalid
+			</td>
+			<td>-</td>
+		</tr>
+		<tr>
+			<td><code>typecheck</code></td>
 			<td>It found an error (warnings alone exit with 0)</td>
 			<td>It could not run</td>
 		</tr>
@@ -229,30 +211,35 @@ npm install --save-dev @typescript/native-preview   # 7.1 or newer`}</code
 
 <p>
 	<a href="https://www.npmjs.com/package/@rsvelte/eslint-plugin">@rsvelte/eslint-plugin</a> turns
-	off the ESLint rules that rsvelte implements, so you see each problem once. Use the version that
-	matches
-	<code>@rsvelte/cli</code>.
+	off the ESLint rules that rsvelte adds to oxlint, and
+	<a href="https://www.npmjs.com/package/eslint-plugin-oxlint">eslint-plugin-oxlint</a> those of
+	oxlint, so you see each problem once. Use the version of <code>@rsvelte/eslint-plugin</code> that
+	matches <code>@rsvelte/cli</code>.
 </p>
 
-<pre><code class="language-sh">npm install --save-dev @rsvelte/eslint-plugin</code></pre>
+<pre><code class="language-sh"
+		>npm install --save-dev @rsvelte/eslint-plugin eslint-plugin-oxlint</code
+	></pre>
 
 <pre><code class="language-js"
 		>{`// eslint.config.js
 import svelte from 'eslint-plugin-svelte';
+import oxlint from 'eslint-plugin-oxlint';
 import rsvelte from '@rsvelte/eslint-plugin';
 
 export default [
   ...svelte.configs.recommended,
-  ...rsvelte.configs['flat/recommended'], // last
+  ...oxlint.buildFromOxlintConfigFile('./.oxlintrc.json'),
+  ...rsvelte.buildFromOxlintConfigFile('./.oxlintrc.json'), // last
 ];`}</code
 	></pre>
 
 <p>
-	<code>flat/recommended</code> turns off the rules of the
+	Each turns off the rules your <code>.oxlintrc.json</code> turns on.
+	<code>rsvelte.configs['flat/recommended']</code> instead turns off the rules of the
 	<a href={resolve('/rules') + '#correctness'}><code>correctness</code></a> category, and
 	<code>flat/all</code> every rule outside the <code>nursery</code> category of rules in
-	development. If ESLint no longer runs a rule and rsvelte does not run it either, nothing checks
-	it. Turn on the rules you want under <code>rules</code> in <code>rsvelte.config.json</code>.
+	development.
 </p>
 
 <p>A script that runs both: <code>"lint": "rsvelte lint && eslint"</code></p>
