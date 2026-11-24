@@ -37,3 +37,39 @@ fn typecheck_types_the_slot_props_of_a_generic_component() {
          \nFound 4 errors in 1 file.\n"
     );
 }
+
+/// svelte2tsx's render function returns each slot's props again, a copy that maps nowhere, so
+/// svelte-check reports a finding in a slot prop once, at the `<slot>`. svelte-check 4.7.8 reports
+/// these four lines.
+#[cfg(unix)]
+#[test]
+fn typecheck_reports_a_slot_prop_once() {
+    let report = check(&[
+        (
+            "src/Named.svelte",
+            "<script lang=\"ts\">\n\tlet { a }: { a: number } = $props();\n</script>\n\n\
+             <slot name=\"x\" item={missing} />\n",
+        ),
+        (
+            "src/Arithmetic.svelte",
+            "<script lang=\"ts\">\n\tlet { n }: { n: number } = $props();\n</script>\n\n\
+             <slot x={n * \"a\"} />\n",
+        ),
+        (
+            "src/Keyed.svelte",
+            "<script lang=\"ts\">\n\tlet { items }: { items: { id: number }[] } = $props();\n\
+             </script>\n\n{#each items as item, i (item.id)}\n\
+             \t<slot item={item.nope} index={i.toFixed(1).nope} />\n{/each}\n",
+        ),
+    ]);
+    assert_eq!(
+        report,
+        "src/Arithmetic.svelte(5,14): error TS2363: The right-hand side of an arithmetic \
+         operation must be of type 'any', 'number', 'bigint' or an enum type.\n\
+         src/Keyed.svelte(6,19): error TS2339: Property 'nope' does not exist on type '{ id: \
+         number; }'.\n\
+         src/Keyed.svelte(6,45): error TS2339: Property 'nope' does not exist on type 'string'.\n\
+         src/Named.svelte(5,22): error TS2304: Cannot find name 'missing'.\n\
+         \nFound 4 errors in 3 files.\n"
+    );
+}

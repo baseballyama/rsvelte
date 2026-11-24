@@ -101,6 +101,7 @@ impl UntypedImport<'_> {
                 self.module.display()
             ),
             span: Some(self.import.at),
+            synthesized: None,
             syntactic: false,
         }
     }

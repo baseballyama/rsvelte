@@ -85,6 +85,9 @@ pub(super) fn prepended(line: &str, projection: &Emitter) -> Emitter {
         ignored: (projection.ignored.iter())
             .map(|r| Span::new(r.start_offset + shift, r.end_offset + shift))
             .collect(),
+        unmapped: (projection.unmapped.iter())
+            .map(|r| Span::new(r.start_offset + shift, r.end_offset + shift))
+            .collect(),
     }
 }
 

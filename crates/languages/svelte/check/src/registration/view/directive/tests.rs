@@ -1,4 +1,7 @@
-use super::{directive, leading_line_comments};
+use rsvelte_kernel::output::emitter::Emitter;
+use rsvelte_kernel::source::positions::Span;
+
+use super::{directive, leading_line_comments, prepended};
 
 fn of(content: &str) -> Option<&'static str> {
     directive(leading_line_comments(content))
@@ -24,4 +27,17 @@ fn ignores_a_directive_after_code_or_in_a_block_comment() {
     assert_eq!(of("// @ts-checked\n"), None);
     assert_eq!(of("// x @ts-check\n"), None);
     assert_eq!(of("//\n@ts-check\n"), None);
+}
+
+#[test]
+fn a_prepended_line_moves_the_ranges_of_the_projection() {
+    let mut projection = Emitter::default();
+    projection.push("let a;\n");
+    projection.ignore_since(4);
+    projection.push("return a;\n");
+    projection.unmapped_since(7);
+    let moved = prepended("// @ts-check\n", &projection);
+    assert_eq!(moved.out, "// @ts-check\nlet a;\nreturn a;\n");
+    assert_eq!(moved.ignored, [Span::new(17, 20)]);
+    assert_eq!(moved.unmapped, [Span::new(20, 30)]);
 }

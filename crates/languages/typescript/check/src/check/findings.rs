@@ -8,7 +8,9 @@ use rsvelte_kernel::diagnostics::{self, Diagnostic};
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_typescript_api::Position;
 
+use super::run::TypeScriptDiagnostic;
 use super::{Prepared, Report};
 use crate::CheckedDocument;
 
@@ -45,14 +47,7 @@ pub(super) fn write_findings(docs: &[Prepared], outs: Vec<&mut TaskOutput>, repo
     for mut f in found {
         let (source_text, d) = (&docs[f.file].source_text, &*docs[f.file].document);
         let Some(span) = f.span else {
-            // The projection's own default export repeats a script's, and its subscription `$x`
-            // a `$x` the script declares. TypeScript reports both copies: the script's maps, and
-            // svelte-check drops the other, which does not.
-            let repeats = f.code == MULTIPLE_DEFAULT_EXPORTS
-                || f.code == REDECLARED_BLOCK_SCOPED
-                    && f.message
-                        .starts_with("Cannot redeclare block-scoped variable '$");
-            if !d.drops_unmapped && !repeats {
+            if refuses_unmapped(d, &f) {
                 unmapped[f.file].push(format!("TS{}: {}", f.code, f.message));
             }
             continue;
@@ -247,6 +242,33 @@ fn starts_ignored(d: &CheckedDocument, span: Span, bom: u32) -> bool {
             (range.start_offset..range.end_offset).contains(&span.start_offset)
         }
     })
+}
+
+/// Whether a finding with no source range refuses its document, as a projection defect, where
+/// svelte-check would drop it.
+fn refuses_unmapped(d: &CheckedDocument, f: &TypeScriptDiagnostic) -> bool {
+    if d.drops_unmapped || f.synthesized.is_some_and(|at| starts_unmapped(d, at)) {
+        return false;
+    }
+    // The projection's own default export repeats a script's, and its subscription `$x` a `$x`
+    // the script declares. TypeScript reports both copies: the script's maps, and svelte-check
+    // drops the other, which does not.
+    let repeats = f.code == MULTIPLE_DEFAULT_EXPORTS
+        || f.code == REDECLARED_BLOCK_SCOPED
+            && f.message
+                .starts_with("Cannot redeclare block-scoped variable '$");
+    !repeats
+}
+
+/// Whether a finding in synthesized code starts, at `at` in the generated text, in a range the
+/// projection marked [`Emitter::unmapped`].
+fn starts_unmapped(d: &CheckedDocument, at: Position) -> bool {
+    LineIndex::new(&d.projection.out)
+        .offset(at.line + 1, at.character)
+        .is_some_and(|at| {
+            (d.projection.unmapped.iter())
+                .any(|range| (range.start_offset..range.end_offset).contains(&at))
+        })
 }
 
 /// The first generated offset copied from the original `offset`, or the end of the copy before
