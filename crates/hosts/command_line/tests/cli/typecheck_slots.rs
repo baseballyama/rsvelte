@@ -73,3 +73,21 @@ fn typecheck_reports_a_slot_prop_once() {
          \nFound 4 errors in 3 files.\n"
     );
 }
+
+/// The return copies a `$bindable` prop's name, and a finding at that name in the script still
+/// maps there and is reported. svelte-check 4.7.8 reports this line.
+#[cfg(unix)]
+#[test]
+fn typecheck_reports_a_finding_at_a_name_the_return_copies() {
+    let report = check(&[(
+        "src/Bound.svelte",
+        "<script lang=\"ts\">\n\tlet { nope = $bindable() }: { a: number } = $props();\n\
+         </script>\n\n{nope}\n",
+    )]);
+    assert_eq!(
+        report,
+        "src/Bound.svelte(2,8): error TS2339: Property 'nope' does not exist on type \
+         '$$ComponentProps'.\n\
+         \nFound 1 error in 1 file.\n"
+    );
+}
