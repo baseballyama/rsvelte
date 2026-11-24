@@ -10,8 +10,8 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_api::{DiagnosticKind, Project, Session};
 
+use super::TypeScriptDiagnostic;
 use super::mapped::normalized;
-use super::{MAPPER_PACKAGE, TypeScriptDiagnostic};
 use crate::check::findings::byte_order_mark;
 use crate::check::{CheckRequest, CheckedDocument, Import};
 
@@ -24,7 +24,6 @@ const PROBE: (&str, &str) = ("untyped-probe.ts", "untyped.js");
 /// The probe of a JavaScript file a search of `node_modules` finds, and its package.
 const PACKAGE_PROBE: (&str, &str) = ("untyped-package-probe.ts", "rsvelte-untyped-probe");
 const PROBE_CONFIG: &str = "untyped-probe.json";
-const SELECTION_CONFIG: &str = "untyped-selection.json";
 
 /// `Could not find a declaration file for module '{0}'. '{1}' implicitly has an 'any' type.`
 pub(super) const CODE: u32 = 7016;
@@ -148,9 +147,6 @@ pub(super) fn javascript(req: &CheckRequest<'_>, file: usize) -> bool {
         .is_some_and(|mapped| JAVASCRIPT.contains(&mapped.generated_extension))
 }
 
-mod external;
-pub(super) use external::{Selected, selected};
-
 /// `Value refers to a value, but is being used as a type here.`
 const VALUE_AS_TYPE: u32 = 2749;
 
@@ -219,29 +215,6 @@ pub(super) fn probe(overlay: &Path, base: &Path) -> [(PathBuf, String); 6] {
         (package.join("index.js"), "export default 1;\n".to_owned()),
         (overlay.join(PROBE_CONFIG), config.finish()),
     ]
-}
-
-/// The tsconfig of a project that extends the project's `base` with the content mappers of `req`,
-/// so that its root files are those the tsconfig selects, components included.
-pub(super) fn selection(
-    req: &CheckRequest<'_>,
-    overlay: &Path,
-    base: &Path,
-    store: &Path,
-) -> (PathBuf, String) {
-    let mut config = StructuredDataWriter::new(true);
-    config
-        .begin_object()
-        .key("extends")
-        .write_string(&base.to_string_lossy())
-        .key("compilerOptions")
-        .begin_object()
-        .key("noEmit")
-        .write_boolean(true)
-        .end_object();
-    req.write_mapper_config(&mut config, MAPPER_PACKAGE, store);
-    config.end_object();
-    (overlay.join(SELECTION_CONFIG), config.finish())
 }
 
 /// Which imports of JavaScript TypeScript reads as untyped.
