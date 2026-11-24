@@ -18,6 +18,7 @@ use rustc_hash::{FxHashMap, FxHashSet};
 
 use crate::input::{CompileInput, Target};
 use crate::lower::attributes::event_attribute;
+use crate::lower::validation::Unit;
 
 mod assignments;
 mod calls;
@@ -125,6 +126,7 @@ pub(in crate::lower) enum Awaits {
 /// document order, then the runes this port does not lower.
 struct RuneWalk<'a> {
     res: &'a Resolution,
+    unit: Unit,
     target: Target,
     custom_element: bool,
     awaits: Awaits,
@@ -166,23 +168,25 @@ enum Root<'a> {
 pub(in crate::lower) fn check_runes(
     input: &CompileInput<'_>,
     res: &Resolution,
+    unit: Unit,
     target: Target,
     custom_element: bool,
 ) -> Result<(), Diagnostic> {
-    check_runes_with(input, res, target, custom_element, Awaits::Here)
+    check_runes_with(input, res, unit, target, custom_element, Awaits::Here)
 }
 
 /// [`check_runes`], with what raises `experimental_async`.
 pub(in crate::lower) fn check_runes_with(
     input: &CompileInput<'_>,
     res: &Resolution,
+    unit: Unit,
     target: Target,
     custom_element: bool,
     awaits: Awaits,
 ) -> Result<(), Diagnostic> {
     walk_template(
         input,
-        walk_scripts(input, res, target, custom_element, awaits),
+        walk_scripts(input, res, unit, target, custom_element, awaits),
     )
 }
 
@@ -287,6 +291,7 @@ fn walk_template<'a>(input: &CompileInput<'a>, mut walk: RuneWalk<'a>) -> Result
 fn walk_scripts<'a>(
     input: &CompileInput<'a>,
     res: &'a Resolution,
+    unit: Unit,
     target: Target,
     custom_element: bool,
     awaits: Awaits,
@@ -299,6 +304,7 @@ fn walk_scripts<'a>(
     };
     let mut walk = RuneWalk {
         res,
+        unit,
         target,
         custom_element,
         awaits,

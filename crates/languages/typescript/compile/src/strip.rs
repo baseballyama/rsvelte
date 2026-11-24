@@ -7,9 +7,9 @@ use oxc_ast::ast::{
     ArrowFunctionExpression, CallExpression, CatchParameter, ChainElement, Class, ClassElement,
     CommentPosition, Declaration, ExportDeclaration, ExportDefaultDeclarationKind, ExportSpecifier,
     Expression, FormalParameter, FormalParameterRest, Function, FunctionBody,
-    ImportDeclarationSpecifier, MethodDefinition, MethodDefinitionType, NewExpression, Program,
-    PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget, Statement,
-    TaggedTemplateExpression, VariableDeclarator,
+    ImportDeclarationSpecifier, MethodDefinition, MethodDefinitionKind, MethodDefinitionType,
+    NewExpression, Program, PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget,
+    Statement, TaggedTemplateExpression, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
 use oxc_span::{GetSpan, Span};
@@ -101,6 +101,23 @@ fn is_type_only_element(element: &ClassElement<'_>) -> bool {
             p.declare || p.r#type != PropertyDefinitionType::PropertyDefinition
         }
         _ => false,
+    }
+}
+
+/// Whether TypeScript's emit removes `element` from its class: it keeps an accessor without a
+/// body, and gives it an empty one.
+#[must_use]
+pub fn is_erased_by_emit(element: &ClassElement<'_>) -> bool {
+    match element {
+        ClassElement::MethodDefinition(m) => {
+            m.r#type.is_abstract()
+                || (m.value.body.is_none()
+                    && !matches!(
+                        m.kind,
+                        MethodDefinitionKind::Get | MethodDefinitionKind::Set
+                    ))
+        }
+        element => is_type_only_element(element),
     }
 }
 

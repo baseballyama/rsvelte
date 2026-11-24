@@ -8,7 +8,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_svelte_semantic::resolve::Resolution;
 use rustc_hash::FxHashMap;
 
-use super::validation::check_runes;
+use super::validation::{Unit, check_runes};
 use super::{Builder, Prepared, names, script};
 use crate::input::Target;
 
@@ -22,7 +22,13 @@ pub(super) fn prepare<'c, 'o>(
     let res = facts.res;
     let custom_element = facts.validated.custom_element.as_ref();
     let javascript = input.component.javascript;
-    check_runes(input, res, target, custom_element.is_some())?;
+    check_runes(
+        input,
+        res,
+        Unit::Component,
+        target,
+        custom_element.is_some(),
+    )?;
     super::unsupported_syntax::refuse_for_target(input, target)?;
     let mut names = names(res);
     let each_index = each_index_names(input.component.compiler_syntax_tree, &mut names);
