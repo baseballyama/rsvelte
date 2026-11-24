@@ -14283,8 +14283,8 @@ Cannot mix BigInt and other types, use explicit conversions
 === 60 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f33536cb7a64911a.svelte	error.txt
 Cannot mix BigInt and other types, use explicit conversions
 
-=== 26 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f38d296e65efce2f.svelte	error.txt
-Exponent must be positive
+=== 27 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/f38d296e65efce2f.svelte	error.txt
+undefined must be positive
 
 === 42 bigint_constant_fold_3539/an_operation_that_throws_at_runtime_never_folds/faf95531bc451aa2.svelte	error.txt
 Cannot convert a BigInt value to a number

@@ -372,11 +372,13 @@
   }
 </style>
 
-=== 138 example/example6/HelpButtonComponent.svelte	svelte
+=== 142 example/example6/HelpButtonComponent.svelte	svelte
 <button
   on:click={() =>
     alert(
       "Read the svelte-table docs: https://github.com/dasDaniel/svelte-table",
-    )}>Help</button
+    )}
 >
+  Help
+</button>
 

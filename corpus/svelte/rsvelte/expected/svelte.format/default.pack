@@ -2134,13 +2134,13 @@ svelte/no-at-html-tags -->
   let tag = "div";
 </script>
 
-<svelte:element this={tag} class="x"
-  >oracle sees `this` as first attribute, beside</svelte:element
->
+<svelte:element this={tag} class="x">
+  oracle sees `this` as first attribute, beside
+</svelte:element>
 
-<svelte:element this={tag} class="x"
-  >both agree: first attribute below</svelte:element
->
+<svelte:element this={tag} class="x">
+  both agree: first attribute below
+</svelte:element>
 
 === 141 lint/first-attribute-linebreak/04-svelte-component-this.svelte	svelte
 <script>
@@ -2210,9 +2210,9 @@ b"
   let tag = "div";
 </script>
 
-<button on:click|once={handler} class:active
-  >directive first attribute, beside on multiline</button
->
+<button on:click|once={handler} class:active>
+  directive first attribute, beside on multiline
+</button>
 
 <svelte:window on:resize={handler} />
 
@@ -2220,9 +2220,9 @@ b"
   decoy markup inside attribute values
 </div>
 
-<svelte:element this={tag} on:click={handler} id="z"
-  >this beside, directive beside, id below</svelte:element
->
+<svelte:element this={tag} on:click={handler} id="z">
+  this beside, directive beside, id below
+</svelte:element>
 
 === 137 lint/first-attribute-linebreak/11-this-quoted-first.svelte	svelte
 <script>
@@ -2299,9 +2299,9 @@ b"
   let n = 1;
 </script>
 
-<svelte:element this={n > 0 ? "em" : "i"} class="a"
-  >ternary with a greater-than inside this</svelte:element
->
+<svelte:element this={n > 0 ? "em" : "i"} class="a">
+  ternary with a greater-than inside this
+</svelte:element>
 
 <svelte:element this={n > 2 ? "b" : "s"}>no other attributes</svelte:element>
 
@@ -2429,13 +2429,13 @@ b"
   let n = 1;
 </script>
 
-<svelte:element this={n > 0 ? "em" : "i"} class="a"
-  >gt inside this expression</svelte:element
->
+<svelte:element this={n > 0 ? "em" : "i"} class="a">
+  gt inside this expression
+</svelte:element>
 
-<svelte:element this={n > 2 ? "b" : "s"}
-  >real space before bracket</svelte:element
->
+<svelte:element this={n > 2 ? "b" : "s"}>
+  real space before bracket
+</svelte:element>
 
 === 101 lint/html-closing-bracket-spacing/04-script-style-tags.svelte	svelte
 <script>
@@ -3999,9 +3999,9 @@ line comment -->
 
 <p class:on={cond && el.addEventListener("e", () => {})}>x</p>
 <p style:color={el.addEventListener("f", () => {}) ? "red" : "blue"}>y</p>
-<svelte:element this={el.addEventListener("g", () => {}) ? "p" : "span"}
-  >z</svelte:element
->
+<svelte:element this={el.addEventListener("g", () => {}) ? "p" : "span"}>
+  z
+</svelte:element>
 {#snippet card(target = el.addEventListener("h", () => {}))}
   <p>{target}</p>
 {/snippet}
@@ -5103,7 +5103,7 @@ line comment -->
 
 {@render row(1)}
 
-=== 451 lint/no-dom-manipulating/16-handler-block-and-catch.svelte	svelte
+=== 459 lint/no-dom-manipulating/16-handler-block-and-catch.svelte	svelte
 <script>
   let el;
   function boom() {}
@@ -5119,8 +5119,10 @@ line comment -->
       let el = document.createElement("i");
       el.remove();
     }
-  }}>a</button
+  }}
 >
+  a
+</button>
 
 <!-- the catch param shadows `el` inside the catch block -->
 <button
@@ -5130,8 +5132,10 @@ line comment -->
     } catch (el) {
       el.remove();
     }
-  }}>b</button
+  }}
 >
+  b
+</button>
 
 === 204 lint/no-dom-manipulating/17-const-tag-shadow.svelte	svelte
 <script>
@@ -5165,9 +5169,9 @@ line comment -->
 <button onclick={wire}>wire</button>
 
 {#each rows as el}
-  <button onclick={() => el.addEventListener("x", () => el.remove())}
-    >{el}</button
-  >
+  <button onclick={() => el.addEventListener("x", () => el.remove())}>
+    {el}
+  </button>
 {/each}
 
 === 125 lint/no-dupe-else-if-blocks/01-basic.svelte	svelte
@@ -5651,7 +5655,7 @@ line comment -->
 
 <button on:click={() => go(`a${x}`)} on:click={() => go(`a${x}`)}>1</button>
 
-=== 182 lint/no-dupe-on-directives/05-regex-comment-collision.svelte	svelte
+=== 186 lint/no-dupe-on-directives/05-regex-comment-collision.svelte	svelte
 <script>
   let s = "a//b";
   let f = (x) => x;
@@ -5660,8 +5664,10 @@ line comment -->
 
 <button
   on:click={() => s.split(/\/\//).map(f)}
-  on:click={() => s.split(/\/\//).map(g)}>1</button
+  on:click={() => s.split(/\/\//).map(g)}
 >
+  1
+</button>
 
 === 206 lint/no-dupe-on-directives/06-svelte-window-body.svelte	svelte
 <script>
@@ -5715,7 +5721,7 @@ line comment -->
 <div on:click={h}>1</div>
 <div on:click={h}>2</div>
 
-=== 172 lint/no-dupe-on-directives/12-regex-after-paren.svelte	svelte
+=== 176 lint/no-dupe-on-directives/12-regex-after-paren.svelte	svelte
 <script>
   let b = "x";
 </script>
@@ -5727,10 +5733,12 @@ line comment -->
   }}
   on:click={() => {
     if (b) / x /.test(b);
-  }}>go</button
+  }}
 >
+  go
+</button>
 
-=== 196 lint/no-dupe-on-directives/13-regex-after-brace.svelte	svelte
+=== 200 lint/no-dupe-on-directives/13-regex-after-brace.svelte	svelte
 <script>
   let b = "x";
 </script>
@@ -5746,10 +5754,12 @@ line comment -->
     if (b) {
     }
     / x /.test(b);
-  }}>go</button
+  }}
 >
+  go
+</button>
 
-=== 172 lint/no-dupe-on-directives/14-optional-chaining-digit.svelte	svelte
+=== 176 lint/no-dupe-on-directives/14-optional-chaining-digit.svelte	svelte
 <script>
   let a = 1;
   let b = 2;
@@ -5759,10 +5769,12 @@ line comment -->
 <button
   type="button"
   on:click={() => g(a ? 0.5 : b)}
-  on:click={() => g(a ? 0.5 : b)}>x</button
+  on:click={() => g(a ? 0.5 : b)}
 >
+  x
+</button>
 
-=== 141 lint/no-dupe-on-directives/15-line-comment-u2028.svelte	svelte
+=== 145 lint/no-dupe-on-directives/15-line-comment-u2028.svelte	svelte
 <script>
   let x = () => {};
 </script>
@@ -5773,8 +5785,10 @@ line comment -->
     // c
     x();
   }}
-  on:click={() => {}}>a</button
+  on:click={() => {}}
 >
+  a
+</button>
 
 === 99 lint/no-dupe-on-directives/16-cr-only-lineno.svelte	svelte
 <script>
@@ -5783,26 +5797,27 @@ line comment -->
 
 <button type="button" on:click={h} on:click={h}>x</button>
 
-=== 550 lint/no-dupe-on-directives/17-token-spelling-controls.svelte	svelte
+=== 553 lint/no-dupe-on-directives/17-token-spelling-controls.svelte	svelte
 <script>
   const f = (v) => v;
 </script>
 
-<button type="button" on:click={() => f(1e3)} on:click={() => f(1000)}>a</button
->
+<button type="button" on:click={() => f(1e3)} on:click={() => f(1000)}>
+  a
+</button>
 <button type="button" on:click={() => f(0x10)} on:click={() => f(16)}>b</button>
-<button type="button" on:click={() => f(1_000)} on:click={() => f(1000)}
-  >c</button
->
+<button type="button" on:click={() => f(1_000)} on:click={() => f(1000)}>
+  c
+</button>
 <button type="button" on:click={() => f("a")} on:click={() => f("a")}>d</button>
-<button type="button" on:click={() => f(/a/g)} on:click={() => f(/a/gi)}
-  >e</button
->
-<button type="button" on:click={() => f(/a/g)} on:click={() => f(/a/g)}
-  >f</button
->
+<button type="button" on:click={() => f(/a/g)} on:click={() => f(/a/gi)}>
+  e
+</button>
+<button type="button" on:click={() => f(/a/g)} on:click={() => f(/a/g)}>
+  f
+</button>
 
-=== 234 lint/no-dupe-on-directives/18-template-raw-vs-cooked.svelte	svelte
+=== 238 lint/no-dupe-on-directives/18-template-raw-vs-cooked.svelte	svelte
 <script>
   const f = (v) => v;
 </script>
@@ -5812,11 +5827,13 @@ line comment -->
   on:click={() => f(`a\nb`)}
   on:click={() =>
     f(`a
-b`)}>x</button
+b`)}
 >
-<button type="button" on:click={() => f(`a${1}b`)} on:click={() => f(`a${1}b`)}
-  >y</button
->
+  x
+</button>
+<button type="button" on:click={() => f(`a${1}b`)} on:click={() => f(`a${1}b`)}>
+  y
+</button>
 
 === 258 lint/no-dupe-on-directives/20-host-element-kinds.svelte	svelte
 <script>
@@ -7156,7 +7173,7 @@ color: blue"
 
 <p>{$store}</p>
 
-=== 187 lint/no-ignored-unsubscribe/07-template-handler.svelte	svelte
+=== 191 lint/no-ignored-unsubscribe/07-template-handler.svelte	svelte
 <script>
   import { writable } from "svelte/store";
 
@@ -7166,8 +7183,10 @@ color: blue"
 <button
   on:click={() => {
     store.subscribe(() => {});
-  }}>go</button
+  }}
 >
+  go
+</button>
 
 <p>{$store}</p>
 
@@ -7283,7 +7302,7 @@ color: blue"
 
 <button onclick={run}>go</button>
 
-=== 398 lint/no-ignored-unsubscribe/15-template-statement-hosts.svelte	svelte
+=== 414 lint/no-ignored-unsubscribe/15-template-statement-hosts.svelte	svelte
 <script>
   import { writable } from "svelte/store";
 
@@ -7295,8 +7314,10 @@ color: blue"
   <button
     onclick={() => {
       s.subscribe();
-    }}>{row}</button
+    }}
   >
+    {row}
+  </button>
   <button onclick={() => s.subscribe()}>concise</button>
 {/each}
 
@@ -7304,8 +7325,10 @@ color: blue"
   <button
     onclick={() => {
       s.subscribe();
-    }}>snippet</button
+    }}
   >
+    snippet
+  </button>
 {/snippet}
 
 {@render card()}
@@ -7538,12 +7561,12 @@ color: blue"
 </script>
 
 <Comp style="color: red">component style attr, oracle kind !== html, ok</Comp>
-<svelte:element this={tag} style="color: red"
-  >special kind, ok for oracle</svelte:element
->
-<svelte:element this={tag} style:color="red"
-  >style directive on svelte:element</svelte:element
->
+<svelte:element this={tag} style="color: red">
+  special kind, ok for oracle
+</svelte:element>
+<svelte:element this={tag} style:color="red">
+  style directive on svelte:element
+</svelte:element>
 
 === 326 lint/no-inline-styles/06-directive-variants.svelte	svelte
 <script>
@@ -7812,7 +7835,7 @@ color: blue"
   }
 </script>
 
-=== 192 lint/no-inner-declarations/08-template-handler.svelte	svelte
+=== 196 lint/no-inner-declarations/08-template-handler.svelte	svelte
 <script>
   /* eslint svelte/no-inner-declarations: ["warn", "both"] */
   const cond = true;
@@ -7823,8 +7846,10 @@ color: blue"
     if (cond) {
       var trapped = 1;
     }
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 204 lint/no-inner-declarations/09-reactive-label.svelte	svelte
 <script>
@@ -8648,7 +8673,7 @@ https://svelte.dev/e/expected_token
 <button on:click={real}>ok</button>
 <button on:click>fwd</button>
 
-=== 393 lint/no-not-function-handler/03-no-fire.svelte	svelte
+=== 397 lint/no-not-function-handler/03-no-fire.svelte	svelte
 <script>
   function f() {}
   function g() {}
@@ -8660,8 +8685,10 @@ https://svelte.dev/e/expected_token
 <button
   onclick={() => {
     cond = !cond;
-  }}>2</button
+  }}
 >
+  2
+</button>
 <button onclick={cond ? f : g}>3</button>
 <button onclick={picked}>4</button>
 <button onclick={null}>5</button>
@@ -9875,10 +9902,11 @@ https://svelte.dev/e/expected_token
 <p>{s}</p>
 <!-- style="margin-top: 1; margin: 0" -->
 
-=== 102 lint/no-shorthand-style-property-overrides/09-multibyte-crlf.svelte	svelte
+=== 107 lint/no-shorthand-style-property-overrides/09-multibyte-crlf.svelte	svelte
 <p>
-  前段🍰テキスト<span style="padding-left: 1px; padding: 0">crlf multibyte</span
-  >
+  前段🍰テキスト<span style="padding-left: 1px; padding: 0">
+    crlf multibyte
+  </span>
 </p>
 
 === 431 lint/no-shorthand-style-property-overrides/10-one-set-never-conflicts.svelte	svelte
@@ -10538,22 +10566,26 @@ transition: none"
 <a href="#anchor" target="_blank">safe anchor</a>
 <a href="https://example.com/">no target</a>
 
-=== 628 lint/no-target-blank/02-rel-dynamic.svelte	svelte
+=== 635 lint/no-target-blank/02-rel-dynamic.svelte	svelte
 <script>
   let rel = "noopener noreferrer";
   let extra = "nofollow";
 </script>
 
 <a href="https://example.com/" target="_blank" {rel}>dynamic rel, flag</a>
-<a href="https://example.com/" target="_blank" rel="noopener {extra}"
-  >flag: noreferrer missing</a
+<a href="https://example.com/" target="_blank" rel="noopener {extra}">
+  flag: noreferrer missing
+</a>
+<a
+  href="https://example.com/"
+  target="_blank"
+  rel="noopener {extra} noreferrer"
 >
-<a href="https://example.com/" target="_blank" rel="noopener {extra} noreferrer"
-  >literal parts secure</a
->
-<a href="https://example.com/" target="_blank" rel="noopener&#10;noreferrer"
-  >entity newline separator</a
->
+  literal parts secure
+</a>
+<a href="https://example.com/" target="_blank" rel="noopener&#10;noreferrer">
+  entity newline separator
+</a>
 <a href="https://example.com/" target="_blank" rel>valueless rel, flag</a>
 <a href="https://example.com/" target="_blank" rel="">empty rel, flag</a>
 
@@ -10564,9 +10596,9 @@ transition: none"
   let target = "_blank";
 </script>
 
-<a href="https://example.com/" target="_blank" {...rest}
-  >rel via spread is invisible, flag</a
->
+<a href="https://example.com/" target="_blank" {...rest}>
+  rel via spread is invisible, flag
+</a>
 <a {href} target="_blank">shorthand href dynamic, flag</a>
 <a href="https://example.com/" {target}>shorthand target, not static, ok</a>
 
@@ -10578,39 +10610,41 @@ transition: none"
 
 <a href={url} target="_blank">mustache href, flag</a>
 <a href="{base}/path" target="_blank">mustache first part, flag (dynamic)</a>
-<a href="https://host/{url}" target="_blank"
-  >literal external first part, flag</a
->
-<a href="page/{url}" target="_blank"
-  >relative literal + mustache, flag (dynamic)</a
->
+<a href="https://host/{url}" target="_blank">
+  literal external first part, flag
+</a>
+<a href="page/{url}" target="_blank">
+  relative literal + mustache, flag (dynamic)
+</a>
 
 === 253 lint/no-target-blank/05-component.svelte	svelte
 <script>
   import Link from "./01-basic.svelte";
 </script>
 
-<Link href="https://example.com/" target="_blank"
-  >component carries the attrs</Link
->
-<Link href="https://example.com/" target="_blank" rel="noopener noreferrer"
-  >secure component</Link
->
+<Link href="https://example.com/" target="_blank">
+  component carries the attrs
+</Link>
+<Link href="https://example.com/" target="_blank" rel="noopener noreferrer">
+  secure component
+</Link>
 
-=== 275 lint/no-target-blank/06-svelte-element.svelte	svelte
+=== 279 lint/no-target-blank/06-svelte-element.svelte	svelte
 <script>
   let tag = "a";
 </script>
 
-<svelte:element this={tag} href="https://example.com/" target="_blank"
-  >dynamic element</svelte:element
->
+<svelte:element this={tag} href="https://example.com/" target="_blank">
+  dynamic element
+</svelte:element>
 <svelte:element
   this={"a"}
   href="https://example.com/"
   target="_blank"
-  rel="noopener noreferrer">secure</svelte:element
+  rel="noopener noreferrer"
 >
+  secure
+</svelte:element>
 
 === 197 lint/no-target-blank/07-bind-href.svelte	svelte
 <script>
@@ -10635,12 +10669,12 @@ transition: none"
   let url = "https://example.com/";
 </script>
 
-<a href="https://example.com/" target="_blank" rel="noopener"
-  >allowReferrer ok</a
->
-<a href="https://example.com/" target="_blank" rel="noreferrer"
-  >still flag: noopener missing</a
->
+<a href="https://example.com/" target="_blank" rel="noopener">
+  allowReferrer ok
+</a>
+<a href="https://example.com/" target="_blank" rel="noreferrer">
+  still flag: noopener missing
+</a>
 <a href={url} target="_blank">dynamic link not enforced, ok</a>
 <a href="https://example.com/" target="_blank">static external still flag</a>
 
@@ -10667,13 +10701,13 @@ transition: none"
 
 === 197 lint/no-target-blank/12-multibyte-crlf.svelte	svelte
 <p>
-  前置き🍜テキスト<a href="https://example.com/" target="_blank"
-    >multibyte line</a
-  >
+  前置き🍜テキスト<a href="https://example.com/" target="_blank">
+    multibyte line
+  </a>
 </p>
-<a href="https://example.com/" target="_blank" rel="noopener"
-  >crlf partial rel</a
->
+<a href="https://example.com/" target="_blank" rel="noopener">
+  crlf partial rel
+</a>
 
 === 306 lint/no-target-blank/opt-key-allow-referrer.svelte	svelte
 <script>
@@ -11024,12 +11058,12 @@ literal`}
   let tag = "div";
 </script>
 
-<svelte:element this={tag} style:bogus-prop="1"
-  >on svelte:element, flag</svelte:element
->
-<svelte:element this={tag} style:color="red"
-  >on svelte:element known, ok</svelte:element
->
+<svelte:element this={tag} style:bogus-prop="1">
+  on svelte:element, flag
+</svelte:element>
+<svelte:element this={tag} style:color="red">
+  on svelte:element known, ok
+</svelte:element>
 
 === 242 lint/no-unknown-style-directive-property/07-decoys.svelte	svelte
 <script>
@@ -11688,17 +11722,14 @@ literal`}
 <img src="x.png" />
 <p>the code list spans lines</p>
 
-=== 194 lint/no-unused-svelte-ignore/17-attribute-position.svelte	svelte
+=== 184 lint/no-unused-svelte-ignore/17-attribute-position.svelte	svelte
 <div>
   <!-- svelte-ignore a11y_missing_attribute -->
   <img src="nested.png" />
 </div>
-<span
-  ><!-- svelte-ignore a11y_missing_attribute --><img
-    src="inline.png"
-    alt="ok"
-  /></span
->
+<span>
+  <!-- svelte-ignore a11y_missing_attribute --><img src="inline.png" alt="ok" />
+</span>
 
 === 303 lint/no-unused-svelte-ignore/18-each-and-await.svelte	svelte
 <script>
@@ -13371,7 +13402,7 @@ ${b}`}
 <p>{$foo.bar}</p>
 <p>{alsoInScript}{inModule}</p>
 
-=== 675 lint/prefer-destructured-store-props/19-template-literal-key-scopes.svelte	svelte
+=== 683 lint/prefer-destructured-store-props/19-template-literal-key-scopes.svelte	svelte
 <script>
   import { writable } from "svelte/store";
   import Wrapper from "./Wrapper.svelte";
@@ -13392,8 +13423,10 @@ ${b}`}
       log(key);
     }
     return v;
-  }}>a</button
+  }}
 >
+  a
+</button>
 
 <!-- `key` here IS the catch parameter -->
 <button
@@ -13403,8 +13436,10 @@ ${b}`}
     } catch (key) {
       log($foo[`k${key}`]);
     }
-  }}>b</button
+  }}
 >
+  b
+</button>
 
 <!-- `slotKey` is bound by the let: directive -->
 <Wrapper let:slotKey>
@@ -14575,9 +14610,9 @@ ${b}`}
 </script>
 
 <Comp style="/* c */ color: red">comment on component style attr</Comp>
-<svelte:element this={tag} style="{p}: red"
-  >key interp on svelte:element</svelte:element
->
+<svelte:element this={tag} style="{p}: red">
+  key interp on svelte:element
+</svelte:element>
 
 === 235 lint/require-optimized-style-attribute/08-important-and-custom.svelte	svelte
 <script>
@@ -15108,7 +15143,7 @@ ${b}`}
   <p>{s + ok}</p>
 {/await}
 
-=== 497 lint/require-store-reactive-access/17-handler-inner-block-let.svelte	svelte
+=== 505 lint/require-store-reactive-access/17-handler-inner-block-let.svelte	svelte
 <script>
   import { writable } from "svelte/store";
 
@@ -15128,8 +15163,10 @@ ${b}`}
       log(s);
     }
     log(n);
-  }}>a</button
+  }}
 >
+  a
+</button>
 
 <!-- a for-of head DOES bind `s` for its body -->
 <button
@@ -15137,10 +15174,12 @@ ${b}`}
     for (const s of [1, 2]) {
       log(s + 1);
     }
-  }}>b</button
+  }}
 >
+  b
+</button>
 
-=== 491 lint/require-store-reactive-access/18-handler-catch-param.svelte	svelte
+=== 499 lint/require-store-reactive-access/18-handler-catch-param.svelte	svelte
 <script>
   import { writable } from "svelte/store";
 
@@ -15159,8 +15198,10 @@ ${b}`}
     } catch (s) {
       log(s + 1);
     }
-  }}>a</button
+  }}
 >
+  a
+</button>
 
 <!-- after the try/catch, `s` is the store again -->
 <button
@@ -15171,8 +15212,10 @@ ${b}`}
       log(e);
     }
     log(s + 1);
-  }}>b</button
+  }}
 >
+  b
+</button>
 
 === 258 lint/require-store-reactive-access/19-const-tag-shadow.svelte	svelte
 <script>
@@ -15301,7 +15344,7 @@ ${b}`}
 <p>{mutable === fixed}</p>
 <p>{!mutable}{!fixed}</p>
 
-=== 435 lint/require-store-reactive-access/26-cross-store-template.svelte	svelte
+=== 439 lint/require-store-reactive-access/26-cross-store-template.svelte	svelte
 <script>
   import { writable } from "svelte/store";
 
@@ -15323,8 +15366,10 @@ ${b}`}
 <button
   onclick={() => {
     obj.subscribe();
-  }}>go</button
+  }}
 >
+  go
+</button>
 
 === 771 lint/require-store-reactive-access/27-all-expression-hosts.svelte	svelte
 <script>
@@ -16672,7 +16717,7 @@ newline padding allowed
   d
 </div>
 
-=== 480 pattern/adversarial/attributes/arrow-values-with-braces.svelte	svelte
+=== 484 pattern/adversarial/attributes/arrow-values-with-braces.svelte	svelte
 <script>
   let n = $state(0);
 
@@ -16696,8 +16741,10 @@ newline padding allowed
     if (event) {
       n += 1;
     }
-  }}>e</button
+  }}
 >
+  e
+</button>
 <button onclick={() => ({ n }) && (n += 1)}>f</button>
 <b>{n}</b>
 
@@ -17450,7 +17497,7 @@ newline padding allowed
 <div oncopy={bump} oncut={bump} onpaste={bump}>h</div>
 <b>{n}</b>
 
-=== 797 pattern/adversarial/attributes/event-handler-value-shapes.svelte	svelte
+=== 801 pattern/adversarial/attributes/event-handler-value-shapes.svelte	svelte
 <script>
   let n = $state(0);
 
@@ -17470,8 +17517,10 @@ newline padding allowed
 <button
   onclick={() => {
     n += 1;
-  }}>c</button
+  }}
 >
+  c
+</button>
 <button onclick={stored}>d</button>
 <button onclick={table.handler}>e</button>
 <button onclick={list[0]}>f</button>
@@ -17604,7 +17653,7 @@ newline padding allowed
   x
 </div>
 
-=== 370 pattern/adversarial/attributes/spread-order-interplay.svelte	svelte
+=== 373 pattern/adversarial/attributes/spread-order-interplay.svelte	svelte
 <script>
   let value = $state("v");
   const a = { title: "a", "data-k": "1" };
@@ -17616,8 +17665,9 @@ newline padding allowed
 
 <input {...a} {value} {...b} {oninput} />
 <div {...a} class="mid" {...b} title="last">{value}</div>
-<button {...a} onclick={() => (value += "!")} {...b} disabled={false}>go</button
->
+<button {...a} onclick={() => (value += "!")} {...b} disabled={false}>
+  go
+</button>
 
 === 399 pattern/adversarial/attributes/spread-value-expression-shapes.svelte	svelte
 <script>
@@ -18047,9 +18097,9 @@ newline padding allowed
 <select bind:value={sel}><option value="a">a</option></select>
 <select multiple bind:value={multi}><option value="a">a</option></select>
 <div bind:clientWidth={dim} bind:offsetHeight={dim}></div>
-<video bind:currentTime={time} bind:duration={time} bind:paused={checked}
-  ><track kind="captions" /></video
->
+<video bind:currentTime={time} bind:duration={time} bind:paused={checked}>
+  <track kind="captions" />
+</video>
 <details bind:open={checked}><summary>s</summary>b</details>
 <div contenteditable="true" bind:innerHTML={text}></div>
 <div bind:this={el}></div>
@@ -18707,9 +18757,9 @@ newline padding allowed
   body {n}
 </Child>
 <Child children={() => "as-a-prop"} />
-<Child
-  >{#if n}<i>i</i>{/if}</Child
->
+<Child>
+  {#if n}<i>i</i>{/if}
+</Child>
 <Child></Child>
 <Child />
 
@@ -18759,9 +18809,9 @@ newline padding allowed
   <em>{n}</em>
   text after
 </Wrap>
-<Wrap
-  >{#if n}{n}{/if}</Wrap
->
+<Wrap>
+  {#if n}{n}{/if}
+</Wrap>
 
 === 425 pattern/adversarial/components/component-children-zoo.svelte	svelte
 <script>
@@ -23731,9 +23781,9 @@ line two"
   <figcaption>cap {query}</figcaption>
 </figure>
 
-<button commandfor="d" command="show-modal" onclick={() => dialog?.showModal()}
-  >open</button
->
+<button commandfor="d" command="show-modal" onclick={() => dialog?.showModal()}>
+  open
+</button>
 
 === 531 pattern/adversarial/elements/element-content-model-hostile.svelte	svelte
 <script>
@@ -23772,7 +23822,7 @@ line two"
   <figcaption>{v}</figcaption>
 </figure>
 
-=== 633 pattern/adversarial/elements/element-custom-and-attrs.svelte	svelte
+=== 636 pattern/adversarial/elements/element-custom-and-attrs.svelte	svelte
 <script>
   let v = $state(1);
   const obj = { a: 1 };
@@ -23783,8 +23833,9 @@ line two"
 <div is="custom-div">is-attr</div>
 <a href="#x" target="_blank" rel="noopener noreferrer">link</a>
 <iframe title="f" src="about:blank" sandbox="allow-scripts"></iframe>
-<object type="text/html" data="about:blank"><param name="p" value="1" /></object
->
+<object type="text/html" data="about:blank">
+  <param name="p" value="1" />
+</object>
 <dialog open>d</dialog>
 <details open><summary>s</summary>body</details>
 <search><p>s</p></search>
@@ -23942,9 +23993,9 @@ first line after the tag
   fallback
 </object>
 
-<a href={src} target="_blank" rel="noreferrer noopener" download="file.txt"
-  >dl</a
->
+<a href={src} target="_blank" rel="noreferrer noopener" download="file.txt">
+  dl
+</a>
 <a href="javascript:void(0)" aria-label="js">legacy-ish</a>
 <a href="mailto:a@b.c?subject=hi&body=x">mail</a>
 
@@ -24024,7 +24075,7 @@ first line after the tag
   </mfrac>
 </math>
 
-=== 832 pattern/adversarial/elements/media-and-embedded-content.svelte	svelte
+=== 835 pattern/adversarial/elements/media-and-embedded-content.svelte	svelte
 <script>
   let src = $state("a.mp4");
 </script>
@@ -24046,8 +24097,9 @@ first line after the tag
   sandbox="allow-scripts"
   referrerpolicy="no-referrer"
 ></iframe>
-<object type="text/html" data="about:blank"><param name="a" value="1" /></object
->
+<object type="text/html" data="about:blank">
+  <param name="a" value="1" />
+</object>
 <canvas width="10" height="10"></canvas>
 <map name="m"><area shape="rect" coords="0,0,1,1" alt="a" href="/a" /></map>
 <img
@@ -25244,7 +25296,7 @@ second line</pre>
 <input bind:this={node} onkeydown={(e) => e.preventDefault()} />
 <button onclick={() => (on = !on)}>{on}</button>
 
-=== 558 pattern/adversarial/events-actions-transitions/directives-class-style-use.svelte	svelte
+=== 562 pattern/adversarial/events-actions-transitions/directives-class-style-use.svelte	svelte
 <script>
   let active = $state(true);
   let size = $state(2);
@@ -25272,8 +25324,10 @@ second line</pre>
   onclick={() => {
     active = !active;
     size += 1;
-  }}>+</button
+  }}
 >
+  +
+</button>
 
 === 628 pattern/adversarial/events-actions-transitions/each-animate-and-transition.svelte	svelte
 <script>
@@ -25366,7 +25420,7 @@ second line</pre>
 <input onchange={handler} oninput={handler} />
 <p>{n}{dyn}</p>
 
-=== 671 pattern/adversarial/events-actions-transitions/event-handler-shapes.svelte	svelte
+=== 683 pattern/adversarial/events-actions-transitions/event-handler-shapes.svelte	svelte
 <script>
   let n = $state(0);
   const handlers = { click: () => n++ };
@@ -25378,19 +25432,25 @@ second line</pre>
 <button
   onclick={() => {
     n++;
-  }}>c</button
+  }}
 >
+  c
+</button>
 <button
   onclick={function named(e) {
     n += e.detail ?? 1;
-  }}>d</button
+  }}
 >
+  d
+</button>
 <button
   onclick={async (e) => {
     await Promise.resolve();
     n++;
-  }}>e</button
+  }}
 >
+  e
+</button>
 <button onclick={n > 0 ? handlers.click : undefined}>f</button>
 <button onclick={handlers["click"]}>g</button>
 <button {...{ onclick: handlers.click }}>h</button>
@@ -25409,15 +25469,15 @@ second line</pre>
 <button on:click|self|trusted={bump}>self trusted</button>
 <div on:wheel|passive={bump} on:touchstart|nonpassive={bump}>passive pair</div>
 <button on:click|stopImmediatePropagation={bump}>sip</button>
-<button on:click|preventDefault|stopPropagation|capture|once|self={bump}
-  >all</button
->
+<button on:click|preventDefault|stopPropagation|capture|once|self={bump}>
+  all
+</button>
 <button on:click>forwarded</button>
 <div on:custom-event={bump} on:CAPS={bump}>odd names</div>
 
 <p>{n}</p>
 
-=== 475 pattern/adversarial/events-actions-transitions/event-shorthand-computed.svelte	svelte
+=== 479 pattern/adversarial/events-actions-transitions/event-shorthand-computed.svelte	svelte
 <script>
   let { onclick, onkeydown } = $props();
   let kind = $state("click");
@@ -25433,10 +25493,12 @@ second line</pre>
 <button
   onpointerdown={function named(e) {
     console.log(named.name, e.type);
-  }}>fn expr</button
+  }}
 >
+  fn expr
+</button>
 
-=== 542 pattern/adversarial/events-actions-transitions/handler-expression-shapes.svelte	svelte
+=== 546 pattern/adversarial/events-actions-transitions/handler-expression-shapes.svelte	svelte
 <script>
   let count = $state(0);
 
@@ -25458,8 +25520,10 @@ second line</pre>
 <button
   onclick={(event) => {
     named(event);
-  }}>e</button
+  }}
 >
+  e
+</button>
 <button onclick={count > 0 ? named : undefined}>f</button>
 <button onclick={null}>g</button>
 <b>{count}</b>
@@ -25624,7 +25688,7 @@ second line</pre>
 
 <button onclick={() => (show = !show)}>t</button>
 
-=== 547 pattern/adversarial/events-actions-transitions/transition-params-deep.svelte	svelte
+=== 551 pattern/adversarial/events-actions-transitions/transition-params-deep.svelte	svelte
 <script>
   import { fade, fly } from "svelte/transition";
   import { flip } from "svelte/animate";
@@ -25644,10 +25708,12 @@ second line</pre>
   onclick={() => {
     on = !on;
     items = [...items].reverse();
-  }}>go</button
+  }}
 >
+  go
+</button>
 
-=== 791 pattern/adversarial/events-actions-transitions/transitions-and-animate.svelte	svelte
+=== 795 pattern/adversarial/events-actions-transitions/transitions-and-animate.svelte	svelte
 <script>
   import { flip } from "svelte/animate";
   import { fade, fly } from "svelte/transition";
@@ -25683,8 +25749,10 @@ second line</pre>
   onclick={() => {
     show = !show;
     items = items.toReversed();
-  }}>go</button
+  }}
 >
+  go
+</button>
 
 === 993 pattern/adversarial/events-actions-transitions/transitions-zoo.svelte	svelte
 <script>
@@ -25748,9 +25816,9 @@ second line</pre>
 </script>
 
 <button onclick={() => (n = mk())}>{obj().value}</button>
-<button onclick={async () => (n = await asyncArrow(n))}
-  >{curried(1)(2)(3)}</button
->
+<button onclick={async () => (n = await asyncArrow(n))}>
+  {curried(1)(2)(3)}
+</button>
 <p>{typeof gen}:{typeof sync}</p>
 
 === 801 pattern/adversarial/expressions/arrow-and-function-forms.svelte	svelte
@@ -26140,14 +26208,14 @@ second line</pre>
 </script>
 
 <b>{longSum}{longTernary}{longCall}</b>
-<b
-  >{alpha * 100 +
+<b>
+  {alpha * 100 +
     beta * 200 +
     gamma * 300 +
     alpha * 400 +
     beta * 500 +
-    gamma * 600}</b
->
+    gamma * 600}
+</b>
 <button
   onclick={() => longSetter(alpha + beta + gamma + alpha + beta + gamma + 1)}
 >
@@ -26688,7 +26756,7 @@ second line</pre>
 <b>{box?.inner?.list?.[0]}</b>
 <b>{maybe?.deep?.value ?? "none"}</b>
 
-=== 851 pattern/adversarial/expressions/regex-literal-shapes.svelte	svelte
+=== 855 pattern/adversarial/expressions/regex-literal-shapes.svelte	svelte
 <script>
   let v = $state("a/b");
 
@@ -26715,8 +26783,10 @@ second line</pre>
 <button
   onclick={() => {
     v = v.replace(/(^https?:\/\/[^/]+)\/*$/i, "$1");
-  }}>normalize</button
+  }}
 >
+  normalize
+</button>
 
 === 457 pattern/adversarial/expressions/regex-zoo.svelte	svelte
 <script>
@@ -26980,7 +27050,7 @@ https://svelte.dev/e/attribute_duplicate
 <b>{escapedQuote.length}</b>
 <b>{backtickBrace}</b>
 
-=== 638 pattern/adversarial/expressions/statement-forms-in-handlers.svelte	svelte
+=== 654 pattern/adversarial/expressions/statement-forms-in-handlers.svelte	svelte
 <script>
   let n = $state(0);
 </script>
@@ -26993,8 +27063,10 @@ https://svelte.dev/e/attribute_duplicate
         n += j;
       }
     }
-  }}>a</button
+  }}
 >
+  a
+</button>
 
 <button
   onclick={() => {
@@ -27007,16 +27079,20 @@ https://svelte.dev/e/attribute_duplicate
       default:
         n = 0;
     }
-  }}>b</button
+  }}
 >
+  b
+</button>
 
 <button
   onclick={() => {
     do {
       n += 1;
     } while (n < 2);
-  }}>c</button
+  }}
 >
+  c
+</button>
 
 <button
   onclick={() => {
@@ -27027,8 +27103,10 @@ https://svelte.dev/e/attribute_duplicate
     } finally {
       n += 0;
     }
-  }}>d</button
+  }}
 >
+  d
+</button>
 
 <b>{n}</b>
 
@@ -27469,9 +27547,9 @@ line2`;
 <button on:click|trusted={bump}>g</button>
 <div on:scroll|passive={bump}>h</div>
 <div on:scroll|nonpassive={bump}>i</div>
-<button on:click|preventDefault|stopPropagation|once|capture|self={bump}
-  >j</button
->
+<button on:click|preventDefault|stopPropagation|once|capture|self={bump}>
+  j
+</button>
 <button on:click>k</button>
 <b>{count}</b>
 
@@ -28647,7 +28725,7 @@ https://svelte.dev/e/attribute_duplicate
 <p>{String(KEY.description)} {url.length > 0} {typeof load}</p>
 <p>{$store} {typeof ns.get} {typeof readable} {typeof def} {mounted}</p>
 
-=== 331 pattern/adversarial/modules/module-instance-interplay.svelte	svelte
+=== 335 pattern/adversarial/modules/module-instance-interplay.svelte	svelte
 <script module>
   export const shared = { hits: 0 };
   export function tally() {
@@ -28662,9 +28740,11 @@ https://svelte.dev/e/attribute_duplicate
   moduleState += "!";
 </script>
 
-<button onclick={() => (local = tally())}
-  >{local} {moduleState} {shared.hits}</button
->
+<button onclick={() => (local = tally())}>
+  {local}
+  {moduleState}
+  {shared.hits}
+</button>
 
 === 498 pattern/adversarial/modules/module-script-and-instance-interplay.svelte	svelte
 <script module>
@@ -29101,7 +29181,7 @@ https://svelte.dev/e/attribute_duplicate
   {Counter.registry.length}
 </button>
 
-=== 573 pattern/adversarial/runes/class-multiline-and-comment-fields.svelte	svelte
+=== 576 pattern/adversarial/runes/class-multiline-and-comment-fields.svelte	svelte
 <script>
   class M {
     wide = $state({
@@ -29131,8 +29211,9 @@ https://svelte.dev/e/attribute_duplicate
   const m = new M();
 </script>
 
-<button onclick={() => m.bump()}>{m.wide.a}{m.afterComment}{m.mid}{m.fn}</button
->
+<button onclick={() => m.bump()}>
+  {m.wide.a}{m.afterComment}{m.mid}{m.fn}
+</button>
 
 === 893 pattern/adversarial/runes/class-rune-field-zoo.svelte	svelte
 <script>
@@ -29188,7 +29269,7 @@ https://svelte.dev/e/attribute_duplicate
   ]}{Zoo.staticPlain}{w.inCtor}
 </button>
 
-=== 853 pattern/adversarial/runes/class-rune-fields-exotic.svelte	svelte
+=== 861 pattern/adversarial/runes/class-rune-fields-exotic.svelte	svelte
 <script>
   class Counter {
     #n = $state(0);
@@ -29233,9 +29314,13 @@ https://svelte.dev/e/attribute_duplicate
   };
 </script>
 
-<button onclick={c.bump}
-  >{c.n} {c.doubled} {c.summary} {obj.inner} {obj.method()}</button
->
+<button onclick={c.bump}>
+  {c.n}
+  {c.doubled}
+  {c.summary}
+  {obj.inner}
+  {obj.method()}
+</button>
 <p>{Counter.instances} {c.history.length}</p>
 
 === 410 pattern/adversarial/runes/class-rune-fields.svelte	svelte
@@ -29554,7 +29639,7 @@ https://svelte.dev/e/attribute_duplicate
 <button onclick={optimistic}>{doubled}</button>
 <button onclick={rewrite}>{history.join(",")}</button>
 
-=== 483 pattern/adversarial/runes/effect-cleanup-and-async.svelte	svelte
+=== 487 pattern/adversarial/runes/effect-cleanup-and-async.svelte	svelte
 <script>
   let n = $state(0);
   let ticks = $state(0);
@@ -29587,8 +29672,10 @@ https://svelte.dev/e/attribute_duplicate
   onclick={() => {
     load();
     stop();
-  }}>{n}{ticks}</button
+  }}
 >
+  {n}{ticks}
+</button>
 
 === 488 pattern/adversarial/runes/effect-cleanup-shapes.svelte	svelte
 <script>
@@ -29807,7 +29894,7 @@ https://svelte.dev/e/attribute_duplicate
 
 <button onclick={stop}>{n}</button>
 
-=== 456 pattern/adversarial/runes/effect-root-untrack.svelte	svelte
+=== 460 pattern/adversarial/runes/effect-root-untrack.svelte	svelte
 <script>
   import { untrack } from "svelte";
   let a = $state(1);
@@ -29828,8 +29915,10 @@ https://svelte.dev/e/attribute_duplicate
   onclick={() => {
     a += 1;
     b += 1;
-  }}>{log.join(",")}</button
+  }}
 >
+  {log.join(",")}
+</button>
 <button onclick={dispose}>stop</button>
 
 === 620 pattern/adversarial/runes/effect-teardown-forms.svelte	svelte
@@ -30254,9 +30343,9 @@ https://svelte.dev/e/attribute_duplicate
   }
 </script>
 
-<button onclick={touch}
-  >{scores.size}:{tags.size}:{when.getFullYear()}:{url.search}</button
->
+<button onclick={touch}>
+  {scores.size}:{tags.size}:{when.getFullYear()}:{url.search}
+</button>
 
 {#each scores as [name, score] (name)}
   <span>{name}={score}</span>
@@ -30371,7 +30460,7 @@ https://svelte.dev/e/attribute_duplicate
 <button onclick={c.bump}>{c.count} / {c.doubled} / {c.total}</button>
 <p>{Counter.instances} {snapshot.n} {raw.deep.value} {id}</p>
 
-=== 582 pattern/adversarial/runes/rune-statics-zoo.svelte	svelte
+=== 586 pattern/adversarial/runes/rune-statics-zoo.svelte	svelte
 <script>
   let a = $state.raw({ deep: 1 });
   let b = $state({ deep: 2 });
@@ -30400,8 +30489,10 @@ https://svelte.dev/e/attribute_duplicate
   onclick={() => {
     b.deep++;
     stop();
-  }}>+</button
+  }}
 >
+  +
+</button>
 
 === 523 pattern/adversarial/runes/runes-assignment-operators.svelte	svelte
 <script>
@@ -30462,7 +30553,7 @@ https://svelte.dev/e/attribute_duplicate
 
 <p>{a}{b}{c}{d}{p}{Object.keys(rest).length}{e}{f()}{g()}</p>
 
-=== 698 pattern/adversarial/runes/runes-in-nested-scopes.svelte	svelte
+=== 702 pattern/adversarial/runes/runes-in-nested-scopes.svelte	svelte
 <script>
   let top = $state(0);
 
@@ -30517,8 +30608,10 @@ https://svelte.dev/e/attribute_duplicate
     outer()();
     h.bump();
     obj.method();
-  }}>{top}{h.v}{obj.value}</button
+  }}
 >
+  {top}{h.v}{obj.value}
+</button>
 
 === 498 pattern/adversarial/runes/runes-member-forms.svelte	svelte
 <script>
@@ -30918,7 +31011,7 @@ https://svelte.dev/e/attribute_duplicate
 <button onclick={run}>r</button>
 <b>{n}{s}{o.v}{o.list.length}</b>
 
-=== 415 pattern/adversarial/runes/state-written-from-a-template-expression.svelte	svelte
+=== 419 pattern/adversarial/runes/state-written-from-a-template-expression.svelte	svelte
 <script>
   let n = $state(0);
   let log = $state([]);
@@ -30938,8 +31031,10 @@ https://svelte.dev/e/attribute_duplicate
   onclick={() => {
     n += 1;
     log = [...log, n];
-  }}>go</button
+  }}
 >
+  go
+</button>
 
 === 497 pattern/adversarial/runes/state-written-from-every-host.svelte	svelte
 <script>
@@ -31928,7 +32023,7 @@ https://svelte.dev/e/attribute_duplicate
 
 <b>{title}</b>
 
-=== 466 pattern/adversarial/special-elements/head-and-options.svelte	svelte
+=== 470 pattern/adversarial/special-elements/head-and-options.svelte	svelte
 <svelte:options css="injected" preserveWhitespace={false} />
 
 <script>
@@ -31953,8 +32048,10 @@ https://svelte.dev/e/attribute_duplicate
   onclick={() => {
     title += "a";
     desc += "b";
-  }}>{title}{desc}</button
+  }}
 >
+  {title}{desc}
+</button>
 
 === 537 pattern/adversarial/special-elements/head-conditional-html.svelte	svelte
 <script>
@@ -32282,9 +32379,9 @@ https://svelte.dev/e/attribute_duplicate
 <svelte:element this={tag}>dynamic</svelte:element>
 <svelte:element this={table.key}>member</svelte:element>
 <svelte:element this={list[0]}>indexed</svelte:element>
-<svelte:element this={tag === "div" ? "section" : "article"}
-  >ternary</svelte:element
->
+<svelte:element this={tag === "div" ? "section" : "article"}>
+  ternary
+</svelte:element>
 <svelte:element this={"h" + 1}>concatenated</svelte:element>
 <svelte:element this={null}>nullish</svelte:element>
 <svelte:element
@@ -32305,9 +32402,9 @@ https://svelte.dev/e/attribute_duplicate
 </script>
 
 <svelte:element this={tag} class="dynamic" bind:this={el}>body</svelte:element>
-<svelte:element this={tag === "div" ? "section" : "article"}
-  >ternary</svelte:element
->
+<svelte:element this={tag === "div" ? "section" : "article"}>
+  ternary
+</svelte:element>
 <svelte:element this={tags[0]} />
 <svelte:element this="input" {value} />
 <svelte:element this={"h" + 1}>computed</svelte:element>
@@ -33295,9 +33392,9 @@ plain text with no script, no markup elements and no expressions
   const s = new Store();
 </script>
 
-<button onclick={() => s.bump()}
-  >{s.visible}{s.secret}{Store.shared}{s.tagged}</button
->
+<button onclick={() => s.bump()}>
+  {s.visible}{s.secret}{Store.shared}{s.tagged}
+</button>
 
 === 517 pattern/adversarial/typescript/ts-class-runes-annotated.svelte	svelte
 <script lang="ts">
@@ -34198,7 +34295,7 @@ https://svelte.dev/e/expected_token
 <button onclick={g}>{Object.keys(rest).length}</button>
 <button onclick={h}>{a}{b}</button>
 
-=== 320 pattern/issues/2177-each-item-destructure-cache.svelte	svelte
+=== 336 pattern/issues/2177-each-item-destructure-cache.svelte	svelte
 <script>
   let list = [{ a: 1, b: 2 }];
   let pairs = [[1, 2]];
@@ -34209,15 +34306,19 @@ https://svelte.dev/e/expected_token
   <button
     onclick={() => {
       ({ a: x, b: y } = item);
-    }}>{item}</button
+    }}
   >
+    {item}
+  </button>
 {/each}
 {#each pairs as pair}
   <button
     onclick={() => {
       [x, y] = pair;
-    }}>{pair}</button
+    }}
   >
+    {pair}
+  </button>
 {/each}
 {x}
 {y}
@@ -34582,14 +34683,15 @@ https://svelte.dev/e/expected_token
 <button onclick={rename}>{item.name}</button>
 <button onclick={other}>{item.count}</button>
 
-=== 133 pattern/issues/2600-dynamic-element-this-escaped-backslash.svelte	svelte
+=== 136 pattern/issues/2600-dynamic-element-this-escaped-backslash.svelte	svelte
 <script>
   let sep = "/";
   let n = 1;
 </script>
 
-<svelte:element this={sep === "\\" ? "b" : "i"}><span>{n}</span></svelte:element
->
+<svelte:element this={sep === "\\" ? "b" : "i"}>
+  <span>{n}</span>
+</svelte:element>
 
 === 248 pattern/issues/2600-legacy-import-mutation-escaped-backslash.svelte	svelte
 <script>
@@ -34740,9 +34842,9 @@ https://svelte.dev/e/expected_token
   }
 </script>
 
-<button on:click={toggle}
-  >{product}{smaller}{shifted}{present}{isDate}{last}{width}</button
->
+<button on:click={toggle}>
+  {product}{smaller}{shifted}{present}{isDate}{last}{width}
+</button>
 
 === 85 pattern/issues/2652-string-line-continuation.svelte	svelte
 <script>
@@ -34876,7 +34978,7 @@ b";
 
 <p>{value}</p>
 
-=== 130 pattern/issues/3026-template-arrow-bindable-member-assign.svelte	svelte
+=== 134 pattern/issues/3026-template-arrow-bindable-member-assign.svelte	svelte
 <script>
   let { state = $bindable() } = $props();
 </script>
@@ -34884,10 +34986,12 @@ b";
 <button
   onclick={() => {
     state.a = state.b;
-  }}>go</button
+  }}
 >
+  go
+</button>
 
-=== 118 pattern/issues/3026-template-arrow-prop-member-assign.svelte	svelte
+=== 122 pattern/issues/3026-template-arrow-prop-member-assign.svelte	svelte
 <script>
   const { state } = $props();
 </script>
@@ -34895,10 +34999,12 @@ b";
 <button
   onclick={() => {
     state.a = state.b;
-  }}>go</button
+  }}
 >
+  go
+</button>
 
-=== 191 pattern/issues/3026-template-arrow-store-read-in-mutation.svelte	svelte
+=== 195 pattern/issues/3026-template-arrow-store-read-in-mutation.svelte	svelte
 <script>
   import { writable } from "svelte/store";
 
@@ -34909,8 +35015,10 @@ b";
 <button
   onclick={() => {
     state.a = $s.x;
-  }}>go</button
+  }}
 >
+  go
+</button>
 
 === 232 pattern/issues/3027-fold-operand-type.svelte	svelte
 <script>
@@ -35136,7 +35244,7 @@ b";
 
 <button onclick={move}>{x}</button>
 
-=== 210 pattern/issues/3048-bindable-member-update.svelte	svelte
+=== 214 pattern/issues/3048-bindable-member-update.svelte	svelte
 <script>
   let { p = $bindable() } = $props();
   function run() {
@@ -35150,8 +35258,10 @@ b";
 <button
   onclick={() => {
     p.c++;
-  }}>y</button
+  }}
 >
+  y
+</button>
 
 === 118 pattern/issues/3048-legacy-prop-member-update.svelte	svelte
 <script>
@@ -35316,7 +35426,7 @@ b";
 {@render pinned("y")}
 <button onclick={() => n++}>{n}</button>
 
-=== 324 pattern/issues/3083-catch-param-shadows-state.svelte	svelte
+=== 328 pattern/issues/3083-catch-param-shadows-state.svelte	svelte
 <script>
   const c = 1;
   let s = $state(0);
@@ -35343,8 +35453,10 @@ b";
   onclick={() => {
     warnings();
     mutation();
-  }}>{s}</button
+  }}
 >
+  {s}
+</button>
 
 === 174 pattern/issues/3088-textarea-entity-decoding.svelte	svelte
 <script>
@@ -35398,9 +35510,9 @@ b";
 </script>
 
 <svelte:element this={n > 0 ? "p" : "span"}>{n}</svelte:element>
-<svelte:element this={n >= 0 && n < 2 ? "em" : "i"} data-n={n}
-  >{n}</svelte:element
->
+<svelte:element this={n >= 0 && n < 2 ? "em" : "i"} data-n={n}>
+  {n}
+</svelte:element>
 <button onclick={() => n++}>+</button>
 
 === 272 pattern/issues/3094-each-expression-with-comma.svelte	svelte
@@ -38077,7 +38189,7 @@ https://svelte.dev/e/expected_token
 <Child bind:v={$x} />
 <input bind:value={$y} />
 
-=== 185 pattern/issues/3273-store-prop-mutate.svelte	svelte
+=== 189 pattern/issues/3273-store-prop-mutate.svelte	svelte
 <script>
   import { writable } from "svelte/store";
 
@@ -38089,8 +38201,10 @@ https://svelte.dev/e/expected_token
   onclick={() => {
     $x.k = 1;
     $y.k = 1;
-  }}>go</button
+  }}
 >
+  go
+</button>
 
 === 44 pattern/issues/3275-props-control.svelte	svelte
 <div title={JSON.stringify($$props)}></div>
@@ -38176,7 +38290,7 @@ https://svelte.dev/e/expected_token
   {/if}
 {/each}
 
-=== 507 pattern/issues/3296-template-scope-shadow-write.svelte	svelte
+=== 527 pattern/issues/3296-template-scope-shadow-write.svelte	svelte
 <svelte:options runes={false} />
 
 <script>
@@ -38189,8 +38303,10 @@ https://svelte.dev/e/expected_token
     onclick={() => {
       value += 2;
       nested.count += 1;
-    }}>write</button
+    }}
   >
+    write
+  </button>
 {/each}
 
 {#each ["outer"] as same}
@@ -38198,8 +38314,10 @@ https://svelte.dev/e/expected_token
     <button
       onclick={() => {
         same = "written";
-      }}>nested write</button
+      }}
     >
+      nested write
+    </button>
   {/each}
 {/each}
 
@@ -38972,8 +39090,8 @@ https://svelte.dev/e/expected_token
 <b>{shadowed}</b>
 
 === 132 pattern/issues/3482-template-class-indent.svelte	svelte
-<b
-  >{(() => {
+<b>
+  {(() => {
     class K {
       #x = 1;
 
@@ -38984,8 +39102,8 @@ https://svelte.dev/e/expected_token
 
     void K;
     return 0;
-  })()}</b
->
+  })()}
+</b>
 
 === 84 pattern/issues/3511-store-scoped-each-position.svelte	svelte
 <script>
@@ -39501,7 +39619,7 @@ https://svelte.dev/e/expected_token
 
 <b>{$mystore}{re.source}</b>
 
-=== 296 pattern/issues/3620-regex-literal-store-name.svelte	svelte
+=== 299 pattern/issues/3620-regex-literal-store-name.svelte	svelte
 <script>
   export let mystore;
   const re = /\$mystore/;
@@ -39511,8 +39629,9 @@ https://svelte.dev/e/expected_token
   let count = 0;
 </script>
 
-<b>{mystore}{count}{re.source}{inClass.source}{escaped.source}{afterDivision}</b
->
+<b>
+  {mystore}{count}{re.source}{inClass.source}{escaped.source}{afterDivision}
+</b>
 
 === 290 pattern/issues/3636-client-function-declaration-alias-runes.svelte	svelte
 <svelte:options runes />
@@ -39770,18 +39889,18 @@ https://svelte.dev/e/expected_token
 {k}
 
 === 433 pattern/issues/3675-formatter-block-inline-hug.svelte	svelte
-{#if flag}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/if}
-{#each items as item}<span
-    >{item.aaaaaaaa}{item.bbbbbbbb}{item.cccccccc}{item.dddddddd}{item.eeeeeeee}</span
-  >{/each}
-{#key flag}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/key}
-{#await promise}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/await}
+{#if flag}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/if}
+{#each items as item}<span>
+    {item.aaaaaaaa}{item.bbbbbbbb}{item.cccccccc}{item.dddddddd}{item.eeeeeeee}
+  </span>{/each}
+{#key flag}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/key}
+{#await promise}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/await}
 
 === 164 pattern/issues/3681-server-component-slot-source-order.svelte	svelte
 <script>
@@ -39789,13 +39908,13 @@ https://svelte.dev/e/expected_token
   let a = [1];
 </script>
 
-<C
-  ><i slot="b">
+<C>
+  <i slot="b">
     {#each a as b}{b}{/each}
   </i><i>
     {#each a as b}{b}{/each}
-  </i></C
->
+  </i>
+</C>
 
 === 253 pattern/issues/3690-universal-before-global.svelte	svelte
 <div class="g a">direct</div>
@@ -41837,7 +41956,7 @@ b`.length}
 
 {@render row(0)}
 
-=== 792 pattern/issues/binding-shadowed-by-destructuring-catch-and-for-of.svelte	svelte
+=== 796 pattern/issues/binding-shadowed-by-destructuring-catch-and-for-of.svelte	svelte
 <script>
   export let prop = { n: 1 };
   let base = 1;
@@ -41863,9 +41982,9 @@ b`.length}
   }
 </script>
 
-<button on:click={() => go({ a: { n: 0 }, list: [{ b: { n: 0 } }] })}
-  >{prop.n}</button
->
+<button on:click={() => go({ a: { n: 0 }, list: [{ b: { n: 0 } }] })}>
+  {prop.n}
+</button>
 <button
   on:click={() => {
     const { a: prop } = { a: { n: 0 } };
@@ -41878,8 +41997,10 @@ b`.length}
     } catch (derived) {
       derived.n = 8;
     }
-  }}>{derived.n}</button
+  }}
 >
+  {derived.n}
+</button>
 <button on:click={unshadowed}>go</button>
 
 === 192 pattern/issues/block-local-binding-leaks-past-its-block.svelte	svelte
@@ -42284,7 +42405,7 @@ b`.length}
   </div>
 </div>
 
-=== 559 pattern/issues/declaration-tag-destructured-state.svelte	svelte
+=== 563 pattern/issues/declaration-tag-destructured-state.svelte	svelte
 <script>
   let [q] = $state([0]);
   let n = $state(1);
@@ -42313,8 +42434,10 @@ b`.length}
   onclick={() => {
     r = 2;
     s = 3;
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 567 pattern/issues/declaration-tag-signal-shares-a-name.svelte	svelte
 <script>
@@ -42562,7 +42685,7 @@ https://svelte.dev/e/block_unclosed
 
 <p>{doc}</p>
 
-=== 479 pattern/issues/directive-value-first-line-budget.svelte	svelte
+=== 515 pattern/issues/directive-value-first-line-budget.svelte	svelte
 <div class="a">
   <div class="b">
     <div class="c">
@@ -42573,8 +42696,10 @@ https://svelte.dev/e/block_unclosed
               {#each list as category}
                 <button
                   class:nnnnnnnnnnnnnnnn={selected_category &&
-                    selected_category.id === category.id}>x</button
+                    selected_category.id === category.id}
                 >
+                  x
+                </button>
               {/each}
             </div>
           </div>
@@ -42688,7 +42813,7 @@ https://svelte.dev/e/block_unclosed
   <Editor bind:value={issue} />
 {/each}
 
-=== 340 pattern/issues/each-item-shadowed-by-a-local-in-a-handler.svelte	svelte
+=== 356 pattern/issues/each-item-shadowed-by-a-local-in-a-handler.svelte	svelte
 <script>
   export let rows = [];
   export let cols = [];
@@ -42701,16 +42826,20 @@ https://svelte.dev/e/block_unclosed
       row.n = 2;
       row = { n: 3 };
       row.n++;
-    }}>{row.n}</button
+    }}
   >
+    {row.n}
+  </button>
 {/each}
 
 {#each cols as col}
   <button
     on:click={() => {
       col.n = 2;
-    }}>{col.n}</button
+    }}
   >
+    {col.n}
+  </button>
 {/each}
 
 === 192 pattern/issues/element-bind-member-mutation.svelte	svelte
@@ -42774,7 +42903,7 @@ https://svelte.dev/e/block_unclosed
   </div>
 </div>
 
-=== 313 pattern/issues/function-body-directive.svelte	svelte
+=== 321 pattern/issues/function-body-directive.svelte	svelte
 <script>
   let calls = 0;
 
@@ -42788,14 +42917,18 @@ https://svelte.dev/e/block_unclosed
   onclick={() => {
     "arrow body";
     calls += declared();
-  }}>arrow {calls}</button
+  }}
 >
+  arrow {calls}
+</button>
 <button
   onclick={function () {
     "function expression";
     calls += 1;
-  }}>function {calls}</button
+  }}
 >
+  function {calls}
+</button>
 
 === 594 pattern/issues/g1-title-nullish-guard-both-directions.svelte	svelte
 <script>
@@ -43044,7 +43177,7 @@ https://svelte.dev/e/block_unclosed
   }
 </style>
 
-=== 111 pattern/issues/handler-comment-only-body.svelte	svelte
+=== 115 pattern/issues/handler-comment-only-body.svelte	svelte
 <script>
   let a = 1;
 </script>
@@ -43052,8 +43185,10 @@ https://svelte.dev/e/block_unclosed
 <button
   onclick={function (e) {
     // nothing to do yet
-  }}>{a}</button
+  }}
 >
+  {a}
+</button>
 
 === 587 pattern/issues/handler-local-update-through-the-json-path.svelte	svelte
 <script>
@@ -43999,7 +44134,7 @@ https://svelte.dev/e/block_unclosed
 {writeState}{updateState}{mutateState}
 {bareStore}
 
-=== 358 pattern/issues/prop-destructuring-assignment-target.svelte	svelte
+=== 362 pattern/issues/prop-destructuring-assignment-target.svelte	svelte
 <script>
   export let items = [];
   export let obj = {};
@@ -44022,8 +44157,10 @@ https://svelte.dev/e/block_unclosed
     swap(0, 1);
     pick({});
     bump();
-  }}>{items.length}{obj.count}</button
+  }}
 >
+  {items.length}{obj.count}
+</button>
 
 === 615 pattern/issues/prop-mutation-location-duplicate-words.svelte	svelte
 <script lang="ts">
@@ -44052,7 +44189,7 @@ https://svelte.dev/e/block_unclosed
 <button onclick={clean}>clean</button>
 <button onclick={() => toggle(null)}>toggle</button>
 
-=== 658 pattern/issues/prop-mutation-location-value-matching.svelte	svelte
+=== 659 pattern/issues/prop-mutation-location-value-matching.svelte	svelte
 <script>
   export let collection;
   export let flagged;
@@ -44082,8 +44219,9 @@ https://svelte.dev/e/block_unclosed
 <button
   on:click={() =>
     (collection.items = collection.items.filter((it) => it.id !== 1))}
-  >go</button
 >
+  go
+</button>
 
 === 234 pattern/issues/prop-mutation-unnameable-computed-key.svelte	svelte
 <script>
@@ -44101,7 +44239,7 @@ https://svelte.dev/e/block_unclosed
 
 <button on:click={write}>write</button>
 
-=== 418 pattern/issues/prop-shadowed-by-local-in-instance-script.svelte	svelte
+=== 422 pattern/issues/prop-shadowed-by-local-in-instance-script.svelte	svelte
 <script>
   export let filter = { group: undefined };
   export let editor = null;
@@ -44122,10 +44260,12 @@ https://svelte.dev/e/block_unclosed
   on:click={() => {
     normalize([]);
     onCreate({ editor });
-  }}>{filter.group}{files.length}</button
+  }}
 >
+  {filter.group}{files.length}
+</button>
 
-=== 296 pattern/issues/prop-shadowed-by-local-in-template-handler.svelte	svelte
+=== 300 pattern/issues/prop-shadowed-by-local-in-template-handler.svelte	svelte
 <script>
   export let data;
   export let load;
@@ -44141,10 +44281,12 @@ https://svelte.dev/e/block_unclosed
     }
     items.selected = 1;
     items.count++;
-  }}>{data.isNew}{items.selected}</button
+  }}
 >
+  {data.isNew}{items.selected}
+</button>
 
-=== 275 pattern/issues/prop-shadowed-local-read-on-a-mutation-rhs.svelte	svelte
+=== 279 pattern/issues/prop-shadowed-local-read-on-a-mutation-rhs.svelte	svelte
 <script>
   export let data;
   export let load;
@@ -44157,8 +44299,10 @@ https://svelte.dev/e/block_unclosed
     items.selected = data;
     items.pair = [data, data.length];
     items.other = items;
-  }}>{data.isNew}{items.selected}</button
+  }}
 >
+  {data.isNew}{items.selected}
+</button>
 
 === 334 pattern/issues/props-default-numeric-separator-fraction.svelte	svelte
 <script>
@@ -44463,7 +44607,7 @@ https://svelte.dev/e/block_unclosed
 
 {p1}{p2}{v1}{v2}
 
-=== 839 pattern/issues/rune-local-in-a-template-function-is-not-a-plain-local.svelte	svelte
+=== 847 pattern/issues/rune-local-in-a-template-function-is-not-a-plain-local.svelte	svelte
 <script>
   let prop = $state({ n: 1 });
   function use(a) {
@@ -44486,16 +44630,20 @@ https://svelte.dev/e/block_unclosed
     counter = 2;
     raw = 3;
     use(() => counter + raw);
-  }}>a</button
+  }}
 >
+  a
+</button>
 
 <button
   onclick={() => {
     let local = 1;
     local = 2;
     prop.n = local;
-  }}>b</button
+  }}
 >
+  b
+</button>
 
 {prop.n}
 
@@ -45007,7 +45155,7 @@ https://svelte.dev/e/block_unclosed
   <p>{new Date(value).toLocaleString("default", { month: "short" })}</p>
 {/each}
 
-=== 322 pattern/issues/template-function-expression-parameter-annotations.svelte	svelte
+=== 326 pattern/issues/template-function-expression-parameter-annotations.svelte	svelte
 <script lang="ts">
   let v = $state(0);
 </script>
@@ -45021,8 +45169,10 @@ https://svelte.dev/e/block_unclosed
     ...d: number[]
   ) {
     v = n + c + d.length + e.button;
-  }}>{v}</button
+  }}
 >
+  {v}
+</button>
 <p>
   {{
     m(a: number = 1) {
@@ -45263,7 +45413,7 @@ unknown node type: UnaryExpression
   saveButtonTitle="Delete Account"
 />
 
-=== 2886 pattern/issues/var-derived-outlives-the-statement-it-declared-it.svelte	svelte
+=== 2889 pattern/issues/var-derived-outlives-the-statement-it-declared-it.svelte	svelte
 <script>
   // `var` is function-scoped, so a `$derived` declared as the BARE body of an
   // `if` / loop / labeled statement is still live afterwards and its read must
@@ -45370,11 +45520,12 @@ unknown node type: UnaryExpression
 <button onclick={() => bare_if(true)}>{bare_if_alternate(false)}</button>
 <button onclick={() => bare_labeled(true)}>{bare_for(true)}</button>
 <button onclick={() => bare_for_of(true)}>{bare_while(true)}</button>
-<button onclick={() => inside_switch(true)}>{inside_labeled_block(true)}</button
->
-<button onclick={() => through_closure(true)}
-  >{through_nested_function(true)}</button
->
+<button onclick={() => inside_switch(true)}>
+  {inside_labeled_block(true)}
+</button>
+<button onclick={() => through_closure(true)}>
+  {through_nested_function(true)}
+</button>
 <button onclick={() => plain(true)}>{nested_does_not_leak(true)}</button>
 
 === 461 pattern/issues/whitespace-body-inline-element-breaks-before-close.svelte	svelte

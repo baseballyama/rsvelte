@@ -190,6 +190,24 @@ pub(super) fn javascript_config(path: &Path, root: &Path) -> Option<SvelteConfig
                 ..SvelteConfig::default()
             });
         }
+        // `compilerOptions: { runes: true }`, and `runes: ({ filename }) =>
+        // (filename.includes('svelte-config-runes-fn') ? true : undefined)` called with the
+        // case's name.
+        "valid-compile/valid/svelte-config-runes/_config.cjs"
+        | "valid-compile/invalid/svelte-config-runes/_config.cjs"
+        | "valid-compile/invalid/svelte-config-runes-fn/_config.cjs" => {
+            return Some(SvelteConfig {
+                runes: Some(true),
+                ..SvelteConfig::default()
+            });
+        }
+        // `runes: ({ filename }) => (filename.includes('svelte-config-runes-fn') ? false : true)`
+        "valid-compile/valid/svelte-config-runes-fn/_config.cjs" => {
+            return Some(SvelteConfig {
+                runes: Some(false),
+                ..SvelteConfig::default()
+            });
+        }
         _ => return None,
     };
     Some(SvelteConfig {

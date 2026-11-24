@@ -190,6 +190,15 @@ dependencies = [
 ]
 
 [[package]]
+name = "convert_case"
+version = "0.12.0"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1af709f1f33454bf52eadfc8c78b3b9ef9cb26fb54d16dc9cd9a7299f899fd1b"
+dependencies = [
+ "unicode-segmentation",
+]
+
+[[package]]
 name = "core_detect"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -242,6 +251,15 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ce6e4c961d6cd6c9a86db418387425e8bdeaf05b3c8bc1411e6dca4c252f1453"
 dependencies = [
  "hybrid-array",
+]
+
+[[package]]
+name = "ctor"
+version = "1.0.14"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "ea691ed9f36489d087419b8b2ba3ef27d89621380b4178c73e2445a379e4e0f4"
+dependencies = [
+ "link-section",
 ]
 
 [[package]]
@@ -355,10 +373,69 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "1c66915cc5391097de7a2b0b972e8505aa33c0df401fd3a6811dbdb32881ba48"
 
 [[package]]
+name = "futures"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9a31d2a3fbaaeb2af2368bbdd904aa8e812d3c04a1ee10d3171f52d556e5d0a3"
+dependencies = [
+ "futures-channel",
+ "futures-core",
+ "futures-executor",
+ "futures-io",
+ "futures-sink",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-channel"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "b1f9e3d69d39e4862ffed03ed071a76f9a13ba1d9109d355b0f0aa6b15e393c4"
+dependencies = [
+ "futures-core",
+ "futures-sink",
+]
+
+[[package]]
 name = "futures-core"
 version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "92d699e522242e69e3003b94ecc1f960f3a5e015aa7c5d7486e65ad01dd94f5e"
+
+[[package]]
+name = "futures-executor"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "031b47cf1a3c6cc8bc2fc76cd437f521619387907d469316e7c0bc278f1f5432"
+dependencies = [
+ "futures-core",
+ "futures-task",
+ "futures-util",
+]
+
+[[package]]
+name = "futures-io"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "53c0fa8157de1303bfffdaa1cc2a673bfffb60102f76b0ef4441659124373fed"
+
+[[package]]
+name = "futures-macro"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "9fb9654ba8355388abeb8dcb4fc62f511300867002afc858860463bdd9fe0c44"
+dependencies = [
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "futures-sink"
+version = "0.3.34"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "1944426bf7d03f1d14f708785e4b33efd750b36d48a157b836b3efc15ede8e1d"
 
 [[package]]
 name = "futures-task"
@@ -372,8 +449,13 @@ version = "0.3.34"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0d50a92467f8ba5dd6e3ee5d4bd04d73ab2e4e1c44474a0674821dfce14b79bc"
 dependencies = [
+ "futures-channel",
  "futures-core",
+ "futures-io",
+ "futures-macro",
+ "futures-sink",
  "futures-task",
+ "memchr",
  "pin-project-lite",
  "slab",
 ]
@@ -602,6 +684,16 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "65cd87c9a6d60536580b316ad985726104730a5151c99845f2490428ef91240a"
 
 [[package]]
+name = "libloading"
+version = "0.9.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "a1832accd5a4ca2795ace4d05d15c4039be15b62d3b950eff99746a990e3cc10"
+dependencies = [
+ "cfg-if",
+ "windows-link",
+]
+
+[[package]]
 name = "libmimalloc-sys"
 version = "0.1.49"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -609,6 +701,12 @@ checksum = "6a45a52f43e1c16f667ccfe4dd8c85b7f7c204fd5e3bf46c5b0db9a5c3c0b8e9"
 dependencies = [
  "cc",
 ]
+
+[[package]]
+name = "link-section"
+version = "0.19.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "4d9aae57673c1a235149777a74d152f3210ebd3e3b13346d2cdb6809e566bd3c"
 
 [[package]]
 name = "litemap"
@@ -662,10 +760,62 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "743fb55ba31b18fb1ecef6bdc9aa2743314978ac084044301a7eee33fb99a20d"
 
 [[package]]
+name = "napi"
+version = "3.16.2"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "567c62b9c2d0fae123713f766686ad66a2c75b45ba3ee01ed8b06a7e99bc435b"
+dependencies = [
+ "bitflags",
+ "ctor",
+ "futures",
+ "libc",
+ "napi-build",
+ "napi-sys",
+ "nohash-hasher",
+ "rustc-hash",
+]
+
+[[package]]
 name = "napi-build"
 version = "2.6.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "b899b545d3aa6dca985939059f258c5488d34e4ecf39c274e20009748f4b846d"
+
+[[package]]
+name = "napi-derive"
+version = "3.7.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "94c8098ed9d61a1bbd019519c637817531b0e24023ef4b5678f2f0cbe24bed9c"
+dependencies = [
+ "convert_case",
+ "ctor",
+ "napi-derive-backend",
+ "proc-macro2",
+ "quote",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "napi-derive-backend"
+version = "7.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "314cd6ca42bd978fd8bae84b4137e1322bbf3e83552fca8dbd7d18034188ff3a"
+dependencies = [
+ "convert_case",
+ "proc-macro2",
+ "quote",
+ "semver",
+ "syn 3.0.9",
+]
+
+[[package]]
+name = "napi-sys"
+version = "3.4.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "d153beb7d5c973f4b9395be8a83054a28968b61188f1dd1a2cc2321af22daea2"
+dependencies = [
+ "libloading",
+]
 
 [[package]]
 name = "natord"
@@ -1534,7 +1684,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_browser"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
@@ -1556,7 +1706,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_command_line"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "bpaf",
  "ignore",
@@ -1602,7 +1752,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_configuration_loading"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_plugin_interface",
  "serde",
@@ -1611,7 +1761,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_corpus"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1627,7 +1777,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_document_printer"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_formatter_core",
@@ -1636,7 +1786,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_example_plugin"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
@@ -1646,7 +1796,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_kernel"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "memchr",
  "rayon",
@@ -1657,7 +1807,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint_runner"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -1666,18 +1816,29 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_markup_lint"
-version = "0.5.1"
+version = "0.5.2"
 
 [[package]]
 name = "rsvelte_markup_syntax"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "memchr",
 ]
 
 [[package]]
+name = "rsvelte_node"
+version = "0.5.2"
+dependencies = [
+ "napi",
+ "napi-build",
+ "napi-derive",
+ "rsvelte_kernel",
+ "rsvelte_svelte_compile",
+]
+
+[[package]]
 name = "rsvelte_plugin_interface"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -1686,7 +1847,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_compile"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_stylesheet_semantic",
@@ -1696,7 +1857,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_semantic"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_stylesheet_syntax",
@@ -1704,7 +1865,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_syntax"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "rustc-hash",
@@ -1712,7 +1873,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_check"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_plugin_interface",
@@ -1727,7 +1888,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_compile"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "libc",
  "oxc_allocator",
@@ -1755,7 +1916,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_format"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1782,7 +1943,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_lint"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1813,7 +1974,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_semantic"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "num-bigint",
  "num-traits",
@@ -1836,7 +1997,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_syntax"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "memchr",
  "oxc_allocator",
@@ -1854,7 +2015,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_to_vue_vapor"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1879,7 +2040,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_typescript_projection"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1899,7 +2060,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_test_harness"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "rustc-hash",
@@ -1907,7 +2068,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_api"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_test_harness",
@@ -1917,7 +2078,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_check"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1935,7 +2096,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_compile"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1951,7 +2112,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_content_mapper"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -1960,7 +2121,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_format"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_formatter",
  "oxc_formatter_core",
@@ -1973,7 +2134,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_lint"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1990,7 +2151,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_semantic"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -2005,7 +2166,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_tree"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -2020,7 +2181,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_check"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_ast",
  "oxc_semantic",
@@ -2037,7 +2198,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_compile"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -2057,7 +2218,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_format"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_formatter",
@@ -2075,7 +2236,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_lint"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_ast",
  "oxc_semantic",
@@ -2094,7 +2255,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_semantic"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -2110,7 +2271,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_syntax"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_parser",
  "oxc_span",
@@ -2122,7 +2283,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_vue_to_svelte"
-version = "0.5.1"
+version = "0.5.2"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",

@@ -870,7 +870,7 @@
 679:1 679:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 682:1 867:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 5503 src/lib/builder/components/CodeEditor/MarkdownCodeMirror.svelte	lint.txt
+=== 5418 src/lib/builder/components/CodeEditor/MarkdownCodeMirror.svelte	lint.txt
 1:1 71:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -933,7 +933,6 @@
 70:1 70:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 73:1 73:79 svelte/no-unused-class-name "Unused class \"overflow-auto\"."
 73:47 73:56 svelte/max-attributes-per-line "'{...rest}' should be on a new line."
-73:57 73:78 svelte/sort-attributes "Attribute 'bind:this' should go before 'class'."
 76:2 76:21 svelte/consistent-selector-style "Selector should select by element type instead of class"
 80:2 80:21 svelte/consistent-selector-style "Selector should select by element type instead of class"
 84:2 84:21 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -2259,7 +2258,7 @@
 459:1 459:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
 460:1 460:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
 461:1 461:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
-462:1 462:9 svelte/indent "Expected indentation of 14 spaces but found 8 whitespaces."
+462:1 462:9 svelte/indent "Expected indentation of 16 spaces but found 8 whitespaces."
 463:1 463:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
 464:1 464:7 svelte/indent "Expected indentation of 12 spaces but found 6 whitespaces."
 466:1 466:7 svelte/indent "Expected indentation of 12 spaces but found 6 whitespaces."
@@ -3258,7 +3257,7 @@
 81:1 81:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 85:2 85:12 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 12119 src/lib/builder/components/IFrame.svelte	lint.txt
+=== 12014 src/lib/builder/components/IFrame.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3267,7 +3266,6 @@
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-19:23 19:29 no-useless-assignment "The value assigned to 'height' is not used in subsequent statements."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 23:1 23:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3313,7 +3311,7 @@
 71:1 71:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 72:1 72:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 73:1 73:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
-74:1 74:5 svelte/indent "Expected indentation of 6 spaces but found 4 whitespaces."
+74:1 74:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 75:1 75:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 76:1 76:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 77:1 77:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -3869,7 +3867,7 @@
 138:1 138:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 139:1 139:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 139:11 139:23 no-unused-vars "'target_index' is assigned a value but never used."
-140:1 140:5 svelte/indent "Expected indentation of 6 spaces but found 4 whitespaces."
+140:1 140:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 146:1 146:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 147:1 147:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 148:1 148:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7875,7 +7873,7 @@
 235:2 235:6 svelte/consistent-selector-style "Selector should select by ID instead of class"
 243:2 243:9 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 125896 src/lib/builder/views/editor/Layout/ComponentNode.svelte	lint.txt
+=== 125897 src/lib/builder/views/editor/Layout/ComponentNode.svelte	lint.txt
 1:1 840:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8994,7 +8992,7 @@
 1152:1 1152:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
 1153:1 1153:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
 1154:1 1154:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
-1155:1 1155:6 svelte/indent "Expected indentation of 8 spaces but found 5 whitespaces."
+1155:1 1155:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
 1156:1 1156:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 1157:1 1157:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
 1158:1 1158:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
@@ -12800,7 +12798,7 @@
 177:1 177:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 178:1 178:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 179:1 179:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
-180:1 180:5 svelte/indent "Expected indentation of 6 spaces but found 4 whitespaces."
+180:1 180:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 184:1 184:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 185:1 185:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 186:1 186:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -13372,7 +13370,7 @@
 145:1 145:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
 146:1 146:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
 147:1 147:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
-148:1 148:8 svelte/indent "Expected indentation of 12 spaces but found 7 whitespaces."
+148:1 148:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
 149:1 149:7 svelte/indent "Expected indentation of 12 spaces but found 6 whitespaces."
 150:1 150:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
 151:1 151:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
@@ -13729,7 +13727,7 @@
 194:1 245:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 195:2 195:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 47597 src/lib/builder/views/modal/SitePages/Item.svelte	lint.txt
+=== 47485 src/lib/builder/views/modal/SitePages/Item.svelte	lint.txt
 1:1 243:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -13767,7 +13765,6 @@
 34:1 34:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-36:3 36:17 no-useless-assignment "The value assigned to 'hover_position' is not used in subsequent statements."
 37:1 37:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 38:1 38:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 39:1 39:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -14413,7 +14410,7 @@
 49:1 49:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 51:1 51:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 52:1 52:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-53:1 53:5 svelte/indent "Expected indentation of 6 spaces but found 4 whitespaces."
+53:1 53:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 54:1 54:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 55:1 55:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 56:1 56:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -15137,7 +15134,7 @@
 227:1 227:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
 228:1 228:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 229:1 229:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-230:1 230:5 svelte/indent "Expected indentation of 6 spaces but found 4 whitespaces."
+230:1 230:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 231:1 231:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 232:1 232:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 233:1 233:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -16674,14 +16671,13 @@
 32:2 32:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
 44:4 44:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 8569 src/lib/components/MarketplaceStarterButton.svelte	lint.txt
+=== 8463 src/lib/components/MarketplaceStarterButton.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:11 4:15 no-unused-vars "'Site' is defined but never used."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-14:14 14:21 no-useless-assignment "The value assigned to 'preview' is not used in subsequent statements."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:6 16:15 svelte/prefer-const "'container' is never reassigned. Use 'const' instead."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -18825,7 +18821,7 @@
 9:21 9:45 svelte/sort-attributes "Attribute 'data-sidebar' should go before 'bind:ref'."
 9:46 9:100 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 
-=== 2841 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
+=== 2743 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -18834,7 +18830,6 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-9:3 9:6 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -19176,7 +19171,7 @@
 24:1 24:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 25:1 25:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 26:1 26:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-27:1 27:4 svelte/indent "Expected indentation of 4 spaces but found 3 whitespaces."
+27:1 27:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 28:1 28:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 29:1 29:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20839,7 +20834,7 @@
 115:1 115:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 116:1 116:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 42578 src/routes/dashboard/sites/+page.svelte	lint.txt
+=== 42579 src/routes/dashboard/sites/+page.svelte	lint.txt
 1:1 180:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20975,7 +20970,7 @@
 144:1 144:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 145:1 145:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 146:1 146:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
-147:1 147:6 svelte/indent "Expected indentation of 8 spaces but found 5 whitespaces."
+147:1 147:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
 148:1 148:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 149:1 149:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
 150:1 150:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
@@ -21574,7 +21569,7 @@
 56:1 56:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
 57:1 57:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 58:1 58:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-59:1 59:5 svelte/indent "Expected indentation of 6 spaces but found 4 whitespaces."
+59:1 59:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 60:1 60:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 61:1 61:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 63:1 63:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."

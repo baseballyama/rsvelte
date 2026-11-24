@@ -792,12 +792,11 @@
 
 === 0 packages/theme-default/.sveltepress/live-code/LiveCodebaa49804eec.svelte	lint.txt
 
-=== 495 packages/theme-default/__tests__/test.svelte	lint.txt
+=== 416 packages/theme-default/__tests__/test.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
 5:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:33 svelte/button-has-type "Missing an explicit type attribute for button."
 
 === 695 packages/theme-default/src/components/ActionButton.svelte	lint.txt
@@ -1102,12 +1101,11 @@
 139:3 139:12 svelte/consistent-selector-style "Selector should select by ID instead of class"
 142:3 142:14 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 2410 packages/theme-default/src/components/Toc.svelte	lint.txt
+=== 2331 packages/theme-default/src/components/Toc.svelte	lint.txt
 36:23 36:31 no-undef "'document' is not defined."
 39:42 39:48 no-undef "'window' is not defined."
 40:23 40:31 no-undef "'document' is not defined."
 68:19 68:27 no-undef "'document' is not defined."
-71:1 71:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 81:29 81:58 svelte/max-attributes-per-line "'onresize' should be on a new line."
 81:29 81:58 svelte/sort-attributes "Attribute 'onresize' should go before 'bind:scrollY'."
 83:20 83:51 svelte/max-attributes-per-line "'class:collapsed' should be on a new line."

@@ -29,7 +29,7 @@
 		},
 		{
 			"customType": "regex",
-			"managerFilePatterns": ["/^tools/performance/linux\\.Dockerfile$/"],
+			"managerFilePatterns": ["/^tools/performance/ratchet-linux\\.Dockerfile$/"],
 			"matchStrings": ["ARG RUST=(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
 			"depNameTemplate": "rust",
 			"packageNameTemplate": "rust-lang/rust",
@@ -37,7 +37,7 @@
 		},
 		{
 			"customType": "regex",
-			"managerFilePatterns": ["/^tools/performance/linux\\.Dockerfile$/"],
+			"managerFilePatterns": ["/^tools/performance/ratchet-linux\\.Dockerfile$/"],
 			"matchStrings": ["ARG NODE=(?<currentValue>\\d+\\.\\d+\\.\\d+)"],
 			"depNameTemplate": "node",
 			"datasourceTemplate": "node-version"
@@ -133,6 +133,25 @@
 			"matchFileNames": ["tools/oracle/package.json"],
 			"matchDepNames": ["typescript"],
 			"matchUpdateTypes": ["major"],
+			"enabled": false
+		},
+		{
+			"description": "typescript-eslint, which the ESLint plugin and the site lint with, refuses TypeScript 7.",
+			"matchDepNames": ["typescript"],
+			"matchUpdateTypes": ["major"],
+			"enabled": false
+		},
+		{
+			"description": "eslint-plugin-svelte depends on globals ^16, and the oracle's globals must be the one it resolves.",
+			"matchFileNames": ["tools/oracle/package.json"],
+			"matchDepNames": ["globals"],
+			"matchUpdateTypes": ["major"],
+			"enabled": false
+		},
+		{
+			"description": "The performance image reproduces the CI runner, ubuntu-24.04, so its base image moves with the runner.",
+			"matchManagers": ["dockerfile"],
+			"matchDepNames": ["ubuntu"],
 			"enabled": false
 		}
 	]

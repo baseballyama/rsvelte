@@ -336,9 +336,9 @@
     <span>{final}</span>
     <span>{interim}</span>
   {:else if response}
-    <span transition:fade={{ delay: $motion / 2, duration: $motion / 2 }}
-      >{response}</span
-    >
+    <span transition:fade={{ delay: $motion / 2, duration: $motion / 2 }}>
+      {response}
+    </span>
   {/if}
 </div>
 

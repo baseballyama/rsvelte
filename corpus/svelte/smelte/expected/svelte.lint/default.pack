@@ -113,7 +113,9 @@
 23:20 23:62 svelte/max-attributes-per-line "'class' should be on a new line."
 33:5 33:22 svelte/no-unused-class-name "Unused class \"p-2\"."
 
-=== 1554 src/routes/components/chips.svelte	lint.txt
+=== 1979 src/routes/components/chips.svelte	lint.txt
+10:7 10:13 svelte/valid-compile "`closed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+11:7 11:14 svelte/valid-compile "`clicked` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:23 svelte/no-unused-class-name "Unused class \"mt-6\"."
 14:1 14:23 svelte/no-unused-class-name "Unused class \"mb-2\"."
 19:36 19:36 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
@@ -133,18 +135,23 @@
 75:18 75:51 svelte/max-attributes-per-line "'on:click' should be on a new line."
 82:18 82:52 svelte/max-attributes-per-line "'on:click' should be on a new line."
 
-=== 314 src/routes/components/data-tables.svelte	lint.txt
+=== 733 src/routes/components/data-tables.svelte	lint.txt
+7:7 7:11 svelte/valid-compile "`data` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+8:7 8:14 svelte/valid-compile "`loading` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:23 14:28 no-undef "'fetch' is not defined."
 19:5 19:15 no-undef "'setTimeout' is not defined."
 25:1 25:32 svelte/no-unused-class-name "Unused class \"overflow-auto\"."
 25:1 25:32 svelte/no-unused-class-name "Unused class \"p-1\"."
 36:5 65:7 svelte/sort-attributes "Attribute 'columns' should go before 'data'."
 
-=== 158 src/routes/components/date-pickers.svelte	lint.txt
+=== 370 src/routes/components/date-pickers.svelte	lint.txt
+6:7 6:15 svelte/valid-compile "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 12:48 12:50 svelte/mustache-spacing "Expected no space before '}', but found."
 
-=== 918 src/routes/components/dialogs.svelte	lint.txt
+=== 1347 src/routes/components/dialogs.svelte	lint.txt
+7:7 7:17 svelte/valid-compile "`showDialog` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+8:7 8:18 svelte/valid-compile "`showDialog2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:3 13:49 svelte/no-unused-class-name "Unused class \"text-gray-700\"."
 13:3 13:49 svelte/no-unused-class-name "Unused class \"dark:text-gray-100\"."
 15:18 15:55 svelte/max-attributes-per-line "'on:click' should be on a new line."
@@ -189,14 +196,16 @@
 54:5 54:13 svelte/sort-attributes "Attribute 'disabled' should go before 'disabledClasses'."
 54:13 54:13 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 715 src/routes/components/menus.svelte	lint.txt
+=== 1139 src/routes/components/menus.svelte	lint.txt
 4:10 4:14 no-unused-vars "'List' is defined but never used."
 5:10 5:16 no-unused-vars "'Select' is defined but never used."
 6:10 6:14 no-unused-vars "'Icon' is defined but never used."
 7:10 7:19 no-unused-vars "'TextField' is defined but never used."
 8:10 8:16 no-unused-vars "'Slider' is defined but never used."
+13:7 13:11 svelte/valid-compile "`open` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:7 14:12 no-unused-vars "'open2' is assigned a value but never used."
 14:7 14:12 svelte/prefer-const "'open2' is never reassigned. Use 'const' instead."
+15:7 15:15 svelte/valid-compile "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 26:52 26:53 svelte/html-self-closing "Require self-closing on HTML void elements."
 28:17 28:24 svelte/max-attributes-per-line "'items' should be on a new line."
 28:17 28:24 svelte/sort-attributes "Attribute 'items' should go before 'bind:open'."
@@ -211,7 +220,8 @@
 24:3 24:21 svelte/sort-attributes "Attribute 'label' should go before 'bind:checked'."
 25:1 25:2 svelte/indent "Expected indentation of 0 spaces but found 1 space."
 
-=== 627 src/routes/components/progress-indicators.svelte	lint.txt
+=== 839 src/routes/components/progress-indicators.svelte	lint.txt
+8:7 8:15 svelte/valid-compile "`progress` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:5 11:15 no-undef "'setTimeout' is not defined."
 24:1 24:18 svelte/no-unused-class-name "Unused class \"pb-4\"."
 27:1 27:23 svelte/no-unused-class-name "Unused class \"pt-6\"."
@@ -276,7 +286,11 @@
 74:1 74:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 75:1 75:3 svelte/indent "Expected indentation of 0 spaces but found 2 spaces."
 
-=== 983 src/routes/components/sliders.svelte	lint.txt
+=== 1826 src/routes/components/sliders.svelte	lint.txt
+7:7 7:12 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+8:7 8:13 svelte/valid-compile "`value2` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+9:7 9:13 svelte/valid-compile "`value3` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+10:7 10:15 svelte/valid-compile "`disabled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:19 svelte/no-unused-class-name "Unused class \"my-4\"."
 14:30 14:53 svelte/max-attributes-per-line "'bind:checked' should be on a new line."
 21:17 21:26 svelte/max-attributes-per-line "'max' should be on a new line."
@@ -291,9 +305,13 @@
 33:27 33:36 svelte/sort-attributes "Attribute 'max' should go before 'min'."
 33:57 33:67 svelte/sort-attributes "Attribute 'disabled' should go before 'min'."
 
-=== 2720 src/routes/components/snackbars.svelte	lint.txt
+=== 3598 src/routes/components/snackbars.svelte	lint.txt
+9:7 9:19 svelte/valid-compile "`showSnackbar` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+10:7 10:22 svelte/valid-compile "`showSnackbarTop` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+11:7 11:29 svelte/valid-compile "`showSnackbarBottomLeft` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:3 svelte/no-trailing-spaces "Trailing spaces not allowed."
 22:1 22:3 svelte/no-trailing-spaces "Trailing spaces not allowed."
+28:7 28:14 svelte/valid-compile "`message` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 31:1 33:58 svelte/no-unused-class-name "Unused class \"pl-8\"."
 31:1 33:58 svelte/no-unused-class-name "Unused class \"mt-2\"."
 31:1 33:58 svelte/no-unused-class-name "Unused class \"mb-10\"."
@@ -412,7 +430,8 @@
 
 === 0 src/routes/components/tooltips.svelte	lint.txt
 
-=== 3052 src/routes/components/treeviews.svelte	lint.txt
+=== 3264 src/routes/components/treeviews.svelte	lint.txt
+6:7 6:15 svelte/valid-compile "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:3 47:3 svelte/sort-attributes "Attribute 'items' should go before 'on:select'."
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 6 spaces but found 4 spaces."

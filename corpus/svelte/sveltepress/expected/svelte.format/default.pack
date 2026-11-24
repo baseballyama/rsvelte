@@ -234,7 +234,7 @@
 
 <Timeline {posts} />
 
-=== 9304 packages/meilisearch/src/Search.svelte	svelte
+=== 9328 packages/meilisearch/src/Search.svelte	svelte
 <script lang="ts">
   import type { MeilisearchProps, SearchResult } from "./types.js";
   import { MeiliSearch } from "meilisearch";
@@ -410,13 +410,15 @@
       </div>
 
       <div class="meilisearch-footer">
-        <span
-          >Powered by <a
+        <span>
+          Powered by <a
             href="https://www.meilisearch.com"
             target="_blank"
-            rel="noopener noreferrer">Meilisearch</a
-          ></span
-        >
+            rel="noopener noreferrer"
+          >
+            Meilisearch
+          </a>
+        </span>
       </div>
     </div>
   </div>
@@ -1576,7 +1578,7 @@
   }
 </style>
 
-=== 2146 packages/theme-blog/src/components/Pagination.svelte	svelte
+=== 2166 packages/theme-blog/src/components/Pagination.svelte	svelte
 <script lang="ts">
   import { base } from "$app/paths";
   import { paginationWindow } from "../pagination.js";
@@ -1609,8 +1611,10 @@
           class="sp-pg__num"
           class:is-active={it === page}
           href={href(it)}
-          aria-current={it === page ? "page" : undefined}>{it}</a
+          aria-current={it === page ? "page" : undefined}
         >
+          {it}
+        </a>
       {/if}
     {/each}
     {#if page < totalPages}
@@ -1667,7 +1671,7 @@
   }
 </style>
 
-=== 3420 packages/theme-blog/src/components/PostCardFeatured.svelte	svelte
+=== 3452 packages/theme-blog/src/components/PostCardFeatured.svelte	svelte
 <!-- src/components/PostCardFeatured.svelte -->
 <script lang="ts">
   import type { BlogPostMeta } from "../types.js";
@@ -1702,8 +1706,10 @@
             {#each post.tags as tag, i (tag)}
               <span
                 class="sp-card-featured__tag"
-                style="view-transition-name: sp-tag-{post.slug}-{i}">{tag}</span
+                style="view-transition-name: sp-tag-{post.slug}-{i}"
               >
+                {tag}
+              </span>
             {/each}
           </div>
         {/if}
@@ -1720,12 +1726,12 @@
           {post.excerpt}
         </p>
         <div class="sp-card__meta sp-card__meta--light">
-          <time style="view-transition-name: sp-date-{post.slug}"
-            >{post.date}</time
-          >
-          <span style="view-transition-name: sp-reading-{post.slug}"
-            >{post.readingTime} min read</span
-          >
+          <time style="view-transition-name: sp-date-{post.slug}">
+            {post.date}
+          </time>
+          <span style="view-transition-name: sp-reading-{post.slug}">
+            {post.readingTime} min read
+          </span>
         </div>
       </div>
     </div>
@@ -1805,7 +1811,7 @@
   }
 </style>
 
-=== 4371 packages/theme-blog/src/components/PostCardLarge.svelte	svelte
+=== 4399 packages/theme-blog/src/components/PostCardLarge.svelte	svelte
 <!-- src/components/PostCardLarge.svelte -->
 <script lang="ts">
   import type { BlogPostMeta } from "../types.js";
@@ -1877,8 +1883,10 @@
           {#each post.tags as tag, i (tag)}
             <span
               class="sp-card__tag"
-              style="view-transition-name: sp-tag-{post.slug}-{i}">{tag}</span
+              style="view-transition-name: sp-tag-{post.slug}-{i}"
             >
+              {tag}
+            </span>
           {/each}
         </div>
       {/if}
@@ -1895,12 +1903,12 @@
         {post.excerpt}
       </p>
       <div class="sp-card__meta">
-        <time style="view-transition-name: sp-date-{post.slug}"
-          >{post.date}</time
-        >
-        <span style="view-transition-name: sp-reading-{post.slug}"
-          >{post.readingTime} min read</span
-        >
+        <time style="view-transition-name: sp-date-{post.slug}">
+          {post.date}
+        </time>
+        <span style="view-transition-name: sp-reading-{post.slug}">
+          {post.readingTime} min read
+        </span>
       </div>
     </div>
   </a>
@@ -1976,7 +1984,7 @@
   }
 </style>
 
-=== 2341 packages/theme-blog/src/components/PostCardSmall.svelte	svelte
+=== 2365 packages/theme-blog/src/components/PostCardSmall.svelte	svelte
 <!-- src/components/PostCardSmall.svelte -->
 <script lang="ts">
   import type { BlogPostMeta } from "../types.js";
@@ -1996,8 +2004,10 @@
         {#each post.tags as tag, i (tag)}
           <span
             class="sp-card__tag"
-            style="view-transition-name: sp-tag-{post.slug}-{i}">{tag}</span
+            style="view-transition-name: sp-tag-{post.slug}-{i}"
           >
+            {tag}
+          </span>
         {/each}
       </div>
     {/if}
@@ -2015,9 +2025,9 @@
     </p>
     <div class="sp-card__meta">
       <time style="view-transition-name: sp-date-{post.slug}">{post.date}</time>
-      <span style="view-transition-name: sp-reading-{post.slug}"
-        >{post.readingTime} min read</span
-      >
+      <span style="view-transition-name: sp-reading-{post.slug}">
+        {post.readingTime} min read
+      </span>
     </div>
   </a>
 </article>
@@ -2351,7 +2361,7 @@
   }
 </style>
 
-=== 2756 packages/theme-blog/src/components/PostMeta.svelte	svelte
+=== 2784 packages/theme-blog/src/components/PostMeta.svelte	svelte
 <!-- src/components/PostMeta.svelte -->
 <script lang="ts">
   import type { BlogPost } from "../types.js";
@@ -2387,12 +2397,14 @@
   {/if}
   <time
     class="sp-post-meta__date"
-    style="view-transition-name: sp-date-{post.slug}">{post.date}</time
+    style="view-transition-name: sp-date-{post.slug}"
   >
+    {post.date}
+  </time>
   <span class="sp-post-meta__sep">·</span>
-  <span style="view-transition-name: sp-reading-{post.slug}"
-    >{post.readingTime} min read</span
-  >
+  <span style="view-transition-name: sp-reading-{post.slug}">
+    {post.readingTime} min read
+  </span>
   {#if post.category}
     <span class="sp-post-meta__sep">·</span>
     <span class="sp-post-meta__filed">Filed under <b>{post.category}</b></span>
@@ -2403,8 +2415,10 @@
         <a
           href={`${base}/tags/${tag}/`}
           class="sp-post-meta__tag"
-          style="view-transition-name: sp-tag-{post.slug}-{i}">{tag}</a
+          style="view-transition-name: sp-tag-{post.slug}-{i}"
         >
+          {tag}
+        </a>
       {/each}
     </div>
   {/if}
@@ -3338,7 +3352,7 @@
   }
 </style>
 
-=== 3738 packages/theme-blog/src/components/TableOfContents.svelte	svelte
+=== 3766 packages/theme-blog/src/components/TableOfContents.svelte	svelte
 <!-- src/components/TableOfContents.svelte -->
 <script lang="ts">
   import { onMount, tick } from "svelte";
@@ -3426,8 +3440,10 @@
             <a
               href={`#${h.id}`}
               class="sp-toc__link"
-              class:sp-toc__link--active={activeId === h.id}>{h.text}</a
+              class:sp-toc__link--active={activeId === h.id}
             >
+              {h.text}
+            </a>
           </li>
         {/each}
       </ul>
@@ -6596,33 +6612,35 @@ Svelte in <span class="c-bold">**markdown**</span>
   }
 </style>
 
-=== 272 packages/theme-default/src/components/icons/ActionLeft.svelte	svelte
+=== 273 packages/theme-default/src/components/icons/ActionLeft.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M21 18v2H3v-2h18zM6.596 3.904L8.01 5.318L4.828 8.5l3.182 3.182l-1.414 1.414L2 8.5l4.596-4.596zM21 11v2h-9v-2h9zm0-7v2h-9V4h9z"
-  /></svg
->
+  />
+</svg>
 
-=== 275 packages/theme-default/src/components/icons/ActionRight.svelte	svelte
+=== 276 packages/theme-default/src/components/icons/ActionRight.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M21 18v2H3v-2h18zM17.404 3.904L22 8.5l-4.596 4.596l-1.414-1.414L19.172 8.5L15.99 5.318l1.414-1.414zM12 11v2H3v-2h9zm0-7v2H3V4h9z"
-  /></svg
->
+  />
+</svg>
 
 === 1898 packages/theme-default/src/components/icons/Apple.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 72 72"
-  ><path
+<svg width="1em" height="1em" viewBox="0 0 72 72">
+  <path
     fill="#ea5a47"
     d="M53.88 21.51a11.417 11.417 0 0 0-10.737.504a2.156 2.156 0 0 0-.109.052a22.914 22.914 0 0 1-7.567 1.877a15.907 15.907 0 0 1-6.638-1.85l-.141-.076a11.41 11.41 0 0 0-10.764-.506C10.7 25.14 8.1 36.69 12.129 47.254c2.373 6.232 6.685 11.08 11.535 12.966a10.983 10.983 0 0 0 9.134-.266a11.377 11.377 0 0 0 1.532-.931a2.726 2.726 0 0 1 3.158 0a11.173 11.173 0 0 0 1.532.932a10.465 10.465 0 0 0 4.735 1.127a12.078 12.078 0 0 0 4.383-.86c4.851-1.885 9.165-6.733 11.539-12.967c4.03-10.57 1.43-22.12-5.797-25.745Z"
   /><path
@@ -6641,25 +6659,26 @@ Svelte in <span class="c-bold">**markdown**</span>
     strokeLinejoin="round"
     strokeWidth="2"
     d="M35.046 20.733v-5.461l-4.344-4.343m26.632 14.837c3.648 4.949 4.396 13.296 1.409 21.133c-3.857 10.128-12.488 15.573-19.274 12.163a10.24 10.24 0 0 1-1.394-.85a3.713 3.713 0 0 0-4.331 0a10.27 10.27 0 0 1-1.396.85c-6.797 3.41-15.428-2.035-19.285-12.163c-3.856-10.118-1.475-21.085 5.31-24.494a10.42 10.42 0 0 1 9.838.491s.056.034.168.09a16.863 16.863 0 0 0 7.088 1.957a13.271 13.271 0 0 0 2.249-.215a18.634 18.634 0 0 0 2.126-.463m8.202-6.87c3.957 1.329 6.845 5.819 6.845 5.819s-5.014 1.835-8.97.506c-3.95-1.327-6.844-5.82-6.844-5.82s5.019-1.833 8.97-.505Z"
-  /></svg
->
+  />
+</svg>
 
 === 160 packages/theme-default/src/components/icons/ArrowDown.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 24 24"
-  ><path
+<svg width="1em" height="1em" viewBox="0 0 24 24">
+  <path
     fill="currentColor"
     d="M7.41 8.59L12 13.17l4.59-4.58L18 10l-6 6l-6-6l1.41-1.41z"
-  /></svg
->
+  />
+</svg>
 
-=== 1049 packages/theme-default/src/components/icons/Banana.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 72 72"
-  ><g
+=== 1055 packages/theme-default/src/components/icons/Banana.svelte	svelte
+<svg width="1em" height="1em" viewBox="0 0 72 72">
+  <g
     strokeLinecap="round"
     strokeLinejoin="round"
     strokeMiterlimit="10"
     strokeWidth=".75"
-    ><path
+  >
+    <path
       fill="#fcea2b"
       stroke="#fcea2b"
       d="M50.46 50.44c-11.2 13.24-28.24 12.54-35.31 6.547l-.413-1.901c12.72-3.783 15.02-2.284 25.01-11.49c5.776-6.855 10.6-16.93 10.32-24.26c6.04-.188 0 0 4.682-.188c3.885 9.76 2.355 22.91-4.282 31.29z"
@@ -6667,64 +6686,68 @@ Svelte in <span class="c-bold">**markdown**</span>
       fill="#f1b31c"
       stroke="#f1b31c"
       d="M53.21 19.66c4.526-.424 5.228 22.66-1.408 31.04c-11.8 11.01-24.25 12.1-36.84 5.362c25.96 5.489 39.47-15.38 38.25-36.4z"
-    /></g
-  ><g
+    />
+  </g><g
     fill="none"
     stroke="#000"
     strokeLinecap="round"
     strokeLinejoin="round"
     strokeMiterlimit="10"
     strokeWidth="2"
-    ><path
+  >
+    <path
       d="m52.09 15.49l-.57-4.29M25.79 56.55c16.7-2.905 24.45-11.14 26.67-27.09"
     /><path
       d="M47.54 54.03c-8.106 7.212-23.05 9.45-32.43 2.757l-.413-1.901c18.42-2.206 32.78-13.96 35.36-35.55c1.105-.004 4.645-.396 4.645-.396c5.599 15.1 1.754 27.15-7.164 35.08z"
-    /></g
-  ></svg
->
+    />
+  </g>
+</svg>
 
-=== 323 packages/theme-default/src/components/icons/Close.svelte	svelte
+=== 324 packages/theme-default/src/components/icons/Close.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 16 16"
-  ><path
+>
+  <path
     fill="currentColor"
     fillRule="evenodd"
     d="m7.116 8l-4.558 4.558l.884.884L8 8.884l4.558 4.558l.884-.884L8.884 8l4.558-4.558l-.884-.884L8 7.116L3.442 2.558l-.884.884L7.116 8z"
     clipRule="evenodd"
-  /></svg
->
+  />
+</svg>
 
-=== 677 packages/theme-default/src/components/icons/Copy.svelte	svelte
+=== 678 packages/theme-default/src/components/icons/Copy.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M7.024 3.75c0-.966.784-1.75 1.75-1.75H20.25c.966 0 1.75.784 1.75 1.75v11.498a1.75 1.75 0 0 1-1.75 1.75H8.774a1.75 1.75 0 0 1-1.75-1.75Zm1.75-.25a.25.25 0 0 0-.25.25v11.498c0 .139.112.25.25.25H20.25a.25.25 0 0 0 .25-.25V3.75a.25.25 0 0 0-.25-.25Z"
   /><path
     fill="currentColor"
     d="M1.995 10.749a1.75 1.75 0 0 1 1.75-1.751H5.25a.75.75 0 1 1 0 1.5H3.745a.25.25 0 0 0-.25.25L3.5 20.25c0 .138.111.25.25.25h9.5a.25.25 0 0 0 .25-.25v-1.51a.75.75 0 1 1 1.5 0v1.51A1.75 1.75 0 0 1 13.25 22h-9.5A1.75 1.75 0 0 1 2 20.25l-.005-9.501Z"
-  /></svg
->
+  />
+</svg>
 
-=== 197 packages/theme-default/src/components/icons/CopyDone.svelte	svelte
+=== 198 packages/theme-default/src/components/icons/CopyDone.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M9 16.2L4.8 12l-1.4 1.4L9 19L21 7l-1.4-1.4L9 16.2z"
-  /></svg
->
+  />
+</svg>
 
-=== 1190 packages/theme-default/src/components/icons/Discord.svelte	svelte
+=== 1191 packages/theme-default/src/components/icons/Discord.svelte	svelte
 <script>
   /** @type {{ [key: string]: any }} */
   const { ...rest } = $props();
@@ -6736,13 +6759,14 @@ Svelte in <span class="c-bold">**markdown**</span>
   height="1em"
   viewBox="0 0 24 24"
   {...rest}
-  ><path
+>
+  <path
     fill="currentColor"
     d="M19.27 5.33C17.94 4.71 16.5 4.26 15 4a.09.09 0 0 0-.07.03c-.18.33-.39.76-.53 1.09a16.09 16.09 0 0 0-4.8 0c-.14-.34-.35-.76-.54-1.09c-.01-.02-.04-.03-.07-.03c-1.5.26-2.93.71-4.27 1.33c-.01 0-.02.01-.03.02c-2.72 4.07-3.47 8.03-3.1 11.95c0 .02.01.04.03.05c1.8 1.32 3.53 2.12 5.24 2.65c.03.01.06 0 .07-.02c.4-.55.76-1.13 1.07-1.74c.02-.04 0-.08-.04-.09c-.57-.22-1.11-.48-1.64-.78c-.04-.02-.04-.08-.01-.11c.11-.08.22-.17.33-.25c.02-.02.05-.02.07-.01c3.44 1.57 7.15 1.57 10.55 0c.02-.01.05-.01.07.01c.11.09.22.17.33.26c.04.03.04.09-.01.11c-.52.31-1.07.56-1.64.78c-.04.01-.05.06-.04.09c.32.61.68 1.19 1.07 1.74c.03.01.06.02.09.01c1.72-.53 3.45-1.33 5.25-2.65c.02-.01.03-.03.03-.05c.44-4.53-.73-8.46-3.1-11.95c-.01-.01-.02-.02-.04-.02zM8.52 14.91c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12c0 1.17-.84 2.12-1.89 2.12zm6.97 0c-1.03 0-1.89-.95-1.89-2.12s.84-2.12 1.89-2.12c1.06 0 1.9.96 1.89 2.12c0 1.17-.83 2.12-1.89 2.12z"
-  /></svg
->
+  />
+</svg>
 
-=== 507 packages/theme-default/src/components/icons/Edit.svelte	svelte
+=== 511 packages/theme-default/src/components/icons/Edit.svelte	svelte
 <script>
   /** @type {{ [key: string]: any }} */
   const { ...rest } = $props();
@@ -6754,60 +6778,64 @@ Svelte in <span class="c-bold">**markdown**</span>
   height="1em"
   viewBox="0 0 24 24"
   {...rest}
-  ><g
+>
+  <g
     fill="none"
     stroke="currentColor"
     strokeLinecap="round"
     strokeLinejoin="round"
     strokeWidth="2"
-    ><path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2h-5.5" /><path
+  >
+    <path d="M4 13.5V4a2 2 0 0 1 2-2h8.5L20 7.5V20a2 2 0 0 1-2 2h-5.5" /><path
       d="M14 2v6h6m-9.58 4.61a2.1 2.1 0 1 1 2.97 2.97L7.95 21L4 22l.99-3.95l5.43-5.44Z"
-    /></g
-  ></svg
->
+    />
+  </g>
+</svg>
 
-=== 1043 packages/theme-default/src/components/icons/External.svelte	svelte
+=== 1051 packages/theme-default/src/components/icons/External.svelte	svelte
 <script>
   /** @type {{ [key: string]: any }} */
   const { ...rest } = $props();
 </script>
 
-<svg {...rest} width="1em" height="1em" viewBox="0 0 24 24"
-  ><g
+<svg {...rest} width="1em" height="1em" viewBox="0 0 24 24">
+  <g
     fill="none"
     stroke="currentColor"
     strokeLinecap="round"
     strokeLinejoin="round"
     strokeWidth="2"
-    ><path
+  >
+    <path
       strokeDasharray="36"
       strokeDashoffset="36"
       d="M12 5C8.13401 5 5 8.13401 5 12C5 15.866 8.13401 19 12 19C15.866 19 19 15.866 19 12"
-      ><animate
+    >
+      <animate
         fill="freeze"
         attributeName="stroke-dashoffset"
         dur="0.6s"
         values="36;0"
-      /></path
-    ><path strokeDasharray="12" strokeDashoffset="12" d="M13 11L20 4"
-      ><animate
+      />
+    </path><path strokeDasharray="12" strokeDashoffset="12" d="M13 11L20 4">
+      <animate
         fill="freeze"
         attributeName="stroke-dashoffset"
         begin="0.6s"
         dur="0.3s"
         values="12;0"
-      /></path
-    ><path strokeDasharray="8" strokeDashoffset="8" d="M21 3H15M21 3V9"
-      ><animate
+      />
+    </path><path strokeDasharray="8" strokeDashoffset="8" d="M21 3H15M21 3V9">
+      <animate
         fill="freeze"
         attributeName="stroke-dashoffset"
         begin="0.9s"
         dur="0.2s"
         values="8;0"
-      /></path
-    ></g
-  ></svg
->
+      />
+    </path>
+  </g>
+</svg>
 
 === 771 packages/theme-default/src/components/icons/Github.svelte	svelte
 <script>
@@ -6815,16 +6843,16 @@ Svelte in <span class="c-bold">**markdown**</span>
   const { ...rest } = $props();
 </script>
 
-<svg width="1em" height="1em" viewBox="0 0 24 24" {...rest}
-  ><path
+<svg width="1em" height="1em" viewBox="0 0 24 24" {...rest}>
+  <path
     fill="currentColor"
     d="M12 2A10 10 0 0 0 2 12c0 4.42 2.87 8.17 6.84 9.5c.5.08.66-.23.66-.5v-1.69c-2.77.6-3.36-1.34-3.36-1.34c-.46-1.16-1.11-1.47-1.11-1.47c-.91-.62.07-.6.07-.6c1 .07 1.53 1.03 1.53 1.03c.87 1.52 2.34 1.07 2.91.83c.09-.65.35-1.09.63-1.34c-2.22-.25-4.55-1.11-4.55-4.92c0-1.11.38-2 1.03-2.71c-.1-.25-.45-1.29.1-2.64c0 0 .84-.27 2.75 1.02c.79-.22 1.65-.33 2.5-.33c.85 0 1.71.11 2.5.33c1.91-1.29 2.75-1.02 2.75-1.02c.55 1.35.2 2.39.1 2.64c.65.71 1.03 1.6 1.03 2.71c0 3.82-2.34 4.66-4.57 4.91c.36.31.69.92.69 1.85V21c0 .27.16.59.67.5C19.14 20.16 22 16.42 22 12A10 10 0 0 0 12 2Z"
-  /></svg
->
+  />
+</svg>
 
 === 3411 packages/theme-default/src/components/icons/Grapes.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 72 72"
-  ><path
+<svg width="1em" height="1em" viewBox="0 0 72 72">
+  <path
     fill="#b399c8"
     d="M32.33 37.54a6.688 6.688 0 0 1-6.688 6.688a6.688 6.688 0 0 1-6.688-6.688a6.688 6.688 0 0 1 6.688-6.688a6.688 6.688 0 0 1 6.688 6.688"
   /><path
@@ -6848,8 +6876,8 @@ Svelte in <span class="c-bold">**markdown**</span>
   /><path fill="#8967aa" d="M36.57 50.92a6.688 6.688 0 0 1 0 13.38" /><path
     fill="#8967aa"
     d="M42.16 40.89a6.688 6.688 0 0 1 0 13.38m6.81-23.48a6.688 6.688 0 0 1 0 13.38m-7.89-23.29a6.688 6.688 0 0 1 0 13.38"
-  /><g fill="none" stroke="#000"
-    ><path
+  /><g fill="none" stroke="#000">
+    <path
       strokeLinecap="round"
       strokeLinejoin="round"
       strokeWidth="2"
@@ -6901,41 +6929,44 @@ Svelte in <span class="c-bold">**markdown**</span>
       strokeLinejoin="round"
       strokeWidth="2"
       d="M50.57 9.212s-3.357 7.635-15.68 5.496"
-    /></g
-  ></svg
->
+    />
+  </g>
+</svg>
 
-=== 380 packages/theme-default/src/components/icons/Home.svelte	svelte
+=== 381 packages/theme-default/src/components/icons/Home.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M11.336 2.253a1 1 0 0 1 1.328 0l9 8a1 1 0 0 1-1.328 1.494L20 11.45V19a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2v-7.55l-.336.297a1 1 0 0 1-1.328-1.494l9-8zM6 9.67V19h3v-5a1 1 0 0 1 1-1h4a1 1 0 0 1 1 1v5h3V9.671l-6-5.333l-6 5.333zM13 19v-4h-2v4h2z"
-  /></svg
->
+  />
+</svg>
 
-=== 530 packages/theme-default/src/components/icons/Markdown.svelte	svelte
+=== 531 packages/theme-default/src/components/icons/Markdown.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M20.56 18H3.44C2.65 18 2 17.37 2 16.59V7.41C2 6.63 2.65 6 3.44 6h17.12c.79 0 1.44.63 1.44 1.41v9.18c0 .78-.65 1.41-1.44 1.41M3.44 6.94c-.26 0-.48.21-.48.47v9.19c0 .25.22.46.48.46h17.12c.26 0 .48-.21.48-.46V7.41c0-.26-.22-.47-.48-.47H3.44m1.45 8.25V8.81h1.92l1.92 2.35l1.92-2.35h1.93v6.38h-1.93v-3.66l-1.92 2.35l-1.92-2.35v3.66H4.89m12.01 0l-2.9-3.1h1.94V8.81h1.92v3.28h1.93l-2.89 3.1"
-  /></svg
->
+  />
+</svg>
 
-=== 531 packages/theme-default/src/components/icons/Menu.svelte	svelte
+=== 532 packages/theme-default/src/components/icons/Menu.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 36 36"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M32 29H4a1 1 0 0 1 0-2h28a1 1 0 0 1 0 2Z"
     class="clr-i-outline clr-i-outline-path-1"
@@ -6947,10 +6978,10 @@ Svelte in <span class="c-bold">**markdown**</span>
     fill="currentColor"
     d="M32 9H4a1 1 0 0 1 0-2h28a1 1 0 0 1 0 2Z"
     class="clr-i-outline clr-i-outline-path-3"
-  /><path fill="none" d="M0 0h36v36H0z" /></svg
->
+  /><path fill="none" d="M0 0h36v36H0z" />
+</svg>
 
-=== 544 packages/theme-default/src/components/icons/MenuOpen.svelte	svelte
+=== 545 packages/theme-default/src/components/icons/MenuOpen.svelte	svelte
 <script>
   const { ...all } = $props();
 </script>
@@ -6961,46 +6992,52 @@ Svelte in <span class="c-bold">**markdown**</span>
   height="1em"
   viewBox="0 0 24 24"
   {...all}
-  ><path
+>
+  <path
     fill="currentColor"
     d="M4 18h11c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1s.45 1 1 1m0-5h8c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1s.45 1 1 1M3 7c0 .55.45 1 1 1h11c.55 0 1-.45 1-1s-.45-1-1-1H4c-.55 0-1 .45-1 1m17.3 7.88L17.42 12l2.88-2.88a.996.996 0 1 0-1.41-1.41L15.3 11.3a.996.996 0 0 0 0 1.41l3.59 3.59c.39.39 1.02.39 1.41 0c.38-.39.39-1.03 0-1.42"
-  /></svg
->
+  />
+</svg>
 
-=== 4538 packages/theme-default/src/components/icons/Moon.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 24 24"
-  ><g
+=== 4583 packages/theme-default/src/components/icons/Moon.svelte	svelte
+<svg width="1em" height="1em" viewBox="0 0 24 24">
+  <g
     fill="none"
     stroke="currentColor"
     strokeLinecap="round"
     strokeLinejoin="round"
     strokeWidth="2"
-    ><g strokeDasharray="2"
-      ><path d="M12 21v1M21 12h1M12 3v-1M3 12h-1"
-        ><animate
+  >
+    <g strokeDasharray="2">
+      <path d="M12 21v1M21 12h1M12 3v-1M3 12h-1">
+        <animate
           fill="freeze"
           attributeName="stroke-dashoffset"
           dur="0.2s"
           values="4;2"
-        /></path
-      ><path
+        />
+      </path><path
         d="M18.5 18.5l0.5 0.5M18.5 5.5l0.5 -0.5M5.5 5.5l-0.5 -0.5M5.5 18.5l-0.5 0.5"
-        ><animate
+      >
+        <animate
           fill="freeze"
           attributeName="stroke-dashoffset"
           begin="0.2s"
           dur="0.2s"
           values="4;2"
-        /></path
-      ></g
-    ><path
+        />
+      </path>
+    </g><path
       d="M7 6 C7 12.08 11.92 17 18 17 C18.53 17 19.05 16.96 19.56 16.89 C17.95 19.36 15.17 21 12 21 C7.03 21 3 16.97 3 12 C3 8.83 4.64 6.05 7.11 4.44 C7.04 4.95 7 5.47 7 6 Z"
-      opacity="0"><set attributeName="opacity" begin="0.5s" to="1" /></path
-    ></g
-  ><g fill="currentColor" fillOpacity="0"
-    ><path
+      opacity="0"
+    >
+      <set attributeName="opacity" begin="0.5s" to="1" />
+    </path>
+  </g><g fill="currentColor" fillOpacity="0">
+    <path
       d="m15.22 6.03l2.53-1.94L14.56 4L13.5 1l-1.06 3l-3.19.09l2.53 1.94l-.91 3.06l2.63-1.81l2.63 1.81z"
-      ><animate
+    >
+      <animate
         id="lineMdSunnyOutlineToMoonLoopTransition0"
         fill="freeze"
         attributeName="fill-opacity"
@@ -7013,10 +7050,11 @@ Svelte in <span class="c-bold">**markdown**</span>
         begin="lineMdSunnyOutlineToMoonLoopTransition0.begin+2.2s"
         dur="0.4s"
         values="1;0"
-      /></path
-    ><path
+      />
+    </path><path
       d="M13.61 5.25L15.25 4l-2.06-.05L12.5 2l-.69 1.95L9.75 4l1.64 1.25l-.59 1.98l1.7-1.17l1.7 1.17z"
-      ><animate
+    >
+      <animate
         fill="freeze"
         attributeName="fill-opacity"
         begin="lineMdSunnyOutlineToMoonLoopTransition0.begin+3s"
@@ -7028,10 +7066,11 @@ Svelte in <span class="c-bold">**markdown**</span>
         begin="lineMdSunnyOutlineToMoonLoopTransition0.begin+5.2s"
         dur="0.4s"
         values="1;0"
-      /></path
-    ><path
+      />
+    </path><path
       d="M19.61 12.25L21.25 11l-2.06-.05L18.5 9l-.69 1.95l-2.06.05l1.64 1.25l-.59 1.98l1.7-1.17l1.7 1.17z"
-      ><animate
+    >
+      <animate
         fill="freeze"
         attributeName="fill-opacity"
         begin="lineMdSunnyOutlineToMoonLoopTransition0.begin+0.4s"
@@ -7043,10 +7082,11 @@ Svelte in <span class="c-bold">**markdown**</span>
         begin="lineMdSunnyOutlineToMoonLoopTransition0.begin+2.8s"
         dur="0.4s"
         values="1;0"
-      /></path
-    ><path
+      />
+    </path><path
       d="m20.828 9.731l1.876-1.439l-2.366-.067L19.552 6l-.786 2.225l-2.366.067l1.876 1.439L17.601 12l1.951-1.342L21.503 12z"
-      ><animate
+    >
+      <animate
         fill="freeze"
         attributeName="fill-opacity"
         begin="lineMdSunnyOutlineToMoonLoopTransition0.begin+3.4s"
@@ -7058,19 +7098,19 @@ Svelte in <span class="c-bold">**markdown**</span>
         begin="lineMdSunnyOutlineToMoonLoopTransition0.begin+5.6s"
         dur="0.4s"
         values="1;0"
-      /></path
-    ></g
-  ><mask id="lineMdSunnyOutlineToMoonLoopTransition1"
-    ><circle cx="12" cy="12" r="12" fill="#fff" /><circle cx="12" cy="12" r="4"
-      ><animate
+      />
+    </path>
+  </g><mask id="lineMdSunnyOutlineToMoonLoopTransition1">
+    <circle cx="12" cy="12" r="12" fill="#fff" /><circle cx="12" cy="12" r="4">
+      <animate
         fill="freeze"
         attributeName="r"
         begin="0.1s"
         dur="0.4s"
         values="4;8"
-      /></circle
-    ><circle cx="22" cy="2" r="3" fill="#fff"
-      ><animate
+      />
+    </circle><circle cx="22" cy="2" r="3" fill="#fff">
+      <animate
         fill="freeze"
         attributeName="cx"
         begin="0.1s"
@@ -7088,9 +7128,9 @@ Svelte in <span class="c-bold">**markdown**</span>
         begin="0.1s"
         dur="0.4s"
         values="3;12"
-      /></circle
-    ><circle cx="22" cy="2" r="1"
-      ><animate
+      />
+    </circle><circle cx="22" cy="2" r="1">
+      <animate
         fill="freeze"
         attributeName="cx"
         begin="0.1s"
@@ -7108,43 +7148,45 @@ Svelte in <span class="c-bold">**markdown**</span>
         begin="0.1s"
         dur="0.4s"
         values="1;10"
-      /></circle
-    ></mask
-  ><circle
+      />
+    </circle>
+  </mask><circle
     cx="12"
     cy="12"
     r="6"
     fill="currentColor"
     mask="url(#lineMdSunnyOutlineToMoonLoopTransition1)"
-    ><set attributeName="opacity" begin="0.5s" to="0" /><animate
+  >
+    <set attributeName="opacity" begin="0.5s" to="0" /><animate
       fill="freeze"
       attributeName="r"
       begin="0.1s"
       dur="0.4s"
       values="6;10"
-    /></circle
-  ></svg
->
+    />
+  </circle>
+</svg>
 
-=== 247 packages/theme-default/src/components/icons/More.svelte	svelte
+=== 248 packages/theme-default/src/components/icons/More.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 32 32"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M7 19a3 3 0 1 0 0-6a3 3 0 0 0 0 6Zm9 0a3 3 0 1 0 0-6a3 3 0 0 0 0 6Zm9 0a3 3 0 1 0 0-6a3 3 0 0 0 0 6Z"
-  /></svg
->
+  />
+</svg>
 
 === 247 packages/theme-default/src/components/icons/NavArrowDown.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 24 24"
-  ><path
+<svg width="1em" height="1em" viewBox="0 0 24 24">
+  <path
     fill="currentColor"
     d="M8.12 9.29L12 13.17l3.88-3.88a.996.996 0 1 1 1.41 1.41l-4.59 4.59a.996.996 0 0 1-1.41 0L6.7 10.7a.996.996 0 0 1 0-1.41c.39-.38 1.03-.39 1.42 0z"
-  /></svg
->
+  />
+</svg>
 
 === 313 packages/theme-default/src/components/icons/Next.svelte	svelte
 <script>
@@ -7152,21 +7194,21 @@ Svelte in <span class="c-bold">**markdown**</span>
   const { ...rest } = $props();
 </script>
 
-<svg width="1em" height="1em" viewBox="0 0 24 24" {...rest}
-  ><path
+<svg width="1em" height="1em" viewBox="0 0 24 24" {...rest}>
+  <path
     d="M9 6l6 6l-6 6"
     fill="none"
     stroke="currentColor"
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
-  /></svg
->
+  />
+</svg>
 
-=== 2737 packages/theme-default/src/components/icons/Peach.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 72 72"
-  ><g strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2"
-    ><path
+=== 2740 packages/theme-default/src/components/icons/Peach.svelte	svelte
+<svg width="1em" height="1em" viewBox="0 0 72 72">
+  <g strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2">
+    <path
       fill="#b1cc33"
       stroke="#b1cc33"
       d="M58.613 14.83s-3.721 6.953-9.376 9.376c-4.44 1.905-10.081 1.007-12.297.545c-2.224.417-7.882 1.2-12.282-.796c-5.605-2.537-9.183-9.564-9.183-9.564s7.63-1.942 13.234.595c1.205.542 2.307 1.284 3.309 2.124c3.786 3.185 4.813 3.56 10 .102c1.018-.82 2.135-1.538 3.35-2.056c5.656-2.423 13.245-.325 13.245-.325z"
@@ -7184,45 +7226,48 @@ Svelte in <span class="c-bold">**markdown**</span>
       stroke="#E67A94"
       strokeLinecap="round"
       d="M37.72 36.595c-.719-3.444-3.407-5.532-3.407-5.532"
-    /></g
-  ><g
+    />
+  </g><g
     fill="none"
     stroke="#000"
     strokeLinecap="round"
     strokeLinejoin="round"
     strokeMiterlimit="10"
     strokeWidth="2"
-    ><path
+  >
+    <path
       d="M41.961 17.325c1.006-.828 2.118-1.563 3.32-2.092c5.633-2.48 13.249-.452 13.249-.452"
     /><path
       d="M58.53 14.78s-1.1 2.105-3.023 4.413M31.64 16.83c-1.005-.828-2.118-1.563-3.32-2.092c-5.633-2.479-13.248-.452-13.248-.452m0 0s1.024 1.961 2.825 4.174m18.548-3.094c-.32-2.33-1.153-5.64-3.308-7.904M60.72 39.78c-.31 12.69-11.44 22.65-24.01 24.2c-.05.01-.1.01-.15.02h-.11c-.21 0-.42.03-.63-.02c-11.34-2.56-22.28-12.53-23.42-24.2c-.17-1.75.19-3.49.55-5.15c.64-2.99 1.85-5.78 3.49-8.25c2.64-2.89 6.55-4.71 10.92-4.71c2.27 0 4.4.48 6.31 1.35c1.29.59 2.73.74 4.09.44c.45-.09.9-.24 1.33-.44c1.9-.87 4.04-1.35 6.3-1.35c4.88 0 9.2 2.27 11.8 5.76c.29.37.54.75.78 1.14c.49.93.91 1.89 1.28 2.88c.01.02.02.03.02.05c.12.32.23.65.33.98c.09.29.18.58.26.87c.07.26.14.51.2.77c.39 1.56.62 3.17.65 4.83c.01.28.01.55.01.83z"
-    /><path d="M40.987 52.864c2.042-7.167 3.244-17.616-3.737-24.614" /></g
-  ></svg
->
+    /><path d="M40.987 52.864c2.042-7.167 3.244-17.616-3.737-24.614" />
+  </g>
+</svg>
 
-=== 1212 packages/theme-default/src/components/icons/PointLeft.svelte	svelte
+=== 1213 packages/theme-default/src/components/icons/PointLeft.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 512 512"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M0 220.8C0 266.416 37.765 304 83.2 304h35.647a93.148 93.148 0 0 0 7.929 22.064c-2.507 22.006 3.503 44.978 15.985 62.791C143.9 441.342 180.159 480 242.701 480H264c60.063 0 98.512-40 127.2-40h2.679c5.747 4.952 13.536 8 22.12 8h64c17.673 0 32-12.894 32-28.8V188.8c0-15.906-14.327-28.8-32-28.8h-64c-8.584 0-16.373 3.048-22.12 8H391.2c-6.964 0-14.862-6.193-30.183-23.668l-.129-.148l-.131-.146c-8.856-9.937-18.116-20.841-25.851-33.253C316.202 80.537 304.514 32 259.2 32c-56.928 0-92 35.286-92 83.2c0 8.026.814 15.489 2.176 22.4H83.2C38.101 137.6 0 175.701 0 220.8zm48 0c0-18.7 16.775-35.2 35.2-35.2h158.4c0-17.325-26.4-35.2-26.4-70.4c0-26.4 20.625-35.2 44-35.2c8.794 0 20.445 32.712 34.926 56.1c9.074 14.575 19.524 27.225 30.799 39.875c16.109 18.374 33.836 36.633 59.075 39.596v176.752C341.21 396.087 309.491 432 264 432h-21.299c-40.524 0-57.124-22.197-50.601-61.325c-14.612-8.001-24.151-33.979-12.925-53.625c-19.365-18.225-17.787-46.381-4.95-61.05H83.2C64.225 256 48 239.775 48 220.8zM448 360c13.255 0 24 10.745 24 24s-10.745 24-24 24s-24-10.745-24-24s10.745-24 24-24z"
-  /></svg
->
+  />
+</svg>
 
-=== 1004 packages/theme-default/src/components/icons/PointRight.svelte	svelte
+=== 1005 packages/theme-default/src/components/icons/PointRight.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 512 512"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M448 128H270.4c1 5.2 1.6 10.5 1.6 16v16h176c8.8 0 16-7.2 16-16s-7.2-16-16-16zm-224 16c0-17.7-14.3-32-32-32h-24c-66.3 0-120 53.7-120 120v48c0 52.5 33.7 97.1 80.7 113.4c-.5-3.1-.7-6.2-.7-9.4c0-20 9.2-37.9 23.6-49.7c-4.9-9-7.6-19.4-7.6-30.3c0-15.1 5.3-29 14-40c-8.8-11-14-24.9-14-40v-40c0-13.3 10.7-24 24-24s24 10.7 24 24v40c0 8.8 7.2 16 16 16s16-7.2 16-16v-80zm-32-80c18 0 34.6 6 48 16h208c35.3 0 64 28.7 64 64s-28.7 64-64 64h-82c1.3 5.1 2 10.5 2 16c0 25.3-14.7 47.2-36 57.6c2.6 7 4 14.5 4 22.4c0 20-9.2 37.9-23.6 49.7c4.9 9 7.6 19.4 7.6 30.3c0 35.3-28.7 64-64 64h-88C75.2 448 0 372.8 0 280v-48C0 139.2 75.2 64 168 64h24zm64 336c8.8 0 16-7.2 16-16s-7.2-16-16-16h-64c-8.8 0-16 7.2-16 16s7.2 16 16 16h64zm16-176c0 5.5-.7 10.9-2 16h34c8.8 0 16-7.2 16-16s-7.2-16-16-16h-32v16zm-24 64h-40c-8.8 0-16 7.2-16 16s7.2 16 16 16h64c8.8 0 16-7.2 16-16s-7.2-16-16-16h-24z"
-  /></svg
->
+  />
+</svg>
 
 === 314 packages/theme-default/src/components/icons/Prev.svelte	svelte
 <script>
@@ -7230,40 +7275,42 @@ Svelte in <span class="c-bold">**markdown**</span>
   const { ...rest } = $props();
 </script>
 
-<svg width="1em" height="1em" viewBox="0 0 24 24" {...rest}
-  ><path
+<svg width="1em" height="1em" viewBox="0 0 24 24" {...rest}>
+  <path
     d="M15 6l-6 6l6 6"
     fill="none"
     stroke="currentColor"
     stroke-width="2"
     stroke-linecap="round"
     stroke-linejoin="round"
-  /></svg
->
+  />
+</svg>
 
-=== 296 packages/theme-default/src/components/icons/Refresh.svelte	svelte
+=== 297 packages/theme-default/src/components/icons/Refresh.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 20 20"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M10 3v2a5 5 0 0 0-3.54 8.54l-1.41 1.41A7 7 0 0 1 10 3zm4.95 2.05A7 7 0 0 1 10 17v-2a5 5 0 0 0 3.54-8.54l1.41-1.41zM10 20l-4-4l4-4v8zm0-12V0l4 4l-4 4z"
-  /></svg
->
+  />
+</svg>
 
-=== 3609 packages/theme-default/src/components/icons/Sun.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 24 24"
-  ><g
+=== 3628 packages/theme-default/src/components/icons/Sun.svelte	svelte
+<svg width="1em" height="1em" viewBox="0 0 24 24">
+  <g
     fill="none"
     stroke="currentColor"
     strokeDasharray="2"
     strokeDashoffset="2"
     strokeLinecap="round"
     strokeWidth="2"
-    ><path d="M0 0"
-      ><animate
+  >
+    <path d="M0 0">
+      <animate
         fill="freeze"
         attributeName="d"
         begin="1.2s"
@@ -7275,9 +7322,9 @@ Svelte in <span class="c-bold">**markdown**</span>
         begin="1.2s"
         dur="0.2s"
         values="2;0"
-      /></path
-    ><path d="M0 0"
-      ><animate
+      />
+    </path><path d="M0 0">
+      <animate
         fill="freeze"
         attributeName="d"
         begin="1.5s"
@@ -7289,53 +7336,56 @@ Svelte in <span class="c-bold">**markdown**</span>
         begin="1.5s"
         dur="1.2s"
         values="2;0"
-      /></path
-    ><animateTransform
+      />
+    </path><animateTransform
       attributeName="transform"
       dur="30s"
       repeatCount="indefinite"
       type="rotate"
       values="0 12 12;360 12 12"
-    /></g
-  ><g fill="currentColor"
-    ><path
+    />
+  </g><g fill="currentColor">
+    <path
       d="M15.22 6.03L17.75 4.09L14.56 4L13.5 1L12.44 4L9.25 4.09L11.78 6.03L10.87 9.09L13.5 7.28L16.13 9.09L15.22 6.03Z"
-      ><animate
+    >
+      <animate
         fill="freeze"
         attributeName="fill-opacity"
         dur="0.4s"
         values="1;0"
-      /></path
-    ><path
+      />
+    </path><path
       d="M19.61 12.25L21.25 11L19.19 10.95L18.5 9L17.81 10.95L15.75 11L17.39 12.25L16.8 14.23L18.5 13.06L20.2 14.23L19.61 12.25Z"
-      ><animate
+    >
+      <animate
         fill="freeze"
         attributeName="fill-opacity"
         begin="0.2s"
         dur="0.4s"
         values="1;0"
-      /></path
-    ></g
-  ><g
+      />
+    </path>
+  </g><g
     fill="none"
     stroke="currentColor"
     strokeLinecap="round"
     strokeLinejoin="round"
     strokeWidth="2"
-    ><path
+  >
+    <path
       d="M7 6 C7 12.08 11.92 17 18 17 C18.53 17 19.05 16.96 19.56 16.89 C17.95 19.36 15.17 21 12 21 C7.03 21 3 16.97 3 12 C3 8.83 4.64 6.05 7.11 4.44 C7.04 4.95 7 5.47 7 6 Z"
-    /><set attributeName="opacity" begin="0.6s" to="0" /></g
-  ><mask id="lineMdMoonToSunnyOutlineLoopTransition0"
-    ><circle cx="12" cy="12" r="12" fill="#fff" /><circle cx="12" cy="12" r="8"
-      ><animate
+    /><set attributeName="opacity" begin="0.6s" to="0" />
+  </g><mask id="lineMdMoonToSunnyOutlineLoopTransition0">
+    <circle cx="12" cy="12" r="12" fill="#fff" /><circle cx="12" cy="12" r="8">
+      <animate
         fill="freeze"
         attributeName="r"
         begin="0.6s"
         dur="0.4s"
         values="8;4"
-      /></circle
-    ><circle cx="18" cy="6" r="12" fill="#fff"
-      ><animate
+      />
+    </circle><circle cx="18" cy="6" r="12" fill="#fff">
+      <animate
         fill="freeze"
         attributeName="cx"
         begin="0.6s"
@@ -7353,9 +7403,9 @@ Svelte in <span class="c-bold">**markdown**</span>
         begin="0.6s"
         dur="0.4s"
         values="12;3"
-      /></circle
-    ><circle cx="18" cy="6" r="10"
-      ><animate
+      />
+    </circle><circle cx="18" cy="6" r="10">
+      <animate
         fill="freeze"
         attributeName="cx"
         begin="0.6s"
@@ -7373,45 +7423,46 @@ Svelte in <span class="c-bold">**markdown**</span>
         begin="0.6s"
         dur="0.4s"
         values="10;1"
-      /></circle
-    ></mask
-  ><circle
+      />
+    </circle>
+  </mask><circle
     cx="12"
     cy="12"
     r="10"
     fill="currentColor"
     mask="url(#lineMdMoonToSunnyOutlineLoopTransition0)"
     opacity="0"
-    ><set attributeName="opacity" begin="0.6s" to="1" /><animate
+  >
+    <set attributeName="opacity" begin="0.6s" to="1" /><animate
       fill="freeze"
       attributeName="r"
       begin="0.6s"
       dur="0.4s"
       values="10;6"
-    /></circle
-  ></svg
->
+    />
+  </circle>
+</svg>
 
 === 1003 packages/theme-default/src/components/icons/Svelte.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 32 32"
-  ><path
+<svg width="1em" height="1em" viewBox="0 0 32 32">
+  <path
     fill="currentColor"
     d="M26.1 5.7C23.5 2 18.4.9 14.7 3.2L8.2 7.4c-1.8 1.1-3 2.9-3.4 5c-.3 1.7 0 3.5.8 5.1c-.6.8-.9 1.8-1.1 2.8c-.4 2.1.1 4.3 1.4 6c2.6 3.7 7.7 4.8 11.4 2.5l6.5-4.2c1.8-1.1 3-2.9 3.4-5c.3-1.7 0-3.5-.8-5.1c.6-.8.9-1.8 1.1-2.8c.4-2.1-.1-4.3-1.4-6zM24.3 11c0 .2-.1.4-.2.6l-.1.4l-.3-.2c-.8-.6-1.6-1-2.6-1.3l-.2-.1v-.2c0-.3-.1-.7-.3-1c-.4-.5-1-.8-1.7-.6c-.1 0-.3.1-.4.2L12 12.9c-.3.2-.5.5-.6.9c-.1.4 0 .8.2 1.1c.4.5 1 .8 1.7.6c.1 0 .3-.1.4-.2l2.5-1.6c.4-.3.9-.5 1.3-.6c2.1-.5 4.3.3 5.6 2.1c.7 1 1 2.4.8 3.6c-.2 1.2-1 2.3-2 3L15.4 26c-.4.3-.9.5-1.3.6c-2.1.5-4.3-.3-5.6-2.1c-.7-1-1-2.4-.8-3.6c0-.2.1-.4.2-.6L8 20l.3.2c.8.6 1.6 1 2.6 1.3l.2.1v.2c0 .3.1.7.3 1c.4.5 1 .8 1.7.6c.1 0 .3-.1.4-.2L20 19c.3-.2.5-.5.6-.9c.1-.4 0-.8-.2-1.1c-.4-.5-1-.8-1.7-.6c-.1 0-.3.1-.4.2l-2.5 1.6c-.4.3-.9.5-1.3.6c-2.1.5-4.3-.3-5.6-2.1c-.8-1-1-2.4-.8-3.6c.2-1.2 1-2.3 2-3l6.5-4.2c.4-.3.9-.5 1.3-.6c2.1-.5 4.3.3 5.6 2.1c.7 1.1 1 2.4.8 3.6z"
-  /></svg
->
+  />
+</svg>
 
 === 1511 packages/theme-default/src/components/icons/SvelteWithColor.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 32 32"
-  ><path
+<svg width="1em" height="1em" viewBox="0 0 32 32">
+  <path
     fill="#ff3e00"
     d="M26.47 5.7a8.973 8.973 0 0 0-11.793-2.454L7.96 7.4a7.461 7.461 0 0 0-3.481 5.009a7.686 7.686 0 0 0 .8 5.058a7.358 7.358 0 0 0-1.151 2.8a7.789 7.789 0 0 0 1.4 6.028a8.977 8.977 0 0 0 11.794 2.458L24.04 24.6a7.468 7.468 0 0 0 3.481-5.009a7.673 7.673 0 0 0-.8-5.062a7.348 7.348 0 0 0 1.152-2.8A7.785 7.785 0 0 0 26.47 5.7"
   /><path
     fill="#fff"
     d="M14.022 26.64A5.413 5.413 0 0 1 8.3 24.581a4.678 4.678 0 0 1-.848-3.625a4.307 4.307 0 0 1 .159-.61l.127-.375l.344.238a8.76 8.76 0 0 0 2.628 1.274l.245.073l-.025.237a1.441 1.441 0 0 0 .271.968a1.63 1.63 0 0 0 1.743.636a1.512 1.512 0 0 0 .411-.175l6.7-4.154a1.366 1.366 0 0 0 .633-.909a1.407 1.407 0 0 0-.244-1.091a1.634 1.634 0 0 0-1.726-.622a1.509 1.509 0 0 0-.413.176l-2.572 1.584a4.934 4.934 0 0 1-1.364.582a5.415 5.415 0 0 1-5.727-2.06a4.678 4.678 0 0 1-.831-3.628A4.507 4.507 0 0 1 9.9 10.09l6.708-4.154a4.932 4.932 0 0 1 1.364-.581A5.413 5.413 0 0 1 23.7 7.414a4.679 4.679 0 0 1 .848 3.625a4.272 4.272 0 0 1-.159.61l-.127.375l-.344-.237a8.713 8.713 0 0 0-2.628-1.274l-.245-.074l.025-.237a1.438 1.438 0 0 0-.272-.968a1.629 1.629 0 0 0-1.725-.622a1.484 1.484 0 0 0-.411.176l-6.722 4.14a1.353 1.353 0 0 0-.631.908a1.394 1.394 0 0 0 .244 1.092a1.634 1.634 0 0 0 1.726.621a1.538 1.538 0 0 0 .413-.175l2.562-1.585a4.9 4.9 0 0 1 1.364-.581a5.417 5.417 0 0 1 5.728 2.059a4.681 4.681 0 0 1 .843 3.625a4.5 4.5 0 0 1-2.089 3.013l-6.707 4.154a4.9 4.9 0 0 1-1.364.581"
-  /></svg
->
+  />
+</svg>
 
-=== 1105 packages/theme-default/src/components/icons/SystemDefault.svelte	svelte
+=== 1140 packages/theme-default/src/components/icons/SystemDefault.svelte	svelte
 <script lang="ts">
   let props = $props();
 </script>
@@ -7422,115 +7473,125 @@ Svelte in <span class="c-bold">**markdown**</span>
   height="1em"
   viewBox="0 0 24 24"
   {...props}
-  ><!-- Icon from Material Line Icons by Vjacheslav Trushkin - https://github.com/cyberalien/line-md/blob/master/license.txt --><path
+>
+  <!-- Icon from Material Line Icons by Vjacheslav Trushkin - https://github.com/cyberalien/line-md/blob/master/license.txt --><path
     fill="currentColor"
     d="M10 16h4v0h-4z"
-    ><animate
+  >
+    <animate
       fill="freeze"
       attributeName="d"
       begin="0.6s"
       dur="0.2s"
       values="M10 16h4v0h-4z;M10 16h4v6h-4z"
-    /></path
-  ><g
+    />
+  </path><g
     fill="none"
     stroke="currentColor"
     stroke-linecap="round"
     stroke-linejoin="round"
     stroke-width="2"
-    ><path
+  >
+    <path
       stroke-dasharray="72"
       stroke-dashoffset="72"
       d="M12 17h-10v-14h20v14Z"
-      ><animate
+    >
+      <animate
         fill="freeze"
         attributeName="stroke-dashoffset"
         dur="0.6s"
         values="72;0"
-      /></path
-    ><path stroke-dasharray="4" stroke-dashoffset="4" d="M12 21h3M12 21h-3"
-      ><animate
+      />
+    </path><path
+      stroke-dasharray="4"
+      stroke-dashoffset="4"
+      d="M12 21h3M12 21h-3"
+    >
+      <animate
         fill="freeze"
         attributeName="stroke-dashoffset"
         begin="0.8s"
         dur="0.2s"
         values="4;0"
-      /></path
-    ></g
-  ></svg
->
+      />
+    </path>
+  </g>
+</svg>
 
-=== 768 packages/theme-default/src/components/icons/TocClose.svelte	svelte
+=== 769 packages/theme-default/src/components/icons/TocClose.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><g fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2"
-    ><path d="M5 5L19 5"
-      ><animate
+>
+  <g fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2">
+    <path d="M5 5L19 5">
+      <animate
         fill="freeze"
         attributeName="d"
         begin="0.2s"
         dur="0.4s"
         values="M5 5L19 5;M5 5L19 19"
-      /></path
-    ><path d="M5 12H19"
-      ><animate
+      />
+    </path><path d="M5 12H19">
+      <animate
         fill="freeze"
         attributeName="d"
         dur="0.4s"
         values="M5 12H19;M12 12H12"
-      /><set attributeName="opacity" begin="0.4s" to="0" /></path
-    ><path d="M5 19L19 19"
-      ><animate
+      /><set attributeName="opacity" begin="0.4s" to="0" />
+    </path><path d="M5 19L19 19">
+      <animate
         fill="freeze"
         attributeName="d"
         begin="0.2s"
         dur="0.4s"
         values="M5 19L19 19;M5 19L19 5"
-      /></path
-    ></g
-  ></svg
->
+      />
+    </path>
+  </g>
+</svg>
 
-=== 760 packages/theme-default/src/components/icons/TocMenu.svelte	svelte
+=== 761 packages/theme-default/src/components/icons/TocMenu.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><g fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2"
-    ><path d="M5 5L19 19"
-      ><animate
+>
+  <g fill="none" stroke="currentColor" strokeLinecap="round" strokeWidth="2">
+    <path d="M5 5L19 19">
+      <animate
         fill="freeze"
         attributeName="d"
         dur="0.4s"
         values="M5 5L19 19;M5 5L19 5"
-      /></path
-    ><path d="M12 12H12" opacity="0"
-      ><animate
+      />
+    </path><path d="M12 12H12" opacity="0">
+      <animate
         fill="freeze"
         attributeName="d"
         begin="0.2s"
         dur="0.4s"
         values="M12 12H12;M5 12H19"
-      /><set attributeName="opacity" begin="0.2s" to="1" /></path
-    ><path d="M5 19L19 5"
-      ><animate
+      /><set attributeName="opacity" begin="0.2s" to="1" />
+    </path><path d="M5 19L19 5">
+      <animate
         fill="freeze"
         attributeName="d"
         dur="0.4s"
         values="M5 19L19 5;M5 19L19 19"
-      /></path
-    ></g
-  ></svg
->
+      />
+    </path>
+  </g>
+</svg>
 
-=== 1678 packages/theme-default/src/components/icons/Tomato.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 72 72"
-  ><g strokeLinejoin="round" strokeMiterlimit="10"
-    ><ellipse
+=== 1681 packages/theme-default/src/components/icons/Tomato.svelte	svelte
+<svg width="1em" height="1em" viewBox="0 0 72 72">
+  <g strokeLinejoin="round" strokeMiterlimit="10">
+    <ellipse
       cx="35.825"
       cy="37.597"
       fill="#EA5A47"
@@ -7547,38 +7608,40 @@ Svelte in <span class="c-bold">**markdown**</span>
     /><path
       fill="#B1CC33"
       d="M46.325 15.849c-.385 1.382-.994 3.031-2.436 4.235C38 25 30.25 23.288 26.817 20.084c-1.36-1.284-2.04-2.853-2.424-4.235c-.637-2.282-.362-4.17-.362-4.17s2.282-.328 4.838.582a9.71 9.71 0 0 1 2.622 1.405c.483-3.369 2.732-5.618 3.555-6.342l.307-.252l.307.252c.823.724 3.072 2.973 3.555 6.342a9.716 9.716 0 0 1 2.622-1.405c2.557-.91 4.839-.581 4.839-.581s.285 1.887-.352 4.169z"
-    /></g
-  ><g
+    />
+  </g><g
     fill="none"
     stroke="#000"
     strokeLinejoin="round"
     strokeMiterlimit="10"
     strokeWidth="2"
-    ><path
+  >
+    <path
       strokeLinecap="round"
       d="M50.307 19.346c6.375 4.057 10.533 10.72 10.533 18.252c0 12.36-11.2 22.381-25.015 22.381S10.81 49.96 10.81 37.597c0-7.374 3.986-13.915 10.136-17.993"
     /><path
       d="M46.325 15.849c-.385 1.382-.994 3.031-2.436 4.235C38 25 30.25 23.288 26.817 20.084c-1.36-1.284-2.04-2.853-2.424-4.235c-.637-2.282-.362-4.17-.362-4.17s2.282-.328 4.838.582a9.71 9.71 0 0 1 2.622 1.405c.483-3.369 2.732-5.618 3.555-6.342l.307-.252l.307.252c.823.724 3.072 2.973 3.555 6.342a9.716 9.716 0 0 1 2.622-1.405c2.557-.91 4.839-.581 4.839-.581s.285 1.887-.352 4.169z"
-    /></g
-  ></svg
->
+    />
+  </g>
+</svg>
 
-=== 204 packages/theme-default/src/components/icons/Up.svelte	svelte
+=== 205 packages/theme-default/src/components/icons/Up.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M7.41 15.41L12 10.83l4.59 4.58L18 14l-6-6l-6 6l1.41 1.41z"
-  /></svg
->
+  />
+</svg>
 
 === 2083 packages/theme-default/src/components/icons/Watermelon.svelte	svelte
-<svg width="1em" height="1em" viewBox="0 0 72 72"
-  ><g strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2"
-    ><path
+<svg width="1em" height="1em" viewBox="0 0 72 72">
+  <g strokeLinejoin="round" strokeMiterlimit="10" strokeWidth="2">
+    <path
       fill="#B1CC33"
       d="M55.226 56.78c-10.988 10.977-28.78 10.977-39.768 0c-10.976-10.987-10.976-28.779 0-39.767l2.654 2.654c-9.525 9.515-9.525 24.945 0 34.46c9.515 9.525 24.945 9.525 34.46 0l2.654 2.654z"
     /><path
@@ -7589,8 +7652,8 @@ Svelte in <span class="c-bold">**markdown**</span>
     /><path
       fill="#EA5A47"
       d="M49.524 56.718c-9.52 6.837-22.857 5.973-31.412-2.592c-8.62-8.61-9.44-22.063-2.46-31.594"
-    /></g
-  ><path
+    />
+  </g><path
     fill="none"
     stroke="#000"
     strokeLinejoin="round"
@@ -7647,10 +7710,10 @@ Svelte in <span class="c-bold">**markdown**</span>
     rx="1.687"
     ry=".844"
     transform="rotate(-45.001 22.28 50.087)"
-  /></svg
->
+  />
+</svg>
 
-=== 1894 packages/theme-default/src/components/icons/logos/Bun.svelte	svelte
+=== 1895 packages/theme-default/src/components/icons/logos/Bun.svelte	svelte
 <script lang="ts">
   let props = $props();
 </script>
@@ -7661,13 +7724,14 @@ Svelte in <span class="c-bold">**markdown**</span>
   height="1em"
   viewBox="0 0 24 24"
   {...props}
-  ><!-- Icon from Simple Icons by Simple Icons Collaborators - https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md --><path
+>
+  <!-- Icon from Simple Icons by Simple Icons Collaborators - https://github.com/simple-icons/simple-icons/blob/develop/LICENSE.md --><path
     fill="currentColor"
     d="M12 22.596c6.628 0 12-4.338 12-9.688c0-3.318-2.057-6.248-5.219-7.986c-1.286-.715-2.297-1.357-3.139-1.89C14.058 2.025 13.08 1.404 12 1.404c-1.097 0-2.334.785-3.966 1.821a50 50 0 0 1-2.816 1.697C2.057 6.66 0 9.59 0 12.908c0 5.35 5.372 9.687 12 9.687zM10.599 4.715c.334-.759.503-1.58.498-2.409c0-.145.202-.187.23-.029c.658 2.783-.902 4.162-2.057 4.624c-.124.048-.199-.121-.103-.209a5.8 5.8 0 0 0 1.432-1.977m2.058-.102a5.8 5.8 0 0 0-.782-2.306v-.016c-.069-.123.086-.263.185-.172c1.962 2.111 1.307 4.067.556 5.051c-.082.103-.23-.003-.189-.126a5.85 5.85 0 0 0 .23-2.431m1.776-.561a5.7 5.7 0 0 0-1.612-1.806v-.014c-.112-.085-.024-.274.114-.218c2.595 1.087 2.774 3.18 2.459 4.407a.12.12 0 0 1-.049.071a.11.11 0 0 1-.153-.026a.12.12 0 0 1-.022-.083a5.9 5.9 0 0 0-.737-2.331m-5.087.561c-.617.546-1.282.76-2.063 1c-.117 0-.195-.078-.156-.181c1.752-.909 2.376-1.649 2.999-2.778c0 0 .155-.118.188.085c0 .304-.349 1.329-.968 1.874m4.945 11.237a2.96 2.96 0 0 1-.937 1.553c-.346.346-.8.565-1.286.62a2.18 2.18 0 0 1-1.327-.62a2.96 2.96 0 0 1-.925-1.553a.24.24 0 0 1 .064-.198a.23.23 0 0 1 .193-.069h3.965a.23.23 0 0 1 .19.07c.05.053.073.125.063.197m-5.458-2.176a1.86 1.86 0 0 1-2.384-.245a1.98 1.98 0 0 1-.233-2.447c.207-.319.503-.566.848-.713a1.84 1.84 0 0 1 1.092-.11c.366.075.703.261.967.531a1.98 1.98 0 0 1 .408 2.114a1.93 1.93 0 0 1-.698.869zm8.495.005a1.86 1.86 0 0 1-2.381-.253a1.96 1.96 0 0 1-.547-1.366c0-.384.11-.76.32-1.079c.207-.319.503-.567.849-.713a1.84 1.84 0 0 1 1.093-.108c.367.076.704.262.968.534a1.98 1.98 0 0 1 .4 2.117a1.93 1.93 0 0 1-.702.868"
-  /></svg
->
+  />
+</svg>
 
-=== 4729 packages/theme-default/src/components/icons/logos/BunWithColor.svelte	svelte
+=== 4730 packages/theme-default/src/components/icons/logos/BunWithColor.svelte	svelte
 <script lang="ts">
   let props = $props();
 </script>
@@ -7678,7 +7742,8 @@ Svelte in <span class="c-bold">**markdown**</span>
   height="1em"
   viewBox="0 0 256 225"
   {...props}
-  ><!-- Icon from SVG Logos by Gil Barbara - https://raw.githubusercontent.com/gilbarbara/logos/master/LICENSE.txt --><path
+>
+  <!-- Icon from SVG Logos by Gil Barbara - https://raw.githubusercontent.com/gilbarbara/logos/master/LICENSE.txt --><path
     d="M228.747 65.588a38 38 0 0 0-1.62-1.62c-.55-.519-1.07-1.102-1.62-1.62c-.551-.52-1.07-1.102-1.62-1.62c-.551-.52-1.07-1.103-1.62-1.621c-.552-.519-1.07-1.102-1.62-1.62c-.552-.519-1.07-1.102-1.621-1.62c-.551-.52-1.07-1.102-1.62-1.62a85.74 85.74 0 0 1 25.632 59.819c0 53.695-54.505 97.377-121.519 97.377c-37.525 0-71.097-13.707-93.424-35.192l1.62 1.62l1.62 1.62l1.62 1.62l1.621 1.621l1.62 1.62l1.62 1.62l1.621 1.62c22.295 22.393 56.612 36.813 95.044 36.813c67.014 0 121.519-43.682 121.519-97.215c0-22.878-9.851-44.557-27.253-61.602"
   /><path
     fill="#FBF0DF"
@@ -7704,8 +7769,8 @@ Svelte in <span class="c-bold">**markdown**</span>
     d="M109.076 150.684a17.37 17.37 0 0 1 13.577-6.74a19.44 19.44 0 0 1 12.962 5.476a51 51 0 0 0 2.139-2.495a22.68 22.68 0 0 0-15.263-6.254a20.61 20.61 0 0 0-15.846 7.647a31 31 0 0 0 2.43 2.366"
   /><path
     d="M121.81 161.021a24.05 24.05 0 0 1-14.42-6.481a30.85 30.85 0 0 1-10.077-16.365a3.89 3.89 0 0 1 .842-3.24a4.57 4.57 0 0 1 3.662-1.653h39.988a4.67 4.67 0 0 1 3.661 1.653a3.86 3.86 0 0 1 .81 3.24A30.85 30.85 0 0 1 136.2 154.54c-3.93 3.717-9 6-14.388 6.481m-19.993-23.98c-.519 0-.648.227-.68.292a26.86 26.86 0 0 0 8.846 14.16a20.2 20.2 0 0 0 11.828 5.672a20.35 20.35 0 0 0 11.828-5.606a26.9 26.9 0 0 0 8.814-14.161a.68.68 0 0 0-.648-.292z"
-  /><g transform="translate(53.792 88.4)"
-    ><ellipse
+  /><g transform="translate(53.792 88.4)">
+    <ellipse
       cx="117.047"
       cy="40.183"
       fill="#FEBBD0"
@@ -7722,87 +7787,93 @@ Svelte in <span class="c-bold">**markdown**</span>
     /><path
       fill="#FFF"
       d="M22.36 18.99a6.708 6.708 0 1 0 .064-13.416a6.708 6.708 0 0 0-.065 13.416m80.267 0a6.708 6.708 0 1 0-.065 0z"
-    /></g
-  ></svg
->
+    />
+  </g>
+</svg>
 
-=== 358 packages/theme-default/src/components/icons/logos/Npm.svelte	svelte
+=== 359 packages/theme-default/src/components/icons/logos/Npm.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M1.763 0C.786 0 0 .786 0 1.763v20.474C0 23.214.786 24 1.763 24h20.474c.977 0 1.763-.786 1.763-1.763V1.763C24 .786 23.214 0 22.237 0zM5.13 5.323l13.837.019l-.009 13.836h-3.464l.01-10.382h-3.456L12.04 19.17H5.113z"
-  /></svg
->
+  />
+</svg>
 
-=== 219 packages/theme-default/src/components/icons/logos/NpmWithColor.svelte	svelte
+=== 220 packages/theme-default/src/components/icons/logos/NpmWithColor.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 256 256"
-  ><path fill="#C12127" d="M0 256V0h256v256z" /><path
+>
+  <path fill="#C12127" d="M0 256V0h256v256z" /><path
     fill="#FFF"
     d="M48 48h160v160h-32V80h-48v128H48z"
-  /></svg
->
+  />
+</svg>
 
-=== 416 packages/theme-default/src/components/icons/logos/Pnpm.svelte	svelte
+=== 417 packages/theme-default/src/components/icons/logos/Pnpm.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 512 512"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M502 10v140H362V10h140m-176 0v140H186V10h140m-176 0v140H10V10h140m352 176v140H362V186h140M512 0H352v160h160V0zM336 0H176v160h160V0zM160 0H0v160h160V0zm352 176H352v160h160V176zM336 336H176V176h160v160zm0 16H176v160h160V352zm176 0H352v160h160V352zm-352 0H0v160h160V352z"
-  /></svg
->
+  />
+</svg>
 
-=== 378 packages/theme-default/src/components/icons/logos/PnpmWithColor.svelte	svelte
+=== 379 packages/theme-default/src/components/icons/logos/PnpmWithColor.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 32 32"
-  ><path
+>
+  <path
     fill="#f9ad00"
     d="M30 10.75h-8.749V2H30Zm-9.626 0h-8.75V2h8.75Zm-9.625 0H2V2h8.749ZM30 20.375h-8.749v-8.75H30Z"
   /><path
     fill="#4e4e4e"
     d="M20.374 20.375h-8.75v-8.75h8.75Zm0 9.625h-8.75v-8.75h8.75ZM30 30h-8.749v-8.75H30Zm-19.251 0H2v-8.75h8.749Z"
-  /></svg
->
+  />
+</svg>
 
-=== 2001 packages/theme-default/src/components/icons/logos/Yarn.svelte	svelte
+=== 2002 packages/theme-default/src/components/icons/logos/Yarn.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 24 24"
-  ><path
+>
+  <path
     fill="currentColor"
     d="M12 0C5.375 0 0 5.375 0 12s5.375 12 12 12s12-5.375 12-12S18.625 0 12 0zm.768 4.105c.183 0 .363.053.525.157c.125.083.287.185.755 1.154c.31-.088.468-.042.551-.019c.204.056.366.19.463.375c.477.917.542 2.553.334 3.605c-.241 1.232-.755 2.029-1.131 2.576c.324.329.778.899 1.117 1.825c.278.774.31 1.478.273 2.015a5.51 5.51 0 0 0 .602-.329c.593-.366 1.487-.917 2.553-.931c.714-.009 1.269.445 1.353 1.103a1.23 1.23 0 0 1-.945 1.362c-.649.158-.95.278-1.821.843c-1.232.797-2.539 1.242-3.012 1.39a1.686 1.686 0 0 1-.704.343c-.737.181-3.266.315-3.466.315h-.046c-.783 0-1.214-.241-1.45-.491c-.658.329-1.51.19-2.122-.134a1.078 1.078 0 0 1-.58-1.153a1.243 1.243 0 0 1-.153-.195c-.162-.25-.528-.936-.454-1.946c.056-.723.556-1.367.88-1.71a5.522 5.522 0 0 1 .408-2.256c.306-.727.885-1.348 1.32-1.737c-.32-.537-.644-1.367-.329-2.21c.227-.602.412-.936.82-1.08h-.005c.199-.074.389-.153.486-.259a3.418 3.418 0 0 1 2.298-1.103c.037-.093.079-.185.125-.283c.31-.658.639-1.029 1.024-1.168a.94.94 0 0 1 .328-.06zm.006.7c-.507.016-1.001 1.519-1.001 1.519s-1.27-.204-2.266.871c-.199.218-.468.334-.746.44c-.079.028-.176.023-.417.672c-.371.991.625 2.094.625 2.094s-1.186.839-1.626 1.881c-.486 1.144-.338 2.261-.338 2.261s-.843.732-.899 1.487c-.051.663.139 1.2.343 1.515c.227.343.51.176.51.176s-.561.653-.037.931c.477.25 1.283.394 1.71-.037c.31-.31.371-1.001.486-1.283c.028-.065.12.111.209.199c.097.093.264.195.264.195s-.755.324-.445 1.066c.102.246.468.403 1.066.398c.222-.005 2.664-.139 3.313-.296c.375-.088.505-.283.505-.283s1.566-.431 2.998-1.357c.917-.598 1.293-.76 2.034-.936c.612-.148.57-1.098-.241-1.084c-.839.009-1.575.44-2.196.825c-1.163.718-1.742.672-1.742.672l-.018-.032c-.079-.13.371-1.293-.134-2.678c-.547-1.515-1.413-1.881-1.344-1.997c.297-.5 1.038-1.297 1.334-2.78c.176-.899.13-2.377-.269-3.151c-.074-.144-.732.241-.732.241s-.616-1.371-.788-1.483a.271.271 0 0 0-.157-.046z"
-  /></svg
->
+  />
+</svg>
 
-=== 2456 packages/theme-default/src/components/icons/logos/YarnWithColor.svelte	svelte
+=== 2457 packages/theme-default/src/components/icons/logos/YarnWithColor.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   width="1em"
   height="1em"
   viewBox="0 0 256 256"
-  ><path
+>
+  <path
     fill="#368FB9"
     d="M128 0C57.328 0 0 57.328 0 128s57.328 128 128 128s128-57.328 128-128S198.672 0 128 0"
   /><path
     fill="#FFF"
     d="M203.317 174.06c-7.907 1.878-11.91 3.608-21.695 9.983c-15.271 9.884-31.976 14.48-31.976 14.48s-1.383 2.076-5.387 3.015c-6.918 1.68-32.963 3.114-35.335 3.163c-6.376.05-10.28-1.63-11.367-4.25c-3.311-7.907 4.744-11.367 4.744-11.367s-1.779-1.087-2.817-2.076c-.939-.939-1.927-2.816-2.224-2.125c-1.235 3.015-1.878 10.379-5.189 13.69c-4.547 4.596-13.146 3.064-18.236.395c-5.585-2.965.395-9.933.395-9.933s-3.015 1.779-5.436-1.878c-2.175-3.36-4.2-9.094-3.657-16.16c.593-8.056 9.587-15.865 9.587-15.865s-1.581-11.91 3.608-24.117c4.695-11.12 17.347-20.065 17.347-20.065s-10.626-11.762-6.672-22.338c2.57-6.92 3.608-6.87 4.448-7.166c2.965-1.137 5.831-2.373 7.957-4.695c10.625-11.466 24.166-9.292 24.166-9.292s6.425-19.52 12.356-15.715c1.828 1.186 8.401 15.814 8.401 15.814s7.018-4.102 7.809-2.57c4.25 8.254 4.744 24.019 2.866 33.607c-3.163 15.814-11.07 24.315-14.233 29.652c-.741 1.236 8.5 5.14 14.332 21.3c5.387 14.777.593 27.182 1.433 28.566c.148.247.198.346.198.346s6.177.494 18.582-7.166c6.622-4.102 14.48-8.698 23.425-8.797c8.65-.149 9.094 9.983 2.57 11.564Zm11.763-7.265c-.89-7.017-6.82-11.86-14.431-11.762c-11.367.148-20.905 6.03-27.231 9.934c-2.471 1.532-4.596 2.669-6.425 3.509c.395-5.733.05-13.245-2.916-21.498c-3.608-9.885-8.45-15.963-11.91-19.472c4.003-5.832 9.489-14.332 12.058-27.478c2.224-11.219 1.533-28.664-3.558-38.45c-1.038-1.976-2.767-3.41-4.942-4.003c-.89-.247-2.57-.741-5.881.198c-4.991-10.329-6.721-11.416-8.056-12.306c-2.767-1.779-6.029-2.174-9.093-1.038c-4.102 1.483-7.61 5.437-10.922 12.454a51.47 51.47 0 0 0-1.334 3.015c-6.277.445-16.161 2.718-24.513 11.762c-1.038 1.137-3.064 1.977-5.19 2.768h.05c-4.349 1.532-6.326 5.09-8.747 11.515c-3.361 8.994.098 17.84 3.508 23.574c-4.645 4.151-10.823 10.773-14.084 18.532c-4.053 9.588-4.498 18.978-4.35 24.068c-3.459 3.658-8.796 10.527-9.39 18.237c-.79 10.773 3.114 18.088 4.844 20.756c.494.791 1.038 1.434 1.63 2.076c-.197 1.334-.246 2.768.05 4.25c.643 3.46 2.817 6.277 6.128 8.056c6.524 3.46 15.617 4.942 22.635 1.433c2.52 2.669 7.117 5.239 15.469 5.239h.494c2.125 0 29.109-1.433 36.967-3.36c3.509-.841 5.93-2.324 7.512-3.658c5.04-1.582 18.977-6.326 32.123-14.826c9.291-6.03 12.504-7.315 19.423-8.995c6.72-1.63 10.922-7.759 10.082-14.53Z"
-  /></svg
->
+  />
+</svg>
 
 === 731 packages/theme-default/src/components/pwa/Btn.svelte	svelte
 <script lang="ts">

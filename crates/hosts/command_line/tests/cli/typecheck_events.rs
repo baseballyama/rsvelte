@@ -7,7 +7,7 @@ use crate::typecheck::{Project, text, typecheck_config};
 
 /// The report of a type check of `files` with svelte linked, its errors on stdout.
 #[cfg(unix)]
-fn check(files: &[(&str, &str)]) -> String {
+pub(crate) fn check(files: &[(&str, &str)]) -> String {
     let mut all = vec![(
         "tsconfig.json",
         r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
@@ -170,5 +170,78 @@ fn typecheck_types_the_events_of_a_generic_component() {
          src/App.svelte(9,22): error TS2345: Argument of type '\"x\"' is not assignable to \
          parameter of type 'never'.\n\
          \nFound 4 errors in 1 file.\n"
+    );
+}
+
+/// A typed dispatcher's events are read from its type, so a name the typing cannot resolve is
+/// reported once, where it is written, as svelte-check reports it: svelte2tsx's copy of the
+/// typing maps nowhere. svelte-check 4.7.8 reports these four lines.
+#[cfg(unix)]
+#[test]
+fn typecheck_reports_a_typed_dispatchers_unresolved_name_once() {
+    let dispatcher = |declaration: &str| {
+        format!(
+            "<script lang=\"ts\">\n\timport {{ createEventDispatcher }} from 'svelte';\n\
+             \t{declaration}\n</script>\n<button onclick={{() => dispatch('go', 1)}}>x</button>\n"
+        )
+    };
+    let computed =
+        dispatcher("const dispatch = createEventDispatcher<{ [Z](): void; go: number }>();");
+    let exported =
+        dispatcher("export const dispatch = createEventDispatcher<{ go: number; bad: Nope }>();");
+    let app = "<script lang=\"ts\">\n\timport Computed from './Computed.svelte';\n\
+        \timport Exported from './Exported.svelte';\n</script>\n\
+        <Computed on:go={(e) => { const s: string = e.detail; }} />\n\
+        <Exported on:go={(e) => { const s: string = e.detail; }} />\n";
+    let report = check(&[
+        ("src/Computed.svelte", &computed),
+        ("src/Exported.svelte", &exported),
+        ("src/App.svelte", app),
+    ]);
+    assert_eq!(
+        report,
+        "src/Computed.svelte(3,44): error TS2304: Cannot find name 'Z'.\n\
+         src/Exported.svelte(3,67): error TS2304: Cannot find name 'Nope'.\n\
+         src/App.svelte(5,33): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+         src/App.svelte(6,33): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+         \nFound 4 errors in 3 files.\n"
+    );
+}
+
+/// A dispatcher variable declared more than once has the type of its first declaration, or of
+/// the merged symbol, at the render function's return, so its events are read from a copy of
+/// each typing, as svelte2tsx reads them. svelte-check 4.7.8 reports these six lines, beside the
+/// compiler's error on the function.
+#[cfg(unix)]
+#[test]
+fn typecheck_reads_a_redeclared_dispatchers_events_from_each_typing() {
+    let dispatcher = |second: &str| {
+        format!(
+            "<script lang=\"ts\">\n\timport {{ createEventDispatcher }} from 'svelte';\n\
+             \tvar dispatch = createEventDispatcher<{{ a: number }}>();\n\t{second}\n</script>\n"
+        )
+    };
+    let twice = dispatcher("var dispatch = createEventDispatcher<{ b: string }>();");
+    let function = dispatcher("function dispatch() {}");
+    let app = "<script lang=\"ts\">\n\timport Twice from './Twice.svelte';\n\
+        \timport Function from './Function.svelte';\n</script>\n\
+        <Twice on:a={(e) => { const s: string = e.detail; }} on:b={(e) => { const n: number = \
+        e.detail; }} />\n<Function on:a={(e) => { const s: string = e.detail; }} />\n";
+    let report = check(&[
+        ("src/Twice.svelte", &twice),
+        ("src/Function.svelte", &function),
+        ("src/App.svelte", app),
+    ]);
+    assert_eq!(
+        report,
+        "src/Twice.svelte(4,6): error TS2403: Subsequent variable declarations must have the same \
+         type.  Variable 'dispatch' must be of type 'EventDispatcher<{ a: number; }>', but here \
+         has type 'EventDispatcher<{ b: string; }>'.\n\
+         src/Function.svelte(3,6): error TS2300: Duplicate identifier 'dispatch'.\n\
+         src/Function.svelte(4,11): error TS2300: Duplicate identifier 'dispatch'.\n\
+         src/App.svelte(5,29): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+         src/App.svelte(5,75): error TS2322: Type 'string' is not assignable to type 'number'.\n\
+         src/App.svelte(6,32): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+         \nFound 6 errors in 3 files.\n"
     );
 }

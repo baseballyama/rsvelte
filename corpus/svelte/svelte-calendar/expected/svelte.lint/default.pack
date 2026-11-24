@@ -35,7 +35,7 @@
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 931 src/lib/components/generic/ViewTransitionEffect.svelte	lint.txt
+=== 1124 src/lib/components/generic/ViewTransitionEffect.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -45,18 +45,21 @@
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:28 11:54 svelte/prefer-destructured-store-props "Destructure activeViewDirection from $store for better change tracking & fewer redraws"
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:2 13:10 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 13:8 13:10 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 237 src/lib/components/generic/crossfade/CrossfadeBoundary.svelte	lint.txt
+=== 427 src/lib/components/generic/crossfade/CrossfadeBoundary.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:1 6:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 6:7 6:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 939 src/lib/components/generic/crossfade/CrossfadeProvider.svelte	lint.txt
+=== 1132 src/lib/components/generic/crossfade/CrossfadeProvider.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:1 10:70 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 10:12 10:22 svelte/prefer-destructured-store-props "Destructure key from $store for better change tracking & fewer redraws"
 10:24 10:42 svelte/max-attributes-per-line "'send' should be on a new line."
 10:30 10:41 svelte/prefer-destructured-store-props "Destructure send from $store for better change tracking & fewer redraws"
@@ -64,7 +67,7 @@
 10:52 10:66 svelte/prefer-destructured-store-props "Destructure receive from $store for better change tracking & fewer redraws"
 10:68 10:70 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 3367 src/lib/docs/JSONEditorModal.svelte	lint.txt
+=== 4447 src/lib/docs/JSONEditorModal.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -74,16 +77,20 @@
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:14 svelte/valid-compile "`newValue` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:28 14:36 svelte/max-attributes-per-line "'let:send' should be on a new line."
 14:37 14:48 svelte/sort-attributes "Attribute 'let:receive' should go before 'let:send'."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+15:8 15:79 svelte/valid-compile "Using `on:submit` to listen to the submit event is deprecated. Use the event attribute `onsubmit` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:3 33:9 svelte/valid-compile "`<div>` with a keydown handler must have an ARIA role\nhttps://svelte.dev/e/a11y_no_static_element_interactions(a11y_no_static_element_interactions)"
 17:1 17:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 18:1 18:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 18:4 18:39 svelte/sort-attributes "Attribute 'on:blurr' should go before 'use:blurr'."
+18:4 18:39 svelte/valid-compile "Using `on:blurr` to listen to the blurr event is deprecated. Use the event attribute `onblurr` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 19:1 19:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 19:4 19:30 svelte/sort-attributes "Attribute 'on:keydown|stopPropagation' should go before 'use:blurr'."
+19:4 19:30 svelte/valid-compile "Using `on:keydown` to listen to the keydown event is deprecated. Use the event attribute `onkeydown` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 20:1 20:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 21:1 21:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 22:1 22:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -101,11 +108,12 @@
 31:1 31:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 31:5 31:82 svelte/button-has-type "Missing an explicit type attribute for button."
 31:31 31:81 svelte/max-attributes-per-line "'on:click|preventDefault' should be on a new line."
+31:31 31:81 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 32:1 32:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 33:1 33:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1558 src/lib/docs/NavBar.svelte	lint.txt
+=== 1751 src/lib/docs/NavBar.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -117,6 +125,7 @@
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 14:1 14:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
+14:4 14:12 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 14:10 14:12 svelte/html-self-closing "Disallow self-closing on HTML elements."
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -124,7 +133,7 @@
 16:12 16:14 svelte/html-self-closing "Disallow self-closing on HTML elements."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3886 src/lib/docs/SvgThing.svelte	lint.txt
+=== 4512 src/lib/docs/SvgThing.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -133,7 +142,10 @@
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:7 svelte/valid-compile "`w` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+11:9 11:10 svelte/valid-compile "`h` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:6 12:13 svelte/valid-compile "`circles` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -188,10 +200,11 @@
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1417 src/lib/docs/examples/CustomTrigger.svelte	lint.txt
+=== 1626 src/lib/docs/examples/CustomTrigger.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:11 svelte/valid-compile "`store` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:24 8:31 svelte/max-attributes-per-line "'let:key' should be on a new line."
 8:41 8:52 svelte/sort-attributes "Attribute 'let:receive' should go before 'let:send'."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -211,9 +224,10 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 326 src/lib/docs/examples/Formatting.svelte	lint.txt
+=== 536 src/lib/docs/examples/Formatting.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:6 4:12 svelte/valid-compile "`format` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 8:20 8:39 svelte/max-attributes-per-line "'bind:value' should be on a new line."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
@@ -237,7 +251,7 @@
 9:27 9:41 svelte/max-attributes-per-line "'end' should be on a new line."
 9:27 9:41 svelte/sort-attributes "Attribute 'end' should go before 'start'."
 
-=== 2640 src/lib/docs/examples/Store.svelte	lint.txt
+=== 4141 src/lib/docs/examples/Store.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -247,15 +261,19 @@
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:6 12:11 svelte/valid-compile "`store` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:28 15:35 svelte/max-attributes-per-line "'theme' should be on a new line."
 15:28 15:35 svelte/sort-attributes "Attribute 'theme' should go before 'bind:store'."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:2 18:49 svelte/button-has-type "Missing an explicit type attribute for button."
+18:10 18:48 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:2 19:50 svelte/button-has-type "Missing an explicit type attribute for button."
+19:10 19:49 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:2 20:60 svelte/button-has-type "Missing an explicit type attribute for button."
 20:22 20:59 svelte/max-attributes-per-line "'on:click' should be on a new line."
+20:22 20:59 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 22:10 22:26 svelte/prefer-destructured-store-props "Destructure selected from $store for better change tracking & fewer redraws"
@@ -263,14 +281,17 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 24:2 24:59 svelte/button-has-type "Missing an explicit type attribute for button."
 24:22 24:58 svelte/max-attributes-per-line "'on:click' should be on a new line."
+24:22 24:58 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 25:1 25:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:2 25:49 svelte/button-has-type "Missing an explicit type attribute for button."
+25:10 25:48 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:2 26:48 svelte/button-has-type "Missing an explicit type attribute for button."
+26:10 26:47 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 33:2 33:7 svelte/consistent-selector-style "Selector should select by element type instead of class"
 55:3 55:8 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 11035 src/routes/docs/examples.svelte	lint.txt
+=== 12097 src/routes/docs/examples.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -280,6 +301,7 @@
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+20:6 20:13 svelte/valid-compile "`example` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 24:1 24:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -367,6 +389,7 @@
 90:1 90:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
 91:1 91:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
 91:8 91:49 svelte/sort-attributes "Attribute 'on:click|preventDefault' should go before 'in:receive|local'."
+91:8 91:49 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 91:49 91:49 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 91:63 92:7 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 92:1 92:7 svelte/indent "Expected indentation of 12 spaces but found 6 whitespaces."
@@ -386,6 +409,7 @@
 103:1 103:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 104:1 104:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 104:5 104:28 svelte/sort-attributes "Attribute 'on:blurr' should go before 'use:blurr'."
+104:5 104:28 svelte/valid-compile "Using `on:blurr` to listen to the blurr event is deprecated. Use the event attribute `onblurr` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 105:1 105:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 106:1 106:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 107:1 107:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -398,9 +422,11 @@
 112:1 112:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
 113:1 113:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
 113:8 113:40 svelte/button-has-type "Missing an explicit type attribute for button."
+113:16 113:39 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 114:1 114:7 svelte/indent "Expected indentation of 12 spaces but found 6 whitespaces."
 115:1 115:7 svelte/indent "Expected indentation of 12 spaces but found 6 whitespaces."
 116:1 116:8 svelte/indent "Expected indentation of 14 spaces but found 7 whitespaces."
+116:8 116:53 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 117:1 117:7 svelte/indent "Expected indentation of 12 spaces but found 6 whitespaces."
 118:1 118:6 svelte/indent "Expected indentation of 10 spaces but found 5 whitespaces."
 119:1 119:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
@@ -408,7 +434,8 @@
 121:1 121:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 122:1 122:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 5998 src/routes/docs/props.svelte	lint.txt
+=== 6176 src/routes/docs/props.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -482,7 +509,8 @@
 75:1 75:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 76:1 76:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2034 src/routes/docs/quick-start.svelte	lint.txt
+=== 2212 src/routes/docs/quick-start.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -509,7 +537,7 @@
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3047 src/routes/index.svelte	lint.txt
+=== 3472 src/routes/index.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -517,7 +545,9 @@
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:6 10:14 svelte/valid-compile "`selected` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:6 11:11 svelte/valid-compile "`store` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 17:1 17:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."

@@ -86,9 +86,19 @@ fn compiler_options_runes_decides_after_svelte_options_and_before_the_symbols() 
 }
 
 #[test]
-fn valid_compile_does_not_compile_with_compiler_options_runes() {
-    // eslint-plugin-svelte 3.23.1 passes only `experimental.async` to the compiler.
+fn valid_compile_compiles_with_compiler_options_runes() {
+    // ESLint with eslint-plugin-svelte 3.24.1 and `compilerOptions: { runes: true }`.
     let source = "<script>\nexport let a = 1;\n</script>\n{a}\n";
     let reports = reports_with_config_runes("svelte/valid-compile", source, Some(true));
-    assert_eq!(reports, Vec::<String>::new());
+    assert_eq!(
+        reports,
+        [concat!(
+            "Cannot use `export let` in runes mode \u{2014} use `$props()` instead\n",
+            "https://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
+        )]
+    );
+    assert_eq!(
+        reports_with_config_runes("svelte/valid-compile", source, None),
+        Vec::<String>::new()
+    );
 }

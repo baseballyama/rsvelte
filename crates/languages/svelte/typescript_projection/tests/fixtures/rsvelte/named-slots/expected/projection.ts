@@ -30,7 +30,6 @@ function $$render() {
       x;
       {
         __rsvelte_component(C)(__rsvelte_internals(), {
-          "slot": "1",
           "a": x,
         });
       }

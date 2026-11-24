@@ -57,7 +57,6 @@ function $$render() {
           } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["comp"];
           __rsvelte_component(C)(__rsvelte_internals(), {
             children: __rsvelte_children,
-            "slot": "comp",
             "foo": w,
           });
           w;

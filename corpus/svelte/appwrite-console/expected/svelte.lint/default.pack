@@ -502,7 +502,7 @@
 13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4853 src/lib/components/billing/alerts/newDevUpgradePro.svelte	lint.txt
+=== 5063 src/lib/components/billing/alerts/newDevUpgradePro.svelte	lint.txt
 1:1 24:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -515,6 +515,7 @@
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:9 13:13 svelte/valid-compile "`show` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -1614,7 +1615,7 @@
 569:9 569:27 svelte/consistent-selector-style "Selector should select by ID instead of class"
 573:38 573:56 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 1202 src/lib/components/boxAvatar.svelte	lint.txt
+=== 1781 src/lib/components/boxAvatar.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -1622,11 +1623,14 @@
 7:35 7:62 svelte/max-attributes-per-line "'justifyContent' should be on a new line."
 7:63 7:82 svelte/sort-attributes "Attribute 'alignItems' should go before 'direction'."
 8:1 8:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+8:9 8:30 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 8:28 8:30 svelte/html-self-closing "Disallow self-closing on HTML elements."
 9:1 9:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 10:1 10:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
+10:13 10:34 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 10:32 10:34 svelte/html-self-closing "Disallow self-closing on HTML elements."
 11:1 11:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
+11:13 11:21 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 11:19 11:21 svelte/html-self-closing "Disallow self-closing on HTML elements."
 12:1 12:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -1670,9 +1674,10 @@
 27:15 27:15 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 28:1 28:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 226 src/lib/components/clickableList.svelte	lint.txt
+=== 417 src/lib/components/clickableList.svelte	lint.txt
 1:1 1:28 svelte/no-unused-class-name "Unused class \"clickable-list\"."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 2:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:11 2:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 7758 src/lib/components/code.svelte	lint.txt
@@ -2923,7 +2928,7 @@
 37:1 37:17 svelte/indent "Expected indentation of 8 spaces but found 16 spaces."
 38:1 38:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 39:1 39:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-40:1 40:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
+40:1 40:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 41:1 41:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 43:1 43:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 44:1 44:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -4013,7 +4018,7 @@
 185:5 185:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
 213:5 213:11 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 7838 src/lib/components/git/DirectoryPicker.svelte	lint.txt
+=== 7753 src/lib/components/git/DirectoryPicker.svelte	lint.txt
 1:1 84:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4094,7 +4099,6 @@
 82:1 82:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 83:1 83:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 88:34 88:49 svelte/max-attributes-per-line "'class:isLoading' should be on a new line."
-88:61 88:86 svelte/sort-attributes "Attribute 'bind:this' should go before 'class'."
 89:1 89:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 90:1 90:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 91:1 91:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -5354,7 +5358,7 @@
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 10620 src/lib/components/id.svelte	lint.txt
+=== 10621 src/lib/components/id.svelte	lint.txt
 1:1 90:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
@@ -5371,7 +5375,7 @@
 13:1 13:17 svelte/indent "Expected indentation of 8 spaces but found 16 spaces."
 14:1 14:21 svelte/indent "Expected indentation of 10 spaces but found 20 spaces."
 15:1 15:17 svelte/indent "Expected indentation of 8 spaces but found 16 spaces."
-16:1 16:21 svelte/indent "Expected indentation of 8 spaces but found 20 spaces."
+16:1 16:21 svelte/indent "Expected indentation of 10 spaces but found 20 spaces."
 17:1 17:17 svelte/indent "Expected indentation of 8 spaces but found 16 spaces."
 18:1 18:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 19:1 19:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -5487,16 +5491,18 @@
 130:1 130:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 131:1 131:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 449 src/lib/components/list.svelte	lint.txt
+=== 640 src/lib/components/list.svelte	lint.txt
 2:1 2:38 svelte/no-unused-class-name "Unused class \"list\"."
 2:18 2:37 svelte/no-inline-styles "Found disallowed style directive."
 2:18 2:37 svelte/max-attributes-per-line "'style:gap' should be on a new line."
 2:18 2:37 svelte/sort-attributes "Attribute 'style:gap' should go before 'class'."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:5 3:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 3:11 3:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 791 src/lib/components/loadingDots.svelte	lint.txt
+=== 1004 src/lib/components/loadingDots.svelte	lint.txt
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:9 3:18 svelte/valid-compile "`className` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -5838,7 +5844,7 @@
 151:1 151:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 152:1 152:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 2613 src/lib/components/menu/subMenu.svelte	lint.txt
+=== 3387 src/lib/components/menu/subMenu.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -5851,23 +5857,27 @@
 12:1 12:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+17:5 17:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 17:11 17:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 20:22 20:41 svelte/max-attributes-per-line "'use:melt' should be on a new line."
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 23:1 23:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
+23:13 23:34 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 23:32 23:34 svelte/html-self-closing "Disallow self-closing on HTML elements."
 24:1 24:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 24:13 24:58 svelte/no-unused-class-name "Unused class \"separator\"."
 24:36 24:57 svelte/max-attributes-per-line "'use:melt' should be on a new line."
 25:1 25:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 26:1 26:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+26:9 26:29 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 26:27 26:29 svelte/html-self-closing "Disallow self-closing on HTML elements."
 27:1 27:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 28:1 28:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 28:13 28:58 svelte/no-unused-class-name "Unused class \"separator\"."
 28:36 28:57 svelte/max-attributes-per-line "'use:melt' should be on a new line."
 29:1 29:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
+29:13 29:32 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 29:30 29:32 svelte/html-self-closing "Disallow self-closing on HTML elements."
 30:1 30:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 31:1 31:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -6096,9 +6106,10 @@
 235:1 235:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 236:1 236:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 224 src/lib/components/numericList.svelte	lint.txt
+=== 415 src/lib/components/numericList.svelte	lint.txt
 1:1 1:26 svelte/no-unused-class-name "Unused class \"numeric-list\"."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 2:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:11 2:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 35452 src/lib/components/organizationUsageLimits.svelte	lint.txt
@@ -6751,7 +6762,7 @@
 119:1 119:17 svelte/indent "Expected indentation of 8 spaces but found 16 spaces."
 120:1 120:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 121:1 121:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-122:1 122:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
+122:1 122:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 123:1 123:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 124:1 124:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 126:1 126:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -7012,8 +7023,9 @@
 330:1 330:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 333:1 343:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 154 src/lib/components/roles/base.svelte	lint.txt
+=== 345 src/lib/components/roles/base.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 2:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:11 2:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 1751 src/lib/components/roles/default.svelte	lint.txt
@@ -7330,7 +7342,7 @@
 62:39 62:40 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 65:1 99:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 593 src/lib/components/tiles.svelte	lint.txt
+=== 784 src/lib/components/tiles.svelte	lint.txt
 1:1 1:82 svelte/no-unused-class-name "Unused class \"grid-box\"."
 1:1 1:82 svelte/no-unused-class-name "Unused class \"common-section\"."
 1:37 1:68 svelte/no-inline-styles "Found disallowed style attribute."
@@ -7338,6 +7350,7 @@
 1:37 1:68 svelte/sort-attributes "Attribute 'style' should go before 'class'."
 1:44 1:67 svelte/prefer-style-directive "Can use style directives instead."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 2:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:11 2:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 10169 src/lib/components/uploadBox.svelte	lint.txt
@@ -8677,7 +8690,7 @@
 60:1 60:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 61:1 61:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4474 src/lib/layout/alertStack.svelte	lint.txt
+=== 4667 src/lib/layout/alertStack.svelte	lint.txt
 1:1 58:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8735,6 +8748,7 @@
 57:1 57:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 60:28 60:47 svelte/max-attributes-per-line "'class' should be on a new line."
 61:1 61:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+61:5 61:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 61:11 61:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 65:5 65:17 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
@@ -9566,16 +9580,18 @@
 203:1 203:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 204:1 204:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 872 src/lib/layout/wizardSecondaryFooter.svelte	lint.txt
+=== 1254 src/lib/layout/wizardSecondaryFooter.svelte	lint.txt
 1:1 1:39 svelte/no-unused-class-name "Unused class \"wizard-secondary-options\"."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:5 2:49 svelte/no-unused-class-name "Unused class \"wizard-secondary-options-start\"."
 3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+3:9 3:30 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 3:28 3:30 svelte/html-self-closing "Disallow self-closing on HTML elements."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:5 5:47 svelte/no-unused-class-name "Unused class \"wizard-secondary-options-end\"."
 6:1 6:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+6:9 6:17 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 6:15 6:17 svelte/html-self-closing "Disallow self-closing on HTML elements."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
@@ -9594,19 +9610,21 @@
 7:38 7:51 svelte/sort-attributes "Attribute 'group' should go before 'label'."
 7:62 7:74 svelte/sort-attributes "Attribute 'name' should go before 'label'."
 
-=== 624 src/lib/mock/wizard.container.test.svelte	lint.txt
+=== 822 src/lib/mock/wizard.container.test.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:6 5:18 svelte/prefer-destructured-store-props "Destructure show from $wizard for better change tracking & fewer redraws"
 5:22 5:39 svelte/prefer-destructured-store-props "Destructure component from $wizard for better change tracking & fewer redraws"
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:5 6:50 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 6:29 6:46 svelte/prefer-destructured-store-props "Destructure component from $wizard for better change tracking & fewer redraws"
 
-=== 1422 src/lib/mock/wizard.step1.test.svelte	lint.txt
+=== 1631 src/lib/mock/wizard.step1.test.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:9 5:22 svelte/valid-compile "`value` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:1 8:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 9:1 9:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -9658,7 +9676,7 @@
 24:30 24:53 svelte/max-attributes-per-line "'steps' should be on a new line."
 24:30 24:53 svelte/sort-attributes "Attribute 'steps' should go before 'title'."
 
-=== 3610 src/routes/(authenticated)/git/+layout.svelte	lint.txt
+=== 3803 src/routes/(authenticated)/git/+layout.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -9676,6 +9694,7 @@
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:5 16:40 svelte/no-unused-class-name "Unused class \"console-container\"."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+17:9 17:17 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 17:15 17:17 svelte/html-self-closing "Disallow self-closing on HTML elements."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -9859,8 +9878,9 @@
 62:5 62:18 svelte/consistent-selector-style "Selector should select by element type instead of class"
 71:5 71:27 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 152 src/routes/(console)/account/+layout.svelte	lint.txt
+=== 342 src/routes/(console)/account/+layout.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 1102 src/routes/(console)/account/+page.svelte	lint.txt
@@ -9879,13 +9899,14 @@
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 2581 src/routes/(console)/account/deleteAccount.svelte	lint.txt
+=== 2795 src/routes/(console)/account/deleteAccount.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:9 7:19 svelte/valid-compile "`showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -10234,7 +10255,7 @@
 96:24 96:50 svelte/sort-attributes "Attribute 'disabled' should go before 'submit'."
 97:1 97:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 6663 src/routes/(console)/account/updateEmail.svelte	lint.txt
+=== 7093 src/routes/(console)/account/updateEmail.svelte	lint.txt
 1:1 40:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -10247,7 +10268,9 @@
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:9 13:22 svelte/valid-compile "`email` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:9 14:30 svelte/valid-compile "`emailPassword` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -10316,7 +10339,7 @@
 73:1 73:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 74:1 74:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 3715 src/routes/(console)/account/updateName.svelte	lint.txt
+=== 3925 src/routes/(console)/account/updateName.svelte	lint.txt
 1:1 37:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -10328,6 +10351,7 @@
 9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+12:9 12:21 svelte/valid-compile "`name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -10364,7 +10388,7 @@
 49:1 49:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 50:1 50:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4719 src/routes/(console)/account/updatePassword.svelte	lint.txt
+=== 5153 src/routes/(console)/account/updatePassword.svelte	lint.txt
 1:1 33:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -10374,7 +10398,9 @@
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:9 10:28 svelte/valid-compile "`newPassword` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:9 11:28 svelte/valid-compile "`oldPassword` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -10591,7 +10617,7 @@
 181:1 181:33 svelte/indent "Expected indentation of 16 spaces but found 32 spaces."
 182:1 182:29 svelte/indent "Expected indentation of 14 spaces but found 28 spaces."
 183:1 183:25 svelte/indent "Expected indentation of 12 spaces but found 24 spaces."
-184:1 184:29 svelte/indent "Expected indentation of 12 spaces but found 28 spaces."
+184:1 184:29 svelte/indent "Expected indentation of 14 spaces but found 28 spaces."
 185:1 185:25 svelte/indent "Expected indentation of 12 spaces but found 24 spaces."
 186:1 186:25 svelte/indent "Expected indentation of 12 spaces but found 24 spaces."
 187:1 187:21 svelte/indent "Expected indentation of 10 spaces but found 20 spaces."
@@ -12885,7 +12911,7 @@
 143:1 143:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 144:1 144:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 3886 src/routes/(console)/organization-[organization]/billing/taxId.svelte	lint.txt
+=== 4097 src/routes/(console)/organization-[organization]/billing/taxId.svelte	lint.txt
 1:1 38:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -12897,6 +12923,7 @@
 9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+12:9 12:22 svelte/valid-compile "`taxId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -13473,7 +13500,7 @@
 231:45 231:61 svelte/max-attributes-per-line "'selectedDomain' should be on a new line."
 231:45 231:61 svelte/sort-attributes "Attribute 'selectedDomain' should go before 'bind:show'."
 
-=== 6089 src/routes/(console)/organization-[organization]/domains/add-domain/+page.svelte	lint.txt
+=== 6731 src/routes/(console)/organization-[organization]/domains/add-domain/+page.svelte	lint.txt
 1:1 48:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -13489,8 +13516,11 @@
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:9 16:17 svelte/valid-compile "`backPage` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:9 18:19 svelte/valid-compile "`domainName` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+19:9 19:30 svelte/valid-compile "`domain` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 23:1 23:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -16983,8 +17013,9 @@
 310:1 310:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 311:1 311:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 152 src/routes/(console)/project-[region]-[project]/auth/teams/team-[team]/+layout.svelte	lint.txt
+=== 342 src/routes/(console)/project-[region]-[project]/auth/teams/team-[team]/+layout.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 2769 src/routes/(console)/project-[region]-[project]/auth/teams/team-[team]/+page.svelte	lint.txt
@@ -17022,13 +17053,14 @@
 26:1 26:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 27:1 27:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 2594 src/routes/(console)/project-[region]-[project]/auth/teams/team-[team]/dangerZone.svelte	lint.txt
+=== 2808 src/routes/(console)/project-[region]-[project]/auth/teams/team-[team]/dangerZone.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:9 7:19 svelte/valid-compile "`showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -17292,7 +17324,7 @@
 157:1 157:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 157:60 157:61 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 4669 src/routes/(console)/project-[region]-[project]/auth/teams/team-[team]/updateName.svelte	lint.txt
+=== 4883 src/routes/(console)/project-[region]-[project]/auth/teams/team-[team]/updateName.svelte	lint.txt
 1:1 38:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -17305,6 +17337,7 @@
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:9 13:25 svelte/valid-compile "`teamName` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -18273,7 +18306,7 @@
 87:1 87:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 88:1 88:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4325 src/routes/(console)/project-[region]-[project]/auth/user-[user]/updateEmail.svelte	lint.txt
+=== 4540 src/routes/(console)/project-[region]-[project]/auth/user-[user]/updateEmail.svelte	lint.txt
 1:1 39:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -18286,6 +18319,7 @@
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:9 13:26 svelte/valid-compile "`userEmail` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -18328,7 +18362,7 @@
 55:1 55:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 56:1 56:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 8254 src/routes/(console)/project-[region]-[project]/auth/user-[user]/updateMfa.svelte	lint.txt
+=== 8683 src/routes/(console)/project-[region]-[project]/auth/user-[user]/updateMfa.svelte	lint.txt
 1:1 42:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -18344,7 +18378,9 @@
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:9 16:19 svelte/valid-compile "`showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+17:9 17:25 svelte/valid-compile "`userMfa` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -18430,7 +18466,7 @@
 85:1 85:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 86:1 86:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4491 src/routes/(console)/project-[region]-[project]/auth/user-[user]/updateName.svelte	lint.txt
+=== 4705 src/routes/(console)/project-[region]-[project]/auth/user-[user]/updateName.svelte	lint.txt
 1:1 38:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -18443,6 +18479,7 @@
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:9 13:25 svelte/valid-compile "`userName` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -18487,7 +18524,7 @@
 56:1 56:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 57:1 57:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 3726 src/routes/(console)/project-[region]-[project]/auth/user-[user]/updatePassword.svelte	lint.txt
+=== 3943 src/routes/(console)/project-[region]-[project]/auth/user-[user]/updatePassword.svelte	lint.txt
 1:1 31:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -18497,6 +18534,7 @@
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:9 10:28 svelte/valid-compile "`newPassword` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 14:1 14:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -18535,7 +18573,7 @@
 48:1 48:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 49:1 49:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4404 src/routes/(console)/project-[region]-[project]/auth/user-[user]/updatePhone.svelte	lint.txt
+=== 4619 src/routes/(console)/project-[region]-[project]/auth/user-[user]/updatePhone.svelte	lint.txt
 1:1 38:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -18548,6 +18586,7 @@
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:9 13:26 svelte/valid-compile "`userPhone` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -20811,7 +20850,7 @@
 113:1 113:25 svelte/indent "Expected indentation of 12 spaces but found 24 spaces."
 114:1 114:21 svelte/indent "Expected indentation of 10 spaces but found 20 spaces."
 114:30 114:35 no-unused-vars "'error' is defined but never used."
-115:1 115:25 svelte/indent "Expected indentation of 10 spaces but found 24 spaces."
+115:1 115:25 svelte/indent "Expected indentation of 12 spaces but found 24 spaces."
 116:1 116:21 svelte/indent "Expected indentation of 10 spaces but found 20 spaces."
 117:1 117:17 svelte/indent "Expected indentation of 8 spaces but found 16 spaces."
 117:19 117:19 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
@@ -28718,7 +28757,7 @@
 107:1 107:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 108:1 108:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 1352 src/routes/(console)/project-[region]-[project]/functions/+layout.svelte	lint.txt
+=== 1544 src/routes/(console)/project-[region]-[project]/functions/+layout.svelte	lint.txt
 1:1 17:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -28735,6 +28774,7 @@
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+23:1 23:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 23:7 23:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 16587 src/routes/(console)/project-[region]-[project]/functions/+page.svelte	lint.txt
@@ -30198,7 +30238,7 @@
 202:45 202:81 svelte/sort-attributes "Attribute 'selectedDeployment' should go before 'bind:show'."
 202:82 202:90 svelte/sort-attributes "Attribute 'redirect' should go before 'bind:show'."
 
-=== 1675 src/routes/(console)/project-[region]-[project]/functions/function-[function]/domains/+layout.svelte	lint.txt
+=== 1867 src/routes/(console)/project-[region]-[project]/functions/function-[function]/domains/+layout.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -30219,6 +30259,7 @@
 19:1 19:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+24:1 24:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 24:7 24:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 11888 src/routes/(console)/project-[region]-[project]/functions/function-[function]/domains/+page.svelte	lint.txt
@@ -30718,7 +30759,7 @@
 68:1 68:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 69:1 69:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 69:18 69:23 no-unused-vars "'error' is defined but never used."
-70:1 70:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
+70:1 70:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 71:1 71:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 73:1 73:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 74:1 74:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -30933,7 +30974,7 @@
 62:1 62:17 svelte/indent "Expected indentation of 8 spaces but found 16 spaces."
 63:1 63:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 64:1 64:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-65:1 65:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
+65:1 65:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 66:1 66:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 68:1 68:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 69:1 69:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -31294,7 +31335,7 @@
 222:61 222:94 svelte/sort-attributes "Attribute 'domainsList' should go before 'bind:show'."
 226:5 226:25 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 1017 src/routes/(console)/project-[region]-[project]/functions/function-[function]/executions/+layout.svelte	lint.txt
+=== 1209 src/routes/(console)/project-[region]-[project]/functions/function-[function]/executions/+layout.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -31307,6 +31348,7 @@
 12:1 12:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+17:1 17:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 17:7 17:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 8977 src/routes/(console)/project-[region]-[project]/functions/function-[function]/executions/+page.svelte	lint.txt
@@ -31628,7 +31670,7 @@
 58:1 58:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 59:1 59:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 2146 src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/dangerZone.svelte	lint.txt
+=== 2360 src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/dangerZone.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -31636,6 +31678,7 @@
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+9:9 9:19 svelte/valid-compile "`showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -31841,7 +31884,7 @@
 121:1 121:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 122:1 122:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 6093 src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateName.svelte	lint.txt
+=== 6311 src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateName.svelte	lint.txt
 1:1 62:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -31857,6 +31900,7 @@
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:9 16:29 svelte/valid-compile "`functionName` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 19:1 19:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -31918,7 +31962,7 @@
 78:1 78:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 79:1 79:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 6740 src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateSchedule.svelte	lint.txt
+=== 6962 src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateSchedule.svelte	lint.txt
 1:1 67:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -31936,6 +31980,7 @@
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:9 18:33 svelte/valid-compile "`functionSchedule` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 21:1 21:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 22:1 22:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -32003,7 +32048,7 @@
 82:1 82:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 83:1 83:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 7515 src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateScopes.svelte	lint.txt
+=== 7735 src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateScopes.svelte	lint.txt
 1:1 67:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -32022,6 +32067,7 @@
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+19:9 19:43 svelte/valid-compile "`functionScopes` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 23:1 23:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -32096,7 +32142,7 @@
 89:1 89:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 90:1 90:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 6407 src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateTimeout.svelte	lint.txt
+=== 6620 src/routes/(console)/project-[region]-[project]/functions/function-[function]/settings/updateTimeout.svelte	lint.txt
 1:1 62:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -32112,6 +32158,7 @@
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:9 16:24 svelte/valid-compile "`timeout` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 19:1 19:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -32741,7 +32788,7 @@
 256:37 256:45 svelte/max-attributes-per-line "'errors' should be on a new line."
 256:37 256:45 svelte/sort-attributes "Attribute 'errors' should go before 'bind:show'."
 
-=== 14149 src/routes/(console)/project-[region]-[project]/messaging/create-[type]/(type)/email.svelte	lint.txt
+=== 16290 src/routes/(console)/project-[region]-[project]/messaging/create-[type]/(type)/email.svelte	lint.txt
 1:1 89:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -32763,19 +32810,29 @@
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 22:1 22:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+22:9 22:22 svelte/valid-compile "`showExitModal` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 23:1 23:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+24:9 24:21 svelte/valid-compile "`isSubmitting` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 25:1 25:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+25:9 25:21 svelte/valid-compile "`showCustomId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 26:1 26:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+26:9 26:26 svelte/valid-compile "`id` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 27:1 27:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+27:9 27:24 svelte/valid-compile "`subject` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 28:1 28:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+28:9 28:24 svelte/valid-compile "`content` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 29:1 29:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+29:9 29:25 svelte/valid-compile "`topics` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 30:1 30:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 30:9 30:24 no-unassigned-vars "'users' is always 'undefined' because it's never assigned."
 31:1 31:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+31:9 31:26 svelte/valid-compile "`targets` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 32:1 32:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 33:1 33:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+33:9 33:22 svelte/valid-compile "`html` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 34:1 34:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+34:9 34:28 svelte/valid-compile "`scheduledAt` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 36:1 36:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 37:1 37:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 38:1 38:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -32913,7 +32970,7 @@
 149:1 149:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 150:1 150:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 12353 src/routes/(console)/project-[region]-[project]/messaging/create-[type]/(type)/sms.svelte	lint.txt
+=== 14071 src/routes/(console)/project-[region]-[project]/messaging/create-[type]/(type)/sms.svelte	lint.txt
 1:1 84:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -32934,17 +32991,25 @@
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+21:9 21:22 svelte/valid-compile "`showExitModal` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 22:1 22:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 23:1 23:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+23:9 23:21 svelte/valid-compile "`isSubmitting` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+24:9 24:21 svelte/valid-compile "`showCustomId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 25:1 25:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+25:9 25:26 svelte/valid-compile "`id` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 26:1 26:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+26:9 26:24 svelte/valid-compile "`content` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 27:1 27:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+27:9 27:25 svelte/valid-compile "`topics` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 28:1 28:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 28:9 28:24 no-unassigned-vars "'users' is always 'undefined' because it's never assigned."
 29:1 29:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+29:9 29:26 svelte/valid-compile "`targets` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 30:1 30:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 31:1 31:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+31:9 31:28 svelte/valid-compile "`scheduledAt` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 33:1 33:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 34:1 34:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 35:1 35:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -33216,7 +33281,7 @@
 155:41 155:64 svelte/sort-attributes "Attribute 'steps' should go before 'title'."
 155:65 155:83 svelte/sort-attributes "Attribute 'finalAction' should go before 'title'."
 
-=== 2713 src/routes/(console)/project-[region]-[project]/messaging/createMessageDropdown.svelte	lint.txt
+=== 2906 src/routes/(console)/project-[region]-[project]/messaging/createMessageDropdown.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -33228,6 +33293,7 @@
 10:21 10:35 svelte/sort-attributes "Attribute 'padding' should go before 'let:toggle'."
 10:36 10:58 svelte/sort-attributes "Attribute 'placement' should go before 'let:toggle'."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:5 16:12 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 12:1 12:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 12:35 12:57 svelte/max-attributes-per-line "'event' should be on a new line."
 12:35 12:57 svelte/sort-attributes "Attribute 'event' should go before 'on:click'."
@@ -33297,8 +33363,9 @@
 43:1 43:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 44:1 44:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 152 src/routes/(console)/project-[region]-[project]/messaging/message-[message]/+layout.svelte	lint.txt
+=== 342 src/routes/(console)/project-[region]-[project]/messaging/message-[message]/+layout.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 1927 src/routes/(console)/project-[region]-[project]/messaging/message-[message]/header.svelte	lint.txt
@@ -33757,7 +33824,7 @@
 262:1 262:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 263:1 263:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 3097 src/routes/(console)/project-[region]-[project]/messaging/providers/createProviderDropdown.svelte	lint.txt
+=== 3290 src/routes/(console)/project-[region]-[project]/messaging/providers/createProviderDropdown.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -33771,6 +33838,7 @@
 12:21 12:35 svelte/sort-attributes "Attribute 'padding' should go before 'let:toggle'."
 12:36 12:58 svelte/sort-attributes "Attribute 'placement' should go before 'let:toggle'."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:5 13:22 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 13:20 13:22 svelte/html-self-closing "Disallow self-closing on HTML elements."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -33797,14 +33865,16 @@
 34:1 34:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 35:1 35:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 152 src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/+layout.svelte	lint.txt
+=== 342 src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/+layout.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
-=== 3644 src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/dangerZone.svelte	lint.txt
+=== 3823 src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/dangerZone.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:35 svelte/max-attributes-per-line "'context' should be on a new line."
 1:19 1:35 svelte/sort-attributes "Attribute 'context' should go before 'lang'."
+1:19 1:35 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -33869,7 +33939,7 @@
 16:54 16:68 svelte/prefer-destructured-store-props "Destructure $id from $provider for better change tracking & fewer redraws"
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 10613 src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/updateName.svelte	lint.txt
+=== 10831 src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/updateName.svelte	lint.txt
 1:1 112:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -33883,6 +33953,7 @@
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:9 14:29 svelte/valid-compile "`providerName` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -34000,7 +34071,7 @@
 130:1 130:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 131:1 131:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 13180 src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/updateStatus.svelte	lint.txt
+=== 13393 src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/updateStatus.svelte	lint.txt
 1:1 105:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -34018,6 +34089,7 @@
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:9 18:25 svelte/valid-compile "`enabled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 21:1 21:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 22:1 22:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -34419,13 +34491,14 @@
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 2539 src/routes/(console)/project-[region]-[project]/messaging/topics/topic-[topic]/settings/dangerZone.svelte	lint.txt
+=== 2753 src/routes/(console)/project-[region]-[project]/messaging/topics/topic-[topic]/settings/dangerZone.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:9 7:19 svelte/valid-compile "`showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -34471,7 +34544,7 @@
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4492 src/routes/(console)/project-[region]-[project]/messaging/topics/topic-[topic]/settings/updateName.svelte	lint.txt
+=== 4702 src/routes/(console)/project-[region]-[project]/messaging/topics/topic-[topic]/settings/updateName.svelte	lint.txt
 1:1 39:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -34484,6 +34557,7 @@
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:9 13:21 svelte/valid-compile "`name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -34885,7 +34959,7 @@
 216:1 216:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 217:1 217:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 3761 src/routes/(console)/project-[region]-[project]/messaging/wizard/step1.svelte	lint.txt
+=== 3974 src/routes/(console)/project-[region]-[project]/messaging/wizard/step1.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -34896,6 +34970,7 @@
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:9 11:16 svelte/valid-compile "`docsUrl` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -35483,7 +35558,7 @@
 120:1 120:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 121:1 121:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 122:1 122:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
-123:1 123:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
+123:1 123:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 126:1 126:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 127:1 127:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 129:1 129:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -36703,7 +36778,7 @@
 672:1 821:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 691:5 691:23 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 11116 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/+page@project-[region]-[project].svelte	lint.txt
+=== 11744 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/+page@project-[region]-[project].svelte	lint.txt
 1:1 92:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -36731,7 +36806,9 @@
 26:1 26:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 27:1 27:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 29:1 29:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+29:9 29:19 svelte/valid-compile "`showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 30:1 30:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+30:9 30:21 svelte/valid-compile "`name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 32:1 32:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 33:1 33:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 34:1 34:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -36814,6 +36891,7 @@
 111:1 111:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 112:1 112:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 114:1 114:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+114:5 114:54 svelte/valid-compile "`<svelte:component>` is deprecated in runes mode — components are dynamic by default\nhttps://svelte.dev/e/svelte_component_deprecated(svelte_component_deprecated)"
 114:35 114:49 svelte/prefer-destructured-store-props "Destructure type from $platform for better change tracking & fewer redraws"
 116:1 116:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 117:1 117:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -36840,7 +36918,7 @@
 132:1 132:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 133:1 133:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4900 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/android.svelte	lint.txt
+=== 5119 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/android.svelte	lint.txt
 1:1 44:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -36854,6 +36932,7 @@
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:9 15:30 svelte/valid-compile "`applicationId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -36902,7 +36981,7 @@
 63:1 63:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 64:1 64:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4900 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/appleIOS.svelte	lint.txt
+=== 5122 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/appleIOS.svelte	lint.txt
 1:1 44:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -36916,6 +36995,7 @@
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:9 15:33 svelte/valid-compile "`bundleIdentifier` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -36964,7 +37044,7 @@
 63:1 63:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 64:1 64:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4900 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/flutterLinux.svelte	lint.txt
+=== 5117 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/flutterLinux.svelte	lint.txt
 1:1 45:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -36978,6 +37058,7 @@
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:9 15:28 svelte/valid-compile "`packageName` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -37026,7 +37107,7 @@
 64:1 64:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 65:1 65:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4982 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/flutterWindows.svelte	lint.txt
+=== 5209 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/flutterWindows.svelte	lint.txt
 1:1 45:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -37040,6 +37121,7 @@
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:9 15:38 svelte/valid-compile "`packageIdentifierName` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -37104,7 +37186,7 @@
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4917 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/web.svelte	lint.txt
+=== 5131 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/web.svelte	lint.txt
 1:1 39:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -37118,6 +37200,7 @@
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:9 14:25 svelte/valid-compile "`hostname` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -39749,7 +39832,7 @@
 125:1 125:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 126:1 126:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4379 src/routes/(console)/project-[region]-[project]/settings/changeOrganization.svelte	lint.txt
+=== 4807 src/routes/(console)/project-[region]-[project]/settings/changeOrganization.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -39758,7 +39841,9 @@
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+9:9 9:23 svelte/valid-compile "`teamId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:9 10:21 svelte/valid-compile "`showTransfer` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -39801,7 +39886,7 @@
 44:1 44:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 44:33 44:34 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 7566 src/routes/(console)/project-[region]-[project]/settings/deleteProject.svelte	lint.txt
+=== 8203 src/routes/(console)/project-[region]-[project]/settings/deleteProject.svelte	lint.txt
 1:1 42:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -39817,8 +39902,11 @@
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:9 15:22 svelte/valid-compile "`error` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:9 16:19 svelte/valid-compile "`showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+17:9 17:21 svelte/valid-compile "`name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -39894,7 +39982,7 @@
 83:60 83:73 svelte/prefer-destructured-store-props "Destructure name from $project for better change tracking & fewer redraws"
 84:1 84:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 1430 src/routes/(console)/project-[region]-[project]/settings/domains/+layout.svelte	lint.txt
+=== 1622 src/routes/(console)/project-[region]-[project]/settings/domains/+layout.svelte	lint.txt
 1:1 19:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -39912,6 +40000,7 @@
 16:1 16:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+21:1 21:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 21:7 21:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 10861 src/routes/(console)/project-[region]-[project]/settings/domains/+page.svelte	lint.txt
@@ -40208,7 +40297,7 @@
 67:1 67:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 68:1 68:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 68:18 68:23 no-unused-vars "'error' is defined but never used."
-69:1 69:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
+69:1 69:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 70:1 70:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 72:1 72:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 73:1 73:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -40465,7 +40554,7 @@
 62:1 62:17 svelte/indent "Expected indentation of 8 spaces but found 16 spaces."
 63:1 63:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 64:1 64:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-65:1 65:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
+65:1 65:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 66:1 66:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 68:1 68:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 69:1 69:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -41362,7 +41451,7 @@
 217:1 217:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 218:1 218:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 6703 src/routes/(console)/project-[region]-[project]/settings/updateName.svelte	lint.txt
+=== 6913 src/routes/(console)/project-[region]-[project]/settings/updateName.svelte	lint.txt
 1:1 43:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -41378,6 +41467,7 @@
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:9 16:21 svelte/valid-compile "`name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 19:1 19:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -42173,8 +42263,9 @@
 203:1 203:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 204:1 204:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 152 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/+layout.svelte	lint.txt
+=== 342 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/+layout.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 1259 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/+page.svelte	lint.txt
@@ -42195,7 +42286,7 @@
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 2534 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/dangerZone.svelte	lint.txt
+=== 2750 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/dangerZone.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -42205,6 +42296,7 @@
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:9 10:19 svelte/valid-compile "`showDelete` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -42227,7 +42319,7 @@
 29:15 29:15 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 30:1 30:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 7586 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/details.svelte	lint.txt
+=== 8015 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/details.svelte	lint.txt
 1:1 52:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -42244,10 +42336,12 @@
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:9 18:25 svelte/valid-compile "`enabled` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 21:1 21:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 22:1 22:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+24:9 24:19 svelte/valid-compile "`showFailed` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 26:1 26:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 27:1 27:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 28:1 28:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -42341,7 +42435,7 @@
 16:52 16:65 svelte/prefer-destructured-store-props "Destructure $id from $webhook for better change tracking & fewer redraws"
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4614 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateName.svelte	lint.txt
+=== 4824 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateName.svelte	lint.txt
 1:1 47:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -42355,6 +42449,7 @@
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:9 14:21 svelte/valid-compile "`name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -42400,7 +42495,7 @@
 59:1 59:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 60:1 60:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 7927 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateSecurity.svelte	lint.txt
+=== 8572 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateSecurity.svelte	lint.txt
 1:1 51:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -42415,8 +42510,11 @@
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:9 15:29 svelte/valid-compile "`authUsername` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:9 16:29 svelte/valid-compile "`authPassword` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+17:9 17:12 svelte/valid-compile "`tls` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 21:1 21:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -42497,7 +42595,7 @@
 98:1 98:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 99:1 99:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 2801 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateSignature.svelte	lint.txt
+=== 3019 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateSignature.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -42505,6 +42603,7 @@
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+8:9 8:23 svelte/valid-compile "`showRegenerate` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -42533,7 +42632,7 @@
 31:19 31:19 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 32:1 32:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4984 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateURL.svelte	lint.txt
+=== 5193 src/routes/(console)/project-[region]-[project]/settings/webhooks/[webhook]/updateURL.svelte	lint.txt
 1:1 47:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -42547,6 +42646,7 @@
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:9 14:20 svelte/valid-compile "`url` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -43129,8 +43229,9 @@
 241:1 253:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 242:5 242:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 152 src/routes/(console)/project-[region]-[project]/sites/+layout.svelte	lint.txt
+=== 342 src/routes/(console)/project-[region]-[project]/sites/+layout.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 31578 src/routes/(console)/project-[region]-[project]/sites/create-site/deploy/+page.svelte	lint.txt
@@ -44233,9 +44334,10 @@
 92:1 92:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 93:1 93:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 241 src/routes/(console)/project-[region]-[project]/sites/site-[site]/+layout.svelte	lint.txt
+=== 431 src/routes/(console)/project-[region]-[project]/sites/site-[site]/+layout.svelte	lint.txt
 1:1 2:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+8:1 8:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 8:7 8:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 11050 src/routes/(console)/project-[region]-[project]/sites/site-[site]/+page.svelte	lint.txt
@@ -44687,7 +44789,7 @@
 159:1 159:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 159:33 159:34 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 1675 src/routes/(console)/project-[region]-[project]/sites/site-[site]/domains/+layout.svelte	lint.txt
+=== 1867 src/routes/(console)/project-[region]-[project]/sites/site-[site]/domains/+layout.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -44708,6 +44810,7 @@
 19:1 19:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+24:1 24:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 24:7 24:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 10590 src/routes/(console)/project-[region]-[project]/sites/site-[site]/domains/+page.svelte	lint.txt
@@ -45185,7 +45288,7 @@
 67:1 67:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 68:1 68:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 68:18 68:23 no-unused-vars "'error' is defined but never used."
-69:1 69:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
+69:1 69:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 70:1 70:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 72:1 72:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 73:1 73:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -45449,7 +45552,7 @@
 62:1 62:17 svelte/indent "Expected indentation of 8 spaces but found 16 spaces."
 63:1 63:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 64:1 64:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-65:1 65:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
+65:1 65:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 66:1 66:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 68:1 68:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 69:1 69:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -46901,8 +47004,9 @@
 375:5 375:17 svelte/consistent-selector-style "Selector should select by ID instead of class"
 381:5 381:18 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 152 src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/file-[file]/+layout.svelte	lint.txt
+=== 342 src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/file-[file]/+layout.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:9 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 5:7 5:9 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 2038 src/routes/(console)/project-[region]-[project]/storage/bucket-[bucket]/file-[file]/header.svelte	lint.txt
@@ -47341,7 +47445,7 @@
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 3751 src/routes/(public)/(guest)/education/+layout.svelte	lint.txt
+=== 3944 src/routes/(public)/(guest)/education/+layout.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -47381,6 +47485,7 @@
 24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 25:1 25:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 26:1 26:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+26:9 26:17 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 26:15 26:17 svelte/html-self-closing "Disallow self-closing on HTML elements."
 27:1 27:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 44:5 44:32 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -47450,7 +47555,7 @@
 79:5 79:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
 79:14 79:27 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 14434 src/routes/(public)/(guest)/register/invite/[slug]/+page.svelte	lint.txt
+=== 15915 src/routes/(public)/(guest)/register/invite/[slug]/+page.svelte	lint.txt
 1:1 98:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -47476,7 +47581,9 @@
 24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 24:9 24:13 svelte/prefer-const "'slug' is never reassigned. Use 'const' instead."
 25:1 25:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+25:9 25:17 svelte/valid-compile "`imgLight` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 26:1 26:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+26:9 26:16 svelte/valid-compile "`imgDark` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 28:1 28:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 29:1 29:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 30:1 30:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -47499,7 +47606,12 @@
 47:1 47:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 48:1 48:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 50:1 50:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+50:9 50:21 svelte/valid-compile "`name` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+50:23 50:35 svelte/valid-compile "`mail` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+50:37 50:49 svelte/valid-compile "`pass` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+50:51 50:63 svelte/valid-compile "`code` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 51:1 51:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+51:9 51:14 svelte/valid-compile "`title` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 52:1 52:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 52:9 52:14 svelte/prefer-const "'terms' is never reassigned. Use 'const' instead."
 54:1 54:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -47626,7 +47738,7 @@
 156:1 156:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 157:1 157:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 3181 src/routes/(public)/auth/+layout.svelte	lint.txt
+=== 3375 src/routes/(public)/auth/+layout.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -47637,6 +47749,7 @@
 12:1 12:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 12:9 12:40 svelte/no-unused-class-name "Unused class \"console-container\"."
 13:1 13:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
+13:13 13:21 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 13:19 13:21 svelte/html-self-closing "Disallow self-closing on HTML elements."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -48090,10 +48203,11 @@
 310:1 339:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 311:5 311:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 385 src/routes/(public)/hackathon/+layout.svelte	lint.txt
+=== 576 src/routes/(public)/hackathon/+layout.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:5 7:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 7:11 7:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
@@ -48293,7 +48407,7 @@
 235:9 235:17 svelte/consistent-selector-style "Selector should select by element type instead of class"
 247:9 247:22 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 8937 src/routes/(public)/invite/+page.svelte	lint.txt
+=== 10005 src/routes/(public)/invite/+page.svelte	lint.txt
 1:1 45:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -48306,7 +48420,12 @@
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:9 13:23 svelte/valid-compile "`teamId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+13:25 13:45 svelte/valid-compile "`membershipId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+13:47 13:61 svelte/valid-compile "`userId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
+13:63 13:77 svelte/valid-compile "`secret` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:9 14:14 svelte/valid-compile "`terms` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 18:1 18:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -48403,7 +48522,7 @@
 101:1 101:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 102:1 102:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 3196 src/routes/(public)/oauth2/+layout.svelte	lint.txt
+=== 3390 src/routes/(public)/oauth2/+layout.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -48413,6 +48532,7 @@
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:1 12:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 13:1 13:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
+13:13 13:21 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 13:19 13:21 svelte/html-self-closing "Disallow self-closing on HTML elements."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -50386,7 +50506,7 @@
 388:5 388:11 svelte/consistent-selector-style "Selector should select by ID instead of class"
 438:5 438:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 10853 src/routes/(public)/recover/+page.svelte	lint.txt
+=== 11923 src/routes/(public)/recover/+page.svelte	lint.txt
 1:1 76:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -50399,10 +50519,15 @@
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:9 13:22 svelte/valid-compile "`email` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:9 14:23 svelte/valid-compile "`userId` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:9 15:23 svelte/valid-compile "`secret` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+17:9 17:25 svelte/valid-compile "`password` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:9 18:32 svelte/valid-compile "`confirmPassword` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 21:1 21:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."

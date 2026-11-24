@@ -3,11 +3,14 @@
 {z.raw
   .a}{ZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZZ}
 
-=== 120 adjacent_expression_tags/a_hugged_run_separated_by_spaces_stays_on_one_line_when_it_fits/061bda1bdc52b400.svelte	svelte
+=== 125 adjacent_expression_tags/a_hugged_run_separated_by_spaces_stays_on_one_line_when_it_fits/061bda1bdc52b400.svelte	svelte
 <button
   on:click={() => onContactButtonClick(row)}
   class="a-fairly-long-class-name-here"
-  >{key} {a} {b}
+>
+  {key}
+  {a}
+  {b}
 </button>
 
 === 40 adjacent_expression_tags/a_hugged_run_with_no_edge_whitespace_is_unchanged/ee07350c1c91b4f3.svelte	svelte
@@ -197,11 +200,13 @@
 === 19 await_clauses/empty_bare_then_clause_is_dropped/d073803f7e8b7e20.svelte	svelte
 {#await p}{/await}
 
-=== 59 await_clauses/empty_catch_body_drops_the_catch_clause/e441674099e2b981.svelte	svelte
+=== 71 await_clauses/empty_catch_body_drops_the_catch_clause/e441674099e2b981.svelte	svelte
 {#await p}
   <p>pending</p>
 {:then v}
   <p>ok</p>
+{:catch e}
+
 {/await}
 
 === 41 await_clauses/empty_pending_and_then_collapse_into_the_catch_header/9f0a89ec51670022.svelte	svelte
@@ -241,11 +246,11 @@
 === 19 await_clauses/shorthand_headers_with_empty_bodies_lose_their_clause/326b22512122face.svelte	svelte
 {#await p}{/await}
 
-=== 19 await_clauses/shorthand_headers_with_empty_bodies_lose_their_clause/4c222d4ad7b660c5.svelte	svelte
-{#await p}{/await}
+=== 27 await_clauses/shorthand_headers_with_empty_bodies_lose_their_clause/4c222d4ad7b660c5.svelte	svelte
+{#await p catch e}{/await}
 
-=== 19 await_clauses/shorthand_headers_with_empty_bodies_lose_their_clause/9afb2f2644e54d8b.svelte	svelte
-{#await p}{/await}
+=== 27 await_clauses/shorthand_headers_with_empty_bodies_lose_their_clause/9afb2f2644e54d8b.svelte	svelte
+{#await p catch e}{/await}
 
 === 64 blank_lines/a_blank_line_before_the_hoisted_script_does_not_rejoin_the_runs/fe6c0f54c819724b.svelte	svelte
 <script>
@@ -412,9 +417,9 @@
 <button>x</button>
 
 === 105 block_body_hug/a_block_body_whose_content_holds_an_element_hugs/8b297fca068b9b7e.svelte	svelte
-{#if product.rating}<small
-    ><Star class="h-3 w-3 fill-current" /> ({product.rating})</small
-  >{/if}
+{#if product.rating}<small>
+    <Star class="h-3 w-3 fill-current" /> ({product.rating})
+  </small>{/if}
 
 === 90 block_body_hug/a_block_display_body_takes_the_block_form_not_the_hug/673a75c091da2203.svelte	svelte
 {#if a}<div class="cccccccccccccccccccccccccccccccc">
@@ -428,23 +433,24 @@
 {#if r}<small><Star /> ({r})</small>{/if}
 
 === 98 block_body_hug/a_plain_text_body_was_already_correct/224c632cf2a840e3.svelte	svelte
-{#if r}<small
-    >the quick brown fox jumps over the lazy dog and then some more</small
-  >{/if}
+{#if r}<small>
+    the quick brown fox jumps over the lazy dog and then some more
+  </small>{/if}
 
 === 89 block_body_hug/an_element_parent_hugs_the_parent_not_the_child/aa93421ec2c0ec6e.svelte	svelte
-<span
-  ><small><Star class="h-3 w-3 fill-current" /> ({product.rating})</small></span
->
+<span>
+  <small><Star class="h-3 w-3 fill-current" /> ({product.rating})</small>
+</span>
 
-=== 87 block_body_hug/an_inline_body_at_the_same_width_still_hugs/53a6e1096b4cc2e8.svelte	svelte
-{#if a}<span class="cccccccccccccccccccccccccccccccc"><slot name="a" /></span
-  >{/if}
+=== 92 block_body_hug/an_inline_body_at_the_same_width_still_hugs/53a6e1096b4cc2e8.svelte	svelte
+{#if a}<span class="cccccccccccccccccccccccccccccccc">
+    <slot name="a" />
+  </span>{/if}
 
 === 107 block_body_hug/the_same_body_with_an_attribute_hugs/457591fe92bc671b.svelte	svelte
-{#if product.rating}<small class="x"
-    ><Star class="h-3 w-3 fill" /> ({product.rating})</small
-  >{/if}
+{#if product.rating}<small class="x">
+    <Star class="h-3 w-3 fill" /> ({product.rating})
+  </small>{/if}
 
 === 88 block_body_width/a_block_arm_and_the_tags_after_it_count_too/c42f43df98d3c543.svelte	svelte
 {#if a}<Label
@@ -558,14 +564,14 @@
   />{/each}
 
 === 100 block_closer_width_after_wrapped_open_tag_4765/split_open_tag_with_a_body_on_its_last_line/e2cab9f0854ef5eb.svelte	svelte
-{#key k}<span onclick={() => handle(item.id, item.name)} disabled={!enabled}
-    >x</span
-  >{/key}
+{#key k}<span onclick={() => handle(item.id, item.name)} disabled={!enabled}>
+    x
+  </span>{/key}
 
 === 100 block_closer_width_after_wrapped_open_tag_4765/split_open_tag_with_a_body_on_its_last_line/f7e7444677852c23.svelte	svelte
-{#key k}<span onclick={() => handle(item.id, item.name)} disabled={!enabled}
-    >x</span
-  >{/key}
+{#key k}<span onclick={() => handle(item.id, item.name)} disabled={!enabled}>
+    x
+  </span>{/key}
 
 === 97 block_closer_width_after_wrapped_open_tag_4765/void_element_without_a_slash_split_in_the_source/525b9dbf5c25d724.svelte	svelte
 {#if a}<input
@@ -687,54 +693,54 @@
 {#each group.breadcrumbs as breadcrumb}<span>{breadcrumb}</span>{/each}
 
 === 102 block_inline_hug/issue_3675_hugs_a_long_inline_element_glued_inside_flow_blocks/497a1f3b669da950.svelte	svelte
-{#key value}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/key}
+{#key value}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/key}
 
 === 108 block_inline_hug/issue_3675_hugs_a_long_inline_element_glued_inside_flow_blocks/7de8a458ff58ecea.svelte	svelte
-{#await promise}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/await}
+{#await promise}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/await}
 
 === 108 block_inline_hug/issue_3675_hugs_a_long_inline_element_glued_inside_flow_blocks/954f239e1041c280.svelte	svelte
-{#await promise}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/await}
+{#await promise}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/await}
 
 === 99 block_inline_hug/issue_3675_hugs_a_long_inline_element_glued_inside_flow_blocks/a3454820ba339d8e.svelte	svelte
-{#if flag}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/if}
+{#if flag}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/if}
 
 === 112 block_inline_hug/issue_3675_hugs_a_long_inline_element_glued_inside_flow_blocks/a78e43098b869078.svelte	svelte
-{#each items as item}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/each}
+{#each items as item}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/each}
 
 === 112 block_inline_hug/issue_3675_hugs_a_long_inline_element_glued_inside_flow_blocks/ba7f919635b487d2.svelte	svelte
-{#each items as item}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/each}
+{#each items as item}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/each}
 
 === 99 block_inline_hug/issue_3675_hugs_a_long_inline_element_glued_inside_flow_blocks/c7e4f4572e0d3e14.svelte	svelte
-{#if flag}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/if}
+{#if flag}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/if}
 
 === 102 block_inline_hug/issue_3675_hugs_a_long_inline_element_glued_inside_flow_blocks/e4bd5ddeaeb0b40f.svelte	svelte
-{#key value}<span
-    >aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg</span
-  >{/key}
+{#key value}<span>
+    aaaaaaaa bbbbbbbb cccccccc dddddddd eeeeeeee ffffffff gggggggg
+  </span>{/key}
 
 === 109 block_inline_hug/issue_3675_hugs_an_unbreakable_expression_run/2afd13fe88af03eb.svelte	svelte
-{#if flag}<span
-    >{o.aaaaaaaa}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}</span
-  >{/if}
+{#if flag}<span>
+    {o.aaaaaaaa}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}
+  </span>{/if}
 
 === 109 block_inline_hug/issue_3675_hugs_an_unbreakable_expression_run/ac49e8d27609e0ef.svelte	svelte
-{#if flag}<span
-    >{o.aaaaaaaa}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}</span
-  >{/if}
+{#if flag}<span>
+    {o.aaaaaaaa}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}
+  </span>{/if}
 
 === 597 broken_mustache_in_place_4310/every_cell_formats_to_the_oracle_output/01400a9376f80ba6.svelte	svelte
 <div>
@@ -774,11 +780,11 @@
         <div>
           <div>
             <div>
-              <span class="breakdown-value"
-                >{formatNumber(
+              <span class="breakdown-value">
+                {formatNumber(
                   result.summary.totalPoolSpace - result.summary.allocatedSpace,
-                )} addresses</span
-              >
+                )} addresses
+              </span>
             </div>
           </div>
         </div>
@@ -881,13 +887,13 @@
                         <div>
                           <div>
                             <div>
-                              <span
-                                >Total {formatDistance(
+                              <span>
+                                Total {formatDistance(
                                   categoryData.record_holders.max_distance
                                     .value,
                                   units,
-                                )} km</span
-                              >
+                                )} km
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -976,11 +982,11 @@
         <div>
           <div>
             <div>
-              <span class="breakdown-value"
-                >{formatNumber(
+              <span class="breakdown-value">
+                {formatNumber(
                   result.summary.totalPoolSpace - result.summary.allocatedSpace,
-                )} addresses</span
-              >
+                )} addresses
+              </span>
             </div>
           </div>
         </div>
@@ -1005,13 +1011,13 @@
                         <div>
                           <div>
                             <div>
-                              <span
-                                >Total {formatDistance(
+                              <span>
+                                Total {formatDistance(
                                   categoryData.record_holders.max_distance
                                     .value,
                                   units,
-                                )} km</span
-                              >
+                                )} km
+                              </span>
                             </div>
                           </div>
                         </div>
@@ -1223,9 +1229,9 @@
 </svelte:boundary>
 
 === 60 collapse/tests/flow_block_child_breaks_svelte_head_into_the_hug_shape/abd554f5f0c754f9.svelte	svelte
-<svelte:head
-  >{#if n}<title>t</title>{/if}</svelte:head
->
+<svelte:head>
+  {#if n}<title>t</title>{/if}
+</svelte:head>
 
 === 30 const_tag_line_comment/a_const_without_a_trailing_comment_is_unchanged/aa4f7828d9b3165f.svelte	svelte
 {#if a}{@const x = flag}{/if}
@@ -1267,7 +1273,7 @@
   ]}
 />
 
-=== 532 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/35a7a183bfa27c27.svelte	svelte
+=== 568 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/35a7a183bfa27c27.svelte	svelte
 <div class="a">
   <div class="b">
     <div class="c">
@@ -1281,8 +1287,10 @@
                     category.description,
                     category.label,
                     placement,
-                  )}>x</button
+                  )}
                 >
+                  x
+                </button>
               {/each}
             </div>
           </div>
@@ -1292,7 +1300,7 @@
   </div>
 </div>
 
-=== 487 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/693bdc8795850054.svelte	svelte
+=== 523 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/693bdc8795850054.svelte	svelte
 <div class="a">
   <div class="b">
     <div class="c">
@@ -1303,8 +1311,10 @@
               {#each list as category}
                 <button
                   class:nnnnnnnnnnnnnnnnnnnnnnnn={selected_category &&
-                    selected_category.id === category.id}>x</button
+                    selected_category.id === category.id}
                 >
+                  x
+                </button>
               {/each}
             </div>
           </div>
@@ -1314,7 +1324,7 @@
   </div>
 </div>
 
-=== 479 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/81e67e114be593e4.svelte	svelte
+=== 515 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/81e67e114be593e4.svelte	svelte
 <div class="a">
   <div class="b">
     <div class="c">
@@ -1325,8 +1335,10 @@
               {#each list as category}
                 <button
                   class:nnnnnnnnnnnnnnnn={selected_category &&
-                    selected_category.id === category.id}>x</button
+                    selected_category.id === category.id}
                 >
+                  x
+                </button>
               {/each}
             </div>
           </div>
@@ -1336,7 +1348,7 @@
   </div>
 </div>
 
-=== 478 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/8960e7a6a489b9a8.svelte	svelte
+=== 514 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/8960e7a6a489b9a8.svelte	svelte
 <div class="a">
   <div class="b">
     <div class="c">
@@ -1347,8 +1359,10 @@
               {#each list as category}
                 <button
                   class:nnnnnnnnnnnnnnn={selected_category &&
-                    selected_category.id === category.id}>x</button
+                    selected_category.id === category.id}
                 >
+                  x
+                </button>
               {/each}
             </div>
           </div>
@@ -1377,7 +1391,7 @@
   </div>
 </div>
 
-=== 468 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/9b1a1e9399ace50d.svelte	svelte
+=== 504 directive_value_first_line_budget_4119/every_cell_formats_to_the_oracle_output/9b1a1e9399ace50d.svelte	svelte
 <div class="a">
   <div class="b">
     <div class="c">
@@ -1388,8 +1402,10 @@
               {#each list as category}
                 <button
                   on:click={(event) =>
-                    selectCategory(event, category.id, category.name)}>x</button
+                    selectCategory(event, category.id, category.name)}
                 >
+                  x
+                </button>
               {/each}
             </div>
           </div>
@@ -1433,7 +1449,7 @@
   </div>
 </div>
 
-=== 487 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/1e5c316809c77dff.svelte	svelte
+=== 523 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/1e5c316809c77dff.svelte	svelte
 <div class="a">
   <div class="b">
     <div class="c">
@@ -1444,8 +1460,10 @@
               {#each list as category}
                 <button
                   class:nnnnnnnnnnnnnnnnnnnnnnnn={selected_category &&
-                    selected_category.id === category.id}>x</button
+                    selected_category.id === category.id}
                 >
+                  x
+                </button>
               {/each}
             </div>
           </div>
@@ -1455,7 +1473,7 @@
   </div>
 </div>
 
-=== 478 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/28371521f04bd842.svelte	svelte
+=== 514 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/28371521f04bd842.svelte	svelte
 <div class="a">
   <div class="b">
     <div class="c">
@@ -1466,8 +1484,10 @@
               {#each list as category}
                 <button
                   class:nnnnnnnnnnnnnnn={selected_category &&
-                    selected_category.id === category.id}>x</button
+                    selected_category.id === category.id}
                 >
+                  x
+                </button>
               {/each}
             </div>
           </div>
@@ -1477,7 +1497,7 @@
   </div>
 </div>
 
-=== 468 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/776305726a26b9f2.svelte	svelte
+=== 504 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/776305726a26b9f2.svelte	svelte
 <div class="a">
   <div class="b">
     <div class="c">
@@ -1488,8 +1508,10 @@
               {#each list as category}
                 <button
                   on:click={(event) =>
-                    selectCategory(event, category.id, category.name)}>x</button
+                    selectCategory(event, category.id, category.name)}
                 >
+                  x
+                </button>
               {/each}
             </div>
           </div>
@@ -1506,7 +1528,7 @@
   ]}
 />
 
-=== 532 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/a5cb8f41eea6d35c.svelte	svelte
+=== 568 directive_value_first_line_budget_4119/the_oracle_output_is_a_fixed_point/a5cb8f41eea6d35c.svelte	svelte
 <div class="a">
   <div class="b">
     <div class="c">
@@ -1520,8 +1542,10 @@
                     category.description,
                     category.label,
                     placement,
-                  )}>x</button
+                  )}
                 >
+                  x
+                </button>
               {/each}
             </div>
           </div>
@@ -1676,7 +1700,7 @@
   )} components
 </div>
 
-=== 291 fits_first_break_opportunity_4309/every_cell_formats_to_the_oracle_output/26a987844557e84a.svelte	svelte
+=== 308 fits_first_break_opportunity_4309/every_cell_formats_to_the_oracle_output/26a987844557e84a.svelte	svelte
 <div>
   <div>
     <div>
@@ -1684,8 +1708,9 @@
         <div>
           <div>
             <p>
-              xxxxxxxxxxxxxxxxxxxxxx <span class="label">Label text</span
-              >{record.holders.location_name}
+              xxxxxxxxxxxxxxxxxxxxxx <span class="label">
+                Label text
+              </span>{record.holders.location_name}
             </p>
           </div>
         </div>
@@ -1694,7 +1719,7 @@
   </div>
 </div>
 
-=== 298 fits_first_break_opportunity_4309/every_cell_formats_to_the_oracle_output/5555a4907ae9670c.svelte	svelte
+=== 315 fits_first_break_opportunity_4309/every_cell_formats_to_the_oracle_output/5555a4907ae9670c.svelte	svelte
 <div>
   <div>
     <div>
@@ -1702,8 +1727,9 @@
         <div>
           <div>
             <p>
-              xxxxxxxxxxxxxxxxxxxx <span class="label">Label text</span
-              >{record.holders ? record.name : "none"}
+              xxxxxxxxxxxxxxxxxxxx <span class="label">
+                Label text
+              </span>{record.holders ? record.name : "none"}
             </p>
           </div>
         </div>
@@ -1712,7 +1738,7 @@
   </div>
 </div>
 
-=== 298 fits_first_break_opportunity_4309/every_cell_formats_to_the_oracle_output/78f6b9ceb7c7b370.svelte	svelte
+=== 315 fits_first_break_opportunity_4309/every_cell_formats_to_the_oracle_output/78f6b9ceb7c7b370.svelte	svelte
 <div>
   <div>
     <div>
@@ -1720,8 +1746,9 @@
         <div>
           <div>
             <p>
-              xxxxxxxxxxxxxxxxxxxx <span class="label">Label text</span
-              >{formatDistance(record.holders, units)}
+              xxxxxxxxxxxxxxxxxxxx <span class="label">
+                Label text
+              </span>{formatDistance(record.holders, units)}
             </p>
           </div>
         </div>
@@ -1756,9 +1783,9 @@
         <div>
           <div>
             <p>
-              xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx <span class="label"
-                >Label text</span
-              >{record.holders.location_name}
+              xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx <span class="label">
+                Label text
+              </span>{record.holders.location_name}
             </p>
           </div>
         </div>
@@ -1767,7 +1794,7 @@
   </div>
 </div>
 
-=== 293 fits_first_break_opportunity_4309/every_cell_formats_to_the_oracle_output/f01cd6000801d523.svelte	svelte
+=== 310 fits_first_break_opportunity_4309/every_cell_formats_to_the_oracle_output/f01cd6000801d523.svelte	svelte
 <div>
   <div>
     <div>
@@ -1775,8 +1802,9 @@
         <div>
           <div>
             <p>
-              xxxxxxxxxxxxxxxxxxxxxxxx <span class="label">Label text</span
-              >{record.holders.location_name}
+              xxxxxxxxxxxxxxxxxxxxxxxx <span class="label">
+                Label text
+              </span>{record.holders.location_name}
             </p>
           </div>
         </div>
@@ -1785,7 +1813,7 @@
   </div>
 </div>
 
-=== 293 fits_first_break_opportunity_4309/the_oracle_output_is_a_fixed_point/544b77577d130495.svelte	svelte
+=== 310 fits_first_break_opportunity_4309/the_oracle_output_is_a_fixed_point/544b77577d130495.svelte	svelte
 <div>
   <div>
     <div>
@@ -1793,8 +1821,9 @@
         <div>
           <div>
             <p>
-              xxxxxxxxxxxxxxxxxxxxxxxx <span class="label">Label text</span
-              >{record.holders.location_name}
+              xxxxxxxxxxxxxxxxxxxxxxxx <span class="label">
+                Label text
+              </span>{record.holders.location_name}
             </p>
           </div>
         </div>
@@ -1803,7 +1832,7 @@
   </div>
 </div>
 
-=== 298 fits_first_break_opportunity_4309/the_oracle_output_is_a_fixed_point/58942724b7b4ad9b.svelte	svelte
+=== 315 fits_first_break_opportunity_4309/the_oracle_output_is_a_fixed_point/58942724b7b4ad9b.svelte	svelte
 <div>
   <div>
     <div>
@@ -1811,8 +1840,9 @@
         <div>
           <div>
             <p>
-              xxxxxxxxxxxxxxxxxxxx <span class="label">Label text</span
-              >{formatDistance(record.holders, units)}
+              xxxxxxxxxxxxxxxxxxxx <span class="label">
+                Label text
+              </span>{formatDistance(record.holders, units)}
             </p>
           </div>
         </div>
@@ -1821,7 +1851,7 @@
   </div>
 </div>
 
-=== 291 fits_first_break_opportunity_4309/the_oracle_output_is_a_fixed_point/991e08da9eca258e.svelte	svelte
+=== 308 fits_first_break_opportunity_4309/the_oracle_output_is_a_fixed_point/991e08da9eca258e.svelte	svelte
 <div>
   <div>
     <div>
@@ -1829,8 +1859,9 @@
         <div>
           <div>
             <p>
-              xxxxxxxxxxxxxxxxxxxxxx <span class="label">Label text</span
-              >{record.holders.location_name}
+              xxxxxxxxxxxxxxxxxxxxxx <span class="label">
+                Label text
+              </span>{record.holders.location_name}
             </p>
           </div>
         </div>
@@ -1839,7 +1870,7 @@
   </div>
 </div>
 
-=== 298 fits_first_break_opportunity_4309/the_oracle_output_is_a_fixed_point/d8e0b6f365f2156e.svelte	svelte
+=== 315 fits_first_break_opportunity_4309/the_oracle_output_is_a_fixed_point/d8e0b6f365f2156e.svelte	svelte
 <div>
   <div>
     <div>
@@ -1847,8 +1878,9 @@
         <div>
           <div>
             <p>
-              xxxxxxxxxxxxxxxxxxxx <span class="label">Label text</span
-              >{record.holders ? record.name : "none"}
+              xxxxxxxxxxxxxxxxxxxx <span class="label">
+                Label text
+              </span>{record.holders ? record.name : "none"}
             </p>
           </div>
         </div>
@@ -1865,9 +1897,9 @@
         <div>
           <div>
             <p>
-              xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx <span class="label"
-                >Label text</span
-              >{record.holders.location_name}
+              xxxxxxxxxxxxxxxxxxxxxxxxxxxxxx <span class="label">
+                Label text
+              </span>{record.holders.location_name}
             </p>
           </div>
         </div>
@@ -1989,241 +2021,255 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
 <div>{aaaaaaaaaaaaaaaa}{Bbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccc.length}</div>
 
 === 110 glued_tag_prefix_width/a_member_chain_that_fits_after_the_open_tag_wraps/7a30c5edb648b20e.svelte	svelte
-<button onclick={() => {}}
-  >{aaaaaaaaaaaaaaaaaaaaaaaaaaaaa}{Bbbbbbbbbbbbbbbbb.ccccccccccc.length}</button
->
+<button onclick={() => {}}>
+  {aaaaaaaaaaaaaaaaaaaaaaaaaaaaa}{Bbbbbbbbbbbbbbbbb.ccccccccccc.length}
+</button>
 
 === 95 glued_tag_prefix_width/a_short_glued_lead_still_leaves_the_chain_flat/7b926fd696a074b6.svelte	svelte
-<button onclick={() => {}}
-  >{a}{Bbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccc.length}</button
->
+<button onclick={() => {}}>
+  {a}{Bbbbbbbbbbbbbbbbbbbbbbbbbb.ccccccccccccccc.length}
+</button>
 
 === 87 glued_tag_prefix_width/an_attributeless_inline_element_wraps_the_same_way/adc0a9a3c160d14b.svelte	svelte
-<span
-  >{aaaaaaaaaaaaaaaaaaaaaaaaaaaaa}{Bbbbbbbbbbbbbbbbb.ccccccccccc.length}</span
->
+<span>
+  {aaaaaaaaaaaaaaaaaaaaaaaaaaaaa}{Bbbbbbbbbbbbbbbbb.ccccccccccc.length}
+</span>
 
 === 110 glued_tag_prefix_width/the_already_formatted_form_is_a_fixed_point/e2a96275a17cf580.svelte	svelte
-<button onclick={() => {}}
-  >{aaaaaaaaaaaaaaaaaaaaaaaaaaaaa}{Bbbbbbbbbbbbbbbbb.ccccccccccc.length}</button
->
+<button onclick={() => {}}>
+  {aaaaaaaaaaaaaaaaaaaaaaaaaaaaa}{Bbbbbbbbbbbbbbbbb.ccccccccccc.length}
+</button>
 
 === 20 glued_tag_prefix_width/two_short_glued_tags_stay_on_one_line/c7bee172a7e2a640.svelte	svelte
 <span>{a}{b}</span>
 
-=== 155 hugged_element_in_block_after_mustache_4725/anchor_after_mustache_in_if/4a68c929c26db3ac.svelte	svelte
+=== 160 hugged_element_in_block_after_mustache_4725/anchor_after_mustache_in_if/4a68c929c26db3ac.svelte	svelte
 <div>
   {value}{#if unit}<a
       href="/x"
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</a
-    >{/if}
+    >
+      {unit}
+    </a>{/if}
 </div>
 
-=== 155 hugged_element_in_block_after_mustache_4725/anchor_after_mustache_in_if/971d8e650e4f7307.svelte	svelte
+=== 160 hugged_element_in_block_after_mustache_4725/anchor_after_mustache_in_if/971d8e650e4f7307.svelte	svelte
 <div>
   {value}{#if unit}<a
       href="/x"
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</a
-    >{/if}
+    >
+      {unit}
+    </a>{/if}
 </div>
 
-=== 156 hugged_element_in_block_after_mustache_4725/each_body_after_mustache/02a768b05e876a99.svelte	svelte
+=== 161 hugged_element_in_block_after_mustache_4725/each_body_after_mustache/02a768b05e876a99.svelte	svelte
 <div>
   {value}{#each units as unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/each}
+    >
+      {unit}
+    </sup>{/each}
 </div>
 
-=== 156 hugged_element_in_block_after_mustache_4725/each_body_after_mustache/cf3802943adec137.svelte	svelte
+=== 161 hugged_element_in_block_after_mustache_4725/each_body_after_mustache/cf3802943adec137.svelte	svelte
 <div>
   {value}{#each units as unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/each}
+    >
+      {unit}
+    </sup>{/each}
 </div>
 
-=== 151 hugged_element_in_block_after_mustache_4725/element_with_mixed_children/1e8f5d1a08649a46.svelte	svelte
+=== 156 hugged_element_in_block_after_mustache_4725/element_with_mixed_children/1e8f5d1a08649a46.svelte	svelte
 <div>
   {value}{#if unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}<b>x</b></sup
-    >{/if}
+    >
+      {unit}<b>x</b>
+    </sup>{/if}
 </div>
 
-=== 151 hugged_element_in_block_after_mustache_4725/element_with_mixed_children/c510d67f05ea3836.svelte	svelte
+=== 156 hugged_element_in_block_after_mustache_4725/element_with_mixed_children/c510d67f05ea3836.svelte	svelte
 <div>
   {value}{#if unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}<b>x</b></sup
-    >{/if}
+    >
+      {unit}<b>x</b>
+    </sup>{/if}
 </div>
 
-=== 151 hugged_element_in_block_after_mustache_4725/else_branch_after_mustache/784ccc44eb1e2f27.svelte	svelte
+=== 156 hugged_element_in_block_after_mustache_4725/else_branch_after_mustache/784ccc44eb1e2f27.svelte	svelte
 <div>
   {value}{#if unit}x{:else}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/if}
+    >
+      {unit}
+    </sup>{/if}
 </div>
 
-=== 151 hugged_element_in_block_after_mustache_4725/else_branch_after_mustache/af6cc852e606474a.svelte	svelte
+=== 156 hugged_element_in_block_after_mustache_4725/else_branch_after_mustache/af6cc852e606474a.svelte	svelte
 <div>
   {value}{#if unit}x{:else}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/if}
+    >
+      {unit}
+    </sup>{/if}
 </div>
 
-=== 257 hugged_element_in_block_after_mustache_4725/else_if_branches/15379ff6e6e526b7.svelte	svelte
+=== 267 hugged_element_in_block_after_mustache_4725/else_if_branches/15379ff6e6e526b7.svelte	svelte
 <div>
   {value}{#if unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{:else if x}<sub
+    >
+      {unit}
+    </sup>{:else if x}<sub
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{x}</sub
-    >{/if}
+    >
+      {x}
+    </sub>{/if}
 </div>
 
-=== 257 hugged_element_in_block_after_mustache_4725/else_if_branches/65fae1c866cffc63.svelte	svelte
+=== 267 hugged_element_in_block_after_mustache_4725/else_if_branches/65fae1c866cffc63.svelte	svelte
 <div>
   {value}{#if unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{:else if x}<sub
+    >
+      {unit}
+    </sup>{:else if x}<sub
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{x}</sub
-    >{/if}
+    >
+      {x}
+    </sub>{/if}
 </div>
 
-=== 149 hugged_element_in_block_after_mustache_4725/html_tag_before_block/2dec5395c3061bee.svelte	svelte
+=== 154 hugged_element_in_block_after_mustache_4725/html_tag_before_block/2dec5395c3061bee.svelte	svelte
 <div>
   {@html value}{#if unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/if}
+    >
+      {unit}
+    </sup>{/if}
 </div>
 
-=== 149 hugged_element_in_block_after_mustache_4725/html_tag_before_block/8cec342455a59b29.svelte	svelte
+=== 154 hugged_element_in_block_after_mustache_4725/html_tag_before_block/8cec342455a59b29.svelte	svelte
 <div>
   {@html value}{#if unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/if}
+    >
+      {unit}
+    </sup>{/if}
 </div>
 
-=== 144 hugged_element_in_block_after_mustache_4725/inline_element_before_block/a1f7722780246d78.svelte	svelte
+=== 149 hugged_element_in_block_after_mustache_4725/inline_element_before_block/a1f7722780246d78.svelte	svelte
 <div>
   <b>x</b>{#if unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/if}
+    >
+      {unit}
+    </sup>{/if}
 </div>
 
-=== 144 hugged_element_in_block_after_mustache_4725/inline_element_before_block/a666b0e278483993.svelte	svelte
+=== 149 hugged_element_in_block_after_mustache_4725/inline_element_before_block/a666b0e278483993.svelte	svelte
 <div>
   <b>x</b>{#if unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/if}
+    >
+      {unit}
+    </sup>{/if}
 </div>
 
-=== 143 hugged_element_in_block_after_mustache_4725/issue_4725_sup_after_mustache_in_if/67e3a1a2873aa55f.svelte	svelte
+=== 148 hugged_element_in_block_after_mustache_4725/issue_4725_sup_after_mustache_in_if/67e3a1a2873aa55f.svelte	svelte
 <div>
   {value}{#if unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/if}
+    >
+      {unit}
+    </sup>{/if}
 </div>
 
-=== 143 hugged_element_in_block_after_mustache_4725/issue_4725_sup_after_mustache_in_if/90373483b5786884.svelte	svelte
+=== 148 hugged_element_in_block_after_mustache_4725/issue_4725_sup_after_mustache_in_if/90373483b5786884.svelte	svelte
 <div>
   {value}{#if unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/if}
+    >
+      {unit}
+    </sup>{/if}
 </div>
 
-=== 145 hugged_element_in_block_after_mustache_4725/key_body_after_mustache/75433ef215e3ba79.svelte	svelte
+=== 150 hugged_element_in_block_after_mustache_4725/key_body_after_mustache/75433ef215e3ba79.svelte	svelte
 <div>
   {value}{#key unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/key}
+    >
+      {unit}
+    </sup>{/key}
 </div>
 
-=== 145 hugged_element_in_block_after_mustache_4725/key_body_after_mustache/aa56a63f8b3f5b1d.svelte	svelte
+=== 150 hugged_element_in_block_after_mustache_4725/key_body_after_mustache/aa56a63f8b3f5b1d.svelte	svelte
 <div>
   {value}{#key unit}<sup
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</sup
-    >{/key}
+    >
+      {unit}
+    </sup>{/key}
 </div>
 
-=== 161 hugged_element_in_block_after_mustache_4725/nested_if_blocks/288532be76ae404b.svelte	svelte
+=== 168 hugged_element_in_block_after_mustache_4725/nested_if_blocks/288532be76ae404b.svelte	svelte
 <div>
   {value}{#if a}{#if unit}<sup
         class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-        >{unit}</sup
-      >{/if}{/if}
+      >
+        {unit}
+      </sup>{/if}{/if}
 </div>
 
-=== 161 hugged_element_in_block_after_mustache_4725/nested_if_blocks/40ccd7ee95f1925d.svelte	svelte
+=== 168 hugged_element_in_block_after_mustache_4725/nested_if_blocks/40ccd7ee95f1925d.svelte	svelte
 <div>
   {value}{#if a}{#if unit}<sup
         class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-        >{unit}</sup
-      >{/if}{/if}
+      >
+        {unit}
+      </sup>{/if}{/if}
 </div>
 
-=== 149 hugged_element_in_block_after_mustache_4725/strong_after_mustache_in_if/731c21090c34420b.svelte	svelte
+=== 154 hugged_element_in_block_after_mustache_4725/strong_after_mustache_in_if/731c21090c34420b.svelte	svelte
 <div>
   {value}{#if unit}<strong
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</strong
-    >{/if}
+    >
+      {unit}
+    </strong>{/if}
 </div>
 
-=== 149 hugged_element_in_block_after_mustache_4725/strong_after_mustache_in_if/ac49c41f31e18d92.svelte	svelte
+=== 154 hugged_element_in_block_after_mustache_4725/strong_after_mustache_in_if/ac49c41f31e18d92.svelte	svelte
 <div>
   {value}{#if unit}<strong
       class="ml-0.75 align-top text-sm font-medium text-gray-500 underline"
-      >{unit}</strong
-    >{/if}
+    >
+      {unit}
+    </strong>{/if}
 </div>
 
-=== 102 hugged_tag_run_break/call_argument_list_breaks_in_a_run/064c560887d31242.svelte	svelte
-<b
-  >{f(
-    1,
-    2,
-  )}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggg}</b
->
+=== 89 hugged_tag_run_break/call_argument_list_breaks_in_a_run/064c560887d31242.svelte	svelte
+<b>
+  {f(1, 2)}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggg}
+</b>
 
-=== 102 hugged_tag_run_break/call_argument_list_breaks_in_a_run/067816877978b685.svelte	svelte
-<b
-  >{f(
-    1,
-    2,
-  )}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggg}</b
->
+=== 89 hugged_tag_run_break/call_argument_list_breaks_in_a_run/067816877978b685.svelte	svelte
+<b>
+  {f(1, 2)}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggg}
+</b>
 
-=== 97 hugged_tag_run_break/computed_member_key_breaks_in_a_run/7d275b4b1c6e2b51.svelte	svelte
-<b
-  >{o[
-    "aaaa"
-  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gg}</b
->
+=== 89 hugged_tag_run_break/computed_member_key_breaks_in_a_run/7d275b4b1c6e2b51.svelte	svelte
+<b>
+  {o["aaaa"]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gg}
+</b>
 
-=== 97 hugged_tag_run_break/computed_member_key_breaks_in_a_run/fc9a6dbd3637448c.svelte	svelte
-<b
-  >{o[
-    "aaaa"
-  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gg}</b
->
+=== 89 hugged_tag_run_break/computed_member_key_breaks_in_a_run/fc9a6dbd3637448c.svelte	svelte
+<b>
+  {o["aaaa"]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gg}
+</b>
 
 === 99 hugged_tag_run_break/control_attribute_value/2416e28d1367ff12.svelte	svelte
 <div
@@ -2253,81 +2299,73 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
   ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
 </div>
 
-=== 119 hugged_tag_run_break/control_breakable_tag_last_in_the_run/13919766af3c0c16.svelte	svelte
+=== 107 hugged_tag_run_break/control_breakable_tag_last_in_the_run/13919766af3c0c16.svelte	svelte
 <div>
-  <span
-    >{otherValue}{thirdValue}{o[
-      "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-    ]}</span
-  >
+  <span>
+    {otherValue}{thirdValue}{o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}
+  </span>
 </div>
 
-=== 119 hugged_tag_run_break/control_breakable_tag_last_in_the_run/f3404b40cb3e08bd.svelte	svelte
+=== 107 hugged_tag_run_break/control_breakable_tag_last_in_the_run/f3404b40cb3e08bd.svelte	svelte
 <div>
-  <span
-    >{otherValue}{thirdValue}{o[
-      "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-    ]}</span
-  >
+  <span>
+    {otherValue}{thirdValue}{o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}
+  </span>
 </div>
 
 === 89 hugged_tag_run_break/control_prose_after_the_tag/ae211d689952c6de.svelte	svelte
-<b
-  >{o["aaaaaaaaaaaaaaaaaaaa"]} some words here that go on and on and on and on x</b
->
+<b>
+  {o["aaaaaaaaaaaaaaaaaaaa"]} some words here that go on and on and on and on x
+</b>
 
 === 89 hugged_tag_run_break/control_prose_after_the_tag/cae1a088aae989e8.svelte	svelte
-<b
-  >{o["aaaaaaaaaaaaaaaaaaaa"]} some words here that go on and on and on and on x</b
->
+<b>
+  {o["aaaaaaaaaaaaaaaaaaaa"]} some words here that go on and on and on and on x
+</b>
 
 === 100 hugged_tag_run_break/control_prose_before_the_tag/36b5bb69efc287db.svelte	svelte
-<b
-  >some words here that go on and on and on and on and on {o[
+<b>
+  some words here that go on and on and on and on and on {o[
     "aaaaaaaaaaaaaaaaaa"
-  ]}</b
->
+  ]}
+</b>
 
 === 100 hugged_tag_run_break/control_prose_before_the_tag/e6fee066f6bcf8d4.svelte	svelte
-<b
-  >some words here that go on and on and on and on and on {o[
+<b>
+  some words here that go on and on and on and on and on {o[
     "aaaaaaaaaaaaaaaaaa"
-  ]}</b
->
+  ]}
+</b>
 
 === 37 hugged_tag_run_break/control_run_that_fits/7eebb9e8a5976ded.svelte	svelte
 <span>{o["aaaa"]}{o.bb}{o.cc}</span>
 
-=== 119 hugged_tag_run_break/control_single_tag_breaks_one_column_over/6a963ac40847c0da.svelte	svelte
+=== 107 hugged_tag_run_break/control_single_tag_breaks_one_column_over/6a963ac40847c0da.svelte	svelte
 <div>
-  <span
-    >{o[
-      "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-    ]}</span
-  >
+  <span>
+    {o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}
+  </span>
 </div>
 
-=== 119 hugged_tag_run_break/control_single_tag_breaks_one_column_over/e198656537fe122f.svelte	svelte
+=== 107 hugged_tag_run_break/control_single_tag_breaks_one_column_over/e198656537fe122f.svelte	svelte
 <div>
-  <span
-    >{o[
-      "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-    ]}</span
-  >
+  <span>
+    {o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}
+  </span>
 </div>
 
 === 106 hugged_tag_run_break/control_single_tag_flat_one_column_under/6bceff70fa319018.svelte	svelte
 <div>
-  <span
-    >{o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}</span
-  >
+  <span>
+    {o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}
+  </span>
 </div>
 
 === 106 hugged_tag_run_break/control_single_tag_flat_one_column_under/f3b9107d6ac1978f.svelte	svelte
 <div>
-  <span
-    >{o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}</span
-  >
+  <span>
+    {o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}
+  </span>
 </div>
 
 === 456 hugged_tag_run_break/corpus_carrier_bigint_comparison_run/0a674a5a078d27c6.svelte	svelte
@@ -2385,211 +2423,203 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
 </p>
 
 === 109 hugged_tag_run_break/host_component/94a046fa71c19732.svelte	svelte
-<Comp
-  >{o[
+<Comp>
+  {o[
     "aaaa"
-  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</Comp
->
+  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</Comp>
 
 === 109 hugged_tag_run_break/host_component/e98615d510c32945.svelte	svelte
-<Comp
-  >{o[
+<Comp>
+  {o[
     "aaaa"
-  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</Comp
->
+  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</Comp>
 
 === 148 hugged_tag_run_break/host_each_block/a3e2ad1799ff4fb7.svelte	svelte
 {#each list as item}
-  <span
-    >{o[
+  <span>
+    {o[
       "aaaa"
-    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</span
-  >
+    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+  </span>
 {/each}
 
 === 148 hugged_tag_run_break/host_each_block/b2b5780b94475095.svelte	svelte
 {#each list as item}
-  <span
-    >{o[
+  <span>
+    {o[
       "aaaa"
-    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</span
-  >
+    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+  </span>
 {/each}
 
 === 136 hugged_tag_run_break/host_if_block/13668ff84c9baead.svelte	svelte
 {#if flag}
-  <span
-    >{o[
+  <span>
+    {o[
       "aaaa"
-    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</span
-  >
+    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+  </span>
 {/if}
 
 === 136 hugged_tag_run_break/host_if_block/9933df69a5dff3ee.svelte	svelte
 {#if flag}
-  <span
-    >{o[
+  <span>
+    {o[
       "aaaa"
-    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</span
-  >
+    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+  </span>
 {/if}
 
 === 113 hugged_tag_run_break/host_inline_block_button/3f4053c8702f4d63.svelte	svelte
-<button
-  >{o[
+<button>
+  {o[
     "aaaa"
-  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</button
->
+  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</button>
 
 === 113 hugged_tag_run_break/host_inline_block_button/f461368c58f78484.svelte	svelte
-<button
-  >{o[
+<button>
+  {o[
     "aaaa"
-  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</button
->
+  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</button>
 
 === 122 hugged_tag_run_break/host_nested_inline_element/9cc1e613bbef2a96.svelte	svelte
-<b
-  ><i
-    >{o[
+<b>
+  <i>
+    {o[
       "aaaa"
-    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</i
-  ></b
->
+    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+  </i>
+</b>
 
 === 122 hugged_tag_run_break/host_nested_inline_element/e8d04c840534aa5d.svelte	svelte
-<b
-  ><i
-    >{o[
+<b>
+  <i>
+    {o[
       "aaaa"
-    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</i
-  ></b
->
+    ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+  </i>
+</b>
 
 === 140 hugged_tag_run_break/host_svelte_element/27d92184f21721c6.svelte	svelte
-<svelte:element this={tag}
-  >{o[
+<svelte:element this={tag}>
+  {o[
     "aaaa"
-  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</svelte:element
->
+  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</svelte:element>
 
 === 140 hugged_tag_run_break/host_svelte_element/be05dffc59bb3a00.svelte	svelte
-<svelte:element this={tag}
-  >{o[
+<svelte:element this={tag}>
+  {o[
     "aaaa"
-  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</svelte:element
->
+  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</svelte:element>
 
 === 109 hugged_tag_run_break/html_tag_first_in_a_run/86307e5bb8eda0b0.svelte	svelte
-<b
-  >{@html o[
+<b>
+  {@html o[
     "aaaa"
-  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</b
->
+  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</b>
 
 === 109 hugged_tag_run_break/html_tag_first_in_a_run/b5ce4b4cc6bc702a.svelte	svelte
-<b
-  >{@html o[
+<b>
+  {@html o[
     "aaaa"
-  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</b
->
+  ]}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</b>
 
-=== 125 hugged_tag_run_break/issue_3423_hugged_span_breaks_the_first_group/a89452ce6fb9e5c2.svelte	svelte
+=== 113 hugged_tag_run_break/issue_3423_hugged_span_breaks_the_first_group/a89452ce6fb9e5c2.svelte	svelte
 <div>
-  <span
-    >{someValue[
-      "a quoted key here"
-    ]}{otherValue}{thirdValue}{fourthValue}{fifth}</span
-  >
+  <span>
+    {someValue["a quoted key here"]}{otherValue}{thirdValue}{fourthValue}{fifth}
+  </span>
 </div>
 
-=== 125 hugged_tag_run_break/issue_3423_hugged_span_breaks_the_first_group/e1bb7c06ffb438b6.svelte	svelte
+=== 113 hugged_tag_run_break/issue_3423_hugged_span_breaks_the_first_group/e1bb7c06ffb438b6.svelte	svelte
 <div>
-  <span
-    >{someValue[
-      "a quoted key here"
-    ]}{otherValue}{thirdValue}{fourthValue}{fifth}</span
-  >
+  <span>
+    {someValue["a quoted key here"]}{otherValue}{thirdValue}{fourthValue}{fifth}
+  </span>
 </div>
 
 === 114 hugged_tag_run_break/render_tag_first_in_a_run/a719cec6a15f71ec.svelte	svelte
-<b
-  >{@render foo(
+<b>
+  {@render foo(
     "aaaa",
-  )}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</b
->
+  )}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</b>
 
 === 114 hugged_tag_run_break/render_tag_first_in_a_run/fdc5f60d263a44fa.svelte	svelte
-<b
-  >{@render foo(
+<b>
+  {@render foo(
     "aaaa",
-  )}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</b
->
+  )}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</b>
 
 === 89 hugged_tag_run_break/run_of_dotted_members_has_nothing_to_break/3c52b329bd995c16.svelte	svelte
-<b
-  >{o.aaaaaaaa}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.g}</b
->
+<b>
+  {o.aaaaaaaa}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.g}
+</b>
 
 === 89 hugged_tag_run_break/run_of_dotted_members_has_nothing_to_break/e871bdc7312184c2.svelte	svelte
-<b
-  >{o.aaaaaaaa}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.g}</b
->
+<b>
+  {o.aaaaaaaa}{o.bbbbbbbb}{o.cccccccc}{o.dddddddd}{o.eeeeeeee}{o.ffffffff}{o.g}
+</b>
 
 === 88 hugged_tag_run_break/run_of_identifiers_has_nothing_to_break/778cfca533c2f0c0.svelte	svelte
-<b
-  >{aaaaaaaaaa}{bbbbbbbbbb}{cccccccccc}{dddddddddd}{eeeeeeeeee}{ffffffffff}{gg}</b
->
+<b>
+  {aaaaaaaaaa}{bbbbbbbbbb}{cccccccccc}{dddddddddd}{eeeeeeeeee}{ffffffffff}{gg}
+</b>
 
 === 88 hugged_tag_run_break/run_of_identifiers_has_nothing_to_break/80e4ecd34046a95a.svelte	svelte
-<b
-  >{aaaaaaaaaa}{bbbbbbbbbb}{cccccccccc}{dddddddddd}{eeeeeeeeee}{ffffffffff}{gg}</b
->
+<b>
+  {aaaaaaaaaa}{bbbbbbbbbb}{cccccccccc}{dddddddddd}{eeeeeeeeee}{ffffffffff}{gg}
+</b>
 
 === 121 hugged_tag_run_break/the_group_that_breaks_is_the_one_that_misses_its_fit/34bf6b25536ab914.svelte	svelte
-<b
-  >{o["aaaaaaaaaaaa"]}{o.bbbbbbbb}{o.cccccccc}{p[
+<b>
+  {o["aaaaaaaaaaaa"]}{o.bbbbbbbb}{o.cccccccc}{p[
     "ddddddddddddddd"
-  ]}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</b
->
+  ]}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</b>
 
 === 121 hugged_tag_run_break/the_group_that_breaks_is_the_one_that_misses_its_fit/f0fe3027a650dd73.svelte	svelte
-<b
-  >{o["aaaaaaaaaaaa"]}{o.bbbbbbbb}{o.cccccccc}{p[
+<b>
+  {o["aaaaaaaaaaaa"]}{o.bbbbbbbb}{o.cccccccc}{p[
     "ddddddddddddddd"
-  ]}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}</b
->
+  ]}{o.eeeeeeee}{o.ffffffff}{o.gggggggg}
+</b>
 
-=== 119 hugged_tag_run_break/threshold_breaks_one_column_over/2db5534a846c33b3.svelte	svelte
+=== 107 hugged_tag_run_break/threshold_breaks_one_column_over/2db5534a846c33b3.svelte	svelte
 <div>
-  <span
-    >{o[
-      "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-    ]}{otherValue}{thirdValue}</span
-  >
+  <span>
+    {o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}{otherValue}{thirdValue}
+  </span>
 </div>
 
-=== 119 hugged_tag_run_break/threshold_breaks_one_column_over/e633f0f7060eec9b.svelte	svelte
+=== 107 hugged_tag_run_break/threshold_breaks_one_column_over/e633f0f7060eec9b.svelte	svelte
 <div>
-  <span
-    >{o[
-      "kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"
-    ]}{otherValue}{thirdValue}</span
-  >
+  <span>
+    {o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}{otherValue}{thirdValue}
+  </span>
 </div>
 
 === 106 hugged_tag_run_break/threshold_flat_one_column_under/277366a1ae28bece.svelte	svelte
 <div>
-  <span
-    >{o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}{otherValue}{thirdValue}</span
-  >
+  <span>
+    {o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}{otherValue}{thirdValue}
+  </span>
 </div>
 
 === 106 hugged_tag_run_break/threshold_flat_one_column_under/a18e5f197efe599a.svelte	svelte
 <div>
-  <span
-    >{o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}{otherValue}{thirdValue}</span
-  >
+  <span>
+    {o["kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk"]}{otherValue}{thirdValue}
+  </span>
 </div>
 
 === 50 implicit_close/a_child_close_tag_at_the_boundary_is_not_claimed/78e6f404d74f9467.svelte	svelte
@@ -2790,38 +2820,39 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
 </div>
 
 === 172 leading_comment_hug/a_comment_before_a_breaking_child_keeps_its_terminator/fce431008e9f0488.svelte	svelte
-<svg Q="1" R="2"
-  ><!-- ZZZZZZZZ --><path d="a"
-    ><animate
+<svg Q="1" R="2">
+  <!-- ZZZZZZZZ --><path d="a">
+    <animate
       aaaaaaaaaaaaaaaa="1"
       bbbbbbbbbbbbbbbbbb="2"
       cccccccccccccccccc="3"
-    /></path
-  ></svg
->
+    />
+  </path>
+</svg>
 
 === 61 leading_comment_hug/a_comment_with_a_child_that_fits_is_unchanged/c6804ca2a842294c.svelte	svelte
 <svg Q="1" R="2"><!-- ZZZZZZZZ --><path d="a">y</path></svg>
 
-=== 221 leading_comment_hug/a_parents_wrapped_bracket_still_hugs_its_child/fcbfd44bcb45cc76.svelte	svelte
+=== 222 leading_comment_hug/a_parents_wrapped_bracket_still_hugs_its_child/fcbfd44bcb45cc76.svelte	svelte
 <svg
   xmlns="http://www.w3.org/2000/svg"
   viewBox="0 0 24 24"
   width="24"
   height="24"
-  ><defs
-    ><clipPath id="cccccccccccccccc"
-      ><rect x="0" y="0" width="10" height="10" /></clipPath
-    ></defs
-  ></svg
 >
+  <defs>
+    <clipPath id="cccccccccccccccc">
+      <rect x="0" y="0" width="10" height="10" />
+    </clipPath>
+  </defs>
+</svg>
 
 === 146 leading_comment_hug/an_inline_host_indents_at_its_own_column_not_the_comments_end/0af1c41d46ec574c.svelte	svelte
-<span aaaaaaaaaaaaaaaaaaaa="1"
-  ><!-- x --><b d="a"
-    ><i aaaaaaaaaaaaaaaa="1" bbbbbbbbbbbbbbbbbb="2" cccccccccccccccccc="3" /></b
-  ></span
->
+<span aaaaaaaaaaaaaaaaaaaa="1">
+  <!-- x --><b d="a">
+    <i aaaaaaaaaaaaaaaa="1" bbbbbbbbbbbbbbbbbb="2" cccccccccccccccccc="3" />
+  </b>
+</span>
 
 === 27 line_endings/a_bom_still_round_trips_across_the_cr_normalization/3bafc529d015ad41.svelte	svelte
 ﻿<div>
@@ -10624,7 +10655,7 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
   x
 </div>
 
-=== 240 markup_expression_indent/every_raw_text_boundary_is_scanned/c6d69d7eadacaf6b.svelte	svelte
+=== 244 markup_expression_indent/every_raw_text_boundary_is_scanned/c6d69d7eadacaf6b.svelte	svelte
 <span
   title="{someConditionValueXx
     ? aVeryLongAlternativeOneHere
@@ -10634,10 +10665,12 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
 	raw b
 	{anotherConditionValueHere
     ? someMuchLongerAlternativeThree
-    : someMuchLongerAlternativeFour}">x</span
+    : someMuchLongerAlternativeFour}"
 >
+  x
+</span>
 
-=== 240 markup_expression_indent/every_raw_text_boundary_is_scanned/ead24abaa4d7318a.svelte	svelte
+=== 244 markup_expression_indent/every_raw_text_boundary_is_scanned/ead24abaa4d7318a.svelte	svelte
 <span
   title="{someConditionValueXx
     ? aVeryLongAlternativeOneHere
@@ -10647,8 +10680,10 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
 	raw b
 	{anotherConditionValueHere
     ? someMuchLongerAlternativeThree
-    : someMuchLongerAlternativeFour}">x</span
+    : someMuchLongerAlternativeFour}"
 >
+  x
+</span>
 
 === 253 markup_expression_indent/multi_interpolation_value_second_opens_at_attr_indent/2a77b4da3cd39e1c.svelte	svelte
 <div
@@ -10666,23 +10701,27 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
   x
 </div>
 
-=== 144 markup_expression_indent/regular_attribute_value_keeps_inter_interpolation_whitespace/63b8e38b6d2d5237.svelte	svelte
+=== 148 markup_expression_indent/regular_attribute_value_keeps_inter_interpolation_whitespace/63b8e38b6d2d5237.svelte	svelte
 <span
   title="{shortOne}
       {anotherConditionValueHere
     ? someMuchLongerAlternativeThree
-    : someMuchLongerAlternativeFour}">x</span
+    : someMuchLongerAlternativeFour}"
 >
+  x
+</span>
 
-=== 144 markup_expression_indent/regular_attribute_value_keeps_inter_interpolation_whitespace/6dfc46eb7fe77602.svelte	svelte
+=== 148 markup_expression_indent/regular_attribute_value_keeps_inter_interpolation_whitespace/6dfc46eb7fe77602.svelte	svelte
 <span
   title="{shortOne}
       {anotherConditionValueHere
     ? someMuchLongerAlternativeThree
-    : someMuchLongerAlternativeFour}">x</span
+    : someMuchLongerAlternativeFour}"
 >
+  x
+</span>
 
-=== 229 markup_expression_indent/second_wrapped_interpolation_after_raw_text_is_reindented/0453e07c78fbc758.svelte	svelte
+=== 233 markup_expression_indent/second_wrapped_interpolation_after_raw_text_is_reindented/0453e07c78fbc758.svelte	svelte
 <span
   title="{someConditionValueXx
     ? aVeryLongAlternativeOneHere
@@ -10690,10 +10729,12 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
 	raw text
 	{anotherConditionValueHere
     ? someMuchLongerAlternativeThree
-    : someMuchLongerAlternativeFour}">x</span
+    : someMuchLongerAlternativeFour}"
 >
+  x
+</span>
 
-=== 229 markup_expression_indent/second_wrapped_interpolation_after_raw_text_is_reindented/6986f8780cbd9869.svelte	svelte
+=== 233 markup_expression_indent/second_wrapped_interpolation_after_raw_text_is_reindented/6986f8780cbd9869.svelte	svelte
 <span
   title="{someConditionValueXx
     ? aVeryLongAlternativeOneHere
@@ -10701,8 +10742,10 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
 	raw text
 	{anotherConditionValueHere
     ? someMuchLongerAlternativeThree
-    : someMuchLongerAlternativeFour}">x</span
+    : someMuchLongerAlternativeFour}"
 >
+  x
+</span>
 
 === 28 markup_expressions/asi_guard_stripped_across_expression_positions/33c66ad2e386af13.svelte	svelte
 <div data-x={-count}></div>
@@ -10963,12 +11006,14 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
   {count}
 </button>
 
-=== 105 markup_open_tag/escaped_regex_slash_does_not_deindent_multiline_attribute_close/45d48cbddf3d54b6.svelte	svelte
+=== 109 markup_open_tag/escaped_regex_slash_does_not_deindent_multiline_attribute_close/45d48cbddf3d54b6.svelte	svelte
 <button
   onclick={() => {
     v = v.replace(/(^https?:\/\/[^/]+)\/*$/i, "$1");
-  }}>normalize</button
+  }}
 >
+  normalize
+</button>
 
 === 56 markup_open_tag/line_comment_between_attributes_is_preserved/de32c6da3425028a.svelte	svelte
 <div
@@ -10984,42 +11029,50 @@ xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx{@render s(
   class="y"
 ></div>
 
-=== 120 markup_open_tag/multiline_attr_expression_reindented_to_attribute_column/ffe8b96381bb3d49.svelte	svelte
+=== 132 markup_open_tag/multiline_attr_expression_reindented_to_attribute_column/ffe8b96381bb3d49.svelte	svelte
 <div>
   <div>
     <button
       onclick={() => {
         foo();
         bar();
-      }}>x</button
+      }}
     >
+      x
+    </button>
   </div>
 </div>
 
-=== 62 markup_open_tag/multiline_attr_forces_multiline_tag_even_when_short/984f76f0e755ad42.svelte	svelte
+=== 66 markup_open_tag/multiline_attr_forces_multiline_tag_even_when_short/984f76f0e755ad42.svelte	svelte
 <button
   onclick={() => {
     a();
     b();
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 78 markup_open_tag/multiline_attr_idempotent/51f805fa304ccb93.svelte	svelte
+=== 86 markup_open_tag/multiline_attr_idempotent/51f805fa304ccb93.svelte	svelte
 <div>
   <button
     onclick={() => {
       foo();
-    }}>x</button
+    }}
   >
+    x
+  </button>
 </div>
 
-=== 78 markup_open_tag/multiline_attr_idempotent/6f6eff5bc4d68811.svelte	svelte
+=== 86 markup_open_tag/multiline_attr_idempotent/6f6eff5bc4d68811.svelte	svelte
 <div>
   <button
     onclick={() => {
       foo();
-    }}>x</button
+    }}
   >
+    x
+  </button>
 </div>
 
 === 63 markup_open_tag/multiline_template_literal_attr_idempotent/69e7181e4d546258.svelte	svelte
@@ -11137,9 +11190,8 @@ b`}
 === 57 markup_patterns/each_index_separator_with_a_key_clause/a14d49547a2deec1.svelte	svelte
 {#each rows as item, i (item.id)}<p>{item}{i}</p>{/each}
 
-=== 147 markup_patterns/each_long_header_does_not_break/1e3ee54ba3ed77f1.svelte	svelte
-{#each someVeryLongIterableExpressionNameThatExceedsTheConfiguredWidth as itemWithAVeryLongName}<li
-  >
+=== 144 markup_patterns/each_long_header_does_not_break/1e3ee54ba3ed77f1.svelte	svelte
+{#each someVeryLongIterableExpressionNameThatExceedsTheConfiguredWidth as itemWithAVeryLongName}<li>
     {itemWithAVeryLongName}
   </li>{/each}
 
@@ -11419,14 +11471,15 @@ b
 ></div>
 
 === 89 markup_wrap/directive_with_modifiers_wraps_as_one_attr/03e3b95c07d30921.svelte	svelte
-<button class="primary" on:click|preventDefault={handleClickWithLongName}
-  >x</button
->
+<button class="primary" on:click|preventDefault={handleClickWithLongName}>
+  x
+</button>
 
-=== 162 markup_wrap/else_if_branch_dangles_the_first_title_close/cb5d7513e02673bd.svelte	svelte
+=== 169 markup_wrap/else_if_branch_dangles_the_first_title_close/cb5d7513e02673bd.svelte	svelte
 <svg>
-  {#if typeof title === "function"}<title>{@render title()}</title
-    >{:else if titleText}<title>{titleText}</title>{/if}
+  {#if typeof title === "function"}<title>
+      {@render title()}
+    </title>{:else if titleText}<title>{titleText}</title>{/if}
   {@render children?.()}
 </svg>
 
@@ -11467,23 +11520,27 @@ b
     <h1 class="text-3xl font-bold">Stage not found</h1>
   </section>{/if}
 
-=== 129 markup_wrap/inline_text_element_hugs_open_and_breaks_close/7ad3cda9bea14d77.svelte	svelte
+=== 133 markup_wrap/inline_text_element_hugs_open_and_breaks_close/7ad3cda9bea14d77.svelte	svelte
 <button
   onclick={() => {
     doSomethingWithAVeryLongName();
     doAnotherThingWithLongName();
     doThird();
-  }}>x</button
+  }}
 >
+  x
+</button>
 
-=== 129 markup_wrap/inline_text_element_hugs_open_and_breaks_close/cb30ebcf74505aa8.svelte	svelte
+=== 133 markup_wrap/inline_text_element_hugs_open_and_breaks_close/cb30ebcf74505aa8.svelte	svelte
 <button
   onclick={() => {
     doSomethingWithAVeryLongName();
     doAnotherThingWithLongName();
     doThird();
-  }}>x</button
+  }}
 >
+  x
+</button>
 
 === 87 markup_wrap/leading_regex_expression_tag_still_wraps_at_width/3ce6e102c001fabb.svelte	svelte
 <p>
@@ -11495,12 +11552,13 @@ b
   <span class="foo" id="bar" data-x="y"></span>
 </div>
 
-=== 113 markup_wrap/on_directive_arrow_handler_breaks_by_prefix/35df7310d26381af.svelte	svelte
+=== 114 markup_wrap/on_directive_arrow_handler_breaks_by_prefix/35df7310d26381af.svelte	svelte
 <button
   on:click={() =>
     doSomethingQuiteLong(withAnArgument, andAnother, andYetAnotherOne)}
-  >x</button
 >
+  x
+</button>
 
 === 66 markup_wrap/pre_child_open_tag_dangles_on_multiline_content/69dfef24cde1118c.svelte	svelte
 <pre><code class="language-bash"
@@ -11518,14 +11576,14 @@ line2</code
 === 348 markup_wrap/prose_after_broken_inline_element_stays_word_first/32d16a42296a48f6.svelte	svelte
 <ul>
   <li>
-    Svelte UX 1.0.0 requires Tailwind 3. For new projects, Svelte CLI <code
-      >sv</code
-    >
+    Svelte UX 1.0.0 requires Tailwind 3. For new projects, Svelte CLI <code>
+      sv
+    </code>
     installs Tailwind 4 which can not be used. Instead you will need to follow
     the
-    <a href="https://v3.tailwindcss.com/docs/guides/sveltekit" target="_blank"
-      >official guide</a
-    >
+    <a href="https://v3.tailwindcss.com/docs/guides/sveltekit" target="_blank">
+      official guide
+    </a>
     to setup your project.
   </li>
 </ul>
@@ -12619,53 +12677,57 @@ world</pre>
   </div>
 </Field>
 
-=== 784 real_world_parity/nested_component_children_follow_oracle_hugging/12181de38978f4f1.svelte	svelte
+=== 800 real_world_parity/nested_component_children_follow_oracle_hugging/12181de38978f4f1.svelte	svelte
 <ol>
   <li class="flex items-start gap-x-8">
-    <span class="step-no flex shrink-0 justify-center items-center"
-      ><Text type="caption-12" color="inherit">1</Text></span
-    >
-    <Text type="body-13" color="gray-700"
-      >Workflow「{buildInfo.workflow ?? "Default workflow name"}」を<Text
+    <span class="step-no flex shrink-0 justify-center items-center">
+      <Text type="caption-12" color="inherit">1</Text>
+    </span>
+    <Text type="body-13" color="gray-700">
+      Workflow「{buildInfo.workflow ?? "Default workflow name"}」を<Text
         tag="span"
-        type="body-13-bold">publish</Text
-      >します。</Text
-    >
+        type="body-13-bold"
+      >
+        publish
+      </Text>します。
+    </Text>
   </li>
   <li class="flex items-start gap-x-8">
-    <span class="step-no flex shrink-0 justify-center items-center"
-      ><Text type="caption-12" color="inherit">2</Text></span
-    >
-    <Text type="body-13" color="gray-700"
-      >After publishing、selected tableに<Text tag="span" type="body-13-bold"
-        >new records</Text
-      >が追加されます。</Text
-    >
+    <span class="step-no flex shrink-0 justify-center items-center">
+      <Text type="caption-12" color="inherit">2</Text>
+    </span>
+    <Text type="body-13" color="gray-700">
+      After publishing、selected tableに<Text tag="span" type="body-13-bold">
+        new records
+      </Text>が追加されます。
+    </Text>
   </li>
 </ol>
 
-=== 784 real_world_parity/nested_component_children_follow_oracle_hugging/bb12429792a06558.svelte	svelte
+=== 800 real_world_parity/nested_component_children_follow_oracle_hugging/bb12429792a06558.svelte	svelte
 <ol>
   <li class="flex items-start gap-x-8">
-    <span class="step-no flex shrink-0 justify-center items-center"
-      ><Text type="caption-12" color="inherit">1</Text></span
-    >
-    <Text type="body-13" color="gray-700"
-      >Workflow「{buildInfo.workflow ?? "Default workflow name"}」を<Text
+    <span class="step-no flex shrink-0 justify-center items-center">
+      <Text type="caption-12" color="inherit">1</Text>
+    </span>
+    <Text type="body-13" color="gray-700">
+      Workflow「{buildInfo.workflow ?? "Default workflow name"}」を<Text
         tag="span"
-        type="body-13-bold">publish</Text
-      >します。</Text
-    >
+        type="body-13-bold"
+      >
+        publish
+      </Text>します。
+    </Text>
   </li>
   <li class="flex items-start gap-x-8">
-    <span class="step-no flex shrink-0 justify-center items-center"
-      ><Text type="caption-12" color="inherit">2</Text></span
-    >
-    <Text type="body-13" color="gray-700"
-      >After publishing、selected tableに<Text tag="span" type="body-13-bold"
-        >new records</Text
-      >が追加されます。</Text
-    >
+    <span class="step-no flex shrink-0 justify-center items-center">
+      <Text type="caption-12" color="inherit">2</Text>
+    </span>
+    <Text type="body-13" color="gray-700">
+      After publishing、selected tableに<Text tag="span" type="body-13-bold">
+        new records
+      </Text>が追加されます。
+    </Text>
   </li>
 </ol>
 
@@ -13295,12 +13357,12 @@ https://svelte.dev/e/expected_token
   let component: typeof SvelteComponent<any>;
 </script>
 
-=== 66 typescript/plain_ts_script_ambiguous_generic_expr_formats_as_js/6f506a9c7c78c0d3.svelte	svelte
+=== 68 typescript/plain_ts_script_ambiguous_generic_expr_formats_as_js/6f506a9c7c78c0d3.svelte	svelte
 <script>
   let x: number = 1;
 </script>
 
-<p>{fn < string > a}</p>
+<p>{(fn < string) > a}</p>
 
 === 129 typescript/script_generics_attr_with_angle_brackets_parses/6bd5af159db49e4e.svelte	svelte
 <script lang="ts" generics="TItem extends Record<string, unknown>">
@@ -13392,7 +13454,7 @@ https://svelte.dev/e/expected_token
   saveButtonTitle="Delete Account"
 />
 
-=== 510 value_sequence_rebuild_4311/every_cell_formats_to_the_oracle_output/bfa86658bef7ed6b.svelte	svelte
+=== 550 value_sequence_rebuild_4311/every_cell_formats_to_the_oracle_output/bfa86658bef7ed6b.svelte	svelte
 <div>
   <div>
     <div>
@@ -13406,8 +13468,10 @@ https://svelte.dev/e/expected_token
                     href={x}
                     title="{$t('search_for')} {asset.exifInfo.make || ''} {asset
                       .exifInfo.model || ''}"
-                    class="hover:text-primary">x</a
+                    class="hover:text-primary"
                   >
+                    x
+                  </a>
                 </div>
               </div>
             </div>
@@ -13418,7 +13482,7 @@ https://svelte.dev/e/expected_token
   </div>
 </div>
 
-=== 510 value_sequence_rebuild_4311/the_oracle_output_is_a_fixed_point/151649a5a3736b33.svelte	svelte
+=== 550 value_sequence_rebuild_4311/the_oracle_output_is_a_fixed_point/151649a5a3736b33.svelte	svelte
 <div>
   <div>
     <div>
@@ -13432,8 +13496,10 @@ https://svelte.dev/e/expected_token
                     href={x}
                     title="{$t('search_for')} {asset.exifInfo.make || ''} {asset
                       .exifInfo.model || ''}"
-                    class="hover:text-primary">x</a
+                    class="hover:text-primary"
                   >
+                    x
+                  </a>
                 </div>
               </div>
             </div>

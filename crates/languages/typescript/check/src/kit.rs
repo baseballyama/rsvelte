@@ -1,14 +1,17 @@
-//! svelte2tsx's `upsertKitFile` for a TypeScript file: the types `SvelteKit` gives the exports of
-//! its route, hooks and params files where the file declares none.
+//! svelte2tsx's `upsertKitFile`: the types `SvelteKit` gives the exports of its route, hooks and
+//! params files where the file declares none, as annotations in TypeScript and as `JSDoc` in
+//! JavaScript.
 
 use std::path::Path;
 
+use jsdoc::{Host, Tag};
 use oxc_ast::ast::{
-    ArrowFunctionExpression, Declaration, Expression, FormalParameters, Function, Program,
-    Statement, VariableDeclarator,
+    ArrowFunctionExpression, BindingPattern, Declaration, Expression, FormalParameters, Function,
+    Program, Statement, VariableDeclarator,
 };
 use oxc_span::GetSpan;
 
+mod jsdoc;
 #[cfg(test)]
 mod tests;
 
@@ -34,18 +37,27 @@ const ROUTE_FILES: [&str; 5] = [
     "+server",
 ];
 
-/// What svelte2tsx inserts into the TypeScript file at `path`, in source order; empty when it is
-/// no `SvelteKit` file. `hooks_module` is the module that declares the hook types.
+/// The file svelte2tsx reads.
+#[derive(Clone, Copy)]
+struct Source<'s> {
+    text: &'s str,
+    javascript: bool,
+}
+
+/// What svelte2tsx inserts into the file at `path`, in source order; empty when it is no
+/// `SvelteKit` file. `hooks_module` is the module that declares the hook types.
 pub(crate) fn insertions(
     path: &Path,
-    source: &str,
+    text: &str,
     program: &Program<'_>,
+    javascript: bool,
     hooks_module: impl FnOnce() -> &'static str,
 ) -> Vec<Insertion> {
     let file = path.to_string_lossy().replace('\\', "/");
     let basename = file.rsplit('/').next().unwrap_or(&file);
     let mut out = Inserted::default();
-    let exports = || find_exports(program);
+    let source = Source { text, javascript };
+    let exports = || find_exports(program, source);
     if is_route_file(basename) {
         route_file(basename, source, &exports(), &mut out);
     } else if is_hooks_file(&file, basename, SERVER_HOOKS) {
@@ -103,7 +115,7 @@ fn without_extension<'f>(file: &'f str, basename: &str) -> &'f str {
 }
 
 /// svelte2tsx's `upsertKitRouteFile`.
-fn route_file(basename: &str, source: &str, exports: &[Export<'_, '_>], out: &mut Inserted) {
+fn route_file(basename: &str, source: Source<'_>, exports: &[Export<'_, '_>], out: &mut Inserted) {
     let load_type = format!(
         "import('./$types.js').{}{}Load",
         if basename.contains("layout") {
@@ -117,42 +129,24 @@ fn route_file(basename: &str, source: &str, exports: &[Export<'_, '_>], out: &mu
             ""
         },
     );
-    match find(exports, "load") {
-        Some(Export {
-            kind: Kind::Function(function),
-            typed: false,
-            ..
-        }) if function.parameters().count() == 1 => {
-            out.insert(
-                function.first_parameter_end(),
-                format!(": {load_type}Event"),
-            );
-        }
-        Some(Export {
-            kind: Kind::Variable(declarator),
-            typed: false,
-            ..
-        }) => {
-            // `const load = ...` becomes `const load = (...) satisfies PageLoad`.
-            if let Some(init) = &declarator.init {
-                out.insert(init.span().start, "(".to_owned());
-                out.insert(init.span().end, format!(") satisfies {load_type}"));
-            }
-        }
-        _ => {}
-    }
+    load(source, find(exports, "load"), &load_type, out);
     if let Some(Export {
         kind: Kind::Function(function),
         typed: false,
+        start,
         ..
     }) = find(exports, "entries")
         && function.parameters().count() == 0
         && !basename.contains("layout")
-        && !function.has_return_type()
-        && let Some(at) = function.return_position(source)
     {
-        let text = ": ReturnType<import('./$types.js').EntryGenerator> ";
-        out.insert(at, text.to_owned());
+        let kind = "import('./$types.js').EntryGenerator";
+        if source.javascript {
+            out.insert(*start, format!("/** @type {{{kind}}} */ "));
+        } else if !function.has_return_type()
+            && let Some(at) = function.return_position(source.text)
+        {
+            out.insert(at, format!(": ReturnType<{kind}> "));
+        }
     }
     if let Some(Export {
         kind: Kind::Variable(declarator),
@@ -161,8 +155,12 @@ fn route_file(basename: &str, source: &str, exports: &[Export<'_, '_>], out: &mu
     }) = find(exports, "actions")
         && let Some(init) = &declarator.init
     {
-        let text = " satisfies import('./$types.js').Actions";
-        out.insert(init.span().end, text.to_owned());
+        let kind = "import('./$types.js').Actions";
+        if source.javascript {
+            satisfies(source, init, kind, out);
+        } else {
+            out.insert(init.span().end, format!(" satisfies {kind}"));
+        }
     }
     for (name, kind) in [
         ("prerender", "boolean | 'auto'"),
@@ -176,9 +174,14 @@ fn route_file(basename: &str, source: &str, exports: &[Export<'_, '_>], out: &mu
             name_end,
             ..
         }) = find(exports, name)
-            && declarator.init.is_some()
+            && let Some(init) = &declarator.init
         {
-            out.insert(*name_end, format!(" : {kind}"));
+            if source.javascript {
+                out.insert(init.span().start, format!("/** @type {{{kind}}} */ ("));
+                out.insert(init.span().end, ")".to_owned());
+            } else {
+                out.insert(*name_end, format!(" : {kind}"));
+            }
         }
     }
     let returns = Some(("Response | Promise<Response>", "Promise<Response>"));
@@ -190,10 +193,54 @@ fn route_file(basename: &str, source: &str, exports: &[Export<'_, '_>], out: &mu
     }
 }
 
+/// The type of a route's `load`.
+fn load(source: Source<'_>, load: Option<&Export<'_, '_>>, load_type: &str, out: &mut Inserted) {
+    match load {
+        Some(Export {
+            kind: Kind::Function(function),
+            typed: false,
+            start,
+            ..
+        }) if function.parameters().count() == 1 => {
+            if source.javascript {
+                let name = function.first_parameter_name().unwrap_or("arg0");
+                let text = format!("/** @param {{{load_type}Event}} {name} */ ");
+                out.insert(*start, text);
+            } else {
+                let at = function.first_parameter_end();
+                out.insert(at, format!(": {load_type}Event"));
+            }
+        }
+        Some(Export {
+            kind: Kind::Variable(declarator),
+            typed: false,
+            ..
+        }) => {
+            // `const load = ...` becomes `const load = (...) satisfies PageLoad`.
+            if let Some(init) = &declarator.init {
+                satisfies(source, init, load_type, out);
+            }
+        }
+        _ => {}
+    }
+}
+
+/// `init satisfies kind`, which JavaScript writes as `JSDoc`.
+fn satisfies(source: Source<'_>, init: &Expression<'_>, kind: &str, out: &mut Inserted) {
+    let span = init.span();
+    if source.javascript {
+        out.insert(span.start, format!("/** @satisfies {{{kind}}} */ ("));
+        out.insert(span.end, ")".to_owned());
+    } else {
+        out.insert(span.start, "(".to_owned());
+        out.insert(span.end, format!(") satisfies {kind}"));
+    }
+}
+
 /// svelte2tsx's `addTypeToFunction`: `returns` is the return type, then an async function's.
 fn add_type_to_function(
     exports: &[Export<'_, '_>],
-    source: &str,
+    source: Source<'_>,
     out: &mut Inserted,
     name: &str,
     kind: &str,
@@ -202,6 +249,7 @@ fn add_type_to_function(
     let Some(Export {
         kind: Kind::Function(function),
         typed: false,
+        start,
         ..
     }) = find(exports, name)
     else {
@@ -210,13 +258,21 @@ fn add_type_to_function(
     if function.parameters().count() != 1 {
         return;
     }
+    if source.javascript {
+        let kind = match returns {
+            Some((returns, _)) => format!("(arg0: {kind}) => {returns}"),
+            None => kind.to_owned(),
+        };
+        out.insert(*start, format!("/** @type {{{kind}}} */ "));
+        return;
+    }
     let parameter = match returns {
         Some(_) => format!(": {kind}"),
         None => format!(": Parameters<{kind}>[0]"),
     };
     out.insert(function.first_parameter_end(), parameter);
     if !function.has_return_type()
-        && let Some(at) = function.return_position(source)
+        && let Some(at) = function.return_position(source.text)
     {
         let text = match returns {
             Some((_, asynchronous)) if function.is_async() => format!(": {asynchronous} "),
@@ -244,6 +300,8 @@ struct Export<'p, 'a> {
     /// svelte2tsx's `hasTypeDefinition`.
     typed: bool,
     name_end: u32,
+    /// Where a function starts, `export` included: where JavaScript's `JSDoc` goes.
+    start: u32,
 }
 
 enum Kind<'p, 'a> {
@@ -282,9 +340,44 @@ impl<'p, 'a> FunctionNode<'p, 'a> {
         self.parameters().next().map_or(0, |(end, _)| end)
     }
 
-    /// svelte2tsx's `hasTypedParameter` for a TypeScript file.
-    fn has_typed_parameter(self) -> bool {
-        self.parameters().next().is_some_and(|(_, typed)| typed)
+    /// The first parameter's pattern.
+    fn first_parameter(self) -> Option<&'p BindingPattern<'a>> {
+        let parameters = self.parameters_node();
+        (parameters.items.first().map(|p| &p.pattern))
+            .or_else(|| parameters.rest.as_deref().map(|rest| &rest.rest.argument))
+    }
+
+    /// The first parameter's name, where it is a name and not a pattern.
+    fn first_parameter_name(self) -> Option<&'p str> {
+        match self.first_parameter()? {
+            BindingPattern::BindingIdentifier(id) => Some(id.name.as_str()),
+            _ => None,
+        }
+    }
+
+    /// svelte2tsx's `hasTypedParameter`: in JavaScript, also a `@type` among `tags`, or a
+    /// `@param` TypeScript gives the first parameter (`getJSDocParameterTags`).
+    fn has_typed_parameter(self, tags: &[Tag<'_>]) -> bool {
+        if self.parameters().next().is_some_and(|(_, typed)| typed) || tags.contains(&Tag::Type) {
+            return true;
+        }
+        if self.first_parameter().is_none() {
+            return false;
+        }
+        let name = self.first_parameter_name();
+        tags.iter().any(|tag| match (tag, name) {
+            (Tag::Parameter(tag), Some(name)) => *tag == Some(name),
+            // A pattern takes the tag at its index.
+            (Tag::Parameter(_), None) => true,
+            _ => false,
+        })
+    }
+
+    const fn start(self) -> u32 {
+        match self {
+            Self::Function(function) => function.span.start,
+            Self::Arrow(arrow) => arrow.span.start,
+        }
     }
 
     const fn has_return_type(self) -> bool {
@@ -336,13 +429,21 @@ fn find<'e, 'p, 'a>(exports: &'e [Export<'p, 'a>], name: &str) -> Option<&'e Exp
     exports.iter().rev().find(|export| export.name == name)
 }
 
-/// svelte2tsx's `findExports` for a TypeScript file: `export function x` and `export const x`.
-fn find_exports<'p, 'a>(program: &'p Program<'a>) -> Vec<Export<'p, 'a>> {
+/// svelte2tsx's `findExports`: `export function x` and `export const x`.
+fn find_exports<'p, 'a>(program: &'p Program<'a>, source: Source<'_>) -> Vec<Export<'p, 'a>> {
+    let tags = |token: u32, host: Host| {
+        if source.javascript {
+            jsdoc::tags(source.text, &program.comments, token, host)
+        } else {
+            Vec::new()
+        }
+    };
     let mut exports = Vec::new();
     for statement in &program.body {
         let Statement::ExportDeclaration(export) = statement else {
             continue;
         };
+        let statement = tags(export.span.start, Host::Statement);
         match &export.declaration {
             Declaration::FunctionDeclaration(function) => {
                 let Some(id) = &function.id else { continue };
@@ -350,51 +451,65 @@ fn find_exports<'p, 'a>(program: &'p Program<'a>) -> Vec<Export<'p, 'a>> {
                 exports.push(Export {
                     name: id.name.as_str(),
                     kind: Kind::Function(node),
-                    typed: node.has_typed_parameter(),
+                    typed: node.has_typed_parameter(&statement),
                     name_end: id.span.end,
+                    start: export.span.start,
                 });
             }
             Declaration::VariableDeclaration(declaration)
                 if declaration.declarations.len() == 1 =>
             {
                 let declarator = &declaration.declarations[0];
-                let satisfies = matches!(
-                    declarator
-                        .init
-                        .as_ref()
-                        .map(Expression::without_parentheses),
-                    Some(Expression::TSSatisfiesExpression(_))
-                );
-                let typed = declarator.type_annotation.is_some() || satisfies;
-                let function = declarator.init.as_ref().and_then(|init| {
-                    let inner = match init.without_parentheses() {
-                        Expression::TSSatisfiesExpression(satisfies) => {
-                            satisfies.expression.without_parentheses()
-                        }
-                        other => other,
-                    };
-                    match inner {
-                        Expression::FunctionExpression(function) => {
-                            Some(FunctionNode::Function(function))
-                        }
-                        Expression::ArrowFunctionExpression(arrow) => {
-                            Some(FunctionNode::Arrow(arrow))
-                        }
-                        _ => None,
-                    }
-                });
                 let Some(id) = declarator.id.get_binding_identifier() else {
                     continue;
                 };
+                let init = declarator.init.as_ref();
+                let satisfies = matches!(
+                    init.map(Expression::without_parentheses),
+                    Some(Expression::TSSatisfiesExpression(_))
+                );
+                let function = init.and_then(function_of);
+                // The initializer's own comment, which an unparenthesized function has.
+                let direct = function.filter(|f| init.is_some_and(|i| i.span().start == f.start()));
+                let mut declared = tags(declarator.span.start, Host::Expression);
+                declared.extend(statement.iter().cloned());
+                if let Some(function) = direct {
+                    declared.extend(tags(function.start(), Host::Expression));
+                }
+                let typed = declarator.type_annotation.is_some()
+                    || satisfies
+                    || (declared.iter()).any(|tag| matches!(tag, Tag::Type | Tag::Satisfies));
+                let typed = typed
+                    || function.is_some_and(|function| {
+                        let mut own = tags(function.start(), Host::Expression);
+                        if direct.is_some() {
+                            own.extend(statement.iter().cloned());
+                        }
+                        function.has_typed_parameter(&own)
+                    });
                 exports.push(Export {
                     name: id.name.as_str(),
                     kind: function.map_or(Kind::Variable(declarator), Kind::Function),
-                    typed: typed || function.is_some_and(FunctionNode::has_typed_parameter),
+                    typed,
                     name_end: id.span.end,
+                    start: function.map_or(declarator.span.start, FunctionNode::start),
                 });
             }
             _ => {}
         }
     }
     exports
+}
+
+/// The function an initializer holds, inside parentheses or `satisfies`.
+fn function_of<'p, 'a>(init: &'p Expression<'a>) -> Option<FunctionNode<'p, 'a>> {
+    let inner = match init.without_parentheses() {
+        Expression::TSSatisfiesExpression(satisfies) => satisfies.expression.without_parentheses(),
+        other => other,
+    };
+    match inner {
+        Expression::FunctionExpression(function) => Some(FunctionNode::Function(function)),
+        Expression::ArrowFunctionExpression(arrow) => Some(FunctionNode::Arrow(arrow)),
+        _ => None,
+    }
 }

@@ -420,6 +420,7 @@ mod directives;
 mod options;
 mod scripts;
 mod shapes;
+mod tag_comments;
 
 #[test]
 fn prettier_ignore_keeps_the_next_sibling_as_the_plugin_does() {
@@ -454,7 +455,7 @@ fn a_script_or_style_inside_an_element_is_embedded_as_the_plugin_embeds_it() {
     for (input, expected) in [
         (
             "<p>a</p>\n<svelte:head><script>a</script></svelte:head>\n",
-            "<p>a</p>\n<svelte:head\n  ><script>\n    a;\n  </script></svelte:head\n>\n",
+            "<p>a</p>\n<svelte:head>\n  <script>\n    a;\n  </script>\n</svelte:head>\n",
         ),
         (
             "<div><style>p {\ncolor:red}</style></div>\n",

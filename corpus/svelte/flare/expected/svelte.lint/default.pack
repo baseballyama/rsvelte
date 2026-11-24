@@ -8285,11 +8285,10 @@
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 435 src/lib/components/ui/select/select-group.svelte	lint.txt
+=== 336 src/lib/components/ui/select/select-group.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:8 4:11 no-useless-assignment "The value assigned to 'ref' is not used in subsequent statements."
 7:49 7:63 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
 === 3331 src/lib/components/ui/select/select-item.svelte	lint.txt

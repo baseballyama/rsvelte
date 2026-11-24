@@ -46,7 +46,7 @@ fn a_regular_expression_or_a_bigint_default_in_a_block_pattern_prints_as_written
 
 #[test]
 fn a_stylesheet_the_parser_rejects_prints_as_written() {
-    // Expected outputs from Prettier 3.9.10 with prettier-plugin-svelte 4.1.1, whose postcss
+    // Expected outputs from Prettier 3.10.1 with prettier-plugin-svelte 4.2.0, whose postcss
     // throws on these too.
     for (input, expected) in [
         (
@@ -55,7 +55,7 @@ fn a_stylesheet_the_parser_rejects_prints_as_written() {
         ),
         (
             "<svg><style>{x}</style></svg>\n",
-            "<svg\n  ><style>\n{x}\n  </style></svg\n>\n",
+            "<svg>\n  <style>\n{x}\n  </style>\n</svg>\n",
         ),
     ] {
         assert_eq!(formatted(input), expected, "{input}");

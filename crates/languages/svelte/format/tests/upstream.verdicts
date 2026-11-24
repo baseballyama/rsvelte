@@ -8,6 +8,7 @@ pass	printer/attachment.html
 pass	printer/attribute-bracket-new-line.html
 pass	printer/attribute-bracket-no-new-line.html
 pass	printer/attribute-bracket-same-line.html
+pass	printer/attribute-comment-without-attributes.html
 pass	printer/attribute-comment.html
 pass	printer/attribute-dynamic.html
 pass	printer/attribute-multiple.html
@@ -19,6 +20,7 @@ pass	printer/attribute-static-boolean.html
 pass	printer/attribute.html
 pass	printer/attributes-long-text-with-mustache.html
 pass	printer/attributes-nested-quotes.html
+pass	printer/await-block-empty-catch.html
 pass	printer/await-block-no-args.html
 pass	printer/await-block-with-catch-without-pending.html
 pass	printer/await-block-with-only-pending.html
@@ -197,6 +199,7 @@ pass	printer/svelte-body-element.html
 pass	printer/svelte-boundary.html
 pass	printer/svelte-component-element.html
 pass	printer/svelte-document-element.html
+pass	printer/svelte-element-single-quote.html
 pass	printer/svelte-element-static-tag.html
 pass	printer/svelte-element.html
 pass	printer/svelte-fragment-element.html
@@ -228,6 +231,7 @@ pass	printer/unicode-mustache.html
 pass	printer/unicode-script.html
 pass	printer/unicode-style.html
 pass	printer/unsupported-language.html
+pass	formatting/adjacent-comments-above-script
 pass	formatting/all-elements-ignore-whitespace
 pass	formatting/all-elements-strict-whitespace
 pass	formatting/allow-shorthand-false
@@ -246,6 +250,7 @@ pass	formatting/block-element-break-children
 pass	formatting/block-element-break-long
 pass	formatting/block-element-break-long-whitespace
 pass	formatting/block-element-break-subblocks
+pass	formatting/block-element-menu
 pass	formatting/block-element-with-children-no-ws
 pass	formatting/block-element-with-children-ws
 pass	formatting/child-text-leading-whitespace
@@ -264,10 +269,12 @@ pass	formatting/do-not-add-whitespace-between-inline-elements
 pass	formatting/each-await-block-destructuring
 pass	formatting/empty-element
 pass	formatting/empty-element-whitespace
+pass	formatting/head-title-keep-hugging
 pass	formatting/inline-element-break-children
 pass	formatting/inline-element-break-long
 pass	formatting/inline-element-break-long-nonewline
 pass	formatting/inline-element-break-long-whitespace
+pass	formatting/inline-element-content-on-own-lines
 pass	formatting/inline-element-with-children-no-ws
 pass	formatting/inline-element-with-children-ws
 pass	formatting/inline-element-with-hardline
@@ -278,7 +285,10 @@ pass	formatting/long-mustache-value
 pass	formatting/move-options-to-top
 pass	formatting/no-html-whitespace-inside-inline-element
 pass	formatting/no-html-whitespace-outside-inline-element
+pass	formatting/pre-and-textarea-keep-hugging
 pass	formatting/pre-mustache
+pass	formatting/preserve-whitespace-false
+pass	formatting/preserve-whitespace-keep-hugging
 pass	formatting/prettier-ignore
 pass	formatting/prettier-ignore-range-1
 pass	formatting/prettier-ignore-range-2
@@ -294,6 +304,7 @@ pass	formatting/single-attribute-per-line
 pass	formatting/style-directive
 pass	formatting/svelte-await-block-break
 pass	formatting/svelte-each-block-break
+pass	formatting/svelte-element-this-single-quote
 pass	formatting/svelte-if-block-break
 pass	formatting/svelte-key-block-break
 pass	formatting/syntax-error

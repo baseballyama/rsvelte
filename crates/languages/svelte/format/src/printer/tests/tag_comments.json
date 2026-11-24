@@ -1,0 +1,830 @@
+[
+ [
+  "<span // comment\n>text</span>",
+  false,
+  "css",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>text</span>",
+  false,
+  "strict",
+  "<span\n    // comment\n>text</span\n>\n"
+ ],
+ [
+  "<span // comment\n>text</span>",
+  false,
+  "ignore",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>text</span>",
+  true,
+  "css",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>text</span>",
+  true,
+  "strict",
+  "<span\n    // comment\n>text</span>\n"
+ ],
+ [
+  "<span // comment\n>text</span>",
+  true,
+  "ignore",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n></span>",
+  false,
+  "css",
+  "<span\n    // comment\n></span>\n"
+ ],
+ [
+  "<span // comment\n></span>",
+  false,
+  "strict",
+  "<span\n    // comment\n></span>\n"
+ ],
+ [
+  "<span // comment\n></span>",
+  false,
+  "ignore",
+  "<span\n    // comment\n></span>\n"
+ ],
+ [
+  "<span // comment\n></span>",
+  true,
+  "css",
+  "<span\n    // comment\n></span>\n"
+ ],
+ [
+  "<span // comment\n></span>",
+  true,
+  "strict",
+  "<span\n    // comment\n></span>\n"
+ ],
+ [
+  "<span // comment\n></span>",
+  true,
+  "ignore",
+  "<span\n    // comment\n>\n</span>\n"
+ ],
+ [
+  "<span // comment\n> text</span>",
+  false,
+  "css",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n> text</span>",
+  false,
+  "strict",
+  "<span\n    // comment\n>\n    text</span\n>\n"
+ ],
+ [
+  "<span // comment\n> text</span>",
+  false,
+  "ignore",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n> text</span>",
+  true,
+  "css",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n> text</span>",
+  true,
+  "strict",
+  "<span\n    // comment\n>\n    text</span>\n"
+ ],
+ [
+  "<span // comment\n> text</span>",
+  true,
+  "ignore",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>text </span>",
+  false,
+  "css",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>text </span>",
+  false,
+  "strict",
+  "<span\n    // comment\n>text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>text </span>",
+  false,
+  "ignore",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>text </span>",
+  true,
+  "css",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>text </span>",
+  true,
+  "strict",
+  "<span\n    // comment\n>text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>text </span>",
+  true,
+  "ignore",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n> text </span>",
+  false,
+  "css",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n> text </span>",
+  false,
+  "strict",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n> text </span>",
+  false,
+  "ignore",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n> text </span>",
+  true,
+  "css",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n> text </span>",
+  true,
+  "strict",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n> text </span>",
+  true,
+  "ignore",
+  "<span\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text</span>",
+  false,
+  "css",
+  "<span\n    // comment\n>\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text</span>",
+  false,
+  "strict",
+  "<span\n    // comment\n>long text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text</span\n>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text</span>",
+  false,
+  "ignore",
+  "<span\n    // comment\n>\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text</span>",
+  true,
+  "css",
+  "<span\n    // comment\n>\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text</span>",
+  true,
+  "strict",
+  "<span\n    // comment\n>long text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text</span>",
+  true,
+  "ignore",
+  "<span\n    // comment\n>\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text </span>",
+  false,
+  "css",
+  "<span\n    // comment\n>\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text </span>",
+  false,
+  "strict",
+  "<span\n    // comment\n>long text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text </span>",
+  false,
+  "ignore",
+  "<span\n    // comment\n>\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text </span>",
+  true,
+  "css",
+  "<span\n    // comment\n>\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text </span>",
+  true,
+  "strict",
+  "<span\n    // comment\n>long text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text\n</span>\n"
+ ],
+ [
+  "<span // comment\n>long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text long text </span>",
+  true,
+  "ignore",
+  "<span\n    // comment\n>\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n    long text long text long text long text long text long text long text long\n    text long text long text long text long text long text long text long text\n</span>\n"
+ ],
+ [
+  "<span // comment\n><em>text</em></span>",
+  false,
+  "css",
+  "<span\n    // comment\n>\n    <em>text</em>\n</span>\n"
+ ],
+ [
+  "<span // comment\n><em>text</em></span>",
+  false,
+  "strict",
+  "<span\n    // comment\n><em>text</em></span\n>\n"
+ ],
+ [
+  "<span // comment\n><em>text</em></span>",
+  false,
+  "ignore",
+  "<span\n    // comment\n>\n    <em>text</em>\n</span>\n"
+ ],
+ [
+  "<span // comment\n><em>text</em></span>",
+  true,
+  "css",
+  "<span\n    // comment\n>\n    <em>text</em>\n</span>\n"
+ ],
+ [
+  "<span // comment\n><em>text</em></span>",
+  true,
+  "strict",
+  "<span\n    // comment\n><em>text</em></span>\n"
+ ],
+ [
+  "<span // comment\n><em>text</em></span>",
+  true,
+  "ignore",
+  "<span\n    // comment\n>\n    <em>text</em>\n</span>\n"
+ ],
+ [
+  "<div // comment\n>text</div>",
+  false,
+  "css",
+  "<div\n    // comment\n>\n    text\n</div>\n"
+ ],
+ [
+  "<div // comment\n>text</div>",
+  false,
+  "strict",
+  "<div\n    // comment\n>text</div\n>\n"
+ ],
+ [
+  "<div // comment\n>text</div>",
+  false,
+  "ignore",
+  "<div\n    // comment\n>\n    text\n</div>\n"
+ ],
+ [
+  "<div // comment\n>text</div>",
+  true,
+  "css",
+  "<div\n    // comment\n>\n    text\n</div>\n"
+ ],
+ [
+  "<div // comment\n>text</div>",
+  true,
+  "strict",
+  "<div\n    // comment\n>text</div>\n"
+ ],
+ [
+  "<div // comment\n>text</div>",
+  true,
+  "ignore",
+  "<div\n    // comment\n>\n    text\n</div>\n"
+ ],
+ [
+  "<div // comment\n></div>",
+  false,
+  "css",
+  "<div\n    // comment\n></div>\n"
+ ],
+ [
+  "<div // comment\n></div>",
+  false,
+  "strict",
+  "<div\n    // comment\n></div>\n"
+ ],
+ [
+  "<div // comment\n></div>",
+  false,
+  "ignore",
+  "<div\n    // comment\n></div>\n"
+ ],
+ [
+  "<div // comment\n></div>",
+  true,
+  "css",
+  "<div\n    // comment\n>\n</div>\n"
+ ],
+ [
+  "<div // comment\n></div>",
+  true,
+  "strict",
+  "<div\n    // comment\n></div>\n"
+ ],
+ [
+  "<div // comment\n></div>",
+  true,
+  "ignore",
+  "<div\n    // comment\n>\n</div>\n"
+ ],
+ [
+  "<pre // comment\n>text</pre>",
+  false,
+  "css",
+  "<pre\n    // comment\n>text</pre>\n"
+ ],
+ [
+  "<pre // comment\n>text</pre>",
+  false,
+  "strict",
+  "<pre\n    // comment\n>text</pre\n>\n"
+ ],
+ [
+  "<pre // comment\n>text</pre>",
+  false,
+  "ignore",
+  "<pre\n    // comment\n>text</pre>\n"
+ ],
+ [
+  "<pre // comment\n>text</pre>",
+  true,
+  "css",
+  "<pre\n    // comment\n>text</pre>\n"
+ ],
+ [
+  "<pre // comment\n>text</pre>",
+  true,
+  "strict",
+  "<pre\n    // comment\n>text</pre>\n"
+ ],
+ [
+  "<pre // comment\n>text</pre>",
+  true,
+  "ignore",
+  "<pre\n    // comment\n>text</pre>\n"
+ ],
+ [
+  "<pre // comment\n></pre>",
+  false,
+  "css",
+  "<pre\n    // comment\n></pre>\n"
+ ],
+ [
+  "<pre // comment\n></pre>",
+  false,
+  "strict",
+  "<pre\n    // comment\n></pre>\n"
+ ],
+ [
+  "<pre // comment\n></pre>",
+  false,
+  "ignore",
+  "<pre\n    // comment\n></pre>\n"
+ ],
+ [
+  "<pre // comment\n></pre>",
+  true,
+  "css",
+  "<pre\n    // comment\n>\n</pre>\n"
+ ],
+ [
+  "<pre // comment\n></pre>",
+  true,
+  "strict",
+  "<pre\n    // comment\n></pre>\n"
+ ],
+ [
+  "<pre // comment\n></pre>",
+  true,
+  "ignore",
+  "<pre\n    // comment\n>\n</pre>\n"
+ ],
+ [
+  "<textarea // comment\n>text</textarea>",
+  false,
+  "css",
+  "<textarea\n    // comment\n>text</textarea\n>\n"
+ ],
+ [
+  "<textarea // comment\n>text</textarea>",
+  false,
+  "strict",
+  "<textarea\n    // comment\n>text</textarea\n>\n"
+ ],
+ [
+  "<textarea // comment\n>text</textarea>",
+  false,
+  "ignore",
+  "<textarea\n    // comment\n>text</textarea>\n"
+ ],
+ [
+  "<textarea // comment\n>text</textarea>",
+  true,
+  "css",
+  "<textarea\n    // comment\n>text</textarea>\n"
+ ],
+ [
+  "<textarea // comment\n>text</textarea>",
+  true,
+  "strict",
+  "<textarea\n    // comment\n>text</textarea>\n"
+ ],
+ [
+  "<textarea // comment\n>text</textarea>",
+  true,
+  "ignore",
+  "<textarea\n    // comment\n>text</textarea>\n"
+ ],
+ [
+  "<textarea // comment\n></textarea>",
+  false,
+  "css",
+  "<textarea\n    // comment\n></textarea>\n"
+ ],
+ [
+  "<textarea // comment\n></textarea>",
+  false,
+  "strict",
+  "<textarea\n    // comment\n></textarea>\n"
+ ],
+ [
+  "<textarea // comment\n></textarea>",
+  false,
+  "ignore",
+  "<textarea\n    // comment\n></textarea>\n"
+ ],
+ [
+  "<textarea // comment\n></textarea>",
+  true,
+  "css",
+  "<textarea\n    // comment\n></textarea>\n"
+ ],
+ [
+  "<textarea // comment\n></textarea>",
+  true,
+  "strict",
+  "<textarea\n    // comment\n></textarea>\n"
+ ],
+ [
+  "<textarea // comment\n></textarea>",
+  true,
+  "ignore",
+  "<textarea\n    // comment\n>\n</textarea>\n"
+ ],
+ [
+  "<Component // comment\n>text</Component>",
+  false,
+  "css",
+  "<Component\n    // comment\n>\n    text\n</Component>\n"
+ ],
+ [
+  "<Component // comment\n>text</Component>",
+  false,
+  "strict",
+  "<Component\n    // comment\n>text</Component\n>\n"
+ ],
+ [
+  "<Component // comment\n>text</Component>",
+  false,
+  "ignore",
+  "<Component\n    // comment\n>\n    text\n</Component>\n"
+ ],
+ [
+  "<Component // comment\n>text</Component>",
+  true,
+  "css",
+  "<Component\n    // comment\n>\n    text\n</Component>\n"
+ ],
+ [
+  "<Component // comment\n>text</Component>",
+  true,
+  "strict",
+  "<Component\n    // comment\n>text</Component>\n"
+ ],
+ [
+  "<Component // comment\n>text</Component>",
+  true,
+  "ignore",
+  "<Component\n    // comment\n>\n    text\n</Component>\n"
+ ],
+ [
+  "<Component // comment\n/>",
+  false,
+  "css",
+  "<Component\n    // comment\n/>\n"
+ ],
+ [
+  "<Component // comment\n/>",
+  false,
+  "strict",
+  "<Component\n    // comment\n/>\n"
+ ],
+ [
+  "<Component // comment\n/>",
+  false,
+  "ignore",
+  "<Component\n    // comment\n/>\n"
+ ],
+ [
+  "<Component // comment\n/>",
+  true,
+  "css",
+  "<Component\n    // comment\n/>\n"
+ ],
+ [
+  "<Component // comment\n/>",
+  true,
+  "strict",
+  "<Component\n    // comment\n/>\n"
+ ],
+ [
+  "<Component // comment\n/>",
+  true,
+  "ignore",
+  "<Component\n    // comment\n/>\n"
+ ],
+ [
+  "<svelte:element this={tag} // comment\n>text</svelte:element>",
+  false,
+  "css",
+  "<svelte:element\n    this={tag}\n    // comment\n>\n    text\n</svelte:element>\n"
+ ],
+ [
+  "<svelte:element this={tag} // comment\n>text</svelte:element>",
+  false,
+  "strict",
+  "<svelte:element\n    this={tag}\n    // comment\n>text</svelte:element\n>\n"
+ ],
+ [
+  "<svelte:element this={tag} // comment\n>text</svelte:element>",
+  false,
+  "ignore",
+  "<svelte:element\n    this={tag}\n    // comment\n>\n    text\n</svelte:element>\n"
+ ],
+ [
+  "<svelte:element this={tag} // comment\n>text</svelte:element>",
+  true,
+  "css",
+  "<svelte:element\n    this={tag}\n    // comment\n>\n    text\n</svelte:element>\n"
+ ],
+ [
+  "<svelte:element this={tag} // comment\n>text</svelte:element>",
+  true,
+  "strict",
+  "<svelte:element\n    this={tag}\n    // comment\n>text</svelte:element>\n"
+ ],
+ [
+  "<svelte:element this={tag} // comment\n>text</svelte:element>",
+  true,
+  "ignore",
+  "<svelte:element\n    this={tag}\n    // comment\n>\n    text\n</svelte:element>\n"
+ ],
+ [
+  "<svelte:component this={Component} // comment\n>text</svelte:component>",
+  false,
+  "css",
+  "<svelte:component\n    this={Component}\n    // comment\n>\n    text\n</svelte:component>\n"
+ ],
+ [
+  "<svelte:component this={Component} // comment\n>text</svelte:component>",
+  false,
+  "strict",
+  "<svelte:component\n    this={Component}\n    // comment\n>text</svelte:component\n>\n"
+ ],
+ [
+  "<svelte:component this={Component} // comment\n>text</svelte:component>",
+  false,
+  "ignore",
+  "<svelte:component\n    this={Component}\n    // comment\n>\n    text\n</svelte:component>\n"
+ ],
+ [
+  "<svelte:component this={Component} // comment\n>text</svelte:component>",
+  true,
+  "css",
+  "<svelte:component\n    this={Component}\n    // comment\n>\n    text\n</svelte:component>\n"
+ ],
+ [
+  "<svelte:component this={Component} // comment\n>text</svelte:component>",
+  true,
+  "strict",
+  "<svelte:component\n    this={Component}\n    // comment\n>text</svelte:component>\n"
+ ],
+ [
+  "<svelte:component this={Component} // comment\n>text</svelte:component>",
+  true,
+  "ignore",
+  "<svelte:component\n    this={Component}\n    // comment\n>\n    text\n</svelte:component>\n"
+ ],
+ [
+  "<svelte:head // comment\n><title>text</title></svelte:head>",
+  false,
+  "css",
+  "<svelte:head\n    // comment\n>\n    <title>text</title>\n</svelte:head>\n"
+ ],
+ [
+  "<svelte:head // comment\n><title>text</title></svelte:head>",
+  false,
+  "strict",
+  "<svelte:head\n    // comment\n><title>text</title></svelte:head\n>\n"
+ ],
+ [
+  "<svelte:head // comment\n><title>text</title></svelte:head>",
+  false,
+  "ignore",
+  "<svelte:head\n    // comment\n>\n    <title>text</title>\n</svelte:head>\n"
+ ],
+ [
+  "<svelte:head // comment\n><title>text</title></svelte:head>",
+  true,
+  "css",
+  "<svelte:head\n    // comment\n>\n    <title>text</title>\n</svelte:head>\n"
+ ],
+ [
+  "<svelte:head // comment\n><title>text</title></svelte:head>",
+  true,
+  "strict",
+  "<svelte:head\n    // comment\n><title>text</title></svelte:head>\n"
+ ],
+ [
+  "<svelte:head // comment\n><title>text</title></svelte:head>",
+  true,
+  "ignore",
+  "<svelte:head\n    // comment\n>\n    <title>text</title>\n</svelte:head>\n"
+ ],
+ [
+  "<div>before<span // comment\n>text</span>after</div>",
+  false,
+  "css",
+  "<div>\n    before<span\n        // comment\n    >\n        text\n    </span>after\n</div>\n"
+ ],
+ [
+  "<div>before<span // comment\n>text</span>after</div>",
+  false,
+  "strict",
+  "<div\n    >before<span\n        // comment\n    >text</span\n    >after</div\n>\n"
+ ],
+ [
+  "<div>before<span // comment\n>text</span>after</div>",
+  false,
+  "ignore",
+  "<div>\n    before\n    <span\n        // comment\n    >\n        text\n    </span>\n    after\n</div>\n"
+ ],
+ [
+  "<div>before<span // comment\n>text</span>after</div>",
+  true,
+  "css",
+  "<div>\n    before<span\n        // comment\n    >\n        text\n    </span>after\n</div>\n"
+ ],
+ [
+  "<div>before<span // comment\n>text</span>after</div>",
+  true,
+  "strict",
+  "<div\n    >before<span\n        // comment\n    >text</span\n    >after</div>\n"
+ ],
+ [
+  "<div>before<span // comment\n>text</span>after</div>",
+  true,
+  "ignore",
+  "<div>\n    before\n    <span\n        // comment\n    >\n        text\n    </span>\n    after\n</div>\n"
+ ],
+ [
+  "<br // comment\n/>",
+  false,
+  "css",
+  "<br\n    // comment\n/>\n"
+ ],
+ [
+  "<br // comment\n/>",
+  false,
+  "strict",
+  "<br\n    // comment\n/>\n"
+ ],
+ [
+  "<br // comment\n/>",
+  false,
+  "ignore",
+  "<br\n    // comment\n/>\n"
+ ],
+ [
+  "<br // comment\n/>",
+  true,
+  "css",
+  "<br\n    // comment\n/>\n"
+ ],
+ [
+  "<br // comment\n/>",
+  true,
+  "strict",
+  "<br\n    // comment\n/>\n"
+ ],
+ [
+  "<br // comment\n/>",
+  true,
+  "ignore",
+  "<br\n    // comment\n/>\n"
+ ],
+ [
+  "<!DOCTYPE // comment\n>",
+  false,
+  "css",
+  "<!DOCTYPE\n    // comment\n>\n"
+ ],
+ [
+  "<!DOCTYPE // comment\n>",
+  false,
+  "strict",
+  "<!DOCTYPE\n    // comment\n>\n"
+ ],
+ [
+  "<!DOCTYPE // comment\n>",
+  false,
+  "ignore",
+  "<!DOCTYPE\n    // comment\n>\n"
+ ],
+ [
+  "<!DOCTYPE // comment\n>",
+  true,
+  "css",
+  "<!DOCTYPE\n    // comment\n>\n"
+ ],
+ [
+  "<!DOCTYPE // comment\n>",
+  true,
+  "strict",
+  "<!DOCTYPE\n    // comment\n>\n"
+ ],
+ [
+  "<!DOCTYPE // comment\n>",
+  true,
+  "ignore",
+  "<!DOCTYPE\n    // comment\n>\n"
+ ],
+ [
+  "<span /* block */ // comment\n>text</span>",
+  false,
+  "css",
+  "<span\n    /* block */\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span /* block */ // comment\n>text</span>",
+  false,
+  "strict",
+  "<span\n    /* block */\n    // comment\n>text</span\n>\n"
+ ],
+ [
+  "<span /* block */ // comment\n>text</span>",
+  false,
+  "ignore",
+  "<span\n    /* block */\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span /* block */ // comment\n>text</span>",
+  true,
+  "css",
+  "<span\n    /* block */\n    // comment\n>\n    text\n</span>\n"
+ ],
+ [
+  "<span /* block */ // comment\n>text</span>",
+  true,
+  "strict",
+  "<span\n    /* block */\n    // comment\n>text</span>\n"
+ ],
+ [
+  "<span /* block */ // comment\n>text</span>",
+  true,
+  "ignore",
+  "<span\n    /* block */\n    // comment\n>\n    text\n</span>\n"
+ ]
+]

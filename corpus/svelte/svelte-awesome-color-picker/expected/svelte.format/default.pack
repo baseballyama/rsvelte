@@ -1084,13 +1084,13 @@ import { A11yVariant } from 'svelte-awesome-color-picker';
 </p>
 <div>
   <p>{contrastText} {contrast >= 10 ? contrast.toFixed(1) : contrast}</p>
-  <span class="grade" class:grade-ok={isGradeAchieved(contrast, size, "AA")}
-    >AA</span
-  >
+  <span class="grade" class:grade-ok={isGradeAchieved(contrast, size, "AA")}>
+    AA
+  </span>
   {#if a11yLevel === "AAA"}
-    <span class="grade" class:grade-ok={isGradeAchieved(contrast, size, "AAA")}
-      >AAA</span
-    >
+    <span class="grade" class:grade-ok={isGradeAchieved(contrast, size, "AAA")}>
+      AAA
+    </span>
   {/if}
 </div>
 
