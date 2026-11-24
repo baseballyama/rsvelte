@@ -11,7 +11,7 @@ use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_typescript_api::{Layer, Position, Session};
 use selection::Selected;
 use shares::{Checked, Helper, check_shares};
-use untyped::{UntypedDocuments, UntypedJavaScript};
+use untyped::{UntypedDocuments, UntypedImport, UntypedJavaScript, ambient};
 
 use super::{Tsc, TypeScriptEnv};
 use crate::type_checker::{CONTRACT, TypeChecker};
@@ -142,7 +142,7 @@ impl Tsc {
         let config = overlay.join("tsconfig.json");
         layer.files.insert(
             config.clone(),
-            tsconfig_json(base.as_deref(), req, &own, &roots, &store),
+            tsconfig_json(base.as_deref(), req, &own, &roots, Some(&store)),
         );
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
         // Where every import of JavaScript is untyped, the checker resolves each import.
@@ -154,35 +154,57 @@ impl Tsc {
             // The components a search of `node_modules` finds read as untyped JavaScript, which
             // the projections say, so the files are checked again with them.
             let store = mapped::untyped_store(req, &root, &paths, &external, store)?;
-            let text = tsconfig_json(base.as_deref(), req, &own, &roots, &store);
+            let text = tsconfig_json(base.as_deref(), req, &own, &roots, Some(&store));
             layer.files.insert(config.clone(), text);
             let helpers = self.start_helpers(paths.len(), &root);
             let resolve = Some((req, paths.as_slice()));
             checked = check_shares(&mut session, helpers, &config, &layer, &files, resolve)
                 .map_err(failed)?;
         }
-        // The session ends when it drops, which frees the snapshot with the process.
-        let untyped = UntypedDocuments {
+        let untyped_documents = UntypedDocuments {
             all: all_untyped,
             external,
         };
-        let diagnostics = self.findings(req, checked, &own.selected, &paths, &untyped)?;
+        let index = path_index(&paths);
+        let is_untyped = |file: usize| untyped_documents.is(req, file);
+        let mut untyped = untyped::imports(req, &checked.modules, &index, &is_untyped);
+        let extensions = req.mapped_extensions();
+        let config = |roots: &[PathBuf]| tsconfig_json(base.as_deref(), req, &own, roots, None);
+        let probed = (roots.as_slice(), extensions.as_slice());
+        ambient::drop_matched(
+            &mut session,
+            &mut layer,
+            &overlay,
+            probed,
+            &config,
+            &mut untyped,
+        )
+        .map_err(failed)?;
+        // The session ends when it drops, which frees the snapshot with the process.
+        let documents = (paths.as_slice(), &index);
+        let diagnostics = self.findings(
+            req,
+            checked,
+            &own.selected,
+            documents,
+            &untyped_documents,
+            &untyped,
+        )?;
         Ok(Report { diagnostics, root })
     }
 
-    /// The errors of `checked`, at the documents' lines, with each untyped import's TS7016.
+    /// The errors of `checked`, at the lines of the documents `index` names, with the TS7016 of
+    /// each `untyped` import.
     fn findings(
         &self,
         req: &CheckRequest<'_>,
         checked: Checked,
         selected: &Selected,
-        paths: &[PathBuf],
+        (paths, index): (&[PathBuf], &HashMap<&Path, usize>),
         untyped_documents: &UntypedDocuments,
+        untyped: &[UntypedImport<'_>],
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
         let [program, syntactic, semantic] = checked.found;
-        let index = path_index(paths);
-        let is_untyped = |file: usize| untyped_documents.is(req, file);
-        let untyped = untyped::imports(req, &checked.modules, &index, &is_untyped);
         // Where JavaScript is untyped, TypeScript loads no JavaScript file the tsconfig does not
         // select, whatever imports it. A document the program does not reach at all is one the
         // run was given, which svelte-check checks as a root. Nor does it load a component a
@@ -203,15 +225,14 @@ impl Tsc {
             // The command line reports errors only; svelte-check's errors are the oracle.
             .filter(|(_, d)| d.is_error())
             .map(|(syntactic, d)| {
-                located(&d, &index, &lines, syntactic).ok_or_else(|| unlocated(&self.checker, &d))
+                located(&d, index, &lines, syntactic).ok_or_else(|| unlocated(&self.checker, &d))
             })
             .filter(|found| {
                 !found.as_ref().is_ok_and(|found| {
-                    unloaded(found.file)
-                        || untyped::hides(found, &untyped.names, req.text(found.file))
+                    unloaded(found.file) || untyped::hides(found, untyped, req.text(found.file))
                 })
             })
-            .chain(untyped.found.into_iter().map(Ok))
+            .chain(untyped.iter().map(|import| Ok(import.finding())))
             .collect()
     }
 
@@ -277,7 +298,7 @@ fn tsconfig_json(
     req: &CheckRequest<'_>,
     own: &BaseProject,
     roots: &[PathBuf],
-    store: &Path,
+    store: Option<&Path>,
 ) -> String {
     let mut w = StructuredDataWriter::new(true);
     w.begin_object();
@@ -314,7 +335,9 @@ fn tsconfig_json(
             .end_array();
     }
     w.end_object().end_object();
-    req.write_mapper_config(&mut w, MAPPER_PACKAGE, store);
+    if let Some(store) = store {
+        req.write_mapper_config(&mut w, MAPPER_PACKAGE, store);
+    }
     w.key("files").begin_array();
     let mut listed = std::collections::HashSet::new();
     for p in roots {
