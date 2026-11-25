@@ -94,10 +94,9 @@ pub(crate) fn validate(
 }
 
 /// What upstream compiles, which decides the checks only a component gets.
-#[derive(Clone, Copy, Default, PartialEq, Eq)]
+#[derive(Clone, Copy, PartialEq, Eq)]
 pub(crate) enum Unit {
     /// Upstream erases its types itself, rejecting a TypeScript feature with a runtime meaning.
-    #[default]
     Component,
     /// A `.svelte.js` or `.svelte.ts` module, whose types TypeScript's emit erases first.
     Module,
@@ -105,11 +104,15 @@ pub(crate) enum Unit {
 
 impl Unit {
     /// Whether the erasure before upstream's analysis removes `element` from its class:
-    /// `remove_typescript_nodes` removes a `declare` field, and TypeScript's emit every member
-    /// without a runtime meaning.
+    /// `remove_typescript_nodes` removes a `declare` field and an abstract method, and TypeScript's
+    /// emit every member without a runtime meaning.
     pub(crate) fn erases_member(self, element: &ClassElement<'_>) -> bool {
         match self {
-            Self::Component => matches!(element, ClassElement::PropertyDefinition(p) if p.declare),
+            Self::Component => match element {
+                ClassElement::PropertyDefinition(p) => p.declare,
+                ClassElement::MethodDefinition(m) => m.r#type.is_abstract(),
+                _ => false,
+            },
             Self::Module => is_erased_by_emit(element),
         }
     }
