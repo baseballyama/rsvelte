@@ -1,7 +1,7 @@
 use oxc_ast::ast::{Expression, Statement};
 use oxc_span::{GetSpan, SourceType};
 use rsvelte_kernel::source::document::Document;
-use rsvelte_typescript_tree::Tree;
+use rsvelte_typescript_tree::{Tree, TypeScriptReader};
 
 use super::Semantic;
 
@@ -59,7 +59,7 @@ fn acorn_reports(
 ) -> Option<(String, u32)> {
     let (tree, program) = Tree::build(text, |builder| {
         builder.leave_unchecked(Box::leak(Box::new(unchecked)));
-        builder.read_as_acorn();
+        builder.read_as_acorn(TypeScriptReader::AcornTypescript);
         let range = rsvelte_kernel::source::positions::Span::new(0, text.len() as u32);
         builder.program(range, source_type).map_err(Into::into)
     })

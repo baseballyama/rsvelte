@@ -331,14 +331,54 @@ const CASES: &[(&str, Option<(&str, u32)>)] = &[
     ),
 ];
 
+/// A class named by a word acorn-typescript reads as a TypeScript keyword's token, from svelte
+/// 5.59.1 in runes mode.
+const CLASS_NAMES: &[(&str, Option<(&str, u32)>)] = &[
+    ("class type {}", Some(("Unexpected token", 6))),
+    ("class interface {}", Some(("Unexpected token", 6))),
+    ("const C = class type {};", Some(("Unexpected token", 16))),
+    (
+        "export default class type {}",
+        Some(("Unexpected token", 21)),
+    ),
+    ("abstract class type {}", Some(("Unexpected token", 15))),
+    ("declare class interface {}", Some(("Unexpected token", 14))),
+    ("declare class declare {}", Some(("Unexpected token", 14))),
+    (
+        "declare abstract class interface {}",
+        Some(("Unexpected token", 23)),
+    ),
+    (
+        "export declare class interface {}",
+        Some(("Unexpected token", 21)),
+    ),
+    ("class assert {}", Some(("Unexpected token", 6))),
+    ("class of {}", None),
+    ("class satisfies {}", None),
+    (
+        "class C<interface> {}",
+        Some(("The keyword 'interface' is reserved", 8)),
+    ),
+];
+
 #[test]
 fn acorn_refuses_these_names_and_initializers_in_an_ambient_context() {
+    assert_script_outcomes(CASES);
+}
+
+#[test]
+fn acorn_typescript_stops_at_a_class_named_by_a_typescript_keyword() {
+    assert_script_outcomes(CLASS_NAMES);
+}
+
+/// Asserts each case's outcome in a component's TypeScript script.
+fn assert_script_outcomes(cases: &[(&str, Option<(&str, u32)>)]) {
     let open = "<script lang=\"ts\">";
-    let sources: Vec<String> = CASES
+    let sources: Vec<String> = cases
         .iter()
         .map(|(script, _)| format!("{open}{script}</script>"))
         .collect();
-    let cases: Vec<_> = (sources.iter().zip(CASES))
+    let cases: Vec<_> = (sources.iter().zip(cases))
         .map(|(source, (_, expected))| {
             let expected =
                 expected.map(|(message, at)| ("js_parse_error", message, at + open.len() as u32));

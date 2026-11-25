@@ -175,7 +175,7 @@ impl<'a> TreeBuilder<'a> {
                 .and_then(|first| acorn(first, text, (&parsed.tokens, None), |_| {}));
             let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, &[], start, 0);
             error.acorn = acorn;
-            let stop = (self.as_acorn)
+            let stop = (self.as_acorn.is_some())
                 .then(|| whitespace(text, &parsed.irregular_whitespaces, 0))
                 .flatten();
             if let Some(stop) = stop.filter(|stop| stop.raised <= error.acorn_raised_at()) {

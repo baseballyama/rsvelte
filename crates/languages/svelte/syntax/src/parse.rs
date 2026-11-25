@@ -31,7 +31,7 @@ use rsvelte_kernel::performance::buffer_pool;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
-use rsvelte_typescript_tree::{SyntaxError, Tree, TreeBuilder};
+use rsvelte_typescript_tree::{SyntaxError, Tree, TreeBuilder, TypeScriptReader};
 use rustc_hash::FxHashSet;
 
 use crate::syntax_tree::{
@@ -212,7 +212,7 @@ fn parse_as(
     let mut raised_at = u32::MAX;
     let parsed = Tree::build_keeping_parts(source_text, |builder| {
         builder.leave_unchecked(&ACORN_UNCHECKED_TYPESCRIPT_RULES);
-        builder.read_as_acorn();
+        builder.read_as_acorn(TypeScriptReader::AcornTypescript);
         let mut parser = Parser {
             // Upstream parses the component without its trailing whitespace, so that is where
             // the input ends; offsets into it are offsets into the document.
@@ -288,7 +288,7 @@ fn parse_as(
 }
 
 /// A `.svelte.js` module as upstream's `compileModule` parses it: with acorn, which reads it as it
-/// reads a component's script.
+/// reads a component's script. A bundler erases a `.svelte.ts` one's types before acorn reads it.
 ///
 /// # Errors
 ///
@@ -299,7 +299,7 @@ pub fn parse_module(
 ) -> ParseResult<(Tree, rsvelte_typescript_tree::ProgramIdentifier)> {
     Tree::build(source_text, |builder| {
         builder.leave_unchecked(&ACORN_UNCHECKED_TYPESCRIPT_RULES);
-        builder.read_as_acorn();
+        builder.read_as_acorn(TypeScriptReader::Erasing);
         let range = Span::new(0, builder.source_text().len() as u32);
         (builder.program(range, source_type)).map_err(|e| acorn_position(javascript_failure(e)))
     })

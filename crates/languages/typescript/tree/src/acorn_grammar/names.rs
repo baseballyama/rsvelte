@@ -85,6 +85,26 @@ impl ReservedWord {
     }
 }
 
+/// Whether acorn-typescript reads `name` as a TypeScript keyword's token rather than as a name.
+pub(super) fn typescript_keyword(name: &str) -> bool {
+    matches!(
+        name,
+        "assert"
+            | "asserts"
+            | "global"
+            | "keyof"
+            | "readonly"
+            | "unique"
+            | "abstract"
+            | "declare"
+            | "enum"
+            | "module"
+            | "namespace"
+            | "interface"
+            | "type"
+    )
+}
+
 /// A reserved word acorn reads as a name at `kind`: any name a declaration binds, and a name an
 /// expression reads, outside a type (`in_type`), whose names acorn-typescript reads liberally.
 pub(super) fn reserved(kind: AstKind<'_>, in_type: bool) -> Option<Stop> {
