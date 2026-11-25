@@ -35,6 +35,37 @@ mod typecheck_untyped;
 mod typecheck_untyped_packages;
 mod unit_names;
 
+/// What oxlint reads to pick the format and the colour of its report. Apart from `CI` and
+/// `FORCE_COLOR`, each can tell it that a coding agent runs it.
+const REPORT_VARIABLES: [&str; 16] = [
+    "CI",
+    "FORCE_COLOR",
+    "AI_AGENT",
+    "CLAUDECODE",
+    "CLAUDE_CODE",
+    "REPL_ID",
+    "GEMINI_CLI",
+    "CODEX_SANDBOX",
+    "CODEX_THREAD_ID",
+    "COPILOT_CLI",
+    "OPENCODE",
+    "JUNIE_DATA",
+    "JUNIE_SHIM_PATH",
+    "EDITOR",
+    "CURSOR_AGENT",
+    "TERM_PROGRAM",
+];
+
+/// `rsvelte`, to be run in `directory`, whose lint report does not depend on where the tests run.
+fn rsvelte(directory: impl AsRef<Path>) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_rsvelte"));
+    command.current_dir(directory);
+    for variable in REPORT_VARIABLES {
+        command.env_remove(variable);
+    }
+    command
+}
+
 /// `rsvelte-dev`, to be run in `directory`.
 fn rsvelte_dev(directory: impl AsRef<Path>) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"));
