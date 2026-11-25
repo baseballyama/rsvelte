@@ -6,7 +6,7 @@ import { writable } from 'svelte/store';;
 function $$render() {
   
 	
-	const count = writable(0);;let $count = __rsvelte_store_get(count);
+	const count = writable(0);;let $count = __sveltets_2_store_get(count);
 
 
 ;

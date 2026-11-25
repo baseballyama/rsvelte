@@ -1,6 +1,6 @@
 ;
 
-	const state = { a: 1 };;let $state = __rsvelte_store_get(state);
+	const state = { a: 1 };;let $state = __sveltets_2_store_get(state);
 
 	const x = $state;
 

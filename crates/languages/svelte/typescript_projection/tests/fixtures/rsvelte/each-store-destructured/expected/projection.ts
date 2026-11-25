@@ -6,7 +6,7 @@ import { writable } from 'svelte/store';;
 function $$render() {
   
 	
-	const items = writable([]);;let $items = __rsvelte_store_get(items);
+	const items = writable([]);;let $items = __sveltets_2_store_get(items);
 
 
 ;

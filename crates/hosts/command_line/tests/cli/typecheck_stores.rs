@@ -119,3 +119,68 @@ fn typecheck_drops_findings_in_a_declaration_of_snippets() {
         assert!(report.contains(&line.native()), "{line} in {report}");
     }
 }
+
+/// A JavaScript component reads `$store` with svelte2tsx's getter, as a TypeScript one does: a
+/// value that is no store is reported at each read, and a store keeps its value's type.
+/// svelte-check 4.7.8 reports these lines.
+#[test]
+fn typecheck_reads_a_store_of_a_javascript_component_as_svelte2tsx_does() {
+    let report = check(&[
+        CHECK_JAVASCRIPT,
+        (
+            "src/values.ts",
+            "import { writable } from 'svelte/store';\nexport const num = 5;\n\
+             export const str: string = '';\nexport const w = writable(1);\n",
+        ),
+        (
+            "src/custom.js",
+            "export const custom = { subscribe(run) { run(1); return () => {}; } };\n",
+        ),
+        (
+            "src/Number.svelte",
+            "<script>\n\timport { num } from './values';\n</script>\n\n{$num}\n",
+        ),
+        (
+            "src/Assign.svelte",
+            "<script>\n\timport { str } from './values';\n</script>\n\n\
+             <button onclick={() => { $str = 2; }}>x</button>\n",
+        ),
+        (
+            "src/Before.svelte",
+            "<script>\n\tconst y = $x;\n\tconst x = 1;\n</script>\n\n{y}\n",
+        ),
+        (
+            "src/Custom.svelte",
+            "<script>\n\timport { custom } from './custom.js';\n\t/** @type {{ a: 1 }} */\n\
+             \tconst c = $custom;\n</script>\n\n{c}\n",
+        ),
+        (
+            "src/Store.svelte",
+            "<script>\n\timport { w } from './values';\n\t/** @type {string} */\n\
+             \tconst s = $w;\n</script>\n\n{s}\n",
+        ),
+    ]);
+    let lines: Vec<_> = report.lines().filter(|l| l.starts_with("src")).collect();
+    let store = |name: &str| {
+        format!(
+            "error TS2769: Cannot use '{name}' as a store. '{name}' needs to be an object with a \
+             subscribe method on it."
+        )
+    };
+    let expected = [
+        format!("src/Assign.svelte(5,26): {}", store("str")),
+        "src/Before.svelte(2,12): error TS2448: Block-scoped variable '$x' used before its \
+         declaration."
+            .to_owned(),
+        format!("src/Before.svelte(2,12): {}", store("x")),
+        "src/custom.js(1,35): error TS7006: Parameter 'run' implicitly has an 'any' type."
+            .to_owned(),
+        format!("src/Number.svelte(5,2): {}", store("num")),
+        "src/Store.svelte(4,8): error TS2322: Type 'number' is not assignable to type 'string'."
+            .to_owned(),
+    ];
+    assert_eq!(
+        lines,
+        expected.iter().map(|l| l.native()).collect::<Vec<_>>()
+    );
+}
