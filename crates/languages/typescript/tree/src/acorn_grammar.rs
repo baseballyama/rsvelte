@@ -353,6 +353,18 @@ fn whitespace(text: &str, irregular: &[oxc_span::Span], shift: u32) -> Option<St
 /// that start at `starts`: at whitespace in `irregular` that ECMAScript does not allow, or at a
 /// token its lexer rejects as it reads it, which orders the rejection by where the token starts.
 /// `shift` moves it into the document.
+/// Whether acorn's lexer can reject `token` where oxc read it: a number, a string with an escape,
+/// an `@`, or a `#`.
+fn may_reject(token: &Token) -> bool {
+    let kind = token.kind();
+    kind.is_number()
+        || (kind == Kind::Str && token.escaped())
+        || matches!(
+            kind,
+            Kind::At | Kind::PrivateIdentifier | Kind::Undetermined
+        )
+}
+
 pub(crate) fn lexed(
     text: &str,
     starts: impl IntoIterator<Item = u32>,
@@ -375,6 +387,15 @@ pub(crate) fn lexed(
 
 /// The starts of `tokens` that oxc read before it stopped, and of the token it stopped at, which
 /// `diagnostics` label first: acorn has read that token when its parser fails there.
+/// Where the tokens acorn may reject start, of a part and of the token its parser read to end it.
+pub(crate) fn read(tokens: &[Token], next: Option<Token>) -> impl Iterator<Item = u32> {
+    let part = tokens
+        .iter()
+        .filter(|token| may_reject(token))
+        .map(Token::start);
+    part.chain(next.map(|token| token.start()))
+}
+
 pub(crate) fn read_before_stopping(
     text: &str,
     tokens: &[Token],
@@ -387,7 +408,11 @@ pub(crate) fn read_before_stopping(
             let blank = rest.len() - rest.trim_start_matches([' ', '\t']).len();
             Some(label.offset() + u32::try_from(blank).ok()?)
         });
-    tokens.iter().map(Token::start).chain(stopped)
+    tokens
+        .iter()
+        .filter(|token| may_reject(token))
+        .map(Token::start)
+        .chain(stopped)
 }
 
 /// What acorn throws where it rejects.

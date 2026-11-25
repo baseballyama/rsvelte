@@ -5,7 +5,7 @@ use oxc_parser::{PartError, Token};
 use oxc_span::SourceType;
 
 use super::{Part, TreeBuilder};
-use crate::acorn_grammar::{Unsupported, lexed, read_before_stopping, rejection};
+use crate::acorn_grammar::{Unsupported, lexed, read, read_before_stopping, rejection};
 use crate::syntax_error::{
     Locator, SyntaxError, acorn, reported, syntax_error, typescript_eslint_at,
 };
@@ -28,7 +28,7 @@ impl<'a> TreeBuilder<'a> {
             let mut unsupported = Unsupported::new(self.typescript_reader(source_type), tokens);
             part.walk(&mut unsupported);
             let unsupported = unsupported.first.map(|stop| stop.shifted(shift));
-            let read = tokens.iter().chain(&next_token).map(Token::start);
+            let read = read(tokens, next_token);
             let typescript = self.typescript_reader(source_type);
             let lexed = lexed(text, read, (irregular, typescript), shift);
             unsupported
