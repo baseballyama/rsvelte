@@ -90,6 +90,37 @@ fn a_typescript_module_keeps_what_typescript_emits() {
 }
 
 #[test]
+fn a_module_keeps_its_prologue_after_the_runtime_import() {
+    // svelte 5.59.1 `compileModule` keeps each directive as a statement where the import ends the
+    // prologue; the parentheses keep the same tree.
+    let compiled = |path, source| compile(path, source, Target::Client);
+    let import = "import * as $ from \"svelte/internal/client\";\n";
+    assert_eq!(
+        compiled(
+            "a.svelte.js",
+            "\"use strict\";\n\"other\";\nimport { x } from \"y\";\nexport const a = $state(x);\n"
+        ),
+        format!(
+            "{import}(\"use strict\");\n(\"other\");\nimport {{ x }} from \"y\";\n\
+             export const a = $.proxy(x);\n"
+        )
+    );
+    assert_eq!(
+        compile("a.svelte.js", "'use strict'\n", Target::Server),
+        "import * as $ from \"svelte/internal/server\";\n(\"use strict\");\n"
+    );
+    // TypeScript's emit puts `"use strict"` first in a script, once.
+    assert_eq!(
+        compiled("a.svelte.ts", "\"use client\";\nlet a: number = 1;\n"),
+        format!("{import}(\"use strict\");\n(\"use client\");\nlet a = 1;\n")
+    );
+    assert_eq!(
+        compiled("a.svelte.ts", "\"use strict\";\nlet a: number = 1;\n"),
+        format!("{import}(\"use strict\");\nlet a = 1;\n")
+    );
+}
+
+#[test]
 fn a_javascript_module_is_read_as_written() {
     let compiled = compile("a.svelte.js", "let a = 1;\n", Target::Client);
     assert_eq!(
