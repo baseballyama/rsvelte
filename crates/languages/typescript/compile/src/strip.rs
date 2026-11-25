@@ -9,7 +9,7 @@ use oxc_ast::ast::{
     Expression, FormalParameter, FormalParameterRest, Function, FunctionBody,
     ImportDeclarationSpecifier, MethodDefinition, MethodDefinitionKind, MethodDefinitionType,
     NewExpression, Program, PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget,
-    Statement, TaggedTemplateExpression, VariableDeclarator,
+    Statement, TSModuleReference, TaggedTemplateExpression, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
 use oxc_span::{GetSpan, Span};
@@ -102,6 +102,29 @@ fn is_type_only_element(element: &ClassElement<'_>) -> bool {
         }
         _ => false,
     }
+}
+
+/// Whether `statement` is `import A = require("a")`, exported or not: TypeScript's emit for an ES
+/// module, which has no `require`, removes it.
+#[must_use]
+pub fn imports_by_require(statement: &Statement<'_>) -> bool {
+    let import = match statement {
+        Statement::TSImportEqualsDeclaration(import) => import,
+        Statement::ExportDeclaration(export) => match &export.declaration {
+            Declaration::TSImportEqualsDeclaration(import) => import,
+            _ => return false,
+        },
+        _ => return false,
+    };
+    matches!(
+        import.module_reference,
+        TSModuleReference::ExternalModuleReference(_)
+    )
+}
+
+/// Whether TypeScript's emit for an ES module removes `statement`.
+fn is_erased_statement(statement: &Statement<'_>) -> bool {
+    is_type_declaration(statement) || imports_by_require(statement)
 }
 
 /// Whether TypeScript's emit removes `element` from its class, as `transpileModule` does before
@@ -343,7 +366,7 @@ impl ErasedComments {
 
     /// Notes a body whose header TypeScript would keep: one that starts with an erased statement.
     fn body(&mut self, statements: &[Statement<'_>]) {
-        if let Some(first) = statements.first().filter(|s| is_type_declaration(s)) {
+        if let Some(first) = statements.first().filter(|s| is_erased_statement(s)) {
             self.bodies.push(first.span().start);
         }
     }
@@ -380,7 +403,7 @@ fn header(comments: &[Comment], text: &str, start: u32) -> Vec<Span> {
 
 impl<'a> Visit<'a> for ErasedComments {
     fn visit_statement(&mut self, it: &Statement<'a>) {
-        if is_type_declaration(it) {
+        if is_erased_statement(it) {
             self.declarations.push(it.span());
         } else {
             walk::walk_statement(self, it);
