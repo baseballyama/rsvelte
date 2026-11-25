@@ -3,14 +3,15 @@
 use crate::typecheck::Native;
 use crate::typecheck_events::check;
 
-const LEAF: &str = "<script lang=\"ts\">\n\tlet { label }: { label: string } = $props();\n</script>\n\
-                    {label}\n";
+const LEAF: &str = "<script lang=\"ts\">\n\tlet { label }: { label: string } = $props();\n\
+                    </script>\n{label}\n";
 const SCRIPT: &str = "<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n\
                       \tlet n = 1;\n</script>\n";
 
 /// TypeScript counts a line at each of ECMAScript's terminators, and svelte-check those that end
 /// at `\n` in a component. svelte-check 4.7.8 reports these lines.
 #[test]
+#[expect(clippy::literal_string_with_formatting_args, reason = "Svelte markup")]
 fn typecheck_places_findings_on_lines_of_every_terminator() {
     let template = |line: &str| format!("{SCRIPT}{line}\n");
     let types =

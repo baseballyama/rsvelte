@@ -53,7 +53,7 @@ checker drops a finding after one, or places it on a wrong line and column. It r
 
 ```svelte
 <script lang="ts">
-	/* c<CR>d */ let b: string = 2;
+  /* c<CR>d */ let b: string = 2;
 </script>
 ```
 
