@@ -410,12 +410,12 @@ fn object_keys<'a>(e: &'a Expression<'a>) -> Vec<&'a str> {
             .properties
             .iter()
             .filter_map(|p| match p {
-                ObjectPropertyKind::ObjectProperty(p) if !p.computed => match &p.key {
+                ObjectPropertyKind::ObjectProperty(p) => match &p.key {
                     PropertyKey::StaticIdentifier(key) => Some(key.name.as_str()),
-                    PropertyKey::StringLiteral(key) => key.value.as_str(),
+                    PropertyKey::StaticStringLiteral(key) => key.value.as_str(),
                     _ => None,
                 },
-                _ => None,
+                ObjectPropertyKind::SpreadProperty(_) => None,
             })
             .collect(),
         Expression::ArrayExpression(array) => array

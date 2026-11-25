@@ -70,7 +70,9 @@ pub(crate) fn project_files(reg: &Registry, tasks: &[&str]) -> Project {
 
 /// The current directory, which the report names files relative to.
 fn here() -> Option<PathBuf> {
-    std::env::current_dir().and_then(std::fs::canonicalize).ok()
+    std::env::current_dir()
+        .and_then(rsvelte_kernel::source::paths::canonicalize)
+        .ok()
 }
 
 /// One line per problem, `<file>(<line>,<column>): error <code>: <message>`, with paths relative
@@ -166,6 +168,7 @@ impl<'h> Report<'h> {
         let path = self
             .here
             .map_or_else(|| path.to_owned(), |here| relative(path, here));
+        // svelte-check names a file by Node's `path.relative`, with the platform's separator.
         let path = path.display();
         let before = self.errors;
         if let Some(panic) = panic {

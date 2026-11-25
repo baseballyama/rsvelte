@@ -46,7 +46,7 @@ pub(crate) fn unsupported(what: impl std::fmt::Display, span: Span) -> Diagnosti
 
 /// The key `"name"`.
 pub(crate) fn string_key<'t>(b: &Builder<'t>, name: &str) -> PropertyKey<'t> {
-    PropertyKey::new_string_literal(SPAN, b.str(name), None, b)
+    PropertyKey::new_static_string_literal(SPAN, b.str(name), None, b)
 }
 
 /// A program of `body` over the document.

@@ -67,7 +67,7 @@ fn built(name: &str, package: &str) -> PathBuf {
         .and_then(|test| {
             test.ancestors()
                 .skip(1)
-                .map(|directory| directory.join(name))
+                .map(|directory| directory.join(format!("{name}{}", std::env::consts::EXE_SUFFIX)))
                 .find(|program| program.is_file())
         })
         .unwrap_or_else(|| panic!("{name} is not built: run `cargo build -p {package} --bins`"))

@@ -31,6 +31,49 @@ pub(crate) fn text(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes).into_owned()
 }
 
+/// A report as svelte-check prints it on this platform. It names a file by Node's
+/// `path.relative`, which joins with the platform's separator, so on Windows a line's leading path
+/// reads `src\App.svelte`. A message keeps the paths TypeScript writes in it.
+pub(crate) trait Native {
+    fn native(&self) -> String;
+}
+
+impl Native for str {
+    fn native(&self) -> String {
+        if std::path::MAIN_SEPARATOR == '/' {
+            return self.to_owned();
+        }
+        let mut native = String::with_capacity(self.len());
+        for line in self.split_inclusive('\n') {
+            let path = line
+                .find("): ")
+                .and_then(|at| line[..at].rfind('('))
+                .unwrap_or(0);
+            native.push_str(&line[..path].replace('/', std::path::MAIN_SEPARATOR_STR));
+            native.push_str(&line[path..]);
+        }
+        native
+    }
+}
+
+/// `path` as TypeScript writes it in a message: its `normalizeSlashes` reads every `\` as `/`.
+pub(crate) fn typescript(path: &std::path::Path) -> String {
+    path.display().to_string().replace('\\', "/")
+}
+
+/// Links `link` to the directory `original`, as a package manager links a package into
+/// `node_modules`. Windows reads a link's relative target only with its own separator.
+pub(crate) fn link(original: impl AsRef<std::path::Path>, link: impl AsRef<std::path::Path>) {
+    #[cfg(unix)]
+    let linked = std::os::unix::fs::symlink(original, link);
+    #[cfg(windows)]
+    let linked = std::os::windows::fs::symlink_dir(
+        original.as_ref().to_string_lossy().replace('/', "\\"),
+        link,
+    );
+    linked.expect("link");
+}
+
 /// `rsvelte.config.json` for a type check with the test checker and `content_mapper`.
 pub(crate) fn typecheck_config(content_mapper: &std::path::Path) -> String {
     let packages = NodePackages::locate();
@@ -89,6 +132,7 @@ fn typecheck_prints_each_error_as_tsc_does_and_fails() {
         "src/App.svelte(2,8): error TS2322: Type 'string' is not assignable to type 'number'.\n\
          src/wrong.ts(1,14): error TS2322: Type 'number' is not assignable to type 'string'.\n\
          \nFound 2 errors in 2 files.\n"
+            .native()
     );
     std::fs::write(
         project.0.join("src/wrong.ts"),
@@ -142,7 +186,7 @@ fn typecheck_reports_the_errors_of_the_tsconfig_instead_of_the_files() {
             Some(1),
             "tsconfig.json(1,46): error TS5023: Unknown compiler option 'foo'.\n\
              \nFound 1 error in 1 file.\n"
-                .to_owned()
+                .native()
         ),
         "an unknown option, and the component is not checked"
     );
@@ -160,8 +204,9 @@ fn typecheck_reports_the_errors_of_the_tsconfig_instead_of_the_files() {
                 "tsconfig.json(1,1): error TS18003: No inputs were found in config file '{}'. \
                  Specified 'include' paths were '[\"missing/**/*.ts\"]' and 'exclude' paths were \
                  '[]'.\n\nFound 1 error in 1 file.\n",
-                tsconfig.display()
+                typescript(&tsconfig)
             )
+            .native()
         ),
         "no inputs"
     );
@@ -176,7 +221,7 @@ fn typecheck_reports_the_errors_of_the_tsconfig_instead_of_the_files() {
             Some(1),
             "src/App.svelte(2,8): error TS2322: Type 'string' is not assignable to type \
              'number'.\n\nFound 1 error in 1 file.\n"
-                .to_owned()
+                .native()
         ),
         "components alone are inputs"
     );
@@ -192,8 +237,9 @@ fn typecheck_reports_the_errors_of_the_tsconfig_instead_of_the_files() {
             format!(
                 "tsconfig.json(1,55): error TS18002: The 'files' list in config file '{}' is \
                  empty.\n\nFound 1 error in 1 file.\n",
-                tsconfig.display()
+                typescript(&tsconfig)
             )
+            .native()
         ),
         "an empty `files`, which only the tsconfig without `extends` reports"
     );
@@ -212,7 +258,6 @@ fn typecheck_without_a_checker_says_what_to_install() {
 /// JavaScript in `node_modules` and a component in `node_modules`: here a script and a declaration
 /// outside `include`, a package's script and declaration, and a workspace package that a link in
 /// `node_modules` reaches outside the project. The expected lines are svelte-check 4.7.8's.
-#[cfg(unix)]
 #[test]
 fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
@@ -263,7 +308,7 @@ fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
     files.extend(scripts.iter().map(|(path, text)| (*path, text.as_str())));
     let project = Project::new(&files);
     let app = project.0.join("app");
-    std::os::unix::fs::symlink("../../dep", app.join("node_modules/dep")).expect("link");
+    link("../../dep", app.join("node_modules/dep"));
     let typecheck = |skip_lib_check: bool| {
         let tsconfig = format!(
             r#"{{"compilerOptions":{{"strict":true,"module":"esnext","moduleResolution":"bundler",
@@ -291,6 +336,7 @@ fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
                  ../dep/src/util.ts(2,7): {assignment}\n\
                  \nFound 8 errors in 6 files.\n"
             )
+            .native()
         ),
         "without skipLibCheck"
     );
@@ -305,6 +351,7 @@ fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
                  ../dep/src/util.ts(2,7): {assignment}\n\
                  \nFound 4 errors in 4 files.\n"
             )
+            .native()
         ),
         "with skipLibCheck"
     );
@@ -313,7 +360,6 @@ fn typecheck_reports_every_file_of_the_program_that_svelte_check_reports() {
 /// svelte2tsx's ignore start keeps a `generics` list that begins with `/` from reading as `</`,
 /// a closing tag, in its `.tsx` code. With a list that comments out the rest of its line, the
 /// script's own code follows the type parameters; these four lines are svelte-check 4.7.8's.
-#[cfg(unix)]
 #[test]
 fn typecheck_reads_a_javascript_generics_list_after_the_ignore_start() {
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
@@ -341,7 +387,11 @@ fn typecheck_reads_a_javascript_generics_list_after_the_ignore_start() {
         "src/C.svelte(3,9): error TS2304: Cannot find name 'n'.",
         "src/C.svelte(5,5): error TS2304: Cannot find name 'n'.",
     ] {
-        assert!(lines.contains(&oracle), "{oracle} missing from:\n{report}");
+        let oracle = oracle.native();
+        assert!(
+            lines.contains(&oracle.as_str()),
+            "{oracle} missing from:\n{report}"
+        );
     }
     // Without the ignore start, TypeScript reads `</` and then a regular expression.
     for text in ["TS1161", "TS2363", "Unterminated regular expression"] {
@@ -353,7 +403,6 @@ fn typecheck_reads_a_javascript_generics_list_after_the_ignore_start() {
 /// comments, and svelte-check hides a finding that starts there: one at the list's `>` is hidden
 /// and one at the `(` after it is shown, though both map to the closing quote. The ignore end also
 /// closes a comment the list leaves open. The expected lines are svelte-check 4.7.8's.
-#[cfg(unix)]
 #[test]
 fn typecheck_hides_what_starts_in_the_ignored_generics_of_a_javascript_component() {
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
@@ -401,12 +450,12 @@ fn typecheck_hides_what_starts_in_the_ignored_generics_of_a_javascript_component
          implicitly has an 'any' return type.\n\
          src/C3.svelte(1,40): error TS1005: '>' expected.\n\
          \nFound 6 errors in 3 files.\n"
+            .native()
     );
 }
 
 /// A project whose component imports svelte's types, checked without `skipLibCheck` and with
 /// `lib`, and its `rsvelte.config.json`, which names its tsconfig so the CLI runs from anywhere.
-#[cfg(unix)]
 fn importing_svelte(lib: &str) -> (Project, String) {
     let tsconfig = format!(
         r#"{{"compilerOptions":{{"strict":true,"module":"esnext","moduleResolution":"bundler",
@@ -418,7 +467,7 @@ fn importing_svelte(lib: &str) -> (Project, String) {
     let project = Project::new(&[("tsconfig.json", &tsconfig), ("src/App.svelte", component)]);
     std::fs::create_dir_all(project.0.join("node_modules")).expect("node_modules");
     let svelte = NodePackages::locate().package("svelte");
-    std::os::unix::fs::symlink(svelte, project.0.join("node_modules/svelte")).expect("link");
+    link(svelte, project.0.join("node_modules/svelte"));
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
     let mut config: serde_json::Value = serde_json::from_str(&config).expect("config");
     config["plugins"]["typescript.check"]["tsconfig"] =
@@ -432,6 +481,7 @@ fn importing_svelte(lib: &str) -> (Project, String) {
 /// Without `skipLibCheck` svelte's types are a file the check reports and a file the check
 /// replaces, whose blanked `declare module '*.svelte'` spans eight lines. svelte-check 4.7.8
 /// finds no error, and with `lib` `es5` two at lines of the replaced text.
+// The run starts at `/`, a root only on Unix.
 #[cfg(unix)]
 #[test]
 fn typecheck_reads_a_replaced_package_file_as_one_text() {
@@ -466,7 +516,6 @@ fn typecheck_reads_a_replaced_package_file_as_one_text() {
 
 /// A run of the check on the replaced file alone reads the same text: svelte-check 4.7.8's two
 /// errors in it, at its lines less one, as the task's JSON counts lines from 0.
-#[cfg(unix)]
 #[test]
 fn a_run_on_a_replaced_file_reads_the_replaced_text() {
     let (project, config) = importing_svelte("es5");

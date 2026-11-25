@@ -320,16 +320,14 @@ impl Builder<'_> {
             return Ok(self.tree.push(Node::Identifier("any")));
         };
         // svelte2tsx types a route file's untyped props by their names alone.
-        let route = self
-            .route
-            .filter(|_| typed.is_none() && !self.tree.javascript);
+        let route = self.route.filter(|_| typed.is_none());
         let mut required = Buffer::new(0);
         let mut optional = Buffer::new(0);
         let rest = object.rest.is_some();
         let siblings = Siblings::new(pattern);
         let mut reads = Buffer::new(0);
         for property in &object.properties {
-            if property.computed {
+            if property.key.is_computed() {
                 return Err(refuse(
                     "computed props contracts",
                     document_span(property.span),
@@ -376,7 +374,8 @@ impl Builder<'_> {
             return Ok(self.typed_props(typed, statement, edits));
         }
         if let Some(route) = route {
-            return Ok(self.route_props(route, object, (statement, pattern.span().end), edits));
+            let at = [statement, at, pattern.span().end];
+            return Ok(self.route_props(route, object, at, edits));
         }
         let name = self.props_name();
         let required = self.tree.list(&required);
@@ -464,7 +463,9 @@ impl Builder<'_> {
 
     fn property_string(&mut self, key: &PropertyKey<'_>) -> NodeIdentifier {
         match key {
-            PropertyKey::StringLiteral(string) => self.source(string.span, None),
+            PropertyKey::StaticStringLiteral(string) | PropertyKey::StringLiteral(string) => {
+                self.source(string.span, None)
+            }
             PropertyKey::StaticIdentifier(_) => {
                 let text = self.tree.push(Node::Text(node_span(key)));
                 let parts = self.tree.list(&[text]);

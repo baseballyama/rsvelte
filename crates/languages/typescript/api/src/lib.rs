@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::paths;
 use serde::Deserialize;
 
 /// A running `tsc --api`. Requests are serial; the process ends when the session drops.
@@ -29,9 +30,6 @@ pub struct Project {
     /// Whether modules resolve as `node16` or `nodenext` do, where an ESM import gets no
     /// extension appended.
     pub node_resolution: bool,
-    /// Whether TypeScript checks that every source file is below `rootDir` while the tsconfig
-    /// leaves `rootDir` to its default, the tsconfig's own directory.
-    pub default_root_dir: bool,
     /// What is wrong with the tsconfig, such as an unknown option or no input files.
     pub errors: Vec<Diagnostic>,
     /// `compilerOptions.skipLibCheck`: TypeScript does not check declaration files.
@@ -151,18 +149,6 @@ struct CompilerOptions {
     /// `ModuleResolutionKind`, by its number.
     #[serde(rename = "moduleResolution")]
     module_resolution: Option<u32>,
-    #[serde(rename = "rootDir")]
-    root_dir: Option<String>,
-    #[serde(rename = "outDir")]
-    out_dir: Option<String>,
-    #[serde(rename = "sourceRoot")]
-    source_root: Option<String>,
-    #[serde(rename = "mapRoot")]
-    map_root: Option<String>,
-    #[serde(rename = "declarationDir")]
-    declaration_dir: Option<String>,
-    declaration: Option<bool>,
-    composite: Option<bool>,
     #[serde(rename = "skipLibCheck")]
     skip_lib_check: Option<bool>,
 }
@@ -177,17 +163,6 @@ impl CompilerOptions {
             },
             |resolution| matches!(resolution, 3 | 99),
         )
-    }
-
-    /// As TypeScript's `verifyCompilerOptions` decides to compute the common source directory.
-    fn default_root_dir(&self) -> bool {
-        let set = |o: &Option<String>| o.as_deref().is_some_and(|o| !o.is_empty());
-        let emits_declarations = self.declaration == Some(true) || self.composite == Some(true);
-        !set(&self.root_dir)
-            && (set(&self.out_dir)
-                || set(&self.source_root)
-                || set(&self.map_root)
-                || (emits_declarations && set(&self.declaration_dir)))
     }
 
     fn absolute_paths(&self) -> Vec<(String, Vec<PathBuf>)> {
@@ -271,7 +246,7 @@ impl Session {
         let mut w = StructuredDataWriter::new(false);
         w.begin_object().key("openProjects").begin_array();
         for c in configs {
-            w.write_string(&c.to_string_lossy());
+            w.write_string(&paths::typescript(c));
         }
         w.end_array();
         if !layer.files.is_empty() || !layer.links.is_empty() {
@@ -282,14 +257,14 @@ impl Session {
                 .key("files")
                 .begin_object();
             for (path, text) in &layer.files {
-                w.key(&path.to_string_lossy()).write_string(text);
+                w.key(&paths::typescript(path)).write_string(text);
             }
             w.end_object().key("symlinks").begin_object();
             for (link, target) in &layer.links {
-                w.key(&link.to_string_lossy())
+                w.key(&paths::typescript(link))
                     .begin_object()
                     .key("target")
-                    .write_string(&target.to_string_lossy())
+                    .write_string(&paths::typescript(target))
                     .key("host")
                     .write_boolean(true)
                     .end_object();
@@ -319,34 +294,26 @@ impl Session {
                                 ));
                             }
                         };
-                        let (
-                            root_files,
-                            paths,
-                            node_resolution,
-                            default_root_dir,
-                            errors,
-                            skip_lib_check,
-                        ) = p.parsed.as_ref().map_or_else(
-                            || (Vec::new(), Vec::new(), false, false, Vec::new(), false),
-                            |c| {
-                                let options = &c.options;
-                                (
-                                    c.file_names.clone(),
-                                    options.absolute_paths(),
-                                    options.node_resolution(),
-                                    options.default_root_dir(),
-                                    c.errors.clone(),
-                                    options.skip_lib_check == Some(true),
-                                )
-                            },
-                        );
+                        let (root_files, paths, node_resolution, errors, skip_lib_check) =
+                            p.parsed.as_ref().map_or_else(
+                                || (Vec::new(), Vec::new(), false, Vec::new(), false),
+                                |c| {
+                                    let options = &c.options;
+                                    (
+                                        c.file_names.clone(),
+                                        options.absolute_paths(),
+                                        options.node_resolution(),
+                                        c.errors.clone(),
+                                        options.skip_lib_check == Some(true),
+                                    )
+                                },
+                            );
                         Ok(Project {
                             snapshot: snapshot.snapshot,
                             id,
                             root_files,
                             paths,
                             node_resolution,
-                            default_root_dir,
                             errors,
                             skip_lib_check,
                         })
@@ -377,7 +344,7 @@ impl Session {
         if let Some(files) = files {
             w.key("files").begin_array();
             for f in files {
-                w.write_string(&f.to_string_lossy());
+                w.write_string(&paths::typescript(f));
             }
             w.end_array();
         }
@@ -435,7 +402,7 @@ impl Session {
             ProjectId::Handle(handle) => w.write_number(*handle),
             ProjectId::Id(id) => w.write_string(id),
         };
-        w.key("file").write_string(&file.to_string_lossy());
+        w.key("file").write_string(&paths::typescript(file));
         w.end_object();
         let method = "getSourceFileMetadata";
         let response = self.request(method, w.finish().as_bytes())?;
@@ -467,7 +434,7 @@ impl Session {
             ProjectId::Handle(handle) => w.write_number(*handle),
             ProjectId::Id(id) => w.write_string(id),
         };
-        w.key("file").write_string(&file.to_string_lossy());
+        w.key("file").write_string(&paths::typescript(file));
         w.key("positions").begin_array();
         for &position in positions {
             w.write_number(position);

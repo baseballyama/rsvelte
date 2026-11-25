@@ -301,7 +301,7 @@ fn javascript_uses_its_own_syntax_mode_in_shared_tasks() {
             formatted.diagnostics
         );
         assert_eq!(
-            formatted.files[0].text, "export const value = a < b > c;\n",
+            formatted.files[0].text, "export const value = (a < b) > c;\n",
             "{path}"
         );
         assert_eq!(formatted.files[0].name, "js", "{path}");

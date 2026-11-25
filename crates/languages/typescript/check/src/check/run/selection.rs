@@ -11,22 +11,22 @@ use rsvelte_typescript_api::{Project, Session};
 use super::MAPPER_PACKAGE;
 use crate::check::CheckRequest;
 
-const CONFIG: &str = "selection.json";
+const CONFIG: &str = ".rsvelte.selection.json";
 
 /// The files of the selection's project that only an import reaches, and of the documents among
-/// them that the run asks about, those a search of `node_modules` found, by index in ascending
-/// order.
+/// them that the run asks about, those a search of `node_modules` found.
 #[derive(Default)]
 pub(super) struct Selected {
     pub(super) reached: HashSet<PathBuf>,
-    pub(super) external: Vec<usize>,
+    pub(super) external: HashSet<PathBuf>,
 }
 
-/// The tsconfig of a project that extends the project's `base` with the content mappers of `req`,
-/// so that its root files are those the tsconfig selects, components included.
+/// The tsconfig of a project that extends the project's `base`, in its directory `root`, with the
+/// content mappers of `req`, so that its root files are those the tsconfig selects, components
+/// included.
 pub(super) fn config(
     req: &CheckRequest<'_>,
-    overlay: &Path,
+    root: &Path,
     base: &Path,
     store: &Path,
 ) -> (PathBuf, String) {
@@ -34,7 +34,7 @@ pub(super) fn config(
     config
         .begin_object()
         .key("extends")
-        .write_string(&base.to_string_lossy())
+        .write_string(&rsvelte_kernel::source::paths::typescript(base))
         .key("compilerOptions")
         .begin_object()
         .key("noEmit")
@@ -42,28 +42,24 @@ pub(super) fn config(
         .end_object();
     req.write_mapper_config(&mut config, MAPPER_PACKAGE, store);
     config.end_object();
-    (overlay.join(CONFIG), config.finish())
+    (root.join(CONFIG), config.finish())
 }
 
-/// What `project`, the selection's, holds beyond its roots; `ask` names the documents, at
-/// `paths`, to ask whether a search of `node_modules` found them.
+/// What `project`, the selection's, holds beyond its roots; `ask` names the documents, by path, to
+/// ask whether a search of `node_modules` found them.
 pub(super) fn selected(
     session: &mut Session,
     project: &Project,
-    paths: &[PathBuf],
-    ask: &dyn Fn(usize) -> bool,
+    ask: Option<&HashSet<PathBuf>>,
 ) -> Result<Selected, String> {
     let roots: HashSet<&Path> = project.root_files.iter().map(PathBuf::as_path).collect();
     let reached: HashSet<PathBuf> = (session.source_file_names(project)?.into_iter())
         .filter(|file| !roots.contains(file.as_path()))
         .collect();
-    let mut external = Vec::new();
-    for (file, path) in paths.iter().enumerate() {
-        if ask(file)
-            && reached.contains(path)
-            && session.from_external_library(project, path)? == Some(true)
-        {
-            external.push(file);
+    let mut external = HashSet::new();
+    for path in ask.into_iter().flatten() {
+        if reached.contains(path) && session.from_external_library(project, path)? == Some(true) {
+            external.insert(path.clone());
         }
     }
     Ok(Selected { reached, external })

@@ -246,7 +246,7 @@ fn props_declarations<'a>(
             }
             None => local,
         };
-        BindingProperty::new(SPAN, b.key(&p.key), value, p.key == p.var, false, b)
+        BindingProperty::new(SPAN, b.key(&p.key), value, p.key == p.var, b)
     });
     let properties = b.vec(properties);
     let rest_element = rest

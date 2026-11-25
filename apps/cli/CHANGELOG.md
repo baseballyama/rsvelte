@@ -1,5 +1,38 @@
 # @rsvelte/cli
 
+## 0.7.1
+
+### Patch Changes
+
+- 52a6ba8: `compile` now reports a character ECMAScript does not allow inside the module reference of an `import type` alias, such as U+0085, before the alias error, as Svelte does.
+- 530da27: `typecheck` now types the untyped `$props()` of a JavaScript route component, such as `+page.svelte`, from the route's `./$types` in `JSDoc`, as svelte2tsx does. Where `./$types` is missing, it reports the import, as svelte-check does.
+- a6853db: `compile` no longer prints a `.svelte.ts` module's `declare const` as `const g;`, and reads a class's overloads and `declare` fields the way svelte does.
+- 804a752: `rsvelte lint` and `rsvelte format` follow oxlint 1.95 and its oxfmt. `rsvelte format` keeps the parentheses of `(a < b) > c`, which TypeScript would otherwise read as a call of `a<b>`.
+- ab7def8: `compile` now reports `expected_token` for a digit a binary or octal number does not take in a template expression, such as `{0b12}`, where svelte does.
+- a46b6cc: `typecheck` reads the language of a component svelte2tsx rejects, such as one with a template expression error, off its script elements, as svelte-check does. Before, it read every such component as JavaScript.
+- e92fa0c: `typecheck` now reads `${configDir}` in `tsconfig.json` as the directory of the checked `tsconfig.json`, as `tsc` does, also when an extended one has it. Before, `typecheck` still checked a file that such an `exclude` pattern removes.
+- e8ce62c: `typecheck` now reports TS7016 for an import of a JavaScript component it does not check, such as one with a legacy `export let`, as svelte-check does for any JavaScript component.
+- 07d2c54: `rsvelte typecheck` on Windows names a file as TypeScript does, with forward slashes. That fixes two problems: a component's precomputed projection was not found, and its TS7016 message did not match svelte-check's.
+
+## 0.7.0
+
+### Minor Changes
+
+- 4496c0e: `rsvelte lsp` serves an editor over the Language Server Protocol: the problems `rsvelte lint` finds in the text in the editor, their fixes, and formatting as `rsvelte format` does. A Visual Studio Code extension runs it.
+
+### Patch Changes
+
+- ed7da1b: `typecheck` no longer reports TS7016 for an import of an untyped component when an ambient module's pattern, such as `declare module '*.svelte'`, matches its specifier. TypeScript reads that module instead, as svelte-check does.
+- 84b9cd6: Type check a generic component's slot props as svelte-check does: `let:` on it reads the slots of the generics its props infer. A component that fills a named slot and has its own `on:` or `let:` now reads its parent's slot, not its own.
+- 567bd0f: `compile` reports `import type` on an import alias with acorn-typescript's message, at the module reference, as svelte does.
+- f1be923: `compile` now reports acorn's "Identifier directly after number" for a name right after a number, and "Unexpected token" for a stray digit as in `0b12`, where svelte does.
+- b6f17d1: Report an assignment target whose left edge is in parentheses where svelte does. `(a)?.b = x` and `(f)() = 1` now fail at the opening parenthesis, which starts the node acorn rejects, instead of at the name inside it.
+
+  An `await` outside an async function that comes before another syntax error is now reported with svelte's wording and position, instead of the later error.
+
+- 7df6e2d: `typecheck` now types a `<slot>` prop that reads an `{#each}` item, an `{#await}` value or a component's `let:` name, as svelte-check does. A parent's `let:` of that prop was `any` before.
+- 7355888: `typecheck` runs on Windows again. rsvelte now gives TypeScript, the content mapper and its output each real path as `C:\…`, where it gave the `\\?\C:\…` form that TypeScript 7 refuses as a network path. `lint` and `format` read real paths the same way.
+
 ## 0.6.0
 
 ### Minor Changes

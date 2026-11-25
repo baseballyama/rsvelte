@@ -3,10 +3,9 @@
 
 use rsvelte_test_harness::NodePackages;
 
-use crate::typecheck::{Project, text, typecheck_config};
+use crate::typecheck::{Native, Project, link, text, typecheck_config};
 
 /// The report of a type check of `files` with svelte linked, its errors on stdout.
-#[cfg(unix)]
 pub(crate) fn check(files: &[(&str, &str)]) -> String {
     let mut all = vec![(
         "tsconfig.json",
@@ -17,7 +16,7 @@ pub(crate) fn check(files: &[(&str, &str)]) -> String {
     let project = Project::new(&all);
     std::fs::create_dir_all(project.0.join("node_modules")).expect("node_modules");
     let svelte = NodePackages::locate().package("svelte");
-    std::os::unix::fs::symlink(svelte, project.0.join("node_modules/svelte")).expect("link");
+    link(svelte, project.0.join("node_modules/svelte"));
     let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
     std::fs::write(project.0.join("rsvelte.config.json"), config).expect("config");
     let output = project.rsvelte(&["typecheck"]);
@@ -27,7 +26,6 @@ pub(crate) fn check(files: &[(&str, &str)]) -> String {
 /// A component's events are svelte2tsx's: a typed dispatcher's, an untyped one's as
 /// `CustomEvent<any>`, a forwarded element's or component's, and with `strictEvents` only those.
 /// svelte-check 4.7.8 reports these four lines.
-#[cfg(unix)]
 #[test]
 fn typecheck_types_the_events_a_component_dispatches_and_forwards() {
     let dispatches = "<script lang=\"ts\">\n\timport { createEventDispatcher } from 'svelte';\n\
@@ -74,7 +72,8 @@ fn typecheck_types_the_events_a_component_dispatches_and_forwards() {
          'string'.\n\
          src/App.svelte(13,12): error TS2345: Argument of type '\"other\"' is not assignable to \
          parameter of type '\"click\"'.\n\
-         \nFound 4 errors in 1 file.\n",
+         \nFound 4 errors in 1 file.\n"
+            .native(),
     );
 }
 
@@ -83,7 +82,6 @@ fn typecheck_types_the_events_a_component_dispatches_and_forwards() {
 /// `strictEvents` on a `<style>`; a forward from an element of an event no element map names,
 /// whose finding maps nowhere; and an empty event name in a variable, which it skips, so the
 /// component has no events. svelte-check 4.7.8 reports these three lines.
-#[cfg(unix)]
 #[test]
 fn typecheck_types_the_events_svelte2tsx_reads_from_edge_shapes() {
     let inner = "<script lang=\"ts\">\n\timport { createEventDispatcher } from 'svelte';\n\
@@ -125,13 +123,13 @@ fn typecheck_types_the_events_svelte2tsx_reads_from_edge_shapes() {
          src/use.ts(2,14): error TS2322: Type 'Component<$$ComponentProps, {}, \"\">' is not \
          assignable to type 'number'.\n\
          \nFound 3 errors in 3 files.\n"
+            .native()
     );
 }
 
 /// A generic component's events are svelte2tsx's too, strict in runes mode, and of the
 /// instance its props construct, so an event of the generic type takes the type they infer.
 /// svelte-check 4.7.8 reports these four lines.
-#[cfg(unix)]
 #[test]
 fn typecheck_types_the_events_of_a_generic_component() {
     let dispatcher = |events: &str, value: &str| {
@@ -170,13 +168,13 @@ fn typecheck_types_the_events_of_a_generic_component() {
          src/App.svelte(9,22): error TS2345: Argument of type '\"x\"' is not assignable to \
          parameter of type 'never'.\n\
          \nFound 4 errors in 1 file.\n"
+            .native()
     );
 }
 
 /// A typed dispatcher's events are read from its type, so a name the typing cannot resolve is
 /// reported once, where it is written, as svelte-check reports it: svelte2tsx's copy of the
 /// typing maps nowhere. svelte-check 4.7.8 reports these four lines.
-#[cfg(unix)]
 #[test]
 fn typecheck_reports_a_typed_dispatchers_unresolved_name_once() {
     let dispatcher = |declaration: &str| {
@@ -205,6 +203,7 @@ fn typecheck_reports_a_typed_dispatchers_unresolved_name_once() {
          src/App.svelte(5,33): error TS2322: Type 'number' is not assignable to type 'string'.\n\
          src/App.svelte(6,33): error TS2322: Type 'number' is not assignable to type 'string'.\n\
          \nFound 4 errors in 3 files.\n"
+            .native()
     );
 }
 
@@ -212,7 +211,6 @@ fn typecheck_reports_a_typed_dispatchers_unresolved_name_once() {
 /// the merged symbol, at the render function's return, so its events are read from a copy of
 /// each typing, as svelte2tsx reads them. svelte-check 4.7.8 reports these six lines, beside the
 /// compiler's error on the function.
-#[cfg(unix)]
 #[test]
 fn typecheck_reads_a_redeclared_dispatchers_events_from_each_typing() {
     let dispatcher = |second: &str| {
@@ -243,5 +241,6 @@ fn typecheck_reads_a_redeclared_dispatchers_events_from_each_typing() {
          src/App.svelte(5,75): error TS2322: Type 'string' is not assignable to type 'number'.\n\
          src/App.svelte(6,32): error TS2322: Type 'number' is not assignable to type 'string'.\n\
          \nFound 6 errors in 3 files.\n"
+            .native()
     );
 }

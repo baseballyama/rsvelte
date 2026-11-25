@@ -311,3 +311,113 @@ fn a_typescript_module_drops_an_import_that_reads_require() {
         );
     }
 }
+
+/// The module after its runtime import, without whitespace.
+fn body(source: &str, target: Target) -> String {
+    let compiled = compile("a.svelte.ts", source, target);
+    let (_, body) = compiled.split_once('\n').unwrap_or_default();
+    body.chars().filter(|c| !c.is_whitespace()).collect()
+}
+
+#[test]
+fn a_typescript_module_drops_an_ambient_variable_statement() {
+    // TypeScript 6.0.3's emit, then svelte 5.59.1's `compileModule`, on both targets.
+    for (source, expected) in [
+        (
+            "declare const g: number;\nexport const x = 1;\n",
+            "exportconstx=1;",
+        ),
+        (
+            "declare let g: number;\nexport const x = 1;\n",
+            "exportconstx=1;",
+        ),
+        (
+            "declare var g: number;\nexport const x = 1;\n",
+            "exportconstx=1;",
+        ),
+        (
+            "declare const g: number, h: string;\nexport const x = 1;\n",
+            "exportconstx=1;",
+        ),
+        (
+            "declare let g: number;\nexport const s = $state(0);\n",
+            "exportconsts=0;",
+        ),
+    ] {
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(body(source, target), expected, "{target:?} {source:?}");
+        }
+    }
+}
+
+#[test]
+fn a_typescript_module_analyzes_its_classes_as_typescript_emits_them() {
+    const STATE: &str =
+        "#n=$.state(0);getn(){return$.get(this.#n);}setn(value){$.set(this.#n,value,true);}";
+    // TypeScript 6.0.3's emit, then svelte 5.59.1's `compileModule`: an overload signature and an
+    // abstract or `declare` member are gone before svelte analyzes the class.
+    for (source, client, server) in [
+        (
+            "export class C { m(): void; m() {} }\n",
+            "exportclassC{m(){}}".to_owned(),
+            "exportclassC{m(){}}".to_owned(),
+        ),
+        (
+            "export class C { m(a: string): void; m(a: number): void; m(a: any) {} }\n",
+            "exportclassC{m(a){}}".to_owned(),
+            "exportclassC{m(a){}}".to_owned(),
+        ),
+        (
+            "export class C { static m(): void; static m() {} }\n",
+            "exportclassC{staticm(){}}".to_owned(),
+            "exportclassC{staticm(){}}".to_owned(),
+        ),
+        (
+            "export class C { #m(): void; #m() {} }\n",
+            "exportclassC{#m(){}}".to_owned(),
+            "exportclassC{#m(){}}".to_owned(),
+        ),
+        (
+            "export const C = class { m(): void; m() {} };\n",
+            "exportconstC=class{m(){}};".to_owned(),
+            "exportconstC=class{m(){}};".to_owned(),
+        ),
+        (
+            "export class C { constructor(a: string); constructor(a: any) {} }\n",
+            "exportclassC{constructor(a){}}".to_owned(),
+            "exportclassC{constructor(a){}}".to_owned(),
+        ),
+        (
+            "export abstract class C { abstract m(): void; m2() {} }\n",
+            "exportclassC{m2(){}}".to_owned(),
+            "exportclassC{m2(){}}".to_owned(),
+        ),
+        (
+            "export class C { n = $state(0); m(): void; m() { this.n++; } }\n",
+            format!("exportclassC{{{STATE}m(){{this.n++;}}}}"),
+            "exportclassC{n=0;m(){this.n++;}}".to_owned(),
+        ),
+        (
+            "export class C { n(): void; n = $state(0); }\n",
+            format!("exportclassC{{{STATE}}}"),
+            "exportclassC{n=0;}".to_owned(),
+        ),
+        (
+            "export class C { declare n: number; n = $state(0); }\n",
+            format!("exportclassC{{{STATE}}}"),
+            "exportclassC{n=0;}".to_owned(),
+        ),
+    ] {
+        assert_eq!(body(source, Target::Client), client, "{source:?}");
+        assert_eq!(body(source, Target::Server), server, "{source:?}");
+    }
+    // TypeScript keeps an accessor without a body, so svelte still reads two.
+    for source in [
+        "export class C { get a(): number; get a() { return 1 } }\n",
+        "export class C { set a(v: number); set a(v) {} }\n",
+    ] {
+        let output = output("a.svelte.ts", source, Target::Client);
+        let codes: Vec<_> = output.diagnostics.iter().map(|d| &*d.code).collect();
+        assert_eq!(codes, ["duplicate_class_field"], "{source:?}");
+    }
+}

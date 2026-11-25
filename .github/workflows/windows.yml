@@ -1,0 +1,59 @@
+# The type check on Windows, where a real path has another form than on Linux and macOS, and
+# svelte-check names a file with backslashes. It runs the command line's typecheck tests nightly,
+# on demand, and on a pull request that changes how those paths are made or printed.
+name: Windows
+
+on:
+  schedule:
+    - cron: '23 3 * * *'
+  workflow_dispatch:
+  pull_request:
+    paths:
+      - crates/language_independent/kernel/src/source/paths.rs
+      - crates/language_independent/kernel/src/source/paths/**
+      - crates/languages/typescript/api/**
+      - crates/languages/typescript/check/**
+      - crates/hosts/command_line/src/commands/typecheck.rs
+      - crates/hosts/command_line/tests/cli/typecheck*.rs
+      - crates/hosts/command_line/tests/cli/combined.rs
+      - crates/language_independent/test_harness/**
+      - .github/workflows/windows.yml
+
+permissions:
+  contents: read
+
+concurrency:
+  group: windows-${{ github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+env:
+  CARGO_TERM_COLOR: always
+
+jobs:
+  typecheck:
+    runs-on: windows-2025
+    timeout-minutes: 60
+    env:
+      CARGO_PROFILE_DEV_DEBUG: line-tables-only
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: |
+            /*
+            !/corpus/svelte/
+            !/corpus/_own/
+          sparse-checkout-cone-mode: false
+      - uses: ./.github/actions/rust
+        with:
+          key: windows
+      - run: cargo fetch --locked
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.1
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/oracle...
+      # The tests run these programs, and cargo builds a program only for its own package's tests.
+      - run: cargo build --offline -p rsvelte_typescript_content_mapper -p rsvelte_svelte_typescript_projection --bins
+      - run: cargo test --offline -p rsvelte_command_line --test cli typecheck

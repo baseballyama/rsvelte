@@ -63,6 +63,9 @@ const allowed: Record<Role, readonly Role[]> = {
 	example: ['kernel', 'syntax', 'semantic', 'support', 'capability'],
 };
 
+// The one host that uses another: the Node.js addon runs the `rsvelte` command inside Node.js.
+const hostRunsHost = { from: 'rsvelte_node', to: 'rsvelte_command_line' } as const;
+
 // A language uses another only to read what it embeds; two frameworks meet only in a bridge.
 const embedded = new Set(['css', 'html', 'typescript']);
 function languageOf(manifestPath: string): string | undefined {
@@ -79,6 +82,7 @@ function forbiddenDependencies(packages: Package[]): string[] {
 		const accepts = own === undefined ? [] : allowed[own];
 		const from = languageOf(pkg.manifest_path);
 		for (const dependency of pkg.dependencies) {
+			if (pkg.name === hostRunsHost.from && dependency.name === hostRunsHost.to) continue;
 			const target = roles.get(dependency.name);
 			const to = languages.get(dependency.name);
 			const crossesFrameworks =
@@ -266,6 +270,9 @@ test('support, plugin and host boundaries reject injected dependencies', () => {
 		['rsvelte_svelte_lint', 'rsvelte_command_line'],
 		['rsvelte_vue_to_svelte', 'rsvelte_browser'],
 		['rsvelte_command_line', 'rsvelte_browser'],
+		['rsvelte_command_line', 'rsvelte_node'],
+		['rsvelte_browser', 'rsvelte_command_line'],
+		['rsvelte_node', 'rsvelte_browser'],
 	] as const) {
 		assert.deepEqual(inject(from, to), [`${from} depends on ${to}`]);
 	}

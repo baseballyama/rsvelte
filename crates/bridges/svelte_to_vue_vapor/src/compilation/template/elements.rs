@@ -249,7 +249,7 @@ impl<'t> Template<'_, '_, 't> {
             let value = match &a.value {
                 &AttributeValue::Class(expression) => {
                     let value = self.template_expression(expression);
-                    classes.push(b.property(string_key(b, name), value, false));
+                    classes.push(b.property(string_key(b, name), value));
                     continue;
                 }
                 &AttributeValue::Spread(e) => {
@@ -289,7 +289,7 @@ impl<'t> Template<'_, '_, 't> {
                     ));
                 }
             };
-            fields.push(b.property(string_key(b, name), value, false));
+            fields.push(b.property(string_key(b, name), value));
         }
         let mut object = b.object(fields);
         if !classes.is_empty() {
@@ -376,7 +376,7 @@ impl<'t> Template<'_, '_, 't> {
             match &a.value {
                 &AttributeValue::Class(e) => {
                     let x = self.template_expression(e);
-                    fields.push(b.property(string_key(b, name), x, false));
+                    fields.push(b.property(string_key(b, name), x));
                 }
                 AttributeValue::Static(v) if name == "class" => {
                     value = Some(b.string(v));

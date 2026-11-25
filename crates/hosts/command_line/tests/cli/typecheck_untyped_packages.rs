@@ -1,7 +1,7 @@
 //! `rsvelte typecheck` where `allowJs` loads JavaScript but a JavaScript component a package's
 //! import reaches stays untyped, as `maxNodeModuleJsDepth` decides.
 
-use crate::typecheck::{Project, text, typecheck_config};
+use crate::typecheck::{Native, Project, link, text, typecheck_config, typescript};
 
 /// A project whose page imports a JavaScript component and a TypeScript one through a linked
 /// package, and a JavaScript component by its path, under `compilerOptions` `options`. Beside
@@ -36,8 +36,7 @@ fn project(options: &str) -> Project {
     ]);
     let app = project.0.join("app");
     std::fs::create_dir_all(app.join("node_modules")).expect("node_modules");
-    #[cfg(unix)]
-    std::os::unix::fs::symlink("../../dep", app.join("node_modules/dep")).expect("link");
+    link("../../dep", app.join("node_modules/dep"));
     project
 }
 
@@ -52,7 +51,6 @@ const TYPED: &str = "src/Page.svelte(7,24): error TS2322: Type 'string' is not a
 /// the one a search of `node_modules` finds: that import reports TS7016, the component is not
 /// checked, and its props are not typed. The TypeScript component of the package stays typed.
 /// The expected lines are svelte-check 4.7.8's.
-#[cfg(unix)]
 #[test]
 fn typecheck_reads_a_package_javascript_component_as_untyped_where_javascript_is_allowed() {
     let project = project("");
@@ -64,14 +62,14 @@ fn typecheck_reads_a_package_javascript_component_as_untyped_where_javascript_is
             "{LOCAL}src/Page.svelte(2,21): error TS7016: Could not find a declaration file for \
              module 'dep/src/Annotated.svelte'. '{}' implicitly has an 'any' type.\n\
              {TYPED}\nFound 4 errors in 2 files.\n",
-            linked.display()
+            typescript(&linked)
         )
+        .native()
     );
 }
 
 /// `maxNodeModuleJsDepth` 1 loads the package's JavaScript component, so it is checked and
 /// typed as the local one is. The expected lines are svelte-check 4.7.8's.
-#[cfg(unix)]
 #[test]
 fn typecheck_loads_a_package_javascript_component_within_the_node_module_javascript_depth() {
     let project = project(r#","maxNodeModuleJsDepth":1"#);
@@ -85,13 +83,13 @@ fn typecheck_loads_a_package_javascript_component_within_the_node_module_javascr
              'number'.\n\
              {TYPED}\nFound 5 errors in 3 files.\n"
         )
+        .native()
     );
 }
 
 /// A JavaScript document of the run that the tsconfig does not select and the program does not
 /// reach is checked as a root, inside or outside the package: only the one a search of
 /// `node_modules` finds is not.
-#[cfg(unix)]
 #[test]
 fn a_javascript_component_the_program_does_not_reach_is_still_checked() {
     let project = project("");
@@ -131,5 +129,117 @@ fn a_javascript_component_the_program_does_not_reach_is_still_checked() {
         ],
         "{stdout}{}",
         text(&output.stderr)
+    );
+}
+
+const ICON: &str = "<svg width=\"16\" height=\"16\"></svg>\n";
+
+/// A page that imports, through a linked package's barrel `.ts`, a component of the package and
+/// one without `<script>` that both the barrel and that component import by their paths, beside
+/// such a component of the project, under `compilerOptions` `options`.
+fn barrel(options: &str) -> Project {
+    crate::typecheck_linked_packages::linked(
+        &format!(r#","types":["svelte"]{options}"#),
+        &[
+            (
+                "app/src/App.svelte",
+                "<script lang=\"ts\">\n  import { Wrapper, Icon } from 'dep/components';\n  \
+                 import Local from './Local.svelte';\n</script>\n\n<Wrapper /><Icon /><Local />\n",
+            ),
+            ("app/src/Local.svelte", ICON),
+            (
+                "dep/package.json",
+                r#"{"name":"dep","type":"module","exports":{
+"./components":{"types":"./src/index.ts","svelte":"./src/index.ts"}},
+"peerDependencies":{"svelte":"^5"}}"#,
+            ),
+            (
+                "dep/src/index.ts",
+                "export { default as Wrapper } from './Wrapper.svelte';\n\
+                 export { default as Icon } from './Icon.svelte';\n",
+            ),
+            (
+                "dep/src/Wrapper.svelte",
+                "<script lang=\"ts\">\n  import Icon from './Icon.svelte';\n</script>\n\n\
+                 <Icon />\n",
+            ),
+            ("dep/src/Icon.svelte", ICON),
+        ],
+    )
+}
+
+/// With `allowJs`, TypeScript loads a linked package's component that only imports by its path
+/// reach, though the search of `node_modules` found the barrel that imports it: no import is
+/// untyped. svelte-check 4.7.8 finds no error.
+#[test]
+fn typecheck_loads_a_linked_package_javascript_component_its_own_files_import_by_path() {
+    let project = barrel(r#","allowJs":true"#);
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    assert_eq!(
+        (
+            output.status.code(),
+            format!("{}{}", text(&output.stdout), text(&output.stderr))
+        ),
+        (Some(0), String::new())
+    );
+}
+
+/// Without `allowJs` every import of a component without `<script>` is untyped, in the project
+/// and in the linked package. The expected lines are svelte-check 4.7.8's.
+#[test]
+fn typecheck_reads_every_javascript_component_as_untyped_where_javascript_is_not_allowed() {
+    let project = barrel("");
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    let untyped = |specifier: &str, file: &str| {
+        format!(
+            "error TS7016: Could not find a declaration file for module '{specifier}'. '{}' \
+             implicitly has an 'any' type.",
+            typescript(&project.0.join(file))
+        )
+    };
+    let icon = "dep/src/Icon.svelte";
+    assert_eq!(
+        (
+            output.status.code(),
+            format!("{}{}", text(&output.stdout), text(&output.stderr))
+        ),
+        (
+            Some(1),
+            format!(
+                "../dep/src/Wrapper.svelte(2,20): {}\n\
+                 ../dep/src/index.ts(2,33): {}\n\
+                 src/App.svelte(3,21): {}\n\
+                 \nFound 3 errors in 3 files.\n",
+                untyped("./Icon.svelte", icon),
+                untyped("./Icon.svelte", icon),
+                untyped("./Local.svelte", "app/src/Local.svelte"),
+            )
+            .native()
+        )
+    );
+}
+
+/// With `allowJs`, TypeScript loads the project's component without `<script>` that a relative
+/// import reaches. svelte-check 4.7.8 finds no error.
+#[test]
+fn typecheck_loads_a_project_javascript_component_where_javascript_is_allowed() {
+    let project = crate::typecheck_linked_packages::linked(
+        r#","types":["svelte"],"allowJs":true"#,
+        &[
+            (
+                "app/src/App.svelte",
+                "<script lang=\"ts\">\n  import Local from './Local.svelte';\n</script>\n\n\
+                 <Local />\n",
+            ),
+            ("app/src/Local.svelte", ICON),
+        ],
+    );
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    assert_eq!(
+        (
+            output.status.code(),
+            format!("{}{}", text(&output.stdout), text(&output.stderr))
+        ),
+        (Some(0), String::new())
     );
 }

@@ -30,7 +30,7 @@ pub(crate) fn lower_module<'o>(
     allocator: &'o Allocator,
 ) -> Result<Program<'o>, Diagnostic> {
     let validated = validate_unit(input, res, Unit::Module)?;
-    check_runes(input, res, target, false)?;
+    check_runes(input, res, Unit::Module, target, false)?;
     let component = &input.component;
     let program = component
         .javascript
@@ -42,6 +42,7 @@ pub(crate) fn lower_module<'o>(
         names: Some(&names),
         ..script::ScriptRewrite::new(&b, target, res)
     };
+    rewrite.classes.unit = Unit::Module;
     let mut hoisted = Vec::new();
     let statements = script::lower_script(
         &mut rewrite,

@@ -7,9 +7,9 @@ use oxc_ast::ast::{
     ArrowFunctionExpression, CallExpression, CatchParameter, ChainElement, Class, ClassElement,
     CommentPosition, Declaration, ExportDeclaration, ExportDefaultDeclarationKind, ExportSpecifier,
     Expression, FormalParameter, FormalParameterRest, Function, FunctionBody,
-    ImportDeclarationSpecifier, MethodDefinition, MethodDefinitionType, NewExpression, Program,
-    PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget, Statement,
-    TSModuleReference, TaggedTemplateExpression, VariableDeclarator,
+    ImportDeclarationSpecifier, MethodDefinition, MethodDefinitionKind, MethodDefinitionType,
+    NewExpression, Program, PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget,
+    Statement, TSModuleReference, TaggedTemplateExpression, VariableDeclarator,
 };
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
 use oxc_span::{GetSpan, Span};
@@ -125,6 +125,23 @@ pub fn imports_by_require(statement: &Statement<'_>) -> bool {
 /// Whether TypeScript's emit for an ES module removes `statement`.
 fn is_erased_statement(statement: &Statement<'_>) -> bool {
     is_type_declaration(statement) || imports_by_require(statement)
+}
+
+/// Whether TypeScript's emit removes `element` from its class: it keeps an accessor without a
+/// body, and gives it an empty one.
+#[must_use]
+pub fn is_erased_by_emit(element: &ClassElement<'_>) -> bool {
+    match element {
+        ClassElement::MethodDefinition(m) => {
+            m.r#type.is_abstract()
+                || (m.value.body.is_none()
+                    && !matches!(
+                        m.kind,
+                        MethodDefinitionKind::Get | MethodDefinitionKind::Set
+                    ))
+        }
+        element => is_type_only_element(element),
+    }
 }
 
 fn is_type_import(specifier: &ImportDeclarationSpecifier<'_>) -> bool {

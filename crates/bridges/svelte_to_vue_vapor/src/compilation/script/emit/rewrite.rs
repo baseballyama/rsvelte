@@ -223,9 +223,7 @@ pub(crate) fn property_target<'t>(
         None => AssignmentTargetMaybeDefault::from(target),
     };
     let key = PropertyKey::new_static_identifier(p.span, p.binding.name, b);
-    AssignmentTargetProperty::new_assignment_target_property_property(
-        p.span, key, binding, false, b,
-    )
+    AssignmentTargetProperty::new_assignment_target_property_property(p.span, key, binding, b)
 }
 
 fn simple_target(e: Expression<'_>) -> SimpleAssignmentTarget<'_> {

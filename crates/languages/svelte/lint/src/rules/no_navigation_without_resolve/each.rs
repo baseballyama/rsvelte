@@ -84,7 +84,11 @@ pub(super) fn property_name<'a>(
 ) -> Option<Cow<'a, str>> {
     match key {
         PropertyKey::StaticIdentifier(key) => Some(Cow::Borrowed(key.name.as_str())),
-        PropertyKey::PrivateIdentifier(_) => None,
+        PropertyKey::PrivateIdentifier(_) | PropertyKey::StaticBigIntLiteral(_) => None,
+        PropertyKey::StaticStringLiteral(key) => key.value.as_str().map(Cow::Borrowed),
+        PropertyKey::StaticNumericLiteral(key) => Some(Cow::Owned(
+            rsvelte_typescript_semantic::number::number(key.value),
+        )),
         key => statics.string(key.as_expression()?).map(Cow::Owned),
     }
 }

@@ -1,8 +1,10 @@
+use oxc_ast::ast::ClassElement;
 use oxc_semantic::SymbolId;
 use rsvelte_svelte_semantic::warnings::{
     Phase, Raised, Section, dollar_name_errors, rest_prop_member_errors,
 };
 use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature_where};
+use rsvelte_typescript_compile::strip::is_erased_by_emit;
 use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashSet;
 
@@ -92,12 +94,25 @@ pub(crate) fn validate(
 }
 
 /// What upstream compiles, which decides the checks only a component gets.
-#[derive(Clone, Copy, PartialEq, Eq)]
+#[derive(Clone, Copy, Default, PartialEq, Eq)]
 pub(crate) enum Unit {
     /// Upstream erases its types itself, rejecting a TypeScript feature with a runtime meaning.
+    #[default]
     Component,
     /// A `.svelte.js` or `.svelte.ts` module, whose types TypeScript's emit erases first.
     Module,
+}
+
+impl Unit {
+    /// Whether the erasure before upstream's analysis removes `element` from its class:
+    /// `remove_typescript_nodes` removes a `declare` field, and TypeScript's emit every member
+    /// without a runtime meaning.
+    pub(crate) fn erases_member(self, element: &ClassElement<'_>) -> bool {
+        match self {
+            Self::Component => matches!(element, ClassElement::PropertyDefinition(p) if p.declare),
+            Self::Module => is_erased_by_emit(element),
+        }
+    }
 }
 
 pub(crate) fn validate_unit(
@@ -138,7 +153,7 @@ pub(crate) fn validate_unit(
     })
     .and_then(|()| unsupported_syntax::refuse(input, res));
     if let Err(refusal) = refused {
-        let script = script_error(input, res, custom_element.is_some());
+        let script = script_error(input, res, unit, custom_element.is_some());
         return Err(script.map_or(refusal, |(_, error)| error));
     }
     Ok(Validation {
@@ -159,8 +174,15 @@ pub(crate) fn rune_error(
     validated: &Validation,
 ) -> Option<(Raised, Diagnostic)> {
     let custom_element = validated.custom_element.is_some();
-    let error =
-        check_runes_with(input, res, Target::Client, custom_element, Awaits::Analysis).err()?;
+    let error = check_runes_with(
+        input,
+        res,
+        Unit::Component,
+        Target::Client,
+        custom_element,
+        Awaits::Analysis,
+    )
+    .err()?;
     let at = error.span.start_offset;
     Some((raised_in_walk_of(input.component.section(at), at), error))
 }
@@ -245,7 +267,7 @@ pub(super) fn check_analysis(
     let script = (errors.iter())
         .any(|(raised, _)| raised.section == Section::Template)
         .then(|| {
-            let (script, template) = script_and_template_errors(input, res, custom_element);
+            let (script, template) = script_and_template_errors(input, res, unit, custom_element);
             if let Some(error) = template.filter(|error| error.code != crate::lower::UNSUPPORTED) {
                 errors.push((raised_in_walk(error.span.start_offset), error));
             }
@@ -254,7 +276,7 @@ pub(super) fn check_analysis(
     // A walk error waits for the scripts' first, which the later rune checks raise anyway.
     if errors.iter().any(|(raised, _)| raised.phase == Phase::Walk)
         && let Some((section, error)) =
-            script.unwrap_or_else(|| script_error(input, res, custom_element))
+            script.unwrap_or_else(|| script_error(input, res, unit, custom_element))
     {
         errors.push((raised_in_walk_of(section, error.span.start_offset), error));
     }

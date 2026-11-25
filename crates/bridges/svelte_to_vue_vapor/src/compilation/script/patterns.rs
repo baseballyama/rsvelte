@@ -77,7 +77,7 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
                 let parent = self.intermediate(at, value);
                 let mut excluded = Vec::new();
                 for property in object.properties {
-                    let (key, exclusion) = self.key(property.key, property.computed);
+                    let (key, exclusion) = self.key(property.key);
                     excluded.push(exclusion);
                     let read = b.computed(parent_read(b, &parent), key);
                     self.pattern(property.value, read);
@@ -114,13 +114,14 @@ impl<'t, V: VisitMut<'t>> Lower<'_, 't, V> {
     }
 
     /// A property's key and the key `$$destructure_rest` leaves out.
-    fn key(&mut self, key: PropertyKey<'t>, computed: bool) -> (Expression<'t>, Expression<'t>) {
+    fn key(&mut self, key: PropertyKey<'t>) -> (Expression<'t>, Expression<'t>) {
         let b = self.b;
-        if !computed && let PropertyKey::StaticIdentifier(id) = &key {
+        if let PropertyKey::StaticIdentifier(id) = &key {
             return (b.string(&id.name), b.string(&id.name));
         }
         let at = key.span().start;
-        let mut value = key.into_expression();
+        let computed = key.is_computed();
+        let mut value = b.key_expression(key);
         self.rw.visit_expression(&mut value);
         if !computed {
             let copy = value.clone_in_with_semantic_ids(b.allocator());
