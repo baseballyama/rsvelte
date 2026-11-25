@@ -1,5 +1,20 @@
 # @rsvelte/cli
 
+## 0.7.3
+
+### Patch Changes
+
+- b510037: The `js.map` of `compile` for a component with `\r\n` line ends keeps the mapping of its last line, which it dropped.
+- 637d050: A `.svelte.js` or `.svelte.ts` module keeps its leading directives, such as `"use strict"`, after
+  the runtime import, as `compileModule` does.
+- 2f8a593: rsvelte now erases the types of a `.svelte.ts` module before it analyzes it. A name that only a dropped `import A = require("x")` or a type binds no longer exists, and rsvelte drops `export =` too.
+- b510037: `typecheck` reports a `let:` on a component without slots, such as a runes component, as svelte-check does: its slots read as `unknown`. It also reports the `children` of a component's content at the column svelte-check uses when the start tag has a directive.
+- 575fe48: `compile` drops an `import A = require("x")` from a `.svelte.ts` module, as TypeScript's emit for an ES module does.
+- ce18e42: A number that JavaScript does not allow, such as `1_`, `08x` or `0x`, is now reported with Svelte's message and position.
+- aaf08ee: Report an `await` in a class static block where svelte does when the assignment target around it also fails. `class A { static { (await x) = 1; } }` now fails at the `await`.
+- e46069e: `typecheck` places a finding in a file with `\r\n`, `\r`, U+2028 or U+2029 line ends at svelte-check's line and column, instead of `check_unmapped` at 1:1 or a wrong line.
+- 82f2393: `rsvelte typecheck` now reports an unknown slot name on every child that fills a slot, with or without `let:` and inside blocks, as svelte-check does.
+
 ## 0.7.2
 
 ### Patch Changes
