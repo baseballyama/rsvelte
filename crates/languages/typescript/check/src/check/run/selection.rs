@@ -34,7 +34,7 @@ pub(super) fn config(
     config
         .begin_object()
         .key("extends")
-        .write_string(&base.to_string_lossy())
+        .write_string(&rsvelte_kernel::source::paths::typescript(base))
         .key("compilerOptions")
         .begin_object()
         .key("noEmit")

@@ -119,7 +119,7 @@ pub(super) fn store_json(
     output.begin_object().key("files").begin_object();
     let mut entry = |path: &Path, [source, text, extension]: [&str; 3], mappings, atoms| {
         output
-            .key(&paths::typescript(&path.to_string_lossy()))
+            .key(&paths::typescript(path))
             .begin_object()
             .key("source")
             .write_string(source)

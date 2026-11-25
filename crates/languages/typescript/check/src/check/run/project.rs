@@ -50,7 +50,7 @@ fn root_files(
     overlay
         .begin_object()
         .key("extends")
-        .write_string(&config.to_string_lossy())
+        .write_string(&rsvelte_kernel::source::paths::typescript(config))
         .key("contentMappers")
         .begin_array();
     for (i, language) in languages.iter().enumerate() {
