@@ -30,11 +30,28 @@ fn offset_accepts_a_line_end_and_nothing_past_it() {
 }
 
 #[test]
-fn a_crlf_terminator_is_not_part_of_the_line() {
-    let index = LineIndex::new("a\r\nb");
-    assert_eq!(index.offset(1, 1), Some(1));
-    assert_eq!(index.offset(1, 2), None);
-    assert_eq!(index.offset(2, 0), Some(3));
+fn an_offset_inside_a_crlf_is_on_the_line_it_ends() {
+    for breaks in [
+        LineBreaks::Newline,
+        LineBreaks::Ecmascript,
+        LineBreaks::LanguageServer,
+    ] {
+        let index = LineIndex::with_breaks("a\r\nb\r\n", breaks);
+        assert_eq!(index.offset(1, 1), Some(1));
+        assert_eq!(index.offset(1, 2), Some(2));
+        assert_eq!(index.offset(1, 3), None);
+        assert_eq!(index.offset(2, 0), Some(3));
+        assert_eq!(index.offset(3, 0), Some(6));
+        assert_eq!(index.offset(3, 1), None);
+        for at in 0..=6 {
+            let found = index.line_column(at);
+            assert_eq!(
+                index.offset(found.line, found.column),
+                Some(at),
+                "{breaks:?}"
+            );
+        }
+    }
 }
 
 #[test]
@@ -105,9 +122,10 @@ fn ecmascript_lines_also_end_at_a_lone_cr_and_the_unicode_separators() {
         assert_eq!((lc.line, lc.column), (line, 0), "{ch}");
         assert_eq!(ecmascript.line(at), line, "{ch}");
         assert_eq!(ecmascript.offset(line, 0), Some(at), "{ch}");
-        // Each line is one character long: its terminator is not part of it.
+        // Each line is one character and a terminator of one, but for the CRLF after `d`.
         assert_eq!(ecmascript.offset(line, 1), Some(at + 1), "{ch}");
-        assert_eq!(ecmascript.offset(line, 2), None, "{ch}");
+        let after = (ch == 'd').then_some(at + 2);
+        assert_eq!(ecmascript.offset(line, 2), after, "{ch}");
     }
 }
 
