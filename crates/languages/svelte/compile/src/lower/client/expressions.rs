@@ -5,6 +5,7 @@ use super::{ClientCompilationContext, Memo, Memoized};
 use crate::input::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::script::ScriptRewrite;
+use crate::lower::validation::Unit;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// The template expression `e`, rewritten for the client.
@@ -24,7 +25,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             shadows: Some(&self.shadows),
             stores: self.stores,
             invalidates: Some(&self.invalidates),
-            ..ScriptRewrite::new(self.b, Target::Client, self.res)
+            ..ScriptRewrite::new(self.b, Target::Client, self.res, Unit::Component)
         }
     }
 
