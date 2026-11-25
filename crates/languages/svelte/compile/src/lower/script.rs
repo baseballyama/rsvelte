@@ -9,6 +9,8 @@ mod exports;
 mod patterns;
 mod program;
 mod props;
+mod read;
+pub(super) use read::Read;
 mod statements;
 pub(super) use statements::outside;
 mod stores;
@@ -37,6 +39,7 @@ pub(super) use writes::mutates_signal;
 use super::Builder;
 use super::builder::Runtime;
 use super::names::Names;
+use super::validation::Unit;
 use crate::input::Target;
 
 /// What upstream's transforms call a `$$props` the source declares.
@@ -74,7 +77,12 @@ pub(super) struct ScriptRewrite<'r, 'o> {
 
 impl<'r, 'o> ScriptRewrite<'r, 'o> {
     /// A rewrite with no template, stores, accessors or names of its own.
-    pub(super) fn new(b: &'r Builder<'o>, target: Target, res: &'r Resolution) -> Self {
+    pub(super) const fn new(
+        b: &'r Builder<'o>,
+        target: Target,
+        res: &'r Resolution,
+        unit: Unit,
+    ) -> Self {
         Self {
             b,
             target,
@@ -86,29 +94,11 @@ impl<'r, 'o> ScriptRewrite<'r, 'o> {
             untracked: None,
             invalidates: None,
             primitive: false,
-            classes: Classes::default(),
+            classes: Classes::new(unit),
             names: None,
             held: Vec::new(),
             removed: Vec::new(),
         }
-    }
-}
-
-/// How a name the template declares is read on the client.
-#[derive(Clone, Debug)]
-pub(super) enum Read {
-    Plain,
-    /// `$.get(object).name`: a name a destructured `{@const}` declares in `object`.
-    Field(Box<str>),
-    /// `$.get(name)`
-    Get,
-    /// `name()`
-    Call,
-}
-
-impl Read {
-    pub(super) const fn get_if(through_get: bool) -> Self {
-        if through_get { Self::Get } else { Self::Plain }
     }
 }
 
