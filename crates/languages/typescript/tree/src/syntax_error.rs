@@ -146,6 +146,7 @@ impl Acorn {
 mod acorn_rejection;
 pub(crate) use acorn_rejection::{acorn, reported};
 mod locator;
+pub(crate) use locator::StaticBlockAwaits;
 mod readers;
 mod typescript_eslint;
 mod word;

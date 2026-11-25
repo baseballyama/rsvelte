@@ -11,7 +11,7 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
-use crate::syntax_error::{Acorn, SyntaxError};
+use crate::syntax_error::{Acorn, StaticBlockAwaits, SyntaxError};
 
 mod ambient;
 mod names;
@@ -41,6 +41,9 @@ pub(crate) enum Rejection {
     },
     /// An initializer in an ambient context, where only a `const` without a type may have one.
     AmbientInitializer,
+    /// `await` in a class static block, or in a namespace's body, which acorn-typescript reads as
+    /// one.
+    StaticBlockAwait,
     /// A `const`'s initializer in an ambient context that is not a literal or an enum reference.
     AmbientConstInitializer,
 }
@@ -59,6 +62,7 @@ impl Rejection {
             Self::ZeroWidthSpace => "Unexpected character '\u{200B}'",
             Self::StrictName { name, binds } => name.message(binds),
             Self::AmbientInitializer => "Initializers are not allowed in ambient contexts.",
+            Self::StaticBlockAwait => "Cannot use await in class static initialization block",
             Self::AmbientConstInitializer => concat!(
                 "A 'const' initializer in an ambient context must be a string or numeric literal ",
                 "or literal enum reference."
@@ -213,6 +217,7 @@ pub(crate) struct Unsupported<'t> {
     /// The namespace the next part of a dotted namespace name declares, whose name acorn does
     /// not check.
     dotted: Option<oxc_span::Span>,
+    awaits: StaticBlockAwaits,
 }
 
 impl<'t> Unsupported<'t> {
@@ -223,6 +228,7 @@ impl<'t> Unsupported<'t> {
             first: None,
             ambient: 0,
             dotted: None,
+            awaits: StaticBlockAwaits::new(),
         }
     }
 }
@@ -245,7 +251,10 @@ impl<'a> Visit<'a> for Unsupported<'_> {
     }
 
     fn enter_node(&mut self, kind: AstKind<'a>) {
-        let mut found = stop(kind, self.typescript, self.tokens).map(|(at, why)| Stop::at(at, why));
+        let mut found = (self.awaits.enter(kind))
+            .map(|at| (at, Rejection::StaticBlockAwait))
+            .or_else(|| stop(kind, self.typescript, self.tokens))
+            .map(|(at, why)| Stop::at(at, why));
         // oxc's checker reports these names and initializers outside an ambient context itself.
         if self.ambient > 0 {
             found = self.ambient_stop(kind, found);
