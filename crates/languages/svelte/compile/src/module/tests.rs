@@ -262,18 +262,30 @@ fn a_typescript_module_drops_the_comments_its_emit_erases_with_a_declaration() {
 
 #[test]
 fn a_typescript_module_prints_numbers_as_typescripts_emit_does() {
-    // TypeScript 6.0.3's emit, then svelte 5.59.1's `compileModule`. A constant enum member is its
-    // value, printed as `String(value)` prints it.
-    let literals = "let a = [08, 010, 0x10, 0X1F, 1_000, 1e3, .5, 0b11n, 0X1_Fn, 1_0n, 10n];\n\
-                    let o = { 08: 1, 0x10: 2 };\n";
-    let printed = "leta=[8,8,0x10,0X1F,1_000,1e3,.5,3n,0x1fn,10n,10n];leto={8:1,0x10:2};";
+    // TypeScript 6.0.3's emit, then svelte 5.59.1's `compileModule`: `canUseOriginalText`'s cases.
+    let kept = "0x10,0X1F,0B11,0O17,1e3,1E3,1.50,.5,5.,0,1_000,0b1_1,0o1_7,0x1_0,1_0.5";
+    for (written, printed) in [
+        ("010,0777", "8,511"),             // `Octal`
+        ("08,09.5,08e1,00", "8,9.5,80,0"), // `ContainsLeadingZero`
+        (
+            "10n,1_0n,0b11n,0o7n,0x1fn,0X1_Fn",
+            "10n,10n,3n,7n,0x1fn,0x1fn",
+        ), // a bigint
+        (kept, kept),                      // the rest, with the separators an ES2021 target allows
+    ] {
+        let module = format!("let x = [{written}];\n");
+        let expected = format!("(\"usestrict\");letx=[{printed}];");
+        for target in [Target::Client, Target::Server] {
+            assert_eq!(body(&module, target), expected, "{written} {target:?}");
+        }
+    }
+    // A constant enum member is its value, printed as `String(value)` prints it.
     let members = "export enum E { A = 0x10, B = 1 << 10, C = 1e21, D = .5, F = 1_000 }\n";
     let values = concat!(
         r#"E[E["A"]=16]="A";E[E["B"]=1024]="B";E[E["C"]=1e+21]="C";"#,
         r#"E[E["D"]=0.5]="D";E[E["F"]=1000]="F";"#,
     );
     for target in [Target::Client, Target::Server] {
-        assert!(body(literals, target).ends_with(printed), "{target:?}");
         assert!(body(members, target).contains(values), "{target:?}");
     }
 }
