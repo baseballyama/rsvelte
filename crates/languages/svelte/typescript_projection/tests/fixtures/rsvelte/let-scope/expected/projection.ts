@@ -16,19 +16,23 @@ function $$render() {
       const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         children: __rsvelte_children,
       });
+      const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       {
         const {
           x,
-        } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def.default;
+        } = $$_C0.$$slot_def.default;
         x;
         {
-          svelteHTML.createElement("p", {});
-          x;
+          const {} = $$_C0.$$slot_def["a"];
+          {
+            svelteHTML.createElement("p", {});
+            x;
+          }
         }
         {
           const {
             y,
-          } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["b"];
+          } = $$_C0.$$slot_def["b"];
           {
             __rsvelte_component(C)(__rsvelte_internals(), {
               children: __rsvelte_children,

@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
@@ -166,6 +168,7 @@ impl Printer<'_> {
             }
             Node::Identifier(name) => self.output.push(name),
             Node::IdentifierAt { name, at } => self.output.atom(name, Span::new(at, at)),
+            Node::Instance { tag, depth, at } => self.instance(tag, depth, at),
             Node::AnyComponent => self.output.push("__rsvelte_any_component"),
             Node::StringLiteralAt { value, at } => self.string_literal_at(value, at),
             Node::StringLiteral(value) => self.node_string_literal(value),
@@ -430,6 +433,38 @@ impl Printer<'_> {
         self.output.copy(self.source, expression.span);
         self.output.mark(expression.end);
     }
+}
+
+impl Printer<'_> {
+    /// svelte2tsx's `InlineComponent` name of a component's instance, mapped to `at` when there
+    /// is one: `$$_`, its `sanitizePropName` of the tag reversed, so that TypeScript suggests no
+    /// generated name for an undeclared component, and the depth.
+    fn instance(&mut self, tag: Span, depth: u32, at: Option<u32>) {
+        let start = self.output.out.len() as u32;
+        let tag = tag.text(self.source);
+        if tag == "svelte:self" {
+            self.output.push("$$_svelteself");
+        } else {
+            self.output.push("$$_");
+            for c in reversed_prop_name(tag) {
+                self.output.push_char(c);
+            }
+        }
+        write!(self.output.out, "{depth}").expect("writing to a String cannot fail");
+        if let Some(at) = at {
+            self.output.atom_since(start, Span::new(at, at));
+        }
+    }
+}
+
+/// svelte2tsx's `sanitizePropName` of `tag`, reversed: each UTF-16 code unit outside
+/// `[0-9A-Za-z$_]` is a `_`.
+fn reversed_prop_name(tag: &str) -> impl Iterator<Item = char> + '_ {
+    tag.chars().rev().flat_map(|c| {
+        let kept = c.is_ascii_alphanumeric() || c == '$' || c == '_';
+        let (c, units) = if kept { (c, 1) } else { ('_', c.len_utf16()) };
+        std::iter::repeat_n(c, units)
+    })
 }
 
 #[cfg(test)]

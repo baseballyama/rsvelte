@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use rsvelte_kernel::computation::registry::Project;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
-use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use rsvelte_typescript_api::{Layer, Session};
 
 use super::in_temporary_directory;
@@ -186,7 +186,7 @@ fn problem(
         return Ok((config.to_owned(), diagnostic(Span::new(0, 0))));
     };
     let text = std::fs::read_to_string(file).map_err(|e| format!("{}: {e}", file.display()))?;
-    let lines = LineIndex::new(&text);
+    let lines = LineIndex::with_breaks(&text, LineBreaks::Ecmascript);
     let offset = |p: rsvelte_typescript_api::Position| {
         lines.offset(p.line + 1, p.character).ok_or_else(|| {
             format!(
