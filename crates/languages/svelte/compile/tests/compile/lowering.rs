@@ -74,7 +74,7 @@ fn an_interpolated_attribute_decodes_references_as_an_attribute_value() {
 #[test]
 fn only_the_scripts_prologue_opens_the_component_function_with_directives() {
     use oxc_ast::ast::{ExportDefaultDeclarationKind, Statement};
-    let cells: [(&str, [&[&str]; 2]); 4] = [
+    let cells: [(&str, [&[&str]; 2]); 5] = [
         (
             "let { x } = $props();\n\"use strict\";\n`template stmt`;\n(\"parens\");",
             [&[], &[]],
@@ -90,6 +90,11 @@ fn only_the_scripts_prologue_opens_the_component_function_with_directives() {
         (
             "\"use strict\";\nlet x = 1;",
             [&["use strict"], &["use strict"]],
+        ),
+        // svelte 5.59.1 prints each as written.
+        (
+            "\"a\\nb\";\n\"it\\'s\";\n\"\\\nx\";\nlet x = 1;",
+            [&["a\\nb", "it\\'s", "\\\nx"]; 2],
         ),
     ];
     for (script, expected) in cells {
@@ -126,5 +131,43 @@ fn only_the_scripts_prologue_opens_the_component_function_with_directives() {
                 .collect();
             assert_eq!(directives, expected, "{generate:?}\n{code}");
         }
+    }
+}
+
+// svelte 5.59.1 prints a module script's prologue after the imports, each string as written.
+#[test]
+fn a_module_scripts_prologue_keeps_each_strings_value() {
+    use oxc_ast::ast::{Expression, Statement};
+    let source = "<script module>\n\"it\\'s\";\n\"a\\u{1F600}b\";\n\"use\\x20strict\";\n\
+                  \"\\\nx\";\nexport const m = 1;\n</script>\n<p>{m}</p>\n";
+    for generate in [Target::Client, Target::Server] {
+        let options = rsvelte_svelte_compile::CompileOptions {
+            filename: "App.svelte".to_owned(),
+            generate,
+            ..rsvelte_svelte_compile::CompileOptions::default()
+        };
+        let code = rsvelte_svelte_compile::compile(source, &options)
+            .expect("compiles")
+            .js
+            .code;
+        let allocator = oxc_allocator::Allocator::default();
+        let parsed =
+            oxc_parser::Parser::new(&allocator, &code, oxc_span::SourceType::mjs()).parse();
+        let program = &parsed.program;
+        let mut values: Vec<&str> = (program.directives.iter())
+            .map(|d| d.expression.value.as_str().expect("well-formed"))
+            .collect();
+        for statement in &program.body {
+            if let Statement::ExpressionStatement(e) = statement
+                && let Expression::StringLiteral(s) = e.expression.get_inner_expression()
+            {
+                values.push(s.value.as_str().expect("well-formed"));
+            }
+        }
+        assert_eq!(
+            values,
+            ["it's", "a\u{1F600}b", "use strict", "x"],
+            "{generate:?}\n{code}"
+        );
     }
 }
