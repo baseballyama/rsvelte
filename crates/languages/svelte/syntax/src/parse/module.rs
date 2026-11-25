@@ -11,7 +11,7 @@ use super::{ACORN_UNCHECKED_TYPESCRIPT_RULES, ParseResult, acorn_position, javas
 ///
 /// # Errors
 ///
-/// A [`Diagnostic`] at the first syntax error, as [`parse`] reports one in a script, or the error
+/// The first syntax error, as [`parse`](super::parse) reports one in a script, or the error
 /// of `emit`.
 pub fn parse_module(
     source_text: &str,
