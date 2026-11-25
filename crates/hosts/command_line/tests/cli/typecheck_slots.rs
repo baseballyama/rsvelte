@@ -158,9 +158,9 @@ fn typecheck_reports_a_let_before_a_comment_that_ends_the_tag() {
     let report = check(&[("src/Leaf.svelte", leaf), ("src/App.svelte", user)]);
     assert_eq!(
         report,
-        "src/App.svelte(4,13): error TS2353: Object literal may only specify known properties, and \
+        "src/App.svelte(4,16): error TS2353: Object literal may only specify known properties, and \
          'children' does not exist in type '$$ComponentProps'.\n\
-         src/App.svelte(4,21): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
+         src/App.svelte(4,22): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
          \nFound 2 errors in 1 file.\n"
             .native()
     );
