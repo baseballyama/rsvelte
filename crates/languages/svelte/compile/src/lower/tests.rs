@@ -222,15 +222,33 @@ fn the_props_id_constant_is_declared_at_the_source_identifier() {
 
 #[test]
 fn a_component_analyzes_its_classes_after_svelte_removes_declare_fields() {
-    // svelte 5.59.1: `remove_typescript_nodes` removes a `declare` field before the analysis and
-    // keeps an overload signature, which the analysis reads as a second member.
+    // svelte 5.59.1: `remove_typescript_nodes` removes a `declare` field and an abstract method
+    // before the analysis, and keeps an overload signature and an abstract field, which the
+    // analysis reads as a second member.
     for script in ["<script lang=\"ts\">", "<script lang=\"ts\" module>"] {
-        let source = format!("{script}class C {{ declare n: number; n = $state(0); }}</script>");
-        assert_contains(&source, Target::Client, "#n=$.state(0);");
-        assert_contains(&source, Target::Server, "n=0;");
+        for class in [
+            "class C { declare n: number; n = $state(0); }",
+            "abstract class C { abstract n(): void; n = $state(0); }",
+        ] {
+            let source = format!("{script}{class}</script>");
+            assert_contains(&source, Target::Client, "#n=$.state(0);");
+            assert_contains(&source, Target::Server, "n=0;");
+        }
+        for class in [
+            "abstract class C { abstract m(): void; m() {} }",
+            "abstract class C { abstract get a(): number; get a() { return 1 } }",
+            "export abstract class C { abstract m(): void; m() {} }",
+        ] {
+            assert_contains(
+                &format!("{script}{class}</script>"),
+                Target::Client,
+                "classC{",
+            );
+        }
         for class in [
             "class C { m(): void; m() {} }",
             "class C { n(): void; n = $state(0); }",
+            "abstract class C { abstract x: number; x = $state(0); }",
         ] {
             let options = CompileOptions {
                 filename: "App.svelte".to_owned(),
