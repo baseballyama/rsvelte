@@ -7,6 +7,7 @@ use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::paths;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_api::{DiagnosticKind, Project, Session};
 
@@ -23,7 +24,7 @@ const JAVASCRIPT: &[&str] = &[".js", ".jsx", ".mjs", ".cjs"];
 const PROBE: (&str, &str) = ("untyped-probe.ts", "untyped.js");
 /// The probe of a JavaScript file a search of `node_modules` finds, and its package.
 const PACKAGE_PROBE: (&str, &str) = ("untyped-package-probe.ts", "rsvelte-untyped-probe");
-const PROBE_CONFIG: &str = "untyped-probe.json";
+const PROBE_CONFIG: &str = ".rsvelte.untyped-probe.json";
 
 /// `Could not find a declaration file for module '{0}'. '{1}' implicitly has an 'any' type.`
 pub(super) const CODE: u32 = 7016;
@@ -98,7 +99,7 @@ impl UntypedImport<'_> {
                 "Could not find a declaration file for module '{}'. '{}' implicitly has an 'any' \
                  type.",
                 self.import.specifier,
-                self.module.display()
+                paths::typescript(&self.module.to_string_lossy())
             ),
             span: Some(self.import.at),
             syntactic: false,
@@ -197,8 +198,9 @@ pub(super) fn javascript_documents(
 }
 
 /// The probes, the JavaScript files they import and the tsconfig of their own project, which
-/// extends the project's `base`: one imports a file by its path, the other a package's.
-pub(super) fn probe(overlay: &Path, base: &Path) -> [(PathBuf, String); 6] {
+/// extends the project's `base`, in its directory `root`: one imports a file by its path, the
+/// other a package's.
+pub(super) fn probe(root: &Path, overlay: &Path, base: &Path) -> [(PathBuf, String); 6] {
     let probe = overlay.join(PROBE.0);
     let package_probe = overlay.join(PACKAGE_PROBE.0);
     let package = overlay.join("node_modules").join(PACKAGE_PROBE.1);
@@ -242,7 +244,7 @@ pub(super) fn probe(overlay: &Path, base: &Path) -> [(PathBuf, String); 6] {
             format!(r#"{{"name":"{}","main":"index.js"}}"#, PACKAGE_PROBE.1),
         ),
         (package.join("index.js"), "export default 1;\n".to_owned()),
-        (overlay.join(PROBE_CONFIG), config.finish()),
+        (root.join(PROBE_CONFIG), config.finish()),
     ]
 }
 

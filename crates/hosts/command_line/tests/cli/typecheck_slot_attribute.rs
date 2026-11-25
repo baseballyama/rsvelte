@@ -1,6 +1,7 @@
 //! `rsvelte typecheck` of a text `slot` attribute, which svelte2tsx reads as the slot an element
 //! fills when its parent element is a component, and as a property otherwise.
 
+use crate::typecheck::Native;
 use crate::typecheck_events::check;
 
 /// A parent component, a leaf, and each place a leaf with `slot` can be.
@@ -51,7 +52,6 @@ const PLACES: &[(&str, &str)] = &[
 /// blocks and on a component as on an element. Inside a snippet, a plain element, or with an
 /// expression or more than one part, `slot` stays a property. svelte-check 4.7.8 reports these
 /// ten lines.
-#[cfg(unix)]
 #[test]
 fn typecheck_passes_slot_as_a_property_only_outside_a_component() {
     let report = check(PLACES);
@@ -79,6 +79,7 @@ fn typecheck_passes_slot_as_a_property_only_outside_a_component() {
          and '\"slot\"' does not exist in type '$$ComponentProps'.\n\
          src/App.svelte(17,54): error TS2353: Object literal may only specify known properties, \
          and '\"slot\"' does not exist in type '$$ComponentProps'.\n\
-         \nFound 10 errors in 1 file.\n",
+         \nFound 10 errors in 1 file.\n"
+            .native(),
     );
 }

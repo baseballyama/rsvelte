@@ -1,7 +1,7 @@
 //! `rsvelte typecheck` prints what its TypeScript 7 checker prints, where TypeScript 6, the
 //! checker of svelte-check 4.7.8, prints otherwise (`DIVERGENCES.md` of `rsvelte_svelte_check`).
 
-use crate::typecheck::{Project, text, typecheck_config};
+use crate::typecheck::{Native, Project, text, typecheck_config};
 
 /// TypeScript 7.1 keeps a spread's properties in source order, and lists only the last overload
 /// a call does not match. TypeScript 6.0.3 prints `{ b: string; a: number; }` and each overload.
@@ -36,5 +36,6 @@ fn typecheck_prints_what_typescript_7_prints() {
          src/spread.ts(3,14): error TS2322: Type '{ a: number; b: string; }' is not assignable \
          to type 'number'.\n\
          \nFound 2 errors in 2 files.\n"
+            .native()
     );
 }
