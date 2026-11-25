@@ -1,7 +1,7 @@
 ;
 
 	const data = $state({ n: 0 });
-	const state = { data };;let $state = __rsvelte_store_get(state);
+	const state = { data };;let $state = __sveltets_2_store_get(state);
 
 
 ;

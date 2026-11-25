@@ -5,15 +5,15 @@ import { page } from '$app/stores';;
 ;
 
 function $$render() {
-  ;let $page = __rsvelte_store_get(page);
+  ;let $page = __sveltets_2_store_get(page);
 
 	
 	
-	let /** @type {typeof __rsvelte_public_props0} */ { store } = $props();;let $store = __rsvelte_store_get(store);
+	let /** @type {typeof __rsvelte_public_props0} */ { store } = $props();;let $store = __sveltets_2_store_get(store);
 
-	const count = writable(0);;let $count = __rsvelte_store_get(count);
+	const count = writable(0);;let $count = __sveltets_2_store_get(count);
 
-	let obj = writable({ a: 1 });;let $obj = __rsvelte_store_get(obj);
+	let obj = writable({ a: 1 });;let $obj = __sveltets_2_store_get(obj);
 
 	function inc() { $count += 1; $count++; $obj.a = 2; $obj = { a: 3 }; }
 	let d = $derived($count * 2);

@@ -113,13 +113,8 @@ impl Printer<'_> {
     /// ignore comments.
     fn store_subscription(&mut self, store: Span) {
         let name = store.text(self.source);
-        let get = if self.tree.javascript {
-            " = __rsvelte_store_get("
-        } else {
-            " = __sveltets_2_store_get("
-        };
         let start = self.output.out.len() as u32;
-        for part in [";let $", name, get, name, ");"] {
+        for part in [";let $", name, " = __sveltets_2_store_get(", name, ");"] {
             self.output.push(part);
         }
         self.output.ignore_since(start);

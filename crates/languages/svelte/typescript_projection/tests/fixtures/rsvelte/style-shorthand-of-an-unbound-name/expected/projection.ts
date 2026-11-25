@@ -7,7 +7,7 @@ function $$render() {
   
 	
 
-	const store = writable('v');;let $store = __rsvelte_store_get(store);
+	const store = writable('v');;let $store = __sveltets_2_store_get(store);
 
 	const color = 'red';
 	let /** @type {typeof __rsvelte_public_props0} */ { size } = $props();

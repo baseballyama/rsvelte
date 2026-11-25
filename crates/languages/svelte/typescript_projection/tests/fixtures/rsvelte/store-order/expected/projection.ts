@@ -13,17 +13,17 @@ function $$render() {
     return __rsvelte_snippet_return;
   };
 
-	const a = writable(1);;let $a = __rsvelte_store_get(a);
+	const a = writable(1);;let $a = __sveltets_2_store_get(a);
 
-	const b = writable(2);;let $b = __rsvelte_store_get(b);
+	const b = writable(2);;let $b = __sveltets_2_store_get(b);
 
-	const c = writable(3);;let $c = __rsvelte_store_get(c);
+	const c = writable(3);;let $c = __sveltets_2_store_get(c);
 
-	const tag = writable('div');;let $tag = __rsvelte_store_get(tag);
+	const tag = writable('div');;let $tag = __sveltets_2_store_get(tag);
 
-	const xs = writable([]);;let $xs = __rsvelte_store_get(xs);
+	const xs = writable([]);;let $xs = __sveltets_2_store_get(xs);
 
-	const action = writable(() => {});;let $action = __rsvelte_store_get(action);
+	const action = writable(() => {});;let $action = __sveltets_2_store_get(action);
 
 
 ;
