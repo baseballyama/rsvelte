@@ -92,10 +92,10 @@ pub(super) fn script_setup<'o>(
     setup_body.push(b.return_(Some(render)));
     let mut fields = Vec::new();
     if let Some(name) = component_name(path) {
-        fields.push(b.property(b.key("__name"), b.string(name), false));
+        fields.push(b.property(b.key("__name"), b.string(name)));
     }
     if let Some(runtime) = define_props.as_ref().and_then(|d| d.runtime) {
-        fields.push(b.property(b.key("props"), runtime.clone_in(b.allocator()), false));
+        fields.push(b.property(b.key("props"), runtime.clone_in(b.allocator())));
     }
     let setup = b.function_expression(None, b.parameters(["__props"]), setup_body, false);
     fields.push(b.method("setup", setup));

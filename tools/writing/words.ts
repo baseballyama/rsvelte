@@ -113,6 +113,8 @@ export const words = [
 	'PRs',
 	'README',
 	'Rebase',
+	'rebase',
+	'rebased',
 	'reparses',
 	'ResizeObserver',
 	'RustCrypto',

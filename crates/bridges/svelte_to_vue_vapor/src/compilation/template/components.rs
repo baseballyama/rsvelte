@@ -127,11 +127,7 @@ impl<'t> Template<'_, '_, 't> {
                     let symbol = self.call("Symbol", [b.string("@attach")]);
                     self.declarations.push(b.const_(&key, symbol));
                     let value = self.template_expression(expression);
-                    fields.push(b.property(
-                        oxc_ast::ast::PropertyKey::from(b.id(&key)),
-                        value,
-                        true,
-                    ));
+                    fields.push(b.property(oxc_ast::ast::PropertyKey::from(b.id(&key)), value));
                     continue;
                 }
                 &AttributeValue::Bind(target) => {
@@ -140,7 +136,7 @@ impl<'t> Template<'_, '_, 't> {
                     }
                     self.check_target(target, attribute.span)?;
                     let setter = self.setter(target);
-                    bindings.push(b.property(string_key(b, name), setter, false));
+                    bindings.push(b.property(string_key(b, name), setter));
                     self.binding_read(target)
                 }
                 AttributeValue::Boolean
@@ -155,7 +151,7 @@ impl<'t> Template<'_, '_, 't> {
                 }
                 _ => return Err(unsupported("this component directive", attribute.span)),
             };
-            let field = b.property(string_key(b, name), value, false);
+            let field = b.property(string_key(b, name), value);
             if name.starts_with("--") {
                 styles.push(field);
             } else {
@@ -198,7 +194,7 @@ impl<'t> Template<'_, '_, 't> {
                 .snippet(child)
                 .expect("a snippet name has a symbol");
             let value = b.id(&self.snippet_names[&symbol]);
-            fields.push(b.property(string_key(b, &name.name), value, false));
+            fields.push(b.property(string_key(b, &name.name), value));
             snippets.push(self.snippet(child, parent, preserve, child_node.span)?);
         }
         let cleaned = clean_nodes(

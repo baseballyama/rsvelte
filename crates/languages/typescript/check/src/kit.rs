@@ -10,6 +10,7 @@ use oxc_ast::ast::{
     Program, Statement, VariableDeclarator,
 };
 use oxc_span::GetSpan;
+use rsvelte_kernel::source::paths;
 
 mod jsdoc;
 #[cfg(test)]
@@ -53,7 +54,7 @@ pub(crate) fn insertions(
     javascript: bool,
     hooks_module: impl FnOnce() -> &'static str,
 ) -> Vec<Insertion> {
-    let file = path.to_string_lossy().replace('\\', "/");
+    let file = paths::typescript(&path.to_string_lossy()).into_owned();
     let basename = file.rsplit('/').next().unwrap_or(&file);
     let mut out = Inserted::default();
     let source = Source { text, javascript };

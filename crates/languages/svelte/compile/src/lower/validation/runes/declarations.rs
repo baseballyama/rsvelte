@@ -76,7 +76,7 @@ pub(super) fn check_props_pattern(declarator: &VariableDeclarator<'_>) -> Result
         )
     };
     for property in properties {
-        if property.computed {
+        if property.key.is_computed() {
             return invalid_pattern(property);
         }
         if let PropertyKey::StaticIdentifier(key) = &property.key

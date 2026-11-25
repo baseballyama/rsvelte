@@ -82,7 +82,7 @@ impl<'t> Template<'_, '_, 't> {
                         self.helpers.insert(Helper::Style);
                         value = self.call("$$style_value", [value, b.boolean(true)]);
                     }
-                    let object = b.object([b.property(string_key(b, name), value, false)]);
+                    let object = b.object([b.property(string_key(b, name), value)]);
                     props.push(self.bound("style", at, object, a.span));
                 } else {
                     self.helpers.insert(Helper::Style);

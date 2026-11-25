@@ -14,6 +14,7 @@ use rsvelte_typescript_tree::ProgramIdentifier;
 use rustc_hash::FxHashSet;
 
 use super::globals::Declared;
+use crate::number::number;
 use crate::semantic::Semantic;
 use crate::static_value::StaticValues;
 
@@ -293,10 +294,11 @@ impl<'s, 'a, 'n, N: Names<'s, 'a> + ?Sized> Tracker<'s, 'a, 'n, N> {
 
     /// The name a property key asks for (`getPropertyName`): `a` in `{ a }` or `{ "a": b }`, or
     /// what the key in brackets evaluates to.
-    fn property_key(&self, key: &'s PropertyKey<'s>, computed: bool) -> Option<Key<'s>> {
+    fn property_key(&self, key: &'s PropertyKey<'s>) -> Option<Key<'s>> {
         match key {
-            PropertyKey::StaticIdentifier(id) if !computed => Some(Key::Written(id.name.as_str())),
-            PropertyKey::StringLiteral(s) => s.value.as_str().map(Key::Written),
+            PropertyKey::StaticIdentifier(id) => Some(Key::Written(id.name.as_str())),
+            PropertyKey::StaticStringLiteral(s) => s.value.as_str().map(Key::Written),
+            PropertyKey::StaticNumericLiteral(n) => Some(Key::Computed(number(n.value))),
             key => self.computed_key(key.as_expression()?),
         }
     }
@@ -350,7 +352,7 @@ impl<'s, 'a, 'n, N: Names<'s, 'a> + ?Sized> Tracker<'s, 'a, 'n, N> {
             BindingPattern::BindingIdentifier(id) => self.follow(id.symbol_id.get(), value, false),
             BindingPattern::ObjectPattern(object) if !matches!(value, Value::Name(_)) => {
                 for p in &object.properties {
-                    let key = self.property_key(&p.key, p.computed);
+                    let key = self.property_key(&p.key);
                     self.property(p.node_id(), key, Target::Binding(&p.value), value);
                 }
             }
@@ -377,7 +379,7 @@ impl<'s, 'a, 'n, N: Names<'s, 'a> + ?Sized> Tracker<'s, 'a, 'n, N> {
                             self.property(p.node_id(), key, target, value);
                         }
                         AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
-                            let key = self.property_key(&p.name, p.computed);
+                            let key = self.property_key(&p.name);
                             let target = match &p.binding {
                                 AssignmentTargetMaybeDefault::AssignmentTargetWithDefault(d) => {
                                     &d.binding

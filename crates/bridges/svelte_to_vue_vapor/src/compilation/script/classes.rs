@@ -84,7 +84,7 @@ impl<'t> ScriptRewrite<'_, 't> {
                 continue;
             }
             let rune = match &member {
-                ClassElement::PropertyDefinition(p) if !p.computed => p
+                ClassElement::PropertyDefinition(p) if !p.key.is_computed() => p
                     .value
                     .as_ref()
                     .and_then(|v| self.res.rune(v))
@@ -233,7 +233,6 @@ fn accessors<'t>(
             oxc_allocator::CloneIn::clone_in(key, b.allocator()),
             function,
             kind,
-            false,
             is_static,
             false,
             false,
@@ -259,7 +258,6 @@ fn field<'t>(
         key,
         None,
         value,
-        false,
         is_static,
         false,
         false,

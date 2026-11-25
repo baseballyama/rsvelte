@@ -219,3 +219,27 @@ fn the_props_id_constant_is_declared_at_the_source_identifier() {
         "\t\tconst // c\n\t\tuid = $.props_id($$renderer);\n\t\tlet { a } = $$props;\n",
     );
 }
+
+#[test]
+fn a_component_analyzes_its_classes_after_svelte_removes_declare_fields() {
+    // svelte 5.59.1: `remove_typescript_nodes` removes a `declare` field before the analysis and
+    // keeps an overload signature, which the analysis reads as a second member.
+    for script in ["<script lang=\"ts\">", "<script lang=\"ts\" module>"] {
+        let source = format!("{script}class C {{ declare n: number; n = $state(0); }}</script>");
+        assert_contains(&source, Target::Client, "#n=$.state(0);");
+        assert_contains(&source, Target::Server, "n=0;");
+        for class in [
+            "class C { m(): void; m() {} }",
+            "class C { n(): void; n = $state(0); }",
+        ] {
+            let options = CompileOptions {
+                filename: "App.svelte".to_owned(),
+                ..CompileOptions::default()
+            };
+            let error = compile(&format!("{script}{class}</script>"), &options)
+                .err()
+                .unwrap_or_else(|| panic!("{class:?} compiles"));
+            assert_eq!(error.code, "duplicate_class_field", "{class:?}");
+        }
+    }
+}

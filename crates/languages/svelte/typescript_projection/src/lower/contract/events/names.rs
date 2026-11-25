@@ -29,17 +29,15 @@ pub(super) fn event_name<'a>(
     property: &TSPropertySignature<'a>,
 ) -> Result<Option<&'a str>, UnnamedKey> {
     let name = match &property.key {
-        PropertyKey::StaticIdentifier(name) if !property.computed => Some(name.name.as_str()),
-        PropertyKey::StringLiteral(name) if !property.computed => return Ok(name.value.as_str()),
-        PropertyKey::Identifier(variable) if property.computed => {
-            top_level_string(statements, variable.name.as_str())
-        }
+        PropertyKey::StaticIdentifier(name) => Some(name.name.as_str()),
+        PropertyKey::StaticStringLiteral(name) => return Ok(name.value.as_str()),
+        PropertyKey::Identifier(variable) => top_level_string(statements, variable.name.as_str()),
         _ => None,
     };
     name.map(Some).ok_or_else(|| UnnamedKey {
         property: node_span(property),
         key: node_span(&property.key),
-        computed: property.computed,
+        computed: property.key.is_computed(),
     })
 }
 

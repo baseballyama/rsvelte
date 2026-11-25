@@ -229,18 +229,28 @@ pub struct MappedLanguage {
 }
 
 /// A document the run does not check but other documents may import.
-struct StandIn {
+struct StandInPart {
     path: String,
-    text: String,
+    stand_in: StandIn,
 }
 
-/// What an import of a document reads when the document is not checked, such as its
-/// module-level exports. `None`, or no provider: the [`Check`]'s `stand_in`.
+/// What an import of a document reads when the document is not checked.
+#[derive(Clone, Debug)]
+pub struct StandIn {
+    /// Such as the document's module-level exports.
+    pub text: String,
+    /// Whether the document is JavaScript, which TypeScript can read as untyped, though the
+    /// checker reads its stand-in as TypeScript.
+    pub javascript: bool,
+}
+
+/// What an import of a document reads when the document is not checked. `None`, or no provider:
+/// the [`Check`]'s `stand_in`.
 #[derive(Debug)]
 pub struct TypeScriptStandIn;
 
 impl Facet for TypeScriptStandIn {
-    type Output = Option<String>;
+    type Output = Option<StandIn>;
 
     const NAME: &'static str = "ts.stand_in";
 }
@@ -279,9 +289,12 @@ impl FinishTask for Check {
                 .imported
                 .is_some_and(|imported| imported(context.document))
         {
-            return Some(Box::new(StandIn {
+            return Some(Box::new(StandInPart {
                 path: context.document.file_path().to_string_lossy().into_owned(),
-                text: context.source_text().to_owned(),
+                stand_in: StandIn {
+                    text: context.source_text().to_owned(),
+                    javascript: false,
+                },
             }));
         }
         match context.facet::<TypeScriptView>()? {
@@ -339,8 +352,10 @@ impl FinishTask for Check {
                     checked_outs.push(out);
                 }
                 Err(part) => {
-                    let s = part.downcast::<StandIn>().expect("parts are this task's");
-                    stand_ins.push((s.path, s.text));
+                    let s = part
+                        .downcast::<StandInPart>()
+                        .expect("parts are this task's");
+                    stand_ins.push((s.path, s.stand_in));
                 }
             }
         }
@@ -370,13 +385,18 @@ impl Check {
         self.tsc.as_ref()?;
         // A language's own stand-in serves every check, so the project-wide check resolves an
         // unchecked component as the language's own check does.
-        let text = context
+        let stand_in = context
             .facet::<TypeScriptStandIn>()
             .and_then(Clone::clone)
-            .or_else(|| self.stand_in.map(str::to_owned))?;
-        Some(Box::new(StandIn {
+            .or_else(|| {
+                self.stand_in.map(|text| StandIn {
+                    text: text.to_owned(),
+                    javascript: false,
+                })
+            })?;
+        Some(Box::new(StandInPart {
             path: context.document.file_path().to_string_lossy().into_owned(),
-            text,
+            stand_in,
         }))
     }
 }
@@ -394,7 +414,7 @@ fn check_projected(
     tsc: &Tsc,
     env: &TypeScriptEnv,
     docs: &[Prepared],
-    stand_ins: Vec<(String, String)>,
+    stand_ins: Vec<(String, StandIn)>,
     outs: Vec<&mut TaskOutput>,
 ) {
     let req = CheckRequest {

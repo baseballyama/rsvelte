@@ -168,6 +168,7 @@ impl<'h> Report<'h> {
         let path = self
             .here
             .map_or_else(|| path.to_owned(), |here| relative(path, here));
+        // svelte-check names a file by Node's `path.relative`, with the platform's separator.
         let path = path.display();
         let before = self.errors;
         if let Some(panic) = panic {

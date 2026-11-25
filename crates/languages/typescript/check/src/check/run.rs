@@ -1,7 +1,7 @@
 //! One run of the type checker over a batch of projections: the file layer, the overlay
 //! tsconfig and the mapper's store go in, findings located in each document come out.
 
-use std::collections::HashMap;
+use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 
@@ -13,7 +13,7 @@ use selection::Selected;
 use shares::{Checked, Helper, check_shares};
 use untyped::{UntypedDocuments, UntypedImport, UntypedJavaScript, ambient};
 
-use super::{Tsc, TypeScriptEnv};
+use super::{StandIn, Tsc, TypeScriptEnv};
 use crate::type_checker::{CONTRACT, TypeChecker};
 
 #[derive(Debug)]
@@ -26,7 +26,7 @@ pub(crate) struct CheckRequest<'a> {
     /// What the documents' languages add to the project.
     pub env: &'a TypeScriptEnv,
     /// Documents the run does not check, by path, with what an import of each one reads.
-    pub stand_ins: Vec<(String, String)>,
+    pub stand_ins: Vec<(String, StandIn)>,
     /// Each document's imports.
     pub imports: Vec<Vec<CheckedImport>>,
 }
@@ -56,9 +56,13 @@ pub(crate) struct Report {
 
 static RUN: AtomicU32 = AtomicU32::new(0);
 
-/// The directory beside each project root that holds what rsvelte adds: the overlay tsconfig and
-/// the declarations. It exists only in the checker's file layer.
+/// The directory beside each project root that holds the files rsvelte adds, such as the
+/// declarations. It exists only in the checker's file layer.
 const OVERLAY: &str = ".rsvelte";
+/// The tsconfig the checker checks, which extends the project's. It and every other tsconfig
+/// rsvelte adds sit beside the project's, since TypeScript reads `${configDir}` and the default
+/// `rootDir` as the directory of the tsconfig it opens.
+const OVERLAY_CONFIG: &str = ".rsvelte.tsconfig.json";
 const MAPPER_PACKAGE: &str = "rsvelte-content-mapper";
 
 impl Tsc {
@@ -109,13 +113,13 @@ impl Tsc {
             .map_err(failed)?;
         // The project's own root files, as its tsconfig selects them, components included; the
         // overlay keeps them.
+        let javascript = untyped::javascript_documents(req, &root, &paths);
         let mut own = base_project(
             &mut session,
             base.as_deref(),
             req,
-            &overlay,
-            &store,
-            &paths,
+            (&overlay, &store),
+            &javascript,
             &mut layer,
         )
         .map_err(failed)?;
@@ -142,7 +146,7 @@ impl Tsc {
         }));
         roots.extend(declarations);
         roots.extend(req.env.include.iter().cloned());
-        let config = overlay.join("tsconfig.json");
+        let config = root.join(OVERLAY_CONFIG);
         layer.files.insert(
             config.clone(),
             tsconfig_json(base.as_deref(), req, &own, &roots, Some(&store)),
@@ -166,11 +170,11 @@ impl Tsc {
         }
         let untyped_documents = UntypedDocuments {
             all: all_untyped,
+            javascript,
             external,
         };
         let index = path_index(&paths);
-        let is_untyped = |file: usize| untyped_documents.is(req, file);
-        let mut untyped = untyped::imports(req, &checked.modules, &index, &is_untyped);
+        let mut untyped = untyped::imports(req, &checked.modules, &untyped_documents);
         let extensions = req.mapped_extensions();
         let config = |roots: &[PathBuf]| tsconfig_json(base.as_deref(), req, &own, roots, None);
         let probed = (roots.as_slice(), extensions.as_slice());
@@ -213,9 +217,10 @@ impl Tsc {
         // run was given, which svelte-check checks as a root. Nor does it load a component a
         // search of `node_modules` finds beyond `maxNodeModuleJsDepth`.
         let unloaded = |file: usize| {
-            untyped::javascript(req, file)
-                && (untyped_documents.all && selected.reached.contains(&paths[file])
-                    || untyped_documents.external(file))
+            let path = &paths[file];
+            untyped_documents.javascript.contains(path)
+                && (untyped_documents.all && selected.reached.contains(path)
+                    || untyped_documents.external.contains(path))
         };
         let lines: Vec<LineIndex> = (0..req.files.len())
             .map(|i| LineIndex::new(req.text(i)))
@@ -312,10 +317,6 @@ fn tsconfig_json(
         .begin_object()
         .key("noEmit")
         .write_boolean(true);
-    if let Some(root_dir) = own.default_root_dir.as_deref() {
-        // The default would otherwise be the overlay's directory.
-        w.key("rootDir").write_string(&root_dir.to_string_lossy());
-    }
     if own.script_modules {
         // A script module's declaration has the name of a document, such as `x.d.svelte.ts`.
         w.key("allowArbitraryExtensions").write_boolean(true);
@@ -342,7 +343,7 @@ fn tsconfig_json(
         req.write_mapper_config(&mut w, MAPPER_PACKAGE, store);
     }
     w.key("files").begin_array();
-    let mut listed = std::collections::HashSet::new();
+    let mut listed = HashSet::new();
     for p in roots {
         if listed.insert(p) {
             w.write_string(&p.to_string_lossy());
@@ -372,14 +373,15 @@ fn layer(
     }
     layer.files.extend(
         req.stand_ins(root)
-            .map(|(path, text)| (path, text.to_owned())),
+            .map(|(path, stand_in)| (path, stand_in.text.clone())),
     );
     let store = support.join("projections.json");
     if let Some(binary) = &req.env.content_mapper {
         let package = mapped::write_mapper(req, binary, support, &store, root, paths)?;
+        // The overlay tsconfigs, beside the project's, resolve the package from its directory.
         layer
             .links
-            .push((overlay.join("node_modules").join(MAPPER_PACKAGE), package));
+            .push((root.join("node_modules").join(MAPPER_PACKAGE), package));
     }
     let declarations: Vec<PathBuf> = req
         .env
@@ -408,32 +410,31 @@ struct BaseProject {
     node_resolution: bool,
     /// Whether the file layer holds a declaration of a script module, such as `x.d.svelte.ts`.
     script_modules: bool,
-    /// The directory of the project's tsconfig, when TypeScript checks files against `rootDir`
-    /// and the tsconfig leaves it to that default.
-    default_root_dir: Option<PathBuf>,
     /// What the project the tsconfig selects holds beyond its roots, and of the JavaScript
     /// documents where a package's JavaScript is untyped, those a search of `node_modules`
     /// found.
     selected: Selected,
 }
 
+/// The project of the tsconfig `base`, whose `javascript` documents a search of `node_modules`
+/// may find.
 fn base_project(
     session: &mut Session,
     base: Option<&Path>,
     req: &CheckRequest<'_>,
-    overlay: &Path,
-    store: &Path,
-    paths: &[PathBuf],
+    (overlay, store): (&Path, &Path),
+    javascript: &HashSet<PathBuf>,
     layer: &mut Layer,
 ) -> Result<BaseProject, String> {
     let Some(base) = base else {
         return Ok(BaseProject::default());
     };
+    let root = base.parent().ok_or("a tsconfig has a directory")?;
     // Without a content mapper the tsconfig's own project is the selection's.
     let selection =
-        (req.env.content_mapper.is_some()).then(|| selection::config(req, overlay, base, store));
+        (req.env.content_mapper.is_some()).then(|| selection::config(req, root, base, store));
     layer.files.extend(selection.iter().cloned());
-    let probe = untyped::any_javascript(req).then(|| untyped::probe(overlay, base));
+    let probe = untyped::any_javascript(req).then(|| untyped::probe(root, overlay, base));
     layer.files.extend(probe.iter().flatten().cloned());
     let mut configs = vec![base];
     configs.extend(selection.iter().map(|(config, _)| config.as_path()));
@@ -449,10 +450,8 @@ fn base_project(
         Some(probe) => untyped::reported(session, &probe, overlay)?,
         None => UntypedJavaScript::None,
     };
-    let packages = untyped == UntypedJavaScript::Packages;
-    let ask = |file: usize| packages && untyped::javascript(req, file);
-    let selected =
-        selection::selected(session, selection.as_ref().unwrap_or(&project), paths, &ask)?;
+    let ask = (untyped == UntypedJavaScript::Packages).then_some(javascript);
+    let selected = selection::selected(session, selection.as_ref().unwrap_or(&project), ask)?;
     session.release(project.snapshot)?;
     Ok(BaseProject {
         roots: selection.map_or(project.root_files, |selection| selection.root_files),
@@ -460,9 +459,6 @@ fn base_project(
         untyped,
         node_resolution: project.node_resolution,
         script_modules: false,
-        default_root_dir: (project.default_root_dir)
-            .then(|| base.parent().map(Path::to_path_buf))
-            .flatten(),
         selected,
     })
 }

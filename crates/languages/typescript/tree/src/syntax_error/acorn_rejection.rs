@@ -138,16 +138,15 @@ pub(crate) fn acorn(
     match number {
         // `as`, `satisfies`: oxc labels the whole assertion, and the operand's span leaves out
         // its parentheses, so acorn stops at the keyword after it.
-        "8016" => token(
-            locate(start, end, Find::OperandEnd, visit)?.0,
-            Some(Kind::As),
-        )
-        .map(Acorn::Stops),
-        "8037" => token(
-            locate(start, end, Find::OperandEnd, visit)?.0,
-            Some(Kind::Satisfies),
-        )
-        .map(Acorn::Stops),
+        "8016" | "8037" => {
+            let keyword = if number == "8016" {
+                Kind::As
+            } else {
+                Kind::Satisfies
+            };
+            let operand_end = locate(start, end, Find::OperandEnd, visit)?.0;
+            token(operand_end, Some(keyword)).map(Acorn::Stops)
+        }
         "8009" if text.get(start as usize..end as usize) == Some("?") => {
             Some(fails("Unexpected token", optional_member(start, read())))
         }
@@ -226,8 +225,29 @@ pub(crate) fn acorn(
             token(start, Some(Kind::Eq))?,
         )),
         "1183" => implementation(start, end, read(), visit),
+        "1392" => import_alias(start, end, read(), visit),
         _ => early_error(error, number, text, (start, end), visit),
     }
+}
+
+/// acorn-typescript's error at an import alias with `import type`: it reads the whole module
+/// reference, and refuses it at its start before it reads the `;`.
+fn import_alias(
+    start: u32,
+    end: u32,
+    tokens: impl Iterator<Item = Token>,
+    visit: impl FnOnce(&mut Locator),
+) -> Option<Acorn> {
+    let (at, _) = locate(start, end, Find::ModuleReference, visit)?;
+    let reference = tokens.take_while(|token| token.start() < end);
+    let last = reference
+        .filter(|token| token.kind() != Kind::Semicolon)
+        .last()?;
+    Some(Acorn::FailsLater {
+        message: Cow::Borrowed("An import alias can not use 'import type'."),
+        at,
+        raised: last.end(),
+    })
 }
 
 /// acorn-typescript's error at a function declaration in an ambient context whose body is the
@@ -360,10 +380,6 @@ fn early_error(
         )),
         "1117" => Some(fails("Redefinition of __proto__ property", second()?.0)),
         // oxc labels the declaration, and acorn-typescript reports the module reference.
-        "1392" => Some(fails(
-            "An import alias can not use 'import type'.",
-            locate(start, end, Find::ModuleReference, visit)?.0,
-        )),
         // acorn tells a name declared from a name assigned to.
         "1100" => {
             let name = text.get(start as usize..end as usize)?;

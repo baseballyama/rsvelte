@@ -111,7 +111,7 @@ impl<'t> Template<'_, '_, 't> {
             if inferred {
                 fields.push(b.init("type", b.string("Boolean")));
             }
-            out.push(b.property(string_key(b, &key), b.object(fields), false));
+            out.push(b.property(string_key(b, &key), b.object(fields)));
         }
         for &symbol in &props {
             let Some(key) = res
@@ -124,7 +124,7 @@ impl<'t> Template<'_, '_, 't> {
             if names.contains(&*key) {
                 continue;
             }
-            out.push(b.property(string_key(b, &key), b.object([]), false));
+            out.push(b.property(string_key(b, &key), b.object([])));
         }
         b.object(out)
     }

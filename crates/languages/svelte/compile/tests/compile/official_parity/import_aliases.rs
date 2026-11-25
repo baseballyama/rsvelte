@@ -34,6 +34,30 @@ const CASES: &[(&str, Outcome<'_>)] = &[
         "<script lang=\"ts\">import type A = (B);</script>",
         Some(("js_parse_error", "Unexpected token", 34)),
     ),
+    (
+        "<script lang=\"ts\">import type A = B.\u{85}C;</script>",
+        Some(("js_parse_error", "Unexpected character '\u{85}'", 36)),
+    ),
+    (
+        "<script lang=\"ts\">import type A = B.C\u{85};</script>",
+        Some(("js_parse_error", "Unexpected character '\u{85}'", 37)),
+    ),
+    (
+        "<script lang=\"ts\">import type A = B.C;\u{85}</script>",
+        Some(("js_parse_error", REFUSED, 34)),
+    ),
+    (
+        "<script lang=\"ts\">import type A = B.\u{200B}C;</script>",
+        Some(("js_parse_error", "Unexpected character '\u{200B}'", 36)),
+    ),
+    (
+        "<script lang=\"ts\">import type A = B.C\u{200B};</script>",
+        Some(("js_parse_error", "Unexpected character '\u{200B}'", 37)),
+    ),
+    (
+        "<script lang=\"ts\">import type A = B.C;\u{200B}</script>",
+        Some(("js_parse_error", REFUSED, 34)),
+    ),
 ];
 
 #[test]

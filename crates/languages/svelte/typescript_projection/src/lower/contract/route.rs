@@ -63,13 +63,11 @@ impl Builder<'_> {
         let mut unknown = object.rest.is_some();
         let mut aliases = 0;
         for property in &object.properties {
-            let name = match &property.key {
-                PropertyKey::StaticIdentifier(key) if !property.computed => &key.name,
-                _ => {
-                    unknown = true;
-                    continue;
-                }
+            let PropertyKey::StaticIdentifier(key) = &property.key else {
+                unknown = true;
+                continue;
             };
+            let name = &key.name;
             let value = match &property.value {
                 BindingPattern::AssignmentPattern(assignment) => &assignment.left,
                 value => value,
