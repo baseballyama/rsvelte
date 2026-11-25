@@ -13,7 +13,7 @@ use rsvelte_kernel::computation::task::{FinishTask, Part, TaskOutput};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::emitter::{Atom, Emitter, Mapping};
 use rsvelte_kernel::source::document::Document;
-use rsvelte_kernel::source::positions::{LineBreaks, Span};
+use rsvelte_kernel::source::positions::Span;
 
 use crate::type_checker::TypeChecker;
 
@@ -309,7 +309,10 @@ impl FinishTask for Check {
             Ok(TypeScriptDocument::Unchecked) => {
                 out.file(
                     "json",
-                    render_findings::<&str>(context.lines(LineBreaks::Newline), &[]),
+                    render_findings::<&str>(
+                        context.lines(reported_lines(context.document.file_path())),
+                        &[],
+                    ),
                 );
                 self.stand_in(context, true)
             }
@@ -321,7 +324,7 @@ impl FinishTask for Check {
                 out.file(
                     "json",
                     render_findings(
-                        context.lines(LineBreaks::Newline),
+                        context.lines(reported_lines(context.document.file_path())),
                         &[(*span, -1, message.clone())],
                     ),
                 );
@@ -483,6 +486,7 @@ fn check_projected(
 
 mod findings;
 pub(crate) use findings::render_findings;
+pub use findings::reported_lines;
 use findings::{byte_order_mark, write_findings};
 
 mod run;

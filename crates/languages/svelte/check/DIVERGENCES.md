@@ -45,6 +45,30 @@ difference and not the projection:
   `tests/cli/typecheck_checker.rs`.
 - The report is [#5254](https://github.com/baseballyama/rsvelte/issues/5254).
 
+## A component with a lone carriage return
+
+In svelte-check 4.7.8, a carriage return with no line feed breaks the positions of a component.
+For the first finding after one in the script, the checker counts it as a line. Visual Studio Code
+and the rsvelte language server count it so too. The checker then places later findings on a wrong
+line and column, or drops them. It reports TS2322 at 3:12 and 4:1 in this component:
+
+```svelte
+<script lang="ts">
+  /* a<CR>b */ const a: string = 1;
+  const b: string = 2;
+</script>
+```
+
+A template literal that holds a carriage return does the same.
+
+rsvelte reports the lines that end at `\n`, as in a component without a carriage return. So it
+also moves the first finding off the editor's line, to 2:18, and reports the second at 3:8
+(`reported_lines` in the TypeScript check crate's
+[`findings.rs`](../../typescript/check/src/check/findings.rs)).
+
+- Test: `typecheck_reports_a_component_s_findings_after_a_lone_carriage_return` in the command line
+  crate's `tests/cli/typecheck_line_ends.rs`.
+
 ## A `let:` before a comment that ends the start tag
 
 In svelte-check 4.7.8, a `let:` of a component without slots gets no TS18046 when a comment follows
@@ -63,3 +87,11 @@ The finding stays in rsvelte, at the last character svelte2tsx copies of the `le
 
 - Test: `typecheck_reports_a_let_before_a_comment_that_ends_the_tag` in the command line crate's
   `tests/cli/typecheck_slots.rs`.
+
+## A `let:` whose name ends in an astral character
+
+In svelte-check 4.7.8, the TS18046 of `<Leaf label="x" let:𝒜>` is at column 22, the second UTF-16
+unit of `𝒜`, which is no character position. rsvelte reports it at column 21, the start of `𝒜`.
+
+- Test: `typecheck_reports_a_let_whose_name_ends_in_an_astral_character_at_its_start` in the
+  command line crate's `tests/cli/typecheck_slots.rs`.

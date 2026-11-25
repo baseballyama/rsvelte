@@ -15,9 +15,11 @@ use super::word::{Home, home, keyword, misused};
 
 mod arguments;
 mod lexer;
+mod number;
 mod pattern;
 use arguments::{ARGUMENTS_IN_STATIC_BLOCK, arguments_misused, in_static_block};
-use lexer::{after_number, regular_expression};
+use lexer::regular_expression;
+use number::number as rejected_number;
 use pattern::{parenthesized_element, rejected_await, reparsed};
 
 /// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one
@@ -121,7 +123,7 @@ pub(crate) fn acorn(
             .then(|| keyword(kind.to_str(), at))
     };
     if error.code.scope.as_deref() != Some("TS") {
-        return after_number(error, text, start, end)
+        return rejected_number(error, text, start, read())
             .or_else(|| arguments_misused(error, start))
             .or_else(|| misused(start, end, read(), visit, false))
             .or_else(|| regular_expression(text, start, read()))

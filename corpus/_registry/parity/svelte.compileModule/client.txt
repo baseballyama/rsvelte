@@ -1,1 +1,1 @@
-# svelte.compileModule/client: 2665 match
+# svelte.compileModule/client: 2670 match

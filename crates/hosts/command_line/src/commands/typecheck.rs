@@ -10,6 +10,7 @@ use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::document::Document;
 use rsvelte_kernel::source::positions::LineIndex;
+use rsvelte_typescript_check::reported_lines;
 
 use super::{files, print_report};
 use crate::usage;
@@ -165,6 +166,7 @@ impl<'h> Report<'h> {
         panic: Option<&str>,
         found: impl Iterator<Item = &'d Diagnostic>,
     ) {
+        let lines = LineIndex::with_breaks(text, reported_lines(path));
         let path = self
             .here
             .map_or_else(|| path.to_owned(), |here| relative(path, here));
@@ -176,7 +178,6 @@ impl<'h> Report<'h> {
                 .expect("writing to a String");
             self.errors += 1;
         }
-        let lines = LineIndex::new(text);
         for d in found {
             let at = lines.line_column(d.span.start_offset);
             writeln!(
