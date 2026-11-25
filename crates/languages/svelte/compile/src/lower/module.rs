@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{ImportOrExportKind, Program, Statement};
+use oxc_ast::ast::{Directive, ImportOrExportKind, Program, Statement};
 use oxc_semantic::SemanticBuilder;
 use oxc_span::{SPAN, SourceType};
 use oxc_transformer::{TransformOptions, Transformer};
@@ -110,7 +110,9 @@ fn typescript_emit<'o>(
     // export a module.
     let module = (source.body.iter()).any(|s| s.is_module_declaration() || imports_by_require(s));
     if !module {
-        out.body.insert(0, b.statement(b.string("use strict")));
+        if !source.directives.iter().any(Directive::is_use_strict) {
+            out.body.insert(0, b.statement(b.string("use strict")));
+        }
     } else if !out.body.iter().any(Statement::is_module_declaration) {
         let nothing =
             Statement::new_export_named_declaration(SPAN, b.vec([]), ImportOrExportKind::Value, b);

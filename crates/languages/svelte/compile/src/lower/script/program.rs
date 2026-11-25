@@ -67,14 +67,12 @@ pub(in crate::lower) fn lower_script<'t, 'o>(
     let mut out = Vec::with_capacity(program.directives.len() + program.body.len());
     // Upstream's parser reads a prologue as statements, which it keeps where they are; each keeps
     // its string's span, by which `with_prologue` knows it for a directive.
-    if !matches!(context, ScriptContext::File) {
-        out.extend((program.directives.iter()).map(|d| {
-            let raw = rw.b.str(d.directive.as_str());
-            let string =
-                oxc_ast::ast::Expression::new_string_literal(d.expression.span, raw, None, rw.b);
-            Statement::new_expression_statement(oxc_span::SPAN, string, rw.b)
-        }));
-    }
+    out.extend((program.directives.iter()).map(|d| {
+        let raw = rw.b.str(d.directive.as_str());
+        let string =
+            oxc_ast::ast::Expression::new_string_literal(d.expression.span, raw, None, rw.b);
+        Statement::new_expression_statement(oxc_span::SPAN, string, rw.b)
+    }));
     for statement in &program.body {
         // Upstream erases the types before it analyzes the component.
         // A module's types are TypeScript's emit to erase, once it is lowered.
