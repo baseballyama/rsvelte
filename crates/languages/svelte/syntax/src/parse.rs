@@ -6,6 +6,7 @@
 
 mod attribute;
 mod block;
+mod checked_scripts;
 mod directive;
 mod element;
 mod element_rules;
@@ -21,6 +22,7 @@ mod tag;
 mod token;
 mod whitespace;
 
+pub use checked_scripts::scripts_checked_as_typescript;
 pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
 pub use javascript::javascript_failure;
 use oxc_span::SourceType;

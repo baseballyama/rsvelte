@@ -435,9 +435,6 @@ impl Printer<'_> {
     }
 }
 
-#[cfg(test)]
-mod tests;
-
 impl Printer<'_> {
     /// svelte2tsx's `InlineComponent` name of a component's instance, mapped to `at` when there
     /// is one: `$$_`, its `sanitizePropName` of the tag reversed, so that TypeScript suggests no
@@ -449,9 +446,8 @@ impl Printer<'_> {
             self.output.push("$$_svelteself");
         } else {
             self.output.push("$$_");
-            for c in tag.chars().rev() {
-                let sanitized = c.is_ascii_alphanumeric() || c == '$';
-                self.output.push_char(if sanitized { c } else { '_' });
+            for c in reversed_prop_name(tag) {
+                self.output.push_char(c);
             }
         }
         write!(self.output.out, "{depth}").expect("writing to a String cannot fail");
@@ -460,3 +456,16 @@ impl Printer<'_> {
         }
     }
 }
+
+/// svelte2tsx's `sanitizePropName` of `tag`, reversed: each UTF-16 code unit outside
+/// `[0-9A-Za-z$_]` is a `_`.
+fn reversed_prop_name(tag: &str) -> impl Iterator<Item = char> + '_ {
+    tag.chars().rev().flat_map(|c| {
+        let kept = c.is_ascii_alphanumeric() || c == '$' || c == '_';
+        let (c, units) = if kept { (c, 1) } else { ('_', c.len_utf16()) };
+        std::iter::repeat_n(c, units)
+    })
+}
+
+#[cfg(test)]
+mod tests;

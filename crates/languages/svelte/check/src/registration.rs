@@ -4,8 +4,8 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::{Registry, ReplacedFile, ReplacedFiles};
 use rsvelte_svelte_typescript_projection::{Unprojected, unprojected};
 use rsvelte_typescript_check::{
-    Check, Documents, MappedLanguage, MappedLanguages, StandIn, TypeScriptDocument,
-    TypeScriptStandIn, TypeScriptView,
+    Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptStandIn,
+    TypeScriptView,
 };
 
 use crate::Configuration;
@@ -64,24 +64,11 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
             context.facet::<TypeScriptView>(),
             Some(Ok(TypeScriptDocument::Rejected { .. }))
         );
-        let source = &context.document.text;
-        let read = rsvelte_svelte_typescript_projection::read(context);
-        let why = match read {
+        let why = match rsvelte_svelte_typescript_projection::read(context) {
             Ok(read) if !rejected => Unprojected::Unsupported(read.component),
             _ => Unprojected::Thrown,
         };
-        // svelte-check reads the language off the scripts even where svelte2tsx throws.
-        let typescript = read.map_or_else(
-            |_| {
-                rsvelte_svelte_syntax::parse::parse_without_scripts(source)
-                    .is_ok_and(|component| component.checked_as_typescript(source))
-            },
-            |read| read.component.checked_as_typescript(source),
-        );
-        Some(StandIn {
-            text: unprojected(source, why),
-            javascript: !typescript,
-        })
+        Some(unprojected(&context.document.text, why))
     });
 }
 

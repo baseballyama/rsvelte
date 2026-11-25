@@ -189,9 +189,7 @@ impl Builder<'_> {
 
     /// The slot a component's child, element or component, fills with a text `slot`.
     pub(super) fn filled_slot(&self, attributes: Range) -> Option<Span> {
-        (self.component_parent)
-            .then(|| (self.component.attributes(attributes).iter()).find_map(|a| self.slot_text(a)))
-            .flatten()
+        (self.component.attributes(attributes).iter()).find_map(|a| self.filler_slot(a))
     }
 
     /// Whether the element fills a named slot of its parent component.

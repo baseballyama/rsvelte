@@ -106,11 +106,14 @@ impl Builder<'_> {
         Ok(self.tree.list(&names))
     }
 
-    /// A snippet's body, whose elements svelte2tsx reads as having no parent element.
+    /// A snippet's body, whose elements svelte2tsx reads as having no parent element, so that
+    /// the depth it names instances by starts again.
     pub(super) fn snippet_body(&mut self, body: Range) -> Result<Range> {
         let component_parent = std::mem::replace(&mut self.component_parent, false);
+        let depth = std::mem::replace(&mut self.element_depth, 0);
         let body = self.children(body);
         self.component_parent = component_parent;
+        self.element_depth = depth;
         body
     }
 

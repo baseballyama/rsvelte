@@ -153,7 +153,7 @@ impl Tsc {
         );
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
         // Where every import of JavaScript is untyped, the checker resolves each import.
-        let resolve = all_untyped.then_some((req, paths.as_slice()));
+        let resolve = all_untyped.then_some((req, paths.as_slice(), &javascript));
         let mut checked = check_shares(&mut session, helpers, &config, &layer, &files, resolve)
             .map_err(failed)?;
         let external = std::mem::take(&mut own.selected.external);
@@ -164,7 +164,7 @@ impl Tsc {
             let text = tsconfig_json(base.as_deref(), req, &own, &roots, Some(&store));
             layer.files.insert(config.clone(), text);
             let helpers = self.start_helpers(paths.len(), &root);
-            let resolve = Some((req, paths.as_slice()));
+            let resolve = Some((req, paths.as_slice(), &javascript));
             checked = check_shares(&mut session, helpers, &config, &layer, &files, resolve)
                 .map_err(failed)?;
         }
@@ -212,16 +212,9 @@ impl Tsc {
         untyped: &[UntypedImport<'_>],
     ) -> Result<Vec<TypeScriptDiagnostic>, String> {
         let [program, syntactic, semantic] = checked.found;
-        // Where JavaScript is untyped, TypeScript loads no JavaScript file the tsconfig does not
-        // select, whatever imports it. A document the program does not reach at all is one the
-        // run was given, which svelte-check checks as a root. Nor does it load a component a
-        // search of `node_modules` finds beyond `maxNodeModuleJsDepth`.
-        let unloaded = |file: usize| {
-            let path = &paths[file];
-            untyped_documents.javascript.contains(path)
-                && (untyped_documents.all && selected.reached.contains(path)
-                    || untyped_documents.external.contains(path))
-        };
+        // A document the program does not reach at all is one the run was given, which
+        // svelte-check checks as a root.
+        let unloaded = |file: usize| untyped_documents.unloaded(&paths[file], &selected.reached);
         let lines: Vec<LineIndex> = (0..req.files.len())
             .map(|i| LineIndex::new(req.text(i)))
             .collect();
@@ -434,7 +427,7 @@ fn base_project(
     let selection =
         (req.env.content_mapper.is_some()).then(|| selection::config(req, root, base, store));
     layer.files.extend(selection.iter().cloned());
-    let probe = untyped::any_javascript(req).then(|| untyped::probe(root, overlay, base));
+    let probe = (!javascript.is_empty()).then(|| untyped::probe(root, overlay, base));
     layer.files.extend(probe.iter().flatten().cloned());
     let mut configs = vec![base];
     configs.extend(selection.iter().map(|(config, _)| config.as_path()));

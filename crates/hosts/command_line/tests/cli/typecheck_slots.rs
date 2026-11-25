@@ -101,16 +101,23 @@ fn typecheck_reports_an_unknown_slot_name_of_every_filler() {
                <Parent value={1}><div slot=\"item\"></div></Parent>\n\
                <Leaf label=\"x\"><div slot=\"s\"></div></Leaf>\n\
                <Parent value={1}>{#await Promise.resolve(1) then n}<div slot=\"nope\"></div>\
-               {/await}</Parent>\n";
+               {/await}</Parent>\n\
+               <Parent value={1}><Leaf /* c */ slot=\"nope\" label=\"a\"></Leaf></Parent>\n\
+               <Parent value={1}><Leaf slot=\"\" label=\"a\">t</Leaf></Parent>\n";
     let report = check(&[
         ("src/Parent.svelte", parent),
         ("src/Leaf.svelte", leaf),
         ("src/App.svelte", app),
     ]);
-    let unknown = "error TS7053: Element implicitly has an 'any' type because expression of type \
-                   '\"nope\"' can't be used to index type '{ item: { item: number; }; default: \
-                   {}; }'.\n  Property 'nope' does not exist on type '{ item: { item: number; }; \
-                   default: {}; }'.";
+    let unknown = |slot: &str| {
+        format!(
+            "error TS7053: Element implicitly has an 'any' type because expression of type \
+             '\"{slot}\"' can't be used to index type '{{ item: {{ item: number; }}; default: {{}}; \
+             }}'.\n  Property '{slot}' does not exist on type '{{ item: {{ item: number; }}; default: \
+             {{}}; }}'."
+        )
+    };
+    let (empty, unknown) = (unknown(""), unknown("nope"));
     assert_eq!(
         report,
         format!(
@@ -119,7 +126,75 @@ fn typecheck_reports_an_unknown_slot_name_of_every_filler() {
              src/App.svelte(7,19): {unknown}\n\
              src/App.svelte(9,17): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
              src/App.svelte(10,53): {unknown}\n\
-             \nFound 5 errors in 1 file.\n"
+             src/App.svelte(11,19): {unknown}\n\
+             src/App.svelte(12,19): {empty}\n\
+             src/App.svelte(12,25): error TS2353: Object literal may only specify known \
+             properties, and 'children' does not exist in type '$$ComponentProps'.\n\
+             \nFound 8 errors in 1 file.\n"
+        )
+        .native()
+    );
+}
+
+/// svelte2tsx copies a start tag's comments with the attribute beside them, reads the `this` of
+/// `<svelte:component>` as no attribute, and counts a snippet's elements from its start.
+/// svelte-check 4.7.8 reports these lines.
+#[test]
+fn typecheck_places_a_let_by_the_start_tag_svelte2tsx_moves() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label = $bindable() }: { label: string } = \
+                $props();\n</script>\n<p>{label}</p>\n";
+    let user = |line: &str| {
+        format!("<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n</script>\n{line}\n")
+    };
+    let report = check(&[
+        ("src/Leaf.svelte", leaf),
+        (
+            "src/K1.svelte",
+            &user("<Leaf label=\"x\" /* c */ let:x>{x}</Leaf>"),
+        ),
+        (
+            "src/K2.svelte",
+            &user("<Leaf label=\"x\" // c\n\tlet:x>{x}</Leaf>"),
+        ),
+        (
+            "src/K3.svelte",
+            &user("<svelte:component this={Leaf} label=\"x\" let:y>{y}</svelte:component>"),
+        ),
+        (
+            "src/K4.svelte",
+            &user(
+                "<div>{#snippet s()}<Leaf label=\"x\" let:x>{x}</Leaf>{/snippet}{@render \
+                 s()}</div>",
+            ),
+        ),
+        (
+            "src/K5.svelte",
+            &user("<Leaf /* a */ label=\"x\">text</Leaf>"),
+        ),
+        (
+            "src/K6.svelte",
+            &user("<Leaf label=\"x\" /* c */>text</Leaf>"),
+        ),
+    ]);
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
+    let unknown = |name: &str| format!("error TS18046: '{name}.$$slot_def' is of type 'unknown'.");
+    let leaf = unknown("$$_faeL0");
+    let component = unknown("$$_tnenopmoc_etlevs0");
+    assert_eq!(
+        report,
+        format!(
+            "src/K1.svelte(4,25): {children}\n\
+             src/K1.svelte(4,29): {leaf}\n\
+             src/K2.svelte(5,1): {children}\n\
+             src/K2.svelte(5,6): {leaf}\n\
+             src/K3.svelte(4,19): {children}\n\
+             src/K3.svelte(4,45): {component}\n\
+             src/K4.svelte(4,35): {children}\n\
+             src/K4.svelte(4,40): {leaf}\n\
+             src/K5.svelte(4,21): {children}\n\
+             src/K6.svelte(4,16): {children}\n\
+             \nFound 10 errors in 6 files.\n"
         )
         .native()
     );
