@@ -104794,6 +104794,31 @@ export default function Reactive_new_callee($$anchor, $$props) {
 	}
 ]
 
+=== 397 pattern/script-directive-escapes.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+"it\'s";
+"a\u{1F600}b";
+"use\x20strict";
+
+export const m = 1;
+
+var root = $.from_html(`<p></p>`);
+
+export default function Script_directive_escapes($$anchor) {
+	"a\nb";
+	"it\'s";
+	"\
+x";
+
+	let v = 1;
+	var p = root();
+
+	p.textContent = '11';
+	$.append($$anchor, p);
+}
 === 233 pattern/script-top-level-return-ts.svelte	error.json
 {
 	"code": "js_parse_error",

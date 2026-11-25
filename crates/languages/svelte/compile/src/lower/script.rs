@@ -570,21 +570,22 @@ fn hoist_into<'o>(
     body: &mut oxc_ast::ast::FunctionBody<'o>,
     directives: &[oxc_ast::ast::Directive<'_>],
 ) {
-    let count = (body.statements.iter())
-        .take_while(|s| {
-            matches!(s, Statement::ExpressionStatement(e)
-                if matches!(&e.expression, Expression::StringLiteral(literal)
-                    if directives.iter().any(|d| d.expression.span == literal.span)))
+    let hoisted: Vec<_> = (body.statements.iter())
+        .map_while(|s| match s {
+            Statement::ExpressionStatement(e) => match &e.expression {
+                Expression::StringLiteral(literal) => directives
+                    .iter()
+                    .find(|d| d.expression.span == literal.span),
+                _ => None,
+            },
+            _ => None,
         })
-        .count();
-    for statement in body.statements.drain(..count) {
-        let Statement::ExpressionStatement(statement) = statement else {
-            unreachable!("counted as a string statement")
-        };
-        let Expression::StringLiteral(literal) = statement.unbox().expression else {
-            unreachable!("counted as a string statement")
-        };
-        let raw = super::javascript::string_value(literal.value);
-        body.directives.push(b.directive(literal.span, &raw));
+        .collect();
+    body.statements.drain(..hoisted.len());
+    for directive in hoisted {
+        // Printed as written: a directive's escapes are part of what it means.
+        let span = directive.expression.span;
+        body.directives
+            .push(b.directive(span, directive.directive.as_str()));
     }
 }
