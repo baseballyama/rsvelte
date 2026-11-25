@@ -1,6 +1,7 @@
 //! Each document's findings, ordered and written as svelte-check and vue-tsc report them.
 
 use std::borrow::Cow;
+use std::collections::HashMap;
 use std::path::Path;
 
 use rsvelte_kernel::computation::task::TaskOutput;
@@ -44,10 +45,11 @@ pub(super) fn write_findings(docs: &[Prepared], outs: Vec<&mut TaskOutput>, repo
     } = report;
     let mut per_doc: Vec<Vec<Finding>> = (0..docs.len()).map(|_| Vec::new()).collect();
     let mut unmapped: Vec<Vec<String>> = vec![Vec::new(); docs.len()];
+    let mut generated_lines = HashMap::new();
     for mut f in found {
         let (source_text, d) = (&docs[f.file].source_text, &*docs[f.file].document);
         let Some(span) = f.span else {
-            if refuses_unmapped(d, &f) {
+            if refuses_unmapped(d, &f, &mut generated_lines) {
                 unmapped[f.file].push(format!("TS{}: {}", f.code, f.message));
             }
             continue;
@@ -246,8 +248,21 @@ fn starts_ignored(d: &CheckedDocument, span: Span, bom: u32) -> bool {
 
 /// Whether a finding with no source range refuses its document, as a projection defect, where
 /// svelte-check would drop it.
-fn refuses_unmapped(d: &CheckedDocument, f: &TypeScriptDiagnostic) -> bool {
-    if d.drops_unmapped || f.synthesized.is_some_and(|at| starts_unmapped(d, at)) {
+/// `lines` holds each document's generated lines, built for its first such finding.
+fn refuses_unmapped(
+    d: &CheckedDocument,
+    f: &TypeScriptDiagnostic,
+    lines: &mut HashMap<usize, LineIndex>,
+) -> bool {
+    let unmapped = |at: Position| {
+        d.projection.unmapped.is_some_and(|range| {
+            (lines.entry(f.file))
+                .or_insert_with(|| LineIndex::new(&d.projection.out))
+                .offset(at.line + 1, at.character)
+                .is_some_and(|at| (range.start_offset..range.end_offset).contains(&at))
+        })
+    };
+    if d.drops_unmapped || f.synthesized.is_some_and(unmapped) {
         return false;
     }
     // The projection's own default export repeats a script's, and its subscription `$x` a `$x`
@@ -258,17 +273,6 @@ fn refuses_unmapped(d: &CheckedDocument, f: &TypeScriptDiagnostic) -> bool {
             && f.message
                 .starts_with("Cannot redeclare block-scoped variable '$");
     !repeats
-}
-
-/// Whether a finding in synthesized code starts, at `at` in the generated text, in a range the
-/// projection marked [`Emitter::unmapped`].
-fn starts_unmapped(d: &CheckedDocument, at: Position) -> bool {
-    LineIndex::new(&d.projection.out)
-        .offset(at.line + 1, at.character)
-        .is_some_and(|at| {
-            (d.projection.unmapped.iter())
-                .any(|range| (range.start_offset..range.end_offset).contains(&at))
-        })
 }
 
 /// The first generated offset copied from the original `offset`, or the end of the copy before

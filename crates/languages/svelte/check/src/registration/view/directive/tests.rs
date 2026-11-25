@@ -39,5 +39,5 @@ fn a_prepended_line_moves_the_ranges_of_the_projection() {
     let moved = prepended("// @ts-check\n", &projection);
     assert_eq!(moved.out, "// @ts-check\nlet a;\nreturn a;\n");
     assert_eq!(moved.ignored, [Span::new(17, 20)]);
-    assert_eq!(moved.unmapped, [Span::new(20, 30)]);
+    assert_eq!(moved.unmapped, Some(Span::new(20, 30)));
 }
