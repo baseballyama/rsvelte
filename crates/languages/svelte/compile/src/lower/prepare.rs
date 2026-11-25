@@ -46,7 +46,7 @@ pub(super) fn prepare<'c, 'o>(
         accessors: custom_element.is_some(),
         stores: &facts.validated.stores,
         names: Some(&names),
-        ..script::ScriptRewrite::new(b, target, res)
+        ..script::ScriptRewrite::new(b, target, res, Unit::Component)
     };
     if let Some(program) = input.component.module {
         let statements = script::lower_script(
