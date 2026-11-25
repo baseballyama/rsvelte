@@ -14,6 +14,7 @@ mod hoistable;
 mod render;
 mod root_snippets;
 mod slot_scope;
+mod start_tag;
 mod tag;
 mod type_assertion;
 use std::cell::OnceCell;
@@ -92,6 +93,7 @@ pub fn lower<'a>(
         directives: directive::Directives::default(),
         root_snippets: None,
         slot_parent: None,
+        element_depth: 0,
         component_parent: false,
         route: contract::Route::of(path),
         props_hoisted: false,
@@ -169,6 +171,8 @@ struct Builder<'a> {
     root_snippets: Option<NodeIdentifier>,
     /// The component whose children are being lowered, whose named slots their `let:` read.
     slot_parent: Option<directive::Constructed>,
+    /// How many elements enclose the one being lowered, which svelte2tsx names an instance by.
+    element_depth: u32,
     /// Whether the children being lowered are a component's, through any blocks.
     component_parent: bool,
     /// The `SvelteKit` route file the component is, whose untyped props svelte2tsx types.

@@ -13,7 +13,7 @@ function $$render() {
   async () => {
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         children: __rsvelte_children,
         foo: () => {
           async () => {
@@ -21,39 +21,57 @@ function $$render() {
           return __rsvelte_snippet_return;
         },
       });
+      const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       const { foo } = __rsvelte_component_props(__rsvelte_component_0);
       foo;
       {
-        svelteHTML.createElement("div", {});
-        x;
+        const {} = $$_C0.$$slot_def["a"];
+        {
+          svelteHTML.createElement("div", {});
+          x;
+        }
       }
       x;
       {
-        __rsvelte_component(C)(__rsvelte_internals(), {
-          "a": x,
-        });
+        const {} = $$_C0.$$slot_def["1"];
+        {
+          __rsvelte_component(C)(__rsvelte_internals(), {
+            "a": x,
+          });
+        }
       }
       {
-        svelteHTML.createElement("span", {});
-        (x);
+        const {} = $$_C0.$$slot_def["0"];
+        {
+          svelteHTML.createElement("span", {});
+          (x);
+        }
       }
       C;
     }
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {});
+      const __rsvelte_component_0 = __rsvelte_component(C);
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {});
+      const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       {
-        svelteHTML.createElement("svelte:fragment", {});
+        const {} = $$_C0.$$slot_def["b"];
         {
-          svelteHTML.createElement("span", {});
-          x;
+          svelteHTML.createElement("svelte:fragment", {});
+          {
+            svelteHTML.createElement("span", {});
+            x;
+          }
         }
       }
       {
-        svelteHTML.createElement("svelte:fragment", {});
+        const {} = $$_C0.$$slot_def["c"];
         {
-          svelteHTML.createElement("svg", {});
+          svelteHTML.createElement("svelte:fragment", {});
           {
-            svelteHTML.createElement("rect", {});
+            svelteHTML.createElement("svg", {});
+            {
+              svelteHTML.createElement("rect", {});
+            }
           }
         }
       }

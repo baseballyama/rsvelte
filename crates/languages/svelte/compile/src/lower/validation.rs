@@ -4,7 +4,6 @@ use rsvelte_svelte_semantic::warnings::{
     Phase, Raised, Section, dollar_name_errors, rest_prop_member_errors,
 };
 use rsvelte_typescript_compile::features::{Feature, first_svelte_runtime_feature_where};
-use rsvelte_typescript_compile::strip::is_erased_by_emit;
 use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashSet;
 
@@ -104,17 +103,15 @@ pub(crate) enum Unit {
 
 impl Unit {
     /// Whether the erasure before upstream's analysis removes `element` from its class:
-    /// `remove_typescript_nodes` removes a `declare` field and an abstract method, and TypeScript's
-    /// emit every member without a runtime meaning.
+    /// `remove_typescript_nodes` removes a `declare` field and an abstract method. A module's is
+    /// done.
     pub(crate) fn erases_member(self, element: &ClassElement<'_>) -> bool {
-        match self {
-            Self::Component => match element {
+        self == Self::Component
+            && match element {
                 ClassElement::PropertyDefinition(p) => p.declare,
                 ClassElement::MethodDefinition(m) => m.r#type.is_abstract(),
                 _ => false,
-            },
-            Self::Module => is_erased_by_emit(element),
-        }
+            }
     }
 }
 

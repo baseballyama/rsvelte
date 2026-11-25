@@ -218,15 +218,15 @@ impl LineIndex {
         }
     }
 
-    /// Byte offset of a 1-based line and 0-based UTF-16 column. The column may be the line's end;
-    /// `None` past it or inside a surrogate pair, so a position that does not exist is never
-    /// replaced by a nearby one that does.
+    /// Byte offset of a 1-based line and 0-based UTF-16 column, the inverse of
+    /// [`LineIndex::line_column`]: a column between a CR and its LF is on the line they end.
+    /// `None` past the line's terminator or inside a surrogate pair, so a position that does not
+    /// exist is never replaced by a nearby one that does.
     #[must_use]
     pub fn offset(&self, line: u32, column: u32) -> Option<u32> {
-        let Span {
-            start_offset: start,
-            end_offset: end,
-        } = self.line_span(line)?;
+        let l = line.checked_sub(1)? as usize;
+        let start = *self.line_starts.get(l)?;
+        let next = self.line_starts.get(l + 1).copied();
         let target = self.utf16(start).checked_add(column)?;
         let i = self.wide.partition_point(|w| w.utf16_end() <= target);
         if self.wide.get(i).is_some_and(|w| w.utf16 < target) {
@@ -235,7 +235,8 @@ impl LineIndex {
         let byte = i.checked_sub(1).map_or(target, |j| {
             self.wide[j].end + (target - self.wide[j].utf16_end())
         });
-        (byte <= end).then_some(byte)
+        next.map_or(byte <= self.len, |next| byte < next)
+            .then_some(byte)
     }
 
     /// The 1-based line of a byte offset, without the column.
