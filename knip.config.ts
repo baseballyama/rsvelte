@@ -28,8 +28,8 @@ export default {
 			entry: ['launcher.js'],
 		},
 		'apps/rsvelte': {
-			// crates/hosts/node's test runs it with the addon it builds, not a package script.
-			entry: ['compiler.test.ts'],
+			// crates/hosts/node's test runs them with the addon it builds, not a package script.
+			entry: ['bin.js', 'compiler.test.ts', 'command.test.ts'],
 		},
 		'tools/writing': {
 			// The spelling rule loads the dictionary by its language name.
