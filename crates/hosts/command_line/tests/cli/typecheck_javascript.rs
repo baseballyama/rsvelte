@@ -109,5 +109,6 @@ fn typecheck_types_a_javascript_route_component_props() {
          'PageData'.\n\
          src/routes/page/+page.svelte(5,10): error TS18048: 'form' is possibly 'undefined'.\n\
          \nFound 5 errors in 4 files.\n"
+            .native()
     );
 }
