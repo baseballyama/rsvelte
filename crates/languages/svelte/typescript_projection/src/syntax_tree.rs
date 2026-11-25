@@ -104,6 +104,13 @@ pub(crate) enum Node {
         name: &'static str,
         at: u32,
     },
+    /// svelte2tsx's name of a component's instance: `$$_`, the tag's name reversed and how many
+    /// elements enclose it. A finding on the name falls on the empty range at `at`.
+    Instance {
+        tag: Span,
+        depth: u32,
+        at: Option<u32>,
+    },
     /// `/** @typedef {value} name */`, a type alias in JavaScript.
     TypeDefinition {
         name: NodeIdentifier,
