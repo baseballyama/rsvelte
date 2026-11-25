@@ -8,7 +8,7 @@ use oxc_ast_visit::Visit;
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::{GetSpan, SourceType};
 
-use super::super::locator::StaticBlockAwaits;
+use super::super::StaticBlockAwaits;
 use super::super::word::Home;
 
 /// Where acorn's check of a destructuring pattern around the target `start..end` fails, in `text`
