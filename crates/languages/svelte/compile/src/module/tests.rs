@@ -268,7 +268,10 @@ fn a_typescript_module_prints_numbers_as_typescripts_emit_does() {
                     let o = { 08: 1, 0x10: 2 };\n";
     let printed = "leta=[8,8,0x10,0X1F,1_000,1e3,.5,3n,0x1fn,10n,10n];leto={8:1,0x10:2};";
     let members = "export enum E { A = 0x10, B = 1 << 10, C = 1e21, D = .5, F = 1_000 }\n";
-    let values = r#"E[E["A"]=16]="A";E[E["B"]=1024]="B";E[E["C"]=1e+21]="C";E[E["D"]=0.5]="D";E[E["F"]=1000]="F";"#;
+    let values = concat!(
+        r#"E[E["A"]=16]="A";E[E["B"]=1024]="B";E[E["C"]=1e+21]="C";"#,
+        r#"E[E["D"]=0.5]="D";E[E["F"]=1000]="F";"#,
+    );
     for target in [Target::Client, Target::Server] {
         assert!(body(literals, target).ends_with(printed), "{target:?}");
         assert!(body(members, target).contains(values), "{target:?}");
