@@ -193,6 +193,8 @@ fn lower_declaration<'o>(
             let mut statement = b.declaration(declaration.kind, std::mem::take(&mut lowered));
             if let Statement::VariableDeclaration(d) = &mut statement {
                 d.span = declaration.span;
+                // A module's `declare` is TypeScript's emit to erase, once it is lowered.
+                d.declare = declaration.declare;
             }
             out.push(statement);
         }

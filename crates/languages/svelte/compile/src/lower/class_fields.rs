@@ -13,6 +13,8 @@ use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_typescript_tree::{document_span, node_span};
 use rustc_hash::FxHashMap;
 
+use super::validation::Unit;
+
 /// A `$state`, `$state.raw`, `$derived` or `$derived.by` field.
 #[derive(Clone)]
 pub(super) struct StateField {
@@ -77,8 +79,10 @@ enum Member {
 pub(super) fn class_fields(
     res: &Resolution,
     body: &ClassBody<'_>,
+    unit: Unit,
 ) -> Result<ClassFields, Diagnostic> {
-    let mut private_ids: Vec<Cow<'_, str>> = (body.body.iter())
+    let elements = || (body.body.iter()).filter(|element| !unit.erases_member(element));
+    let mut private_ids: Vec<Cow<'_, str>> = elements()
         .filter_map(|element| match element {
             ClassElement::MethodDefinition(m) => m.key.private_name().map(|n| n.as_str().into()),
             ClassElement::PropertyDefinition(p) => p.key.private_name().map(|n| n.as_str().into()),
@@ -91,7 +95,7 @@ pub(super) fn class_fields(
         members: FxHashMap::default(),
     };
     let mut constructor = None;
-    for element in &body.body {
+    for element in elements() {
         match element {
             ClassElement::PropertyDefinition(p) if !p.key.is_computed() && !p.r#static => {
                 analysis.handle(p.span, key_name(&p.key), p.value.as_ref(), false)?;

@@ -19,6 +19,7 @@ use crate::input::Target;
 use crate::lower::builder::Runtime;
 use crate::lower::class_fields::{ClassFields, StateField, class_fields, key_name, member_name};
 use crate::lower::javascript::into_without_typescript;
+use crate::lower::validation::Unit;
 
 /// The state fields of the classes the rewrite is inside, innermost last.
 #[derive(Default)]
@@ -29,6 +30,8 @@ pub(in crate::lower) struct Classes {
     in_constructor: bool,
     /// The next function is a constructor's.
     constructor_next: bool,
+    /// What erases the script's types before upstream analyzes its classes.
+    pub(in crate::lower) unit: Unit,
 }
 
 impl<'o> ScriptRewrite<'_, 'o> {
@@ -58,7 +61,7 @@ impl<'o> ScriptRewrite<'_, 'o> {
     /// Upstream `ClassBody`: each state field becomes its signal and, when public, accessors.
     pub(super) fn class_body(&mut self, body: &mut ClassBody<'o>) {
         // Validation has raised the errors this analysis finds.
-        let fields = class_fields(self.res, body).unwrap_or_default();
+        let fields = class_fields(self.res, body, self.classes.unit).unwrap_or_default();
         if fields.is_empty() {
             self.classes.stack.push(fields);
             walk_mut::walk_class_body(self, body);
