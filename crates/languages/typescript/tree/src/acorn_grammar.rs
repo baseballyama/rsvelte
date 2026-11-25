@@ -41,8 +41,7 @@ pub(crate) enum Rejection {
     },
     /// An initializer in an ambient context, where only a `const` without a type may have one.
     AmbientInitializer,
-    /// `await` in a class static block, or in a namespace's body, which acorn-typescript reads as
-    /// one.
+    /// `await` in a class static block.
     StaticBlockAwait,
     /// A `const`'s initializer in an ambient context that is not a literal or an enum reference.
     AmbientConstInitializer,

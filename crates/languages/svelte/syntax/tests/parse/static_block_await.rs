@@ -1,7 +1,6 @@
 use rsvelte_svelte_syntax::parse::parse;
 
-/// What svelte 5.59.1's `parse` reports, or `None` where it reads the component. acorn-typescript
-/// reads a namespace's body as a class static block.
+/// What svelte 5.59.1's `parse` reports, or `None` where it reads the component.
 const CELLS: &[(&str, Option<(&str, u32)>)] = &[
     (
         "<script>class A { static { (await x) = 1; } }</script>",
@@ -62,30 +61,6 @@ const CELLS: &[(&str, Option<(&str, u32)>)] = &[
     (
         "<script>class A { static { class B { x = await y } } }</script>",
         Some(("Cannot use keyword 'await' outside an async function", 41)),
-    ),
-    (
-        "<script lang=\"ts\">namespace N { await x; }</script>",
-        Some(("Cannot use await in class static initialization block", 32)),
-    ),
-    (
-        "<script lang=\"ts\">namespace N { [(await x), (g())] = o; }</script>",
-        Some(("Cannot use await in class static initialization block", 34)),
-    ),
-    (
-        "<script lang=\"ts\">namespace N { (await x) = 1; }</script>",
-        Some(("Cannot use await in class static initialization block", 33)),
-    ),
-    (
-        "<script lang=\"ts\">namespace N { async function f() { await x; } }</script>",
-        None,
-    ),
-    (
-        "<script lang=\"ts\">namespace N { function f() { await x; } }</script>",
-        Some(("Cannot use keyword 'await' outside an async function", 47)),
-    ),
-    (
-        "<script lang=\"ts\">namespace N { namespace M { await x; } }</script>",
-        Some(("Cannot use await in class static initialization block", 46)),
     ),
 ];
 

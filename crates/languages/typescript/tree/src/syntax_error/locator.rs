@@ -527,8 +527,6 @@ pub(super) fn governed(kind: AstKind<'_>) -> Option<(oxc_span::Span, Home)> {
         // acorn reads an arrow's parameters before it knows they are an arrow's.
         AstKind::ArrowFunctionExpression(it) => function(it.body.span(), it.r#async, false),
         AstKind::StaticBlock(it) => Some((it.span, Home::StaticBlock)),
-        // acorn-typescript reads a namespace's body as a class static block.
-        AstKind::TSModuleBlock(it) => Some((it.span, Home::StaticBlock)),
         AstKind::PropertyDefinition(it) => Some((it.value.as_ref()?.span(), Home::Initializer)),
         AstKind::AccessorProperty(it) => Some((it.value.as_ref()?.span(), Home::Initializer)),
         _ => None,
