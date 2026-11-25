@@ -18,10 +18,11 @@ function $$render() {
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
       const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {});
+      const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       {
         const {
           foo,
-        } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def.default;
+        } = $$_C0.$$slot_def.default;
         {
           __rsvelte_slots()("default", {
             foo,

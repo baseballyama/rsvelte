@@ -16,12 +16,13 @@ function $$render() {
       const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         children: __rsvelte_children,
       });
+      const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       {
         const {
           item,
           "index": i,
           "pair": { a, b: [c], ...rest },
-        } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def.default;
+        } = $$_C0.$$slot_def.default;
         {
           for (let [, x] of __rsvelte_each(item)) {
             {
@@ -40,7 +41,7 @@ function $$render() {
         {
           const {
             x,
-          } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["named"];
+          } = $$_C0.$$slot_def["named"];
           {
             svelteHTML.createElement("div", {});
             x;
@@ -49,7 +50,7 @@ function $$render() {
         {
           const {
             "y": { z },
-          } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["f"];
+          } = $$_C0.$$slot_def["f"];
           {
             svelteHTML.createElement("svelte:fragment", {});
             z;
@@ -58,7 +59,7 @@ function $$render() {
         {
           const {
             w,
-          } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["comp"];
+          } = $$_C0.$$slot_def["comp"];
           {
             __rsvelte_component(C)(__rsvelte_internals(), {
               children: __rsvelte_children,
@@ -71,7 +72,7 @@ function $$render() {
         {
           const {
             v,
-          } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["consts"];
+          } = $$_C0.$$slot_def["consts"];
           {
             svelteHTML.createElement("p", {});
             const twice = v * 2;
@@ -86,10 +87,11 @@ function $$render() {
       const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         children: __rsvelte_children,
       });
+      const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       {
         const {
           v,
-        } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def.default;
+        } = $$_C0.$$slot_def.default;
         {
           svelteHTML.createElement("svelte:fragment", {});
           v;
@@ -102,10 +104,11 @@ function $$render() {
       const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         children: __rsvelte_children,
       });
+      const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       {
         const {
           u,
-        } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["default"];
+        } = $$_C0.$$slot_def["default"];
         {
           svelteHTML.createElement("svelte:fragment", {});
           u;

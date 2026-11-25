@@ -48,36 +48,21 @@ impl Builder<'_> {
     }
 
     /// svelte2tsx's `transform` writes the prop over the character after the whitespace that
-    /// follows the tag name, unless an attribute's name starts there or the tag ends; else it
-    /// appends the prop, which then maps to the last character mapped before it.
+    /// follows the tag name, unless a move starts there or the tag ends; else it appends the prop
+    /// after the moves, where it maps to the last space a removed run is written as, or without
+    /// one to the tag name's last character.
     fn children_position(&self, name: Span, start_tag: Span, attributes: Range) -> u32 {
-        let attributes = self.component.attributes(attributes);
-        let after_name = name.end_offset as usize;
-        if let Some(space) = self.source[after_name..].chars().next()
-            && is_ecmascript_whitespace(space)
+        let tag = self.start_tag(name, start_tag, attributes);
+        let overwritten = name.end_offset + 1;
+        if self.source[name.end_offset as usize..].starts_with(is_ecmascript_whitespace)
+            && tag.extended(overwritten) > overwritten
         {
-            let overwritten = (after_name + space.len_utf8()) as u32;
-            let named_there = attributes.iter().any(|a| {
-                a.kind == AttributeKind::Attribute
-                    && !a.shorthand
-                    && a.span.start_offset == overwritten
-            });
-            if overwritten + 1 < start_tag.end_offset && !named_there {
-                return overwritten;
-            }
+            return overwritten;
         }
-        let last_value = attributes.iter().rev().find(|a| {
-            a.kind == AttributeKind::Attribute
-                && !a.shorthand
-                && matches!(a.value, AttributeValue::Parts(_))
-        });
-        last_value.map_or_else(
-            || {
-                let last = name.text(self.source).chars().next_back();
-                name.end_offset - last.map_or(0, |c| c.len_utf8() as u32)
-            },
-            |a| a.name.end_offset + 1,
-        )
+        tag.last_space().unwrap_or_else(|| {
+            let last = name.text(self.source).chars().next_back();
+            name.end_offset - last.map_or(0, |c| c.len_utf8() as u32)
+        })
     }
 }
 

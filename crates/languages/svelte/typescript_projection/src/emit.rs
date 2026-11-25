@@ -166,6 +166,7 @@ impl Printer<'_> {
             }
             Node::Identifier(name) => self.output.push(name),
             Node::IdentifierAt { name, at } => self.output.atom(name, Span::new(at, at)),
+            Node::Instance { tag, depth, at } => self.instance(tag, depth, at),
             Node::AnyComponent => self.output.push("__rsvelte_any_component"),
             Node::StringLiteralAt { value, at } => self.string_literal_at(value, at),
             Node::StringLiteral(value) => self.node_string_literal(value),
@@ -434,3 +435,26 @@ impl Printer<'_> {
 
 #[cfg(test)]
 mod tests;
+
+impl Printer<'_> {
+    /// svelte2tsx's name of a component's instance, mapped to `at` when there is one.
+    fn instance(&mut self, tag: Span, depth: u32, at: Option<u32>) {
+        let name = instance_name(tag.text(self.source), depth);
+        self.output.atom_at(&name, at.map(|at| Span::new(at, at)));
+    }
+}
+
+/// svelte2tsx's `InlineComponent` name: its `sanitizePropName` of the tag reversed, so that
+/// TypeScript suggests no generated name for an undeclared component, and the depth.
+fn instance_name(tag: &str, depth: u32) -> String {
+    if tag == "svelte:self" {
+        return format!("$$_svelteself{depth}");
+    }
+    let reversed: String = (tag.chars().rev())
+        .map(|c| match c {
+            '0'..='9' | 'A'..='Z' | 'a'..='z' | '$' | '_' => c,
+            _ => '_',
+        })
+        .collect();
+    format!("$$_{reversed}{depth}")
+}

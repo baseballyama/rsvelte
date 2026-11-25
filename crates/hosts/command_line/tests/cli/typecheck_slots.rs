@@ -38,3 +38,48 @@ fn typecheck_types_the_slot_props_of_a_generic_component() {
             .native()
     );
 }
+
+/// A runes component declares no slots: svelte2tsx reads its `$$slot_def` as `unknown`, and the
+/// `children` the content passes moves past the `let:` it removes. svelte-check 4.7.8 reports
+/// these lines.
+#[test]
+fn typecheck_reports_a_let_of_a_component_without_slots() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label = $bindable() }: { label: string } = \
+                $props();\n</script>\n<p>{label}</p>\n";
+    let user = |line: &str| {
+        format!("<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n</script>\n{line}\n")
+    };
+    let report = check(&[
+        ("src/Leaf.svelte", leaf),
+        ("src/L1.svelte", &user("<Leaf label=\"x\" let:x>{x}</Leaf>")),
+        ("src/L2.svelte", &user("<Leaf label=\"x\" let:x />")),
+        (
+            "src/L3.svelte",
+            &user("<Leaf label=\"x\"><div slot=\"s\" let:y>{y}</div></Leaf>"),
+        ),
+        (
+            "src/L4.svelte",
+            &user("<div><Leaf label=\"x\"   let:x={y}   >{y}</Leaf></div>"),
+        ),
+    ]);
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
+    let unknown = |name: &str| format!("error TS18046: '{name}.$$slot_def' is of type 'unknown'.");
+    assert_eq!(
+        report,
+        format!(
+            "src/L1.svelte(4,16): {children}\n\
+             src/L1.svelte(4,21): {}\n\
+             src/L2.svelte(4,22): {}\n\
+             src/L3.svelte(4,35): {}\n\
+             src/L4.svelte(4,34): {children}\n\
+             src/L4.svelte(4,32): {}\n\
+             \nFound 6 errors in 4 files.\n",
+            unknown("$$_faeL0"),
+            unknown("$$_faeL0"),
+            unknown("$$_faeL0"),
+            unknown("$$_faeL1"),
+        )
+        .native()
+    );
+}
