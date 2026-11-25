@@ -22,7 +22,6 @@ use crate::lower::javascript::into_without_typescript;
 use crate::lower::validation::Unit;
 
 /// The state fields of the classes the rewrite is inside, innermost last.
-#[derive(Default)]
 pub(in crate::lower) struct Classes {
     stack: Vec<ClassFields>,
     /// Upstream's `in_constructor`: the constructor's own body reads a state field's `v`
@@ -31,7 +30,18 @@ pub(in crate::lower) struct Classes {
     /// The next function is a constructor's.
     constructor_next: bool,
     /// What erases the script's types before upstream analyzes its classes.
-    pub(in crate::lower) unit: Unit,
+    unit: Unit,
+}
+
+impl Classes {
+    pub(super) const fn new(unit: Unit) -> Self {
+        Self {
+            stack: Vec::new(),
+            in_constructor: false,
+            constructor_next: false,
+            unit,
+        }
+    }
 }
 
 impl<'o> ScriptRewrite<'_, 'o> {
