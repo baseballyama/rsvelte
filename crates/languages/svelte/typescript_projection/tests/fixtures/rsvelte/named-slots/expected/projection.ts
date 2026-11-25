@@ -23,7 +23,6 @@ function $$render() {
       });
       const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       const { foo } = __rsvelte_component_props(__rsvelte_component_0);
-      foo;
       {
         const {} = $$_C0.$$slot_def["a"];
         {

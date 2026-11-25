@@ -109,22 +109,21 @@ impl Printer<'_> {
         }
     }
 
-    /// The store subscription `$name`, declared with the store's value type.
+    /// The store subscription `$name`, declared with the store's value type, between svelte2tsx's
+    /// ignore comments.
     fn store_subscription(&mut self, store: Span) {
         let name = store.text(self.source);
-        self.output.push(";let $");
-        self.output.push(name);
-        if self.tree.javascript {
-            for part in [" = __rsvelte_store_get(", name, ");\n"] {
-                self.output.push(part);
-            }
-            return;
+        let get = if self.tree.javascript {
+            " = __rsvelte_store_get("
+        } else {
+            " = __sveltets_2_store_get("
+        };
+        let start = self.output.out.len() as u32;
+        for part in [";let $", name, get, name, ");"] {
+            self.output.push(part);
         }
-        // svelte-check copies a finding on the store to each read of `$x`; the store's name
-        // locates it.
-        self.output.push(" = __sveltets_2_store_get(");
-        self.output.atom(name, store);
-        self.output.push(");\n");
+        self.output.ignore_since(start);
+        self.output.push("\n");
     }
 
     /// svelte2tsx's `const X = component; type X = …; export default X;`: the type of the same

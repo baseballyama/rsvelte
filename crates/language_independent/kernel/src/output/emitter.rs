@@ -29,8 +29,9 @@ pub struct Emitter {
     /// In output order, beside the copies and points, so a [`Mapping`] stays small.
     pub atoms: Vec<Atom>,
     /// Generated ranges whose findings the projected language's own tool hides: a finding that
-    /// starts in one. The original text a range maps from is mapped from nowhere else, so a
-    /// finding already mapped back still tells whether it started in one ([`Emitter::maps_into`]).
+    /// starts in one, by its generated position when nothing maps there. The original text a range
+    /// maps from is mapped from nowhere else, so a finding already mapped back still tells whether
+    /// it started in one ([`Emitter::maps_into`]).
     pub ignored: Vec<Span>,
     /// The generated range the projected language's own tool writes with no mapping, so that it
     /// drops a finding there that maps nowhere: svelte2tsx's return, one per projection. Only such

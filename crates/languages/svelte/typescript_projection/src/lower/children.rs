@@ -6,7 +6,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Part, Range, TemplateNode,
 };
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, document_span};
 
 use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
@@ -88,9 +88,9 @@ impl Builder<'_> {
                 return Err(refuse("generic snippets", span));
             }
             let javascript = &self.component.javascript;
-            let name = javascript.get_expression(name).span();
+            let at = javascript.get_expression(name).span();
             let parameters = Some(javascript.get_parameters(parameters).span);
-            let name = self.source(name, None);
+            let name = self.source(at, None);
             let parameters = parameters.map(|at| self.source(at, None));
             let body = self.snippet_body(body)?;
             let property = self.tree.push(Node::SnippetProperty {
@@ -99,7 +99,7 @@ impl Builder<'_> {
                 body,
             });
             self.scratch.push(property);
-            names.push(name);
+            names.push(self.tree.push(Node::UnmappedSource(document_span(at))));
         }
         Ok(self.tree.list(&names))
     }
