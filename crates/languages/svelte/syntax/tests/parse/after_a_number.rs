@@ -29,6 +29,7 @@ const AFTER_A_NUMBER: &[(&str, &str, u32)] = &[
         19,
     ),
     ("<script>let a = 0b12;</script>", "Unexpected token", 19),
+    ("<script>let a = 0xfnx;</script>", "Unexpected token", 20),
     ("<script>let a = 0o19;</script>", "Unexpected token", 19),
     (
         "<script>let a = 1nx;</script>",

@@ -48769,6 +48769,31 @@ b`;
 <!-- b -->
 <button>b</button>
 
+=== 48 pattern/module-declare-module.svelte.ts	svelte-module-ts	runes	-
+declare module "m" {
+	export const a: number;
+}
+
+=== 42 pattern/module-declare-namespace.svelte.ts	svelte-module-ts	runes	-
+declare namespace N {
+	const a: number;
+}
+
+=== 31 pattern/module-prologue-script.svelte.js	svelte-module-js	runes	-
+'use strict'
+let a = $state(1)
+
+=== 57 pattern/module-prologue-script.svelte.ts	svelte-module-ts	runes	-
+"use client";
+let a: number = $state(1);
+console.log(a);
+
+=== 74 pattern/module-prologue.svelte.js	svelte-module-js	runes	-
+"use strict";
+"other";
+import { x } from "y";
+export const a = $state(x);
+
 === 81 pattern/module-top-level-return.svelte.ts	svelte-module-ts	runes	-
 const ready = true;
 if (!ready) {

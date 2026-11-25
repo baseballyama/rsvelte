@@ -29630,6 +29630,22 @@ Rule: "svelte/valid-compile"
 === 80 pattern/matrix/whitespace-comments/two-adjacent-root.svelte	lint.txt
 4:1 4:9 svelte/button-has-type "Missing an explicit type attribute for button."
 
+=== 0 pattern/module-declare-module.svelte.ts	lint.txt
+
+=== 115 pattern/module-declare-namespace.svelte.ts	lint.txt
+1:19 1:20 no-unused-vars "'N' is defined but never used."
+2:8 2:17 no-unused-vars "'a' is defined but never used."
+
+=== 141 pattern/module-prologue-script.svelte.js	lint.txt
+2:5 2:6 no-unused-vars "'a' is assigned a value but never used."
+2:5 2:6 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+
+=== 122 pattern/module-prologue-script.svelte.ts	lint.txt
+2:5 2:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+3:1 3:8 no-undef "'console' is not defined."
+
+=== 0 pattern/module-prologue.svelte.js	lint.txt
+
 === 0 pattern/module-top-level-return.svelte.ts	lint.txt
 
 === 1123 pattern/nested-derived-shadows-prop.svelte	lint.txt

@@ -4,14 +4,13 @@
 use std::path::Path;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{Program, Statement};
+use oxc_ast::ast::{Directive, ImportOrExportKind, Program, Statement};
 use oxc_semantic::SemanticBuilder;
 use oxc_span::{SPAN, SourceType};
 use oxc_transformer::{TransformOptions, Transformer};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_typescript_compile::strip::ErasedComments;
 use rsvelte_typescript_tree::document_span;
 
 use super::validation::check_runes;
@@ -40,9 +39,8 @@ pub(crate) fn lower_module<'o>(
     let mut rewrite = script::ScriptRewrite {
         stores: &validated.stores,
         names: Some(&names),
-        ..script::ScriptRewrite::new(&b, target, res)
+        ..script::ScriptRewrite::new(&b, target, res, Unit::Module)
     };
-    rewrite.classes.unit = Unit::Module;
     let mut hoisted = Vec::new();
     let statements = script::lower_script(
         &mut rewrite,
@@ -57,7 +55,9 @@ pub(crate) fn lower_module<'o>(
         SourceType::mjs(),
         b.str(component.source_text),
         b.vec(
-            (ErasedComments::new(program).kept(program))
+            program
+                .comments
+                .iter()
                 .filter(|comment| script::outside(&rewrite.removed, comment.span))
                 .cloned(),
         ),
@@ -84,10 +84,12 @@ fn typescript_emit<'o>(
     out: &mut Program<'o>,
 ) -> Result<(), Diagnostic> {
     out.source_type = SourceType::ts();
-    let scoping = (SemanticBuilder::new().with_build_jsdoc(false))
-        .build(out)
-        .semantic
-        .into_scoping();
+    let scoping = (SemanticBuilder::new()
+        .with_build_jsdoc(false)
+        .with_enum_eval(true))
+    .build(out)
+    .semantic
+    .into_scoping();
     let mut options = TransformOptions::default();
     options.typescript.only_remove_type_imports = true;
     let transformed =
@@ -105,8 +107,17 @@ fn typescript_emit<'o>(
             span,
         ));
     }
-    if !source.body.iter().any(Statement::is_module_declaration) {
-        out.body.insert(0, b.statement(b.string("use strict")));
+    // TypeScript keeps a script strict, and a module that its emit leaves without an import or an
+    // export a module.
+    let module = source.body.iter().any(Statement::is_module_declaration);
+    if !module {
+        if !source.directives.iter().any(Directive::is_use_strict) {
+            out.body.insert(0, b.statement(b.string("use strict")));
+        }
+    } else if !out.body.iter().any(Statement::is_module_declaration) {
+        let nothing =
+            Statement::new_export_named_declaration(SPAN, b.vec([]), ImportOrExportKind::Value, b);
+        out.body.push(nothing);
     }
     Ok(())
 }

@@ -27,6 +27,7 @@ mod typecheck_config_dir;
 mod typecheck_events;
 mod typecheck_instantiation;
 mod typecheck_javascript;
+mod typecheck_line_ends;
 mod typecheck_linked_packages;
 mod typecheck_slot_attribute;
 mod typecheck_slot_props;

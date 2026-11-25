@@ -8,7 +8,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::paths;
-use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use rsvelte_typescript_api::{Layer, Position, Session};
 use selection::Selected;
 use shares::{Checked, Helper, check_shares};
@@ -219,7 +219,7 @@ impl Tsc {
         // svelte-check checks as a root.
         let unloaded = |file: usize| untyped_documents.unloaded(&paths[file], &selected.reached);
         let lines: Vec<LineIndex> = (0..req.files.len())
-            .map(|i| LineIndex::new(req.text(i)))
+            .map(|i| LineIndex::with_breaks(req.text(i), LineBreaks::Ecmascript))
             .collect();
         program
             .into_iter()
@@ -471,7 +471,7 @@ fn path_index(paths: &[PathBuf]) -> HashMap<&Path, usize> {
 }
 
 /// The document and byte range of a diagnostic in the document `index` names, whose texts
-/// `lines` index.
+/// `lines` index as TypeScript counts lines.
 fn located(
     d: &rsvelte_typescript_api::Diagnostic,
     index: &HashMap<&Path, usize>,
