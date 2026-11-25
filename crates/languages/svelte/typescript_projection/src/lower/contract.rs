@@ -320,9 +320,7 @@ impl Builder<'_> {
             return Ok(self.tree.push(Node::Identifier("any")));
         };
         // svelte2tsx types a route file's untyped props by their names alone.
-        let route = self
-            .route
-            .filter(|_| typed.is_none() && !self.tree.javascript);
+        let route = self.route.filter(|_| typed.is_none());
         let mut required = Buffer::new(0);
         let mut optional = Buffer::new(0);
         let rest = object.rest.is_some();
@@ -376,7 +374,8 @@ impl Builder<'_> {
             return Ok(self.typed_props(typed, statement, edits));
         }
         if let Some(route) = route {
-            return Ok(self.route_props(route, object, (statement, pattern.span().end), edits));
+            let at = [statement, at, pattern.span().end];
+            return Ok(self.route_props(route, object, at, edits));
         }
         let name = self.props_name();
         let required = self.tree.list(&required);

@@ -41,16 +41,24 @@ impl Route {
 }
 
 impl Builder<'_> {
-    /// Declares the `$$ComponentProps` svelte2tsx gives the untyped `object` of a route file before
-    /// `statement` and annotates the pattern, which ends at `end`, with it. Without a prop it
-    /// types, svelte2tsx leaves the props untyped.
+    /// Declares the `$$ComponentProps` svelte2tsx gives the untyped `object` of a route file and
+    /// types the pattern with it: before `statement` and after the pattern's `end` in TypeScript,
+    /// in `JSDoc` at the declarator's start `at` in JavaScript. Without a prop it types, svelte2tsx
+    /// leaves the props untyped.
     pub(super) fn route_props(
         &mut self,
         route: Route,
         object: &ObjectPattern<'_>,
-        (statement, end): (u32, u32),
+        [statement, at, end]: [u32; 3],
         edits: &mut Buffer<Edit>,
     ) -> NodeIdentifier {
+        let tokens = &self.component.tokens;
+        // TypeScript's `pos` of the declarator, after the token before it, where svelte2tsx
+        // writes the `JSDoc`.
+        let written = tokens
+            .before(at)
+            .map(|token| tokens.get(token).span.end_offset);
+        let written = written.expect("a declarator follows its keyword or a comma");
         let mut properties = Buffer::new(0);
         let mut unknown = object.rest.is_some();
         let mut aliases = 0;
@@ -69,16 +77,25 @@ impl Builder<'_> {
                 continue;
             }
             if let Some((name, kind)) = route.prop(name) {
-                // The generated `./$types` may not exist yet, which svelte-check does not report.
-                let alias = self.unused_name_from("__rsvelte_kit_type", aliases);
-                aliases += 1;
-                let value = self.tree.push(Node::Identifier(kind));
-                let declaration = self.tree.push(Node::TypeAlias { name: alias, value });
-                edits.push(Edit {
-                    span: Span::new(statement, statement),
-                    replacement: Some(self.tree.push(Node::Ignored(declaration))),
-                });
-                properties.push(self.route_prop(name, alias));
+                // The generated `./$types` may not exist yet, which svelte-check reports in
+                // JavaScript only, where svelte2tsx writes the type.
+                let value = if self.tree.javascript {
+                    self.tree.push(Node::IdentifierAt {
+                        name: kind,
+                        at: written,
+                    })
+                } else {
+                    let value = self.tree.push(Node::Identifier(kind));
+                    let alias = self.unused_name_from("__rsvelte_kit_type", aliases);
+                    aliases += 1;
+                    let declaration = self.tree.push(Node::TypeAlias { name: alias, value });
+                    edits.push(Edit {
+                        span: Span::new(statement, statement),
+                        replacement: Some(self.tree.push(Node::Ignored(declaration))),
+                    });
+                    alias
+                };
+                properties.push(self.route_prop(name, value));
             }
         }
         if route == Route::Layout {
@@ -95,16 +112,19 @@ impl Builder<'_> {
         let properties = self.tree.list(&properties);
         let value = self.tree.push(Node::TypeLiteral(properties));
         let name = self.tree.push(Node::Identifier("$$ComponentProps"));
-        let alias = self.tree.push(Node::TypeAlias { name, value });
-        edits.push(Edit {
-            span: Span::new(statement, statement),
-            replacement: Some(alias),
-        });
-        let annotation = self.tree.push(Node::TypeAnnotation(name));
-        edits.push(Edit {
-            span: Span::new(end, end),
-            replacement: Some(annotation),
-        });
+        let (alias, annotation, [alias_at, annotation_at]) = if self.tree.javascript {
+            let definition = Node::TypeDefinition { name, value };
+            (definition, Node::DeclaredType(name), [at, at])
+        } else {
+            let alias = Node::TypeAlias { name, value };
+            (alias, Node::TypeAnnotation(name), [statement, end])
+        };
+        for (node, at) in [(alias, alias_at), (annotation, annotation_at)] {
+            edits.push(Edit {
+                span: Span::new(at, at),
+                replacement: Some(self.tree.push(node)),
+            });
+        }
         name
     }
 
