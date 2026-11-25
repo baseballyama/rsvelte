@@ -236,3 +236,57 @@ fn typecheck_reports_a_forwarded_let_of_a_component_without_slots() {
             .native()
     );
 }
+
+/// svelte2tsx steps by characters in a start tag, where the whitespace may be U+3000 or U+00A0.
+/// svelte-check 4.7.8 reports these lines.
+#[test]
+fn typecheck_places_findings_by_characters_in_a_start_tag() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label }: { label: string } = $props();\n</script>\n\
+                {label}\n";
+    let user = |line: &str| {
+        format!("<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n</script>\n{line}\n")
+    };
+    let report = check(&[
+        ("src/Leaf.svelte", leaf),
+        ("src/S1.svelte", &user("<Leaf\u{3000}label=\"x\">t</Leaf>")),
+        (
+            "src/S2.svelte",
+            &user("<Leaf\u{a0}label=\"x\"\u{3000}let:x>{x}</Leaf>"),
+        ),
+        (
+            "src/S3.svelte",
+            &user("<Leaf label=\"x\" let:x\u{3000}>{x}</Leaf>"),
+        ),
+        (
+            "src/S4.svelte",
+            &user(
+                "<Leaf\u{3000}\u{3000}label=\"x\"\u{3000}\u{3000}let:x\u{3000}\u{3000}>{x}</Leaf>",
+            ),
+        ),
+        ("src/S5.svelte", &user("<Leaf\u{3000}>t</Leaf>")),
+        (
+            "src/S6.svelte",
+            &user("<Leaf /* \u{1d49c} */\u{3000}label=\"\u{1d49c}\" let:x>{x}</Leaf>"),
+        ),
+    ]);
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
+    let unknown = "error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.";
+    assert_eq!(
+        report,
+        format!(
+            "src/S1.svelte(4,13): {children}\n\
+             src/S2.svelte(4,16): {children}\n\
+             src/S2.svelte(4,21): {unknown}\n\
+             src/S3.svelte(4,16): {children}\n\
+             src/S3.svelte(4,22): {unknown}\n\
+             src/S4.svelte(4,7): {children}\n\
+             src/S4.svelte(4,24): {unknown}\n\
+             src/S5.svelte(4,5): {children}\n\
+             src/S6.svelte(4,26): {children}\n\
+             src/S6.svelte(4,31): {unknown}\n\
+             \nFound 10 errors in 6 files.\n"
+        )
+        .native()
+    );
+}

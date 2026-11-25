@@ -53,16 +53,14 @@ impl Builder<'_> {
     /// one to the tag name's last character.
     fn children_position(&self, name: Span, start_tag: Span, attributes: Range) -> u32 {
         let tag = self.start_tag(name, start_tag, attributes);
-        let overwritten = name.end_offset + 1;
+        let overwritten = tag.after(name.end_offset);
         if self.source[name.end_offset as usize..].starts_with(is_ecmascript_whitespace)
             && tag.extended(overwritten) > overwritten
         {
             return overwritten;
         }
-        tag.last_space().unwrap_or_else(|| {
-            let last = name.text(self.source).chars().next_back();
-            name.end_offset - last.map_or(0, |c| c.len_utf8() as u32)
-        })
+        tag.last_space()
+            .unwrap_or_else(|| tag.before(name.end_offset))
     }
 }
 
