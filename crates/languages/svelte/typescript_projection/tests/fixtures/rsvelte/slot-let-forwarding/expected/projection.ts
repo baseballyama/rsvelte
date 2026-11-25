@@ -31,12 +31,15 @@ function $$render() {
         }
       }
       {
-        svelteHTML.createElement("div", {});
+        const {} = $$_C0.$$slot_def["a"];
         {
-          __rsvelte_slots()("b", {
-            "let:bar": { baz },
-            baz,
-          });
+          svelteHTML.createElement("div", {});
+          {
+            __rsvelte_slots()("b", {
+              "let:bar": { baz },
+              baz,
+            });
+          }
         }
       }
       C;

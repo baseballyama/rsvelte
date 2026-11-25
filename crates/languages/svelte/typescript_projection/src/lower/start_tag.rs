@@ -12,6 +12,8 @@ use super::Builder;
 /// The moves of one start tag, `(start, end)` in source order, before `transform` extends them.
 pub(super) struct StartTag<M> {
     moves: M,
+    /// The tag's `<`.
+    start: u32,
     /// Where `transform` stops: after the tag's `>`.
     end: u32,
     /// Whether whitespace follows the tag name, which svelte2tsx removes first.
@@ -58,6 +60,28 @@ impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<M> {
         }
         space
     }
+
+    /// Where text written before the moves maps: the last removed run `transform` leaves in
+    /// place, the `<`'s at least. Without whitespace after the tag name it leaves each run, and
+    /// with it only the run after the last move when one character is left of it.
+    pub(super) fn unmoved_space(&self) -> u32 {
+        let mut moves = self.moves.clone();
+        let Some((_, first)) = moves.next() else {
+            return self.start;
+        };
+        let mut removed = self.extended(first);
+        let mut space = self.start;
+        for (start, end) in moves {
+            if !self.moves_runs && removed < start && start < self.end {
+                space = removed;
+            }
+            removed = self.extended(end);
+        }
+        if removed + 1 < self.end && !(self.moves_runs && removed + 2 < self.end) {
+            space = removed + 1;
+        }
+        space
+    }
 }
 
 impl Builder<'_> {
@@ -77,9 +101,12 @@ impl Builder<'_> {
             .chain(
                 (self.component.attributes(attributes).iter())
                     .flat_map(|attribute| self.attribute_moves(attribute)),
-            );
+            )
+            // `transform` skips an empty range.
+            .filter(|(start, end)| start < end);
         StartTag {
             moves,
+            start: tag.start_offset,
             end: tag.end_offset,
             moves_runs,
         }
@@ -108,7 +135,13 @@ impl Builder<'_> {
                 )),
                 false,
             ),
-            AttributeKind::Attribute if attribute.shorthand => (None, true),
+            // The slot a component's child fills is read from its name alone.
+            AttributeKind::Attribute
+                if attribute.shorthand
+                    || (self.component_parent && self.slot_text(attribute).is_some()) =>
+            {
+                (None, true)
+            }
             AttributeKind::Attribute => (Some(span(attribute.name)), true),
             // `bind:this` assigns the instance to its expression.
             AttributeKind::Bind
@@ -138,6 +171,19 @@ impl Builder<'_> {
             .rfind(|attribute| attribute.kind == AttributeKind::Let)?;
         let (_, end) = self.attribute_moves(attribute).last()?;
         Some(self.start_tag(name, tag, attributes).last_character(end))
+    }
+
+    /// Where svelte-check reports a finding on a filler's read of its slot: at the text
+    /// svelte2tsx writes before the slot's name, after the last `let:`'s `read` or else before
+    /// the moves.
+    pub(super) fn slot_read(
+        &self,
+        name: Span,
+        tag: Span,
+        attributes: Range,
+        read: Option<u32>,
+    ) -> u32 {
+        read.unwrap_or_else(|| self.start_tag(name, tag, attributes).unmoved_space())
     }
 }
 
