@@ -159,13 +159,17 @@ impl Builder<'_> {
         let attribute = &attributes[index];
         // `<svelte:component this={…}>` is an expression to svelte2tsx, and no attribute, and it
         // reads the slot a component's child fills before any comment.
-        let bare = self.is_this(attribute, dynamic) || self.filler_slot(attribute).is_some();
-        let (leading, trailing): (&[Span], &[Span]) = if bare {
-            (&[], &[])
-        } else {
-            self.attached_comments(attribute, after, index + 1 == attributes.len())
-        };
-        let (name, value) = self.copied(attribute, dynamic);
+        let filler = self.filler_slot(attribute);
+        let (leading, trailing): (&[Span], &[Span]) =
+            if filler.is_some() || self.is_this(attribute, dynamic) {
+                (&[], &[])
+            } else {
+                self.attached_comments(attribute, after, index + 1 == attributes.len())
+            };
+        let (name, value) = filler.map_or_else(
+            || self.copied(attribute, dynamic),
+            |slot| (None, Some(slot)),
+        );
         (leading.iter().copied())
             .chain(name)
             .chain(value)
@@ -186,11 +190,9 @@ impl Builder<'_> {
             .flatten()
     }
 
-    /// The ranges svelte2tsx copies of `attribute`: its name or the directive's, and its value.
+    /// The ranges svelte2tsx copies of `attribute`, if it names no slot it fills: its name or the
+    /// directive's, and its value.
     fn copied(&self, attribute: &Attribute, dynamic: bool) -> (Option<Span>, Option<Span>) {
-        if let Some(slot) = self.filler_slot(attribute) {
-            return (None, Some(slot));
-        }
         let value = match attribute.value {
             AttributeValue::Parts(parts) => self.copied_value(self.component.parts(parts)),
             AttributeValue::True => None,

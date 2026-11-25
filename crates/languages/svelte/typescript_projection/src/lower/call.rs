@@ -143,10 +143,17 @@ impl Builder<'_> {
                     component,
                     ..
                 } => {
-                    let attributes = self.component.attributes(attributes);
-                    attributes.iter().any(|a| self.slot_text(a).is_some())
-                        || ((component.is_none() || attributes.iter().any(|a| self.is_slot(a)))
-                            && attributes.iter().any(|a| a.kind == AttributeKind::Let))
+                    let (mut slot, mut has_let) = (component.is_none(), false);
+                    for attribute in self.component.attributes(attributes) {
+                        if self.is_slot(attribute) {
+                            if self.slot_text(attribute).is_some() {
+                                return true;
+                            }
+                            slot = true;
+                        }
+                        has_let |= attribute.kind == AttributeKind::Let;
+                    }
+                    slot && has_let
                 }
                 TemplateNode::If {
                     consequent,
