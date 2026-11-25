@@ -83,3 +83,67 @@ fn typecheck_reports_a_let_of_a_component_without_slots() {
         .native()
     );
 }
+
+/// svelte2tsx copies a start tag's comments with the attribute beside them, reads the `this` of
+/// `<svelte:component>` as no attribute, and counts a snippet's elements from its start.
+/// svelte-check 4.7.8 reports these lines.
+#[test]
+fn typecheck_places_a_let_by_the_start_tag_svelte2tsx_moves() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label = $bindable() }: { label: string } = \
+                $props();\n</script>\n<p>{label}</p>\n";
+    let user = |line: &str| {
+        format!("<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n</script>\n{line}\n")
+    };
+    let report = check(&[
+        ("src/Leaf.svelte", leaf),
+        (
+            "src/K1.svelte",
+            &user("<Leaf label=\"x\" /* c */ let:x>{x}</Leaf>"),
+        ),
+        (
+            "src/K2.svelte",
+            &user("<Leaf label=\"x\" // c\n\tlet:x>{x}</Leaf>"),
+        ),
+        (
+            "src/K3.svelte",
+            &user("<svelte:component this={Leaf} label=\"x\" let:y>{y}</svelte:component>"),
+        ),
+        (
+            "src/K4.svelte",
+            &user(
+                "<div>{#snippet s()}<Leaf label=\"x\" let:x>{x}</Leaf>{/snippet}{@render \
+                 s()}</div>",
+            ),
+        ),
+        (
+            "src/K5.svelte",
+            &user("<Leaf /* a */ label=\"x\">text</Leaf>"),
+        ),
+        (
+            "src/K6.svelte",
+            &user("<Leaf label=\"x\" /* c */>text</Leaf>"),
+        ),
+    ]);
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
+    let unknown = |name: &str| format!("error TS18046: '{name}.$$slot_def' is of type 'unknown'.");
+    let leaf = unknown("$$_faeL0");
+    let component = unknown("$$_tnenopmoc_etlevs0");
+    assert_eq!(
+        report,
+        format!(
+            "src/K1.svelte(4,25): {children}\n\
+             src/K1.svelte(4,29): {leaf}\n\
+             src/K2.svelte(5,1): {children}\n\
+             src/K2.svelte(5,6): {leaf}\n\
+             src/K3.svelte(4,19): {children}\n\
+             src/K3.svelte(4,45): {component}\n\
+             src/K4.svelte(4,35): {children}\n\
+             src/K4.svelte(4,40): {leaf}\n\
+             src/K5.svelte(4,21): {children}\n\
+             src/K6.svelte(4,16): {children}\n\
+             \nFound 10 errors in 6 files.\n"
+        )
+        .native()
+    );
+}

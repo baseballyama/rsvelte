@@ -34,7 +34,7 @@ impl Builder<'_> {
     ) -> Result<NodeIdentifier> {
         let tag = name.text(self.source);
         // svelte2tsx passes `this` of these outside the props.
-        let dynamic = matches!(tag, "svelte:component" | "svelte:element");
+        let dynamic = is_dynamic(tag);
         let component = match component {
             None if tag == "svelte:component" => Some(self.dynamic_component(name, attributes)?),
             component => component,
@@ -242,4 +242,9 @@ impl Builder<'_> {
         }
         Ok(())
     }
+}
+
+/// Whether the tag names its element or component with `this`.
+pub(super) fn is_dynamic(tag: &str) -> bool {
+    matches!(tag, "svelte:component" | "svelte:element")
 }

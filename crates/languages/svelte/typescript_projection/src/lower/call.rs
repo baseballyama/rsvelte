@@ -122,8 +122,6 @@ impl Builder<'_> {
         })
     }
 
-    /// Whether a child fills a slot with `let:`, which reads the component's slots: an element
-    /// with `slot`, or any element, which fills the default slot.
     /// Whether svelte2tsx names a component's instance, which its events and `let:` read.
     pub(super) fn reads_instance(&self, directives: &Directives, children: Range) -> bool {
         !directives.events.is_empty()
@@ -131,6 +129,8 @@ impl Builder<'_> {
             || self.fills_slot_with_lets(children)
     }
 
+    /// Whether a child fills a slot with `let:`, which reads the component's slots: an element
+    /// with `slot`, or any element, which fills the default slot.
     pub(super) fn fills_slot_with_lets(&self, children: Range) -> bool {
         self.component.children(children).iter().any(|&child| {
             matches!(
