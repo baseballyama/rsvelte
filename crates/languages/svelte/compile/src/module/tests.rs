@@ -421,3 +421,79 @@ fn a_typescript_module_analyzes_its_classes_as_typescript_emits_them() {
         assert_eq!(codes, ["duplicate_class_field"], "{source:?}");
     }
 }
+
+#[test]
+fn a_typescript_module_is_analyzed_as_typescript_emits_it() {
+    // TypeScript 6.0.3's emit, then svelte 5.59.1's `compileModule`.
+    for (source, client) in [
+        ("import A = require('x'); A = 1;", "A=1;export{};"),
+        (
+            "import A = require('x'); let A = 1; export const y = A;",
+            "letA=1;exportconsty=A;",
+        ),
+        (
+            "import A = require('x'); const A = $state(1); export const y = () => A;",
+            "constA=1;exportconsty=()=>A;",
+        ),
+        (
+            "export import A = require('x'); export const A = 1;",
+            "exportconstA=1;",
+        ),
+        (
+            "import A = require('x'); function A() {} export { A };",
+            "functionA(){}export{A};",
+        ),
+        (
+            "import $x = require('x'); export const y = 1;",
+            "exportconsty=1;",
+        ),
+        (
+            "import $ = require('x'); export const y = 1;",
+            "exportconsty=1;",
+        ),
+        (
+            "import $state = require('x'); export const y = $state(1);",
+            "exportconsty=1;",
+        ),
+        ("import A = require('x'); export = A;", "export{};"),
+        ("const A = 1; export = A;", "constA=1;export{};"),
+        (
+            "import type { T } from 'x'; const T = 1; export { T };",
+            "constT=1;export{T};",
+        ),
+        (
+            "let s = $state(0); export const f = () => { (s as any) = 1; };",
+            "lets=$.state(0);exportconstf=()=>{$.set(s,1);};",
+        ),
+        (
+            "export class C { n; constructor(public x: number) { this.n = $state(x); } }",
+            "exportclassC{#n;getn(){return$.get(this.#n);}setn(value){$.set(this.#n,value,true);}\
+             x;constructor(x){this.x=x;this.#n=$.state($.proxy(x));}}",
+        ),
+    ] {
+        assert_eq!(body(source, Target::Client), client, "{source:?}");
+    }
+    // Nothing binds the name the import would have.
+    for source in [
+        "import A = require('x'); export { A };",
+        "export import A = require('x'); export { A };",
+        "import type A = require('x'); export { A };",
+    ] {
+        let output = output("a.svelte.ts", source, Target::Client);
+        let codes: Vec<_> = output.diagnostics.iter().map(|d| &*d.code).collect();
+        assert_eq!(codes, ["export_undefined"], "{source:?}");
+    }
+    // oxc names a namespace's parameter and emits its enum in its own way.
+    for (source, client) in [
+        (
+            "namespace N { import A = require('x'); export const b = A; } export const y = N.b;",
+            "letN;(function(_N){constb=_N.b=A;})(N||(N={}));exportconsty=N.b;",
+        ),
+        (
+            "export enum E { A = 'a' }",
+            "exportletE=/*@__PURE__*/function(E){E[\"A\"]=\"a\";returnE;}({});",
+        ),
+    ] {
+        assert_eq!(body(source, Target::Client), client, "{source:?}");
+    }
+}

@@ -5,14 +5,16 @@ use oxc_allocator::{Allocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::Comment;
 use oxc_ast::ast::{
     ArrowFunctionExpression, CallExpression, CatchParameter, ChainElement, Class, ClassElement,
-    CommentPosition, Declaration, ExportDeclaration, ExportDefaultDeclarationKind, ExportSpecifier,
-    Expression, FormalParameter, FormalParameterRest, Function, FunctionBody,
-    ImportDeclarationSpecifier, MethodDefinition, MethodDefinitionKind, MethodDefinitionType,
-    NewExpression, Program, PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget,
-    Statement, TSModuleReference, TaggedTemplateExpression, VariableDeclarator,
+    CommentPosition, Declaration, ExportDeclaration, ExportDefaultDeclarationKind,
+    ExportNamedDeclaration, ExportSpecifier, Expression, FormalParameter, FormalParameterRest,
+    Function, FunctionBody, FunctionType, ImportDeclarationSpecifier, MethodDefinition,
+    MethodDefinitionKind, MethodDefinitionType, NewExpression, Program, PropertyDefinition,
+    PropertyDefinitionType, SimpleAssignmentTarget, Statement, TSModuleReference,
+    TaggedTemplateExpression, VariableDeclarator,
 };
+use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
-use oxc_span::{GetSpan, Span};
+use oxc_span::{GetSpan, SPAN, Span};
 use oxc_syntax::scope::ScopeFlags;
 
 /// Erases the types of every node it visits.
@@ -104,11 +106,12 @@ fn is_type_only_element(element: &ClassElement<'_>) -> bool {
     }
 }
 
-/// Whether `statement` is `import A = require("a")`, exported or not: TypeScript's emit for an ES
-/// module, which has no `require`, removes it.
+/// Whether `statement` is one that TypeScript's emit for an ES module, which has no `require` and
+/// no `module`, removes: `import A = require("a")`, exported or not, or `export = a`.
 #[must_use]
-pub fn imports_by_require(statement: &Statement<'_>) -> bool {
+pub fn is_common_js(statement: &Statement<'_>) -> bool {
     let import = match statement {
+        Statement::TSExportAssignment(_) => return true,
         Statement::TSImportEqualsDeclaration(import) => import,
         Statement::ExportDeclaration(export) => match &export.declaration {
             Declaration::TSImportEqualsDeclaration(import) => import,
@@ -122,27 +125,59 @@ pub fn imports_by_require(statement: &Statement<'_>) -> bool {
     )
 }
 
-/// Whether TypeScript's emit for an ES module removes `statement`.
-fn is_erased_statement(statement: &Statement<'_>) -> bool {
-    is_type_declaration(statement) || imports_by_require(statement)
+/// What TypeScript's emit of a module does and oxc's transform does not.
+pub struct ModuleEmit<'a> {
+    allocator: &'a Allocator,
 }
 
-/// Whether TypeScript's emit removes `element` from its class, as `transpileModule` does before
-/// svelte reads a `.svelte.ts` module: it keeps an accessor without a body, and gives it an empty
-/// one.
-#[must_use]
-pub fn is_erased_by_emit(element: &ClassElement<'_>) -> bool {
-    match element {
-        ClassElement::MethodDefinition(m) => {
-            m.r#type.is_abstract()
-                || (m.value.body.is_none()
-                    && !matches!(
-                        m.kind,
-                        MethodDefinitionKind::Get | MethodDefinitionKind::Set
-                    ))
-        }
-        element => is_type_only_element(element),
+impl std::fmt::Debug for ModuleEmit<'_> {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("ModuleEmit").finish_non_exhaustive()
     }
+}
+
+impl<'a> ModuleEmit<'a> {
+    #[must_use]
+    pub const fn new(allocator: &'a Allocator) -> Self {
+        Self { allocator }
+    }
+}
+
+impl<'a> VisitMut<'a> for ModuleEmit<'a> {
+    fn visit_statements(&mut self, it: &mut ArenaVec<'a, Statement<'a>>) {
+        it.retain(|s| !is_common_js(s));
+        walk_mut::walk_statements(self, it);
+    }
+
+    /// An export of types only is still an export.
+    fn visit_export_named_declaration(&mut self, it: &mut ExportNamedDeclaration<'a>) {
+        if !it.export_kind.is_type() {
+            it.specifiers.retain(|s| !is_type_export(s));
+        }
+    }
+
+    /// An accessor without a body gets an empty one.
+    fn visit_method_definition(&mut self, it: &mut MethodDefinition<'a>) {
+        let accessor = matches!(
+            it.kind,
+            MethodDefinitionKind::Get | MethodDefinitionKind::Set
+        );
+        if accessor && it.value.body.is_none() && !it.r#type.is_abstract() {
+            let b = AstBuilder::new(self.allocator);
+            let (directives, statements) = (
+                ArenaVec::new_in(&self.allocator),
+                ArenaVec::new_in(&self.allocator),
+            );
+            it.value.r#type = FunctionType::FunctionExpression;
+            it.value.body = Some(FunctionBody::boxed(SPAN, directives, statements, &b));
+        }
+        walk_mut::walk_method_definition(self, it);
+    }
+}
+
+/// Whether TypeScript's emit for an ES module removes `statement`.
+fn is_erased_statement(statement: &Statement<'_>) -> bool {
+    is_type_declaration(statement) || is_common_js(statement)
 }
 
 fn is_type_import(specifier: &ImportDeclarationSpecifier<'_>) -> bool {
