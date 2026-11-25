@@ -1,3 +1,5 @@
+use std::fmt::Write as _;
+
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::Range;
@@ -437,24 +439,24 @@ impl Printer<'_> {
 mod tests;
 
 impl Printer<'_> {
-    /// svelte2tsx's name of a component's instance, mapped to `at` when there is one.
+    /// svelte2tsx's `InlineComponent` name of a component's instance, mapped to `at` when there
+    /// is one: `$$_`, its `sanitizePropName` of the tag reversed, so that TypeScript suggests no
+    /// generated name for an undeclared component, and the depth.
     fn instance(&mut self, tag: Span, depth: u32, at: Option<u32>) {
-        let name = instance_name(tag.text(self.source), depth);
-        self.output.atom_at(&name, at.map(|at| Span::new(at, at)));
+        let start = self.output.out.len() as u32;
+        let tag = tag.text(self.source);
+        if tag == "svelte:self" {
+            self.output.push("$$_svelteself");
+        } else {
+            self.output.push("$$_");
+            for c in tag.chars().rev() {
+                let sanitized = c.is_ascii_alphanumeric() || c == '$';
+                self.output.push_char(if sanitized { c } else { '_' });
+            }
+        }
+        write!(self.output.out, "{depth}").expect("writing to a String cannot fail");
+        if let Some(at) = at {
+            self.output.atom_since(start, Span::new(at, at));
+        }
     }
-}
-
-/// svelte2tsx's `InlineComponent` name: its `sanitizePropName` of the tag reversed, so that
-/// TypeScript suggests no generated name for an undeclared component, and the depth.
-fn instance_name(tag: &str, depth: u32) -> String {
-    if tag == "svelte:self" {
-        return format!("$$_svelteself{depth}");
-    }
-    let reversed: String = (tag.chars().rev())
-        .map(|c| match c {
-            '0'..='9' | 'A'..='Z' | 'a'..='z' | '$' | '_' => c,
-            _ => '_',
-        })
-        .collect();
-    format!("$$_{reversed}{depth}")
 }

@@ -2,10 +2,9 @@ use super::StartTag;
 
 /// `<Leaf label="x" let:x>`: the moves of the name, the space after it, `label`, `x` and the
 /// `let:` name, which svelte2tsx 0.7.63 maps as these tests say.
-fn leaf(end: u32, let_name: (u32, u32)) -> StartTag {
+fn leaf(end: u32, let_name: (u32, u32)) -> StartTag<std::vec::IntoIter<(u32, u32)>> {
     StartTag {
-        moves: vec![(1, 5), (5, 6), (6, 11), (13, 14), let_name],
-        start: 0,
+        moves: vec![(1, 5), (5, 6), (6, 11), (13, 14), let_name].into_iter(),
         end,
         moves_runs: true,
     }
@@ -28,10 +27,16 @@ fn appended_text_maps_to_the_last_removed_run() {
     assert_eq!(leaf(22, (20, 21)).last_space(), Some(15));
     // `<Leaf label="x"   let:x   >`: the run after the last move, less its first character.
     let spaced = StartTag {
-        moves: vec![(1, 5), (5, 6), (6, 11), (13, 14), (22, 23)],
-        start: 0,
+        moves: vec![(1, 5), (5, 6), (6, 11), (13, 14), (22, 23)].into_iter(),
         end: 27,
         moves_runs: true,
     };
     assert_eq!(spaced.last_space(), Some(25));
+    // `<Foo a={1}\n>`: after the deleted newline only the `>` is left, which stays in place.
+    let newline = StartTag {
+        moves: vec![(1, 4), (4, 5), (5, 6), (8, 9)].into_iter(),
+        end: 12,
+        moves_runs: true,
+    };
+    assert_eq!(newline.last_space(), Some(7));
 }

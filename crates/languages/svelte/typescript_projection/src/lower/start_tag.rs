@@ -9,28 +9,21 @@ use rsvelte_typescript_tree::node_span;
 
 use super::Builder;
 
-/// The moves of one start tag, each `(start, end)` once `transform` has extended it.
-pub(super) struct StartTag {
-    moves: Vec<(u32, u32)>,
-    /// Where the tag starts, at its `<`.
-    start: u32,
+/// The moves of one start tag, `(start, end)` in source order, before `transform` extends them.
+pub(super) struct StartTag<M> {
+    moves: M,
     /// Where `transform` stops: after the tag's `>`.
     end: u32,
     /// Whether whitespace follows the tag name, which svelte2tsx removes first.
     moves_runs: bool,
 }
 
-impl StartTag {
-    /// Whether a move starts at `offset`.
-    fn moves_at(&self, offset: u32) -> bool {
-        self.moves.iter().any(|&(start, _)| start == offset)
-    }
-
+impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<M> {
     /// svelte2tsx's `transform` extends a move over the character after it, which the text it
     /// writes next overwrites, unless that is the tag's last character or another move starts
     /// there.
     pub(super) fn extended(&self, end: u32) -> u32 {
-        if end + 1 < self.end && !self.moves_at(end) {
+        if end + 1 < self.end && !self.moves.clone().any(|(start, _)| start == end) {
             end + 1
         } else {
             end
@@ -50,17 +43,15 @@ impl StartTag {
         if !self.moves_runs {
             return None;
         }
-        let mut moves: Vec<(u32, u32)> = (self.moves.iter())
-            .map(|&(start, end)| (start, self.extended(end)))
-            .collect();
-        moves.sort_unstable();
-        let mut removed = moves.first().map_or(self.start, |&(start, _)| start);
+        let mut moves = self.moves.clone();
+        let (_, first) = moves.next()?;
+        let mut removed = self.extended(first);
         let mut space = None;
         for (start, end) in moves {
             if removed < start && start < self.end {
                 space = Some(removed);
             }
-            removed = end;
+            removed = self.extended(end);
         }
         if removed + 2 < self.end {
             space = Some(removed + 1);
@@ -72,19 +63,23 @@ impl StartTag {
 impl Builder<'_> {
     /// The moves of a start tag at `tag` with the tag name `name`, as svelte2tsx writes a
     /// component's: its name, the whitespace after it, and the ranges each attribute copies.
-    pub(super) fn start_tag(&self, name: Span, tag: Span, attributes: Range) -> StartTag {
-        let mut moves = vec![(name.start_offset, name.end_offset)];
+    pub(super) fn start_tag(
+        &self,
+        name: Span,
+        tag: Span,
+        attributes: Range,
+    ) -> StartTag<impl Iterator<Item = (u32, u32)> + Clone + '_> {
         let after_name = name.end_offset as usize;
         let moves_runs = self.source[after_name..].starts_with(is_ecmascript_whitespace);
-        if moves_runs {
-            moves.push((name.end_offset, name.end_offset + 1));
-        }
-        for attribute in self.component.attributes(attributes) {
-            self.attribute_moves(attribute, &mut moves);
-        }
+        let whitespace = moves_runs.then_some((name.end_offset, name.end_offset + 1));
+        let moves = std::iter::once((name.start_offset, name.end_offset))
+            .chain(whitespace)
+            .chain(
+                (self.component.attributes(attributes).iter())
+                    .flat_map(|attribute| self.attribute_moves(attribute)),
+            );
         StartTag {
             moves,
-            start: tag.start_offset,
             end: tag.end_offset,
             moves_runs,
         }
@@ -92,41 +87,48 @@ impl Builder<'_> {
 
     /// The ranges svelte2tsx copies of `attribute`: its name or the directive's, then each part
     /// of its value, or for a shorthand or a spread the expression alone.
-    fn attribute_moves(&self, attribute: &Attribute, moves: &mut Vec<(u32, u32)>) {
+    fn attribute_moves(
+        &self,
+        attribute: &Attribute,
+    ) -> impl Iterator<Item = (u32, u32)> + Clone + '_ {
         let span = |span: Span| (span.start_offset, span.end_offset);
         let javascript = &self.component.javascript;
         let parts = match attribute.value {
             AttributeValue::Parts(parts) => self.component.parts(parts),
             AttributeValue::True => &[],
         };
-        let value = parts.iter().map(|part| match *part {
+        let directive = attribute
+            .directive_name(&self.component.modifiers)
+            .map(span);
+        let (head, value) = match attribute.kind {
+            AttributeKind::Spread => (
+                Some((
+                    attribute.span.start_offset + 1,
+                    attribute.span.end_offset - 1,
+                )),
+                false,
+            ),
+            AttributeKind::Attribute if attribute.shorthand => (None, true),
+            AttributeKind::Attribute => (Some(span(attribute.name)), true),
+            // `bind:this` assigns the instance to its expression.
+            AttributeKind::Bind
+                if directive.is_some_and(|(start, end)| {
+                    &self.source[start as usize..end as usize] == "this"
+                }) =>
+            {
+                (None, true)
+            }
+            AttributeKind::Bind if attribute.shorthand => (directive, false),
+            AttributeKind::Bind | AttributeKind::On | AttributeKind::Let => (directive, true),
+            _ => (None, false),
+        };
+        let value = (parts.iter().filter(move |_| value)).map(move |part| match *part {
             Part::Text(text) => span(text),
             Part::Expression { expression, .. } => {
                 span(node_span(javascript.get_expression(expression)))
             }
         });
-        let directive = attribute.directive_name(&self.component.modifiers);
-        match attribute.kind {
-            AttributeKind::Spread => moves.push((
-                attribute.span.start_offset + 1,
-                attribute.span.end_offset - 1,
-            )),
-            AttributeKind::Attribute if attribute.shorthand => moves.extend(value),
-            AttributeKind::Attribute => {
-                moves.push(span(attribute.name));
-                moves.extend(value);
-            }
-            // `bind:this` assigns the instance to its expression.
-            AttributeKind::Bind if directive.is_some_and(|d| d.text(self.source) == "this") => {
-                moves.extend(value);
-            }
-            AttributeKind::Bind if attribute.shorthand => moves.extend(directive.map(span)),
-            AttributeKind::Bind | AttributeKind::On | AttributeKind::Let => {
-                moves.extend(directive.map(span));
-                moves.extend(value);
-            }
-            _ => {}
-        }
+        head.into_iter().chain(value)
     }
 
     /// Where svelte-check reports a finding on what the last `let:` of a start tag destructures:
@@ -134,9 +136,7 @@ impl Builder<'_> {
     pub(super) fn last_let_read(&self, name: Span, tag: Span, attributes: Range) -> Option<u32> {
         let attribute = (self.component.attributes(attributes).iter())
             .rfind(|attribute| attribute.kind == AttributeKind::Let)?;
-        let mut moves = Vec::new();
-        self.attribute_moves(attribute, &mut moves);
-        let &(_, end) = moves.last()?;
+        let (_, end) = self.attribute_moves(attribute).last()?;
         Some(self.start_tag(name, tag, attributes).last_character(end))
     }
 }
