@@ -102,8 +102,8 @@ fn typecheck_reports_an_unknown_slot_name_of_every_filler() {
                <Leaf label=\"x\"><div slot=\"s\"></div></Leaf>\n\
                <Parent value={1}>{#await Promise.resolve(1) then n}<div slot=\"nope\"></div>\
                {/await}</Parent>\n\
-               <Parent value={1}><Leaf /* c */ slot=\"nope\" label=\"a\"></Leaf></Parent>\n\
-               <Parent value={1}><Leaf slot=\"\" label=\"a\">t</Leaf></Parent>\n";
+               <Parent value={1}><Leaf label=\"a\" slot=\"nope\" /* c */>t</Leaf></Parent>\n\
+               <Parent value={1}><Leaf label=\"a\" slot=\"\">t</Leaf></Parent>\n";
     let report = check(&[
         ("src/Parent.svelte", parent),
         ("src/Leaf.svelte", leaf),
@@ -117,6 +117,8 @@ fn typecheck_reports_an_unknown_slot_name_of_every_filler() {
              exist on type '{slots}'."
         )
     };
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
     let (empty, unknown) = (unknown(""), unknown("nope"));
     assert_eq!(
         report,
@@ -127,10 +129,10 @@ fn typecheck_reports_an_unknown_slot_name_of_every_filler() {
              src/App.svelte(9,17): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
              src/App.svelte(10,53): {unknown}\n\
              src/App.svelte(11,19): {unknown}\n\
+             src/App.svelte(11,47): {children}\n\
              src/App.svelte(12,19): {empty}\n\
-             src/App.svelte(12,25): error TS2353: Object literal may only specify known \
-             properties, and 'children' does not exist in type '$$ComponentProps'.\n\
-             \nFound 8 errors in 1 file.\n"
+             src/App.svelte(12,35): {children}\n\
+             \nFound 9 errors in 1 file.\n"
         )
         .native()
     );
