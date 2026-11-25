@@ -32,6 +32,10 @@ pub struct Emitter {
     /// starts in one. The original text a range maps from is mapped from nowhere else, so a
     /// finding already mapped back still tells whether it started in one ([`Emitter::maps_into`]).
     pub ignored: Vec<Span>,
+    /// The generated range the projected language's own tool writes with no mapping, so that it
+    /// drops a finding there that maps nowhere: svelte2tsx's return, one per projection. Only such
+    /// a finding reads it: a copy inside still maps its own.
+    pub unmapped: Option<Span>,
 }
 
 impl Emitter {
@@ -43,6 +47,7 @@ impl Emitter {
             mappings: Vec::with_capacity(mappings),
             atoms: Vec::with_capacity(atoms),
             ignored: Vec::new(),
+            unmapped: None,
         }
     }
 
@@ -101,6 +106,11 @@ impl Emitter {
     /// Marks the output written since `start` as [`Emitter::ignored`].
     pub fn ignore_since(&mut self, start: u32) {
         self.ignored.push(Span::new(start, self.out.len() as u32));
+    }
+
+    /// Marks the output written since `start` as [`Emitter::unmapped`].
+    pub const fn unmapped_since(&mut self, start: u32) {
+        self.unmapped = Some(Span::new(start, self.out.len() as u32));
     }
 
     /// Whether a character inside `generated` maps from the original offset `original`: a copied
