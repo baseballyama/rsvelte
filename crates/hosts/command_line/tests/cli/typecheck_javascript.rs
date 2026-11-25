@@ -1,6 +1,6 @@
 //! `rsvelte typecheck` on JavaScript modules, which TypeScript checks as the tsconfig says.
 
-use crate::typecheck::{Project, text, typecheck_config};
+use crate::typecheck::{Native, Project, text, typecheck_config};
 
 /// The project's JavaScript modules, under `compilerOptions` `options`.
 fn project(options: &str) -> Project {
@@ -37,7 +37,7 @@ fn typecheck_checks_javascript_as_the_tsconfig_says() {
     let output = project(r#","allowJs":true"#).rsvelte_in("app", &["typecheck"]);
     assert_eq!(
         format!("{}{}", text(&output.stdout), text(&output.stderr)),
-        format!("{checked}\nFound 1 error in 1 file.\n")
+        format!("{checked}\nFound 1 error in 1 file.\n").native()
     );
     let output = project(r#","checkJs":true"#).rsvelte_in("app", &["typecheck"]);
     assert_eq!(
@@ -52,5 +52,6 @@ fn typecheck_checks_javascript_as_the_tsconfig_says() {
              build')\n\
              \nFound 3 errors in 3 files.\n"
         )
+        .native()
     );
 }

@@ -3,6 +3,7 @@ use std::path::{Component, Path, PathBuf};
 
 use rsvelte_kernel::output::emitter::{Atom, Mapping};
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::paths;
 
 use super::CheckRequest;
 use crate::check::StandIn;
@@ -118,7 +119,7 @@ pub(super) fn store_json(
     output.begin_object().key("files").begin_object();
     let mut entry = |path: &Path, [source, text, extension]: [&str; 3], mappings, atoms| {
         output
-            .key(&path.to_string_lossy())
+            .key(&paths::typescript(&path.to_string_lossy()))
             .begin_object()
             .key("source")
             .write_string(source)

@@ -1,4 +1,4 @@
-use super::plain;
+use super::{plain, typescript};
 
 #[test]
 fn a_verbatim_drive_path_reads_plain() {
@@ -85,4 +85,11 @@ fn a_long_path_and_characters_beyond_ascii_read_plain() {
         plain("\\\\?\\C:\\a\u{7f}b\\\u{85}c"),
         "C:\\a\u{7f}b\\\u{85}c"
     );
+}
+
+#[test]
+fn typescript_names_a_file_with_forward_slashes() {
+    assert_eq!(typescript(r"C:\Users\a\b.ts"), "C:/Users/a/b.ts");
+    assert_eq!(typescript(r"\\server\share\a.ts"), "//server/share/a.ts");
+    assert_eq!(typescript("/home/a/b.ts"), "/home/a/b.ts");
 }
