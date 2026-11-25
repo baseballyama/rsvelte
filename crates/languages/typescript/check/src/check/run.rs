@@ -154,11 +154,13 @@ impl Tsc {
             tsconfig_json(base.as_deref(), req, &own, &roots, Some(&store)),
         );
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
-        // Where every import of JavaScript is untyped, the checker resolves each import.
-        let resolve = all_untyped.then_some((req, paths.as_slice(), &javascript));
+        let mut external = std::mem::take(&mut own.selected.external);
+        // Where an import of JavaScript may be untyped, the checker resolves each import.
+        let resolve =
+            (all_untyped || !external.is_empty()).then_some((req, paths.as_slice(), &javascript));
         let mut checked = check_shares(&mut session, helpers, &config, &layer, &files, resolve)
             .map_err(failed)?;
-        let external = std::mem::take(&mut own.selected.external);
+        untyped::drop_loaded(req, &checked.modules, &mut external);
         if !external.is_empty() {
             // The components a search of `node_modules` finds read as untyped JavaScript, which
             // the projections say, so the files are checked again with them.
@@ -166,9 +168,10 @@ impl Tsc {
             let text = tsconfig_json(base.as_deref(), req, &own, &roots, Some(&store));
             layer.files.insert(config.clone(), text);
             let helpers = self.start_helpers(paths.len(), &root);
-            let resolve = Some((req, paths.as_slice(), &javascript));
-            checked = check_shares(&mut session, helpers, &config, &layer, &files, resolve)
+            let modules = std::mem::take(&mut checked.modules);
+            checked = check_shares(&mut session, helpers, &config, &layer, &files, None)
                 .map_err(failed)?;
+            checked.modules = modules;
         }
         let untyped_documents = UntypedDocuments {
             all: all_untyped,

@@ -151,6 +151,35 @@ pub(super) fn imports<'a>(
     untyped
 }
 
+/// Drops from `external` each document an import of a typed document reaches other than by a
+/// search of `node_modules`: TypeScript loads a JavaScript file such an import reaches, whatever
+/// else reaches it, and svelte-check reads only that import's resolution, not its link.
+pub(super) fn drop_loaded(
+    req: &CheckRequest<'_>,
+    modules: &[(usize, Vec<Option<PathBuf>>)],
+    external: &mut HashSet<PathBuf>,
+) {
+    for (file, modules) in modules {
+        for (CheckedImport { import, .. }, module) in req.imports[*file].iter().zip(modules) {
+            if let Some(module) = module.as_deref().map(normalized)
+                && !searched(&import.specifier, &module)
+            {
+                external.remove(&module);
+            }
+        }
+    }
+}
+
+/// Whether TypeScript reads an import of `specifier` that reaches `module` as a search of
+/// `node_modules` (`isExternalLibraryImport`): a relative or rooted one is not, unless its path
+/// passes through `node_modules`.
+fn searched(specifier: &str, module: &Path) -> bool {
+    let rest = (specifier.strip_prefix("..")).or_else(|| specifier.strip_prefix('.'));
+    let relative = rest.is_some_and(|rest| rest.is_empty() || rest.starts_with(['/', '\\']))
+        || Path::new(specifier).has_root();
+    !relative || module.components().any(|c| c.as_os_str() == "node_modules")
+}
+
 /// `Value refers to a value, but is being used as a type here.`
 const VALUE_AS_TYPE: u32 = 2749;
 
@@ -306,3 +335,6 @@ pub(super) fn options_declaration(overlay: &Path) -> (PathBuf, String) {
 }
 
 pub(super) mod ambient;
+
+#[cfg(test)]
+mod tests;
