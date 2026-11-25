@@ -26,7 +26,11 @@ impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<M> {
     /// writes next overwrites, unless that is the tag's last character or another move starts
     /// there.
     pub(super) fn extended(&self, end: u32) -> u32 {
-        if end + 1 < self.end && !self.moves.clone().any(|(start, _)| start == end) {
+        self.extended_unless(end, self.moves.clone().any(|(start, _)| start == end))
+    }
+
+    const fn extended_unless(&self, end: u32, moved: bool) -> u32 {
+        if end + 1 < self.end && !moved {
             end + 1
         } else {
             end
@@ -38,6 +42,16 @@ impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<M> {
         self.extended(end) - 1
     }
 
+    /// Where each run `transform` removes after a move starts, and the move it ends at, if any.
+    fn runs(&self) -> impl Iterator<Item = (u32, Option<u32>)> {
+        let mut moves = self.moves.clone().peekable();
+        std::iter::from_fn(move || {
+            let (_, end) = moves.next()?;
+            let next = moves.peek().map(|&(start, _)| start);
+            Some((self.extended_unless(end, next == Some(end)), next))
+        })
+    }
+
     /// Where text appended after the moves maps: the last space a removed run is written as,
     /// of those `transform` moves after the text it generates. With whitespace after the tag
     /// name, it moves the space of each run between two moves but the `<`'s, and of the run after
@@ -46,18 +60,13 @@ impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<M> {
         if !self.moves_runs {
             return None;
         }
-        let mut moves = self.moves.clone();
-        let (_, first) = moves.next()?;
-        let mut removed = self.extended(first);
         let mut space = None;
-        for (start, end) in moves {
-            if removed < start && start < self.end {
-                space = Some(removed);
+        for (removed, next) in self.runs() {
+            match next {
+                Some(start) if removed < start && start < self.end => space = Some(removed),
+                None if removed + 2 < self.end => space = Some(removed + 1),
+                _ => {}
             }
-            removed = self.extended(end);
-        }
-        if removed + 2 < self.end {
-            space = Some(removed + 1);
         }
         space
     }
