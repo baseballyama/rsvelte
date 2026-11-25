@@ -84,6 +84,60 @@ fn typecheck_reports_a_let_of_a_component_without_slots() {
     );
 }
 
+/// svelte2tsx reads `$$slot_def[name]` for every child that names the slot it fills, through any
+/// blocks, with or without a `let:`, so an unknown name is reported at the start of its tag.
+/// svelte-check 4.7.8 reports these lines, and the `slot` inside `{#await}` as misplaced.
+#[test]
+fn typecheck_reports_an_unknown_slot_name_of_every_filler() {
+    let parent = "<script lang=\"ts\">\n\tlet { value }: { value: number } = $props();\n\
+                  </script>\n<slot name=\"item\" item={value} />\n<slot />\n";
+    let leaf = "<script lang=\"ts\">\n\tlet { label }: { label: string } = $props();\n\
+                </script>\n<p>{label}</p>\n";
+    let app = "<script lang=\"ts\">\n\timport Parent from \"./Parent.svelte\";\n\
+               \timport Leaf from \"./Leaf.svelte\";\n</script>\n\
+               <Parent value={1}><div slot=\"nope\"></div></Parent>\n\
+               <Parent value={1}><Leaf slot=\"nope\" label=\"a\"></Leaf></Parent>\n\
+               <Parent value={1}><svelte:fragment slot=\"nope\" /></Parent>\n\
+               <Parent value={1}><div slot=\"item\"></div></Parent>\n\
+               <Leaf label=\"x\"><div slot=\"s\"></div></Leaf>\n\
+               <Parent value={1}>{#await Promise.resolve(1) then n}<div slot=\"nope\"></div>\
+               {/await}</Parent>\n\
+               <Parent value={1}><Leaf label=\"a\" slot=\"nope\" /* c */>t</Leaf></Parent>\n\
+               <Parent value={1}><Leaf label=\"a\" slot=\"\">t</Leaf></Parent>\n";
+    let report = check(&[
+        ("src/Parent.svelte", parent),
+        ("src/Leaf.svelte", leaf),
+        ("src/App.svelte", app),
+    ]);
+    let slots = "{ item: { item: number; }; default: {}; }";
+    let unknown = |slot: &str| {
+        format!(
+            "error TS7053: Element implicitly has an 'any' type because expression of type \
+             '\"{slot}\"' can't be used to index type '{slots}'.\n  Property '{slot}' does not \
+             exist on type '{slots}'."
+        )
+    };
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
+    let (empty, unknown) = (unknown(""), unknown("nope"));
+    assert_eq!(
+        report,
+        format!(
+            "src/App.svelte(5,19): {unknown}\n\
+             src/App.svelte(6,19): {unknown}\n\
+             src/App.svelte(7,19): {unknown}\n\
+             src/App.svelte(9,17): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
+             src/App.svelte(10,53): {unknown}\n\
+             src/App.svelte(11,19): {unknown}\n\
+             src/App.svelte(11,47): {children}\n\
+             src/App.svelte(12,19): {empty}\n\
+             src/App.svelte(12,35): {children}\n\
+             \nFound 9 errors in 1 file.\n"
+        )
+        .native()
+    );
+}
+
 /// svelte2tsx copies a start tag's comments with the attribute beside them, reads the `this` of
 /// `<svelte:component>` as no attribute, and counts a snippet's elements from its start.
 /// svelte-check 4.7.8 reports these lines.

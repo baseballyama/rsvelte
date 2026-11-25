@@ -163,13 +163,7 @@ impl Builder<'_> {
                 // A component's child, element or component, names the slot it fills with a text
                 // `slot`, which svelte2tsx reads as that slot rather than as a property.
                 AttributeKind::Attribute
-                    if self.component_parent
-                        && attribute.name.text(self.source) == "slot"
-                        && matches!(
-                            attribute.value,
-                            AttributeValue::Parts(parts)
-                                if matches!(self.component.parts(parts), [Part::Text(_)])
-                        ) => {}
+                    if self.component_parent && self.slot_text(attribute).is_some() => {}
                 // An attribute, or a `let:` that fills no slot, which svelte2tsx's `handleLet`
                 // writes as one.
                 _ => {

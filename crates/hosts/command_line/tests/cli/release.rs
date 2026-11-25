@@ -1,6 +1,6 @@
 //! `rsvelte`, the command people install: its commands, and what it refuses.
 
-use std::process::{Command, Output};
+use std::process::Output;
 
 use crate::Scratch;
 struct Project(Scratch);
@@ -11,12 +11,8 @@ impl Project {
     }
 
     fn rsvelte(&self, arguments: &[&str]) -> Output {
-        Command::new(env!("CARGO_BIN_EXE_rsvelte"))
-            .current_dir(&self.0)
+        crate::rsvelte(&self.0)
             .args(arguments)
-            // oxlint colours its report wherever `CI` or `FORCE_COLOR` is set.
-            .env_remove("CI")
-            .env_remove("FORCE_COLOR")
             .output()
             .expect("run CLI")
     }

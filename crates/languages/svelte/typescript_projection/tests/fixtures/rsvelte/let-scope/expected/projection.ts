@@ -23,8 +23,11 @@ function $$render() {
         } = $$_C0.$$slot_def.default;
         x;
         {
-          svelteHTML.createElement("p", {});
-          x;
+          const {} = $$_C0.$$slot_def["a"];
+          {
+            svelteHTML.createElement("p", {});
+            x;
+          }
         }
         {
           const {
