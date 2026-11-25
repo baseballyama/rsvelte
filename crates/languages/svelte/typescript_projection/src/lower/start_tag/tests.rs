@@ -45,6 +45,10 @@ fn a_character_of_several_bytes_is_one_step() {
     // U+3000 after the `let:` name, before the `>` and before two spaces.
     let close = leaf("<Leaf label=\"x\" let:x\u{3000}>");
     assert_eq!((close.extended(21), close.last_character(21)), (24, 21));
+    // Two: deleting the first leaves one character before the `>`, so ` let:` is the last
+    // space (svelte-check 4.7.8 reports `children` at column 16).
+    let two = leaf("<Leaf label=\"x\" let:x\u{3000}\u{3000}>");
+    assert_eq!(two.last_space(), Some(15));
     let run = leaf("<Leaf label=\"x\" let:x\u{3000}\u{3000}\u{3000}>");
     assert_eq!((run.extended(21), run.last_space()), (24, Some(27)));
     // A name that ends in an astral character.
