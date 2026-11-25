@@ -44,6 +44,26 @@ fn typecheck_drops_findings_in_a_store_declaration() {
             "<script lang=\"ts\">\n\timport type { T } from './values';\n</script>\n\n{$T}{T}\n",
         ),
     ]);
+    // A copy keeps TypeScript's message but for the line about the content mapper's code.
+    let copy: Vec<_> = (report.lines())
+        .skip_while(|l| !l.starts_with("src/Bom.svelte(5,3)"))
+        .take_while({
+            let mut first = true;
+            move |l| std::mem::take(&mut first) || !l.starts_with("src")
+        })
+        .collect();
+    assert_eq!(
+        copy,
+        [
+            "src/Bom.svelte(5,3): error TS2769: Cannot use 'n' as a store. 'n' needs to be an \
+             object with a subscribe method on it.",
+            "",
+            "No overload matches this call.",
+            "  The last overload gave the following error.",
+            "    Argument of type 'number' is not assignable to parameter of type \
+             'SvelteStore<any>'.",
+        ]
+    );
     let lines: Vec<_> = report.lines().filter(|l| l.starts_with("src")).collect();
     let store = "error TS2769: Cannot use 'n' as a store. 'n' needs to be an object with a \
                  subscribe method on it.";
