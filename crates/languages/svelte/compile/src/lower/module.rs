@@ -11,7 +11,6 @@ use oxc_transformer::{TransformOptions, Transformer};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_typescript_compile::strip::{ErasedComments, imports_by_require};
 use rsvelte_typescript_tree::document_span;
 
 use super::validation::check_runes;
@@ -56,7 +55,9 @@ pub(crate) fn lower_module<'o>(
         SourceType::mjs(),
         b.str(component.source_text),
         b.vec(
-            (ErasedComments::new(program).kept(program))
+            program
+                .comments
+                .iter()
                 .filter(|comment| script::outside(&rewrite.removed, comment.span))
                 .cloned(),
         ),
@@ -82,13 +83,13 @@ fn typescript_emit<'o>(
     filename: &str,
     out: &mut Program<'o>,
 ) -> Result<(), Diagnostic> {
-    // An ES module has no `require`, so TypeScript's emit for one drops what reads it.
-    out.body.retain(|statement| !imports_by_require(statement));
     out.source_type = SourceType::ts();
-    let scoping = (SemanticBuilder::new().with_build_jsdoc(false))
-        .build(out)
-        .semantic
-        .into_scoping();
+    let scoping = (SemanticBuilder::new()
+        .with_build_jsdoc(false)
+        .with_enum_eval(true))
+    .build(out)
+    .semantic
+    .into_scoping();
     let mut options = TransformOptions::default();
     options.typescript.only_remove_type_imports = true;
     let transformed =
@@ -108,7 +109,7 @@ fn typescript_emit<'o>(
     }
     // TypeScript keeps a script strict, and a module that its emit leaves without an import or an
     // export a module.
-    let module = (source.body.iter()).any(|s| s.is_module_declaration() || imports_by_require(s));
+    let module = source.body.iter().any(Statement::is_module_declaration);
     if !module {
         if !source.directives.iter().any(Directive::is_use_strict) {
             out.body.insert(0, b.statement(b.string("use strict")));
