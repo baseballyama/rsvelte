@@ -43,7 +43,7 @@ function $$render() {
     {
       svelteHTML.createElement("ul", {});
       {
-        for (let [, todo] of __rsvelte_each(todos)) {
+        for (let todo of __rsvelte_each(todos)) {
           (todo.id);
           {
             svelteHTML.createElement("li", {});

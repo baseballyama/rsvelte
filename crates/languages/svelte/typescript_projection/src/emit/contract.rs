@@ -225,7 +225,12 @@ impl Printer<'_> {
     }
 
     /// `const name = value;` or `type name = value;`.
-    fn declaration(&mut self, keyword: &str, name: NodeIdentifier, value: NodeIdentifier) {
+    pub(super) fn declaration(
+        &mut self,
+        keyword: &str,
+        name: NodeIdentifier,
+        value: NodeIdentifier,
+    ) {
         self.output.push(keyword);
         self.node(name);
         self.output.push(" = ");

@@ -37,7 +37,7 @@ function $$render() {
       }
     }
     {
-      for (let [, item] of __rsvelte_each([1, 2])) {
+      for (let item of __rsvelte_each([1, 2])) {
         let el = $state();
         {
           el = svelteHTML.createElement("b", {});

@@ -133,9 +133,10 @@ pub(crate) enum Node {
         callee: NodeIdentifier,
         arguments: Range,
     },
-    ArrayPattern {
-        index: Option<NodeIdentifier>,
-        value: Option<NodeIdentifier>,
+    /// `let name = value;`, on a line of its own.
+    Let {
+        name: NodeIdentifier,
+        value: NodeIdentifier,
     },
     Arrow {
         body: Range,

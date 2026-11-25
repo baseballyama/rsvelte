@@ -12,7 +12,7 @@ function $$render() {
   async () => {
     if (show) {
       {
-        for (let [, entry] of __rsvelte_each(list)) {
+        for (let entry of __rsvelte_each(list)) {
           {
             svelteHTML.createElement("span", {});
             entry;

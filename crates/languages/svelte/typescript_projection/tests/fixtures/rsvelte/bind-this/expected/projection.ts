@@ -36,7 +36,8 @@ function $$render() {
       obj.x = svelteHTML.createElement("b", {});
     }
     {
-      for (let [i, item] of __rsvelte_each(items)) {
+      for (let item of __rsvelte_each(items)) {
+        let i = 1;
         {
           refs[i] = svelteHTML.createElement("i", {});
         }
@@ -58,7 +59,8 @@ function $$render() {
       a = __rsvelte_bind_this(__rsvelte_component(C))(__rsvelte_internals(), {});
     }
     {
-      for (let [i, n] of __rsvelte_each([1, 2])) {
+      for (let n of __rsvelte_each([1, 2])) {
+        let i = 1;
         (n);
         {
           refs[i] = __rsvelte_bind_this(__rsvelte_component(Foo))(__rsvelte_internals(), {});

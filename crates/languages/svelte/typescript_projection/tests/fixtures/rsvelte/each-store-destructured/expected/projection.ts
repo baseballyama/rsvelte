@@ -13,7 +13,8 @@ function $$render() {
 
   async () => {
     {
-      for (let [i, { name, icon = 1 }] of __rsvelte_each($items)) {
+      for (let { name, icon = 1 } of __rsvelte_each($items)) {
+        let i = 1;
         (name);
         {
           svelteHTML.createElement("p", {});
@@ -24,7 +25,7 @@ function $$render() {
       }
     }
     {
-      for (let [, [a, b]] of __rsvelte_each($items)) {
+      for (let [a, b] of __rsvelte_each($items)) {
         {
           svelteHTML.createElement("button", {
             "onclick": () => { a.x = 1; },
@@ -35,7 +36,7 @@ function $$render() {
       }
     }
     {
-      for (let [, { c }] of __rsvelte_each($items)) {
+      for (let { c } of __rsvelte_each($items)) {
         {
           svelteHTML.createElement("input", {
             "bind:value": c.v,

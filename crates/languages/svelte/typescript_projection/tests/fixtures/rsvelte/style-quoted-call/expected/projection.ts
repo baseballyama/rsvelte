@@ -34,7 +34,7 @@ function $$render() {
       });
     }
     {
-      for (let [, item] of __rsvelte_each(items)) {
+      for (let item of __rsvelte_each(items)) {
         (item.key);
         {
           svelteHTML.createElement("span", {});
