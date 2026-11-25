@@ -9,7 +9,7 @@ use oxc_span::{SPAN, SourceType};
 use oxc_transformer::{TransformOptions, Transformer};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_compile::strip::{ErasedComments, ModuleEmit, is_common_js};
+use rsvelte_typescript_compile::strip::{ErasedComments, ModuleEmit, is_erased_module_syntax};
 use rsvelte_typescript_tree::document_span;
 
 /// TypeScript's emit of a `.svelte.ts` module, which upstream reads instead of the module: oxc's
@@ -20,7 +20,8 @@ pub(super) fn typescript_emit<'a>(
     program: &mut Program<'a>,
     filename: &str,
 ) -> Result<(), Diagnostic> {
-    let module = (program.body.iter()).any(|s| s.is_module_declaration() || is_common_js(s));
+    let module =
+        (program.body.iter()).any(|s| s.is_module_declaration() || is_erased_module_syntax(s));
     let span = document_span(program.span);
     let erased = ErasedComments::new(program);
     let kept: Vec<_> = erased.kept(program).map(|comment| comment.span).collect();

@@ -109,7 +109,7 @@ fn is_type_only_element(element: &ClassElement<'_>) -> bool {
 /// Whether `statement` is one that TypeScript's emit for an ES module, which has no `require` and
 /// no `module`, removes: `import A = require("a")`, exported or not, or `export = a`.
 #[must_use]
-pub fn is_common_js(statement: &Statement<'_>) -> bool {
+pub fn is_erased_module_syntax(statement: &Statement<'_>) -> bool {
     let import = match statement {
         Statement::TSExportAssignment(_) => return true,
         Statement::TSImportEqualsDeclaration(import) => import,
@@ -145,7 +145,7 @@ impl<'a> ModuleEmit<'a> {
 
 impl<'a> VisitMut<'a> for ModuleEmit<'a> {
     fn visit_statements(&mut self, it: &mut ArenaVec<'a, Statement<'a>>) {
-        it.retain(|s| !is_common_js(s));
+        it.retain(|s| !is_erased_module_syntax(s));
         walk_mut::walk_statements(self, it);
     }
 
@@ -177,7 +177,7 @@ impl<'a> VisitMut<'a> for ModuleEmit<'a> {
 
 /// Whether TypeScript's emit for an ES module removes `statement`.
 fn is_erased_statement(statement: &Statement<'_>) -> bool {
-    is_type_declaration(statement) || is_common_js(statement)
+    is_type_declaration(statement) || is_erased_module_syntax(statement)
 }
 
 fn is_type_import(specifier: &ImportDeclarationSpecifier<'_>) -> bool {
