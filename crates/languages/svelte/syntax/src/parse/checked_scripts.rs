@@ -17,7 +17,7 @@ pub fn scripts_checked_as_typescript(text: &str) -> bool {
         .filter(|(index, node)| {
             node.tag == Some("script")
                 && outside_control_flow(text, &roots, *index)
-                && outside_html_tag(text, &roots, *index)
+                && outside_raw_markup_tag(text, &roots, *index)
         })
         .map(|(_, node)| node)
         .collect();
@@ -323,15 +323,15 @@ fn outside_control_flow(text: &str, roots: &[Node<'_>], index: usize) -> bool {
 
 /// `isNotInsideHtmlTag`: the text before the node, outside the root nodes, has no `{@html`
 /// after its last `}`.
-fn outside_html_tag(text: &str, roots: &[Node<'_>], index: usize) -> bool {
+fn outside_raw_markup_tag(text: &str, roots: &[Node<'_>], index: usize) -> bool {
     let nodes = &roots[..index];
     let before: String = std::iter::once(0)
         .chain(nodes.iter().map(|node| node.end))
         .enumerate()
         .map(|(i, from)| substring(text, from, nodes.get(i).map_or(text.len(), |n| n.start)))
         .collect();
-    let html = html_tag_starts(&before).last();
-    html.is_none_or(|html| before.rfind('}').is_some_and(|brace| html < brace))
+    let raw_markup = raw_markup_tag_starts(&before).last();
+    raw_markup.is_none_or(|at| before.rfind('}').is_some_and(|brace| at < brace))
 }
 
 /// The bytes after `{` and any whitespace.
@@ -363,7 +363,7 @@ fn block_end(text: &str, block: &str) -> Option<usize> {
 }
 
 /// Each match of `{\s*@html\s`.
-fn html_tag_starts(text: &str) -> impl Iterator<Item = usize> + '_ {
+fn raw_markup_tag_starts(text: &str) -> impl Iterator<Item = usize> + '_ {
     memchr::memchr_iter(b'{', text.as_bytes()).filter(|&at| {
         after_brace(text, at)
             .strip_prefix("@html")

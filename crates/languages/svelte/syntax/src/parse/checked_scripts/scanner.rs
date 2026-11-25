@@ -48,7 +48,7 @@ pub(super) struct Scanner<'a> {
     last_type_value: Option<&'a str>,
 }
 
-const fn is_html_whitespace(byte: u8) -> bool {
+const fn is_markup_whitespace(byte: u8) -> bool {
     matches!(byte, b' ' | b'\t' | b'\n' | b'\x0C' | b'\r')
 }
 
@@ -86,7 +86,7 @@ impl<'a> Scanner<'a> {
         let skipped = self
             .rest()
             .bytes()
-            .take_while(|&b| is_html_whitespace(b))
+            .take_while(|&b| is_markup_whitespace(b))
             .count();
         self.position += skipped;
         skipped > 0
