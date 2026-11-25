@@ -468,3 +468,143 @@ fn a_typescript_module_analyzes_its_classes_as_typescript_emits_them() {
         assert_eq!(codes, ["duplicate_class_field"], "{source:?}");
     }
 }
+
+#[test]
+fn a_typescript_module_is_erased_before_it_is_analyzed() {
+    // TypeScript 6.0.3's emit, then svelte 5.59.1's `compileModule`.
+    for (source, client) in [
+        ("import A = require('x'); A = 1;", "A=1;export{};"),
+        (
+            "import A = require('x'); let A = 1; export const y = A;",
+            "letA=1;exportconsty=A;",
+        ),
+        (
+            "import A = require('x'); const A = $state(1); export const y = () => A;",
+            "constA=1;exportconsty=()=>A;",
+        ),
+        (
+            "export import A = require('x'); export const A = 1;",
+            "exportconstA=1;",
+        ),
+        (
+            "import A = require('x'); function A() {} export { A };",
+            "functionA(){}export{A};",
+        ),
+        (
+            "import $x = require('x'); export const y = 1;",
+            "exportconsty=1;",
+        ),
+        (
+            "import $ = require('x'); export const y = 1;",
+            "exportconsty=1;",
+        ),
+        (
+            "import $state = require('x'); export const y = $state(1);",
+            "exportconsty=1;",
+        ),
+        ("import A = require('x'); export = A;", "export{};"),
+        ("const A = 1; export = A;", "constA=1;export{};"),
+        (
+            "import type { T } from 'x'; const T = 1; export { T };",
+            "constT=1;export{T};",
+        ),
+    ] {
+        assert_eq!(body(source, Target::Client), client, "{source:?}");
+    }
+    // Nothing binds the name the import would have.
+    for source in [
+        "import A = require('x'); export { A };",
+        "export import A = require('x'); export { A };",
+        "import type A = require('x'); export { A };",
+    ] {
+        let output = output("a.svelte.ts", source, Target::Client);
+        let codes: Vec<_> = output.diagnostics.iter().map(|d| &*d.code).collect();
+        assert_eq!(codes, ["export_undefined"], "{source:?}");
+    }
+    // oxc names a namespace's parameter and emits its enum in its own way.
+    for (source, client) in [
+        (
+            "namespace N { import A = require('x'); export const b = A; } export const y = N.b;",
+            "letN;(function(_N){constb=_N.b=A;})(N||(N={}));exportconsty=N.b;",
+        ),
+        (
+            "export enum E { A = 'a' }",
+            "exportletE=/*@__PURE__*/function(E){E[\"A\"]=\"a\";returnE;}({});",
+        ),
+    ] {
+        assert_eq!(body(source, Target::Client), client, "{source:?}");
+    }
+}
+
+#[test]
+fn a_typescript_module_is_analyzed_with_what_its_emit_lowers() {
+    // TypeScript 6.0.3's emit, then svelte 5.59.1's `compileModule`.
+    // An enum, a namespace and a parameter property are analyzed as written.
+    let declared = "has already been declared";
+    for (source, code, message, start) in [
+        (
+            "let E = 1; enum E { A }",
+            "js_parse_error",
+            format!("Identifier 'E' {declared}"),
+            16,
+        ),
+        (
+            "const E = 1; enum E { A }",
+            "js_parse_error",
+            format!("Identifier 'E' {declared}"),
+            18,
+        ),
+        (
+            "let E = $state(1); export enum E { A }",
+            "js_parse_error",
+            format!("Identifier 'E' {declared}"),
+            31,
+        ),
+        (
+            "function f() { let E = 1; enum E { A } }",
+            "js_parse_error",
+            format!("Identifier 'E' {declared}"),
+            31,
+        ),
+        (
+            "let N = 1; namespace N { export const a = 1; }",
+            "js_parse_error",
+            format!("Identifier 'N' {declared}"),
+            21,
+        ),
+        (
+            "class C { constructor(public x, public x) {} }",
+            "js_parse_error",
+            "Argument name clash".to_owned(),
+            39,
+        ),
+        (
+            "import A = require('x'); export class C { n = $state(0); n = $state(1); }",
+            "state_field_duplicate",
+            "`n` has already been declared on this class".to_owned(),
+            57,
+        ),
+        (
+            "type T = 1; const E = 1; export const f = () => { E = 2; };",
+            "constant_assignment",
+            "Cannot assign to constant".to_owned(),
+            50,
+        ),
+    ] {
+        let output = output("a.svelte.ts", source, Target::Client);
+        let found: Vec<_> = (output.diagnostics.iter())
+            .map(|d| {
+                let message = d.message.lines().next().unwrap_or_default();
+                (&*d.code, message.to_owned(), d.span.start_offset)
+            })
+            .collect();
+        assert_eq!(found, [(code, message, start)], "{source:?}");
+    }
+    // A script keeps its legacy octals. rsvelte parenthesizes the directive TypeScript adds.
+    for (source, client) in [
+        ("let x = 08;", "(\"usestrict\");letx=8;"),
+        ("let x = 010;", "(\"usestrict\");letx=8;"),
+    ] {
+        assert_eq!(body(source, Target::Client), client, "{source:?}");
+    }
+}

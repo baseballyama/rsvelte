@@ -77,8 +77,15 @@ pub(crate) fn compiled(
     target: Target,
     lines: Option<&LineIndex>,
 ) -> Result<Module, Diagnostic> {
-    let (javascript, program) =
-        rsvelte_svelte_syntax::parse::parse_module(&document.text, source_type)?;
+    let (javascript, program) = rsvelte_svelte_syntax::parse::parse_module(
+        &document.text,
+        source_type,
+        |allocator, program| {
+            if source_type.is_typescript() {
+                erase::erase(allocator, program);
+            }
+        },
+    )?;
     let compiler_syntax_tree =
         CompilerSyntaxTreeBuilder::new(&document.text, 0, 0).finish(Children::default());
     let input = CompileInput::from(ComponentInput {
@@ -123,6 +130,8 @@ pub(crate) fn compiled(
         warnings,
     })
 }
+
+mod erase;
 
 #[cfg(test)]
 mod tests;

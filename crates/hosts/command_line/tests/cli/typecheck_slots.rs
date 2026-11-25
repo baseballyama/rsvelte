@@ -39,6 +39,187 @@ fn typecheck_types_the_slot_props_of_a_generic_component() {
     );
 }
 
+/// A runes component declares no slots: svelte2tsx reads its `$$slot_def` as `unknown`, and the
+/// `children` the content passes moves past the `let:` it removes. svelte-check 4.7.8 reports
+/// these lines.
+#[test]
+fn typecheck_reports_a_let_of_a_component_without_slots() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label = $bindable() }: { label: string } = \
+                $props();\n</script>\n<p>{label}</p>\n";
+    let user = |line: &str| {
+        format!("<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n</script>\n{line}\n")
+    };
+    let report = check(&[
+        ("src/Leaf.svelte", leaf),
+        ("src/L1.svelte", &user("<Leaf label=\"x\" let:x>{x}</Leaf>")),
+        ("src/L2.svelte", &user("<Leaf label=\"x\" let:x />")),
+        (
+            "src/L3.svelte",
+            &user("<Leaf label=\"x\"><div slot=\"s\" let:y>{y}</div></Leaf>"),
+        ),
+        (
+            "src/L4.svelte",
+            &user("<div><Leaf label=\"x\"   let:x={y}   >{y}</Leaf></div>"),
+        ),
+    ]);
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
+    let unknown = |name: &str| format!("error TS18046: '{name}.$$slot_def' is of type 'unknown'.");
+    assert_eq!(
+        report,
+        format!(
+            "src/L1.svelte(4,16): {children}\n\
+             src/L1.svelte(4,21): {}\n\
+             src/L2.svelte(4,22): {}\n\
+             src/L3.svelte(4,35): {}\n\
+             src/L4.svelte(4,34): {children}\n\
+             src/L4.svelte(4,32): {}\n\
+             \nFound 6 errors in 4 files.\n",
+            unknown("$$_faeL0"),
+            unknown("$$_faeL0"),
+            unknown("$$_faeL0"),
+            unknown("$$_faeL1"),
+        )
+        .native()
+    );
+}
+
+/// svelte2tsx reads `$$slot_def[name]` for every child that names the slot it fills, through any
+/// blocks, with or without a `let:`, so an unknown name is reported at the start of its tag.
+/// svelte-check 4.7.8 reports these lines, and the `slot` inside `{#await}` as misplaced.
+#[test]
+fn typecheck_reports_an_unknown_slot_name_of_every_filler() {
+    let parent = "<script lang=\"ts\">\n\tlet { value }: { value: number } = $props();\n\
+                  </script>\n<slot name=\"item\" item={value} />\n<slot />\n";
+    let leaf = "<script lang=\"ts\">\n\tlet { label }: { label: string } = $props();\n\
+                </script>\n<p>{label}</p>\n";
+    let app = "<script lang=\"ts\">\n\timport Parent from \"./Parent.svelte\";\n\
+               \timport Leaf from \"./Leaf.svelte\";\n</script>\n\
+               <Parent value={1}><div slot=\"nope\"></div></Parent>\n\
+               <Parent value={1}><Leaf slot=\"nope\" label=\"a\"></Leaf></Parent>\n\
+               <Parent value={1}><svelte:fragment slot=\"nope\" /></Parent>\n\
+               <Parent value={1}><div slot=\"item\"></div></Parent>\n\
+               <Leaf label=\"x\"><div slot=\"s\"></div></Leaf>\n\
+               <Parent value={1}>{#await Promise.resolve(1) then n}<div slot=\"nope\"></div>\
+               {/await}</Parent>\n\
+               <Parent value={1}><Leaf label=\"a\" slot=\"nope\" /* c */>t</Leaf></Parent>\n\
+               <Parent value={1}><Leaf label=\"a\" slot=\"\">t</Leaf></Parent>\n";
+    let report = check(&[
+        ("src/Parent.svelte", parent),
+        ("src/Leaf.svelte", leaf),
+        ("src/App.svelte", app),
+    ]);
+    let slots = "{ item: { item: number; }; default: {}; }";
+    let unknown = |slot: &str| {
+        format!(
+            "error TS7053: Element implicitly has an 'any' type because expression of type \
+             '\"{slot}\"' can't be used to index type '{slots}'.\n  Property '{slot}' does not \
+             exist on type '{slots}'."
+        )
+    };
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
+    let (empty, unknown) = (unknown(""), unknown("nope"));
+    assert_eq!(
+        report,
+        format!(
+            "src/App.svelte(5,19): {unknown}\n\
+             src/App.svelte(6,19): {unknown}\n\
+             src/App.svelte(7,19): {unknown}\n\
+             src/App.svelte(9,17): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
+             src/App.svelte(10,53): {unknown}\n\
+             src/App.svelte(11,19): {unknown}\n\
+             src/App.svelte(11,47): {children}\n\
+             src/App.svelte(12,19): {empty}\n\
+             src/App.svelte(12,35): {children}\n\
+             \nFound 9 errors in 1 file.\n"
+        )
+        .native()
+    );
+}
+
+/// svelte2tsx copies a start tag's comments with the attribute beside them, reads the `this` of
+/// `<svelte:component>` as no attribute, and counts a snippet's elements from its start.
+/// svelte-check 4.7.8 reports these lines.
+#[test]
+fn typecheck_places_a_let_by_the_start_tag_svelte2tsx_moves() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label = $bindable() }: { label: string } = \
+                $props();\n</script>\n<p>{label}</p>\n";
+    let user = |line: &str| {
+        format!("<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n</script>\n{line}\n")
+    };
+    let report = check(&[
+        ("src/Leaf.svelte", leaf),
+        (
+            "src/K1.svelte",
+            &user("<Leaf label=\"x\" /* c */ let:x>{x}</Leaf>"),
+        ),
+        (
+            "src/K2.svelte",
+            &user("<Leaf label=\"x\" // c\n\tlet:x>{x}</Leaf>"),
+        ),
+        (
+            "src/K3.svelte",
+            &user("<svelte:component this={Leaf} label=\"x\" let:y>{y}</svelte:component>"),
+        ),
+        (
+            "src/K4.svelte",
+            &user(
+                "<div>{#snippet s()}<Leaf label=\"x\" let:x>{x}</Leaf>{/snippet}{@render \
+                 s()}</div>",
+            ),
+        ),
+        (
+            "src/K5.svelte",
+            &user("<Leaf /* a */ label=\"x\">text</Leaf>"),
+        ),
+        (
+            "src/K6.svelte",
+            &user("<Leaf label=\"x\" /* c */>text</Leaf>"),
+        ),
+    ]);
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
+    let unknown = |name: &str| format!("error TS18046: '{name}.$$slot_def' is of type 'unknown'.");
+    let leaf = unknown("$$_faeL0");
+    let component = unknown("$$_tnenopmoc_etlevs0");
+    assert_eq!(
+        report,
+        format!(
+            "src/K1.svelte(4,25): {children}\n\
+             src/K1.svelte(4,29): {leaf}\n\
+             src/K2.svelte(5,1): {children}\n\
+             src/K2.svelte(5,6): {leaf}\n\
+             src/K3.svelte(4,19): {children}\n\
+             src/K3.svelte(4,45): {component}\n\
+             src/K4.svelte(4,35): {children}\n\
+             src/K4.svelte(4,40): {leaf}\n\
+             src/K5.svelte(4,21): {children}\n\
+             src/K6.svelte(4,16): {children}\n\
+             \nFound 10 errors in 6 files.\n"
+        )
+        .native()
+    );
+}
+
+/// svelte-check 4.7.8 drops this TS18046, see `DIVERGENCES.md` in the check crate.
+#[test]
+fn typecheck_reports_a_let_before_a_comment_that_ends_the_tag() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label }: { label: string } = $props();\n</script>\n\
+                {label}\n";
+    let user = "<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n</script>\n\
+                <Leaf label=\"x\" let:x /* t */>{x}</Leaf>\n";
+    let report = check(&[("src/Leaf.svelte", leaf), ("src/App.svelte", user)]);
+    assert_eq!(
+        report,
+        "src/App.svelte(4,16): error TS2353: Object literal may only specify known properties, and \
+         'children' does not exist in type '$$ComponentProps'.\n\
+         src/App.svelte(4,22): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
+         \nFound 2 errors in 1 file.\n"
+            .native()
+    );
+}
+
 /// svelte2tsx's render function returns each slot's props again, a copy that maps nowhere, so
 /// svelte-check reports a finding in a slot prop once, at the `<slot>`. svelte-check 4.7.8 reports
 /// these four lines.
@@ -89,6 +270,161 @@ fn typecheck_reports_a_finding_at_a_name_the_return_copies() {
         "src/Bound.svelte(2,8): error TS2339: Property 'nope' does not exist on type \
          '$$ComponentProps'.\n\
          \nFound 1 error in 1 file.\n"
+            .native()
+    );
+}
+
+/// A `let:` of a component without slots, forwarded through a slot: the copy of the slot's props
+/// in the render function's return reports nothing. svelte-check 4.7.8 reports this line.
+#[test]
+fn typecheck_reports_a_forwarded_let_of_a_component_without_slots() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label }: { label: string } = $props();\n</script>\n\
+                {label}\n";
+    let user = "<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n</script>\n\
+                <Leaf label=\"x\" let:x><slot q={x} /></Leaf>\n";
+    let report = check(&[("src/Leaf.svelte", leaf), ("src/App.svelte", user)]);
+    assert_eq!(
+        report,
+        "src/App.svelte(4,21): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
+         \nFound 1 error in 1 file.\n"
+            .native()
+    );
+}
+
+/// svelte2tsx steps by characters in a start tag, where the whitespace may be U+3000 or U+00A0.
+/// svelte-check 4.7.8 reports these lines.
+#[test]
+fn typecheck_places_findings_by_characters_in_a_start_tag() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label }: { label: string } = $props();\n</script>\n\
+                {label}\n";
+    let user = |line: &str| {
+        format!("<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n</script>\n{line}\n")
+    };
+    let report = check(&[
+        ("src/Leaf.svelte", leaf),
+        ("src/S1.svelte", &user("<Leaf\u{3000}label=\"x\">t</Leaf>")),
+        (
+            "src/S2.svelte",
+            &user("<Leaf\u{a0}label=\"x\"\u{3000}let:x>{x}</Leaf>"),
+        ),
+        (
+            "src/S3.svelte",
+            &user("<Leaf label=\"x\" let:x\u{3000}>{x}</Leaf>"),
+        ),
+        (
+            "src/S4.svelte",
+            &user(
+                "<Leaf\u{3000}\u{3000}label=\"x\"\u{3000}\u{3000}let:x\u{3000}\u{3000}>{x}</Leaf>",
+            ),
+        ),
+        ("src/S5.svelte", &user("<Leaf\u{3000}>t</Leaf>")),
+        (
+            "src/S6.svelte",
+            &user("<Leaf /* \u{1d49c} */\u{3000}label=\"\u{1d49c}\" let:x>{x}</Leaf>"),
+        ),
+    ]);
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
+    let unknown = "error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.";
+    assert_eq!(
+        report,
+        format!(
+            "src/S1.svelte(4,13): {children}\n\
+             src/S2.svelte(4,16): {children}\n\
+             src/S2.svelte(4,21): {unknown}\n\
+             src/S3.svelte(4,16): {children}\n\
+             src/S3.svelte(4,22): {unknown}\n\
+             src/S4.svelte(4,7): {children}\n\
+             src/S4.svelte(4,24): {unknown}\n\
+             src/S5.svelte(4,5): {children}\n\
+             src/S6.svelte(4,26): {children}\n\
+             src/S6.svelte(4,31): {unknown}\n\
+             \nFound 10 errors in 6 files.\n"
+        )
+        .native()
+    );
+}
+
+/// The `children` and `$$slot_def` findings of a start tag with CRLF, U+3000 or a name of several
+/// bytes. svelte-check 4.7.8 reports these lines.
+#[test]
+fn typecheck_places_a_let_by_the_characters_of_the_start_tag() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label = $bindable() }: { label: string } = \
+                $props();\n</script>\n<p>{label}</p>\n";
+    let user = |name: &str, line: &str| {
+        format!(
+            "<script lang=\"ts\">\n\timport {name} from \"./{name}.svelte\";\n</script>\n{line}\n"
+        )
+    };
+    let leaf_user = |line: &str| user("Leaf", line);
+    let report = check(&[
+        ("src/Leaf.svelte", leaf),
+        ("src/Leé.svelte", leaf),
+        (
+            "src/C1.svelte",
+            &leaf_user("<Leaf label=\"x\"\r\n>t</Leaf>"),
+        ),
+        (
+            "src/C2.svelte",
+            &leaf_user("<Leaf label=\"x\" let:x>{x}</Leaf>").replace('\n', "\r\n"),
+        ),
+        (
+            "src/C3.svelte",
+            &leaf_user("<Leaf label=\"x\"\r\nlet:x>{x}</Leaf>"),
+        ),
+        (
+            "src/C4.svelte",
+            &leaf_user("<Leaf label=\"x\" let:x\r\n>{x}</Leaf>"),
+        ),
+        (
+            "src/C5.svelte",
+            &leaf_user("<Leaf label=\"x\"   let:x={y}   >{y}</Leaf>").replace('\n', "\r\n"),
+        ),
+        (
+            "src/U1.svelte",
+            &leaf_user("<Leaf label=\"x\" let:x\u{3000}\u{3000}>{x}</Leaf>"),
+        ),
+        ("src/N1.svelte", &user("Leé", "<Leé>t</Leé>")),
+    ]);
+    let children = "error TS2353: Object literal may only specify known properties, and \
+                    'children' does not exist in type '$$ComponentProps'.";
+    let leaf = "error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.";
+    assert_eq!(
+        report,
+        format!(
+            "src/C1.svelte(4,17): {children}\n\
+             src/C2.svelte(4,16): {children}\n\
+             src/C2.svelte(4,21): {leaf}\n\
+             src/C3.svelte(4,16): {children}\n\
+             src/C3.svelte(5,5): {leaf}\n\
+             src/C4.svelte(4,16): {children}\n\
+             src/C4.svelte(4,22): {leaf}\n\
+             src/C5.svelte(4,29): {children}\n\
+             src/C5.svelte(4,27): {leaf}\n\
+             src/N1.svelte(4,4): {children}\n\
+             src/U1.svelte(4,16): {children}\n\
+             src/U1.svelte(4,22): {leaf}\n\
+             \nFound 12 errors in 7 files.\n"
+        )
+        .native()
+    );
+}
+
+/// svelte-check 4.7.8 reports this TS18046 at 4:22, inside the surrogate pair, see
+/// `DIVERGENCES.md` in the check crate.
+#[test]
+fn typecheck_reports_a_let_whose_name_ends_in_an_astral_character_at_its_start() {
+    let leaf = "<script lang=\"ts\">\n\tlet { label = $bindable() }: { label: string } = \
+                $props();\n</script>\n<p>{label}</p>\n";
+    let user = "<script lang=\"ts\">\n\timport Leaf from \"./Leaf.svelte\";\n</script>\n\
+                <Leaf label=\"x\" let:\u{1d49c}>{\u{1d49c}}</Leaf>\n";
+    let report = check(&[("src/Leaf.svelte", leaf), ("src/App.svelte", user)]);
+    assert_eq!(
+        report,
+        "src/App.svelte(4,16): error TS2353: Object literal may only specify known properties, and \
+         'children' does not exist in type '$$ComponentProps'.\n\
+         src/App.svelte(4,21): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
+         \nFound 2 errors in 1 file.\n"
             .native()
     );
 }

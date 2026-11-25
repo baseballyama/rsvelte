@@ -2,9 +2,10 @@
 
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
-    AttributeKind, AttributeValue, Part, Range, TemplateNode,
+    Attribute, AttributeKind, AttributeValue, Part, Range, TemplateNode,
 };
 
+use super::directive::Directives;
 use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
 impl Builder<'_> {
@@ -120,29 +121,86 @@ impl Builder<'_> {
         })
     }
 
-    /// Whether a child fills a slot with `let:`, which reads the component's slots: an element
-    /// with `slot`, or any element, which fills the default slot.
-    pub(super) fn fills_slot_with_lets(&self, children: Range) -> bool {
-        self.component.children(children).iter().any(|&child| {
-            matches!(
-                *self.component.node(child),
-                TemplateNode::Element { attributes, component, .. }
-                    if (component.is_none() || self.has_slot(attributes))
-                        && self
-                            .component
-                            .attributes(attributes)
-                            .iter()
-                            .any(|a| a.kind == AttributeKind::Let)
-            )
-        })
+    /// Whether svelte2tsx names a component's instance, which its events, its `let:` and the
+    /// children filling its slots read.
+    pub(super) fn reads_instance(&self, directives: &Directives, children: Range) -> bool {
+        !directives.events.is_empty() || !directives.lets.is_empty() || self.fills_slot(children)
+    }
+
+    /// Whether a child of a component, through any blocks, reads a slot of its instance: one
+    /// that names the slot it fills, or an element, or a component naming a slot, with a `let:`.
+    fn fills_slot(&self, children: Range) -> bool {
+        // An absent block branch has no children.
+        let Some(children) = children.present() else {
+            return false;
+        };
+        self.component
+            .children(children)
+            .iter()
+            .any(|&child| match *self.component.node(child) {
+                TemplateNode::Element {
+                    attributes,
+                    component,
+                    ..
+                } => {
+                    let (mut slot, mut has_let) = (component.is_none(), false);
+                    for attribute in self.component.attributes(attributes) {
+                        if self.is_slot(attribute) {
+                            if self.slot_text(attribute).is_some() {
+                                return true;
+                            }
+                            slot = true;
+                        }
+                        has_let |= attribute.kind == AttributeKind::Let;
+                    }
+                    slot && has_let
+                }
+                TemplateNode::If {
+                    consequent,
+                    alternate,
+                    ..
+                } => self.fills_slot(consequent) || alternate.is_some_and(|a| self.fills_slot(a)),
+                TemplateNode::Each { body, fallback, .. } => {
+                    self.fills_slot(body) || self.fills_slot(fallback)
+                }
+                TemplateNode::Key { body, .. } => self.fills_slot(body),
+                TemplateNode::Await {
+                    pending,
+                    then,
+                    catch,
+                    ..
+                } => self.fills_slot(pending) || self.fills_slot(then) || self.fills_slot(catch),
+                _ => false,
+            })
+    }
+
+    /// Whether `attribute` is a `slot` attribute, whatever its value.
+    pub(super) fn is_slot(&self, attribute: &Attribute) -> bool {
+        attribute.kind == AttributeKind::Attribute && attribute.name.text(self.source) == "slot"
+    }
+
+    /// The name of a `slot` attribute that is one text, which svelte2tsx reads as the slot a
+    /// component's child fills.
+    pub(super) fn slot_text(&self, attribute: &Attribute) -> Option<Span> {
+        match attribute.value {
+            AttributeValue::Parts(parts) if self.is_slot(attribute) => {
+                match self.component.parts(parts) {
+                    &[Part::Text(text)] => Some(text),
+                    _ => None,
+                }
+            }
+            _ => None,
+        }
+    }
+
+    /// The slot a component's child, element or component, fills with a text `slot`.
+    pub(super) fn filled_slot(&self, attributes: Range) -> Option<Span> {
+        (self.component.attributes(attributes).iter()).find_map(|a| self.filler_slot(a))
     }
 
     /// Whether the element fills a named slot of its parent component.
     pub(super) fn has_slot(&self, attributes: Range) -> bool {
-        self.component
-            .attributes(attributes)
-            .iter()
-            .any(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "slot")
+        (self.component.attributes(attributes).iter()).any(|a| self.is_slot(a))
     }
 
     /// svelte2tsx's `isCustomElement` for a tag without a dash: an `is` with a dash in it.
