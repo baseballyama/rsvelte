@@ -44,3 +44,22 @@ difference and not the projection:
 - Test: `typecheck_prints_what_typescript_7_prints` in the command line crate's
   `tests/cli/typecheck_checker.rs`.
 - The report is [#5254](https://github.com/baseballyama/rsvelte/issues/5254).
+
+## A component with a lone carriage return
+
+In svelte-check 4.7.8, a carriage return with no line feed breaks the positions of a component. The
+checker drops a finding after one, or places it on a wrong line and column. It reports TS2322 at
+3:1 in
+
+```svelte
+<script lang="ts">
+  /* c<CR>d */ let b: string = 2;
+</script>
+```
+
+The finding stays in rsvelte, at 2:16 in this example. The lines are those that end at `\n`, as in a
+component without a carriage return (`reported_lines` in the TypeScript check crate's
+[`findings.rs`](../../typescript/check/src/check/findings.rs)).
+
+- Test: `typecheck_reports_a_component_s_findings_after_a_lone_carriage_return` in the command line
+  crate's `tests/cli/typecheck_line_ends.rs`.
