@@ -108,16 +108,18 @@ impl UntypedImport<'_> {
 }
 
 /// The modules each import of document `file` reads, as the checker resolves them, in the order of
-/// [`CheckRequest::imports`]; empty for a document whose imports cannot be untyped.
+/// [`CheckRequest::imports`]; empty unless the document is `typed`, since only those imports can
+/// be untyped.
 pub(super) fn modules(
     req: &CheckRequest<'_>,
     session: &mut Session,
     project: &Project,
     paths: &[PathBuf],
     file: usize,
+    typed: bool,
 ) -> Result<Vec<Option<PathBuf>>, String> {
     let imports = &req.imports[file];
-    if imports.is_empty() || javascript(req, file) {
+    if imports.is_empty() || !typed {
         return Ok(Vec::new());
     }
     let positions: Vec<u32> = imports.iter().map(|i| i.position).collect();
@@ -148,12 +150,6 @@ pub(super) fn imports<'a>(
     untyped
 }
 
-/// Whether document `file` projects to JavaScript.
-pub(super) fn javascript(req: &CheckRequest<'_>, file: usize) -> bool {
-    req.mapped(file)
-        .is_some_and(|mapped| JAVASCRIPT.contains(&mapped.generated_extension))
-}
-
 /// `Value refers to a value, but is being used as a type here.`
 const VALUE_AS_TYPE: u32 = 2749;
 
@@ -173,23 +169,18 @@ pub(super) fn hides(
         })
 }
 
-/// Whether any document, checked or not, is JavaScript.
-pub(super) fn any_javascript(req: &CheckRequest<'_>) -> bool {
-    (0..req.mapped_files.len()).any(|file| javascript(req, file))
-        || req
-            .stand_ins
-            .iter()
-            .any(|(_, stand_in)| stand_in.javascript)
-}
-
-/// The paths of the JavaScript documents, checked at `paths` or not.
+/// The paths of the JavaScript documents, checked at `paths` or not: the one answer the run
+/// reads whether a document is JavaScript by.
 pub(super) fn javascript_documents(
     req: &CheckRequest<'_>,
     root: &Path,
     paths: &[PathBuf],
 ) -> HashSet<PathBuf> {
     let checked = (paths.iter().enumerate())
-        .filter(|&(file, _)| javascript(req, file))
+        .filter(|&(file, _)| {
+            req.mapped(file)
+                .is_some_and(|mapped| JAVASCRIPT.contains(&mapped.generated_extension))
+        })
         .map(|(_, path)| path.clone());
     let unchecked = (req.stand_ins(root))
         .filter(|(_, stand_in)| stand_in.javascript)
@@ -269,8 +260,16 @@ pub(super) struct UntypedDocuments {
 }
 
 impl UntypedDocuments {
+    /// Whether an import of `path` is untyped.
     fn is(&self, path: &Path) -> bool {
         self.external.contains(path) || self.all && self.javascript.contains(path)
+    }
+
+    /// Whether TypeScript would not load `path`: it loads no untyped JavaScript file the tsconfig
+    /// does not select, whatever imports it, as the project `reached` only through an import, nor
+    /// a component a search of `node_modules` finds beyond `maxNodeModuleJsDepth`.
+    pub(super) fn unloaded(&self, path: &Path, reached: &HashSet<PathBuf>) -> bool {
+        self.is(path) && (reached.contains(path) || self.external.contains(path))
     }
 }
 
