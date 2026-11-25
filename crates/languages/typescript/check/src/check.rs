@@ -23,8 +23,26 @@ pub struct Tsc {
     /// The project's tsconfig.json; the check extends it.
     pub tsconfig: Option<PathBuf>,
     /// How many checker processes share the documents. The checker's API checks with one
-    /// thread, so by default a larger batch takes more processes.
+    /// thread, so by default a check that takes long enough takes more processes.
     pub processes: Option<std::num::NonZeroUsize>,
+    /// What listing the project's files leaves for its check, which every clone shares.
+    listed: Arc<std::sync::Mutex<Option<run::Listed>>>,
+}
+
+impl Tsc {
+    #[must_use]
+    pub fn new(
+        checker: TypeChecker,
+        tsconfig: Option<PathBuf>,
+        processes: Option<std::num::NonZeroUsize>,
+    ) -> Self {
+        Self {
+            checker,
+            tsconfig,
+            processes,
+            listed: Arc::default(),
+        }
+    }
 }
 
 /// A document as the type checker sees it: the [`Facet`] each language provides, so one [`Check`]

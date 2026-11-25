@@ -4,6 +4,7 @@
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
+use std::time::Duration;
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
@@ -11,7 +12,7 @@ use rsvelte_kernel::source::paths;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use rsvelte_typescript_api::{Layer, Position, Session};
 use selection::Selected;
-use shares::{Checked, Helper, check_shares};
+use shares::{Checked, Helpers, check_shares};
 use untyped::{UntypedDocuments, UntypedImport, UntypedJavaScript, ambient};
 
 use super::{StandIn, Tsc, TypeScriptEnv};
@@ -108,20 +109,16 @@ impl Tsc {
         let (mut layer, store, declarations) = layer(req, support, &root, &overlay, &paths)?;
         let failed = |e: String| format!("{e}; rsvelte needs {CONTRACT}");
         let _p = measurement::phase("ts.tsc");
-        let helpers = self.start_helpers(paths.len(), &root);
-        let mut session = self.checker.session(&root).map_err(failed)?;
-        // The project's own root files, as its tsconfig selects them, components included; the
-        // overlay keeps them.
         let javascript = untyped::javascript_documents(req, &root, &paths);
-        let mut own = base_project(
-            &mut session,
-            base.as_deref(),
-            req,
-            (&overlay, &store),
-            &javascript,
-            &mut layer,
-        )
-        .map_err(failed)?;
+        let (mut session, listed_open, mut own) = self
+            .own_project(
+                req,
+                (base.as_deref(), &root),
+                (&overlay, &store),
+                &javascript,
+                &mut layer,
+            )
+            .map_err(failed)?;
         let mut roots = std::mem::take(&mut own.roots);
         own.script_modules =
             own.node_resolution && script_module::add(&mut layer, &roots, &paths, req);
@@ -155,19 +152,28 @@ impl Tsc {
         // Where an import of JavaScript may be untyped, the checker resolves each import.
         let resolve =
             (all_untyped || !external.is_empty()).then_some((req, paths.as_slice(), &javascript));
-        let mut checked = check_shares(&mut session, helpers, &config, &layer, &files, resolve)
-            .map_err(failed)?;
+        let helpers = self.helpers(paths.len(), &root, listed_open);
+        let (mut checked, idle) =
+            check_shares(&mut session, helpers, &config, &layer, &files, resolve)
+                .map_err(failed)?;
         untyped::drop_loaded(req, &checked.modules, &mut external);
         if !external.is_empty() {
             // The components a search of `node_modules` finds read as untyped JavaScript, which
-            // the projections say, so the files are checked again with them.
+            // the projections say, so the files are checked again with them, by as many
+            // processes as checked them before.
             let store = mapped::untyped_store(req, &root, &paths, &external, store)?;
             let text = tsconfig_json(base.as_deref(), req, &own, &roots, Some(&store));
             layer.files.insert(config.clone(), text);
-            let helpers = self.start_helpers(paths.len(), &root);
+            let helpers = Helpers {
+                most: idle.len() + 1,
+                at_once: true,
+                idle,
+                ..self.helpers(paths.len(), &root, None)
+            };
             let modules = std::mem::take(&mut checked.modules);
             checked = check_shares(&mut session, helpers, &config, &layer, &files, None)
-                .map_err(failed)?;
+                .map_err(failed)?
+                .0;
             checked.modules = modules;
         }
         let untyped_documents = UntypedDocuments {
@@ -200,6 +206,39 @@ impl Tsc {
             &untyped,
         )?;
         Ok(Report { diagnostics, root })
+    }
+
+    /// The checker's session, which listing the project's files may have left with how long it
+    /// took to open the project, and the project's own root files, as its tsconfig `base`
+    /// selects them, components included, which the overlay keeps.
+    fn own_project(
+        &self,
+        req: &CheckRequest<'_>,
+        (base, root): (Option<&Path>, &Path),
+        overlay: (&Path, &Path),
+        javascript: &HashSet<PathBuf>,
+        layer: &mut Layer,
+    ) -> Result<(Session, Option<Duration>, BaseProject), String> {
+        let listed = (self.listed.lock())
+            .unwrap_or_else(std::sync::PoisonError::into_inner)
+            .take();
+        let Some(listed) = listed else {
+            let mut session = self.checker.session(root)?;
+            let own = base_project(&mut session, base, req, overlay, javascript, layer)?;
+            return Ok((session, None, own));
+        };
+        let Listed {
+            mut session,
+            open,
+            base: known,
+        } = listed;
+        // Where no document is mapped, the listing's project is the tsconfig's own.
+        let unmapped = req.mapped_files.iter().all(Option::is_none) && javascript.is_empty();
+        let own = match known.filter(|_| unmapped && base.is_some()) {
+            Some(own) => own,
+            None => base_project(&mut session, base, req, overlay, javascript, layer)?,
+        };
+        Ok((session, Some(open), own))
     }
 
     /// The errors of `checked`, at the lines of the documents `index` names, with the TS7016 of
@@ -239,7 +278,7 @@ impl Tsc {
             .collect()
     }
 
-    /// How many checker processes share `files` documents: as many as asked, else one per
+    /// How many checker processes may share `files` documents: as many as asked, else one per
     /// `FILES_PER_PROCESS`, at most `MOST_PROCESSES` and the CPUs.
     fn processes(&self, files: usize) -> usize {
         let chosen = self.processes.map_or_else(
@@ -255,18 +294,23 @@ impl Tsc {
         chosen.clamp(1, files.max(1))
     }
 
-    /// Checker processes besides the first, started at once so that they are ready when the
-    /// project is.
-    fn start_helpers(&self, files: usize, root: &Path) -> Vec<Helper> {
-        (1..self.processes(files))
-            .map(|_| {
-                let checker = self.checker.clone();
-                let root = root.to_owned();
-                std::thread::spawn(move || checker.session(&root))
-            })
-            .collect()
+    /// The checker processes that may join the session in checking `files` documents. They open
+    /// the project at once when asked for by number, or when the project took longer than
+    /// `AT_ONCE` to open in `listed`; otherwise only once the check's cost is known.
+    fn helpers(&self, files: usize, root: &Path, listed: Option<Duration>) -> Helpers {
+        Helpers {
+            checker: self.checker.clone(),
+            root: root.to_owned(),
+            most: self.processes(files),
+            at_once: self.processes.is_some() || listed.is_some_and(|open| open > AT_ONCE),
+            idle: Vec::new(),
+        }
     }
 }
+
+/// How long opening a project may take before its helpers open it before the check's cost is
+/// known: waiting to measure the cost delays them by about as long.
+const AT_ONCE: Duration = Duration::from_millis(500);
 
 /// Runs `work` in a new temporary directory, given by its real path, as the checker names files,
 /// and removes the directory after.
@@ -391,7 +435,7 @@ fn layer(
 
 /// What the overlay keeps of the project its tsconfig describes.
 #[derive(Default)]
-struct BaseProject {
+pub(super) struct BaseProject {
     /// The root files, as the tsconfig selects them, components included.
     roots: Vec<PathBuf>,
     /// `compilerOptions.paths`, which the overlay's own `paths` would otherwise replace.
@@ -423,9 +467,9 @@ fn base_project(
         return Ok(BaseProject::default());
     };
     let root = base.parent().ok_or("a tsconfig has a directory")?;
-    // Without a content mapper the tsconfig's own project is the selection's.
-    let selection =
-        (req.env.content_mapper.is_some()).then(|| selection::config(req, root, base, store));
+    // Without a content-mapped document the tsconfig's own project is the selection's.
+    let selection = (req.env.content_mapper.is_some() && !req.mapped_extensions().is_empty())
+        .then(|| selection::config(req, root, base, store));
     layer.files.extend(selection.iter().cloned());
     let probe = (!javascript.is_empty()).then(|| untyped::probe(root, overlay, base));
     layer.files.extend(probe.iter().flatten().cloned());
@@ -516,4 +560,5 @@ mod selection;
 mod shares;
 mod untyped;
 pub(crate) use mapped::ContentMappedInput;
+pub(crate) use project::Listed;
 pub(crate) use untyped::{CheckedImport, checked_imports};

@@ -19,14 +19,14 @@ fn empty(env: &TypeScriptEnv) -> CheckRequest<'_> {
 fn shell(script: &str, own: &[&str]) -> Tsc {
     let mut arguments = vec!["-c".to_owned(), script.to_owned(), "sh".to_owned()];
     arguments.extend(own.iter().map(|a| (*a).to_owned()));
-    Tsc {
-        checker: TypeChecker {
+    Tsc::new(
+        TypeChecker {
             program: "/bin/sh".into(),
             arguments,
         },
-        tsconfig: None,
-        processes: None,
-    }
+        None,
+        None,
+    )
 }
 
 #[cfg(unix)]
@@ -56,14 +56,11 @@ fn a_type_checker_without_the_api_names_the_contract() {
 
 #[test]
 fn a_missing_type_checker_says_so_where_the_check_starts_it() {
-    let tsc = Tsc {
-        checker: TypeChecker {
-            program: "/rsvelte/no/such/tsc".into(),
-            arguments: Vec::new(),
-        },
-        tsconfig: None,
-        processes: None,
+    let checker = TypeChecker {
+        program: "/rsvelte/no/such/tsc".into(),
+        arguments: Vec::new(),
     };
+    let tsc = Tsc::new(checker, None, None);
     let error = tsc.check(&empty(&TypeScriptEnv::default())).unwrap_err();
     assert!(error.contains("does not exist"), "{error}");
 }

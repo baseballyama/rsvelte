@@ -9,11 +9,11 @@ use rsvelte_test_harness::NodePackages;
 fn main() -> ExitCode {
     let packages = NodePackages::locate();
     let (program, arguments) = packages.type_checker();
-    let tsc = rsvelte_typescript_check::Tsc {
-        checker: rsvelte_typescript_check::TypeChecker { program, arguments },
-        tsconfig: Some(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into()),
-        processes: None,
-    };
+    let tsc = rsvelte_typescript_check::Tsc::new(
+        rsvelte_typescript_check::TypeChecker { program, arguments },
+        Some(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into()),
+        None,
+    );
     let svelte = rsvelte_svelte_check::Configuration {
         check: Some(rsvelte_svelte_check::TypeCheckConfiguration {
             tsc: tsc.clone(),
