@@ -563,3 +563,5 @@ fn a_typescript_module_is_analyzed_with_what_its_emit_lowers() {
         assert_eq!(body(source, Target::Client), client, "{source:?}");
     }
 }
+
+mod ambient_enums;

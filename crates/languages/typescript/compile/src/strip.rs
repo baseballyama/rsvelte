@@ -205,9 +205,15 @@ fn is_namespace(statement: &Statement<'_>) -> bool {
     matches!(declaration, Some(Declaration::TSNamespaceDeclaration(it)) if !it.declare)
 }
 
-/// Whether TypeScript's emit for an ES module removes `statement`.
+/// Whether TypeScript's emit for an ES module removes `statement`, an ambient enum among them,
+/// which upstream refuses in a component's script.
 fn is_erased_statement(statement: &Statement<'_>) -> bool {
-    is_type_declaration(statement) || is_erased_module_syntax(statement)
+    is_type_declaration(statement)
+        || is_erased_module_syntax(statement)
+        || matches!(
+            statement.as_declaration(),
+            Some(Declaration::TSEnumDeclaration(it)) if it.declare
+        )
 }
 
 fn is_type_import(specifier: &ImportDeclarationSpecifier<'_>) -> bool {
