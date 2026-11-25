@@ -67,7 +67,10 @@ fn a_rejected_component_is_javascript_as_its_script_elements_say() {
         ),
         ("<script>\n\texport let v = 1;\n</script>\n\n{v +}\n", true),
         (
-            "<!-- <script lang=\"ts\"></script> -->\n<script>\n\tlet { v } = $props();\n</script>\n\n{v +}\n",
+            concat!(
+                "<!-- <script lang=\"ts\"></script> -->\n",
+                "<script>\n\tlet { v } = $props();\n</script>\n\n{v +}\n",
+            ),
             true,
         ),
     ];

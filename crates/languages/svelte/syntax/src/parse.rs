@@ -31,6 +31,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_kernel::source::tokens::Tokens;
 use rsvelte_typescript_tree::{SyntaxError, Tree, TreeBuilder};
 use rustc_hash::FxHashSet;
+pub use script::scripts_checked_as_typescript;
 
 use crate::syntax_tree::{
     Attribute, Component, ImplicitlyClosed, Part, Range, Script, Style, TemplateNode,
@@ -308,15 +309,6 @@ pub fn parse_module(
 #[must_use]
 pub fn in_script_content(source_text: &str, offset: u32) -> bool {
     script::in_script_content(source_text, offset as usize)
-}
-
-/// Whether svelte-check reads the component as TypeScript, off its `<script>` elements.
-///
-/// As [`Component::checked_as_typescript`], from the elements a scan of the text finds, so it
-/// answers for a component the parser rejects too.
-#[must_use]
-pub fn scripts_checked_as_typescript(source_text: &str) -> bool {
-    script::scripts_checked_as_typescript(source_text)
 }
 
 /// oxc's error, under the code and in the words upstream gives a JavaScript syntax error. It

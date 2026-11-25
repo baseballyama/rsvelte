@@ -27,11 +27,15 @@ pub(super) fn in_script_content(source_text: &str, offset: usize) -> bool {
         .any(|content| offset <= content.end)
 }
 
-/// Whether a `<script>` element is TypeScript to svelte-check, which reads the script elements
-/// of a component Svelte's parser rejects too.
-pub(super) fn scripts_checked_as_typescript(source_text: &str) -> bool {
+/// Whether svelte-check reads the component as TypeScript, off its `<script>` elements.
+///
+/// As [`Component::checked_as_typescript`](crate::syntax_tree::Component::checked_as_typescript),
+/// from the elements a scan of the text finds, so it answers for a component the parser rejects
+/// too.
+#[must_use]
+pub fn scripts_checked_as_typescript(source_text: &str) -> bool {
     script_elements(source_text).any(|(start_tag, _)| {
-        crate::syntax_tree::checked_as_typescript(|name| {
+        rsvelte_markup_syntax::script_language::checked_as_typescript(|name| {
             attributes(start_tag).find_map(|(at, value)| (at == name).then_some(value))
         })
     })
