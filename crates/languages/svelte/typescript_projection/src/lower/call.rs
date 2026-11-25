@@ -10,16 +10,15 @@ use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
 impl Builder<'_> {
     /// `__rsvelte_component(C)(internals, properties)`, with the name it gives the component when
-    /// the snippets' names are declared from its props or its instance is checked. A named
-    /// component's call, or one a `bind:this` assigns (`bound`), makes the instance, of the
-    /// generics its props infer.
+    /// the snippets' names are declared from its props or its instance is checked. A call that
+    /// `constructs` makes the instance, of the generics its props infer.
     pub(super) fn component_call(
         &mut self,
         component: NodeIdentifier,
         properties: NodeIdentifier,
         snippets: Range,
         name_it: bool,
-        bound: bool,
+        constructs: bool,
     ) -> (NodeIdentifier, Option<NodeIdentifier>) {
         let callee = self.tree.push(Node::Identifier("__rsvelte_component"));
         let arguments = self.tree.list(&[component]);
@@ -34,7 +33,7 @@ impl Builder<'_> {
         if let Some(name) = named {
             callee = name;
         }
-        if bound || named.is_some() {
+        if constructs {
             let bind_this = self.tree.push(Node::Identifier("__rsvelte_bind_this"));
             let arguments = self.tree.list(&[callee]);
             callee = self.tree.push(Node::Call {

@@ -78,7 +78,13 @@ impl Builder<'_> {
         let snippets = self.snippet_props(children, snippet_props)?;
         let properties = self.finish_list(start);
         let properties = self.tree.push(Node::Object { properties });
-        let instance = is_component && self.reads_instance(&directives, children);
+        // Only a call whose instance is read constructs it: the instance's constructor drops the
+        // type arguments an instantiation expression gives the component's call.
+        let reads_by_name = is_component && self.reads_instance(&directives, children);
+        let constructs = reads_by_name
+            || bindings
+                .iter()
+                .any(|b| matches!(b, binding::Binding::This { .. }));
         let (call, named) = if is_component {
             // svelte-check reports a finding on all of a component's props at its name.
             let properties = self.tree.push(Node::Located {
@@ -94,10 +100,8 @@ impl Builder<'_> {
                 component,
                 properties,
                 snippets,
-                instance || !directives.bindable.is_empty(),
-                bindings
-                    .iter()
-                    .any(|b| matches!(b, binding::Binding::This { .. })),
+                reads_by_name || !directives.bindable.is_empty(),
+                constructs,
             )
         } else if slot {
             (
@@ -116,7 +120,7 @@ impl Builder<'_> {
                 None,
             )
         };
-        let named = named.map(|component| (component, name, instance));
+        let named = named.map(|component| (component, name, reads_by_name));
         let after = (bindings, snippets, read);
         let (lets, instance) = self.after_call(call, named, after, &directives);
         let slot_let = directives.slot_let.take();
@@ -165,7 +169,7 @@ impl Builder<'_> {
 
     /// The call with what svelte2tsx writes around it: actions before, then bindings, directive
     /// checks, a component's events, the names of its snippet props and its `let:` bindings.
-    /// `named` is the named component, its tag, and whether svelte2tsx names its instance.
+    /// `named` is the named component, its tag, and whether its instance is read by name.
     fn after_call(
         &mut self,
         call: NodeIdentifier,
@@ -179,19 +183,21 @@ impl Builder<'_> {
             self.bindable_checks(component, &directives.bindable);
         }
         self.scratch.extend_from_slice(&directives.checks);
-        let (Some((component, tag, names_instance)), Some(call)) = (named, call) else {
+        let Some((component, tag, reads_by_name)) = named else {
             return (None, None);
         };
-        let instance = directive::Constructed {
-            component,
-            call,
-            tag,
-            depth: self.element_depth,
-        };
-        if names_instance {
+        let instance = call
+            .filter(|_| reads_by_name)
+            .map(|call| directive::Constructed {
+                component,
+                call,
+                tag,
+                depth: self.element_depth,
+            });
+        if let Some(instance) = instance {
             self.declare_instance(instance);
+            self.component_events(instance, &directives.events);
         }
-        self.component_events(instance, &directives.events);
         if snippets.len != 0 {
             let declaration = self.tree.push(Node::SnippetNames {
                 names: snippets,
@@ -200,8 +206,10 @@ impl Builder<'_> {
             self.scratch.push(declaration);
         }
         let lets = self.scratch.len();
-        self.component_lets(instance, &directives.lets, read);
-        ((self.scratch.len() > lets).then_some(lets), Some(instance))
+        if let Some(instance) = instance {
+            self.component_lets(instance, &directives.lets, read);
+        }
+        ((self.scratch.len() > lets).then_some(lets), instance)
     }
 
     /// The expressions of `class:` directives, which svelte2tsx checks after the call.
