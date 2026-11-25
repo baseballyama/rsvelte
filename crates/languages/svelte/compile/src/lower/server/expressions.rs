@@ -7,10 +7,11 @@ use rsvelte_typescript_tree::{ExpressionIdentifier, ParametersIdentifier};
 use super::ServerCompilationContext;
 use crate::input::Target;
 use crate::lower::script::ScriptRewrite;
+use crate::lower::validation::Unit;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
-    pub(super) fn rewrite(&self) -> ScriptRewrite<'_, 'o> {
-        ScriptRewrite::new(self.b, Target::Server, self.res)
+    pub(super) const fn rewrite(&self) -> ScriptRewrite<'_, 'o> {
+        ScriptRewrite::new(self.b, Target::Server, self.res, Unit::Component)
     }
 
     /// A template expression, lowered into the output.

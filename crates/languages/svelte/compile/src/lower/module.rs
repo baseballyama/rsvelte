@@ -40,9 +40,8 @@ pub(crate) fn lower_module<'o>(
     let mut rewrite = script::ScriptRewrite {
         stores: &validated.stores,
         names: Some(&names),
-        ..script::ScriptRewrite::new(&b, target, res)
+        ..script::ScriptRewrite::new(&b, target, res, Unit::Module)
     };
-    rewrite.classes.unit = Unit::Module;
     let mut hoisted = Vec::new();
     let statements = script::lower_script(
         &mut rewrite,

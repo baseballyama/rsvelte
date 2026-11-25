@@ -92,7 +92,7 @@ fn is_type_only_declaration(declaration: &Declaration<'_>) -> bool {
     }
 }
 
-/// Whether erasing types removes `element` from its class.
+/// Whether erasing types removes `element` from its class, as [`Strip`] does after the lowering.
 fn is_type_only_element(element: &ClassElement<'_>) -> bool {
     match element {
         ClassElement::TSIndexSignature(_) => true,
@@ -127,8 +127,9 @@ fn is_erased_statement(statement: &Statement<'_>) -> bool {
     is_type_declaration(statement) || imports_by_require(statement)
 }
 
-/// Whether TypeScript's emit removes `element` from its class: it keeps an accessor without a
-/// body, and gives it an empty one.
+/// Whether TypeScript's emit removes `element` from its class, as `transpileModule` does before
+/// svelte reads a `.svelte.ts` module: it keeps an accessor without a body, and gives it an empty
+/// one.
 #[must_use]
 pub fn is_erased_by_emit(element: &ClassElement<'_>) -> bool {
     match element {
