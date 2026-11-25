@@ -36,6 +36,61 @@ mod typecheck_untyped;
 mod typecheck_untyped_packages;
 mod unit_names;
 
+/// The variables, of those `apps/oxlint/src` and `crates/oxc_diagnostics/src` read at the oxc fork
+/// revision 052d1134d7, that change oxlint's default report when its output is piped, as the tests
+/// pipe it. `CI` and `FORCE_COLOR` colour it
+/// (`crates/oxc_diagnostics/src/handlers/theme.rs`), and `TERMINAL_EMULATOR` changes how it prints
+/// a path (`crates/oxc_diagnostics/src/service.rs`). In a release build only, `GITHUB_ACTIONS`
+/// picks the `github` format (`default_output_format` in `apps/oxlint/src/command/lint.rs`) and
+/// the rest pick the `agent` format (`apps/oxlint/src/agent_detection.rs`, which also reads
+/// [`AGENT_PATH_SEGMENTS`] in `PATH`). `NO_COLOR` is left out: oxlint reads it only for a
+/// terminal or for `--format stylish`.
+const REPORT_VARIABLES: [&str; 18] = [
+    "CI",
+    "FORCE_COLOR",
+    "TERMINAL_EMULATOR",
+    "GITHUB_ACTIONS",
+    "AI_AGENT",
+    "CLAUDECODE",
+    "CLAUDE_CODE",
+    "REPL_ID",
+    "GEMINI_CLI",
+    "CODEX_SANDBOX",
+    "CODEX_THREAD_ID",
+    "COPILOT_CLI",
+    "OPENCODE",
+    "JUNIE_DATA",
+    "JUNIE_SHIM_PATH",
+    "EDITOR",
+    "CURSOR_AGENT",
+    "TERM_PROGRAM",
+];
+
+/// A `PATH` entry holding either tells oxlint that the Pi agent runs it.
+const AGENT_PATH_SEGMENTS: [&str; 2] = [".pi/agent", ".pi\\agent"];
+
+/// `rsvelte`, to be run in `directory`, whose lint report does not depend on where the tests run.
+fn rsvelte(directory: impl AsRef<Path>) -> Command {
+    let mut command = Command::new(env!("CARGO_BIN_EXE_rsvelte"));
+    command.current_dir(directory);
+    for variable in REPORT_VARIABLES {
+        command.env_remove(variable);
+    }
+    if let Some(path) = std::env::var_os("PATH") {
+        let kept = std::env::split_paths(&path).filter(|entry| {
+            let entry = entry.to_string_lossy();
+            !AGENT_PATH_SEGMENTS
+                .iter()
+                .any(|segment| entry.contains(segment))
+        });
+        command.env(
+            "PATH",
+            std::env::join_paths(kept).expect("PATH entries rejoin"),
+        );
+    }
+    command
+}
+
 /// `rsvelte-dev`, to be run in `directory`.
 fn rsvelte_dev(directory: impl AsRef<Path>) -> Command {
     let mut command = Command::new(env!("CARGO_BIN_EXE_rsvelte-dev"));
