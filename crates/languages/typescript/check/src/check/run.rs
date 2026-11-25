@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
+use rsvelte_kernel::source::paths;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_typescript_api::{Layer, Position, Session};
 use selection::Selected;
@@ -42,6 +43,8 @@ pub(crate) struct TypeScriptDiagnostic {
     /// Byte range in the input: original for content-mapped files, generated otherwise. `None`
     /// in code a content mapper synthesized, which no source range explains.
     pub span: Option<Span>,
+    /// Where a finding in code a content mapper synthesized starts in the text it generated.
+    pub synthesized: Option<Position>,
     /// A syntax error, which TypeScript reports before the other findings of a file.
     pub syntactic: bool,
 }
@@ -82,10 +85,7 @@ impl Tsc {
     /// the current directory, as the command line resolves it. The checker names files by their
     /// real path, such as `/private/var` for `/var`, so both are real paths.
     fn root(&self) -> Result<(Option<PathBuf>, PathBuf), String> {
-        let real = |p: &Path| {
-            rsvelte_kernel::source::paths::canonicalize(p)
-                .map_err(|e| format!("{}: {e}", p.display()))
-        };
+        let real = |p: &Path| paths::canonicalize(p).map_err(|e| format!("{}: {e}", p.display()));
         match &self.tsconfig {
             Some(config) => {
                 let config = real(config)?;
@@ -152,11 +152,13 @@ impl Tsc {
             tsconfig_json(base.as_deref(), req, &own, &roots, Some(&store)),
         );
         let files: Vec<&Path> = paths.iter().map(PathBuf::as_path).collect();
-        // Where every import of JavaScript is untyped, the checker resolves each import.
-        let resolve = all_untyped.then_some((req, paths.as_slice(), &javascript));
+        let mut external = std::mem::take(&mut own.selected.external);
+        // Where an import of JavaScript may be untyped, the checker resolves each import.
+        let resolve =
+            (all_untyped || !external.is_empty()).then_some((req, paths.as_slice(), &javascript));
         let mut checked = check_shares(&mut session, helpers, &config, &layer, &files, resolve)
             .map_err(failed)?;
-        let external = std::mem::take(&mut own.selected.external);
+        untyped::drop_loaded(req, &checked.modules, &mut external);
         if !external.is_empty() {
             // The components a search of `node_modules` finds read as untyped JavaScript, which
             // the projections say, so the files are checked again with them.
@@ -164,9 +166,10 @@ impl Tsc {
             let text = tsconfig_json(base.as_deref(), req, &own, &roots, Some(&store));
             layer.files.insert(config.clone(), text);
             let helpers = self.start_helpers(paths.len(), &root);
-            let resolve = Some((req, paths.as_slice(), &javascript));
-            checked = check_shares(&mut session, helpers, &config, &layer, &files, resolve)
+            let modules = std::mem::take(&mut checked.modules);
+            checked = check_shares(&mut session, helpers, &config, &layer, &files, None)
                 .map_err(failed)?;
+            checked.modules = modules;
         }
         let untyped_documents = UntypedDocuments {
             all: all_untyped,
@@ -281,7 +284,7 @@ fn in_temporary_directory<T>(
     ));
     let io = |e: std::io::Error| format!("{}: {e}", dir.display());
     std::fs::create_dir_all(&dir).map_err(io)?;
-    let result = rsvelte_kernel::source::paths::canonicalize(&dir)
+    let result = paths::canonicalize(&dir)
         .map_err(io)
         .and_then(|real| work(&real));
     // Best effort: a leftover temporary directory does not affect the result.
@@ -304,7 +307,7 @@ fn tsconfig_json(
     let mut w = StructuredDataWriter::new(true);
     w.begin_object();
     if let Some(base) = base {
-        w.key("extends").write_string(&base.to_string_lossy());
+        w.key("extends").write_string(&paths::typescript(base));
     }
     w.key("compilerOptions")
         .begin_object()
@@ -321,14 +324,14 @@ fn tsconfig_json(
         }
         w.key(spec).begin_array();
         for target in targets {
-            w.write_string(&target.to_string_lossy());
+            w.write_string(&paths::typescript(target));
         }
         w.end_array();
     }
     for (spec, file) in &req.env.paths {
         w.key(spec)
             .begin_array()
-            .write_string(&file.to_string_lossy())
+            .write_string(&paths::typescript(file))
             .end_array();
     }
     w.end_object().end_object();
@@ -339,7 +342,7 @@ fn tsconfig_json(
     let mut listed = HashSet::new();
     for p in roots {
         if listed.insert(p) {
-            w.write_string(&p.to_string_lossy());
+            w.write_string(&paths::typescript(p));
         }
     }
     w.end_array().end_object();
@@ -480,16 +483,18 @@ fn located(
         lines[file].offset(p.line + 1, p.character)
     };
     let message = d.flattened_message();
-    // A finding in synthesized code may still carry a nearby position, beside this note.
+    // A finding in synthesized code carries its position in the generated text, beside this note.
+    let synthesized = message.contains(VIRTUAL_CODE);
     let span = offset(d.start_position)
         .zip(offset(d.end_position))
-        .filter(|(start, end)| start <= end && !message.contains(VIRTUAL_CODE))
+        .filter(|(start, end)| start <= end && !synthesized)
         .map(|(start, end)| Span::new(start, end));
     Some(TypeScriptDiagnostic {
         file,
         code: d.code,
         message,
         span,
+        synthesized: d.start_position.filter(|_| synthesized),
         syntactic,
     })
 }

@@ -95,11 +95,7 @@ impl Printer<'_> {
                 body,
                 name,
             } => self.render(type_parameters, asynchronous, body, name),
-            Node::Return(value) => {
-                self.output.push("return ");
-                self.node(value);
-                self.output.push(";\n");
-            }
+            Node::Return(value) => self.returned(value),
             Node::GenericExport {
                 type_parameters,
                 names,
@@ -259,5 +255,15 @@ impl Printer<'_> {
             self.body(properties);
             self.output.push("}");
         }
+    }
+
+    /// The render function's return, which svelte2tsx appends with no mapping, so svelte-check
+    /// drops a finding in it.
+    fn returned(&mut self, value: NodeIdentifier) {
+        let start = self.output.out.len() as u32;
+        self.output.push("return ");
+        self.node(value);
+        self.output.unmapped_since(start);
+        self.output.push(";\n");
     }
 }

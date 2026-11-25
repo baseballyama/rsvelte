@@ -36,7 +36,7 @@ function $$render() {
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(Child);
-      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
+      const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
         "value": $count,
         "other": $obj.a,
       });
