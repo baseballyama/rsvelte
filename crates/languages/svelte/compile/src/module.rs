@@ -81,10 +81,9 @@ pub(crate) fn compiled(
         &document.text,
         source_type,
         |allocator, program| {
-            if !source_type.is_typescript() {
-                return Ok(());
+            if source_type.is_typescript() {
+                erase::erase(allocator, program);
             }
-            emit::typescript_emit(allocator, program, &document.path)
         },
     )?;
     let compiler_syntax_tree =
@@ -132,7 +131,7 @@ pub(crate) fn compiled(
     })
 }
 
-mod emit;
+mod erase;
 
 #[cfg(test)]
 mod tests;

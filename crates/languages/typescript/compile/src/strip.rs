@@ -4,17 +4,17 @@
 use oxc_allocator::{Allocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::Comment;
 use oxc_ast::ast::{
-    ArrowFunctionExpression, CallExpression, CatchParameter, ChainElement, Class, ClassElement,
-    CommentPosition, Declaration, ExportDeclaration, ExportDefaultDeclarationKind,
+    ArrowFunctionExpression, CallExpression, CatchParameter, ChainElement, Class, ClassBody,
+    ClassElement, CommentPosition, Declaration, ExportDeclaration, ExportDefaultDeclarationKind,
     ExportNamedDeclaration, ExportSpecifier, Expression, FormalParameter, FormalParameterRest,
-    Function, FunctionBody, FunctionType, ImportDeclarationSpecifier, MethodDefinition,
-    MethodDefinitionKind, MethodDefinitionType, NewExpression, Program, PropertyDefinition,
-    PropertyDefinitionType, SimpleAssignmentTarget, Statement, TSModuleReference,
-    TaggedTemplateExpression, VariableDeclarator,
+    Function, FunctionBody, FunctionType, ImportDeclaration, ImportDeclarationSpecifier,
+    MethodDefinition, MethodDefinitionKind, MethodDefinitionType, NewExpression, Program,
+    PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget, Statement,
+    TSModuleReference, TaggedTemplateExpression, VariableDeclarator,
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
-use oxc_span::{GetSpan, SPAN, Span};
+use oxc_span::{GetSpan, Span};
 use oxc_syntax::scope::ScopeFlags;
 
 /// Erases the types of every node it visits.
@@ -125,54 +125,84 @@ pub fn is_erased_module_syntax(statement: &Statement<'_>) -> bool {
     )
 }
 
-/// What TypeScript's emit of a module does and oxc's transform does not.
-pub struct ModuleEmit<'a> {
+/// Removes from a module what TypeScript's emit removes, so that nothing analyzes it.
+///
+/// That is declarations and class members without a runtime meaning, `import A = require("a")` and
+/// `export =`. An expression keeps its types, and an enum, a namespace and a parameter property are
+/// left to be lowered.
+pub struct ModuleErasure<'a> {
     allocator: &'a Allocator,
 }
 
-impl std::fmt::Debug for ModuleEmit<'_> {
+impl std::fmt::Debug for ModuleErasure<'_> {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        f.debug_struct("ModuleEmit").finish_non_exhaustive()
+        f.debug_struct("ModuleErasure").finish_non_exhaustive()
     }
 }
 
-impl<'a> ModuleEmit<'a> {
+impl<'a> ModuleErasure<'a> {
     #[must_use]
     pub const fn new(allocator: &'a Allocator) -> Self {
         Self { allocator }
     }
 }
 
-impl<'a> VisitMut<'a> for ModuleEmit<'a> {
+impl<'a> VisitMut<'a> for ModuleErasure<'a> {
     fn visit_statements(&mut self, it: &mut ArenaVec<'a, Statement<'a>>) {
-        it.retain(|s| !is_erased_module_syntax(s));
+        it.retain(|s| !is_erased_statement(s) || is_namespace(s));
         walk_mut::walk_statements(self, it);
+    }
+
+    /// An import of types only is still an import.
+    fn visit_import_declaration(&mut self, it: &mut ImportDeclaration<'a>) {
+        if let Some(specifiers) = &mut it.specifiers {
+            specifiers.retain(|s| !is_type_import(s));
+        }
     }
 
     /// An export of types only is still an export.
     fn visit_export_named_declaration(&mut self, it: &mut ExportNamedDeclaration<'a>) {
-        if !it.export_kind.is_type() {
-            it.specifiers.retain(|s| !is_type_export(s));
-        }
+        it.specifiers.retain(|s| !is_type_export(s));
     }
 
-    /// An accessor without a body gets an empty one.
+    /// A member without a runtime meaning goes, and an accessor without a body gets an empty one.
+    fn visit_class_body(&mut self, it: &mut ClassBody<'a>) {
+        it.body.retain(|element| {
+            !is_type_only_element(element)
+                || matches!(element, ClassElement::MethodDefinition(m) if is_bodiless_accessor(m))
+        });
+        walk_mut::walk_class_body(self, it);
+    }
+
     fn visit_method_definition(&mut self, it: &mut MethodDefinition<'a>) {
-        let accessor = matches!(
-            it.kind,
-            MethodDefinitionKind::Get | MethodDefinitionKind::Set
-        );
-        if accessor && it.value.body.is_none() && !it.r#type.is_abstract() {
+        if is_bodiless_accessor(it) {
             let b = AstBuilder::new(self.allocator);
             let (directives, statements) = (
                 ArenaVec::new_in(&self.allocator),
                 ArenaVec::new_in(&self.allocator),
             );
             it.value.r#type = FunctionType::FunctionExpression;
-            it.value.body = Some(FunctionBody::boxed(SPAN, directives, statements, &b));
+            it.value.body = Some(FunctionBody::boxed(it.span, directives, statements, &b));
         }
         walk_mut::walk_method_definition(self, it);
     }
+}
+
+fn is_bodiless_accessor(method: &MethodDefinition<'_>) -> bool {
+    matches!(
+        method.kind,
+        MethodDefinitionKind::Get | MethodDefinitionKind::Set
+    ) && method.value.body.is_none()
+        && !method.r#type.is_abstract()
+}
+
+/// Whether `statement` is a namespace that no `declare` makes ambient.
+fn is_namespace(statement: &Statement<'_>) -> bool {
+    let declaration = match statement {
+        Statement::ExportDeclaration(export) => Some(&export.declaration),
+        statement => statement.as_declaration(),
+    };
+    matches!(declaration, Some(Declaration::TSNamespaceDeclaration(it)) if !it.declare)
 }
 
 /// Whether TypeScript's emit for an ES module removes `statement`.
