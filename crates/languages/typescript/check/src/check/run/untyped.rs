@@ -102,6 +102,7 @@ impl UntypedImport<'_> {
                 paths::typescript(&self.module.to_string_lossy())
             ),
             span: Some(self.import.at),
+            synthesized: None,
             syntactic: false,
         }
     }
