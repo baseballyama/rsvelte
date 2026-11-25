@@ -41,6 +41,22 @@ difference and not the projection:
   gives one line, `The last overload gave the following error.` The store read `{$n}` of a
   `const n = 1` gives the same pair.
 
+- The checker places an unused name of a destructured `for…of` binding elsewhere.
+
+  ```ts
+  export function f() {
+    for (let { x } of [{ x: 1 }]) {
+    }
+    for (let [p, q] of [[1, 2]]) {
+    }
+  }
+  ```
+
+  Under `noUnusedLocals`, TypeScript 6.0.3 reports TS6133 for `x` at 2:12, the `{`, and TS6133
+  for `p` and `q` at 4:13 and 4:16. TypeScript 7.1 reports TS6133 for `x` at 2:14, and one TS6198
+  `All destructured elements are unused.` at 4:12. An `{#each}` item `{ x }`, `{ x = 2 }` or
+  `[p, q]` gives the same pair, because svelte2tsx writes the item as the binding of a `for…of`.
+
 - Test: `typecheck_prints_what_typescript_7_prints` in the command line crate's
   `tests/cli/typecheck_checker.rs`.
 - The report is [#5254](https://github.com/baseballyama/rsvelte/issues/5254).

@@ -14,7 +14,7 @@ function $$render() {
   }, {}, false);
   async () => {
     {
-      for (let [, { id, name, size = 1, ...rest }] of __rsvelte_each(items)) {
+      for (let { id, name, size = 1, ...rest } of __rsvelte_each(items)) {
         (id);
         {
           svelteHTML.createElement("p", {});
@@ -26,7 +26,8 @@ function $$render() {
       }
     }
     {
-      for (let [i, [key, value]] of __rsvelte_each(pairs)) {
+      for (let [key, value] of __rsvelte_each(pairs)) {
+        let i = 1;
         {
           svelteHTML.createElement("span", {});
           i;
@@ -36,7 +37,7 @@ function $$render() {
       }
     }
     {
-      for (let [, { name, tags: [first = fallback] }] of __rsvelte_each(plain)) {
+      for (let { name, tags: [first = fallback] } of __rsvelte_each(plain)) {
         {
           svelteHTML.createElement("b", {});
           name;
@@ -45,7 +46,7 @@ function $$render() {
       }
     }
     {
-      for (let [, { label }] of __rsvelte_each(fixed)) {
+      for (let { label } of __rsvelte_each(fixed)) {
         {
           svelteHTML.createElement("i", {});
           label;

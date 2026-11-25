@@ -7,9 +7,9 @@ function $$render() {
 
   async () => {
     {
-      for (let [, { id, data }] of __rsvelte_each(list)) {
+      for (let { id, data } of __rsvelte_each(list)) {
         {
-          for (let [, item] of __rsvelte_each(data)) {
+          for (let item of __rsvelte_each(data)) {
             {
               svelteHTML.createElement("input", {
                 "type": "checkbox",

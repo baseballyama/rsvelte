@@ -180,7 +180,7 @@ impl Printer<'_> {
                 self.node(property);
             }
             Node::Call { callee, arguments } => self.call(callee, arguments),
-            Node::ArrayPattern { index, value } => self.array_pattern(index, value),
+            Node::Let { name, value } => self.declaration("let ", name, value),
             Node::ForOf {
                 binding,
                 iterable,
@@ -391,18 +391,6 @@ impl Printer<'_> {
             self.node(argument);
         }
         self.output.push(")");
-    }
-
-    fn array_pattern(&mut self, index: Option<NodeIdentifier>, value: Option<NodeIdentifier>) {
-        self.output.push("[");
-        if let Some(index) = index {
-            self.node(index);
-        }
-        self.output.push(", ");
-        if let Some(value) = value {
-            self.node(value);
-        }
-        self.output.push("]");
     }
 
     fn for_of(&mut self, binding: NodeIdentifier, iterable: NodeIdentifier, body: Range) {
