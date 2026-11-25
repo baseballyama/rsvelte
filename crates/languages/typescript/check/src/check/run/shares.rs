@@ -218,8 +218,8 @@ impl<'a> Shares<'a> {
         Ok(sampled)
     }
 
-    /// The semantic findings of each share `session` takes, and the modules of its documents'
-    /// imports when asked.
+    /// The semantic and declaration findings of each share `session` takes, and the modules of its
+    /// documents' imports when asked.
     fn check(&self, session: &mut Session, project: &Project) -> Result<(Found, Modules), String> {
         let mut found = Vec::new();
         let mut modules = Vec::new();
@@ -239,6 +239,11 @@ impl<'a> Shares<'a> {
     ) -> Result<(), String> {
         let files = &self.files[share.clone()];
         found.extend(session.diagnostics(project, DiagnosticKind::Semantic, Some(files))?);
+        // As `tsc` and the language service, which add them to the semantic findings.
+        if project.emit_declarations {
+            let kind = DiagnosticKind::Declaration;
+            found.extend(session.diagnostics(project, kind, Some(files))?);
+        }
         if let Some((req, paths, javascript)) = self.resolve {
             for file in share {
                 let typed = !javascript.contains(&paths[file]);
