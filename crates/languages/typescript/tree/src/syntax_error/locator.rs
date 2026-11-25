@@ -502,7 +502,7 @@ fn parameter_list(kind: AstKind<'_>) -> Option<(oxc_span::Span, bool)> {
 }
 
 /// The home `kind` is, and the source it governs, where acorn reads a name in that home.
-fn governed(kind: AstKind<'_>) -> Option<(oxc_span::Span, Home)> {
+pub(super) fn governed(kind: AstKind<'_>) -> Option<(oxc_span::Span, Home)> {
     let function = |span, is_async, is_generator| {
         Some((
             span,
