@@ -7,7 +7,7 @@ use rsvelte_kernel::source::positions::Span;
 
 use super::{Part, TreeBuilder, parentheses};
 use crate::ProgramIdentifier;
-use crate::acorn_grammar::{rejection, whitespace};
+use crate::acorn_grammar::{lexed, read_before_stopping, rejection};
 use crate::syntax_error::{SyntaxError, acorn, syntax_error, typescript_eslint_at};
 
 impl<'a> TreeBuilder<'a> {
@@ -176,7 +176,11 @@ impl<'a> TreeBuilder<'a> {
             let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, &[], start, 0);
             error.acorn = acorn;
             let stop = (self.as_acorn.is_some())
-                .then(|| whitespace(text, &parsed.irregular_whitespaces, 0))
+                .then(|| {
+                    let read = read_before_stopping(text, &parsed.tokens, &parsed.diagnostics);
+                    let typescript = self.typescript_reader(source_type);
+                    lexed(text, read, (&parsed.irregular_whitespaces, typescript), 0)
+                })
                 .flatten();
             if let Some(stop) = stop.filter(|stop| stop.raised <= error.acorn_raised_at()) {
                 error = rejection(stop);
