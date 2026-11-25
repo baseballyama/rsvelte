@@ -11,7 +11,8 @@ use super::Builder;
 use super::element::is_dynamic;
 
 /// The moves of one start tag, `(start, end)` in source order, before `transform` extends them.
-pub(super) struct StartTag<M> {
+pub(super) struct StartTag<'a, M> {
+    source: &'a str,
     moves: M,
     /// The tag's `<`.
     start: u32,
@@ -21,7 +22,24 @@ pub(super) struct StartTag<M> {
     moves_runs: bool,
 }
 
-impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<M> {
+impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<'_, M> {
+    /// The offset after the character at `at`.
+    pub(super) fn after(&self, at: u32) -> u32 {
+        let next = self.source[at as usize..].chars().next();
+        at + next.map_or(0, |c| c.len_utf8() as u32)
+    }
+
+    /// The offset of the character before `at`.
+    pub(super) fn before(&self, at: u32) -> u32 {
+        let last = self.source[..at as usize].chars().next_back();
+        at - last.map_or(0, |c| c.len_utf8() as u32)
+    }
+
+    /// Whether the tag's `>` is the character at `at`, or `at` is past it.
+    const fn at_close(&self, at: u32) -> bool {
+        at + 1 >= self.end
+    }
+
     /// svelte2tsx's `transform` extends a move over the character after it, which the text it
     /// writes next overwrites, unless that is the tag's last character or another move starts
     /// there.
@@ -29,17 +47,17 @@ impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<M> {
         self.extended_unless(end, self.moves.clone().any(|(start, _)| start == end))
     }
 
-    const fn extended_unless(&self, end: u32, moved: bool) -> u32 {
-        if end + 1 < self.end && !moved {
-            end + 1
-        } else {
+    fn extended_unless(&self, end: u32, moved: bool) -> u32 {
+        if self.at_close(end) || moved {
             end
+        } else {
+            self.after(end)
         }
     }
 
     /// The offset of the source character the last character of a move ending at `end` maps to.
     pub(super) fn last_character(&self, end: u32) -> u32 {
-        self.extended(end) - 1
+        self.before(self.extended(end))
     }
 
     /// Where each run `transform` removes after a move starts, and the move it ends at, if any.
@@ -64,7 +82,9 @@ impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<M> {
         for (removed, next) in self.runs() {
             match next {
                 Some(start) if removed < start && start < self.end => space = Some(removed),
-                None if removed + 2 < self.end => space = Some(removed + 1),
+                None if removed < self.end && !self.at_close(self.after(removed)) => {
+                    space = Some(self.after(removed));
+                }
                 _ => {}
             }
         }
@@ -81,8 +101,11 @@ impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<M> {
                 Some(start) if !self.moves_runs && removed < start && start < self.end => {
                     space = removed;
                 }
-                None if removed + 1 < self.end && !(self.moves_runs && removed + 2 < self.end) => {
-                    space = removed + 1;
+                None => {
+                    let after = self.after(removed);
+                    if after < self.end && (!self.moves_runs || self.at_close(after)) {
+                        space = after;
+                    }
                 }
                 _ => {}
             }
@@ -99,24 +122,26 @@ impl Builder<'_> {
         name: Span,
         tag: Span,
         attributes: Range,
-    ) -> StartTag<impl Iterator<Item = (u32, u32)> + Clone + '_> {
+    ) -> StartTag<'_, impl Iterator<Item = (u32, u32)> + Clone + '_> {
         let after_name = name.end_offset as usize;
-        let moves_runs = self.source[after_name..].starts_with(is_ecmascript_whitespace);
-        let whitespace = moves_runs.then_some((name.end_offset, name.end_offset + 1));
+        let space = (self.source[after_name..].chars().next())
+            .filter(|&c| is_ecmascript_whitespace(c))
+            .map(|c| (name.end_offset, name.end_offset + c.len_utf8() as u32));
         let dynamic = is_dynamic(name.text(self.source));
         let attributes = self.component.attributes(attributes);
         let moves = std::iter::once((name.start_offset, name.end_offset))
-            .chain(whitespace)
+            .chain(space)
             .chain((0..attributes.len()).flat_map(move |index| {
                 self.attribute_moves(attributes, index, name.end_offset, dynamic)
             }))
             // `transform` skips an empty range.
             .filter(|(start, end)| start < end);
         StartTag {
+            source: self.source,
             moves,
             start: tag.start_offset,
             end: tag.end_offset,
-            moves_runs,
+            moves_runs: space.is_some(),
         }
     }
 

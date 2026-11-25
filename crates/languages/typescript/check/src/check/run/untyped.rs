@@ -99,7 +99,7 @@ impl UntypedImport<'_> {
                 "Could not find a declaration file for module '{}'. '{}' implicitly has an 'any' \
                  type.",
                 self.import.specifier,
-                paths::typescript(&self.module.to_string_lossy())
+                paths::typescript(&self.module)
             ),
             span: Some(self.import.at),
             synthesized: None,
@@ -229,7 +229,7 @@ pub(super) fn probe(root: &Path, overlay: &Path, base: &Path) -> [(PathBuf, Stri
     config
         .begin_object()
         .key("extends")
-        .write_string(&base.to_string_lossy())
+        .write_string(&paths::typescript(base))
         .key("compilerOptions")
         .begin_object()
         .key("noEmit")
@@ -240,8 +240,8 @@ pub(super) fn probe(root: &Path, overlay: &Path, base: &Path) -> [(PathBuf, Stri
         .end_array()
         .key("files")
         .begin_array()
-        .write_string(&probe.to_string_lossy())
-        .write_string(&package_probe.to_string_lossy())
+        .write_string(&paths::typescript(&probe))
+        .write_string(&paths::typescript(&package_probe))
         .end_array()
         .end_object();
     [
