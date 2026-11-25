@@ -155,41 +155,42 @@ impl Builder<'_> {
     }
 
     /// Builds the declaration of the filled slot's `let:` bindings, from the parent component,
-    /// whose read of the slot svelte-check reports at `read`.
+    /// which svelte2tsx writes for every child that names the slot it fills, so that the name
+    /// is checked; `read` is where svelte-check reports a finding on the last `let:`'s read.
     pub(super) fn slot_let(
         &mut self,
+        (name, tag): (Span, Span),
         attributes: Range,
         read: Option<u32>,
         directives: &mut Directives,
     ) -> Result<()> {
-        if directives.slot_lets.is_empty() {
+        if directives.slot_lets.is_empty() && self.filled_slot(attributes).is_none() {
             return Ok(());
         }
-        let slot = self
-            .component
-            .attributes(attributes)
-            .iter()
-            .find(|a| a.kind == AttributeKind::Attribute && a.name.text(self.source) == "slot");
+        let slot = (self.component.attributes(attributes).iter()).find(|a| self.is_slot(a));
         let Some(parent) = self.slot_parent else {
-            return slot.map_or(Ok(()), |slot| Err(refuse("directives", slot.span)));
+            return match slot {
+                Some(slot) if !directives.slot_lets.is_empty() => {
+                    Err(refuse("directives", slot.span))
+                }
+                _ => Ok(()),
+            };
         };
-        let name = match slot {
+        let slot = match slot {
             None => None,
-            Some(slot) => match slot.value {
-                AttributeValue::Parts(parts) => match self.component.parts(parts) {
-                    &[Part::Text(text)] => Some(text),
-                    _ => return Err(refuse("directives", slot.span)),
-                },
-                AttributeValue::True => return Err(refuse("directives", slot.span)),
-            },
+            Some(slot) => Some(
+                self.slot_text(slot)
+                    .ok_or_else(|| refuse("directives", slot.span))?,
+            ),
         };
+        let at = self.slot_read(name, tag, attributes, read);
         let properties = self.tree.list(&directives.slot_lets);
         let pattern = self.tree.push(Node::Object { properties });
-        let object = self.instance(parent, read);
+        let object = self.instance(parent, Some(at));
         let property = self.tree.push(Node::Identifier("$$slot_def"));
         let object = self.tree.push(Node::Member { object, property });
-        let value = if let Some(name) = name {
-            let text = self.tree.push(Node::Text(name));
+        let value = if let Some(slot) = slot {
+            let text = self.tree.push(Node::Text(slot));
             let parts = self.tree.list(&[text]);
             let index = self.tree.push(Node::String {
                 parts,

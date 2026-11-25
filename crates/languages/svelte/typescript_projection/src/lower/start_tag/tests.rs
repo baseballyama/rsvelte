@@ -6,6 +6,7 @@ fn tag(source: &str, moves: Vec<(u32, u32)>) -> StartTag<'_, std::vec::IntoIter<
     StartTag {
         source,
         moves: moves.into_iter(),
+        start: 0,
         end: source.len() as u32,
         moves_runs: true,
     }
@@ -38,6 +39,23 @@ fn appended_text_maps_to_the_last_removed_run() {
     // After the deleted newline only the `>` is left, which stays in place.
     let newline = tag("<Foo a={1}\n>", vec![(1, 4), (4, 5), (5, 6), (8, 9)]);
     assert_eq!(newline.last_space(), Some(7));
+}
+
+#[test]
+fn text_before_the_moves_maps_to_the_last_run_left_in_place() {
+    // Every run between moves is moved, so only the `<`'s is left.
+    let div = tag("<div slot=\"nope\">", vec![(1, 4), (4, 5), (11, 15)]);
+    assert_eq!(div.unmoved_space(), 0);
+    // After the deleted newline only the `>` is left, in place.
+    let newline = tag("<div\n\tslot=\"nope\"\n>", vec![(1, 4), (4, 5), (12, 16)]);
+    assert_eq!(newline.unmoved_space(), 18);
+    // Without whitespace after the name no run moves.
+    let unmoved = |source| StartTag {
+        moves_runs: false,
+        ..tag(source, vec![(1, 5), (6, 10)])
+    };
+    assert_eq!(unmoved("<Leaf{...p} >").unmoved_space(), 12);
+    assert_eq!(unmoved("<Leaf{...p}\u{3000}\u{3000}>").unmoved_space(), 14);
 }
 
 #[test]

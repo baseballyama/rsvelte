@@ -14,6 +14,8 @@ use super::element::is_dynamic;
 pub(super) struct StartTag<'a, M> {
     source: &'a str,
     moves: M,
+    /// The tag's `<`.
+    start: u32,
     /// Where `transform` stops: after the tag's `>`.
     end: u32,
     /// Whether whitespace follows the tag name, which svelte2tsx removes first.
@@ -88,6 +90,28 @@ impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<'_, M> {
         }
         space
     }
+
+    /// Where text written before the moves maps: the last removed run `transform` leaves in
+    /// place, the `<`'s at least. Without whitespace after the tag name it leaves each run, and
+    /// with it only the run after the last move when one character is left of it.
+    pub(super) fn unmoved_space(&self) -> u32 {
+        let mut space = self.start;
+        for (removed, next) in self.runs() {
+            match next {
+                Some(start) if !self.moves_runs && removed < start && start < self.end => {
+                    space = removed;
+                }
+                None => {
+                    let after = self.after(removed);
+                    if after < self.end && (!self.moves_runs || self.at_close(after)) {
+                        space = after;
+                    }
+                }
+                _ => {}
+            }
+        }
+        space
+    }
 }
 
 impl Builder<'_> {
@@ -109,10 +133,13 @@ impl Builder<'_> {
             .chain(space)
             .chain((0..attributes.len()).flat_map(move |index| {
                 self.attribute_moves(attributes, index, name.end_offset, dynamic)
-            }));
+            }))
+            // `transform` skips an empty range.
+            .filter(|(start, end)| start < end);
         StartTag {
             source: self.source,
             moves,
+            start: tag.start_offset,
             end: tag.end_offset,
             moves_runs: space.is_some(),
         }
@@ -130,13 +157,19 @@ impl Builder<'_> {
             .checked_sub(1)
             .map_or(name_end, |previous| attributes[previous].span.end_offset);
         let attribute = &attributes[index];
-        // `<svelte:component this={…}>` is an expression to svelte2tsx, and no attribute.
-        let (leading, trailing): (&[Span], &[Span]) = if self.is_this(attribute, dynamic) {
-            (&[], &[])
-        } else {
-            self.attached_comments(attribute, after, index + 1 == attributes.len())
-        };
-        let (name, value) = self.copied(attribute, dynamic);
+        // `<svelte:component this={…}>` is an expression to svelte2tsx, and no attribute, and it
+        // reads the slot a component's child fills before any comment.
+        let filler = self.filler_slot(attribute);
+        let (leading, trailing): (&[Span], &[Span]) =
+            if filler.is_some() || self.is_this(attribute, dynamic) {
+                (&[], &[])
+            } else {
+                self.attached_comments(attribute, after, index + 1 == attributes.len())
+            };
+        let (name, value) = filler.map_or_else(
+            || self.copied(attribute, dynamic),
+            |slot| (None, Some(slot)),
+        );
         (leading.iter().copied())
             .chain(name)
             .chain(value)
@@ -150,7 +183,15 @@ impl Builder<'_> {
             && attribute.name.text(self.source) == "this"
     }
 
-    /// The ranges svelte2tsx copies of `attribute`: its name or the directive's, and its value.
+    /// The name in a `slot` attribute that fills a slot of the parent component.
+    pub(super) fn filler_slot(&self, attribute: &Attribute) -> Option<Span> {
+        (self.component_parent)
+            .then(|| self.slot_text(attribute))
+            .flatten()
+    }
+
+    /// The ranges svelte2tsx copies of `attribute`, if it names no slot it fills: its name or the
+    /// directive's, and its value.
     fn copied(&self, attribute: &Attribute, dynamic: bool) -> (Option<Span>, Option<Span>) {
         let value = match attribute.value {
             AttributeValue::Parts(parts) => self.copied_value(self.component.parts(parts)),
@@ -274,6 +315,19 @@ impl Builder<'_> {
         let (directive, value) = self.copied(attribute, false);
         let end = value.or(directive)?.end_offset;
         Some(self.start_tag(name, tag, attributes).last_character(end))
+    }
+
+    /// Where svelte-check reports a finding on a filler's read of its slot: at the text
+    /// svelte2tsx writes before the slot's name, after the last `let:`'s `read` or else before
+    /// the moves.
+    pub(super) fn slot_read(
+        &self,
+        name: Span,
+        tag: Span,
+        attributes: Range,
+        read: Option<u32>,
+    ) -> u32 {
+        read.unwrap_or_else(|| self.start_tag(name, tag, attributes).unmoved_space())
     }
 }
 
