@@ -132,6 +132,8 @@ pub fn is_erased_module_syntax(statement: &Statement<'_>) -> bool {
 /// left to be lowered.
 pub struct ModuleErasure<'a> {
     allocator: &'a Allocator,
+    /// The spans of the statements and the class members it removed.
+    erased: Vec<Span>,
 }
 
 impl std::fmt::Debug for ModuleErasure<'_> {
@@ -143,13 +145,29 @@ impl std::fmt::Debug for ModuleErasure<'_> {
 impl<'a> ModuleErasure<'a> {
     #[must_use]
     pub const fn new(allocator: &'a Allocator) -> Self {
-        Self { allocator }
+        Self {
+            allocator,
+            erased: Vec::new(),
+        }
+    }
+
+    /// The spans of what it removed, in the order it removed them.
+    #[must_use]
+    pub fn erased(self) -> Vec<Span> {
+        self.erased
     }
 }
 
 impl<'a> VisitMut<'a> for ModuleErasure<'a> {
     fn visit_statements(&mut self, it: &mut ArenaVec<'a, Statement<'a>>) {
-        it.retain(|s| !is_erased_statement(s) || is_namespace(s));
+        let erased = &mut self.erased;
+        it.retain(|s| {
+            let kept = !is_erased_statement(s) || is_namespace(s);
+            if !kept {
+                erased.push(s.span());
+            }
+            kept
+        });
         walk_mut::walk_statements(self, it);
     }
 
@@ -167,9 +185,14 @@ impl<'a> VisitMut<'a> for ModuleErasure<'a> {
 
     /// A member without a runtime meaning goes, and an accessor without a body gets an empty one.
     fn visit_class_body(&mut self, it: &mut ClassBody<'a>) {
+        let erased = &mut self.erased;
         it.body.retain(|element| {
-            !is_type_only_element(element)
-                || matches!(element, ClassElement::MethodDefinition(m) if is_bodiless_accessor(m))
+            let kept = !is_type_only_element(element)
+                || matches!(element, ClassElement::MethodDefinition(m) if is_bodiless_accessor(m));
+            if !kept {
+                erased.push(element.span());
+            }
+            kept
         });
         walk_mut::walk_class_body(self, it);
     }

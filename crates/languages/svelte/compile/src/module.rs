@@ -82,7 +82,9 @@ pub(crate) fn compiled(
         source_type,
         |allocator, program| {
             if source_type.is_typescript() {
-                erase::erase(allocator, program);
+                erase::erase(allocator, program)
+            } else {
+                Vec::new()
             }
         },
     )?;
