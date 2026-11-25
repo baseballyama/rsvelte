@@ -44,6 +44,8 @@ fn root_files(
     let io = |path: &Path, e: std::io::Error| format!("{}: {e}", path.display());
     // The checker names the project by its real path, such as `/private/var` for `/var`.
     let dir = &rsvelte_kernel::source::paths::canonicalize(dir).map_err(|e| io(dir, e))?;
+    let root = config.parent().ok_or("a tsconfig has a directory")?;
+    let mut layer = Layer::default();
     let mut overlay = StructuredDataWriter::new(false);
     overlay
         .begin_object()
@@ -53,11 +55,14 @@ fn root_files(
         .begin_array();
     for (i, language) in languages.iter().enumerate() {
         let name = format!("rsvelte-project-mapper-{i}");
-        let package = dir.join("node_modules").join(&name);
+        let package = dir.join(&name);
         std::fs::create_dir_all(&package).map_err(|e| io(&package, e))?;
         let manifest = package.join("package.json");
         std::fs::write(&manifest, package_json(&name, &language.content_mapper))
             .map_err(|e| io(&manifest, e))?;
+        layer
+            .links
+            .push((root.join("node_modules").join(&name), package));
         overlay
             .begin_object()
             .key("package")
@@ -69,14 +74,16 @@ fn root_files(
             .end_object();
     }
     overlay.end_array().end_object();
-    let overlay_path = dir.join("tsconfig.json");
-    std::fs::write(&overlay_path, overlay.finish()).map_err(|e| io(&overlay_path, e))?;
+    // Beside the project's tsconfig, since TypeScript reads `${configDir}` as the directory of the
+    // tsconfig it opens.
+    let overlay_path = root.join(OVERLAY);
+    layer.files.insert(overlay_path.clone(), overlay.finish());
     let mut session = Session::start(&tsc.checker.program, &tsc.checker.arguments, dir)?;
     // The tsconfig's own errors name it, and its paths, as svelte-check prints them; the overlay
     // rebases them, and `extends` hides some, such as an empty `files`. Without the mapped
     // languages it may have no inputs where the overlay has. One snapshot holds both projects.
     let mut projects = session
-        .open(&[overlay_path.as_path(), config], &Layer::default())?
+        .open(&[overlay_path.as_path(), config], &layer)?
         .into_iter();
     let (Some(project), Some(own)) = (projects.next(), projects.next()) else {
         return Err("the checker opened no project".to_owned());
@@ -156,6 +163,9 @@ fn reported(file: &Path, languages: &[MappedLanguage], skip_lib_check: bool) -> 
         Kind::Other => true,
     }
 }
+
+/// The overlay tsconfig, only in the checker's file layer.
+const OVERLAY: &str = ".rsvelte.project.json";
 
 /// "No inputs were found in config file".
 const NO_INPUTS: u32 = 18003;

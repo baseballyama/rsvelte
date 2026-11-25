@@ -11,7 +11,7 @@ use rsvelte_typescript_api::{Project, Session};
 use super::MAPPER_PACKAGE;
 use crate::check::CheckRequest;
 
-const CONFIG: &str = "selection.json";
+const CONFIG: &str = ".rsvelte.selection.json";
 
 /// The files of the selection's project that only an import reaches, and of the documents among
 /// them that the run asks about, those a search of `node_modules` found.
@@ -21,11 +21,12 @@ pub(super) struct Selected {
     pub(super) external: HashSet<PathBuf>,
 }
 
-/// The tsconfig of a project that extends the project's `base` with the content mappers of `req`,
-/// so that its root files are those the tsconfig selects, components included.
+/// The tsconfig of a project that extends the project's `base`, in its directory `root`, with the
+/// content mappers of `req`, so that its root files are those the tsconfig selects, components
+/// included.
 pub(super) fn config(
     req: &CheckRequest<'_>,
-    overlay: &Path,
+    root: &Path,
     base: &Path,
     store: &Path,
 ) -> (PathBuf, String) {
@@ -41,7 +42,7 @@ pub(super) fn config(
         .end_object();
     req.write_mapper_config(&mut config, MAPPER_PACKAGE, store);
     config.end_object();
-    (overlay.join(CONFIG), config.finish())
+    (root.join(CONFIG), config.finish())
 }
 
 /// What `project`, the selection's, holds beyond its roots; `ask` names the documents, by path, to

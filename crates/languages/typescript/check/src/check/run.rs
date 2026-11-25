@@ -56,9 +56,13 @@ pub(crate) struct Report {
 
 static RUN: AtomicU32 = AtomicU32::new(0);
 
-/// The directory beside each project root that holds what rsvelte adds: the overlay tsconfig and
-/// the declarations. It exists only in the checker's file layer.
+/// The directory beside each project root that holds the files rsvelte adds, such as the
+/// declarations. It exists only in the checker's file layer.
 const OVERLAY: &str = ".rsvelte";
+/// The tsconfig the checker checks, which extends the project's. It and every other tsconfig
+/// rsvelte adds sit beside the project's, since TypeScript reads `${configDir}` and the default
+/// `rootDir` as the directory of the tsconfig it opens.
+const OVERLAY_CONFIG: &str = ".rsvelte.tsconfig.json";
 const MAPPER_PACKAGE: &str = "rsvelte-content-mapper";
 
 impl Tsc {
@@ -142,7 +146,7 @@ impl Tsc {
         }));
         roots.extend(declarations);
         roots.extend(req.env.include.iter().cloned());
-        let config = overlay.join("tsconfig.json");
+        let config = root.join(OVERLAY_CONFIG);
         layer.files.insert(
             config.clone(),
             tsconfig_json(base.as_deref(), req, &own, &roots, Some(&store)),
@@ -313,10 +317,6 @@ fn tsconfig_json(
         .begin_object()
         .key("noEmit")
         .write_boolean(true);
-    if let Some(root_dir) = own.default_root_dir.as_deref() {
-        // The default would otherwise be the overlay's directory.
-        w.key("rootDir").write_string(&root_dir.to_string_lossy());
-    }
     if own.script_modules {
         // A script module's declaration has the name of a document, such as `x.d.svelte.ts`.
         w.key("allowArbitraryExtensions").write_boolean(true);
@@ -378,9 +378,10 @@ fn layer(
     let store = support.join("projections.json");
     if let Some(binary) = &req.env.content_mapper {
         let package = mapped::write_mapper(req, binary, support, &store, root, paths)?;
+        // The overlay tsconfigs, beside the project's, resolve the package from its directory.
         layer
             .links
-            .push((overlay.join("node_modules").join(MAPPER_PACKAGE), package));
+            .push((root.join("node_modules").join(MAPPER_PACKAGE), package));
     }
     let declarations: Vec<PathBuf> = req
         .env
@@ -409,9 +410,6 @@ struct BaseProject {
     node_resolution: bool,
     /// Whether the file layer holds a declaration of a script module, such as `x.d.svelte.ts`.
     script_modules: bool,
-    /// The directory of the project's tsconfig, when TypeScript checks files against `rootDir`
-    /// and the tsconfig leaves it to that default.
-    default_root_dir: Option<PathBuf>,
     /// What the project the tsconfig selects holds beyond its roots, and of the JavaScript
     /// documents where a package's JavaScript is untyped, those a search of `node_modules`
     /// found.
@@ -431,11 +429,12 @@ fn base_project(
     let Some(base) = base else {
         return Ok(BaseProject::default());
     };
+    let root = base.parent().ok_or("a tsconfig has a directory")?;
     // Without a content mapper the tsconfig's own project is the selection's.
     let selection =
-        (req.env.content_mapper.is_some()).then(|| selection::config(req, overlay, base, store));
+        (req.env.content_mapper.is_some()).then(|| selection::config(req, root, base, store));
     layer.files.extend(selection.iter().cloned());
-    let probe = untyped::any_javascript(req).then(|| untyped::probe(overlay, base));
+    let probe = untyped::any_javascript(req).then(|| untyped::probe(root, overlay, base));
     layer.files.extend(probe.iter().flatten().cloned());
     let mut configs = vec![base];
     configs.extend(selection.iter().map(|(config, _)| config.as_path()));
@@ -460,9 +459,6 @@ fn base_project(
         untyped,
         node_resolution: project.node_resolution,
         script_modules: false,
-        default_root_dir: (project.default_root_dir)
-            .then(|| base.parent().map(Path::to_path_buf))
-            .flatten(),
         selected,
     })
 }
