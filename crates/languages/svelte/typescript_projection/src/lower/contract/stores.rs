@@ -32,9 +32,11 @@ fn subscribed_stores(resolution: &Resolution) -> impl Iterator<Item = (&str, Sym
             let symbol = scoping.find_binding(resolution.instance_scope(), name[1..].into())?;
             match resolution.declaration(symbol) {
                 AstKind::VariableDeclarator(_) => Some((name, symbol, false)),
-                AstKind::ImportSpecifier(_)
-                | AstKind::ImportDefaultSpecifier(_)
-                | AstKind::ImportNamespaceSpecifier(_) => Some((name, symbol, true)),
+                // svelte2tsx reads a name off an import clause or specifier, and a namespace
+                // import has neither.
+                AstKind::ImportSpecifier(_) | AstKind::ImportDefaultSpecifier(_) => {
+                    Some((name, symbol, true))
+                }
                 _ => None,
             }
         })

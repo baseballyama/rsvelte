@@ -103,3 +103,21 @@ unit of `𝒜`, which is no character position. rsvelte reports it at column 21,
 
 - Test: `typecheck_reports_a_let_whose_name_ends_in_an_astral_character_at_its_start` in the
   command line crate's `tests/cli/typecheck_slots.rs`.
+
+## A store read of a type-only namespace import
+
+In svelte-check 4.7.8, `$tns` in this component is TS2304 `Cannot find name '$tns'.` at 5:2:
+
+```svelte
+<script lang="ts">
+  import type * as tns from './s';
+</script>
+
+{$tns}
+```
+
+rsvelte reports TS2552 `Cannot find name '$tns'. Did you mean 'tns'?` there. svelte2tsx 0.7.63
+declares no `$tns`, and neither does rsvelte. TypeScript 6.0.3, TypeScript 7.1 and svelte-check
+itself give TS2552 for the same read in a `.ts` file. That holds at the top level, and inside an
+`async` arrow in a function, as the projection has it. svelte2tsx writes the same projection with
+svelte-check's options. The cause is not found.
