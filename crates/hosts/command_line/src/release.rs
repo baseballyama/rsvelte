@@ -1,6 +1,7 @@
 //! `rsvelte`, the command people install: `lint`, `format` and `typecheck` over the Svelte and
 //! TypeScript files of a project.
 
+use std::path::PathBuf;
 use std::process::ExitCode;
 
 use rsvelte_plugin_interface::{Extension, Selection};
@@ -48,7 +49,18 @@ fn command(name: &str) -> Result<(&'static [&'static str], &'static str), ExitCo
 
 /// `rsvelte`.
 pub fn release() -> ExitCode {
-    let arguments: Vec<String> = std::env::args().skip(1).collect();
+    run(&std::env::args().skip(1).collect::<Vec<_>>())
+}
+
+/// `rsvelte` with `arguments`, for a host that runs it inside its own process, such as Node.js,
+/// and installs the other programs in `programs`.
+pub fn release_with(arguments: &[String], programs: PathBuf) -> ExitCode {
+    // A second run in the same process keeps the first directory, which names the same install.
+    crate::PROGRAMS.get_or_init(|| Some(programs));
+    run(arguments)
+}
+
+fn run(arguments: &[String]) -> ExitCode {
     // `format` or `lint` alone takes oxfmt's or oxlint's arguments; followed by a command,
     // rsvelte's.
     if let Some((command @ ("format" | "lint"), rest)) =

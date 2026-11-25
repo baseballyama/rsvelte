@@ -1,8 +1,12 @@
 {
 	"name": "@rsvelte-experimental/rsvelte",
 	"private": true,
-	"description": "rsvelte's JavaScript API: rsvelte/compiler, the official svelte/compiler API over rsvelte's compiler",
+	"description": "rsvelte's JavaScript API and command: rsvelte/compiler, the official svelte/compiler API over rsvelte's compiler, and the rsvelte command",
+	"bin": {
+		"rsvelte": "./bin.js"
+	},
 	"files": [
+		"bin.js",
 		"binding.js",
 		"compiler.js",
 		"source-map.js",

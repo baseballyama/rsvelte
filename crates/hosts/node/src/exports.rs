@@ -7,7 +7,7 @@
 
 use napi_derive::napi;
 
-use crate::compiler;
+use crate::{command, compiler};
 
 /// The version of the official compiler whose output this compiler reproduces.
 #[napi]
@@ -32,4 +32,12 @@ pub fn compile_module(
     options: compiler::Options,
 ) -> napi::Result<compiler::Outcome> {
     compiler::compile_module(&source, options).map_err(napi::Error::from_reason)
+}
+
+/// Runs the `rsvelte` command with `arguments`, its other programs in the directory `programs`,
+/// and returns its exit status.
+#[napi]
+#[must_use]
+pub fn run(arguments: Vec<String>, programs: String) -> u32 {
+    command::run(&arguments, programs.into())
 }

@@ -131,3 +131,115 @@ fn a_javascript_component_the_program_does_not_reach_is_still_checked() {
         text(&output.stderr)
     );
 }
+
+const ICON: &str = "<svg width=\"16\" height=\"16\"></svg>\n";
+
+/// A page that imports, through a linked package's barrel `.ts`, a component of the package and
+/// one without `<script>` that both the barrel and that component import by their paths, beside
+/// such a component of the project, under `compilerOptions` `options`.
+fn barrel(options: &str) -> Project {
+    crate::typecheck_linked_packages::linked(
+        &format!(r#","types":["svelte"]{options}"#),
+        &[
+            (
+                "app/src/App.svelte",
+                "<script lang=\"ts\">\n  import { Wrapper, Icon } from 'dep/components';\n  \
+                 import Local from './Local.svelte';\n</script>\n\n<Wrapper /><Icon /><Local />\n",
+            ),
+            ("app/src/Local.svelte", ICON),
+            (
+                "dep/package.json",
+                r#"{"name":"dep","type":"module","exports":{
+"./components":{"types":"./src/index.ts","svelte":"./src/index.ts"}},
+"peerDependencies":{"svelte":"^5"}}"#,
+            ),
+            (
+                "dep/src/index.ts",
+                "export { default as Wrapper } from './Wrapper.svelte';\n\
+                 export { default as Icon } from './Icon.svelte';\n",
+            ),
+            (
+                "dep/src/Wrapper.svelte",
+                "<script lang=\"ts\">\n  import Icon from './Icon.svelte';\n</script>\n\n\
+                 <Icon />\n",
+            ),
+            ("dep/src/Icon.svelte", ICON),
+        ],
+    )
+}
+
+/// With `allowJs`, TypeScript loads a linked package's component that only imports by its path
+/// reach, though the search of `node_modules` found the barrel that imports it: no import is
+/// untyped. svelte-check 4.7.8 finds no error.
+#[test]
+fn typecheck_loads_a_linked_package_javascript_component_its_own_files_import_by_path() {
+    let project = barrel(r#","allowJs":true"#);
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    assert_eq!(
+        (
+            output.status.code(),
+            format!("{}{}", text(&output.stdout), text(&output.stderr))
+        ),
+        (Some(0), String::new())
+    );
+}
+
+/// Without `allowJs` every import of a component without `<script>` is untyped, in the project
+/// and in the linked package. The expected lines are svelte-check 4.7.8's.
+#[test]
+fn typecheck_reads_every_javascript_component_as_untyped_where_javascript_is_not_allowed() {
+    let project = barrel("");
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    let untyped = |specifier: &str, file: &str| {
+        format!(
+            "error TS7016: Could not find a declaration file for module '{specifier}'. '{}' \
+             implicitly has an 'any' type.",
+            typescript(&project.0.join(file))
+        )
+    };
+    let icon = "dep/src/Icon.svelte";
+    assert_eq!(
+        (
+            output.status.code(),
+            format!("{}{}", text(&output.stdout), text(&output.stderr))
+        ),
+        (
+            Some(1),
+            format!(
+                "../dep/src/Wrapper.svelte(2,20): {}\n\
+                 ../dep/src/index.ts(2,33): {}\n\
+                 src/App.svelte(3,21): {}\n\
+                 \nFound 3 errors in 3 files.\n",
+                untyped("./Icon.svelte", icon),
+                untyped("./Icon.svelte", icon),
+                untyped("./Local.svelte", "app/src/Local.svelte"),
+            )
+            .native()
+        )
+    );
+}
+
+/// With `allowJs`, TypeScript loads the project's component without `<script>` that a relative
+/// import reaches. svelte-check 4.7.8 finds no error.
+#[test]
+fn typecheck_loads_a_project_javascript_component_where_javascript_is_allowed() {
+    let project = crate::typecheck_linked_packages::linked(
+        r#","types":["svelte"],"allowJs":true"#,
+        &[
+            (
+                "app/src/App.svelte",
+                "<script lang=\"ts\">\n  import Local from './Local.svelte';\n</script>\n\n\
+                 <Local />\n",
+            ),
+            ("app/src/Local.svelte", ICON),
+        ],
+    );
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    assert_eq!(
+        (
+            output.status.code(),
+            format!("{}{}", text(&output.stdout), text(&output.stderr))
+        ),
+        (Some(0), String::new())
+    );
+}
