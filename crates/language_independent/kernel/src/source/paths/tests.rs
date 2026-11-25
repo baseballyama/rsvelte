@@ -1,3 +1,5 @@
+use std::path::Path;
+
 use super::{plain, typescript};
 
 #[test]
@@ -89,7 +91,8 @@ fn a_long_path_and_characters_beyond_ascii_read_plain() {
 
 #[test]
 fn typescript_names_a_file_with_forward_slashes() {
-    assert_eq!(typescript(r"C:\Users\a\b.ts"), "C:/Users/a/b.ts");
-    assert_eq!(typescript(r"\\server\share\a.ts"), "//server/share/a.ts");
-    assert_eq!(typescript("/home/a/b.ts"), "/home/a/b.ts");
+    let name = |path: &str| typescript(Path::new(path)).into_owned();
+    assert_eq!(name(r"C:\Users\a\b.ts"), "C:/Users/a/b.ts");
+    assert_eq!(name(r"\\server\share\a.ts"), "//server/share/a.ts");
+    assert_eq!(name("/home/a/b.ts"), "/home/a/b.ts");
 }

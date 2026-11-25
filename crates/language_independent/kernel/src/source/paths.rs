@@ -57,14 +57,15 @@ pub fn plain(path: &str) -> Cow<'_, str> {
     Cow::Borrowed(path)
 }
 
-/// `path` as TypeScript names a file. Its `normalizeSlashes` reads every `\` as `/` on every
-/// platform, so `C:\a\b.ts` is `C:/a/b.ts` in its messages and in what it asks a content mapper.
+/// `path` as TypeScript names a file, which every name the checker reads or a finding prints uses.
+///
+/// Its `normalizeSlashes` reads every `\` as `/` on every platform, so `C:\a\b.ts` is `C:/a/b.ts`
+/// in its messages and in what it asks a content mapper.
 #[must_use]
-pub fn typescript(path: &str) -> Cow<'_, str> {
-    if path.contains('\\') {
-        Cow::Owned(path.replace('\\', "/"))
-    } else {
-        Cow::Borrowed(path)
+pub fn typescript(path: &Path) -> Cow<'_, str> {
+    match path.to_string_lossy() {
+        Cow::Borrowed(name) if !name.contains('\\') => Cow::Borrowed(name),
+        name => Cow::Owned(name.replace('\\', "/")),
     }
 }
 
