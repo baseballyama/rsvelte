@@ -8,9 +8,9 @@ function $$render() {
   
 	
 	
-	const count = writable(0);;let $count = __rsvelte_store_get(count);
+	const count = writable(0);;let $count = __sveltets_2_store_get(count);
 
-	const obj = writable({ a: 1, list: [{ v: 1 }] });;let $obj = __rsvelte_store_get(obj);
+	const obj = writable({ a: 1, list: [{ v: 1 }] });;let $obj = __sveltets_2_store_get(obj);
 
 
 ;
