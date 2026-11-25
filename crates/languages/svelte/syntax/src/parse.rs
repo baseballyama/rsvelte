@@ -13,6 +13,7 @@ mod element_rules;
 mod fragment;
 mod identifier;
 mod javascript;
+mod module;
 mod options;
 mod pattern;
 mod script;
@@ -25,6 +26,7 @@ mod whitespace;
 pub use checked_scripts::scripts_checked_as_typescript;
 pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
 pub use javascript::javascript_failure;
+pub use module::parse_module;
 use oxc_span::SourceType;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::performance::buffer_pool;
@@ -285,24 +287,6 @@ fn parse_as(
         }),
     };
     (component, lang_read)
-}
-
-/// A `.svelte.js` module as upstream's `compileModule` parses it: with acorn, which reads it as it
-/// reads a component's script.
-///
-/// # Errors
-///
-/// A [`Diagnostic`] at the first syntax error, as [`parse`] reports one in a script.
-pub fn parse_module(
-    source_text: &str,
-    source_type: SourceType,
-) -> ParseResult<(Tree, rsvelte_typescript_tree::ProgramIdentifier)> {
-    Tree::build(source_text, |builder| {
-        builder.leave_unchecked(&ACORN_UNCHECKED_TYPESCRIPT_RULES);
-        builder.read_as_acorn();
-        let range = Span::new(0, builder.source_text().len() as u32);
-        (builder.program(range, source_type)).map_err(|e| acorn_position(javascript_failure(e)))
-    })
 }
 
 /// Whether `offset` is in the content of a `<script>` element, which svelte-eslint-parser

@@ -476,6 +476,16 @@ impl<'a> TreeBuilder<'a> {
         self.push_program(program, &[])
     }
 
+    /// Lets `rewrite` change a program the builder read before anything analyzes it, as a compiler
+    /// that reads another's output does.
+    pub fn rewrite_program(
+        &mut self,
+        program: ProgramIdentifier,
+        rewrite: impl FnOnce(&'a Allocator, &mut Program<'a>),
+    ) {
+        rewrite(self.allocator, &mut self.programs[program].0);
+    }
+
     /// Keeps a program with the tokens oxc read in it.
     fn push_program(&mut self, program: Program<'a>, tokens: &'a [Token]) -> ProgramIdentifier {
         self.programs.push((program, tokens))
