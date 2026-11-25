@@ -29,6 +29,17 @@ use crate::{
     ProgramIdentifier, Trees, TypeParametersIdentifier,
 };
 
+/// What reads a TypeScript part of a host that reads as acorn.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum TypeScriptReader {
+    /// acorn-typescript, which checks TypeScript's rules as it reads: Svelte's, for a component's
+    /// script.
+    AcornTypescript,
+    /// A compiler that erases the types, so acorn reads only the JavaScript and no TypeScript
+    /// rule is checked: a bundler's, before Svelte reads a `.svelte.ts` module.
+    Erasing,
+}
+
 /// Parses parts of one document into its arena.
 pub struct TreeBuilder<'a> {
     allocator: &'a Allocator,
@@ -43,7 +54,7 @@ pub struct TreeBuilder<'a> {
     recorded: RecordedPart<'a>,
     unchecked: &'static &'static [&'static str],
     unchecked_errors: Vec<SyntaxError>,
-    as_acorn: bool,
+    as_acorn: Option<TypeScriptReader>,
     acorn_rejection: Option<Stop>,
     parentheses: Vec<(oxc_span::Span, u8)>,
 }
@@ -94,7 +105,7 @@ impl<'a> TreeBuilder<'a> {
             },
             unchecked: &NOTHING,
             unchecked_errors: Vec::new(),
-            as_acorn: false,
+            as_acorn: None,
             acorn_rejection: None,
             parentheses: Vec::new(),
         }
@@ -106,11 +117,16 @@ impl<'a> TreeBuilder<'a> {
         self.unchecked = codes;
     }
 
-    /// Reads the parts as acorn, which the host's compiler parses with: lets pass an error where
-    /// acorn reads the text, and records where acorn first stops in syntax oxc parses, which
-    /// [`crate::Tree::acorn_rejection`] reads.
-    pub const fn read_as_acorn(&mut self) {
-        self.as_acorn = true;
+    /// Reads the parts as acorn, which the host's compiler parses with, after `typescript` reads a
+    /// TypeScript part: lets pass an error where acorn reads the text, and records where acorn
+    /// first stops in syntax oxc parses, which [`crate::Tree::acorn_rejection`] reads.
+    pub const fn read_as_acorn(&mut self, typescript: TypeScriptReader) {
+        self.as_acorn = Some(typescript);
+    }
+
+    /// What reads a part of `source_type` before acorn, if it is TypeScript.
+    fn typescript_reader(&self, source_type: SourceType) -> Option<TypeScriptReader> {
+        self.as_acorn.filter(|_| source_type.is_typescript())
     }
 
     pub(crate) fn finish(self) -> Trees<'a> {
@@ -134,7 +150,7 @@ impl<'a> TreeBuilder<'a> {
             unchecked: self.unchecked,
             unchecked_errors: (!self.unchecked_errors.is_empty())
                 .then(|| Box::new(self.unchecked_errors)),
-            as_acorn: self.as_acorn,
+            as_acorn: self.as_acorn.is_some(),
         }
     }
 

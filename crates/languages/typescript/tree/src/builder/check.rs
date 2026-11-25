@@ -21,10 +21,11 @@ impl<'a> TreeBuilder<'a> {
         (part, source_type): (Part<'_, 'a>, SourceType),
     ) -> Result<(), SyntaxError> {
         let visit = |locator: &mut Locator| part.walk(locator);
-        let first = (diagnostics.iter())
-            .position(|error| reported(error, self.unchecked, self.as_acorn, visit));
-        let stop = if self.as_acorn && (first.is_some() || self.acorn_rejection.is_none()) {
-            let mut unsupported = Unsupported::new(source_type.is_typescript(), tokens);
+        let as_acorn = self.as_acorn.is_some();
+        let first =
+            (diagnostics.iter()).position(|error| reported(error, self.unchecked, as_acorn, visit));
+        let stop = if as_acorn && (first.is_some() || self.acorn_rejection.is_none()) {
+            let mut unsupported = Unsupported::new(self.typescript_reader(source_type), tokens);
             part.walk(&mut unsupported);
             let unsupported = unsupported.first.map(|stop| stop.shifted(shift));
             unsupported
@@ -70,7 +71,7 @@ impl<'a> TreeBuilder<'a> {
         fallback: u32,
         shift: u32,
     ) -> SyntaxError {
-        let stop = (self.as_acorn)
+        let stop = (self.as_acorn.is_some())
             .then(|| whitespace(text, &error.irregular_whitespaces, shift))
             .flatten();
         let syntax_error = syntax_error(error.diagnostics, text, &error.tokens, fallback, shift);

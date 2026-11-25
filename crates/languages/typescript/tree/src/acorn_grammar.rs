@@ -11,6 +11,7 @@ use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
+use crate::TypeScriptReader;
 use crate::syntax_error::{Acorn, StaticBlockAwaits, SyntaxError};
 
 mod ambient;
@@ -39,6 +40,8 @@ pub(crate) enum Rejection {
         name: names::Restricted,
         binds: bool,
     },
+    /// A word acorn refuses as a name, read as one in an ambient context.
+    Reserved(names::ReservedWord),
     /// An initializer in an ambient context, where only a `const` without a type may have one.
     AmbientInitializer,
     /// `await` in a class static block.
@@ -60,6 +63,7 @@ impl Rejection {
             Self::NextLine => "Unexpected character '\u{85}'",
             Self::ZeroWidthSpace => "Unexpected character '\u{200B}'",
             Self::StrictName { name, binds } => name.message(binds),
+            Self::Reserved(word) => word.message(),
             Self::AmbientInitializer => "Initializers are not allowed in ambient contexts.",
             Self::StaticBlockAwait => "Cannot use await in class static initialization block",
             Self::AmbientConstInitializer => concat!(
@@ -97,10 +101,16 @@ impl Stop {
     }
 }
 
-/// Where acorn rejects a node of a kind it does not parse, and why; `None` for one it parses. A
-/// TypeScript part is read by acorn-typescript, which knows `assert` and checks TypeScript's
-/// rules; `tokens` are the part's.
-fn stop(kind: AstKind<'_>, typescript: bool, tokens: &[Token]) -> Option<(u32, Rejection)> {
+/// Where acorn rejects a node of a kind it does not parse, and why; `None` for one it parses.
+/// `typescript` reads a TypeScript part first: acorn-typescript knows its syntax and checks its
+/// rules. `tokens` are the part's.
+fn stop(
+    kind: AstKind<'_>,
+    typescript: Option<TypeScriptReader>,
+    tokens: &[Token],
+) -> Option<(u32, Rejection)> {
+    let javascript = typescript.is_none();
+    let rules = typescript == Some(TypeScriptReader::AcornTypescript);
     let unexpected = |at: Option<u32>| at.map(|at| (at, Rejection::Unexpected));
     match kind {
         // `using x` and `await using x`: acorn reads `using` as a name and stops at the binding.
@@ -129,15 +139,15 @@ fn stop(kind: AstKind<'_>, typescript: bool, tokens: &[Token]) -> Option<(u32, R
         // `assert { … }`: acorn knows only `with` for import attributes, and stops at the keyword,
         // the token before the clause's braces.
         AstKind::WithClause(clause)
-            if clause.keyword == WithClauseKeyword::Assert && !typescript =>
+            if clause.keyword == WithClauseKeyword::Assert && javascript =>
         {
             let braces = tokens.partition_point(|token| token.start() < clause.span.start);
             unexpected(braces.checked_sub(1).map(|keyword| tokens[keyword].start()))
         }
         // Decorators and `accessor` fields are acorn-typescript's alone. acorn stops at the `@`,
         // and reads `accessor` as the field's name and stops at the token after it.
-        AstKind::Decorator(decorator) if !typescript => Some((decorator.span.start, Rejection::At)),
-        AstKind::AccessorProperty(property) if !typescript => {
+        AstKind::Decorator(decorator) if javascript => Some((decorator.span.start, Rejection::At)),
+        AstKind::AccessorProperty(property) if javascript => {
             let first = tokens.partition_point(|token| token.start() < property.span.start);
             unexpected(
                 tokens[first..]
@@ -147,7 +157,15 @@ fn stop(kind: AstKind<'_>, typescript: bool, tokens: &[Token]) -> Option<(u32, R
                     .map(Token::start),
             )
         }
-        AstKind::Class(class) if typescript && class.heritage.is_none() => class
+        // acorn-typescript reads a TypeScript keyword as its own token, where acorn expects a class
+        // name.
+        AstKind::Class(class)
+            if rules
+                && (class.id.as_ref()).is_some_and(|id| names::typescript_keyword(&id.name)) =>
+        {
+            unexpected(class.id.as_ref().map(|id| id.span.start))
+        }
+        AstKind::Class(class) if rules && class.heritage.is_none() => class
             .body
             .body
             .iter()
@@ -158,7 +176,7 @@ fn stop(kind: AstKind<'_>, typescript: bool, tokens: &[Token]) -> Option<(u32, R
                 ClassElement::StaticBlock(_) | ClassElement::TSIndexSignature(_) => false,
             })
             .map(|member| (member.span().start, Rejection::Override)),
-        AstKind::ExportDeclaration(export) if typescript => match &export.declaration {
+        AstKind::ExportDeclaration(export) if rules => match &export.declaration {
             Declaration::TSGlobalDeclaration(global) if global.declare => {
                 Some((global.global_span.start, Rejection::ExportedGlobal))
             }
@@ -207,12 +225,15 @@ macro_rules! ambient_at {
 
 /// The first rejection acorn raises in the part it walks.
 pub(crate) struct Unsupported<'t> {
-    typescript: bool,
+    /// What reads the part first when it is TypeScript.
+    typescript: Option<TypeScriptReader>,
     tokens: &'t [Token],
     pub(crate) first: Option<Stop>,
     /// How many `declare`d declarations are around the walk, each of which puts what it holds in
     /// an ambient context.
     ambient: u32,
+    /// How many types are around the walk, whose names acorn-typescript reads without a check.
+    types: u32,
     /// The namespace the next part of a dotted namespace name declares, whose name acorn does
     /// not check.
     dotted: Option<oxc_span::Span>,
@@ -220,12 +241,13 @@ pub(crate) struct Unsupported<'t> {
 }
 
 impl<'t> Unsupported<'t> {
-    pub(crate) const fn new(typescript: bool, tokens: &'t [Token]) -> Self {
+    pub(crate) const fn new(typescript: Option<TypeScriptReader>, tokens: &'t [Token]) -> Self {
         Self {
             typescript,
             tokens,
             first: None,
             ambient: 0,
+            types: 0,
             dotted: None,
             awaits: StaticBlockAwaits::new(),
         }
@@ -254,8 +276,9 @@ impl<'a> Visit<'a> for Unsupported<'_> {
             .map(|at| (at, Rejection::StaticBlockAwait))
             .or_else(|| stop(kind, self.typescript, self.tokens))
             .map(|(at, why)| Stop::at(at, why));
-        // oxc's checker reports these names and initializers outside an ambient context itself.
-        if self.ambient > 0 {
+        // oxc's checker reports these names and initializers outside an ambient context itself, and
+        // in one only acorn-typescript checks them.
+        if self.typescript == Some(TypeScriptReader::AcornTypescript) && self.ambient > 0 {
             found = self.ambient_stop(kind, found);
         }
         if let Some(found) = found
@@ -263,6 +286,12 @@ impl<'a> Visit<'a> for Unsupported<'_> {
         {
             self.first = Some(found);
         }
+    }
+
+    fn visit_ts_type(&mut self, it: &oxc_ast::ast::TSType<'a>) {
+        self.types += 1;
+        oxc_ast_visit::walk::walk_ts_type(self, it);
+        self.types -= 1;
     }
 
     fn visit_function(
@@ -288,6 +317,7 @@ impl Unsupported<'_> {
         [
             found,
             names::strict_name(kind, nested),
+            names::reserved(kind, self.types > 0),
             ambient::initializer(kind),
         ]
         .into_iter()

@@ -14,10 +14,12 @@ use super::locator::{Find, Holder, Locator, Reading, locate};
 use super::word::{Home, home, keyword, misused};
 
 mod arguments;
+mod declarations;
 mod lexer;
 mod number;
 mod pattern;
 use arguments::{ARGUMENTS_IN_STATIC_BLOCK, arguments_misused, in_static_block};
+use declarations::declaration;
 use lexer::regular_expression;
 use number::number as rejected_number;
 use pattern::{parenthesized_element, rejected_await, reparsed};
@@ -63,9 +65,10 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
         // acorn checks a class's name only where the class is a declaration, and a parameter's
         // only where its function has a body; acorn-typescript checks no type parameter's.
         "1100" => locate(start, end, Find::UncheckedName, visit).is_some(),
-        // acorn-typescript checks a variable's initializer in an ambient context once it has read
-        // the declaration, as the tree's walk does.
-        "1039" => locate(start, end, Find::VariableInitializer, visit).is_some(),
+        // In an ambient context acorn-typescript checks a variable's initializer once it has read
+        // the declaration, as the tree's walk does, and a class field's only where its name is
+        // public.
+        "1039" => locate(start, end, Find::PublicFieldValue, visit).is_none(),
         // acorn-typescript checks no interface, public class member, enum member, nor parameter
         // of a signature or of a function without a body, and a type alias only against the
         // types before it.
@@ -226,50 +229,9 @@ pub(crate) fn acorn(
             "Shorthand property assignments are valid only in destructuring patterns",
             token(start, Some(Kind::Eq))?,
         )),
-        "1183" => implementation(start, end, read(), visit),
-        "1392" => import_alias(start, end, read(), visit),
+        "1183" | "1392" | "1039" | "1267" => declaration(number, (start, end), text, read(), visit),
         _ => early_error(error, number, text, (start, end), visit),
     }
-}
-
-/// acorn-typescript's error at an import alias with `import type`: it reads the whole module
-/// reference, and refuses it at its start before it reads the `;`.
-fn import_alias(
-    start: u32,
-    end: u32,
-    tokens: impl Iterator<Item = Token>,
-    visit: impl FnOnce(&mut Locator),
-) -> Option<Acorn> {
-    let (at, _) = locate(start, end, Find::ModuleReference, visit)?;
-    let reference = tokens.take_while(|token| token.start() < end);
-    let last = reference
-        .filter(|token| token.kind() != Kind::Semicolon)
-        .last()?;
-    Some(Acorn::FailsLater {
-        message: Cow::Borrowed("An import alias can not use 'import type'."),
-        at,
-        raised: last.end(),
-    })
-}
-
-/// acorn-typescript's error at a function declaration in an ambient context whose body is the
-/// label, at its start: after `declare` for one an export declares, as acorn-typescript reads the
-/// export's `declare` before the declaration.
-fn implementation(
-    start: u32,
-    end: u32,
-    mut tokens: impl Iterator<Item = Token>,
-    visit: impl FnOnce(&mut Locator),
-) -> Option<Acorn> {
-    let (at, found) = locate(start, end, Find::Implementation, visit)?;
-    let at = match found {
-        AstType::ExportDeclaration => tokens.find(|token| token.start() > at)?.start(),
-        _ => at,
-    };
-    Some(fails(
-        "An implementation cannot be declared in ambient contexts.",
-        at,
-    ))
 }
 
 const STATIC_BLOCK_AWAIT: &str = "Cannot use await in class static initialization block";
@@ -417,7 +379,6 @@ fn early_error(
             locate(start, end, Find::Member, visit)?.0,
         )),
         "1047" => optional_rest(start, end, visit)?.err(),
-        // acorn-typescript reports an implementation at the declaration that holds it.
         "1347" => Some(fails(
             "Illegal 'use strict' directive in function with non-simple parameter list",
             locate(start, end, Find::Function, visit)?.0,
