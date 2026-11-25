@@ -136,7 +136,7 @@ export default $$v_defineComponent({
 		}
 		function fade(element) {
 			return {
-				duration: 1e3,
+				duration: 1000,
 				css: (t) => `opacity: ${t}`
 			};
 		}

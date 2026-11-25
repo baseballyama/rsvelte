@@ -290,6 +290,46 @@ fn a_typescript_module_drops_the_comments_its_emit_erases_with_a_declaration() {
 }
 
 #[test]
+fn a_typescript_enum_member_takes_the_value_typescript_computes() {
+    // TypeScript 6.0.3's emit, then svelte 5.59.1's `compileModule`: a constant member is its
+    // value, printed as `String(value)` prints it.
+    let module = "export enum E { A = 0x10, B = 1 << 10, C = 1e21, D = .5, F = 1_000 }\n";
+    for target in [Target::Client, Target::Server] {
+        let javascript = compile("a.svelte.ts", module, target);
+        let members: Vec<&str> = (javascript.lines())
+            .map(str::trim)
+            .filter(|line| line.starts_with("E[E["))
+            .collect();
+        assert_eq!(
+            members,
+            [
+                "E[E[\"A\"] = 16] = \"A\";",
+                "E[E[\"B\"] = 1024] = \"B\";",
+                "E[E[\"C\"] = 1e+21] = \"C\";",
+                "E[E[\"D\"] = 0.5] = \"D\";",
+                "E[E[\"F\"] = 1000] = \"F\";",
+            ],
+            "{target:?}:\n{javascript}"
+        );
+    }
+}
+
+#[test]
+fn a_typescript_module_prints_its_numbers_as_typescripts_emit_does() {
+    // TypeScript 6.0.3's emit, then svelte 5.59.1's `compileModule`. rsvelte parenthesizes the
+    // directive TypeScript adds.
+    let module = "let a = [08, 010, 0x10, 0X1F, 1_000, 1e3, .5, 0b11n, 0X1_Fn, 1_0n, 10n];\n\
+                  let o = { 08: 1, 0x10: 2 };\n";
+    for target in [Target::Client, Target::Server] {
+        assert_eq!(
+            body(module, target),
+            "(\"usestrict\");leta=[8,8,0x10,0X1F,1_000,1e3,.5,3n,0x1fn,10n,10n];leto={8:1,0x10:2};",
+            "{target:?}"
+        );
+    }
+}
+
+#[test]
 fn a_typescript_module_drops_an_import_that_reads_require() {
     // TypeScript 6.0.3's emit for an ES module, then svelte 5.59.1's `compileModule`: an ES
     // module has no `require`, so every `import … = require(…)` goes, used or not, and a module it

@@ -135,7 +135,7 @@ export default $$v_defineComponent({
 			return ({ direction }) => {
 				events.value.push(`resolve:${direction}:${element.isConnected}`);
 				return {
-					duration: 1e3,
+					duration: 1000,
 					css: (t) => `opacity: ${t}`
 				};
 			};

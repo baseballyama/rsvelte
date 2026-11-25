@@ -4,7 +4,10 @@
 use std::path::Path;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{Directive, ImportOrExportKind, Program, Statement};
+use oxc_ast::ast::{
+    BigIntLiteral, Directive, ImportOrExportKind, NumericLiteral, Program, Statement,
+};
+use oxc_ast_visit::VisitMut;
 use oxc_semantic::SemanticBuilder;
 use oxc_span::{SPAN, SourceType};
 use oxc_transformer::{TransformOptions, Transformer};
@@ -107,6 +110,7 @@ fn typescript_emit<'o>(
             span,
         ));
     }
+    TypescriptLiterals(b).visit_program(out);
     // TypeScript keeps a script strict, and a module that its emit leaves without an import or an
     // export a module.
     let module = source.body.iter().any(Statement::is_module_declaration);
@@ -120,4 +124,28 @@ fn typescript_emit<'o>(
         out.body.push(nothing);
     }
     Ok(())
+}
+
+/// TypeScript's emit prints a number as written unless it is a legacy octal or a decimal with a
+/// leading zero, and a bigint by its value: decimal, or lowercase hexadecimal when written so.
+struct TypescriptLiterals<'b, 'o>(&'b Builder<'o>);
+
+impl<'o> VisitMut<'o> for TypescriptLiterals<'_, 'o> {
+    fn visit_numeric_literal(&mut self, it: &mut NumericLiteral<'o>) {
+        let leading_zero =
+            |raw: &str| raw.len() > 1 && raw.starts_with('0') && raw.as_bytes()[1].is_ascii_digit();
+        if it.raw.is_some_and(|raw| leading_zero(&raw)) {
+            it.raw = None;
+        }
+    }
+
+    fn visit_big_int_literal(&mut self, it: &mut BigIntLiteral<'o>) {
+        it.raw = it
+            .raw
+            .filter(|raw| raw.starts_with("0x") || raw.starts_with("0X"))
+            .map(|raw| {
+                let hex: String = raw.chars().filter(|c| *c != '_').collect();
+                self.0.str(&hex.to_ascii_lowercase()).into()
+            });
+    }
 }
