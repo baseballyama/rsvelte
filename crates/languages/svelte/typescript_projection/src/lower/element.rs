@@ -72,7 +72,7 @@ impl Builder<'_> {
         };
         let bindings = self.element_attributes(&host, attributes, &mut directives)?;
         let read = self.last_let_read(name, start_tag, attributes);
-        self.slot_let(attributes, read, &mut directives)?;
+        self.slot_let((name, start_tag), attributes, read, &mut directives)?;
         // `<svelte:boundary>`'s snippets are its props, as a component's are.
         let snippet_props = is_component || tag == "svelte:boundary";
         let snippets = self.snippet_props(children, snippet_props)?;
