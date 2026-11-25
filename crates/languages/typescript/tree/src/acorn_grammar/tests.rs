@@ -1,14 +1,14 @@
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
 
-use crate::{Acorn, Tree};
+use crate::{Acorn, Tree, TypeScriptReader};
 
 /// Where acorn stops in `text`, a module read as acorn reads it: at a syntax error the part
 /// reports, or where the tree shows syntax acorn rejects.
 fn acorn_stops_at(text: &str, source_type: SourceType) -> Option<(String, u32)> {
     let mut failed = None;
     let built = Tree::build(text, |builder| {
-        builder.read_as_acorn();
+        builder.read_as_acorn(TypeScriptReader::AcornTypescript);
         let range = Span::new(0, text.len() as u32);
         builder
             .program(range, source_type)

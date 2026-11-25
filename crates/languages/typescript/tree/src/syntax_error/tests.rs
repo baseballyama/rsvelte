@@ -2,14 +2,14 @@ use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
 
 use super::Acorn;
-use crate::Tree;
+use crate::{Tree, TypeScriptReader};
 
 /// What acorn reports for `text`, a TypeScript program read as acorn reads it, and where; `None`
 /// where it reads the program.
 fn acorn_reads(text: &str) -> Option<(String, u32)> {
     let mut reported = None;
     let parsed = Tree::build(text, |builder| {
-        builder.read_as_acorn();
+        builder.read_as_acorn(TypeScriptReader::AcornTypescript);
         let range = Span::new(0, text.len() as u32);
         builder.program(range, SourceType::ts()).map_err(|error| {
             reported = Some(error.acorn.clone());

@@ -37,6 +37,90 @@ impl Restricted {
     }
 }
 
+/// A word acorn's `checkUnreserved` refuses as a name in strict module code.
+#[derive(Clone, Copy, Debug)]
+pub(crate) enum ReservedWord {
+    Implements,
+    Interface,
+    Let,
+    Package,
+    Private,
+    Protected,
+    Public,
+    Static,
+    Yield,
+    Await,
+}
+
+impl ReservedWord {
+    fn of(name: &str) -> Option<Self> {
+        Some(match name {
+            "implements" => Self::Implements,
+            "interface" => Self::Interface,
+            "let" => Self::Let,
+            "package" => Self::Package,
+            "private" => Self::Private,
+            "protected" => Self::Protected,
+            "public" => Self::Public,
+            "static" => Self::Static,
+            "yield" => Self::Yield,
+            "await" => Self::Await,
+            _ => return None,
+        })
+    }
+
+    pub(super) const fn message(self) -> &'static str {
+        match self {
+            Self::Implements => "The keyword 'implements' is reserved",
+            Self::Interface => "The keyword 'interface' is reserved",
+            Self::Let => "The keyword 'let' is reserved",
+            Self::Package => "The keyword 'package' is reserved",
+            Self::Private => "The keyword 'private' is reserved",
+            Self::Protected => "The keyword 'protected' is reserved",
+            Self::Public => "The keyword 'public' is reserved",
+            Self::Static => "The keyword 'static' is reserved",
+            Self::Yield => "The keyword 'yield' is reserved",
+            Self::Await => "Cannot use keyword 'await' outside an async function",
+        }
+    }
+}
+
+/// Whether acorn-typescript reads `name` as a TypeScript keyword's token rather than as a name.
+pub(super) fn typescript_keyword(name: &str) -> bool {
+    matches!(
+        name,
+        "assert"
+            | "asserts"
+            | "global"
+            | "keyof"
+            | "readonly"
+            | "unique"
+            | "abstract"
+            | "declare"
+            | "enum"
+            | "module"
+            | "namespace"
+            | "interface"
+            | "type"
+    )
+}
+
+/// A reserved word acorn reads as a name at `kind`: any name a declaration binds, and a name an
+/// expression reads, outside a type (`in_type`), whose names acorn-typescript reads liberally.
+pub(super) fn reserved(kind: AstKind<'_>, in_type: bool) -> Option<Stop> {
+    let (name, span) = match kind {
+        AstKind::BindingIdentifier(it) => (it.name.as_str(), it.span),
+        AstKind::TSIndexSignatureName(it) => (it.name.as_str(), it.span),
+        AstKind::IdentifierReference(it) if !in_type => (it.name.as_str(), it.span),
+        _ => return None,
+    };
+    ReservedWord::of(name).map(|word| Stop {
+        at: span.start,
+        raised: span.start,
+        why: Rejection::Reserved(word),
+    })
+}
+
 /// Where acorn checks the names the head of the function `kind` is binds: at the start of its
 /// block body or the end of its expression body. A function without a body has none.
 pub(crate) fn head_checked_at(kind: AstKind<'_>) -> Option<u32> {
