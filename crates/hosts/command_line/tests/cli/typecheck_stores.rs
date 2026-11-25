@@ -45,8 +45,11 @@ fn typecheck_drops_findings_in_a_store_declaration() {
         ),
     ]);
     // A copy keeps TypeScript's message but for the line about the content mapper's code.
+    let first = "src/Bom.svelte(5,3): error TS2769: Cannot use 'n' as a store. 'n' needs to be an \
+                 object with a subscribe method on it."
+        .native();
     let copy: Vec<_> = (report.lines())
-        .skip_while(|l| !l.starts_with("src/Bom.svelte(5,3)"))
+        .skip_while(|l| *l != first)
         .take_while({
             let mut first = true;
             move |l| std::mem::take(&mut first) || !l.starts_with("src")
@@ -55,8 +58,7 @@ fn typecheck_drops_findings_in_a_store_declaration() {
     assert_eq!(
         copy,
         [
-            "src/Bom.svelte(5,3): error TS2769: Cannot use 'n' as a store. 'n' needs to be an \
-             object with a subscribe method on it.",
+            first.as_str(),
             "",
             "No overload matches this call.",
             "  The last overload gave the following error.",
