@@ -99,9 +99,10 @@ impl UntypedImport<'_> {
                 "Could not find a declaration file for module '{}'. '{}' implicitly has an 'any' \
                  type.",
                 self.import.specifier,
-                paths::typescript(&self.module.to_string_lossy())
+                paths::typescript(&self.module)
             ),
             span: Some(self.import.at),
+            synthesized: None,
             syntactic: false,
         }
     }
@@ -148,6 +149,35 @@ pub(super) fn imports<'a>(
         }
     }
     untyped
+}
+
+/// Drops from `external` each document an import of a typed document reaches other than by a
+/// search of `node_modules`: TypeScript loads a JavaScript file such an import reaches, whatever
+/// else reaches it, and svelte-check reads only that import's resolution, not its link.
+pub(super) fn drop_loaded(
+    req: &CheckRequest<'_>,
+    modules: &[(usize, Vec<Option<PathBuf>>)],
+    external: &mut HashSet<PathBuf>,
+) {
+    for (file, modules) in modules {
+        for (CheckedImport { import, .. }, module) in req.imports[*file].iter().zip(modules) {
+            if let Some(module) = module.as_deref().map(normalized)
+                && !searched(&import.specifier, &module)
+            {
+                external.remove(&module);
+            }
+        }
+    }
+}
+
+/// Whether TypeScript reads an import of `specifier` that reaches `module` as a search of
+/// `node_modules` (`isExternalLibraryImport`): a relative or rooted one is not, unless its path
+/// passes through `node_modules`.
+fn searched(specifier: &str, module: &Path) -> bool {
+    let rest = (specifier.strip_prefix("..")).or_else(|| specifier.strip_prefix('.'));
+    let relative = rest.is_some_and(|rest| rest.is_empty() || rest.starts_with(['/', '\\']))
+        || Path::new(specifier).has_root();
+    !relative || module.components().any(|c| c.as_os_str() == "node_modules")
 }
 
 /// `Value refers to a value, but is being used as a type here.`
@@ -199,7 +229,7 @@ pub(super) fn probe(root: &Path, overlay: &Path, base: &Path) -> [(PathBuf, Stri
     config
         .begin_object()
         .key("extends")
-        .write_string(&base.to_string_lossy())
+        .write_string(&paths::typescript(base))
         .key("compilerOptions")
         .begin_object()
         .key("noEmit")
@@ -210,8 +240,8 @@ pub(super) fn probe(root: &Path, overlay: &Path, base: &Path) -> [(PathBuf, Stri
         .end_array()
         .key("files")
         .begin_array()
-        .write_string(&probe.to_string_lossy())
-        .write_string(&package_probe.to_string_lossy())
+        .write_string(&paths::typescript(&probe))
+        .write_string(&paths::typescript(&package_probe))
         .end_array()
         .end_object();
     [
@@ -305,3 +335,6 @@ pub(super) fn options_declaration(overlay: &Path) -> (PathBuf, String) {
 }
 
 pub(super) mod ambient;
+
+#[cfg(test)]
+mod tests;

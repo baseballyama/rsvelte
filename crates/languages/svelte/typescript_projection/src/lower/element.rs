@@ -77,6 +77,15 @@ impl Builder<'_> {
         let snippets = self.snippet_props(children, snippet_props)?;
         let properties = self.finish_list(start);
         let properties = self.tree.push(Node::Object { properties });
+        // Only a call whose instance is read constructs it: the instance's constructor drops the
+        // type arguments an instantiation expression gives the component's call.
+        let reads_by_name = !directives.events.is_empty()
+            || !directives.lets.is_empty()
+            || self.fills_slot_with_lets(children);
+        let constructs = reads_by_name
+            || bindings
+                .iter()
+                .any(|b| matches!(b, binding::Binding::This { .. }));
         let (call, named) = if is_component {
             // svelte-check reports a finding on all of a component's props at its name.
             let properties = self.tree.push(Node::Located {
@@ -92,13 +101,8 @@ impl Builder<'_> {
                 component,
                 properties,
                 snippets,
-                !directives.events.is_empty()
-                    || !directives.bindable.is_empty()
-                    || !directives.lets.is_empty()
-                    || self.fills_slot_with_lets(children),
-                bindings
-                    .iter()
-                    .any(|b| matches!(b, binding::Binding::This { .. })),
+                reads_by_name || !directives.bindable.is_empty(),
+                constructs,
             )
         } else if slot {
             (
@@ -117,7 +121,8 @@ impl Builder<'_> {
                 None,
             )
         };
-        let (lets, instance) = self.after_call(call, named, bindings, snippets, &directives);
+        let (lets, instance) =
+            self.after_call(call, named, constructs, bindings, snippets, &directives);
         let slot_let = directives.slot_let.take();
         self.directives = directives;
         self.class_expressions(attributes);
@@ -161,27 +166,31 @@ impl Builder<'_> {
 
     /// The call with what svelte2tsx writes around it: actions before, then bindings, directive
     /// checks, a component's events, the names of its snippet props and its `let:` bindings.
+    /// `constructs`: the call constructs the instance that its events and `let:` read.
     fn after_call(
         &mut self,
         call: NodeIdentifier,
         named: Option<NodeIdentifier>,
+        constructs: bool,
         bindings: Vec<binding::Binding>,
         snippets: Range,
         directives: &directive::Directives,
     ) -> (Option<usize>, Option<directive::Constructed>) {
         self.scratch.extend_from_slice(&directives.actions);
         let call = self.bound_call(call, bindings, named.is_some());
-        let instance = named
-            .zip(call)
-            .map(|(component, call)| directive::Constructed { component, call });
         if let Some(component) = named {
             self.bindable_checks(component, &directives.bindable);
         }
         self.scratch.extend_from_slice(&directives.checks);
-        let (Some(component), Some(instance)) = (named, instance) else {
+        let Some(component) = named else {
             return (None, None);
         };
-        self.component_events(instance, &directives.events);
+        let instance = call
+            .filter(|_| constructs)
+            .map(|call| directive::Constructed { component, call });
+        if let Some(instance) = instance {
+            self.component_events(instance, &directives.events);
+        }
         if snippets.len != 0 {
             let declaration = self.tree.push(Node::SnippetNames {
                 names: snippets,
@@ -190,8 +199,10 @@ impl Builder<'_> {
             self.scratch.push(declaration);
         }
         let lets = self.scratch.len();
-        self.component_lets(instance, &directives.lets);
-        ((self.scratch.len() > lets).then_some(lets), Some(instance))
+        if let Some(instance) = instance {
+            self.component_lets(instance, &directives.lets);
+        }
+        ((self.scratch.len() > lets).then_some(lets), instance)
     }
 
     /// The expressions of `class:` directives, which svelte2tsx checks after the call.

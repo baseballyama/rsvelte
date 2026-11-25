@@ -11,9 +11,11 @@ on:
     paths:
       - crates/language_independent/kernel/src/source/paths.rs
       - crates/language_independent/kernel/src/source/paths/**
+      - crates/languages/typescript/api/**
       - crates/languages/typescript/check/**
       - crates/hosts/command_line/src/commands/typecheck.rs
       - crates/hosts/command_line/tests/cli/typecheck*.rs
+      - crates/hosts/command_line/tests/cli/combined.rs
       - crates/language_independent/test_harness/**
       - .github/workflows/windows.yml
 
