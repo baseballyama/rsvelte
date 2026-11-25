@@ -29,8 +29,8 @@ export default {
 			entry: ['launcher.js', 'program.js'],
 		},
 		'apps/rsvelte': {
-			// crates/hosts/node's test runs it with the addon it builds, not a package script.
-			entry: ['compiler.test.ts'],
+			// crates/hosts/node's test runs them with the addon it builds, not a package script.
+			entry: ['bin.js', 'compiler.test.ts', 'command.test.ts'],
 		},
 		'apps/vscode': {
 			// The extension host loads the bundle of the first, and VS Code the bundle of the last.

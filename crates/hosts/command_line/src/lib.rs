@@ -38,7 +38,7 @@ use std::process::ExitCode;
 use commands::corpus::corpus;
 use commands::run::{run_file, run_files, run_project};
 use commands::{benchmark, format, lint, performance};
-pub use release::release;
+pub use release::{release, release_with};
 use rsvelte_configuration_loading::LoadedConfiguration;
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_plugin_interface::{Extension, Selection};
@@ -52,6 +52,15 @@ static MIMALLOC: mimalloc::MiMalloc = mimalloc::MiMalloc;
 #[global_allocator]
 static ALLOC: rsvelte_kernel::performance::measurement::CountingAllocator =
     rsvelte_kernel::performance::measurement::CountingAllocator;
+
+/// The directory of the programs a release installs with the command, such as the content mapper:
+/// the command's own directory, unless the host that runs the command names another.
+static PROGRAMS: std::sync::OnceLock<Option<PathBuf>> = std::sync::OnceLock::new();
+
+fn programs() -> Option<PathBuf> {
+    let beside = || Some(std::env::current_exe().ok()?.parent()?.to_owned());
+    PROGRAMS.get_or_init(beside).clone()
+}
 
 /// What `check` runs without `--task`.
 const PROJECT_CHECK: &str = "ts.check/default";
@@ -189,6 +198,9 @@ fn install(
         None => std::sync::Arc::new(rsvelte_plugin_interface::NoFunctions),
     };
     let mut settings = rsvelte_plugin_interface::Settings::new(installation.selection, functions);
+    if let Some(programs) = programs() {
+        settings = settings.with_programs(programs);
+    }
     let mut given: Vec<String> = overrides
         .iter()
         .map(|&(plugin, _)| plugin.to_owned())

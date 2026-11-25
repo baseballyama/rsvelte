@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::de::DeserializeOwned;
@@ -16,6 +16,7 @@ pub struct Settings {
     selection: Selection,
     tools: Tools,
     file_system: bool,
+    programs: Option<PathBuf>,
 }
 
 impl Settings {
@@ -27,6 +28,7 @@ impl Settings {
             selection,
             tools: Tools::default(),
             file_system: true,
+            programs: None,
         }
     }
 
@@ -36,6 +38,19 @@ impl Settings {
     pub const fn without_file_system(mut self) -> Self {
         self.file_system = false;
         self
+    }
+
+    /// The directory of the programs installed with the host, such as a content mapper.
+    #[must_use]
+    pub fn with_programs(mut self, directory: PathBuf) -> Self {
+        self.programs = Some(directory);
+        self
+    }
+
+    /// The directory of the programs installed with the host; `None` when it installs none.
+    #[must_use]
+    pub fn programs(&self) -> Option<&Path> {
+        self.programs.as_deref()
     }
 
     /// Whether the host reads the files around a document.

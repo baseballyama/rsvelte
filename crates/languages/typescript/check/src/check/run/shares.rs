@@ -1,5 +1,6 @@
 //! The check of a project's files, shared out among processes that each open the project.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use rsvelte_typescript_api::{DiagnosticKind, Layer, Project, Session};
@@ -19,8 +20,9 @@ pub(super) struct Checked {
     pub(super) modules: Modules,
 }
 
-/// The documents whose imports the processes resolve, at their paths.
-pub(super) type Resolve<'r> = Option<(&'r CheckRequest<'r>, &'r [PathBuf])>;
+/// The documents whose imports the processes resolve, at their paths, and which of those paths
+/// are JavaScript, whose imports cannot be untyped.
+pub(super) type Resolve<'r> = Option<(&'r CheckRequest<'r>, &'r [PathBuf], &'r HashSet<PathBuf>)>;
 
 /// The program, syntactic and semantic findings of `files` in the project of `config`, and the
 /// modules their imports read when `resolve` asks. Every process opens the project at the same
@@ -109,9 +111,10 @@ impl<'a> Shares<'a> {
         while let Some(share) = self.take() {
             let files = &self.files[share.clone()];
             found.extend(session.diagnostics(project, DiagnosticKind::Semantic, Some(files))?);
-            if let Some((req, paths)) = self.resolve {
+            if let Some((req, paths, javascript)) = self.resolve {
                 for file in share {
-                    let resolved = untyped::modules(req, session, project, paths, file)?;
+                    let typed = !javascript.contains(&paths[file]);
+                    let resolved = untyped::modules(req, session, project, paths, file, typed)?;
                     if !resolved.is_empty() {
                         modules.push((file, resolved));
                     }
