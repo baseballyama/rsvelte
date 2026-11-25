@@ -8,7 +8,7 @@ use rsvelte_kernel::computation::task::TaskOutput;
 use rsvelte_kernel::diagnostics::{self, Diagnostic};
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
-use rsvelte_kernel::source::positions::{LineIndex, Span};
+use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use rsvelte_typescript_api::Position;
 
 use super::run::TypeScriptDiagnostic;
@@ -195,10 +195,11 @@ fn write_outputs(
         }
         let bom = byte_order_mark(&d.source_text);
         let text = &d.source_text[bom as usize..];
+        let lines = LineIndex::with_breaks(text, reported_lines(Path::new(&d.path)));
         let recorded: Vec<_> = (found.iter())
             .map(|(span, code, message)| (*span, *code, from_root(message, &root)))
             .collect();
-        out.file("json", render_findings(&LineIndex::new(text), &recorded));
+        out.file("json", render_findings(&lines, &recorded));
         // A finding's span is in the document, which keeps the mark.
         out.findings
             .extend(found.into_iter().map(|(span, code, message)| {
@@ -219,6 +220,23 @@ pub(super) fn finding(span: Span, code: i64, message: String) -> diagnostics::Fi
     diagnostics::Finding {
         diagnostic: Diagnostic::error(code, message, span),
         fix: Vec::new(),
+    }
+}
+
+/// The lines svelte-check counts in a report on `file`: TypeScript's own in a script, and those
+/// that end at `\n` in a component, where a source map places the finding.
+#[must_use]
+pub fn reported_lines(file: &Path) -> LineBreaks {
+    let script = (file.extension().and_then(std::ffi::OsStr::to_str)).is_some_and(|extension| {
+        matches!(
+            extension,
+            "ts" | "tsx" | "mts" | "cts" | "js" | "jsx" | "mjs" | "cjs" | "json"
+        )
+    });
+    if script {
+        LineBreaks::Ecmascript
+    } else {
+        LineBreaks::Newline
     }
 }
 
@@ -257,7 +275,9 @@ fn refuses_unmapped(
     let unmapped = |at: Position| {
         d.projection.unmapped.is_some_and(|range| {
             (lines.entry(f.file))
-                .or_insert_with(|| LineIndex::new(&d.projection.out))
+                .or_insert_with(|| {
+                    LineIndex::with_breaks(&d.projection.out, LineBreaks::Ecmascript)
+                })
                 .offset(at.line + 1, at.character)
                 .is_some_and(|at| (range.start_offset..range.end_offset).contains(&at))
         })

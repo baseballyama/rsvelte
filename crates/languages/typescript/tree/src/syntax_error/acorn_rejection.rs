@@ -15,10 +15,12 @@ use super::word::{Home, home, keyword, misused};
 
 mod arguments;
 mod lexer;
+mod number;
 mod pattern;
 use arguments::{ARGUMENTS_IN_STATIC_BLOCK, arguments_misused, in_static_block};
-use lexer::{after_number, regular_expression};
-use pattern::{parenthesized_element, reparsed};
+use lexer::regular_expression;
+use number::number as rejected_number;
+use pattern::{parenthesized_element, rejected_await, reparsed};
 
 /// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one
 /// of `unchecked`, the rules the host's parser does not check, nor, for a host that reads
@@ -121,7 +123,7 @@ pub(crate) fn acorn(
             .then(|| keyword(kind.to_str(), at))
     };
     if error.code.scope.as_deref() != Some("TS") {
-        return after_number(error, text, start, end)
+        return rejected_number(error, text, start, read())
             .or_else(|| arguments_misused(error, start))
             .or_else(|| misused(start, end, read(), visit, false))
             .or_else(|| regular_expression(text, start, read()))
@@ -270,6 +272,8 @@ fn implementation(
     ))
 }
 
+const STATIC_BLOCK_AWAIT: &str = "Cannot use await in class static initialization block";
+
 /// Acorn's message for a target that tsc's code `number` says cannot be assigned, which names an
 /// optional chain apart.
 fn unassignable_message(number: &str) -> Option<&'static str> {
@@ -299,6 +303,9 @@ fn unassignable(
     let tokens = &tokens.collect::<Vec<_>>();
     let (home, _) = home(start, end, tokens.iter().copied(), visit);
     if let Some(home) = home {
+        if let Some(at) = rejected_await(text, (start, end), tokens, home) {
+            return Some(fails(STATIC_BLOCK_AWAIT, at));
+        }
         if let Some(at) = parenthesized_element(text, (start, end), tokens, home) {
             return Some(fails("Assigning to rvalue", at));
         }
@@ -403,10 +410,7 @@ fn early_error(
             )),
             at: start,
         }),
-        "18037" | "18054" => Some(fails(
-            "Cannot use await in class static initialization block",
-            start,
-        )),
+        "18037" | "18054" => Some(fails(STATIC_BLOCK_AWAIT, start)),
         // acorn-typescript reports an abstract member at its start.
         "1244" | "1253" => Some(fails(
             "Abstract methods can only appear within an abstract class.",

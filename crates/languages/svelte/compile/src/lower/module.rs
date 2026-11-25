@@ -4,14 +4,14 @@
 use std::path::Path;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{Program, Statement};
+use oxc_ast::ast::{Directive, ImportOrExportKind, Program, Statement};
 use oxc_semantic::SemanticBuilder;
 use oxc_span::{SPAN, SourceType};
 use oxc_transformer::{TransformOptions, Transformer};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_typescript_compile::strip::ErasedComments;
+use rsvelte_typescript_compile::strip::{ErasedComments, imports_by_require};
 use rsvelte_typescript_tree::document_span;
 
 use super::validation::check_runes;
@@ -82,6 +82,8 @@ fn typescript_emit<'o>(
     filename: &str,
     out: &mut Program<'o>,
 ) -> Result<(), Diagnostic> {
+    // An ES module has no `require`, so TypeScript's emit for one drops what reads it.
+    out.body.retain(|statement| !imports_by_require(statement));
     out.source_type = SourceType::ts();
     let scoping = (SemanticBuilder::new().with_build_jsdoc(false))
         .build(out)
@@ -104,8 +106,17 @@ fn typescript_emit<'o>(
             span,
         ));
     }
-    if !source.body.iter().any(Statement::is_module_declaration) {
-        out.body.insert(0, b.statement(b.string("use strict")));
+    // TypeScript keeps a script strict, and a module that its emit leaves without an import or an
+    // export a module.
+    let module = (source.body.iter()).any(|s| s.is_module_declaration() || imports_by_require(s));
+    if !module {
+        if !source.directives.iter().any(Directive::is_use_strict) {
+            out.body.insert(0, b.statement(b.string("use strict")));
+        }
+    } else if !out.body.iter().any(Statement::is_module_declaration) {
+        let nothing =
+            Statement::new_export_named_declaration(SPAN, b.vec([]), ImportOrExportKind::Value, b);
+        out.body.push(nothing);
     }
     Ok(())
 }

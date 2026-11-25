@@ -90,6 +90,37 @@ fn a_typescript_module_keeps_what_typescript_emits() {
 }
 
 #[test]
+fn a_module_keeps_its_prologue_after_the_runtime_import() {
+    // svelte 5.59.1 `compileModule` keeps each directive as a statement where the import ends the
+    // prologue; the parentheses keep the same tree.
+    let compiled = |path, source| compile(path, source, Target::Client);
+    let import = "import * as $ from \"svelte/internal/client\";\n";
+    assert_eq!(
+        compiled(
+            "a.svelte.js",
+            "\"use strict\";\n\"other\";\nimport { x } from \"y\";\nexport const a = $state(x);\n"
+        ),
+        format!(
+            "{import}(\"use strict\");\n(\"other\");\nimport {{ x }} from \"y\";\n\
+             export const a = $.proxy(x);\n"
+        )
+    );
+    assert_eq!(
+        compile("a.svelte.js", "'use strict'\n", Target::Server),
+        "import * as $ from \"svelte/internal/server\";\n(\"use strict\");\n"
+    );
+    // TypeScript's emit puts `"use strict"` first in a script, once.
+    assert_eq!(
+        compiled("a.svelte.ts", "\"use client\";\nlet a: number = 1;\n"),
+        format!("{import}(\"use strict\");\n(\"use client\");\nlet a = 1;\n")
+    );
+    assert_eq!(
+        compiled("a.svelte.ts", "\"use strict\";\nlet a: number = 1;\n"),
+        format!("{import}(\"use strict\");\nlet a = 1;\n")
+    );
+}
+
+#[test]
 fn a_javascript_module_is_read_as_written() {
     let compiled = compile("a.svelte.js", "let a = 1;\n", Target::Client);
     assert_eq!(
@@ -254,6 +285,60 @@ fn a_typescript_module_drops_the_comments_its_emit_erases_with_a_declaration() {
             comments,
             ["// kept", "// body header", "// before import"],
             "{target:?}:\n{javascript}"
+        );
+    }
+}
+
+#[test]
+fn a_typescript_module_drops_an_import_that_reads_require() {
+    // TypeScript 6.0.3's emit for an ES module, then svelte 5.59.1's `compileModule`: an ES
+    // module has no `require`, so every `import … = require(…)` goes, used or not, and a module it
+    // leaves without an import or an export stays one.
+    let client = "import * as $ from \"svelte/internal/client\";\n";
+    for (source, expected) in [
+        (
+            "import A = require(\"x\");\nexport const y = A;\n",
+            "export const y = A;\n",
+        ),
+        (
+            "import A = require(\"x\");\nexport const y = 1;\n",
+            "export const y = 1;\n",
+        ),
+        (
+            "import type A = require(\"x\");\nexport const y = 1;\n",
+            "export const y = 1;\n",
+        ),
+        ("export import A = require(\"x\");\n", "export {};\n"),
+        ("import A = require(\"x\");\n", "export {};\n"),
+        (
+            "import A = require(\"x\");\nlet y = A;\n",
+            "let y = A;\nexport {};\n",
+        ),
+        (
+            "import A = require(\"x\");\nimport { b } from \"b\";\nexport const y = A + b;\n",
+            "import { b } from \"b\";\nexport const y = A + b;\n",
+        ),
+        (
+            "import A = require(\"x\");\nexport const s = $state(A);\n",
+            "export const s = $.proxy(A);\n",
+        ),
+        // An alias of a name is a variable.
+        (
+            "import A = B.C;\nexport const y = A;\n",
+            "var A = B.C;\nexport const y = A;\n",
+        ),
+        ("export import A = B.C;\n", "export var A = B.C;\n"),
+        // The emit removes the statement's comments with it.
+        (
+            "function g() {}\n// before\nexport import A = require(\"x\"); // after\n\
+             function f() {\n\t// in\n\treturn g;\n}\nexport { f };\n",
+            "function g() {}\nfunction f() {\n\t// in\n\treturn g;\n}\nexport { f };\n",
+        ),
+    ] {
+        assert_eq!(
+            compile("a.svelte.ts", source, Target::Client),
+            format!("{client}{expected}"),
+            "{source:?}"
         );
     }
 }

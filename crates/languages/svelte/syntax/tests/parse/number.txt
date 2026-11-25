@@ -1,0 +1,168 @@
+<script>let a = 08x;</script> => Invalid number @ 16
+<script>let a = 09.5x;</script> => Invalid number @ 16
+<script>let a = 08e1x;</script> => Invalid number @ 16
+<script>let a = 01x;</script> => Invalid number @ 16
+<script>let a = 08n;</script> => Invalid number @ 16
+<script>let a = 0_1;</script> => Numeric separator is not allowed in legacy octal numeric literals @ 17
+<script>let a = 01_1;</script> => Numeric separator is not allowed in legacy octal numeric literals @ 18
+<script>let a = 08_1;</script> => Numeric separator is not allowed in legacy octal numeric literals @ 18
+<script>let a = 1_;</script> => Numeric separator is not allowed at the last of digits @ 17
+<script>let a = 1__0;</script> => Numeric separator must be exactly one underscore @ 18
+<script>let a = 1___0;</script> => Numeric separator must be exactly one underscore @ 18
+<script>let a = 1_.5;</script> => Numeric separator is not allowed at the last of digits @ 17
+<script>let a = 1_x;</script> => Numeric separator is not allowed at the last of digits @ 17
+<script>let a = 1._5;</script> => Numeric separator is not allowed at the first of digits @ 18
+<script>let a = 1.5_;</script> => Numeric separator is not allowed at the last of digits @ 19
+<script>let a = 1.5__2;</script> => Numeric separator must be exactly one underscore @ 20
+<script>let a = 1.5_x;</script> => Numeric separator is not allowed at the last of digits @ 19
+<script>let a = .5_;</script> => Numeric separator is not allowed at the last of digits @ 18
+<script>let a = .5x;</script> => Identifier directly after number @ 18
+<script>let a = 1e;</script> => Invalid number @ 16
+<script>let a = 1ex;</script> => Invalid number @ 16
+<script>let a = 1e+x;</script> => Invalid number @ 16
+<script>let a = 1e-;</script> => Invalid number @ 16
+<script>let a = 1e_1;</script> => Numeric separator is not allowed at the first of digits @ 18
+<script>let a = 1e1_;</script> => Numeric separator is not allowed at the last of digits @ 19
+<script>let a = 1e1__2;</script> => Numeric separator must be exactly one underscore @ 20
+<script>let a = 1e1x;</script> => Identifier directly after number @ 19
+<script>let a = 1.e;</script> => Invalid number @ 16
+<script>let a = 1._;</script> => Numeric separator is not allowed at the first of digits @ 18
+<script>let a = 0x;</script> => Expected number in radix 16 @ 18
+<script>let a = 0xg;</script> => Expected number in radix 16 @ 18
+<script>let a = 0x_1;</script> => Numeric separator is not allowed at the first of digits @ 18
+<script>let a = 0x1_;</script> => Numeric separator is not allowed at the last of digits @ 19
+<script>let a = 0x1__2;</script> => Numeric separator must be exactly one underscore @ 20
+<script>let a = 0x1g;</script> => Identifier directly after number @ 19
+<script>let a = 0xn;</script> => Expected number in radix 16 @ 18
+<script>let a = 0b;</script> => Expected number in radix 2 @ 18
+<script>let a = 0b2;</script> => Expected number in radix 2 @ 18
+<script>let a = 0b1_;</script> => Numeric separator is not allowed at the last of digits @ 19
+<script>let a = 0b1_2;</script> => Numeric separator is not allowed at the last of digits @ 19
+<script>let a = 0b12x;</script> => Identifier directly after number @ 20
+<script>let a = 0b12_;</script> => Numeric separator is not allowed at the last of digits @ 20
+<script>let a = 0b122_;</script> => Numeric separator is not allowed at the last of digits @ 21
+<script>let a = 0o;</script> => Expected number in radix 8 @ 18
+<script>let a = 0o9;</script> => Expected number in radix 8 @ 18
+<script>let a = 0o18_;</script> => Numeric separator is not allowed at the last of digits @ 20
+<script>let a = 0o7x;</script> => Identifier directly after number @ 19
+<script>let a = 1nx;</script> => Identifier directly after number @ 18
+<script>let a = 1n2x;</script> => Identifier directly after number @ 19
+<script>let a = 1n_;</script> => Identifier directly after number @ 18
+<script>let a = 1_n;</script> => Numeric separator is not allowed at the last of digits @ 17
+<script>let a = 1_1nx;</script> => Identifier directly after number @ 20
+<script>let a = 1$;</script> => Identifier directly after number @ 17
+<script>let a = 1x;</script> => Identifier directly after number @ 17
+<script>let a = 1.x;</script> => Identifier directly after number @ 18
+<script>let a = 1a.b;</script> => Identifier directly after number @ 17
+<script>let a = /* c */ 1x;</script> => Identifier directly after number @ 25
+<script>f(0xe+1x);</script> => Identifier directly after number @ 15
+<script>let a = [1x];</script> => Identifier directly after number @ 18
+<script>let a = 1x</script> => Identifier directly after number @ 17
+{f(1x)} => Identifier directly after number @ 4
+{#if 1x}{/if} => Identifier directly after number @ 6
+<div a={1x}></div> => Identifier directly after number @ 9
+<script>const f = (a) => 1x;</script> => Identifier directly after number @ 26
+<script>let a = `${1x}`;</script> => Identifier directly after number @ 20
+<script>let a = { 1x: 1 };</script> => Identifier directly after number @ 19
+<script lang="ts">let a: number = 1x;</script> => Identifier directly after number @ 35
+{@const x = 1x} => Identifier directly after number @ 13
+<script>let a = 1 1x;</script> => Identifier directly after number @ 19
+<script>function g() { return 1x }</script> => Identifier directly after number @ 31
+<script>let a = /* c */ 1_;</script> => Numeric separator is not allowed at the last of digits @ 25
+<script>f(0xe+1_);</script> => Numeric separator is not allowed at the last of digits @ 15
+<script>let a = [1_];</script> => Numeric separator is not allowed at the last of digits @ 18
+<script>let a = 1_</script> => Numeric separator is not allowed at the last of digits @ 17
+{f(1_)} => Numeric separator is not allowed at the last of digits @ 4
+{#if 1_}{/if} => Numeric separator is not allowed at the last of digits @ 6
+<div a={1_}></div> => Numeric separator is not allowed at the last of digits @ 9
+<script>const f = (a) => 1_;</script> => Numeric separator is not allowed at the last of digits @ 26
+<script>let a = `${1_}`;</script> => Numeric separator is not allowed at the last of digits @ 20
+<script>let a = { 1_: 1 };</script> => Numeric separator is not allowed at the last of digits @ 19
+<script lang="ts">let a: number = 1_;</script> => Numeric separator is not allowed at the last of digits @ 35
+{@const x = 1_} => Numeric separator is not allowed at the last of digits @ 13
+<script>function g() { return 1_ }</script> => Numeric separator is not allowed at the last of digits @ 31
+<script>let a = /* c */ 1e;</script> => Invalid number @ 24
+<script>f(0xe+1e);</script> => Invalid number @ 14
+<script>let a = [1e];</script> => Invalid number @ 17
+<script>let a = 1e</script> => Invalid number @ 16
+{f(1e)} => Invalid number @ 3
+{#if 1e}{/if} => Invalid number @ 5
+<div a={1e}></div> => Invalid number @ 8
+<script>const f = (a) => 1e;</script> => Invalid number @ 25
+<script>let a = `${1e}`;</script> => Invalid number @ 19
+<script>let a = { 1e: 1 };</script> => Invalid number @ 18
+<script lang="ts">let a: number = 1e;</script> => Invalid number @ 34
+{@const x = 1e} => Invalid number @ 12
+<script>function g() { return 1e }</script> => Invalid number @ 30
+<script>let a = /* c */ 08x;</script> => Invalid number @ 24
+<script>f(0xe+08x);</script> => Invalid number @ 14
+<script>let a = [08x];</script> => Invalid number @ 17
+<script>let a = 08x</script> => Invalid number @ 16
+{f(08x)} => Invalid number @ 3
+{#if 08x}{/if} => Invalid number @ 5
+<div a={08x}></div> => Invalid number @ 8
+<script>const f = (a) => 08x;</script> => Invalid number @ 25
+<script>let a = `${08x}`;</script> => Invalid number @ 19
+<script>let a = { 08x: 1 };</script> => Invalid number @ 18
+<script lang="ts">let a: number = 08x;</script> => Invalid number @ 34
+{@const x = 08x} => Invalid number @ 12
+<script>let a = 1 08x;</script> => Invalid number @ 18
+<script>function g() { return 08x }</script> => Invalid number @ 30
+<script>let a = /* c */ 0x;</script> => Expected number in radix 16 @ 26
+<script>f(0xe+0x);</script> => Expected number in radix 16 @ 16
+<script>let a = [0x];</script> => Expected number in radix 16 @ 19
+<script>let a = 0x</script> => Expected number in radix 16 @ 18
+{f(0x)} => Expected number in radix 16 @ 5
+{#if 0x}{/if} => Expected number in radix 16 @ 7
+<div a={0x}></div> => Expected number in radix 16 @ 10
+<script>const f = (a) => 0x;</script> => Expected number in radix 16 @ 27
+<script>let a = `${0x}`;</script> => Expected number in radix 16 @ 21
+<script>let a = { 0x: 1 };</script> => Expected number in radix 16 @ 20
+<script lang="ts">let a: number = 0x;</script> => Expected number in radix 16 @ 36
+{@const x = 0x} => Expected number in radix 16 @ 14
+<script>let a = 1 0x;</script> => Expected number in radix 16 @ 20
+<script>function g() { return 0x }</script> => Expected number in radix 16 @ 32
+<script>let a = /* c */ 0b12x;</script> => Identifier directly after number @ 28
+<script>f(0xe+0b12x);</script> => Identifier directly after number @ 18
+<script>let a = [0b12x];</script> => Identifier directly after number @ 21
+<script>let a = 0b12x</script> => Identifier directly after number @ 20
+{f(0b12x)} => Identifier directly after number @ 7
+{#if 0b12x}{/if} => Identifier directly after number @ 9
+<div a={0b12x}></div> => Identifier directly after number @ 12
+<script>const f = (a) => 0b12x;</script> => Identifier directly after number @ 29
+<script>let a = `${0b12x}`;</script> => Identifier directly after number @ 23
+<script>let a = { 0b12x: 1 };</script> => Identifier directly after number @ 22
+<script lang="ts">let a: number = 0b12x;</script> => Identifier directly after number @ 38
+{@const x = 0b12x} => Identifier directly after number @ 16
+<script>function g() { return 0b12x }</script> => Identifier directly after number @ 34
+<A {...08x}/> => Invalid number @ 7
+<A {...1_}/> => Numeric separator is not allowed at the last of digits @ 8
+<A {...01_1} /> => Numeric separator is not allowed in legacy octal numeric literals @ 9
+<script>f(...08x)</script> => Invalid number @ 13
+<script>a+08x</script> => Invalid number @ 10
+<script>a = 1 -08x</script> => Invalid number @ 15
+<script>a--08x</script> => Invalid number @ 11
+<script>0x1-1_</script> => Numeric separator is not allowed at the last of digits @ 13
+<script>1e1-1_</script> => Numeric separator is not allowed at the last of digits @ 13
+<script>1e1-01x</script> => Invalid number @ 12
+<script>`${1}${08x}`</script> => Invalid number @ 15
+<script>`${1_}`</script> => Numeric separator is not allowed at the last of digits @ 12
+<script>/1_/; 1_</script> => Numeric separator is not allowed at the last of digits @ 15
+<script>/* 1 */08x</script> => Invalid number @ 15
+{#each a as b, i (08x)}{/each} => Invalid number @ 18
+{#if a}{:else if 1_}{/if} => Numeric separator is not allowed at the last of digits @ 18
+<p style:a={1_}> => Numeric separator is not allowed at the last of digits @ 13
+<p on:click={08x}> => Invalid number @ 13
+{@html 1_} => Numeric separator is not allowed at the last of digits @ 8
+{#await 1_}{/await} => Numeric separator is not allowed at the last of digits @ 9
+{#snippet f(a = 1_)}{/snippet} => Numeric separator is not allowed at the last of digits @ 17
+{#each a as {b = 1_}}{/each} => Numeric separator is not allowed at the last of digits @ 18
+<script>0B2</script> => Expected number in radix 2 @ 10
+<script>0X</script> => Expected number in radix 16 @ 10
+<script>1E</script> => Invalid number @ 8
+<script lang='ts'>let a: 1_ = 1;</script> => Numeric separator is not allowed at the last of digits @ 26
+<script lang='ts'>let a: 08x = 1;</script> => Invalid number @ 25
+{@const x = 1e} => Invalid number @ 12
+<p a="{1_} b"> => Numeric separator is not allowed at the last of digits @ 8
+<script>let a = 1e+1_;</script> => Numeric separator is not allowed at the last of digits @ 20
+<script>let a = 1e+_1;</script> => Numeric separator is not allowed at the first of digits @ 19
