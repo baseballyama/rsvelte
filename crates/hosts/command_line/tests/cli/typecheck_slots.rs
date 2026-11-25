@@ -221,7 +221,7 @@ fn typecheck_reports_a_finding_at_a_name_the_return_copies() {
 }
 
 /// A `let:` of a component without slots, forwarded through a slot: the copy of the slot's props
-/// in the render function's return reports nothing. svelte-check 4.7.8 reports these lines.
+/// in the render function's return reports nothing. svelte-check 4.7.8 reports this line.
 #[test]
 fn typecheck_reports_a_forwarded_let_of_a_component_without_slots() {
     let leaf = "<script lang=\"ts\">\n\tlet { label }: { label: string } = $props();\n</script>\n\
@@ -231,10 +231,8 @@ fn typecheck_reports_a_forwarded_let_of_a_component_without_slots() {
     let report = check(&[("src/Leaf.svelte", leaf), ("src/App.svelte", user)]);
     assert_eq!(
         report,
-        "src/App.svelte(4,16): error TS2353: Object literal may only specify known properties, and \
-         'children' does not exist in type '$$ComponentProps'.\n\
-         src/App.svelte(4,21): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
-         \nFound 2 errors in 1 file.\n"
+        "src/App.svelte(4,21): error TS18046: '$$_faeL0.$$slot_def' is of type 'unknown'.\n\
+         \nFound 1 error in 1 file.\n"
             .native()
     );
 }
