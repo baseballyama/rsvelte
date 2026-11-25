@@ -61,6 +61,14 @@ line and column, or drops them. It reports TS2322 at 3:12 and 4:1 in this compon
 
 A template literal that holds a carriage return does the same.
 
+The cause is that the checker and the source map count lines differently. The checker finds the
+generated line of a finding with `getLineOffsets`, which ends a line at a lone `\r`
+([`utils.ts`](https://github.com/sveltejs/language-tools/blob/e7826d325d734e6be6bfd7694acc3804ea264a1e/packages/language-server/src/lib/documents/utils.ts#L276)). It then looks that line up in the map of svelte2tsx
+([`DocumentMapper.ts`](https://github.com/sveltejs/language-tools/blob/e7826d325d734e6be6bfd7694acc3804ea264a1e/packages/language-server/src/lib/documents/DocumentMapper.ts#L152-L155)). The map comes from magic-string 0.30.11, which writes it
+with lines that end at `\n` only ([`Mappings.js`](https://github.com/Rich-Harris/magic-string/blob/bde9d7e35da4663ead63a9c81130e7a0752c7a9f/src/utils/Mappings.js#L16)). So after a lone carriage return the
+lookup reads a line of the map that holds other code. The report is
+[#5350](https://github.com/baseballyama/rsvelte/issues/5350).
+
 rsvelte reports the lines that end at `\n`, as in a component without a carriage return. So it
 also moves the first finding off the editor's line, to 2:18, and reports the second at 3:8
 (`reported_lines` in the TypeScript check crate's
