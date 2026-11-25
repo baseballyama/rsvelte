@@ -34,7 +34,6 @@ pub(super) fn bindings<'t>(rw: &ScriptRewrite<'_, 't>) -> Statement<'t> {
         properties.push(b.property(
             crate::compilation::string_key(b, &key.name),
             b.object(fields),
-            false,
         ));
     }
     b.statement(b.call(b.id("$$custom_element_bind"), [b.object(properties)]))

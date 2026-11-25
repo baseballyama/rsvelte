@@ -182,7 +182,7 @@ impl<'o> Gen<'_, '_, 'o> {
                     .iter()
                     .map(|(k, v)| {
                         let value = self.codegen(*v);
-                        b.property(b.key_by(k, is_simple_identifier), value, false)
+                        b.property(b.key_by(k, is_simple_identifier), value)
                     })
                     .collect();
                 b.object(properties)

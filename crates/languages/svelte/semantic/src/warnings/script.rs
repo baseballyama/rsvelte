@@ -283,8 +283,7 @@ impl Walk<'_> {
             let ObjectPropertyKind::ObjectProperty(p) = p else {
                 return false;
             };
-            !p.computed
-                && matches!(&p.key, PropertyKey::StaticIdentifier(key) if key.name == "target")
+            matches!(&p.key, PropertyKey::StaticIdentifier(key) if key.name == "target")
         });
         let Expression::Identifier(callee) = &new.callee else {
             return;

@@ -59,7 +59,8 @@ impl Source {
 ///
 /// Never: a source directory is two levels below the corpus.
 pub fn sources(root: &Path) -> Result<Vec<Source>, String> {
-    let root = std::fs::canonicalize(root).map_err(|e| format!("{}: {e}", root.display()))?;
+    let root = rsvelte_kernel::source::paths::canonicalize(root)
+        .map_err(|e| format!("{}: {e}", root.display()))?;
     let corpus = root
         .ancestors()
         .find(|a| a.join("_registry").is_dir())

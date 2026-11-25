@@ -110,7 +110,7 @@ pub(crate) fn load(
             continue;
         }
         // Sources are below the canonical root.
-        let canonical = std::fs::canonicalize(root).ok();
+        let canonical = rsvelte_kernel::source::paths::canonicalize(root).ok();
         for source in sources {
             let base = (canonical.as_deref().into_iter())
                 .chain([*root])

@@ -13,6 +13,7 @@ mod eslint_plugin;
 mod format;
 mod format_options;
 mod format_tailwind;
+mod language_server;
 mod lint;
 mod lint_globals;
 mod project_check;
@@ -20,6 +21,7 @@ mod release;
 mod svelte_kit;
 mod tool_plugins;
 mod typecheck;
+mod typecheck_ambient_modules;
 mod typecheck_checker;
 mod typecheck_events;
 mod typecheck_javascript;
@@ -58,7 +60,7 @@ impl Scratch {
             std::fs::write(path, text).expect("test file");
         }
         // The temporary directory can be a symbolic link, and the commands print resolved paths.
-        Self(std::fs::canonicalize(&root).expect("test directory"))
+        Self(rsvelte_kernel::source::paths::canonicalize(&root).expect("test directory"))
     }
 }
 

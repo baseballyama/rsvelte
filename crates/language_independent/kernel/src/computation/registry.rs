@@ -140,7 +140,7 @@ impl Registry {
         if self.replaced(tasks).next().is_none() {
             return std::fs::read_to_string(file);
         }
-        let real = std::fs::canonicalize(file)?;
+        let real = crate::source::paths::canonicalize(file)?;
         self.replacement(&real, tasks)
             .map_or_else(|| std::fs::read_to_string(file), |text| Ok(text.to_owned()))
     }

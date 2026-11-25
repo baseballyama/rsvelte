@@ -83,12 +83,12 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if !class_directives.is_empty() {
             let (object, _) = self.class_directives(&class_directives, &mut memo);
             let key = PropertyKey::from(b.member(b.id("$"), "CLASS"));
-            values.push(b.property(key, object, true));
+            values.push(b.property(key, object));
         }
         if !style_directives.is_empty() {
             let (object, _) = self.style_directives(&style_directives, &mut memo);
             let key = PropertyKey::from(b.member(b.id("$"), "STYLE"));
-            values.push(b.property(key, object, true));
+            values.push(b.property(key, object));
         }
         let object = b.object(values);
         let (parameters, sync) = memo.into_effect(b);

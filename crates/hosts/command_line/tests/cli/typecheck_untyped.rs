@@ -151,3 +151,107 @@ fn typecheck_names_an_untyped_javascript_module_by_its_absolute_path() {
         )
     );
 }
+
+/// A JavaScript component the projection does not cover, such as one with a legacy `export let`,
+/// is still untyped JavaScript: each import of it reports TS7016, even where no JavaScript
+/// component is checked. The expected lines are svelte-check 4.7.8's.
+#[cfg(unix)]
+#[test]
+fn typecheck_reads_a_javascript_component_it_does_not_check_as_untyped() {
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let project = Project::new(&[
+        ("app/rsvelte.config.json", &config),
+        (
+            "app/tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"types":[]},"include":["src"]}"#,
+        ),
+        (
+            "app/src/Legacy.svelte",
+            "<script>\n\texport let v = 1;\n</script>\n\n{v}\n",
+        ),
+        (
+            "app/src/NoDefault.svelte",
+            "<script>\n\texport let v;\n</script>\n\n{v}\n",
+        ),
+        (
+            "app/src/Module.svelte",
+            "<script context=\"module\">\n\texport const m = 1;\n</script>\n\n\
+             <script>\n\texport let v = m;\n</script>\n\n{v}\n",
+        ),
+        (
+            "app/src/Page.svelte",
+            "<script lang=\"ts\">\n\timport Legacy from \"./Legacy.svelte\";\n\
+             \timport NoDefault from \"./NoDefault.svelte\";\n\
+             \timport Module from \"./Module.svelte\";\n</script>\n\n\
+             <Legacy v={1} />\n<NoDefault />\n<Module />\n",
+        ),
+        (
+            "app/src/use.ts",
+            "import Legacy from \"./Legacy.svelte\";\nexport const legacy = Legacy;\n",
+        ),
+    ]);
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    let untyped = |at: &str, specifier: &str, file: &str| {
+        let file = project.0.join("app/src").join(file);
+        format!(
+            "{at}: error TS7016: Could not find a declaration file for module '{specifier}'. \
+             '{}' implicitly has an 'any' type.\n",
+            file.display()
+        )
+    };
+    assert_eq!(
+        format!("{}{}", text(&output.stdout), text(&output.stderr)),
+        format!(
+            "{}{}{}{}\nFound 4 errors in 2 files.\n",
+            untyped("src/Page.svelte(2,21)", "./Legacy.svelte", "Legacy.svelte"),
+            untyped(
+                "src/Page.svelte(3,24)",
+                "./NoDefault.svelte",
+                "NoDefault.svelte"
+            ),
+            untyped("src/Page.svelte(4,21)", "./Module.svelte", "Module.svelte"),
+            untyped("src/use.ts(1,20)", "./Legacy.svelte", "Legacy.svelte"),
+        )
+    );
+}
+
+/// Beside `allowJs`, a package's JavaScript component the projection does not cover is untyped
+/// as a checked one is. The expected line is svelte-check 4.7.8's.
+#[cfg(unix)]
+#[test]
+fn typecheck_reads_a_package_component_it_does_not_check_as_untyped() {
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let project = Project::new(&[
+        ("app/rsvelte.config.json", &config),
+        (
+            "app/tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"types":[],"allowJs":true},"include":["src"]}"#,
+        ),
+        (
+            "app/src/Page.svelte",
+            "<script lang=\"ts\">\n\timport Legacy from \"dep/src/Legacy.svelte\";\n</script>\n\n\
+             <Legacy v={1} />\n",
+        ),
+        ("dep/package.json", r#"{"name":"dep","type":"module"}"#),
+        (
+            "dep/src/Legacy.svelte",
+            "<script>\n\texport let v = 1;\n</script>\n\n{v}\n",
+        ),
+    ]);
+    let app = project.0.join("app");
+    std::fs::create_dir_all(app.join("node_modules")).expect("node_modules");
+    std::os::unix::fs::symlink("../../dep", app.join("node_modules/dep")).expect("link");
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    let dep = project.0.join("dep/src/Legacy.svelte");
+    assert_eq!(
+        format!("{}{}", text(&output.stdout), text(&output.stderr)),
+        format!(
+            "src/Page.svelte(2,21): error TS7016: Could not find a declaration file for module \
+             'dep/src/Legacy.svelte'. '{}' implicitly has an 'any' type.\n\
+             \nFound 1 error in 1 file.\n",
+            dep.display()
+        )
+    );
+}

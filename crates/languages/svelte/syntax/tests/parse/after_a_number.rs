@@ -107,11 +107,55 @@ const AFTER_A_NUMBER: &[(&str, &str, u32)] = &[
     ),
 ];
 
+/// What svelte 5.59.1 reports for a digit a radix does not take in a template: acorn's number ends
+/// before it, so the expression does, and the template fails there unless brackets are open.
+const AFTER_A_NUMBER_IN_A_TEMPLATE: &[(&str, &str, &str, u32)] = &[
+    ("<p>{0b12}</p>", "expected_token", "Expected token }", 7),
+    ("<p>{1n2}</p>", "expected_token", "Expected token }", 6),
+    ("{#if 0o19}{/if}", "expected_token", "Expected token }", 8),
+    ("{@html 0b12}", "expected_token", "Expected token }", 10),
+    (
+        "<div a={0b12}></div>",
+        "expected_token",
+        "Expected token }",
+        11,
+    ),
+    (
+        "<div a=\"{1n2}\"></div>",
+        "expected_token",
+        "Expected token }",
+        11,
+    ),
+    (
+        "{#each 0b12 as x}{/each}",
+        "expected_token",
+        "Expected token }",
+        10,
+    ),
+    ("<p>{0b12 + 1}</p>", "expected_token", "Expected token }", 7),
+    ("<p>{(0b12)}</p>", "js_parse_error", "Unexpected token", 8),
+    (
+        "{@const x = 0b12}",
+        "expected_token",
+        "Expected token }",
+        15,
+    ),
+    (
+        "{#if true}{@const x = 1n2}{/if}",
+        "expected_token",
+        "Expected token }",
+        24,
+    ),
+    ("<p>{a(0b12)}</p>", "js_parse_error", "Unexpected token", 9),
+];
+
 #[test]
 fn acorn_reads_what_directly_follows_a_number() {
-    for &(source, message, at) in AFTER_A_NUMBER {
+    let script = (AFTER_A_NUMBER.iter())
+        .map(|&(source, message, at)| (source, "js_parse_error", message, at));
+    for (source, code, message, at) in script.chain(AFTER_A_NUMBER_IN_A_TEMPLATE.iter().copied()) {
         let error = parse(source).expect_err(source);
-        assert_eq!(error.code, "js_parse_error", "{source:?}");
+        assert_eq!(error.code, code, "{source:?}");
         assert_eq!(error.message.lines().next(), Some(message), "{source:?}");
         assert_eq!(error.span.start_offset, at, "{source:?}");
     }

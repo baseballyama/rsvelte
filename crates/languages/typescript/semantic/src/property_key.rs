@@ -9,9 +9,15 @@ use oxc_str::JSStr;
 pub fn literal_key_name<'s>(key: &'s PropertyKey<'s>) -> Option<Cow<'s, str>> {
     Some(match key {
         PropertyKey::StaticIdentifier(identifier) => Cow::Borrowed(identifier.name.as_str()),
-        PropertyKey::StringLiteral(literal) => string_value(literal.value),
-        PropertyKey::NumericLiteral(literal) => Cow::Owned(crate::number::number(literal.value)),
-        PropertyKey::BigIntLiteral(literal) => Cow::Borrowed(literal.value.as_str()),
+        PropertyKey::StaticStringLiteral(literal) | PropertyKey::StringLiteral(literal) => {
+            string_value(literal.value)
+        }
+        PropertyKey::StaticNumericLiteral(literal) | PropertyKey::NumericLiteral(literal) => {
+            Cow::Owned(crate::number::number(literal.value))
+        }
+        PropertyKey::StaticBigIntLiteral(literal) | PropertyKey::BigIntLiteral(literal) => {
+            Cow::Borrowed(literal.value.as_str())
+        }
         PropertyKey::BooleanLiteral(literal) => {
             Cow::Borrowed(if literal.value { "true" } else { "false" })
         }

@@ -104,6 +104,8 @@ pub enum LineBreaks {
     /// ECMAScript's line terminators: `\r\n`, `\n`, `\r`, U+2028 and U+2029, as `ESLint` counts
     /// lines.
     Ecmascript,
+    /// `\r\n`, `\n` and `\r`, as the Language Server Protocol counts lines.
+    LanguageServer,
 }
 
 impl LineIndex {
@@ -126,21 +128,22 @@ impl LineIndex {
             line_starts.push(next as u32);
         };
         let ecmascript = breaks == LineBreaks::Ecmascript;
+        let lone_cr = breaks != LineBreaks::Newline;
         // Only these bytes can start a line break, and memchr skips the rest many at a time.
-        let candidates: &mut dyn Iterator<Item = usize> = if ecmascript {
-            &mut memchr::memchr3_iter(b'\n', b'\r', 0xE2, bytes)
-        } else {
-            &mut memchr::memchr_iter(b'\n', bytes)
+        let candidates: &mut dyn Iterator<Item = usize> = match breaks {
+            LineBreaks::Newline => &mut memchr::memchr_iter(b'\n', bytes),
+            LineBreaks::Ecmascript => &mut memchr::memchr3_iter(b'\n', b'\r', 0xE2, bytes),
+            LineBreaks::LanguageServer => &mut memchr::memchr2_iter(b'\n', b'\r', bytes),
         };
         for i in candidates {
             let byte = bytes[i];
             let after_cr = i > 0 && bytes[i - 1] == b'\r';
             match byte {
                 // A CRLF is counted at its CR.
-                b'\n' if after_cr && ecmascript => {}
+                b'\n' if after_cr && lone_cr => {}
                 b'\n' => push(i + 1, if after_cr { 2 } else { 1 }),
-                b'\r' if ecmascript && bytes.get(i + 1) == Some(&b'\n') => push(i + 2, 2),
-                b'\r' if ecmascript => push(i + 1, 1),
+                b'\r' if lone_cr && bytes.get(i + 1) == Some(&b'\n') => push(i + 2, 2),
+                b'\r' if lone_cr => push(i + 1, 1),
                 // U+2028 and U+2029 are E2 80 A8 and E2 80 A9.
                 0xE2 if ecmascript
                     && matches!(bytes.get(i + 1..i + 3), Some([0x80, 0xA8 | 0xA9])) =>

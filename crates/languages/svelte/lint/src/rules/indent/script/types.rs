@@ -106,7 +106,7 @@ impl<'a> Script<'_, 'a> {
             AstKind::TSMethodSignature(n) => self.signature(
                 node,
                 &Signature {
-                    start: Start::Method(n.key.span(), n.computed),
+                    start: Start::Method(n.key.span(), n.key.is_computed()),
                     type_parameters: n.type_parameters.as_deref().map(type_parameters),
                     parameters: parameter_spans(n.this_param.as_deref(), &n.params),
                     returns: n.return_type.as_deref().map(returns),
@@ -251,7 +251,7 @@ impl<'a> Script<'_, 'a> {
                 self.layout.offset(right, 1, first);
             }
             AstKind::TSPropertySignature(n) => {
-                let Some(key_last) = self.key_last(first, n.key.span(), n.computed) else {
+                let Some(key_last) = self.key_last(first, n.key.span(), n.key.is_computed()) else {
                     return;
                 };
                 if let Some(annotation) = &n.type_annotation {

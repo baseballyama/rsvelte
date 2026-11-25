@@ -315,9 +315,9 @@ impl<'a> StaticValues<'a> {
                     if p.method || p.kind != PropertyKind::Init {
                         return None;
                     }
-                    let name = self.property_key(&p.key, p.computed, visiting)?;
+                    let name = self.property_key(&p.key, visiting)?;
                     // A literal `__proto__: x` sets the prototype instead of a property.
-                    if name == "__proto__" && !p.computed && !p.shorthand {
+                    if name == "__proto__" && !p.key.is_computed() && !p.shorthand {
                         return None;
                     }
                     let value = self.evaluate(&p.value, visiting)?.value;
@@ -359,14 +359,13 @@ impl<'a> StaticValues<'a> {
     fn property_key(
         &self,
         key: &'a PropertyKey<'a>,
-        computed: bool,
         visiting: &mut Vec<SymbolId>,
     ) -> Option<String> {
         match key {
-            PropertyKey::StaticIdentifier(id) if !computed => Some(id.name.as_str().to_owned()),
-            PropertyKey::PrivateIdentifier(_) => None,
-            PropertyKey::StringLiteral(s) if !computed => Some(s.value.as_str()?.to_owned()),
-            PropertyKey::NumericLiteral(n) if !computed => Some(number(n.value)),
+            PropertyKey::StaticIdentifier(id) => Some(id.name.as_str().to_owned()),
+            PropertyKey::PrivateIdentifier(_) | PropertyKey::StaticBigIntLiteral(_) => None,
+            PropertyKey::StaticStringLiteral(s) => Some(s.value.as_str()?.to_owned()),
+            PropertyKey::StaticNumericLiteral(n) => Some(number(n.value)),
             key => to_string(&self.evaluate(key.as_expression()?, visiting)?.value),
         }
     }

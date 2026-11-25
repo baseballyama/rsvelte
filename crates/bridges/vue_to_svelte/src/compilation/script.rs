@@ -267,13 +267,13 @@ fn props<'v>(
                 .iter()
                 .map(|property| match property {
                     ObjectPropertyKind::ObjectProperty(property)
-                        if !property.computed
+                        if !property.key.is_computed()
                             && !property.method
                             && property.kind == PropertyKind::Init =>
                     {
                         let key = match &property.key {
                             PropertyKey::StaticIdentifier(key) => Some(key.name.as_str()),
-                            PropertyKey::StringLiteral(key) => key.value.as_str(),
+                            PropertyKey::StaticStringLiteral(key) => key.value.as_str(),
                             _ => None,
                         };
                         let Some(key) = key else {
@@ -445,7 +445,7 @@ fn prop_options<'v>(d: &'v Expression<'v>) -> R<(Vec<String>, Option<&'v Express
     for property in &object.properties {
         let option = match property {
             ObjectPropertyKind::ObjectProperty(p)
-                if !p.computed && !p.method && p.kind == PropertyKind::Init =>
+                if !p.key.is_computed() && !p.method && p.kind == PropertyKind::Init =>
             {
                 match &p.key {
                     PropertyKey::StaticIdentifier(key) => Some((key.name.as_str(), p)),
@@ -527,7 +527,9 @@ fn stored_alike(info: &Info<'_>, e: &Expression<'_>) -> bool {
                 .is_some_and(|element| stored_alike(info, element)),
         }),
         Expression::ObjectExpression(object) => object.properties.iter().all(|p| match p {
-            ObjectPropertyKind::ObjectProperty(p) if !p.computed => stored_alike(info, &p.value),
+            ObjectPropertyKind::ObjectProperty(p) if !p.key.is_computed() => {
+                stored_alike(info, &p.value)
+            }
             _ => false,
         }),
         Expression::StaticMemberExpression(m)

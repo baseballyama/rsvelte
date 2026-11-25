@@ -346,7 +346,6 @@ fn private_field<'o>(
         false,
         false,
         false,
-        false,
         None,
         b,
     )
@@ -371,7 +370,6 @@ fn method<'o>(
         key,
         function,
         kind,
-        false,
         false,
         false,
         false,

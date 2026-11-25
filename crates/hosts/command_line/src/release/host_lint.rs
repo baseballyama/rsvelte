@@ -48,16 +48,17 @@ pub(crate) fn lint(arguments: &[String]) -> ExitCode {
     oxfmt::cli::init_tracing();
     oxfmt::cli::init_rayon(command.misc_options.threads);
     let mut stdout = BufWriter::new(std::io::stdout());
+    let mut stderr = BufWriter::new(std::io::stderr());
     oxlint::cli::CliRunner::new(command, None)
         .with_hosts(vec![svelte()])
         .with_host_config_loader(super::node_configuration::Node)
-        .run(&mut stdout)
+        .run(&mut stdout, &mut stderr)
         .report()
 }
 
 /// The Svelte rules: `svelte/*` by their own name, and the core rules rsvelte runs in a component
 /// because they need its template.
-fn svelte() -> Arc<HostPlugin> {
+pub(super) fn svelte() -> Arc<HostPlugin> {
     let mut rules = Vec::new();
     let mut builtin_rules = Vec::new();
     for rule in rsvelte_svelte_lint::reporting_rules() {
