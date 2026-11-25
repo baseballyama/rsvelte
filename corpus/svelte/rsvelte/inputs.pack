@@ -48779,6 +48779,25 @@ declare namespace N {
 	const a: number;
 }
 
+=== 67 pattern/module-directive-escapes.svelte.js	svelte-module-js	runes	-
+"it\'s";
+"a\u{1F600}b";
+"\
+x";
+"a\nb";
+export const y = $state(1);
+
+=== 69 pattern/module-directive-escapes.svelte.ts	svelte-module-ts	runes	-
+"use\x20strict";
+"it\'s";
+let a: number = $state(1);
+console.log(a);
+
+=== 42 pattern/module-legacy-octal-escape-in-a-script.svelte.ts	svelte-module-ts	runes	-
+"\01";
+let a: number = 1;
+console.log(a);
+
 === 31 pattern/module-prologue-script.svelte.js	svelte-module-js	runes	-
 'use strict'
 let a = $state(1)
@@ -48862,6 +48881,24 @@ export function pin(then) {
 		(...args) => then(...args)
 	);
 }
+
+=== 173 pattern/script-directive-escapes.svelte	svelte	runes	runes
+<script module>
+	"it\'s";
+	"a\u{1F600}b";
+	"use\x20strict";
+	export const m = 1;
+</script>
+
+<script>
+	"a\nb";
+	"it\'s";
+	"\
+x";
+	let v = $state(1);
+</script>
+
+<p>{v}{m}</p>
 
 === 65 pattern/script-top-level-return-ts.svelte	svelte	runes	rejected
 <script lang="ts">

@@ -22,7 +22,6 @@ function $$render() {
         },
       });
       const { prop } = __rsvelte_component_props(__rsvelte_component_0);
-      prop;
       const foo = items.length;
       foo;
       {
@@ -36,7 +35,6 @@ function $$render() {
           },
         });
         const { prop } = __rsvelte_component_props(__rsvelte_component_0);
-        prop;
         Component;
       }
       Component;

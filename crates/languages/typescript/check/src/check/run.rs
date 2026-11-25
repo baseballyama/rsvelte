@@ -460,7 +460,8 @@ fn base_project(
 }
 
 /// What native TypeScript adds to a finding in code a content mapper synthesized.
-const VIRTUAL_CODE: &str = "This location is in virtual code produced by the content mapper";
+pub(super) const VIRTUAL_CODE: &str =
+    "This location is in virtual code produced by the content mapper";
 
 /// Each document's index by its path, the first of a path given twice.
 fn path_index(paths: &[PathBuf]) -> HashMap<&Path, usize> {

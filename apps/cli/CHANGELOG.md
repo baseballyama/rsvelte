@@ -1,5 +1,11 @@
 # @rsvelte/cli
 
+## 0.7.4
+
+### Patch Changes
+
+- 0f4aa70: Report an `await` inside a target that no one can assign to, such as `(() => await x) = 1`, with Svelte's message and position again. The linter now also reads the variables inside such a target, so it no longer calls them unused.
+
 ## 0.7.3
 
 ### Patch Changes

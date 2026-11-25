@@ -70154,6 +70154,25 @@ export default function Reactive_new_callee($$renderer, $$props) {
 	}
 ]
 
+=== 245 pattern/script-directive-escapes.svelte	js
+import * as $ from 'svelte/internal/server';
+
+"it\'s";
+"a\u{1F600}b";
+"use\x20strict";
+
+export const m = 1;
+
+export default function Script_directive_escapes($$renderer) {
+	"a\nb";
+	"it\'s";
+	"\
+x";
+
+	let v = 1;
+
+	$$renderer.push(`<p>11</p>`);
+}
 === 233 pattern/script-top-level-return-ts.svelte	error.json
 {
 	"code": "js_parse_error",

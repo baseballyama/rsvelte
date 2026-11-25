@@ -33,17 +33,14 @@ impl Printer<'_> {
                 self.output.push("},\n");
             }
             Node::SnippetNames { names, component } => {
+                let start = self.output.out.len() as u32;
                 self.output.push("const { ");
                 self.separated(names, ", ");
                 self.output.push(" } = __rsvelte_component_props(");
                 self.node(component);
-                self.output.push(");\n");
-                // svelte-check drops findings on this declaration, such as an unused snippet.
-                for &name in self.tree.children(names) {
-                    self.indentation();
-                    self.node(name);
-                    self.output.push(";\n");
-                }
+                self.output.push(");");
+                self.output.ignore_since(start);
+                self.output.push("\n");
             }
             Node::ImplicitChildren(at) => {
                 // svelte2tsx's `children` has no source text, so a finding on it lands where its

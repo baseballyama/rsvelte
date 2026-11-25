@@ -77,7 +77,6 @@ function $$render() {
         },
       });
       const { label } = __rsvelte_component_props(__rsvelte_component_0);
-      label;
       List;
     }
   };
