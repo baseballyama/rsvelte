@@ -109,8 +109,7 @@ impl Tsc {
         let failed = |e: String| format!("{e}; rsvelte needs {CONTRACT}");
         let _p = measurement::phase("ts.tsc");
         let helpers = self.start_helpers(paths.len(), &root);
-        let mut session = Session::start(&self.checker.program, &self.checker.arguments, &root)
-            .map_err(failed)?;
+        let mut session = self.checker.session(&root).map_err(failed)?;
         // The project's own root files, as its tsconfig selects them, components included; the
         // overlay keeps them.
         let javascript = untyped::javascript_documents(req, &root, &paths);
@@ -263,9 +262,7 @@ impl Tsc {
             .map(|_| {
                 let checker = self.checker.clone();
                 let root = root.to_owned();
-                std::thread::spawn(move || {
-                    Session::start(&checker.program, &checker.arguments, &root)
-                })
+                std::thread::spawn(move || checker.session(&root))
             })
             .collect()
     }

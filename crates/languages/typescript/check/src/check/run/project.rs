@@ -9,7 +9,7 @@ use rsvelte_kernel::computation::registry::Project;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
-use rsvelte_typescript_api::{Layer, Session};
+use rsvelte_typescript_api::Layer;
 
 use super::in_temporary_directory;
 use super::mapped::{normalized, package_json};
@@ -78,7 +78,7 @@ fn root_files(
     // tsconfig it opens.
     let overlay_path = root.join(OVERLAY);
     layer.files.insert(overlay_path.clone(), overlay.finish());
-    let mut session = Session::start(&tsc.checker.program, &tsc.checker.arguments, dir)?;
+    let mut session = tsc.checker.session(dir)?;
     // The tsconfig's own errors name it, and its paths, as svelte-check prints them; the overlay
     // rebases them, and `extends` hides some, such as an empty `files`. Without the mapped
     // languages it may have no inputs where the overlay has. One snapshot holds both projects.

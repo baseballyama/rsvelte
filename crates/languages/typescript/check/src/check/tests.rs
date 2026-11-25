@@ -53,3 +53,17 @@ fn a_type_checker_without_the_api_names_the_contract() {
         "{error}"
     );
 }
+
+#[test]
+fn a_missing_type_checker_says_so_where_the_check_starts_it() {
+    let tsc = Tsc {
+        checker: TypeChecker {
+            program: "/rsvelte/no/such/tsc".into(),
+            arguments: Vec::new(),
+        },
+        tsconfig: None,
+        processes: None,
+    };
+    let error = tsc.check(&empty(&TypeScriptEnv::default())).unwrap_err();
+    assert!(error.contains("does not exist"), "{error}");
+}
