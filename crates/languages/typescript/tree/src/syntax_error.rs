@@ -24,8 +24,8 @@ pub struct SyntaxError {
 /// What acorn, which knows no TypeScript, does with the text oxc rejected.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub enum Acorn {
-    /// Its expression ends before `at`, where TypeScript-only syntax starts; a program fails there
-    /// with "Unexpected token".
+    /// Its expression ends before `at`, where TypeScript-only syntax or a token acorn reads apart
+    /// starts; a program fails there with "Unexpected token".
     Stops(u32),
     /// It fails at `at` with `message`.
     Fails { message: Cow<'static, str>, at: u32 },

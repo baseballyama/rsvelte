@@ -28,7 +28,6 @@ pub(super) fn debug_tag<'o>(
             value,
             false,
             shorthand,
-            false,
             b,
         )
     });

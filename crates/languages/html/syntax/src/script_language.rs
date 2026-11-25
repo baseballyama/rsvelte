@@ -34,6 +34,18 @@ pub fn parse_guessing_typescript<T, E>(
     parse_as(typescript).0
 }
 
+/// Whether a script element whose attribute values `value` reads is TypeScript to svelte-check's
+/// `getScriptKindFromAttributes`: its `lang`, or its `type` without one.
+pub fn checked_as_typescript<'a>(value: impl Fn(&str) -> Option<&'a str>) -> bool {
+    let kind = value("lang")
+        .filter(|lang| !lang.is_empty())
+        .or_else(|| value("type"));
+    matches!(
+        kind,
+        Some("ts" | "typescript" | "text/ts" | "text/typescript")
+    )
+}
+
 /// Whether a `lang` attribute's value names TypeScript.
 #[must_use]
 pub fn is_typescript(lang: &str) -> bool {

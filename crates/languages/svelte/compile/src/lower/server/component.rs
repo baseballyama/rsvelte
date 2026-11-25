@@ -179,7 +179,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 Some(value) => (pattern(b, directive, value, true)?, false),
             };
             let key = b.key(directive.prop);
-            properties.push(BindingProperty::new(SPAN, key, value, shorthand, false, b));
+            properties.push(BindingProperty::new(SPAN, key, value, shorthand, b));
         }
         let object = BindingPattern::new_object_pattern(SPAN, b.vec(properties), None, b);
         Ok(b.formal_parameters([renderer, b.parameter(object)]))

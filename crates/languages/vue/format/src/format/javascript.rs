@@ -108,6 +108,7 @@ impl Printer<'_, '_, '_> {
         let embedded_in = JsEmbeddedIn {
             in_html_attribute: false,
             inlines_code: true,
+            template_expressions_only: false,
             keeps_recovered: None,
         };
         self.javascript(Span::new(start, end), root, embedded_in)
@@ -122,6 +123,7 @@ impl Printer<'_, '_, '_> {
         let embedded_in = JsEmbeddedIn {
             in_html_attribute: true,
             inlines_code: true,
+            template_expressions_only: false,
             keeps_recovered: None,
         };
         let root = match name {
@@ -164,6 +166,7 @@ impl Printer<'_, '_, '_> {
         let embedded_in = JsEmbeddedIn {
             in_html_attribute: true,
             inlines_code: true,
+            template_expressions_only: false,
             keeps_recovered: None,
         };
         let parameters = self.component.javascript.get_parameters(parameters);

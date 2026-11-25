@@ -115,14 +115,16 @@ impl<'a> Values<'a> {
             Expression::ObjectExpression(object) if class => {
                 for property in &object.properties {
                     match property {
-                        ObjectPropertyKind::ObjectProperty(p) if !p.computed => match &p.key {
+                        ObjectPropertyKind::ObjectProperty(p) => match &p.key {
                             PropertyKey::StaticIdentifier(key) => self.add(key.name.as_str()),
-                            key => match key.as_expression() {
-                                Some(key) => self.collect(key, false, true),
+                            PropertyKey::StaticStringLiteral(s) => match s.value.as_str() {
+                                Some(value) => self.add(value),
                                 None => self.unknown = true,
                             },
+                            PropertyKey::StaticNumericLiteral(n) => self.add(number(n.value)),
+                            _ => self.unknown = true,
                         },
-                        _ => self.unknown = true,
+                        ObjectPropertyKind::SpreadProperty(_) => self.unknown = true,
                     }
                 }
             }

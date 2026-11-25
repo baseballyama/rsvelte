@@ -29,22 +29,32 @@ pub(super) fn typescript_view(
         });
     // svelte-check type-checks a component whose style sheet does not parse, and svelte2tsx
     // throws Svelte's parse error of the markup, which svelte-check reports as it is.
-    let read = match rsvelte_svelte_typescript_projection::read(context) {
+    let read = rsvelte_svelte_typescript_projection::read(context);
+    // svelte-check reads the component as TypeScript when either script is, else as JavaScript,
+    // off the script elements whether or not svelte2tsx throws.
+    let source = &context.document.text;
+    let typescript = read.as_ref().map_or_else(
+        |_| rsvelte_svelte_syntax::parse::scripts_checked_as_typescript(source),
+        |read| read.component.checked_as_typescript(source),
+    );
+    let read = match read {
         Ok(read) => read,
-        Err(error) => return Ok(rejected(javascript_error.as_ref().unwrap_or(error))),
+        Err(error) => {
+            let error = javascript_error.as_ref().unwrap_or(error);
+            return Ok(rejected(error, typescript));
+        }
     };
     let component = read.component;
     if let Some(error) = &javascript_error {
-        return Ok(rejected(error));
+        return Ok(rejected(error, typescript));
     }
-    // svelte-check reads the component as TypeScript when either script is, else as JavaScript.
-    let typescript = component.checked_as_typescript(&context.document.text);
     let projection = match context.get::<EmittedProjection>() {
         Ok(projection) => projection,
         Err(thrown) if thrown.code == THROWN => {
             return Ok(TypeScriptDocument::Rejected {
                 message: thrown.message.clone(),
                 span: thrown.span,
+                javascript: !typescript,
             });
         }
         // A JavaScript component the projection does not cover stays unchecked.
@@ -159,8 +169,9 @@ fn pug_template(component: &Component, source_text: &str) -> Option<Span> {
 }
 
 /// What svelte-check reports for the parse error svelte2tsx throws.
-fn rejected(error: &Diagnostic) -> TypeScriptDocument {
+fn rejected(error: &Diagnostic, typescript: bool) -> TypeScriptDocument {
     TypeScriptDocument::Rejected {
+        javascript: !typescript,
         message: error.message.clone(),
         span: if error.has_end {
             error.span

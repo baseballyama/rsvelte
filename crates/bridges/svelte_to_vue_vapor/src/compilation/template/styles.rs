@@ -58,11 +58,7 @@ impl<'t> Template<'_, '_, 't> {
                 let value = self.style_value(value);
                 let important = b.boolean(modifiers.contains(Modifiers::IMPORTANT));
                 let name = attribute.name.text(self.i.source_text);
-                declarations.push(b.property(
-                    string_key(b, name),
-                    b.array([value, important]),
-                    false,
-                ));
+                declarations.push(b.property(string_key(b, name), b.array([value, important])));
             }
         }
         self.helpers.insert(Helper::Style);

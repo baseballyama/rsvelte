@@ -134,7 +134,7 @@ fn convert<'o>(
             for (i, property) in object.properties.iter().enumerate() {
                 match property {
                     ObjectPropertyKind::ObjectProperty(p)
-                        if p.kind == PropertyKind::Init && !p.method && !p.computed =>
+                        if p.kind == PropertyKind::Init && !p.method =>
                     {
                         let PropertyKey::StaticIdentifier(key) = &p.key else {
                             return None;
@@ -145,7 +145,6 @@ fn convert<'o>(
                             b.key(&key.name),
                             value,
                             p.shorthand,
-                            false,
                             b,
                         ));
                     }
@@ -211,24 +210,14 @@ fn target<'o>(b: &Builder<'o>, value: &AssignmentTarget<'_>) -> Option<BindingPa
                         };
                         (p.binding.name.as_str(), value, true)
                     }
-                    AssignmentTargetProperty::AssignmentTargetPropertyProperty(p)
-                        if !p.computed =>
-                    {
+                    AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
                         let PropertyKey::StaticIdentifier(key) = &p.name else {
                             return None;
                         };
                         (key.name.as_str(), maybe_default(b, &p.binding)?, false)
                     }
-                    AssignmentTargetProperty::AssignmentTargetPropertyProperty(_) => return None,
                 };
-                properties.push(BindingProperty::new(
-                    SPAN,
-                    b.key(key),
-                    value,
-                    shorthand,
-                    false,
-                    b,
-                ));
+                properties.push(BindingProperty::new(SPAN, b.key(key), value, shorthand, b));
             }
             let rest = match &object.rest {
                 Some(rest) => Some(BindingRestElement::boxed(SPAN, target(b, &rest.target)?, b)),

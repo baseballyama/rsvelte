@@ -21,8 +21,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                 let AttributeValue::Class(e) = d.value else {
                     unreachable!("class directives")
                 };
-                let key = oxc_ast::ast::PropertyKey::from(b.string(d.name.text(self.source_text)));
-                b.property(key, self.expression(e), false)
+                let key = b.key_by(d.name.text(self.source_text), |_| false);
+                b.property(key, self.expression(e))
             }))
         });
         let mut value = value;

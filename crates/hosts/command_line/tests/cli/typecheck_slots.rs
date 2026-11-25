@@ -1,10 +1,10 @@
 //! `rsvelte typecheck` of a component's slots, as svelte2tsx types them for `let:`.
 
+use crate::typecheck::Native;
 use crate::typecheck_events::check;
 
 /// A generic component's slot props are of the generics its props infer, as a component's
 /// without generics are. svelte-check 4.7.8 reports these four lines.
-#[cfg(unix)]
 #[test]
 fn typecheck_types_the_slot_props_of_a_generic_component() {
     let slot = |generics: &str, value: &str| {
@@ -35,6 +35,7 @@ fn typecheck_types_the_slot_props_of_a_generic_component() {
          number; }'.\n\
          src/App.svelte(8,37): error TS2339: Property 'foo' does not exist on type 'number'.\n\
          \nFound 4 errors in 1 file.\n"
+            .native()
     );
 }
 

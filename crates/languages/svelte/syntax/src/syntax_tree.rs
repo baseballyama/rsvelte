@@ -476,20 +476,11 @@ impl Component {
             .into_iter()
             .flatten()
             .any(|script| {
-                let value = |name: &str| {
-                    script
-                        .attributes
-                        .iter()
+                rsvelte_markup_syntax::script_language::checked_as_typescript(|name| {
+                    (script.attributes.iter())
                         .find(|(at, _)| at.text(source) == name)
                         .map(|(_, value)| value.map_or("", |value| value.text(source)))
-                };
-                let kind = value("lang")
-                    .filter(|lang| !lang.is_empty())
-                    .or_else(|| value("type"));
-                matches!(
-                    kind,
-                    Some("ts" | "typescript" | "text/ts" | "text/typescript")
-                )
+                })
             })
     }
 

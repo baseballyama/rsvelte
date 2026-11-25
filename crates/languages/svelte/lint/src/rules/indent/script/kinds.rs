@@ -193,14 +193,14 @@ impl<'a> Script<'_, 'a> {
             AstKind::StaticMemberExpression(n) => self.dot(first, n.property.span),
             AstKind::PrivateFieldExpression(n) => self.dot(first, n.field.span),
             AstKind::MethodDefinition(n) => {
-                self.member(node, n.key.span(), Some(n.value.span), n.computed);
+                self.member(node, n.key.span(), Some(n.value.span), n.key.is_computed());
             }
             AstKind::PropertyDefinition(n) => {
                 self.member(
                     node,
                     n.key.span(),
                     n.value.as_ref().map(GetSpan::span),
-                    n.computed,
+                    n.key.is_computed(),
                 );
             }
             AstKind::AccessorProperty(n) => {
@@ -208,17 +208,32 @@ impl<'a> Script<'_, 'a> {
                     node,
                     n.key.span(),
                     n.value.as_ref().map(GetSpan::span),
-                    n.computed,
+                    n.key.is_computed(),
                 );
             }
             AstKind::ObjectProperty(n) => {
-                self.member(node, n.key.span(), Some(n.value.span()), n.computed);
+                self.member(
+                    node,
+                    n.key.span(),
+                    Some(n.value.span()),
+                    n.key.is_computed(),
+                );
             }
             AstKind::BindingProperty(n) => {
-                self.member(node, n.key.span(), Some(n.value.span()), n.computed);
+                self.member(
+                    node,
+                    n.key.span(),
+                    Some(n.value.span()),
+                    n.key.is_computed(),
+                );
             }
             AstKind::AssignmentTargetPropertyProperty(n) => {
-                self.member(node, n.name.span(), Some(n.binding.span()), n.computed);
+                self.member(
+                    node,
+                    n.name.span(),
+                    Some(n.binding.span()),
+                    n.name.is_computed(),
+                );
             }
             AstKind::NewExpression(n) => {
                 let callee_tokens = self.outer(n.callee.span());

@@ -134,7 +134,7 @@ impl Printer<'_, '_, '_> {
                     self.expand_property(
                         &property.key,
                         Value::Pattern(&property.value),
-                        property.computed,
+                        property.key.is_computed(),
                         false,
                         document_span(property.span),
                         out,
@@ -207,7 +207,7 @@ impl Printer<'_, '_, '_> {
                             self.expand_property(
                                 &p.key,
                                 Value::Expression(&p.value),
-                                p.computed,
+                                p.key.is_computed(),
                                 true,
                                 document_span(p.span),
                                 out,
@@ -289,9 +289,9 @@ impl Printer<'_, '_, '_> {
                     out.push_str(identifier.name.as_str());
                     Ok(())
                 }
-                PropertyKey::StringLiteral(_)
-                | PropertyKey::NumericLiteral(_)
-                | PropertyKey::BigIntLiteral(_) => {
+                PropertyKey::StaticStringLiteral(_)
+                | PropertyKey::StaticNumericLiteral(_)
+                | PropertyKey::StaticBigIntLiteral(_) => {
                     out.push(' ');
                     out.push_str(node_span(key).text(self.source_text));
                     Ok(())

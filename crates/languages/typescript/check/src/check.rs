@@ -43,13 +43,15 @@ impl Facet for TypeScriptView {
 #[derive(Debug)]
 pub enum TypeScriptDocument {
     /// Not type-checked: a document of another language that the projection reads as
-    /// JavaScript it does not cover. Its findings are empty.
+    /// JavaScript it does not cover, so always JavaScript. Its findings are empty.
     Unchecked,
     /// A document the language's own parser rejects: svelte-check reports only that error, with
     /// the code `-1`, instead of type checking.
     Rejected {
         message: String,
         span: Span,
+        /// Whether the upstream checker reads the document as JavaScript, by its script elements.
+        javascript: bool,
     },
     Checked(Arc<CheckedDocument>),
 }
@@ -229,13 +231,24 @@ pub struct MappedLanguage {
 }
 
 /// A document the run does not check but other documents may import.
-struct StandIn {
+struct StandInPart {
     path: String,
-    text: String,
+    stand_in: StandIn,
 }
 
-/// What an import of a document reads when the document is not checked, such as its
-/// module-level exports. `None`, or no provider: the [`Check`]'s `stand_in`.
+/// What an import of a document reads when the document is not checked.
+#[derive(Clone, Debug)]
+pub struct StandIn {
+    /// Such as the document's module-level exports.
+    pub text: String,
+    /// Whether the document is JavaScript the checker reads as TypeScript: the upstream checker
+    /// reads it as JavaScript, which TypeScript can read as untyped, and the checker here reads
+    /// its stand-in as TypeScript.
+    pub javascript: bool,
+}
+
+/// What an import of a document reads when the document is not checked. `None`, or no provider:
+/// the [`Check`]'s `stand_in`.
 #[derive(Debug)]
 pub struct TypeScriptStandIn;
 
@@ -279,24 +292,32 @@ impl FinishTask for Check {
                 .imported
                 .is_some_and(|imported| imported(context.document))
         {
-            return Some(Box::new(StandIn {
+            return Some(Box::new(StandInPart {
                 path: context.document.file_path().to_string_lossy().into_owned(),
-                text: context.source_text().to_owned(),
+                // Not JavaScript the checker reads as TypeScript: it reads the file as it is.
+                stand_in: StandIn {
+                    text: context.source_text().to_owned(),
+                    javascript: false,
+                },
             }));
         }
         match context.facet::<TypeScriptView>()? {
             Err(d) => {
                 out.diagnostics.push(d.clone());
-                self.stand_in(context)
+                self.stand_in(context, false)
             }
             Ok(TypeScriptDocument::Unchecked) => {
                 out.file(
                     "json",
                     render_findings::<&str>(context.lines(LineBreaks::Newline), &[]),
                 );
-                self.stand_in(context)
+                self.stand_in(context, true)
             }
-            Ok(TypeScriptDocument::Rejected { message, span }) => {
+            Ok(TypeScriptDocument::Rejected {
+                message,
+                span,
+                javascript,
+            }) => {
                 out.file(
                     "json",
                     render_findings(
@@ -306,7 +327,7 @@ impl FinishTask for Check {
                 );
                 out.findings
                     .push(findings::finding(*span, -1, message.clone()));
-                self.stand_in(context)
+                self.stand_in(context, *javascript)
             }
             Ok(TypeScriptDocument::Checked(_)) if self.tsc.is_none() => {
                 out.diagnostics.push(Diagnostic::error(
@@ -339,8 +360,10 @@ impl FinishTask for Check {
                     checked_outs.push(out);
                 }
                 Err(part) => {
-                    let s = part.downcast::<StandIn>().expect("parts are this task's");
-                    stand_ins.push((s.path, s.text));
+                    let s = part
+                        .downcast::<StandInPart>()
+                        .expect("parts are this task's");
+                    stand_ins.push((s.path, s.stand_in));
                 }
             }
         }
@@ -366,7 +389,8 @@ impl FinishTask for Check {
 }
 
 impl Check {
-    fn stand_in(&self, context: &DocumentContext<'_>) -> Option<Part> {
+    /// The stand-in of a document the view does not check, `javascript` as the view says.
+    fn stand_in(&self, context: &DocumentContext<'_>, javascript: bool) -> Option<Part> {
         self.tsc.as_ref()?;
         // A language's own stand-in serves every check, so the project-wide check resolves an
         // unchecked component as the language's own check does.
@@ -374,9 +398,9 @@ impl Check {
             .facet::<TypeScriptStandIn>()
             .and_then(Clone::clone)
             .or_else(|| self.stand_in.map(str::to_owned))?;
-        Some(Box::new(StandIn {
+        Some(Box::new(StandInPart {
             path: context.document.file_path().to_string_lossy().into_owned(),
-            text,
+            stand_in: StandIn { text, javascript },
         }))
     }
 }
@@ -394,7 +418,7 @@ fn check_projected(
     tsc: &Tsc,
     env: &TypeScriptEnv,
     docs: &[Prepared],
-    stand_ins: Vec<(String, String)>,
+    stand_ins: Vec<(String, StandIn)>,
     outs: Vec<&mut TaskOutput>,
 ) {
     let req = CheckRequest {

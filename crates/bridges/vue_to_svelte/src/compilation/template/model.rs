@@ -89,7 +89,7 @@ impl<'a> Template<'_, '_, '_, 'a> {
         let mods = b.object(
             modifiers
                 .iter()
-                .map(|m| b.property(b.key(m), b.boolean(true), false)),
+                .map(|m| b.property(b.key(m), b.boolean(true))),
         );
         let parameter = self.names.fresh("value");
         let target = match self.expression(exp)? {
@@ -112,10 +112,10 @@ impl<'a> Template<'_, '_, '_, 'a> {
             b.id(&parameter),
         );
         let assigner = b.arrow(b.parameters([parameter.as_str()]), assign);
-        let mut props = vec![b.property(b.key("onUpdate:modelValue"), assigner, false)];
+        let mut props = vec![b.property(b.key("onUpdate:modelValue"), assigner)];
         for (name, text) in [("type", ty), ("value", value)] {
             if let Some(text) = text {
-                props.push(b.property(b.key(name), b.string(text), false));
+                props.push(b.property(b.key(name), b.string(text)));
             }
         }
         let props = b.object(props);
