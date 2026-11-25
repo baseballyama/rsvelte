@@ -1,6 +1,6 @@
 [package]
 name = "rsvelte_node"
-description = "The Node.js binding: the entry points of the official `svelte/compiler`"
+description = "The Node.js binding: the entry points of the official `svelte/compiler`, and the `rsvelte` command"
 edition.workspace = true
 version.workspace = true
 license.workspace = true
@@ -11,6 +11,7 @@ doctest = false
 crate-type = ["cdylib"]
 
 [dependencies]
+rsvelte_command_line.workspace = true
 rsvelte_kernel.workspace = true
 rsvelte_svelte_compile.workspace = true
 napi = { version = "3.8", default-features = false, features = ["napi4"] }

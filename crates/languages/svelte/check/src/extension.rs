@@ -1,4 +1,4 @@
-use std::path::PathBuf;
+use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_plugin_interface::{
@@ -22,7 +22,7 @@ const MAPPER: &str = "rsvelte-svelte-content-mapper";
 struct Options {
     /// The installed `svelte` package directory; by default the one the project resolves.
     svelte: Option<PathBuf>,
-    /// The content mapper executable; by default [`MAPPER`] beside the running program, else
+    /// The content mapper executable; by default [`MAPPER`] among the host's programs, else
     /// looked up as a type checker is.
     #[serde(default, rename = "contentMapper")]
     content_mapper: Option<String>,
@@ -38,7 +38,7 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
             let error = |e: std::io::Error| CallError(format!("options of `svelte.check`: {e}"));
             let content_mapper = match options.value.content_mapper.as_deref() {
                 Some(mapper) => program_path(mapper, base).map_err(error)?,
-                None => match beside_this_program() {
+                None => match installed_mapper(settings.programs()) {
                     Some(mapper) => mapper,
                     None => program_path(MAPPER, base).map_err(error)?,
                 },
@@ -79,12 +79,13 @@ fn install(registry: &mut Registry, settings: &mut Settings) -> Result<(), CallE
     Ok(())
 }
 
-/// [`MAPPER`] in the directory of the running program, where a release installs both.
-fn beside_this_program() -> Option<PathBuf> {
-    let program = std::env::current_exe().ok()?;
-    let mapper = program
-        .parent()?
+/// [`MAPPER`] among the programs a release installs with the host.
+fn installed_mapper(programs: Option<&Path>) -> Option<PathBuf> {
+    let mapper = programs?
         .join(MAPPER)
         .with_extension(std::env::consts::EXE_EXTENSION);
     mapper.is_file().then_some(mapper)
 }
+
+#[cfg(test)]
+mod tests;

@@ -2411,6 +2411,7 @@ dependencies = [
  "napi",
  "napi-build",
  "napi-derive",
+ "rsvelte_command_line",
  "rsvelte_kernel",
  "rsvelte_svelte_compile",
 ]

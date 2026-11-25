@@ -55,6 +55,7 @@ rsvelte_vue_lint = { path = "crates/languages/vue/lint" }
 rsvelte_vue_check = { path = "crates/languages/vue/check" }
 rsvelte_typescript_compile = { path = "crates/languages/typescript/compile" }
 rsvelte_svelte_compile = { path = "crates/languages/svelte/compile" }
+rsvelte_command_line = { path = "crates/hosts/command_line" }
 rsvelte_vue_compile = { path = "crates/languages/vue/compile" }
 # TODO(oxc-project/oxc#29124, oxc-project/oxc#29211, oxc-project/oxc#29235): back to an upstream
 # revision once `parse_expression_at`, `parse_statement_at`, `with_start`,
