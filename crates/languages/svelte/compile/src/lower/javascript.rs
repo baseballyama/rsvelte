@@ -1,6 +1,5 @@
 use oxc_ast::ast::{Expression, IdentifierReference, ObjectPropertyKind, PropertyKey};
 use oxc_span::SPAN;
-use oxc_syntax::number::BigintBase;
 pub(crate) use rsvelte_typescript_semantic::property_key::{literal_key_name, string_value};
 
 use super::Builder;
@@ -20,9 +19,11 @@ pub(super) fn export_properties<'o>(
 pub(crate) fn prop_key<'o>(b: &Builder<'o>, key: &PropertyKey<'_>) -> Option<Expression<'o>> {
     let name = literal_key_name(key)?;
     Some(match key {
-        PropertyKey::NumericLiteral(literal) => b.number(literal.value),
-        PropertyKey::BigIntLiteral(_) => {
-            Expression::new_big_int_literal(SPAN, b.str(&name), None, BigintBase::Decimal, b)
+        PropertyKey::StaticNumericLiteral(literal) | PropertyKey::NumericLiteral(literal) => {
+            b.number(literal.value)
+        }
+        PropertyKey::StaticBigIntLiteral(_) | PropertyKey::BigIntLiteral(_) => {
+            Expression::new_big_int_literal(SPAN, b.str(&name), None, b)
         }
         _ => b.string(&name),
     })

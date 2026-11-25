@@ -13,6 +13,7 @@ mod combined;
 mod format;
 mod help;
 mod host_lint;
+mod language_server;
 mod node_configuration;
 mod version;
 
@@ -34,6 +35,7 @@ const TYPECHECK_DEFAULTS: &[&str] = &["typescript.check", "svelte.check"];
 /// tasks and its guide.
 const COMMANDS: &[(&str, &[&str], &str)] = &[
     ("typecheck", TYPECHECK, help::TYPECHECK),
+    ("lsp", &[], help::LSP),
     ("version", &[], help::VERSION),
 ];
 
@@ -71,6 +73,9 @@ fn run(arguments: &[String]) -> ExitCode {
             return host_lint::lint(rest);
         }
         return format::format(rest);
+    }
+    if let Some(("lsp", rest)) = arguments.split_first().map(|(c, r)| (c.as_str(), r)) {
+        return language_server::language_server(rest);
     }
     let mut config = configuration::Options::default();
     let mut positional = Vec::new();

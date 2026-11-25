@@ -81,8 +81,8 @@ pub(super) fn regular_expression(
 const AFTER_NUMBER: &str = "Invalid characters after number";
 
 /// What acorn reports for the characters oxc labels at `start..end` right after a number: an
-/// identifier there, or digits its radix does not take, which acorn reads as a number of its own,
-/// failing at an identifier after them or else at that number as a token the parser rejects.
+/// identifier there, or digits its radix does not take, which end acorn's number and start one of
+/// their own, failing at an identifier after them.
 pub(super) fn after_number(
     error: &OxcDiagnostic,
     text: &str,
@@ -100,6 +100,6 @@ pub(super) fn after_number(
             start + u32::try_from(digits).ok()?,
         )
     } else {
-        fails("Unexpected token", start)
+        Acorn::Stops(start)
     })
 }

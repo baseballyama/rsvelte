@@ -28,13 +28,20 @@ pub(crate) fn format(arguments: &[String]) -> ExitCode {
     };
     oxfmt::cli::init_tracing();
     oxfmt::cli::init_rayon(command.runtime_options.threads);
+    let result = oxfmt::cli::WalkRunner::new(command)
+        .with_hosts(hosts())
+        .run();
+    ExitCode::from(result.exit_code())
+}
+
+/// What `rsvelte format` adds to oxfmt: the Svelte formatter, the project's Tailwind CSS sorter
+/// and `node` for JavaScript and TypeScript configurations.
+pub(super) fn hosts() -> HostFormatters {
     let tailwind = tailwind::Tailwind::default();
-    let hosts = HostFormatters::default()
+    HostFormatters::default()
         .with(Language::Svelte, Svelte(tailwind.clone()))
         .with_tailwind_sorter(tailwind)
-        .with_config_loader(super::node_configuration::Node);
-    let result = oxfmt::cli::WalkRunner::new(command).with_hosts(hosts).run();
-    ExitCode::from(result.exit_code())
+        .with_config_loader(super::node_configuration::Node)
 }
 
 struct Svelte(tailwind::Tailwind);

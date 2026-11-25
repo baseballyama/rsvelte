@@ -137,8 +137,8 @@ impl Check<'_, '_, '_> {
     }
 
     /// A computed key, which upstream checks.
-    fn verify_key(&mut self, key: &PropertyKey<'_>, computed: bool) {
-        if computed && let Some(key) = key.as_expression() {
+    fn verify_key(&mut self, key: &PropertyKey<'_>) {
+        if let Some(key) = key.as_expression() {
             self.verify(key, true, false);
         }
     }
@@ -223,16 +223,16 @@ impl Check<'_, '_, '_> {
                 }
             }
             AstKind::TaggedTemplateExpression(tagged) => self.verify(&tagged.tag, true, false),
-            AstKind::ObjectProperty(property) => self.verify_key(&property.key, property.computed),
+            AstKind::ObjectProperty(property) => self.verify_key(&property.key),
             AstKind::BindingProperty(property) => {
-                self.verify_key(&property.key, property.computed);
+                self.verify_key(&property.key);
             }
             AstKind::AssignmentTargetPropertyProperty(property) => {
-                self.verify_key(&property.name, property.computed);
+                self.verify_key(&property.name);
             }
-            AstKind::MethodDefinition(method) => self.verify_key(&method.key, method.computed),
+            AstKind::MethodDefinition(method) => self.verify_key(&method.key),
             AstKind::PropertyDefinition(property) => {
-                self.verify_key(&property.key, property.computed);
+                self.verify_key(&property.key);
             }
             AstKind::ImportExpression(import) => self.verify(&import.source, true, false),
             AstKind::AwaitExpression(expression) => self.verify(&expression.argument, true, true),

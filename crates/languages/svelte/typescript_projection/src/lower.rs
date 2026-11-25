@@ -168,7 +168,7 @@ struct Builder<'a> {
     /// The root's snippets, which the instance script holds after its imports.
     root_snippets: Option<NodeIdentifier>,
     /// The component whose children are being lowered, whose named slots their `let:` read.
-    slot_parent: Option<NodeIdentifier>,
+    slot_parent: Option<directive::Constructed>,
     /// Whether the children being lowered are a component's, through any blocks.
     component_parent: bool,
     /// The `SvelteKit` route file the component is, whose untyped props svelte2tsx types.

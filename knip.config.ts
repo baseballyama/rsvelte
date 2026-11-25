@@ -24,12 +24,17 @@ export default {
 			ignoreDependencies: ['svelte-check', 'vue-tsc', 'prettier-plugin-tailwindcss', 'tailwindcss'],
 		},
 		'apps/cli': {
-			// The command of the npm package, which a release copies there, not an import.
-			entry: ['launcher.js'],
+			// The command of the npm package and the lookup the VS Code extension imports from a
+			// project, which a release copies there.
+			entry: ['launcher.js', 'program.js'],
 		},
 		'apps/rsvelte': {
 			// crates/hosts/node's test runs them with the addon it builds, not a package script.
 			entry: ['bin.js', 'compiler.test.ts', 'command.test.ts'],
+		},
+		'apps/vscode': {
+			// The extension host loads the bundle of the first, and VS Code the bundle of the last.
+			entry: ['src/extension.ts', 'test/editor/suite.ts'],
 		},
 		'tools/writing': {
 			// The spelling rule loads the dictionary by its language name.

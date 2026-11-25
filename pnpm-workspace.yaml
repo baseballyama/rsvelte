@@ -3,6 +3,7 @@ packages:
   - apps/eslint-plugin
   - apps/rsvelte
   - apps/site
+  - apps/vscode
   - tools/*
 allowBuilds:
   esbuild: true

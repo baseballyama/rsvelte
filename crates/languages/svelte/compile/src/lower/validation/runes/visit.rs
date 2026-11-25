@@ -21,7 +21,7 @@ impl<'a> Visit<'a> for RuneWalk<'a> {
     fn enter_node(&mut self, kind: AstKind<'a>) {
         // Upstream analyzes a class body before what it holds.
         if let AstKind::ClassBody(body) = kind {
-            let fields = class_fields(self.res, body).unwrap_or_else(|error| {
+            let fields = class_fields(self.res, body, self.unit).unwrap_or_else(|error| {
                 self.error.get_or_insert(error);
                 ClassFields::default()
             });

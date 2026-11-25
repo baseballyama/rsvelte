@@ -399,7 +399,9 @@ fn destructured<'a>(
 fn static_key<'t>(key: &PropertyKey<'t>) -> Option<&'t str> {
     match key {
         PropertyKey::StaticIdentifier(name) => Some(name.name.as_str()),
-        PropertyKey::StringLiteral(string) => string.value.as_str(),
+        PropertyKey::StaticStringLiteral(string) | PropertyKey::StringLiteral(string) => {
+            string.value.as_str()
+        }
         _ => None,
     }
 }

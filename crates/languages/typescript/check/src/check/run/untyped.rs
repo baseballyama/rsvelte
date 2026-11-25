@@ -1,12 +1,13 @@
-//! TS7016 for an import of a content-mapped JavaScript document. The checker reads every mapped
-//! document as typed, whatever its generated extension, so it never reports this itself, and
-//! loads such a document where TypeScript would not load a JavaScript file; a probe asks whether
-//! the project's options would report it for a plain JavaScript file.
+//! TS7016 for an import of a JavaScript document of another language, checked or not. The checker
+//! reads every mapped document and stand-in as typed, so it never reports this itself, and loads
+//! such a document where TypeScript would not load a JavaScript file; a probe asks whether the
+//! project's options would report it for a plain JavaScript file.
 
-use std::collections::HashMap;
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::paths;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_typescript_api::{DiagnosticKind, Project, Session};
 
@@ -23,7 +24,7 @@ const JAVASCRIPT: &[&str] = &[".js", ".jsx", ".mjs", ".cjs"];
 const PROBE: (&str, &str) = ("untyped-probe.ts", "untyped.js");
 /// The probe of a JavaScript file a search of `node_modules` finds, and its package.
 const PACKAGE_PROBE: (&str, &str) = ("untyped-package-probe.ts", "rsvelte-untyped-probe");
-const PROBE_CONFIG: &str = "untyped-probe.json";
+const PROBE_CONFIG: &str = ".rsvelte.untyped-probe.json";
 
 /// `Could not find a declaration file for module '{0}'. '{1}' implicitly has an 'any' type.`
 pub(super) const CODE: u32 = 7016;
@@ -79,97 +80,118 @@ pub(crate) fn checked_imports(document: &CheckedDocument, source: &str) -> Vec<C
         .collect()
 }
 
-/// What untyped imports change in a run.
-#[derive(Default)]
-pub(super) struct Untyped<'a> {
-    /// TS7016 at each import of a typed document that reads a content-mapped JavaScript document.
-    pub found: Vec<TypeScriptDiagnostic>,
-    /// The names those imports bind, by document.
-    pub names: Vec<(usize, &'a str)>,
+/// An import of a typed document that reads an untyped JavaScript document.
+pub(super) struct UntypedImport<'a> {
+    /// The importing document.
+    pub file: usize,
+    pub import: &'a Import,
+    /// The document it reads, as the checker names it.
+    pub module: PathBuf,
+}
+
+impl UntypedImport<'_> {
+    /// The TS7016 TypeScript reports for the import.
+    pub(super) fn finding(&self) -> TypeScriptDiagnostic {
+        TypeScriptDiagnostic {
+            file: self.file,
+            code: CODE,
+            message: format!(
+                "Could not find a declaration file for module '{}'. '{}' implicitly has an 'any' \
+                 type.",
+                self.import.specifier,
+                paths::typescript(&self.module.to_string_lossy())
+            ),
+            span: Some(self.import.at),
+            syntactic: false,
+        }
+    }
 }
 
 /// The modules each import of document `file` reads, as the checker resolves them, in the order of
-/// [`CheckRequest::imports`]; empty for a document whose imports cannot be untyped.
+/// [`CheckRequest::imports`]; empty unless the document is `typed`, since only those imports can
+/// be untyped.
 pub(super) fn modules(
     req: &CheckRequest<'_>,
     session: &mut Session,
     project: &Project,
     paths: &[PathBuf],
     file: usize,
+    typed: bool,
 ) -> Result<Vec<Option<PathBuf>>, String> {
     let imports = &req.imports[file];
-    if imports.is_empty() || javascript(req, file) {
+    if imports.is_empty() || !typed {
         return Ok(Vec::new());
     }
     let positions: Vec<u32> = imports.iter().map(|i| i.position).collect();
     session.modules_at(project, &paths[file], &positions)
 }
 
-/// Each import of a typed document that `modules` resolves to an untyped content-mapped
-/// JavaScript document, as the finding TypeScript reports for it.
+/// Each import of a typed document that `modules` resolves to one of `untyped_documents`.
 pub(super) fn imports<'a>(
     req: &'a CheckRequest<'_>,
     modules: &[(usize, Vec<Option<PathBuf>>)],
-    index: &HashMap<&Path, usize>,
-    untyped_document: &dyn Fn(usize) -> bool,
-) -> Untyped<'a> {
-    let mut untyped = Untyped::default();
+    untyped_documents: &UntypedDocuments,
+) -> Vec<UntypedImport<'a>> {
+    let mut untyped = Vec::new();
     for (file, modules) in modules {
-        let file = *file;
-        for (CheckedImport { import, .. }, module) in req.imports[file].iter().zip(modules) {
+        for (CheckedImport { import, .. }, module) in req.imports[*file].iter().zip(modules) {
             let Some(module) = module.as_deref().map(normalized) else {
                 continue;
             };
-            if !(index.get(module.as_path())).is_some_and(|&read| untyped_document(read)) {
-                continue;
+            if untyped_documents.is(&module) {
+                untyped.push(UntypedImport {
+                    file: *file,
+                    import,
+                    module,
+                });
             }
-            (untyped.names).extend(import.names.iter().map(|name| (file, name.as_str())));
-            untyped.found.push(TypeScriptDiagnostic {
-                file,
-                code: CODE,
-                message: format!(
-                    "Could not find a declaration file for module '{}'. '{}' implicitly has an \
-                     'any' type.",
-                    import.specifier,
-                    module.display()
-                ),
-                span: Some(import.at),
-                syntactic: false,
-            });
         }
     }
     untyped
 }
 
-/// Whether document `file` projects to JavaScript.
-pub(super) fn javascript(req: &CheckRequest<'_>, file: usize) -> bool {
-    req.mapped(file)
-        .is_some_and(|mapped| JAVASCRIPT.contains(&mapped.generated_extension))
-}
-
 /// `Value refers to a value, but is being used as a type here.`
 const VALUE_AS_TYPE: u32 = 2749;
 
-/// Whether `found` reads a name an untyped import binds as a type. TypeScript gives such a name
+/// Whether `found` reads a name one of `untyped` binds as a type. TypeScript gives such a name
 /// every meaning, as `any`; the projection's export of a JavaScript component is a value only.
-pub(super) fn hides(found: &TypeScriptDiagnostic, names: &[(usize, &str)], source: &str) -> bool {
+pub(super) fn hides(
+    found: &TypeScriptDiagnostic,
+    untyped: &[UntypedImport<'_>],
+    source: &str,
+) -> bool {
     found.code == VALUE_AS_TYPE
         && found.span.is_some_and(|span| {
             let read = span.text(source);
-            names
-                .iter()
-                .any(|&(file, name)| file == found.file && name == read)
+            (untyped.iter()).any(|untyped| {
+                untyped.file == found.file && untyped.import.names.iter().any(|name| name == read)
+            })
         })
 }
 
-/// Whether any document projects to JavaScript.
-pub(super) fn any_javascript(req: &CheckRequest<'_>) -> bool {
-    (0..req.mapped_files.len()).any(|file| javascript(req, file))
+/// The paths of the JavaScript documents, checked at `paths` or not: the one answer the run
+/// reads whether a document is JavaScript by.
+pub(super) fn javascript_documents(
+    req: &CheckRequest<'_>,
+    root: &Path,
+    paths: &[PathBuf],
+) -> HashSet<PathBuf> {
+    let checked = (paths.iter().enumerate())
+        .filter(|&(file, _)| {
+            req.mapped(file)
+                .is_some_and(|mapped| JAVASCRIPT.contains(&mapped.generated_extension))
+        })
+        .map(|(_, path)| path.clone());
+    let unchecked = (req.stand_ins(root))
+        .filter(|(_, stand_in)| stand_in.javascript)
+        .map(|(path, _)| path);
+    checked.chain(unchecked).collect()
 }
 
 /// The probes, the JavaScript files they import and the tsconfig of their own project, which
-/// extends the project's `base`: one imports a file by its path, the other a package's.
-pub(super) fn probe(overlay: &Path, base: &Path) -> [(PathBuf, String); 6] {
+/// extends the project's `base`, in its directory `root`: one imports a file by its path, the
+/// other a package's.
+pub(super) fn probe(root: &Path, overlay: &Path, base: &Path) -> [(PathBuf, String); 6] {
     let probe = overlay.join(PROBE.0);
     let package_probe = overlay.join(PACKAGE_PROBE.0);
     let package = overlay.join("node_modules").join(PACKAGE_PROBE.1);
@@ -213,7 +235,7 @@ pub(super) fn probe(overlay: &Path, base: &Path) -> [(PathBuf, String); 6] {
             format!(r#"{{"name":"{}","main":"index.js"}}"#, PACKAGE_PROBE.1),
         ),
         (package.join("index.js"), "export default 1;\n".to_owned()),
-        (overlay.join(PROBE_CONFIG), config.finish()),
+        (root.join(PROBE_CONFIG), config.finish()),
     ]
 }
 
@@ -229,20 +251,25 @@ pub(super) enum UntypedJavaScript {
     All,
 }
 
-/// The JavaScript documents whose imports are untyped: all of them, or those a search of
-/// `node_modules` finds, by index in ascending order.
+/// The JavaScript documents whose imports are untyped, by path: all of them, or those a search of
+/// `node_modules` finds.
 pub(super) struct UntypedDocuments {
     pub(super) all: bool,
-    pub(super) external: Vec<usize>,
+    pub(super) javascript: HashSet<PathBuf>,
+    pub(super) external: HashSet<PathBuf>,
 }
 
 impl UntypedDocuments {
-    pub(super) fn is(&self, req: &CheckRequest<'_>, file: usize) -> bool {
-        javascript(req, file) && (self.all || self.external(file))
+    /// Whether an import of `path` is untyped.
+    fn is(&self, path: &Path) -> bool {
+        self.external.contains(path) || self.all && self.javascript.contains(path)
     }
 
-    pub(super) fn external(&self, file: usize) -> bool {
-        self.external.binary_search(&file).is_ok()
+    /// Whether TypeScript would not load `path`: it loads no untyped JavaScript file the tsconfig
+    /// does not select, whatever imports it, as the project `reached` only through an import, nor
+    /// a component a search of `node_modules` finds beyond `maxNodeModuleJsDepth`.
+    pub(super) fn unloaded(&self, path: &Path, reached: &HashSet<PathBuf>) -> bool {
+        self.is(path) && (reached.contains(path) || self.external.contains(path))
     }
 }
 
@@ -276,3 +303,5 @@ pub(super) fn options_declaration(overlay: &Path) -> (PathBuf, String) {
         "interface __rsvelte_check_options {\n\tuntypedJavaScript: true;\n}\n".to_owned(),
     )
 }
+
+pub(super) mod ambient;

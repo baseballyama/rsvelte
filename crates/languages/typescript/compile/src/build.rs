@@ -13,7 +13,6 @@ use oxc_ast::ast::{
 };
 use oxc_ast::builder::{AstBuilder, GetAstBuilder};
 use oxc_span::{SPAN, Span};
-use oxc_syntax::number::NumberBase;
 use rsvelte_typescript_tree::is_valid_identifier;
 
 mod functions;
@@ -82,7 +81,7 @@ impl<'o> Builder<'o> {
 
     #[must_use]
     pub fn number(&self, value: f64) -> Expression<'o> {
-        Expression::new_numeric_literal(SPAN, value, None, NumberBase::Decimal, self)
+        Expression::new_numeric_literal(SPAN, value, None, self)
     }
 
     #[must_use]
@@ -187,17 +186,25 @@ impl<'o> Builder<'o> {
         if is_bare(name) {
             PropertyKey::new_static_identifier(SPAN, self.str(name), self)
         } else {
-            PropertyKey::from(self.string(name))
+            PropertyKey::new_static_string_literal(SPAN, self.str(name), None, self)
+        }
+    }
+
+    /// What `object[key]` reads for `key`: a name or a literal as that literal, a computed key's
+    /// own expression.
+    #[must_use]
+    pub fn key_expression(&self, key: PropertyKey<'o>) -> Expression<'o> {
+        match key {
+            PropertyKey::StaticIdentifier(name) => self.string(&name.name),
+            PropertyKey::StaticStringLiteral(literal) => Expression::StringLiteral(literal),
+            PropertyKey::StaticNumericLiteral(literal) => Expression::NumericLiteral(literal),
+            PropertyKey::StaticBigIntLiteral(literal) => Expression::BigIntLiteral(literal),
+            key => key.into_expression(),
         }
     }
 
     #[must_use]
-    pub fn property(
-        &self,
-        key: PropertyKey<'o>,
-        value: Expression<'o>,
-        computed: bool,
-    ) -> ObjectPropertyKind<'o> {
+    pub fn property(&self, key: PropertyKey<'o>, value: Expression<'o>) -> ObjectPropertyKind<'o> {
         ObjectPropertyKind::new_object_property(
             SPAN,
             PropertyKind::Init,
@@ -205,7 +212,6 @@ impl<'o> Builder<'o> {
             value,
             false,
             false,
-            computed,
             self,
         )
     }
@@ -222,7 +228,6 @@ impl<'o> Builder<'o> {
             value,
             false,
             shorthand,
-            false,
             self,
         )
     }
@@ -246,7 +251,6 @@ impl<'o> Builder<'o> {
             kind,
             self.key(name),
             function,
-            false,
             false,
             false,
             self,
@@ -273,7 +277,6 @@ impl<'o> Builder<'o> {
             self.key(name),
             function,
             true,
-            false,
             false,
             self,
         )

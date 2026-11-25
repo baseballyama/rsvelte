@@ -126,7 +126,9 @@ fn parent_of(frame: &Frame<'_>, kind: AstKind<'_>) -> Parent {
             Parent::ConstructorAssignment
         }
         (AstKind::PropertyDefinition(p), _)
-            if !p.computed && !p.r#static && p.value.as_ref().is_some_and(|v| is(v.span())) =>
+            if !p.key.is_computed()
+                && !p.r#static
+                && p.value.as_ref().is_some_and(|v| is(v.span())) =>
         {
             Parent::ClassField
         }

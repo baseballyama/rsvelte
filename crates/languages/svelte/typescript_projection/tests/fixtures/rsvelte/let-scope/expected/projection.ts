@@ -13,13 +13,13 @@ function $$render() {
   async () => {
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      __rsvelte_component_0(__rsvelte_internals(), {
+      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         children: __rsvelte_children,
       });
       {
         const {
           x,
-        } = __rsvelte_instance(__rsvelte_component_0).$$slot_def.default;
+        } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def.default;
         x;
         {
           svelteHTML.createElement("p", {});
@@ -28,13 +28,15 @@ function $$render() {
         {
           const {
             y,
-          } = __rsvelte_instance(__rsvelte_component_0).$$slot_def["b"];
-          __rsvelte_component(C)(__rsvelte_internals(), {
-            children: __rsvelte_children,
-          });
-          x;
-          y;
-          C;
+          } = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$$slot_def["b"];
+          {
+            __rsvelte_component(C)(__rsvelte_internals(), {
+              children: __rsvelte_children,
+            });
+            x;
+            y;
+            C;
+          }
         }
       }
       C;

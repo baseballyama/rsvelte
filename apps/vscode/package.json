@@ -1,0 +1,108 @@
+{
+	"name": "rsvelte",
+	"displayName": "rsvelte",
+	"version": "0.0.0",
+	"private": true,
+	"description": "Lint, fix and format Svelte 5, TypeScript and JavaScript files with the rsvelte a project installs",
+	"categories": [
+		"Formatters",
+		"Linters"
+	],
+	"license": "MIT",
+	"repository": {
+		"type": "git",
+		"url": "https://github.com/baseballyama/rsvelte"
+	},
+	"publisher": "rsvelte",
+	"type": "module",
+	"main": "./dist/extension.cjs",
+	"scripts": {
+		"build": "node build.ts",
+		"test": "node --test 'src/*.test.ts'",
+		"test:editor": "node build.ts && node test/editor/run.ts",
+		"typecheck": "node ../../node_modules/typescript-7/bin/tsc -p ."
+	},
+	"devDependencies": {
+		"@types/vscode": "1.91.0",
+		"@vscode/test-electron": "3.1.0",
+		"esbuild": "0.28.2",
+		"vscode-languageclient": "11.0.1"
+	},
+	"contributes": {
+		"languages": [
+			{
+				"id": "svelte",
+				"aliases": [
+					"Svelte",
+					"svelte"
+				],
+				"extensions": [
+					".svelte"
+				]
+			}
+		],
+		"configuration": {
+			"title": "rsvelte",
+			"properties": {
+				"rsvelte.enable": {
+					"type": "boolean",
+					"default": true,
+					"scope": "resource",
+					"description": "Run rsvelte in this workspace folder."
+				},
+				"rsvelte.path": {
+					"type": "string",
+					"default": "",
+					"scope": "machine",
+					"description": "The rsvelte program to run, instead of the one the workspace folder's @rsvelte/cli installs."
+				},
+				"rsvelte.trace.server": {
+					"type": "string",
+					"enum": [
+						"off",
+						"messages",
+						"verbose"
+					],
+					"default": "off",
+					"scope": "window",
+					"description": "Log the messages between VS Code and the rsvelte language server."
+				}
+			}
+		},
+		"commands": [
+			{
+				"command": "rsvelte.restartServer",
+				"title": "Restart the language server",
+				"category": "rsvelte"
+			},
+			{
+				"command": "rsvelte.showOutputChannel",
+				"title": "Show the output",
+				"category": "rsvelte"
+			}
+		]
+	},
+	"activationEvents": [
+		"onLanguage:javascript",
+		"onLanguage:javascriptreact",
+		"onLanguage:svelte",
+		"onLanguage:typescript",
+		"onLanguage:typescriptreact"
+	],
+	"extensionKind": [
+		"workspace"
+	],
+	"engines": {
+		"vscode": "^1.91.0"
+	},
+	"capabilities": {
+		"untrustedWorkspaces": {
+			"supported": false,
+			"description": "rsvelte runs the program and the configuration files of the workspace."
+		},
+		"virtualWorkspaces": {
+			"supported": false,
+			"description": "rsvelte reads the files of the workspace from disk."
+		}
+	}
+}

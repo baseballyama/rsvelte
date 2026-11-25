@@ -193,7 +193,7 @@ pub struct DocumentContext<'a> {
     registry: &'a ArtifactRegistry,
     slots: Vec<OnceCell<Box<dyn Any>>>,
     /// One per [`LineBreaks`], in its order.
-    line_indexes: [OnceCell<LineIndex>; 2],
+    line_indexes: [OnceCell<LineIndex>; 3],
     #[cfg(feature = "trace-artifacts")]
     computed: RefCell<Vec<&'static str>>,
     #[cfg(feature = "trace-artifacts")]
@@ -211,7 +211,7 @@ impl<'a> DocumentContext<'a> {
             document,
             registry,
             slots,
-            line_indexes: [OnceCell::new(), OnceCell::new()],
+            line_indexes: [OnceCell::new(), OnceCell::new(), OnceCell::new()],
             #[cfg(feature = "trace-artifacts")]
             computed: RefCell::default(),
             #[cfg(feature = "trace-artifacts")]
@@ -296,6 +296,7 @@ impl<'a> DocumentContext<'a> {
         let slot = match breaks {
             LineBreaks::Newline => 0,
             LineBreaks::Ecmascript => 1,
+            LineBreaks::LanguageServer => 2,
         };
         self.line_indexes[slot].get_or_init(|| LineIndex::with_breaks(self.source_text(), breaks))
     }

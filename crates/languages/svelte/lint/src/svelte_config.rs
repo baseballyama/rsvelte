@@ -251,11 +251,12 @@ impl<'a> Evaluator<'a> {
             BindingPattern::ObjectPattern(object) => {
                 let (name, value) = object.properties.iter().find_map(|property| {
                     let name = match &property.key {
-                        PropertyKey::StaticIdentifier(key) if !property.computed => {
-                            key.name.as_str().to_owned()
+                        PropertyKey::StaticIdentifier(key) => key.name.as_str().to_owned(),
+                        PropertyKey::StaticStringLiteral(key) | PropertyKey::StringLiteral(key) => {
+                            key.value.display().to_string()
                         }
-                        PropertyKey::StringLiteral(key) => key.value.display().to_string(),
-                        PropertyKey::NumericLiteral(key) => {
+                        PropertyKey::StaticNumericLiteral(key)
+                        | PropertyKey::NumericLiteral(key) => {
                             rsvelte_typescript_semantic::number::number(key.value)
                         }
                         _ => return None,
@@ -289,7 +290,7 @@ impl<'a> Evaluator<'a> {
         for property in object.properties.iter().rev() {
             match property {
                 ObjectPropertyKind::ObjectProperty(property) => {
-                    match self.key(&property.key, property.computed, depth) {
+                    match self.key(&property.key, depth) {
                         Some(name) if name == key => {
                             return self.expression(&property.value, depth + 1);
                         }
@@ -312,11 +313,16 @@ impl<'a> Evaluator<'a> {
     }
 
     /// A property's name (`getKey`).
-    fn key(&self, key: &'a PropertyKey<'a>, computed: bool, depth: usize) -> Option<String> {
-        if let PropertyKey::StaticIdentifier(name) = key
-            && !computed
-        {
-            return Some(name.name.as_str().to_owned());
+    fn key(&self, key: &'a PropertyKey<'a>, depth: usize) -> Option<String> {
+        match key {
+            PropertyKey::StaticIdentifier(name) => return Some(name.name.as_str().to_owned()),
+            PropertyKey::StaticStringLiteral(name) => {
+                return Some(name.value.display().to_string());
+            }
+            PropertyKey::StaticNumericLiteral(number) => {
+                return Some(rsvelte_typescript_semantic::number::number(number.value));
+            }
+            _ => {}
         }
         match self.to_static(
             &self.expression(key.as_expression()?, depth + 1)?,
@@ -344,7 +350,7 @@ impl<'a> Evaluator<'a> {
         for property in &object.properties {
             match property {
                 ObjectPropertyKind::ObjectProperty(property) => {
-                    let name = self.key(&property.key, property.computed, depth)?;
+                    let name = self.key(&property.key, depth)?;
                     let value =
                         self.to_static(&self.expression(&property.value, depth + 1)?, depth + 1)?;
                     out.push((name, value));

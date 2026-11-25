@@ -245,10 +245,8 @@ impl<'o> Extract<'_, '_, 'o> {
                         AssignmentTargetProperty::AssignmentTargetPropertyProperty(p) => {
                             let p = p.unbox();
                             let read = match p.name {
-                                PropertyKey::StaticIdentifier(key) if !p.computed => {
-                                    b.member(value, &key.name)
-                                }
-                                key => b.computed(value, key.into_expression()),
+                                PropertyKey::StaticIdentifier(key) => b.member(value, &key.name),
+                                key => b.computed(value, b.key_expression(key)),
                             };
                             self.element(p.binding, read);
                         }

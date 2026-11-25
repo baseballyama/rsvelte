@@ -46,13 +46,18 @@ impl Printer<'_> {
         self.output
             .push("['__rsvelte_exports']> { return null as any; } events(): NonNullable<");
         self.render_result(instantiated, UNRENDERED);
+        self.output
+            .push("['__rsvelte_events']> { return null as any; } slots(): NonNullable<");
+        self.render_result(instantiated, UNRENDERED);
         for part in [
-            "['__rsvelte_events']> { return null as any; } instance(): \
+            "['__rsvelte_slots']> { return null as any; } instance(): \
                 import('svelte').SvelteComponent<ReturnType<__rsvelte_Render<",
             arguments,
             ">['props']>, ReturnType<__rsvelte_Render<",
             arguments,
-            ">['events']>, {}> & ReturnType<__rsvelte_Render<",
+            ">['events']>, ReturnType<__rsvelte_Render<",
+            arguments,
+            ">['slots']>> & ReturnType<__rsvelte_Render<",
             arguments,
             ">['exports']> { return null as any; } }\n// @ts-ignore\n",
             "interface $$IsomorphicComponent { <",

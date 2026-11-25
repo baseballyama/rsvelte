@@ -1,6 +1,7 @@
 //! `rsvelte typecheck` of a `<slot>` prop that reads a name the template declares, which
 //! svelte2tsx unpacks to the value the name comes from.
 
+use crate::typecheck::Native;
 use crate::typecheck_events::check;
 
 /// The components of the first test: one per kind of name, and the consumer.
@@ -101,7 +102,6 @@ const NAMES: &[(&str, &str)] = &[
 /// An `{#each}` item, an `{:then}` value and a component's `let:` type the prop, destructured
 /// or nested; an index, an error and a `{@const}` are any, unless a script name of that name is
 /// what svelte2tsx's copy reads. svelte-check 4.7.8 reports these twelve lines.
-#[cfg(unix)]
 #[test]
 fn typecheck_types_a_slot_prop_by_the_template_name_it_reads() {
     let report = check(NAMES);
@@ -120,13 +120,13 @@ fn typecheck_types_a_slot_prop_by_the_template_name_it_reads() {
          src/App.svelte(17,38): error TS2339: Property 'foo' does not exist on type 'string'.\n\
          src/App.svelte(18,19): error TS2339: Property 'foo' does not exist on type 'number'.\n\
          src/App.svelte(18,58): error TS2339: Property 'foo' does not exist on type 'string'.\n\
-         \nFound 12 errors in 1 file.\n",
+         \nFound 12 errors in 1 file.\n"
+            .native(),
     );
 }
 
 /// svelte2tsx's scope of a block's names lasts to the block's end: its `{:else}` and pending
 /// branch read them too. svelte-check 4.7.8 reports these four lines, and none outside them.
-#[cfg(unix)]
 #[test]
 fn typecheck_reads_a_block_name_in_the_blocks_other_branches() {
     let report = check(&[
@@ -154,6 +154,7 @@ fn typecheck_reads_a_block_name_in_the_blocks_other_branches() {
          property 'v'. Either declare one or provide an initializer.\n\
          src/App.svelte(4,61): error TS2339: Property 'foo' does not exist on type 'number'.\n\
          src/App.svelte(4,106): error TS2339: Property 'foo' does not exist on type 'number'.\n\
-         \nFound 4 errors in 2 files.\n",
+         \nFound 4 errors in 2 files.\n"
+            .native(),
     );
 }
