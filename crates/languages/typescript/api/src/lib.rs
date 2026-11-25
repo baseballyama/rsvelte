@@ -6,6 +6,7 @@ use std::path::{Path, PathBuf};
 use std::process::{Child, ChildStdin, ChildStdout, Command, Stdio};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use rsvelte_kernel::source::paths;
 use serde::Deserialize;
 
 /// A running `tsc --api`. Requests are serial; the process ends when the session drops.
@@ -245,7 +246,7 @@ impl Session {
         let mut w = StructuredDataWriter::new(false);
         w.begin_object().key("openProjects").begin_array();
         for c in configs {
-            w.write_string(&c.to_string_lossy());
+            w.write_string(&paths::typescript(c));
         }
         w.end_array();
         if !layer.files.is_empty() || !layer.links.is_empty() {
@@ -256,14 +257,14 @@ impl Session {
                 .key("files")
                 .begin_object();
             for (path, text) in &layer.files {
-                w.key(&path.to_string_lossy()).write_string(text);
+                w.key(&paths::typescript(path)).write_string(text);
             }
             w.end_object().key("symlinks").begin_object();
             for (link, target) in &layer.links {
-                w.key(&link.to_string_lossy())
+                w.key(&paths::typescript(link))
                     .begin_object()
                     .key("target")
-                    .write_string(&target.to_string_lossy())
+                    .write_string(&paths::typescript(target))
                     .key("host")
                     .write_boolean(true)
                     .end_object();
@@ -343,7 +344,7 @@ impl Session {
         if let Some(files) = files {
             w.key("files").begin_array();
             for f in files {
-                w.write_string(&f.to_string_lossy());
+                w.write_string(&paths::typescript(f));
             }
             w.end_array();
         }
@@ -401,7 +402,7 @@ impl Session {
             ProjectId::Handle(handle) => w.write_number(*handle),
             ProjectId::Id(id) => w.write_string(id),
         };
-        w.key("file").write_string(&file.to_string_lossy());
+        w.key("file").write_string(&paths::typescript(file));
         w.end_object();
         let method = "getSourceFileMetadata";
         let response = self.request(method, w.finish().as_bytes())?;
@@ -433,7 +434,7 @@ impl Session {
             ProjectId::Handle(handle) => w.write_number(*handle),
             ProjectId::Id(id) => w.write_string(id),
         };
-        w.key("file").write_string(&file.to_string_lossy());
+        w.key("file").write_string(&paths::typescript(file));
         w.key("positions").begin_array();
         for &position in positions {
             w.write_number(position);

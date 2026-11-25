@@ -54,7 +54,7 @@ pub(crate) fn insertions(
     javascript: bool,
     hooks_module: impl FnOnce() -> &'static str,
 ) -> Vec<Insertion> {
-    let file = paths::typescript(&path.to_string_lossy()).into_owned();
+    let file = paths::typescript(path).into_owned();
     let basename = file.rsplit('/').next().unwrap_or(&file);
     let mut out = Inserted::default();
     let source = Source { text, javascript };

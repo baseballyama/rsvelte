@@ -7,6 +7,7 @@ use std::sync::atomic::{AtomicU32, Ordering};
 
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
+use rsvelte_kernel::source::paths;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
 use rsvelte_typescript_api::{Layer, Position, Session};
 use selection::Selected;
@@ -82,10 +83,7 @@ impl Tsc {
     /// the current directory, as the command line resolves it. The checker names files by their
     /// real path, such as `/private/var` for `/var`, so both are real paths.
     fn root(&self) -> Result<(Option<PathBuf>, PathBuf), String> {
-        let real = |p: &Path| {
-            rsvelte_kernel::source::paths::canonicalize(p)
-                .map_err(|e| format!("{}: {e}", p.display()))
-        };
+        let real = |p: &Path| paths::canonicalize(p).map_err(|e| format!("{}: {e}", p.display()));
         match &self.tsconfig {
             Some(config) => {
                 let config = real(config)?;
@@ -281,7 +279,7 @@ fn in_temporary_directory<T>(
     ));
     let io = |e: std::io::Error| format!("{}: {e}", dir.display());
     std::fs::create_dir_all(&dir).map_err(io)?;
-    let result = rsvelte_kernel::source::paths::canonicalize(&dir)
+    let result = paths::canonicalize(&dir)
         .map_err(io)
         .and_then(|real| work(&real));
     // Best effort: a leftover temporary directory does not affect the result.
@@ -304,7 +302,7 @@ fn tsconfig_json(
     let mut w = StructuredDataWriter::new(true);
     w.begin_object();
     if let Some(base) = base {
-        w.key("extends").write_string(&base.to_string_lossy());
+        w.key("extends").write_string(&paths::typescript(base));
     }
     w.key("compilerOptions")
         .begin_object()
@@ -321,14 +319,14 @@ fn tsconfig_json(
         }
         w.key(spec).begin_array();
         for target in targets {
-            w.write_string(&target.to_string_lossy());
+            w.write_string(&paths::typescript(target));
         }
         w.end_array();
     }
     for (spec, file) in &req.env.paths {
         w.key(spec)
             .begin_array()
-            .write_string(&file.to_string_lossy())
+            .write_string(&paths::typescript(file))
             .end_array();
     }
     w.end_object().end_object();
@@ -339,7 +337,7 @@ fn tsconfig_json(
     let mut listed = HashSet::new();
     for p in roots {
         if listed.insert(p) {
-            w.write_string(&p.to_string_lossy());
+            w.write_string(&paths::typescript(p));
         }
     }
     w.end_array().end_object();
