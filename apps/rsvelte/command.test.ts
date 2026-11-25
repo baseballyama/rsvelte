@@ -25,6 +25,7 @@ const timeless = (text: string) => text.replace(/\b\d+(\.\d+)?(ms|s)\b/g, '<time
 function ran(program: string, argv: string[], directory: string) {
 	const { error, status, stdout, stderr } = spawnSync(program, argv, {
 		cwd: directory,
+		maxBuffer: 1 << 26,
 		encoding: 'utf8',
 		// oxlint colours its report wherever `CI` or `FORCE_COLOR` is set.
 		env: { ...process.env, CI: undefined, FORCE_COLOR: undefined },
@@ -55,7 +56,6 @@ for (const argv of [
 	['--version'],
 	['--help'],
 	['help', 'typecheck'],
-	// oxlint's guide is longer than a pipe holds, so a write that cannot block would fail.
 	['lint', '--help'],
 	['format', '--help'],
 	['nonsense'],
@@ -79,4 +79,10 @@ test('rsvelte lint reports what the executable reports', () => {
 	const { ours, theirs } = both(['lint'], { 'a.ts': 'debugger;\n' });
 	assert.deepEqual(ours, theirs);
 	assert.match(ours.stdout, /no-debugger/);
+});
+
+test('rsvelte lint writes a report longer than a pipe holds', () => {
+	const { ours, theirs } = both(['lint'], { 'a.ts': 'debugger;\n'.repeat(2000) });
+	assert.ok(theirs.stdout.length > 200_000, `${theirs.stdout.length} characters`);
+	assert.deepEqual(ours, theirs);
 });
