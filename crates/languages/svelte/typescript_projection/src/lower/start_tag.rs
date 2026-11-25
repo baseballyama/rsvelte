@@ -75,20 +75,17 @@ impl<M: Iterator<Item = (u32, u32)> + Clone> StartTag<M> {
     /// place, the `<`'s at least. Without whitespace after the tag name it leaves each run, and
     /// with it only the run after the last move when one character is left of it.
     pub(super) fn unmoved_space(&self) -> u32 {
-        let mut moves = self.moves.clone();
-        let Some((_, first)) = moves.next() else {
-            return self.start;
-        };
-        let mut removed = self.extended(first);
         let mut space = self.start;
-        for (start, end) in moves {
-            if !self.moves_runs && removed < start && start < self.end {
-                space = removed;
+        for (removed, next) in self.runs() {
+            match next {
+                Some(start) if !self.moves_runs && removed < start && start < self.end => {
+                    space = removed;
+                }
+                None if removed + 1 < self.end && !(self.moves_runs && removed + 2 < self.end) => {
+                    space = removed + 1;
+                }
+                _ => {}
             }
-            removed = self.extended(end);
-        }
-        if removed + 1 < self.end && !(self.moves_runs && removed + 2 < self.end) {
-            space = removed + 1;
         }
         space
     }

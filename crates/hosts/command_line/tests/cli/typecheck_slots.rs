@@ -109,12 +109,12 @@ fn typecheck_reports_an_unknown_slot_name_of_every_filler() {
         ("src/Leaf.svelte", leaf),
         ("src/App.svelte", app),
     ]);
+    let slots = "{ item: { item: number; }; default: {}; }";
     let unknown = |slot: &str| {
         format!(
             "error TS7053: Element implicitly has an 'any' type because expression of type \
-             '\"{slot}\"' can't be used to index type '{{ item: {{ item: number; }}; default: {{}}; \
-             }}'.\n  Property '{slot}' does not exist on type '{{ item: {{ item: number; }}; default: \
-             {{}}; }}'."
+             '\"{slot}\"' can't be used to index type '{slots}'.\n  Property '{slot}' does not \
+             exist on type '{slots}'."
         )
     };
     let (empty, unknown) = (unknown(""), unknown("nope"));
