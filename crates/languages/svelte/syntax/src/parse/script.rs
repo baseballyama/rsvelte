@@ -1,3 +1,5 @@
+use std::ops::Range;
+
 use oxc_span::SourceType;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_kernel::source::positions::Span;
@@ -20,41 +22,76 @@ fn lang_is_typescript(source_text: &str, attributes: &[TagAttributes]) -> Option
 /// Whether `offset` is in the content of a `<script>` element. svelte-eslint-parser reads those
 /// itself and blanks them before Svelte parses the rest, so an error there is not Svelte's.
 pub(super) fn in_script_content(source_text: &str, offset: usize) -> bool {
+    (script_elements(source_text).map(|(_, content)| content))
+        .take_while(|content| content.start <= offset)
+        .any(|content| offset <= content.end)
+}
+
+/// Whether a `<script>` element is TypeScript to svelte-check, which reads the script elements
+/// of a component Svelte's parser rejects too.
+pub(super) fn scripts_checked_as_typescript(source_text: &str) -> bool {
+    script_elements(source_text).any(|(start_tag, _)| {
+        crate::syntax_tree::checked_as_typescript(|name| {
+            attributes(start_tag).find_map(|(at, value)| (at == name).then_some(value))
+        })
+    })
+}
+
+/// Each `<script>` element outside a comment, as a scan of the text finds it without parsing
+/// the markup: what its start tag holds after the name, and the range of its content.
+fn script_elements(source_text: &str) -> impl Iterator<Item = (&str, Range<usize>)> {
     let mut from = 0;
-    loop {
-        let rest = &source_text[from..];
-        let Some(i) = memchr::memchr(b'<', rest.as_bytes()) else {
-            return false;
-        };
-        let at = &rest[i..];
-        if let Some(body) = at.strip_prefix("<!--") {
-            match memchr::memmem::find(body.as_bytes(), b"-->") {
-                Some(end) => from += i + 4 + end + 3,
-                None => return false,
+    std::iter::from_fn(move || {
+        loop {
+            let rest = &source_text[from..];
+            let i = memchr::memchr(b'<', rest.as_bytes())?;
+            let at = &rest[i..];
+            if let Some(body) = at.strip_prefix("<!--") {
+                from += i + 4 + memchr::memmem::find(body.as_bytes(), b"-->")? + 3;
+                continue;
             }
-            continue;
+            from += i + 1;
+            let Some(after) = at.strip_prefix("<script") else {
+                continue;
+            };
+            if !after.starts_with(|c| is_ecmascript_whitespace(c) || c == '>') {
+                continue;
+            }
+            let open = after.find('>')?;
+            let start = from + "script".len() + open + 1;
+            let end = memchr::memmem::find(&source_text.as_bytes()[start..], b"</script")
+                .map_or(source_text.len(), |len| start + len);
+            from = end;
+            return Some((&after[..open], start..end));
         }
-        from += i + 1;
-        let Some(after) = at.strip_prefix("<script") else {
-            continue;
+    })
+}
+
+/// The attributes of a start tag's text after its name, each a name and its value, as
+/// [`Parser::open_tag_attributes`] reads them.
+fn attributes(mut text: &str) -> impl Iterator<Item = (&str, &str)> {
+    std::iter::from_fn(move || {
+        text = text.trim_start_matches(is_ecmascript_whitespace);
+        let name_len = super::attribute::attribute_name_len(text);
+        if name_len == 0 {
+            return None;
+        }
+        let name = &text[..name_len];
+        text = &text[name_len..];
+        let Some(value) = text.strip_prefix('=') else {
+            return Some((name, ""));
         };
-        if !after.starts_with(|c| is_ecmascript_whitespace(c) || c == '>') {
-            continue;
-        }
-        let Some(open) = after.find('>') else {
-            return false;
+        let (value, rest) = match value.as_bytes().first() {
+            Some(&quote @ (b'"' | b'\'')) => {
+                let inside = &value[1..];
+                let len = inside.find(quote as char).unwrap_or(inside.len());
+                (&inside[..len], inside.get(len + 1..).unwrap_or(""))
+            }
+            _ => value.split_at(value.find(is_ecmascript_whitespace).unwrap_or(value.len())),
         };
-        let start = from + "script".len() + open + 1;
-        let end = memchr::memmem::find(&source_text.as_bytes()[start..], b"</script")
-            .map_or(source_text.len(), |len| start + len);
-        if (start..=end).contains(&offset) {
-            return true;
-        }
-        if offset < start {
-            return false;
-        }
-        from = end;
-    }
+        text = rest;
+        Some((name, value))
+    })
 }
 
 /// Upstream `read_script`'s `get_context`: `module`, or the legacy `context="module"`.

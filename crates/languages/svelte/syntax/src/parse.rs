@@ -310,6 +310,15 @@ pub fn in_script_content(source_text: &str, offset: u32) -> bool {
     script::in_script_content(source_text, offset as usize)
 }
 
+/// Whether svelte-check reads the component as TypeScript, off its `<script>` elements.
+///
+/// As [`Component::checked_as_typescript`], from the elements a scan of the text finds, so it
+/// answers for a component the parser rejects too.
+#[must_use]
+pub fn scripts_checked_as_typescript(source_text: &str) -> bool {
+    script::scripts_checked_as_typescript(source_text)
+}
+
 /// oxc's error, under the code and in the words upstream gives a JavaScript syntax error. It
 /// keeps oxc's range, which the parser reads; [`parse`] reports Acorn's position.
 #[cold]

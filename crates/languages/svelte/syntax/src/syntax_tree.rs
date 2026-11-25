@@ -466,6 +466,18 @@ impl Drop for Component {
     }
 }
 
+/// Whether a script element whose attribute values `value` reads is TypeScript to svelte-check's
+/// `getScriptKindFromAttributes`: its `lang`, or its `type` without one.
+pub(crate) fn checked_as_typescript<'a>(value: impl Fn(&str) -> Option<&'a str>) -> bool {
+    let kind = value("lang")
+        .filter(|lang| !lang.is_empty())
+        .or_else(|| value("type"));
+    matches!(
+        kind,
+        Some("ts" | "typescript" | "text/ts" | "text/typescript")
+    )
+}
+
 impl Component {
     /// Whether svelte2tsx reads the component as TypeScript, and svelte-check's checker its
     /// output: either script's `lang`, or its `type` without one, names TypeScript. The
@@ -476,20 +488,11 @@ impl Component {
             .into_iter()
             .flatten()
             .any(|script| {
-                let value = |name: &str| {
-                    script
-                        .attributes
-                        .iter()
+                checked_as_typescript(|name| {
+                    (script.attributes.iter())
                         .find(|(at, _)| at.text(source) == name)
                         .map(|(_, value)| value.map_or("", |value| value.text(source)))
-                };
-                let kind = value("lang")
-                    .filter(|lang| !lang.is_empty())
-                    .or_else(|| value("type"));
-                matches!(
-                    kind,
-                    Some("ts" | "typescript" | "text/ts" | "text/typescript")
-                )
+                })
             })
     }
 
