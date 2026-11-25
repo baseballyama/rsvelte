@@ -42,7 +42,6 @@ fn typecheck_types_the_slot_props_of_a_generic_component() {
 /// svelte2tsx's render function returns each slot's props again, a copy that maps nowhere, so
 /// svelte-check reports a finding in a slot prop once, at the `<slot>`. svelte-check 4.7.8 reports
 /// these four lines.
-#[cfg(unix)]
 #[test]
 fn typecheck_reports_a_slot_prop_once() {
     let report = check(&[
@@ -72,12 +71,12 @@ fn typecheck_reports_a_slot_prop_once() {
          src/Keyed.svelte(6,45): error TS2339: Property 'nope' does not exist on type 'string'.\n\
          src/Named.svelte(5,22): error TS2304: Cannot find name 'missing'.\n\
          \nFound 4 errors in 3 files.\n"
+            .native()
     );
 }
 
 /// The return copies a `$bindable` prop's name, and a finding at that name in the script still
 /// maps there and is reported. svelte-check 4.7.8 reports this line.
-#[cfg(unix)]
 #[test]
 fn typecheck_reports_a_finding_at_a_name_the_return_copies() {
     let report = check(&[(
@@ -90,5 +89,6 @@ fn typecheck_reports_a_finding_at_a_name_the_return_copies() {
         "src/Bound.svelte(2,8): error TS2339: Property 'nope' does not exist on type \
          '$$ComponentProps'.\n\
          \nFound 1 error in 1 file.\n"
+            .native()
     );
 }
