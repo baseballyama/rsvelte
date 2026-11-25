@@ -43,6 +43,8 @@ pub(crate) struct TypeScriptDiagnostic {
     /// Byte range in the input: original for content-mapped files, generated otherwise. `None`
     /// in code a content mapper synthesized, which no source range explains.
     pub span: Option<Span>,
+    /// Where a finding in code a content mapper synthesized starts in the text it generated.
+    pub synthesized: Option<Position>,
     /// A syntax error, which TypeScript reports before the other findings of a file.
     pub syntactic: bool,
 }
@@ -481,16 +483,18 @@ fn located(
         lines[file].offset(p.line + 1, p.character)
     };
     let message = d.flattened_message();
-    // A finding in synthesized code may still carry a nearby position, beside this note.
+    // A finding in synthesized code carries its position in the generated text, beside this note.
+    let synthesized = message.contains(VIRTUAL_CODE);
     let span = offset(d.start_position)
         .zip(offset(d.end_position))
-        .filter(|(start, end)| start <= end && !message.contains(VIRTUAL_CODE))
+        .filter(|(start, end)| start <= end && !synthesized)
         .map(|(start, end)| Span::new(start, end));
     Some(TypeScriptDiagnostic {
         file,
         code: d.code,
         message,
         span,
+        synthesized: d.start_position.filter(|_| synthesized),
         syntactic,
     })
 }
