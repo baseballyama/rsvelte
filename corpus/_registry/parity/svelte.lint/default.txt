@@ -1,6 +1,7 @@
-# svelte.lint/default: 37563 match
+# svelte.lint/default: 37566 match
 svelte/rsvelte/lint/no-dupe-on-directives/16-cr-only-lineno.svelte	unexpected
 svelte/rsvelte/pattern/issues/ts-bodiless-constructor-alone.svelte	mismatch
+svelte/rsvelte/pattern/module-legacy-octal-escape-in-a-script.svelte.ts	mismatch
 svelte/svelte-material-ui/packages/data-table/src/Pagination.svelte	unexpected
 svelte/svelte-material-ui/packages/layout-grid/src/LayoutGrid.svelte	mismatch
 svelte/svelte-material-ui/packages/menu/src/SelectionGroup.svelte	unexpected

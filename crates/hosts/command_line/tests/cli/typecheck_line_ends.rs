@@ -126,3 +126,41 @@ fn typecheck_reports_a_component_s_findings_after_a_lone_carriage_return() {
         .native()
     );
 }
+
+/// TypeScript and svelte-check count the columns of a file that starts with a byte order mark
+/// from after it. svelte-check 4.7.8 reports these lines.
+#[test]
+fn typecheck_counts_the_first_line_from_after_a_byte_order_mark() {
+    let two = |end: &str| {
+        format!("\u{feff}export const a: string = 1;{end}export const b: string = 2;{end}")
+    };
+    let report = check(&[
+        ("src/crLines.ts", &two("\r")),
+        ("src/lines.ts", &two("\n")),
+        ("src/runes.svelte.ts", &two("\u{2029}")),
+        (
+            "src/Script.svelte",
+            "\u{feff}<script lang=\"ts\">let a: string = 1;</script>{a}\n",
+        ),
+        (
+            "src/Unmarked.svelte",
+            "<script lang=\"ts\">let a: string = 1;</script>{a}\n",
+        ),
+    ]);
+    let number = "error TS2322: Type 'number' is not assignable to type 'string'.";
+    assert_eq!(
+        report,
+        format!(
+            "src/Script.svelte(1,23): {number}\n\
+             src/Unmarked.svelte(1,23): {number}\n\
+             src/crLines.ts(1,14): {number}\n\
+             src/crLines.ts(2,14): {number}\n\
+             src/lines.ts(1,14): {number}\n\
+             src/lines.ts(2,14): {number}\n\
+             src/runes.svelte.ts(1,14): {number}\n\
+             src/runes.svelte.ts(2,14): {number}\n\
+             \nFound 8 errors in 5 files.\n"
+        )
+        .native()
+    );
+}

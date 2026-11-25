@@ -11155,6 +11155,9 @@
 === 3 pattern/reactive-new-callee.svelte	json
 []
 
+=== 3 pattern/script-directive-escapes.svelte	json
+[]
+
 === 3 pattern/script-top-level-return-ts.svelte	json
 []
 

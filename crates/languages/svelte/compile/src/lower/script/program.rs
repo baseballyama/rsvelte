@@ -2,7 +2,8 @@
 
 use oxc_allocator::{CloneIn, GetAllocator};
 use oxc_ast::ast::{
-    BindingIdentifier, Declaration, Program, Statement, VariableDeclaration, VariableDeclarator,
+    BindingIdentifier, Declaration, Expression, Program, Statement, VariableDeclaration,
+    VariableDeclarator,
 };
 use oxc_ast_visit::VisitMut;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -68,10 +69,8 @@ pub(in crate::lower) fn lower_script<'t, 'o>(
     // Upstream's parser reads a prologue as statements, which it keeps where they are; each keeps
     // its string's span, by which `with_prologue` knows it for a directive.
     out.extend((program.directives.iter()).map(|d| {
-        let raw = rw.b.str(d.directive.as_str());
-        let string =
-            oxc_ast::ast::Expression::new_string_literal(d.expression.span, raw, None, rw.b);
-        Statement::new_expression_statement(oxc_span::SPAN, string, rw.b)
+        let string = oxc_allocator::Box::new_in(d.expression.clone_in(rw.b.allocator()), rw.b);
+        Statement::new_expression_statement(oxc_span::SPAN, Expression::StringLiteral(string), rw.b)
     }));
     for statement in &program.body {
         // Upstream erases the types before it analyzes the component.

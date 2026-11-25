@@ -166,7 +166,10 @@ impl<'h> Report<'h> {
         panic: Option<&str>,
         found: impl Iterator<Item = &'d Diagnostic>,
     ) {
-        let lines = LineIndex::with_breaks(text, reported_lines(path));
+        // TypeScript and svelte-check count positions after a byte order mark; a span counts it.
+        let after_mark = text.strip_prefix('\u{feff}').unwrap_or(text);
+        let mark = (text.len() - after_mark.len()) as u32;
+        let lines = LineIndex::with_breaks(after_mark, reported_lines(path));
         let path = self
             .here
             .map_or_else(|| path.to_owned(), |here| relative(path, here));
@@ -179,7 +182,7 @@ impl<'h> Report<'h> {
             self.errors += 1;
         }
         for d in found {
-            let at = lines.line_column(d.span.start_offset);
+            let at = lines.line_column(d.span.start_offset.saturating_sub(mark));
             writeln!(
                 self.out,
                 "{path}({},{}): {} {}: {}",

@@ -1,4 +1,4 @@
-# svelte.compileModule.comments/client: 2469 match
+# svelte.compileModule.comments/client: 2471 match
 svelte/bits-ui/packages/bits-ui/src/lib/bits/command/command.svelte.ts	mismatch
 svelte/bits-ui/packages/bits-ui/src/lib/bits/menu/menu.svelte.ts	unexpected
 svelte/kite-public/src/lib/hooks/usePageHelpers.svelte.ts	unexpected
@@ -189,6 +189,7 @@ svelte/rsvelte/pattern/adversarial/modules/module-default-class-tail.svelte.js	s
 svelte/rsvelte/pattern/issues/3069-export-default-class-semicolon.svelte.js	skipped
 svelte/rsvelte/pattern/issues/4060-logical-assign-private-state-jsdoc-members.svelte.js	mismatch
 svelte/rsvelte/pattern/issues/4079-annotated-private-read-comment-placement.svelte.js	mismatch
+svelte/rsvelte/pattern/module-legacy-octal-escape-in-a-script.svelte.ts	official-rejected
 svelte/rsvelte/pattern/module-top-level-return.svelte.ts	official-rejected
 svelte/rsvelte/pattern/return-jsdoc-cast.svelte.js	mismatch
 svelte/runed/packages/runed/src/lib/utilities/resource/resource.svelte.ts	unexpected

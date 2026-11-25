@@ -32,8 +32,6 @@ function $$render() {
         },
       });
       const { item, children } = __rsvelte_component_props(__rsvelte_component_0);
-      item;
-      children;
       List;
     }
     {
@@ -50,7 +48,6 @@ function $$render() {
         },
       });
       const { header } = __rsvelte_component_props(__rsvelte_component_0);
-      header;
       {
         svelteHTML.createElement("p", {});
       }

@@ -4,9 +4,7 @@
 use std::path::Path;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{
-    BigIntLiteral, Directive, ImportOrExportKind, NumericLiteral, Program, Statement,
-};
+use oxc_ast::ast::{BigIntLiteral, ImportOrExportKind, NumericLiteral, Program, Statement};
 use oxc_ast_visit::VisitMut;
 use oxc_semantic::SemanticBuilder;
 use oxc_span::{SPAN, SourceType};
@@ -115,7 +113,8 @@ fn typescript_emit<'o>(
     // export a module.
     let module = source.body.iter().any(Statement::is_module_declaration);
     if !module {
-        if !source.directives.iter().any(Directive::is_use_strict) {
+        // TypeScript reads a directive by its value, escapes and all.
+        if !(source.directives.iter()).any(|d| d.expression.value == "use strict") {
             out.body.insert(0, b.statement(b.string("use strict")));
         }
     } else if !out.body.iter().any(Statement::is_module_declaration) {
