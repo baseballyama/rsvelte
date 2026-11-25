@@ -4,7 +4,7 @@ import { writable } from 'svelte/store';;
 ;
 
 function $$render() {
-   let a = $state(writable(1));;let $a = __rsvelte_store_get(a);
+   let a = $state(writable(1));;let $a = __sveltets_2_store_get(a);
  function f() { a = writable(2); $a++; ++$a; $a -= 1; $a.x--; }
 ;
 
