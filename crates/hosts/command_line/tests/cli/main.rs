@@ -31,6 +31,7 @@ mod typecheck_linked_packages;
 mod typecheck_slot_attribute;
 mod typecheck_slot_props;
 mod typecheck_slots;
+mod typecheck_stores;
 mod typecheck_untyped;
 mod typecheck_untyped_packages;
 mod unit_names;

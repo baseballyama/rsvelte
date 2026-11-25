@@ -9,19 +9,16 @@ use rsvelte_kernel::diagnostics::{self, Diagnostic};
 use rsvelte_kernel::output::emitter::Emitter;
 use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineIndex, Span};
-use rsvelte_typescript_api::Position;
 
-use super::run::TypeScriptDiagnostic;
+use super::run::{TypeScriptDiagnostic, VIRTUAL_CODE};
 use super::{Prepared, Report};
 use crate::CheckedDocument;
 
 const NO_OVERLOAD_MATCHES_CALL: u32 = 2769;
 const ARGUMENT_NOT_ASSIGNABLE: u32 = 2345;
-const USED_BEFORE_ASSIGNED: u32 = 2454;
 const EXPECTED_ARGUMENTS: u32 = 2554;
 const NOT_ASSIGNABLE: u32 = 2322;
 const MULTIPLE_DEFAULT_EXPORTS: u32 = 2528;
-const REDECLARED_BLOCK_SCOPED: u32 = 2451;
 const CANNOT_FIND_MODULE: u32 = 2307;
 const NAMESPACE_HAS_NO_MEMBER: u32 = 2694;
 const MUST_RETURN_A_VALUE: u32 = 2355;
@@ -49,7 +46,22 @@ pub(super) fn write_findings(docs: &[Prepared], outs: Vec<&mut TaskOutput>, repo
     for mut f in found {
         let (source_text, d) = (&docs[f.file].source_text, &*docs[f.file].document);
         let Some(span) = f.span else {
-            if refuses_unmapped(d, &f, &mut generated_lines) {
+            let at = f.synthesized.and_then(|at| {
+                (generated_lines.entry(f.file))
+                    .or_insert_with(|| LineIndex::new(&d.projection.out))
+                    .offset(at.line + 1, at.character)
+            });
+            if let Some(generated) = at
+                && let Some((store, reads)) = failed_store(d, source_text, f.code, generated)
+            {
+                per_doc[f.file].extend(store_findings(
+                    &f,
+                    store,
+                    reads,
+                    generated,
+                    byte_order_mark(source_text),
+                ));
+            } else if refuses_unmapped(d, f.code, at) {
                 unmapped[f.file].push(format!("TS{}: {}", f.code, f.message));
             }
             continue;
@@ -82,37 +94,6 @@ pub(super) fn write_findings(docs: &[Prepared], outs: Vec<&mut TaskOutput>, repo
                 ))
             })
         };
-        // svelte-check's `mapAndFilterDiagnostics`: the call that reads `$store` fails at the
-        // store, a finding it hides and repeats at each read.
-        if let Some(span) = mapped
-            && (f.code == NO_OVERLOAD_MATCHES_CALL || f.code == ARGUMENT_NOT_ASSIGNABLE)
-            && let Some((_, reads)) = d.store_reads.iter().find(|(store, _)| *store == span)
-        {
-            let store = span.text(&source_text[bom as usize..]);
-            for &read in reads {
-                per_doc[f.file].push(Finding {
-                    semantic: true,
-                    // svelte-check lists the copies where the failing call is, in read order.
-                    generated,
-                    span: read,
-                    code: f.code,
-                    message: format!(
-                        "Cannot use '{store}' as a store. '{store}' needs to be an object with a \
-                         subscribe method on it.\n\n{}",
-                        f.message
-                    ),
-                });
-            }
-            continue;
-        }
-        // A declaration is never read before it is assigned: the read is svelte2tsx's, which
-        // svelte-check hides.
-        if let Some(span) = mapped
-            && f.code == USED_BEFORE_ASSIGNED
-            && d.store_reads.iter().any(|(store, _)| *store == span)
-        {
-            continue;
-        }
         if let Some(span) = mapped
             && d.hidden.iter().any(|hidden| hidden.hides(f.code, span))
         {
@@ -246,33 +227,64 @@ fn starts_ignored(d: &CheckedDocument, span: Span, bom: u32) -> bool {
     })
 }
 
-/// Whether a finding with no source range refuses its document, as a projection defect, where
-/// svelte-check would drop it.
-/// `lines` holds each document's generated lines, built for its first such finding.
-fn refuses_unmapped(
-    d: &CheckedDocument,
-    f: &TypeScriptDiagnostic,
-    lines: &mut HashMap<usize, LineIndex>,
-) -> bool {
-    let unmapped = |at: Position| {
-        d.projection.unmapped.is_some_and(|range| {
-            (lines.entry(f.file))
-                .or_insert_with(|| LineIndex::new(&d.projection.out))
-                .offset(at.line + 1, at.character)
-                .is_some_and(|at| (range.start_offset..range.end_offset).contains(&at))
-        })
-    };
-    if d.drops_unmapped || f.synthesized.is_some_and(unmapped) {
-        return false;
+/// The store whose `$store` declaration has a finding at its argument, at `generated`, and its
+/// reads: svelte-check's `isStoreVariableIn$storeDeclaration`.
+fn failed_store<'d>(
+    d: &'d CheckedDocument,
+    source_text: &'d str,
+    code: u32,
+    generated: u32,
+) -> Option<(&'d str, &'d [Span])> {
+    if code != NO_OVERLOAD_MATCHES_CALL && code != ARGUMENT_NOT_ASSIGNABLE {
+        return None;
     }
-    // The projection's own default export repeats a script's, and its subscription `$x` a `$x`
-    // the script declares. TypeScript reports both copies: the script's maps, and svelte-check
-    // drops the other, which does not.
-    let repeats = f.code == MULTIPLE_DEFAULT_EXPORTS
-        || f.code == REDECLARED_BLOCK_SCOPED
-            && f.message
-                .starts_with("Cannot redeclare block-scoped variable '$");
-    !repeats
+    let (before, at) = d.projection.out.split_at_checked(generated as usize)?;
+    if !before.ends_with("__sveltets_2_store_get(") {
+        return None;
+    }
+    let (name, _) = at.split_once(')')?;
+    (d.store_reads.iter())
+        .map(|(store, reads)| (store.text(source_text), &**reads))
+        .find(|&(store, _)| store == name)
+}
+
+/// The copies of the finding `f` at each read of `$store`, as svelte-check's
+/// `mapAndFilterDiagnostics` repeats a finding that it hides at the store.
+fn store_findings(
+    f: &TypeScriptDiagnostic,
+    store: &str,
+    reads: &[Span],
+    generated: u32,
+    bom: u32,
+) -> impl Iterator<Item = Finding> {
+    let lines: Vec<_> = (f.message.lines())
+        .filter(|line| !line.contains(VIRTUAL_CODE))
+        .collect();
+    let message = format!(
+        "Cannot use '{store}' as a store. '{store}' needs to be an object with a subscribe method \
+         on it.\n\n{}",
+        lines.join("\n")
+    );
+    reads.iter().map(move |read| Finding {
+        semantic: true,
+        // svelte-check lists the copies where the failing call is, in read order.
+        generated,
+        span: Span::new(read.start_offset - bom, read.end_offset - bom),
+        code: f.code,
+        message: message.clone(),
+    })
+}
+
+/// Whether a finding with no source range, at `generated`, refuses its document, as a projection
+/// defect, where svelte-check would drop it.
+fn refuses_unmapped(d: &CheckedDocument, code: u32, generated: Option<u32>) -> bool {
+    let dropped = |at: u32| {
+        (d.projection.ignored.iter().chain(&d.projection.unmapped))
+            .any(|range| (range.start_offset..range.end_offset).contains(&at))
+    };
+    // The projection's own default export repeats a script's. TypeScript reports both: the
+    // script's maps, and svelte-check drops the other, which does not.
+    !d.drops_unmapped && code != MULTIPLE_DEFAULT_EXPORTS && !generated.is_some_and(dropped)
 }
 
 /// The first generated offset copied from the original `offset`, or the end of the copy before
