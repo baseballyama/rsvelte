@@ -9,6 +9,7 @@ use super::word::Home;
 
 /// The first `await` a walk meets in a class static block, where acorn rejects it.
 pub(crate) struct StaticBlockAwaits {
+    /// The homes around the node entered last, from the outermost static block in.
     around: Vec<(oxc_span::Span, Home)>,
     pub(crate) first: Option<u32>,
 }
@@ -36,7 +37,10 @@ impl StaticBlockAwaits {
         while (self.around.last()).is_some_and(|(governs, _)| governs.end <= span.start) {
             self.around.pop();
         }
-        self.around.extend(governed(kind));
+        let outside = self.around.is_empty();
+        let governs =
+            governed(kind).filter(|(_, home)| !outside || matches!(home, Home::StaticBlock));
+        self.around.extend(governs);
         if !matches!(kind, AstKind::AwaitExpression(_)) {
             return None;
         }
