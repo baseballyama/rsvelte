@@ -19,17 +19,19 @@ function $$render() {
       const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
         "a": n,
       });
-      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("click", f);
-      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("click", () => n++);
-      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("hover", h);
-      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("make", make());
-      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("bubble", () => {});
-      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("x-y", f);
+      const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
+      $$_C0.$on("click", f);
+      $$_C0.$on("click", () => n++);
+      $$_C0.$on("hover", h);
+      $$_C0.$on("make", make());
+      $$_C0.$on("bubble", () => {});
+      $$_C0.$on("x-y", f);
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
       const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {});
-      __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0).$on("click", f);
+      const $$_tnenopmoc_etlevs0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
+      $$_tnenopmoc_etlevs0.$on("click", f);
     }
   };
   return (/** @type {typeof __rsvelte_export_isomorphic<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_isomorphic))()(__rsvelte_any_event({

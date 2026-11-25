@@ -86,10 +86,11 @@ fn typecheck_places_findings_on_lines_of_every_terminator() {
     );
 }
 
-/// svelte-check 4.7.8 drops the first and places the second at 3:1, see `DIVERGENCES.md` in the
-/// check crate.
+/// svelte-check 4.7.8 drops the template's finding and places the script's on other lines, see
+/// `DIVERGENCES.md` in the check crate.
 #[test]
 fn typecheck_reports_a_component_s_findings_after_a_lone_carriage_return() {
+    let number = "error TS2322: Type 'number' is not assignable to type 'string'.";
     let report = check(&[
         ("src/Leaf.svelte", LEAF),
         (
@@ -100,13 +101,28 @@ fn typecheck_reports_a_component_s_findings_after_a_lone_carriage_return() {
             "src/Script.svelte",
             "<script lang=\"ts\">\n\t/* c\rd */ let b: string = 2;\n</script>\n{b}\n",
         ),
+        (
+            "src/Two.svelte",
+            "<script lang=\"ts\">\n\t/* a\rb */ const a: string = 1;\n\tconst b: string = 2;\n\
+             </script>\n{a}{b}\n",
+        ),
+        (
+            "src/Literal.svelte",
+            "<script lang=\"ts\">\n\tconst s = `a\rb`; const a: string = 1;\n\
+             \tconst b: string = 2;\n</script>\n{s}{a}{b}\n",
+        ),
     ]);
     assert_eq!(
         report,
-        "src/Script.svelte(2,16): error TS2322: Type 'number' is not assignable to type \
-         'string'.\n\
-         src/Template.svelte(5,9): error TS2304: Cannot find name 'nope'.\n\
-         \nFound 2 errors in 2 files.\n"
-            .native()
+        format!(
+            "src/Literal.svelte(2,25): {number}\n\
+             src/Literal.svelte(3,8): {number}\n\
+             src/Script.svelte(2,16): {number}\n\
+             src/Template.svelte(5,9): error TS2304: Cannot find name 'nope'.\n\
+             src/Two.svelte(2,18): {number}\n\
+             src/Two.svelte(3,8): {number}\n\
+             \nFound 6 errors in 4 files.\n"
+        )
+        .native()
     );
 }

@@ -5,6 +5,7 @@ use rsvelte_svelte_syntax::syntax_tree::{
     AttributeKind, AttributeValue, Part, Range, TemplateNode,
 };
 
+use super::directive::Directives;
 use super::{Builder, Node, NodeIdentifier, Result, refuse};
 
 impl Builder<'_> {
@@ -118,6 +119,13 @@ impl Builder<'_> {
             parts,
             template: false,
         })
+    }
+
+    /// Whether svelte2tsx names a component's instance, which its events and `let:` read.
+    pub(super) fn reads_instance(&self, directives: &Directives, children: Range) -> bool {
+        !directives.events.is_empty()
+            || !directives.lets.is_empty()
+            || self.fills_slot_with_lets(children)
     }
 
     /// Whether a child fills a slot with `let:`, which reads the component's slots: an element

@@ -8,11 +8,14 @@ use super::attributes::{Host, Kind};
 use super::{Builder, Node, NodeIdentifier, Result, SourceExpression, refuse};
 use crate::syntax_tree::Spelling;
 
-/// A named component and the name of the call that constructs its instance.
+/// A named component, the name of the call that constructs its instance, and what svelte2tsx
+/// names the instance by: the tag and how many elements enclose it.
 #[derive(Clone, Copy)]
 pub(super) struct Constructed {
     pub(super) component: NodeIdentifier,
     pub(super) call: NodeIdentifier,
+    pub(super) tag: Span,
+    pub(super) depth: u32,
 }
 
 /// What an element's directives add around its `createElement` call.
@@ -129,14 +132,20 @@ impl Builder<'_> {
         }))
     }
 
-    /// svelte2tsx's `const { … } = component.$$slot_def.default;` for a component's `let:`.
-    pub(super) fn component_lets(&mut self, component: Constructed, lets: &[NodeIdentifier]) {
+    /// svelte2tsx's `const { … } = component.$$slot_def.default;` for a component's `let:`, whose
+    /// read of the slot svelte-check reports at `read`.
+    pub(super) fn component_lets(
+        &mut self,
+        component: Constructed,
+        lets: &[NodeIdentifier],
+        read: Option<u32>,
+    ) {
         if lets.is_empty() {
             return;
         }
         let properties = self.tree.list(lets);
         let name = self.tree.push(Node::Object { properties });
-        let object = self.instance(component);
+        let object = self.instance(component, read);
         let property = self.tree.push(Node::Identifier("$$slot_def"));
         let object = self.tree.push(Node::Member { object, property });
         let property = self.tree.push(Node::Identifier("default"));
@@ -145,10 +154,12 @@ impl Builder<'_> {
             .push(self.tree.push(Node::Const { name, value }));
     }
 
-    /// Builds the declaration of the filled slot's `let:` bindings, from the parent component.
+    /// Builds the declaration of the filled slot's `let:` bindings, from the parent component,
+    /// whose read of the slot svelte-check reports at `read`.
     pub(super) fn slot_let(
         &mut self,
         attributes: Range,
+        read: Option<u32>,
         directives: &mut Directives,
     ) -> Result<()> {
         if directives.slot_lets.is_empty() {
@@ -174,7 +185,7 @@ impl Builder<'_> {
         };
         let properties = self.tree.list(&directives.slot_lets);
         let pattern = self.tree.push(Node::Object { properties });
-        let object = self.instance(parent);
+        let object = self.instance(parent, read);
         let property = self.tree.push(Node::Identifier("$$slot_def"));
         let object = self.tree.push(Node::Member { object, property });
         let value = if let Some(name) = name {
@@ -196,17 +207,30 @@ impl Builder<'_> {
         Ok(())
     }
 
-    /// `__rsvelte_constructed(component, call)`: the instance svelte2tsx constructs.
-    fn instance(&mut self, constructed: Constructed) -> NodeIdentifier {
+    /// svelte2tsx's `const $$_name = …` of the instance it constructs, as
+    /// `__rsvelte_constructed(component, call)`.
+    pub(super) fn declare_instance(&mut self, constructed: Constructed) {
+        let name = self.instance(constructed, None);
         let callee = self.tree.push(Node::Identifier("__rsvelte_constructed"));
         let arguments = self.tree.list(&[constructed.component, constructed.call]);
-        self.tree.push(Node::Call { callee, arguments })
+        let value = self.tree.push(Node::Call { callee, arguments });
+        self.scratch
+            .push(self.tree.push(Node::Const { name, value }));
+    }
+
+    /// The name of the instance, which a finding on it falls on at `at`.
+    fn instance(&mut self, constructed: Constructed, at: Option<u32>) -> NodeIdentifier {
+        self.tree.push(Node::Instance {
+            tag: constructed.tag,
+            depth: constructed.depth,
+            at,
+        })
     }
 
     /// `instance.$on(name, handler);` for each event.
     pub(super) fn component_events(&mut self, component: Constructed, events: &[Range]) {
         for &arguments in events {
-            let object = self.instance(component);
+            let object = self.instance(component, None);
             let property = self.tree.push(Node::Identifier("$on"));
             let callee = self.tree.push(Node::Member { object, property });
             let call = self.tree.push(Node::Call { callee, arguments });

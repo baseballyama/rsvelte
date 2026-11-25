@@ -34,7 +34,7 @@ impl Builder<'_> {
     ) -> Result<NodeIdentifier> {
         let tag = name.text(self.source);
         // svelte2tsx passes `this` of these outside the props.
-        let dynamic = matches!(tag, "svelte:component" | "svelte:element");
+        let dynamic = is_dynamic(tag);
         let component = match component {
             None if tag == "svelte:component" => Some(self.dynamic_component(name, attributes)?),
             component => component,
@@ -71,7 +71,8 @@ impl Builder<'_> {
             closes_at: (!self_closing).then_some(start_tag.end_offset - 1),
         };
         let bindings = self.element_attributes(&host, attributes, &mut directives)?;
-        self.slot_let(attributes, &mut directives)?;
+        let read = self.last_let_read(name, start_tag, attributes);
+        self.slot_let(attributes, read, &mut directives)?;
         // `<svelte:boundary>`'s snippets are its props, as a component's are.
         let snippet_props = is_component || tag == "svelte:boundary";
         let snippets = self.snippet_props(children, snippet_props)?;
@@ -79,9 +80,7 @@ impl Builder<'_> {
         let properties = self.tree.push(Node::Object { properties });
         // Only a call whose instance is read constructs it: the instance's constructor drops the
         // type arguments an instantiation expression gives the component's call.
-        let reads_by_name = !directives.events.is_empty()
-            || !directives.lets.is_empty()
-            || self.fills_slot_with_lets(children);
+        let reads_by_name = is_component && self.reads_instance(&directives, children);
         let constructs = reads_by_name
             || bindings
                 .iter()
@@ -121,8 +120,9 @@ impl Builder<'_> {
                 None,
             )
         };
-        let (lets, instance) =
-            self.after_call(call, named, constructs, bindings, snippets, &directives);
+        let named = named.map(|component| (component, name, reads_by_name));
+        let after = (bindings, snippets, read);
+        let (lets, instance) = self.after_call(call, named, after, &directives);
         let slot_let = directives.slot_let.take();
         self.directives = directives;
         self.class_expressions(attributes);
@@ -130,7 +130,10 @@ impl Builder<'_> {
         let component_parent = std::mem::replace(&mut self.component_parent, is_component);
         // svelte2tsx types `<svelte:component>` and `<svelte:self>` as any component.
         let lets_of = is_component.then_some((component.filter(|_| !dynamic), attributes));
-        self.element_children(children, snippet_props, lets, lets_of)?;
+        self.element_depth += 1;
+        let lowered = self.element_children(children, snippet_props, lets, lets_of);
+        self.element_depth -= 1;
+        lowered?;
         self.slot_parent = parent;
         self.component_parent = component_parent;
         Ok(self.close_element(start, end_name, slot_let))
@@ -166,29 +169,33 @@ impl Builder<'_> {
 
     /// The call with what svelte2tsx writes around it: actions before, then bindings, directive
     /// checks, a component's events, the names of its snippet props and its `let:` bindings.
-    /// `constructs`: the call constructs the instance that its events and `let:` read.
+    /// `named` is the named component, its tag, and whether its instance is read by name.
     fn after_call(
         &mut self,
         call: NodeIdentifier,
-        named: Option<NodeIdentifier>,
-        constructs: bool,
-        bindings: Vec<binding::Binding>,
-        snippets: Range,
+        named: Option<(NodeIdentifier, Span, bool)>,
+        (bindings, snippets, read): (Vec<binding::Binding>, Range, Option<u32>),
         directives: &directive::Directives,
     ) -> (Option<usize>, Option<directive::Constructed>) {
         self.scratch.extend_from_slice(&directives.actions);
         let call = self.bound_call(call, bindings, named.is_some());
-        if let Some(component) = named {
+        if let Some((component, ..)) = named {
             self.bindable_checks(component, &directives.bindable);
         }
         self.scratch.extend_from_slice(&directives.checks);
-        let Some(component) = named else {
+        let Some((component, tag, reads_by_name)) = named else {
             return (None, None);
         };
         let instance = call
-            .filter(|_| constructs)
-            .map(|call| directive::Constructed { component, call });
+            .filter(|_| reads_by_name)
+            .map(|call| directive::Constructed {
+                component,
+                call,
+                tag,
+                depth: self.element_depth,
+            });
         if let Some(instance) = instance {
+            self.declare_instance(instance);
             self.component_events(instance, &directives.events);
         }
         if snippets.len != 0 {
@@ -200,7 +207,7 @@ impl Builder<'_> {
         }
         let lets = self.scratch.len();
         if let Some(instance) = instance {
-            self.component_lets(instance, &directives.lets);
+            self.component_lets(instance, &directives.lets, read);
         }
         ((self.scratch.len() > lets).then_some(lets), instance)
     }
@@ -243,4 +250,9 @@ impl Builder<'_> {
         }
         Ok(())
     }
+}
+
+/// Whether the tag names its element or component with `this`.
+pub(super) fn is_dynamic(tag: &str) -> bool {
+    matches!(tag, "svelte:component" | "svelte:element")
 }
