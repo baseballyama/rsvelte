@@ -8,6 +8,7 @@ mod invalid_character;
 mod javascript_tokens;
 mod lexical_boundaries;
 mod nesting;
+mod number;
 mod parse_growth;
 mod scripts_read_as_typescript;
 mod static_block_await;
