@@ -4,7 +4,7 @@
 use std::path::Path;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{Program, Statement};
+use oxc_ast::ast::{Directive, Program, Statement};
 use oxc_semantic::SemanticBuilder;
 use oxc_span::{SPAN, SourceType};
 use oxc_transformer::{TransformOptions, Transformer};
@@ -105,7 +105,9 @@ fn typescript_emit<'o>(
             span,
         ));
     }
-    if !source.body.iter().any(Statement::is_module_declaration) {
+    if !source.body.iter().any(Statement::is_module_declaration)
+        && !source.directives.iter().any(Directive::is_use_strict)
+    {
         out.body.insert(0, b.statement(b.string("use strict")));
     }
     Ok(())
