@@ -244,7 +244,8 @@ impl Builder<'_> {
 
     /// Where svelte-check reports a finding on what the last `let:` of a start tag destructures:
     /// at the last character svelte2tsx copies of it. After a comment that ends the tag
-    /// svelte-check drops the finding, as the line svelte2tsx writes has no mapping.
+    /// rsvelte differs: svelte-check drops the finding, as the line svelte2tsx writes has no
+    /// mapping.
     pub(super) fn last_let_read(&self, name: Span, tag: Span, attributes: Range) -> Option<u32> {
         let attribute = (self.component.attributes(attributes).iter())
             .rfind(|attribute| attribute.kind == AttributeKind::Let)?;

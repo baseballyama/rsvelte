@@ -44,3 +44,22 @@ difference and not the projection:
 - Test: `typecheck_prints_what_typescript_7_prints` in the command line crate's
   `tests/cli/typecheck_checker.rs`.
 - The report is [#5254](https://github.com/baseballyama/rsvelte/issues/5254).
+
+## A `let:` before a comment that ends the start tag
+
+svelte-check 4.7.8 reports no TS18046 for a `let:` of a component without slots when a comment
+follows the last `let:` at the end of the start tag:
+
+```svelte
+<Leaf label="x" let:x /* t */>{x}</Leaf>
+```
+
+svelte2tsx 0.7.63 copies the comment with the `let:` and writes a line break after it. The read of
+`$$slot_def` then starts a line whose first mapping comes after the read, so svelte-check finds no
+source position and drops the finding. Without the comment svelte-check reports it.
+
+rsvelte reports it at the last character svelte2tsx copies of the `let:` itself (`last_let_read` in
+the projection crate's `lower/start_tag.rs`).
+
+- Test: `typecheck_reports_a_let_before_a_comment_that_ends_the_tag` in the command line crate's
+  `tests/cli/typecheck_slots.rs`.
