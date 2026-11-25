@@ -1,5 +1,15 @@
 # @rsvelte/cli
 
+## 0.7.2
+
+### Patch Changes
+
+- 04a61db: `compile` reads a component's class without its abstract methods, as svelte does.
+- 8316c62: `typecheck` no longer reports TS7016 when `allowJs` is on for a component without `<script>` that a linked package's own files import by a relative path. TypeScript loads such a component, as svelte-check does, even though the search of `node_modules` found the package.
+- f146718: On Windows, `rsvelte typecheck` hands the type checker every filename in TypeScript's form, with forward slashes.
+- fa96fcf: `rsvelte typecheck` reports a finding in a slot prop once, at the `<slot>`, as svelte-check does, instead of refusing the component over the copy in the render function's return.
+- 3660690: `typecheck` now types the `args` of a `@storybook/addon-svelte-csf` story's `template` snippet by the props of the story's component, as svelte-check does. In 0.7.0 they were `{ [x: string]: any }`, so `typecheck` reported a required prop as missing where a component took them as a spread.
+
 ## 0.7.1
 
 ### Patch Changes

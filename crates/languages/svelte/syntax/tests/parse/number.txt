@@ -164,3 +164,5 @@
 <script lang='ts'>let a: 08x = 1;</script> => Invalid number @ 25
 {@const x = 1e} => Invalid number @ 12
 <p a="{1_} b"> => Numeric separator is not allowed at the last of digits @ 8
+<script>let a = 1e+1_;</script> => Numeric separator is not allowed at the last of digits @ 20
+<script>let a = 1e+_1;</script> => Numeric separator is not allowed at the first of digits @ 19

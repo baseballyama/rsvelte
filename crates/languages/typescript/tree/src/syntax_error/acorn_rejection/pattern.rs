@@ -4,9 +4,11 @@
 use oxc_ast::ast::{
     ArrayExpressionElement, ChainElement, ClassElement, Expression, ObjectPropertyKind, Statement,
 };
+use oxc_ast_visit::Visit;
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::{GetSpan, SourceType};
 
+use super::super::StaticBlockAwaits;
 use super::super::word::Home;
 
 /// Where acorn's check of a destructuring pattern around the target `start..end` fails, in `text`
@@ -35,6 +37,23 @@ pub(super) fn parenthesized_element(
         })
         .flatten()
     })
+}
+
+/// Where acorn rejects an `await` it reads in the target `start..end`, or in the outermost pattern
+/// around it that is assigned, before it checks either: in a class static block.
+pub(super) fn rejected_await(
+    text: &str,
+    target: (u32, u32),
+    tokens: &[Token],
+    home: Home,
+) -> Option<u32> {
+    let read = assigned_patterns(target.0, tokens).next().unwrap_or(target);
+    reparsed(text, read, home, |read| {
+        let mut awaits = StaticBlockAwaits::within(read.expression.span(), home);
+        awaits.visit_expression(read.expression);
+        awaits.first.map(|at| read.at(at))
+    })
+    .flatten()
 }
 
 /// An expression read again apart from the rest of the source, in a source of its own.

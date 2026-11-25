@@ -11,6 +11,7 @@ mod nesting;
 mod number;
 mod parse_growth;
 mod scripts_read_as_typescript;
+mod static_block_await;
 mod style_sheet_errors;
 mod text_delimiters;
 mod token_after_part;
