@@ -3,7 +3,7 @@
 use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{BigIntLiteral, Expression, NumericLiteral, StaticMemberExpression};
+use oxc_ast::ast::{BigIntLiteral, Expression, NumericLiteral, Program, StaticMemberExpression};
 use oxc_ast_visit::{VisitMut, walk_mut};
 
 /// TypeScript's `canUseOriginalText` (6.0.3 at 050880ce59, `src/compiler/utilities.ts:2036`).
@@ -14,6 +14,7 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 /// emit writes after it, as `with_dot` says.
 pub struct OriginalText<'o> {
     allocator: &'o Allocator,
+    source_text: &'o str,
 }
 
 impl std::fmt::Debug for OriginalText<'_> {
@@ -25,11 +26,19 @@ impl std::fmt::Debug for OriginalText<'_> {
 impl<'o> OriginalText<'o> {
     #[must_use]
     pub const fn new(allocator: &'o Allocator) -> Self {
-        Self { allocator }
+        Self {
+            allocator,
+            source_text: "",
+        }
     }
 }
 
 impl<'o> VisitMut<'o> for OriginalText<'o> {
+    fn visit_program(&mut self, it: &mut Program<'o>) {
+        self.source_text = it.source_text;
+        walk_mut::walk_program(self, it);
+    }
+
     fn visit_numeric_literal(&mut self, it: &mut NumericLiteral<'o>) {
         // The scanner's text for an invalid number is `"" + value`, which the printer gives one
         // without a raw.
@@ -42,6 +51,7 @@ impl<'o> VisitMut<'o> for OriginalText<'o> {
         walk_mut::walk_static_member_expression(self, it);
         if !it.optional
             && let Expression::NumericLiteral(number) = &mut it.object
+            && self.dot_follows(number.span.end, it.property.span.start)
             && let Some(text) = with_dot(number)
         {
             number.raw = Some(self.allocator.alloc_str(&text).into());
@@ -80,6 +90,28 @@ fn scanned_hexadecimal(raw: &str) -> Option<Cow<'_, str>> {
             .map(|c| c.to_ascii_lowercase()),
     );
     Some(Cow::Owned(text))
+}
+
+impl OriginalText<'_> {
+    /// The rest of TypeScript's `shouldEmitDotDot` (6.0.3 at 050880ce59,
+    /// `src/compiler/emitter.ts:2647`), read from the source between a number's end and its
+    /// property, `start..end`: the emit writes no second dot after a number in parentheses, which
+    /// `mayNeedDotDotForPropertyAccess` does not see as a number, nor after a comment or a line
+    /// break it writes before the dot (`hasTrailingComment`, `hasTrailingWhitespace`). The tree
+    /// keeps none of the three, so only spaces may come before the dot.
+    fn dot_follows(&self, start: u32, end: u32) -> bool {
+        // A range outside the source is a node a transform built, which no comment, line break or
+        // parenthesis precedes.
+        let Some(between) = self.source_text.get(start as usize..end as usize) else {
+            return true;
+        };
+        let before_dot = between
+            .split_once('.')
+            .map_or(between, |(before, _)| before);
+        before_dot
+            .chars()
+            .all(|c| c.is_whitespace() && !matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
+    }
 }
 
 /// TypeScript's `mayNeedDotDotForPropertyAccess` (6.0.3 at 050880ce59,
