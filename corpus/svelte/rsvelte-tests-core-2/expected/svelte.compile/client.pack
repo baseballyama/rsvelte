@@ -41377,6 +41377,22 @@ $.delegate(['click']);
 	}
 }
 
+=== 221 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/55233fd392c207df.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token -->\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	}
+}
+
 === 263 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/5fe5d773ee7f35e7.svelte	error.json
 {
 	"code": "expected_block_type",
@@ -58262,6 +58278,324 @@ export default function Fbd8eb4e632ed166($$anchor, $$props) {
 	}
 ]
 
+=== 504 props_bigint_key_3363/a_bigint_key_is_accepted/020b288a227d609f.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button> </button>`);
+
+export default function _20b288a227d609f($$anchor, $$props) {
+	let a = $.prop($$props, 7n, 7);
+
+	function go() {
+		a(1);
+	}
+
+	var button = root();
+	var text = $.only_child(button, true);
+
+	$.template_effect(() => $.set_text(text, a()));
+	$.delegated('click', button, go);
+	$.append($$anchor, button);
+}
+
+$.delegate(['click']);
+=== 504 props_bigint_key_3363/a_bigint_key_is_accepted/3878e417553838ff.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button> </button>`);
+
+export default function _878e417553838ff($$anchor, $$props) {
+	let a = $.prop($$props, 0n, 7);
+
+	function go() {
+		a(1);
+	}
+
+	var button = root();
+	var text = $.only_child(button, true);
+
+	$.template_effect(() => $.set_text(text, a()));
+	$.delegated('click', button, go);
+	$.append($$anchor, button);
+}
+
+$.delegate(['click']);
+=== 462 props_bigint_key_3363/a_bigint_key_is_accepted/40a18664f4a013d6.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 16n]);
+
+export default function _0a18664f4a013d6($$anchor, $$props) {
+	let rest = $.rest_props($$props, rest_excludes);
+
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, `${$$props['16'] ?? ''}${rest ?? ''}`));
+	$.append($$anchor, text);
+}
+=== 507 props_bigint_key_3363/a_bigint_key_is_accepted/492c297b9dffb264.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button> </button>`);
+
+export default function _92c297b9dffb264($$anchor, $$props) {
+	let a = $.prop($$props, 1000n, 7);
+
+	function go() {
+		a(1);
+	}
+
+	var button = root();
+	var text = $.only_child(button, true);
+
+	$.template_effect(() => $.set_text(text, a()));
+	$.delegated('click', button, go);
+	$.append($$anchor, button);
+}
+
+$.delegate(['click']);
+=== 314 props_bigint_key_3363/a_bigint_key_is_accepted/5ac078c3889eb1e3.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function _ac078c3889eb1e3($$anchor, $$props) {
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, $$props['7']));
+	$.append($$anchor, text);
+}
+=== 460 props_bigint_key_3363/a_bigint_key_is_accepted/65f20bb0ed350420.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 2n]);
+
+export default function _5f20bb0ed350420($$anchor, $$props) {
+	let rest = $.rest_props($$props, rest_excludes);
+
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, `${$$props['2'] ?? ''}${rest ?? ''}`));
+	$.append($$anchor, text);
+}
+=== 317 props_bigint_key_3363/a_bigint_key_is_accepted/75e852fd5e8e2eaa.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function _5e852fd5e8e2eaa($$anchor, $$props) {
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, $$props['1000']));
+	$.append($$anchor, text);
+}
+=== 490 props_bigint_key_3363/a_bigint_key_is_accepted/774dd1f9051392b2.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 9007199254740993n]);
+
+export default function _74dd1f9051392b2($$anchor, $$props) {
+	let rest = $.rest_props($$props, rest_excludes);
+
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, `${$$props['9007199254740993'] ?? ''}${rest ?? ''}`));
+	$.append($$anchor, text);
+}
+=== 314 props_bigint_key_3363/a_bigint_key_is_accepted/8137b4bead4b8592.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function _137b4bead4b8592($$anchor, $$props) {
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, $$props['0']));
+	$.append($$anchor, text);
+}
+=== 504 props_bigint_key_3363/a_bigint_key_is_accepted/83a1774e58f11718.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button> </button>`);
+
+export default function _3a1774e58f11718($$anchor, $$props) {
+	let a = $.prop($$props, 2n, 7);
+
+	function go() {
+		a(1);
+	}
+
+	var button = root();
+	var text = $.only_child(button, true);
+
+	$.template_effect(() => $.set_text(text, a()));
+	$.delegated('click', button, go);
+	$.append($$anchor, button);
+}
+
+$.delegate(['click']);
+=== 519 props_bigint_key_3363/a_bigint_key_is_accepted/867ab3bb973e3de9.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button> </button>`);
+
+export default function _67ab3bb973e3de9($$anchor, $$props) {
+	let a = $.prop($$props, 9007199254740993n, 7);
+
+	function go() {
+		a(1);
+	}
+
+	var button = root();
+	var text = $.only_child(button, true);
+
+	$.template_effect(() => $.set_text(text, a()));
+	$.delegated('click', button, go);
+	$.append($$anchor, button);
+}
+
+$.delegate(['click']);
+=== 329 props_bigint_key_3363/a_bigint_key_is_accepted/a0fc2e5a0877c646.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function A0fc2e5a0877c646($$anchor, $$props) {
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, $$props['9007199254740993']));
+	$.append($$anchor, text);
+}
+=== 314 props_bigint_key_3363/a_bigint_key_is_accepted/a6095544abbbf447.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function A6095544abbbf447($$anchor, $$props) {
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, $$props['2']));
+	$.append($$anchor, text);
+}
+=== 460 props_bigint_key_3363/a_bigint_key_is_accepted/bef4129c10420c3f.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 7n]);
+
+export default function Bef4129c10420c3f($$anchor, $$props) {
+	let rest = $.rest_props($$props, rest_excludes);
+
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, `${$$props['7'] ?? ''}${rest ?? ''}`));
+	$.append($$anchor, text);
+}
+=== 505 props_bigint_key_3363/a_bigint_key_is_accepted/cbecb0fa72032a54.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button> </button>`);
+
+export default function Cbecb0fa72032a54($$anchor, $$props) {
+	let a = $.prop($$props, 16n, 7);
+
+	function go() {
+		a(1);
+	}
+
+	var button = root();
+	var text = $.only_child(button, true);
+
+	$.template_effect(() => $.set_text(text, a()));
+	$.delegated('click', button, go);
+	$.append($$anchor, button);
+}
+
+$.delegate(['click']);
+=== 466 props_bigint_key_3363/a_bigint_key_is_accepted/e715c301f7c8ea7d.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 1000n]);
+
+export default function E715c301f7c8ea7d($$anchor, $$props) {
+	let rest = $.rest_props($$props, rest_excludes);
+
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, `${$$props['1000'] ?? ''}${rest ?? ''}`));
+	$.append($$anchor, text);
+}
+=== 460 props_bigint_key_3363/a_bigint_key_is_accepted/fa0cd1f02975e700.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy', 0n]);
+
+export default function Fa0cd1f02975e700($$anchor, $$props) {
+	let rest = $.rest_props($$props, rest_excludes);
+
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, `${$$props['0'] ?? ''}${rest ?? ''}`));
+	$.append($$anchor, text);
+}
+=== 315 props_bigint_key_3363/a_bigint_key_is_accepted/fafe8e26dd0c636b.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Fafe8e26dd0c636b($$anchor, $$props) {
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, $$props['16']));
+	$.append($$anchor, text);
+}
 === 311 props_bigint_key_3363/a_string_key_and_an_identifier_key_are_unaffected/174e1a0283f1b28b.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';

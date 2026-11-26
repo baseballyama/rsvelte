@@ -98,6 +98,7 @@ svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_names
 svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/93c39a14458729d1.svelte.js	js-equivalent
 svelte/rsvelte-tests-core-3/ts_namespace_3244/compile_module_rejects_every_namespace_shape_as_a_js_parse_error/e2a752406ba26629.svelte.js	js-equivalent
 svelte/rsvelte-tests-core-3/with_statement_strict_mode/with_statement_in_svelte_js_module_is_rejected/bceff6930784d387.svelte.js	js-equivalent
+svelte/rsvelte/pattern/adversarial/typescript/ts-enum-namespace-module.svelte.ts	mismatch
 svelte/rsvelte/pattern/module-legacy-octal-escape-in-a-script.svelte.ts	js-equivalent
 svelte/rsvelte/pattern/module-top-level-return.svelte.ts	js-equivalent
 svelte/svelte/packages/svelte/tests/compiler-errors/samples/export-default-derived-state-indirect/main.svelte.js	unexpected
