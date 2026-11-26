@@ -8322,6 +8322,12 @@
 === 3 pattern/issues/3187-dollar-prefixed-still-rejected.svelte	json
 []
 
+=== 3 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	json
+[]
+
+=== 3 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	json
+[]
+
 === 3 pattern/issues/3188-boundary-snippet-params.svelte	json
 []
 

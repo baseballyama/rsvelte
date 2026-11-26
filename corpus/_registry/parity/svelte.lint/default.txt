@@ -1,4 +1,4 @@
-# svelte.lint/default: 37026 match
+# svelte.lint/default: 37047 match
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/await_in_a_parameter_default_is_rejected_in_every_function_form/0c704bb7f1602a97.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/await_in_a_parameter_default_is_rejected_in_every_function_form/1b66601a2e945c58.svelte	js-equivalent

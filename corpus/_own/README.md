@@ -28,8 +28,10 @@ enough for svelte-check.
 `held/` keeps inputs that no source reads yet, by why: rsvelte panics on them (`panic/`), prints
 a projection that is not TypeScript (`invalid-projection/`) or overflows its stack
 (`stack-overflow/`), or the official svelte-check overflows its stack (`official-stack-overflow/`).
-Each of the first three stops the corpus test or the performance ratchet for everyone, so the
-input waits here. When its fix lands, move it back to the source its directory names.
+The corpus test records a panic as `panicked`, but the performance ratchet stops at one, and a
+stack overflow ends either run. So the input waits here, and `held.rs` in the command line's
+tests fails once one in `panic/` no longer panics. Then move it back to the source its directory
+names.
 
 In `check/`, only components and rune modules are units; the corpus does not read the
 `tsconfig.json`, `svelte.config.js` and `.ts` files beside them.

@@ -36941,6 +36941,41 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 
 <b>{g()}{o}</b>
 
+=== 237 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	svelte
+<script>
+  export let o = 1;
+  const pr = Promise.resolve(2);
+</script>
+
+{#each [1, 2] as $i, $n}{$i}{$n}{/each}
+
+{#snippet $s($p)}{@const $c = $p}<b>{$c}</b>{/snippet}
+{@render $s(o)}
+
+{#await pr then $v}{$v}{:catch $err}{$err}{/await}
+
+=== 407 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	svelte
+<script>
+  let o = $state(1);
+  const pr = Promise.resolve(2);
+</script>
+
+{#each [1, 2] as $i, $n}{$i}{$n}{/each}
+{#each [{ a: 1 }] as { a: $a }}{$a}{/each}
+
+{#snippet $s($p)}{@const $c = $p}<b>{$c}</b>{/snippet}
+{@render $s(o)}
+
+<div>
+  {#each [3] as $d}{@const $e = $d}{$e}{/each}
+</div>
+
+{#if o}{@const $f = o}{$f}{/if}
+
+{#await pr then $v}{$v}{:catch $err}{$err}{/await}
+
+{[1].map(($m) => $m).join("")}
+
 === 368 pattern/issues/3188-boundary-snippet-params.svelte	svelte
 <script>
   let o = $state(1);

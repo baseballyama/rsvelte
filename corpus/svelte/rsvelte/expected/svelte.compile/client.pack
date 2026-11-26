@@ -84711,6 +84711,130 @@ export default function _186_props_id_exported($$anchor, $$props) {
 	}
 }
 
+=== 284 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 18,
+		"character": 27
+	}
+}
+
+=== 2284 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	js
+import 'svelte/internal/init-operations';
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+const $s = ($$anchor, $p = $.noop) => {
+	const $c = $.derived($p);
+	var b = root();
+	var text = $.only_child(b, true);
+
+	$.template_effect(() => $.set_text(text, $.get($c)));
+	$.append($$anchor, b);
+};
+
+var root = $.from_html(`<b> </b>`);
+var root_1 = $.from_html(`<!> <!> <!> <div></div> <!> <!> `, 1);
+
+export default function _187_dollar_prefixed_template_bindings($$anchor, $$props) {
+	$.push($$props, true);
+
+	let o = 1;
+	const pr = Promise.resolve(2);
+	var fragment = root_1();
+	var node = $.first_child(fragment);
+
+	$.each(node, 16, () => [1, 2], $.index, ($$anchor, $i, $n) => {
+		$.next();
+
+		var text_1 = $.text();
+
+		$.template_effect(() => $.set_text(text_1, `${$i ?? ''}${$n}`));
+		$.append($$anchor, text_1);
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	$.each(node_1, 16, () => [{ a: 1 }], $.index, ($$anchor, $$item) => {
+		let $a = () => $$item.a;
+
+		$.next();
+
+		var text_2 = $.text();
+
+		$.template_effect(() => $.set_text(text_2, $a()));
+		$.append($$anchor, text_2);
+	});
+
+	var node_2 = $.sibling(node_1, 2);
+
+	$s(node_2, () => o);
+
+	var div = $.sibling(node_2, 2);
+
+	$.each(div, 20, () => [3], $.index, ($$anchor, $d) => {
+		const $e = $.derived(() => $d);
+
+		$.next();
+
+		var text_3 = $.text();
+
+		$.template_effect(() => $.set_text(text_3, $.get($e)));
+		$.append($$anchor, text_3);
+	});
+
+	$.reset(div);
+
+	var node_3 = $.sibling(div, 2);
+
+	{
+		var consequent = ($$anchor) => {
+			const $f = $.derived(() => o);
+			var text_4 = $.text();
+
+			text_4.nodeValue = $.get($f);
+			$.append($$anchor, text_4);
+		};
+
+		$.if(node_3, ($$render) => {
+			if (o) $$render(consequent);
+		});
+	}
+
+	var node_4 = $.sibling(node_3, 2);
+
+	$.await(
+		node_4,
+		() => pr,
+		null,
+		($$anchor, $v) => {
+			var text_5 = $.text();
+
+			$.template_effect(() => $.set_text(text_5, $.get($v)));
+			$.append($$anchor, text_5);
+		},
+		($$anchor, $err) => {
+			var text_6 = $.text();
+
+			$.template_effect(() => $.set_text(text_6, $.get($err)));
+			$.append($$anchor, text_6);
+		}
+	);
+
+	var text_7 = $.sibling(node_4);
+
+	$.template_effect(($0) => $.set_text(text_7, ` ${$0 ?? ''}`), [() => [1].map(($m) => $m).join('')]);
+	$.append($$anchor, fragment);
+	$.pop();
+}
 === 1636 pattern/issues/3188-boundary-snippet-params.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';

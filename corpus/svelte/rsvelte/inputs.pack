@@ -35467,6 +35467,18 @@ plain text with no script, no markup elements and no expressions
 
 <p>{i.label}{i.describe()}{m.id}{c}{t}{n ?? 0}</p>
 
+=== 157 pattern/adversarial/typescript/ts-enum-namespace-module.svelte.ts	svelte-module-ts	runes	-
+export enum Level {
+	Low = 1,
+	High = 2,
+}
+
+export const state = $state({ level: Level.Low });
+
+export function raise(): void {
+	state.level = Level.High;
+}
+
 === 819 pattern/adversarial/typescript/ts-erasure-surface.svelte	svelte	runes	neutral
 <script lang="ts">
   interface Row {
@@ -39095,6 +39107,41 @@ export function read() {
 </script>
 
 <b>{g()}{o}</b>
+
+=== 235 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	svelte	runes	rejected
+<script>
+	export let o = 1;
+	const pr = Promise.resolve(2);
+</script>
+
+{#each [1, 2] as $i, $n}{$i}{$n}{/each}
+
+{#snippet $s($p)}{@const $c = $p}<b>{$c}</b>{/snippet}
+{@render $s(o)}
+
+{#await pr then $v}{$v}{:catch $err}{$err}{/await}
+
+=== 404 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	svelte	runes	runes
+<script>
+	let o = $state(1);
+	const pr = Promise.resolve(2);
+</script>
+
+{#each [1, 2] as $i, $n}{$i}{$n}{/each}
+{#each [{ a: 1 }] as { a: $a }}{$a}{/each}
+
+{#snippet $s($p)}{@const $c = $p}<b>{$c}</b>{/snippet}
+{@render $s(o)}
+
+<div>
+	{#each [3] as $d}{@const $e = $d}{$e}{/each}
+</div>
+
+{#if o}{@const $f = o}{$f}{/if}
+
+{#await pr then $v}{$v}{:catch $err}{$err}{/await}
+
+{[1].map(($m) => $m).join('')}
 
 === 356 pattern/issues/3188-boundary-snippet-params.svelte	svelte	runes	runes
 <script>
