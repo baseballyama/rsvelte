@@ -46,7 +46,18 @@ lacks, `unexpected` when only rsvelte's has extra keys, and `mismatch` when both
 leaves out `@__PURE__` marks and the line that upstream writes above a module. Each unit that the
 comments ledger does not compare still gets a line. The line says `official-rejected` when the
 official compiler rejected the unit and `skipped` when `units.toml` skips it. It says `refused`,
-`panicked` or `unparseable` for rsvelte's side. The test compares lint findings only for the rules rsvelte ran. JSON counts as values and everything else as bytes. When both tools reject a
+`panicked` or `unparseable` for rsvelte's side.
+
+A component's compile also has a source map ledger (`svelte.compile.sourcemap`). Its pack holds
+the official map alone, and it reads the official JavaScript from the `svelte.compile` pack.
+The rsvelte task of that name writes the module and its map. The key of an identifier is its name
+and the number of identifiers of that name before it. Its value is the original position of the
+map segment that starts at it, if one does. The verdict is `missing` when only the official map
+gives some identifiers a position, and `unexpected` when only rsvelte's does. The verdict
+`mismatch` means the maps give one identifier two positions, or both happen. Its other lines read as
+the comments ledger's do.
+
+The test compares lint findings only for the rules rsvelte ran. JSON counts as values and everything else as bytes. When both tools reject a
 unit, the compile errors must agree. A JavaScript syntax error (`js_parse_error`) is the exception,
 since oxc words and places it. When only its words or its position differ, the verdict is
 `js-equivalent`.

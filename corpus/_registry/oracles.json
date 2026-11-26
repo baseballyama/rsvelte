@@ -17,6 +17,14 @@
 			"svelte": "5.59.1"
 		}
 	},
+	"svelte.compile.sourcemap": {
+		"canonicalizer": {
+			"acorn": "8.19.0"
+		},
+		"oracles": {
+			"svelte": "5.59.1"
+		}
+	},
 	"svelte.compileModule": {
 		"canonicalizer": {
 			"acorn": "8.19.0"
