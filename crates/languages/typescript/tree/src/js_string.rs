@@ -12,7 +12,42 @@ use oxc_str::{JSStr, JSStrBuilder};
 #[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
 pub struct JsString {
     text: String,
-    surrogates: Vec<(usize, u16)>,
+    surrogates: Surrogates,
+}
+
+/// The lone surrogates of a [`JsString`], boxed so that the string is a word larger than its text
+/// and `None` when there are none, which keeps equal strings equal.
+#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
+struct Surrogates(Option<Box<[(usize, u16)]>>);
+
+impl Surrogates {
+    #[inline]
+    const fn is_empty(&self) -> bool {
+        self.0.is_none()
+    }
+
+    fn as_slice(&self) -> &[(usize, u16)] {
+        self.0.as_deref().unwrap_or_default()
+    }
+
+    fn push(&mut self, surrogate: (usize, u16)) {
+        let mut surrogates = self.0.take().map_or_else(Vec::new, Vec::from);
+        surrogates.push(surrogate);
+        self.0 = Some(surrogates.into_boxed_slice());
+    }
+
+    fn pop(&mut self) {
+        let mut surrogates = self.0.take().map_or_else(Vec::new, Vec::from);
+        surrogates.pop();
+        *self = surrogates.into_iter().collect();
+    }
+}
+
+impl FromIterator<(usize, u16)> for Surrogates {
+    fn from_iter<I: IntoIterator<Item = (usize, u16)>>(iter: I) -> Self {
+        let surrogates: Box<[_]> = iter.into_iter().collect();
+        Self((!surrogates.is_empty()).then_some(surrogates))
+    }
 }
 
 /// A part of a [`JsString`]: text, or one lone surrogate.
@@ -27,12 +62,13 @@ impl JsString {
     pub const fn new() -> Self {
         Self {
             text: String::new(),
-            surrogates: Vec::new(),
+            surrogates: Surrogates(None),
         }
     }
 
     /// The value of an oxc string.
     #[must_use]
+    #[inline]
     pub fn from_js_str(value: JSStr<'_>) -> Self {
         value
             .as_str()
@@ -54,17 +90,20 @@ impl JsString {
 
     /// The text, unless the string holds a lone surrogate.
     #[must_use]
+    #[inline]
     pub fn as_str(&self) -> Option<&str> {
         self.surrogates.is_empty().then_some(self.text.as_str())
     }
 
     /// The text, each lone surrogate replaced by U+FFFD, as `TextEncoder` writes it.
     #[must_use]
+    #[inline]
     pub fn to_string_lossy(&self) -> Cow<'_, str> {
         if self.surrogates.is_empty() {
             return Cow::Borrowed(&self.text);
         }
-        let mut text = String::with_capacity(self.text.len() + 3 * self.surrogates.len());
+        let mut text =
+            String::with_capacity(self.text.len() + 3 * self.surrogates.as_slice().len());
         for run in self.runs() {
             match run {
                 Run::Text(part) => text.push_str(part),
@@ -79,15 +118,18 @@ impl JsString {
         self.text.is_empty() && self.surrogates.is_empty()
     }
 
+    #[inline]
     pub fn push_str(&mut self, text: &str) {
         self.text.push_str(text);
     }
 
+    #[inline]
     pub fn push(&mut self, character: char) {
         self.text.push(character);
     }
 
     /// Appends `other`, pairing a trailing lead surrogate with a leading trail surrogate.
+    #[inline]
     pub fn push_js(&mut self, other: &Self) {
         if other.surrogates.is_empty() {
             return self.text.push_str(&other.text);
@@ -102,7 +144,7 @@ impl JsString {
 
     fn push_surrogate(&mut self, unit: u16) {
         let end = self.text.len();
-        if let Some(&(at, lead)) = self.surrogates.last()
+        if let Some(&(at, lead)) = self.surrogates.as_slice().last()
             && at == end
             && (0xD800..0xDC00).contains(&lead)
             && (0xDC00..0xE000).contains(&unit)
@@ -121,12 +163,13 @@ impl JsString {
     pub fn trim_start_matches(&self, trim: impl Fn(char) -> bool) -> Self {
         let limit = self
             .surrogates
+            .as_slice()
             .first()
             .map_or(self.text.len(), |&(at, _)| at);
         let cut = limit - self.text[..limit].trim_start_matches(trim).len();
         Self {
             text: self.text[cut..].to_owned(),
-            surrogates: (self.surrogates.iter())
+            surrogates: (self.surrogates.as_slice().iter())
                 .map(|&(at, unit)| (at - cut, unit))
                 .collect(),
         }
@@ -135,7 +178,7 @@ impl JsString {
     /// The text between lone surrogates, and the surrogates, in order.
     pub fn runs(&self) -> impl Iterator<Item = Run<'_>> {
         let mut from = 0;
-        let mut surrogates = self.surrogates.iter();
+        let mut surrogates = self.surrogates.as_slice().iter();
         let mut pending = None;
         std::iter::from_fn(move || {
             if let Some(unit) = pending.take() {
@@ -171,6 +214,7 @@ impl JsString {
     }
 
     /// Appends `other` with `map` applied to each of its text runs, as [`Self::push_js`] does.
+    #[inline]
     pub fn push_js_mapped(&mut self, other: &Self, map: impl Fn(&str) -> Cow<'_, str>) {
         if other.surrogates.is_empty() {
             return self.text.push_str(&map(&other.text));
@@ -194,12 +238,15 @@ impl JsString {
     }
 
     /// The string in `allocator`, as an oxc string.
+    #[inline]
     pub fn to_js_str_in<'a>(&self, allocator: &impl GetAllocator<'a>) -> JSStr<'a> {
         if self.surrogates.is_empty() {
             return JSStr::from_str_in(&self.text, allocator);
         }
-        let mut builder =
-            JSStrBuilder::with_capacity_in(self.text.len() + 3 * self.surrogates.len(), allocator);
+        let mut builder = JSStrBuilder::with_capacity_in(
+            self.text.len() + 3 * self.surrogates.as_slice().len(),
+            allocator,
+        );
         for run in self.runs() {
             match run {
                 Run::Text(part) => builder.push_str(part),
@@ -214,7 +261,7 @@ impl From<String> for JsString {
     fn from(text: String) -> Self {
         Self {
             text,
-            surrogates: Vec::new(),
+            surrogates: Surrogates(None),
         }
     }
 }
@@ -251,6 +298,7 @@ impl Ord for JsString {
 }
 
 impl fmt::Write for JsString {
+    #[inline]
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.text.push_str(s);
         Ok(())
