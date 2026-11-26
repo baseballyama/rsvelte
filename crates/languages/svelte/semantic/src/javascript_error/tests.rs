@@ -248,3 +248,157 @@ fn acorn_checks_a_functions_parameters_only_when_it_reaches_the_body() {
         );
     }
 }
+
+/// svelte 5.59.1's `compile` with `runes: true` on a word acorn rejects as it reads it, or `None`
+/// where it accepts the component.
+const UNRESERVED_WORDS: &[(&str, Option<(&str, u32)>)] = &[
+    (
+        "<script>(() => yield) = 1;</script>",
+        Some(("The keyword 'yield' is reserved", 15)),
+    ),
+    (
+        "<script>(() => { yield }) = 1;</script>",
+        Some(("The keyword 'yield' is reserved", 17)),
+    ),
+    (
+        "<script>(function () { yield }) = 1;</script>",
+        Some(("The keyword 'yield' is reserved", 23)),
+    ),
+    (
+        "<script>[(() => yield)] = o;</script>",
+        Some(("The keyword 'yield' is reserved", 16)),
+    ),
+    (
+        "<script>(() => yield)++;</script>",
+        Some(("The keyword 'yield' is reserved", 15)),
+    ),
+    (
+        "<script>(class { x = arguments }) = 1;</script>",
+        Some(("Cannot use 'arguments' in class field initializer", 21)),
+    ),
+    (
+        "<script>(class { x = () => arguments }) = 1;</script>",
+        Some(("Cannot use 'arguments' in class field initializer", 27)),
+    ),
+    (
+        "<script>[(class { x = arguments })] = o;</script>",
+        Some(("Cannot use 'arguments' in class field initializer", 22)),
+    ),
+    (
+        "<script>(class { x = arguments })++;</script>",
+        Some(("Cannot use 'arguments' in class field initializer", 21)),
+    ),
+    (
+        "<script>class A { static { (() => arguments) = 1; } }</script>",
+        Some(("Assigning to rvalue", 28)),
+    ),
+    (
+        "<script>class A { static { arguments; } }</script>",
+        Some((
+            "Cannot use arguments in class static initialization block",
+            27,
+        )),
+    ),
+    (
+        "<script>class A { static { (arguments) = 1; } }</script>",
+        Some((
+            "Cannot use arguments in class static initialization block",
+            28,
+        )),
+    ),
+    (
+        "<script>class A { static { [(() => arguments)] = o; } }</script>",
+        Some(("Assigning to rvalue", 28)),
+    ),
+    (
+        "<script>function* g() { (() => yield) = 1; }</script>",
+        Some(("The keyword 'yield' is reserved", 31)),
+    ),
+    (
+        "<script>function f() { (class { x = arguments }) = 1; }</script>",
+        Some(("Cannot use 'arguments' in class field initializer", 36)),
+    ),
+    (
+        "<script>class A { x = arguments }</script>",
+        Some(("Cannot use 'arguments' in class field initializer", 22)),
+    ),
+    (
+        "<script>class A { x = () => arguments }</script>",
+        Some(("Cannot use 'arguments' in class field initializer", 28)),
+    ),
+    (
+        "<script>class A { x = function () { arguments } }</script>",
+        None,
+    ),
+    (
+        "<script>class A { static { function f() { arguments } } }</script>",
+        None,
+    ),
+    (
+        "<script>class A { static { class B { x = arguments } } }</script>",
+        Some(("Cannot use 'arguments' in class field initializer", 41)),
+    ),
+    (
+        "<script>class A { x = class { static { arguments } } }</script>",
+        Some((
+            "Cannot use arguments in class static initialization block",
+            39,
+        )),
+    ),
+    (
+        "<script>let a = yield;</script>",
+        Some(("The keyword 'yield' is reserved", 16)),
+    ),
+    (
+        "<script>function* g() { () => yield; }</script>",
+        Some(("The keyword 'yield' is reserved", 30)),
+    ),
+    (
+        "<script>(class { x = arguments; y = yield }) = 1;</script>",
+        Some(("Cannot use 'arguments' in class field initializer", 21)),
+    ),
+    (
+        "<script>({ a: () => yield } = o);</script>",
+        Some(("The keyword 'yield' is reserved", 20)),
+    ),
+    (
+        "<script>for ((() => yield) of o);</script>",
+        Some(("The keyword 'yield' is reserved", 20)),
+    ),
+    (
+        "<script>(() => yield, 1) = 2;</script>",
+        Some(("The keyword 'yield' is reserved", 15)),
+    ),
+    (
+        "<script>class A { static { [arguments] = o; } }</script>",
+        Some((
+            "Cannot use arguments in class static initialization block",
+            28,
+        )),
+    ),
+];
+
+#[test]
+fn a_word_acorn_rejects_as_it_reads_it_is_the_first_error() {
+    let failures: Vec<_> = UNRESERVED_WORDS
+        .iter()
+        .filter_map(|&(source, expected)| {
+            let first = first_error_if_any(source);
+            let expected = expected.map(|(message, at)| (message.to_owned(), at));
+            (first != expected).then(|| format!("{source}: {first:?}"))
+        })
+        .collect();
+    assert!(failures.is_empty(), "{}", failures.join("\n"));
+}
+
+/// The first line of the message and the offset of the error compile reports first, if any.
+fn first_error_if_any(source: &str) -> Option<(String, u32)> {
+    let mut registry = Registry::new();
+    crate::register(&mut registry);
+    let document = Document::new("App.svelte".to_owned(), source.to_owned()).expect("small");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let parsed = super::fully_parsed(&context).err();
+    let error = parsed.or_else(|| super::of_document(&context, |_| true))?;
+    let message = error.message.lines().next().unwrap_or_default().to_owned();
+    Some((message, error.span.start_offset))
+}
