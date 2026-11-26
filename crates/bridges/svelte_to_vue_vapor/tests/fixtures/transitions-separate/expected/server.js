@@ -140,7 +140,7 @@ export default $$v_defineComponent({
 		function leave(element, parameter, options) {
 			element.setAttribute("data-out", options.direction);
 			return {
-				duration: 1e3,
+				duration: 1000,
 				css: (t) => `opacity: ${t}`
 			};
 		}

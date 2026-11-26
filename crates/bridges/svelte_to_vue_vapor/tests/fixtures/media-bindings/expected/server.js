@@ -149,9 +149,9 @@ export default $$v_defineComponent({
 		const observed = $$ref("");
 		function dispatch() {
 			video.value.currentTime = 8;
-			video.value.volume = .25;
+			video.value.volume = 0.25;
 			video.value.muted = false;
-			video.value.playbackRate = .5;
+			video.value.playbackRate = 0.5;
 			for (const event of [
 				"timeupdate",
 				"volumechange",

@@ -1,5 +1,3 @@
-use oxc_allocator::{Allocator, CloneIn};
-use oxc_ast_visit::VisitMut;
 use rsvelte_kernel::computation::database::DocumentContext;
 use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::Registry;
@@ -9,7 +7,6 @@ use rsvelte_kernel::source::document::Document;
 use rsvelte_typescript_tree::{Parsed, document_span};
 
 use crate::features::{Feature, first_runtime_feature};
-use crate::strip::Strip;
 
 pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "typescript.compile",
@@ -62,9 +59,6 @@ impl Task for Compile {
                 .push(refusal.diagnostic("compile_unsupported", Some("type erasure")));
             return;
         }
-        let allocator = Allocator::default();
-        let mut program = program.clone_in(&allocator);
-        Strip::new(&allocator).visit_program(&mut program);
-        out.file("js", crate::print::print(&program));
+        out.file("js", crate::emit(program));
     }
 }

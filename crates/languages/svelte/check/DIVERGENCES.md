@@ -68,9 +68,33 @@ difference and not the projection:
   TypeScript 7.1 as `'Component<any, any, any> | ConstructorOfATypedSvelteComponent | null |
   undefined'`. A plain `.ts` file with the same constraint gives the same pair.
 
-- Test: `typecheck_prints_what_typescript_7_prints` in the command line crate's
-  `tests/cli/typecheck_checker.rs`.
-- The report is [#5254](https://github.com/baseballyama/rsvelte/issues/5254).
+- The parameters of an untyped JavaScript function are not optional. Take this plain `.js` file,
+  with `checkJs` and `strict`:
+
+  ```js
+  /** @type {(p: { foo?: () => void }) => void} */
+  const call = (p) => {};
+  call({ foo: (q) => {} });
+  ```
+
+  TypeScript 6.0.3 reports only TS7006 for `q` at 3:14. TypeScript 7.1 also reports TS2322
+  `Type '(q: any) => void' is not assignable to type '() => void'.` at 3:8, with `Target signature
+  provides too few arguments.` When the object also lacks a required property, TypeScript 6.0.3
+  reports that property as missing, and TypeScript 7.1 reports the TS2322 in its place. The
+  TypeScript 7 changelog names the change:
+  ``And because Corsa uses the same rule for optional parameters, it fixes subtle Strada bugs with `"strict": true` in JavaScript.``
+  ([`tsc/CHANGES.md:8`](https://github.com/microsoft/typescript-go/blob/6161772c1370bdd4a82f808e6823bd755eb1870d/tsc/CHANGES.md?plain=1#L8)
+  at the commit `7.1.0-dev.20261102.1` names as its `gitHead`). In a JavaScript component, a
+  snippet `{#snippet foo(q)}` passed for `foo?: Snippet` gives the same pair, and so does a
+  callback with one parameter more than its type: `onpick={(n, x) => {}}` for
+  `(n: number) => void`, and `onclick={(e, x) => {}}` or `on:click={(e, x) => {}}` on a
+  `<button>`. In a TypeScript component, both checkers report the TS2322.
+
+- Test: `typecheck_prints_what_typescript_7_prints` and
+  `typecheck_checks_a_javascript_snippet_s_parameters_as_typescript_7_does` in the command line
+  crate's `tests/cli/typecheck_checker.rs`.
+- The reports are [#5254](https://github.com/baseballyama/rsvelte/issues/5254) and
+  [#5319](https://github.com/baseballyama/rsvelte/issues/5319).
 
 ## A component with a lone carriage return
 
