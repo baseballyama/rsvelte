@@ -1,6 +1,8 @@
 //! The words acorn rejects as it reads them, in strict code, where oxc's parser leaves them to its
 //! checker: acorn's `checkUnreserved`, and its `await` in a class static block.
 
+use std::cell::RefCell;
+
 use oxc_ast::AstKind;
 use oxc_ast_visit::Visit;
 use oxc_span::GetSpan;
@@ -47,23 +49,22 @@ pub(crate) struct UnreservedWords {
 }
 
 impl UnreservedWords {
-    pub(crate) const fn new() -> Self {
+    pub(crate) fn new() -> Self {
         Self {
-            around: Vec::new(),
+            around: AROUND.with_borrow_mut(std::mem::take),
             first: None,
         }
     }
 
     /// For a walk of the nodes in `span` on their own, which acorn reads in `home`.
     pub(super) fn within(span: oxc_span::Span, home: Home) -> Self {
-        Self {
-            around: vec![Around {
-                span,
-                home,
-                arrow: false,
-            }],
-            first: None,
-        }
+        let mut words = Self::new();
+        words.around.push(Around {
+            span,
+            home,
+            arrow: false,
+        });
+        words
     }
 
     /// Takes in `kind`, which the walk enters in the order of the source: where and why acorn
@@ -99,6 +100,24 @@ impl UnreservedWords {
             _ => None,
         }?;
         Some((span.start, why))
+    }
+}
+
+thread_local! {
+    /// The stack a walk on this thread gave back, so a walk allocates it once per thread.
+    static AROUND: RefCell<Vec<Around>> = const { RefCell::new(Vec::new()) };
+}
+
+impl Drop for UnreservedWords {
+    fn drop(&mut self) {
+        let mut around = std::mem::take(&mut self.around);
+        around.clear();
+        // A thread that is exiting has dropped its stack; this one is then freed instead.
+        let _kept = AROUND.try_with(|kept| {
+            if kept.borrow().capacity() < around.capacity() {
+                *kept.borrow_mut() = around;
+            }
+        });
     }
 }
 

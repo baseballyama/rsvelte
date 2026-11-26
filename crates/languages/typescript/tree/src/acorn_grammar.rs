@@ -274,7 +274,7 @@ pub(crate) struct Unsupported<'t> {
 }
 
 impl<'t> Unsupported<'t> {
-    pub(crate) const fn new(typescript: Option<TypeScriptReader>, tokens: &'t [Token]) -> Self {
+    pub(crate) fn new(typescript: Option<TypeScriptReader>, tokens: &'t [Token]) -> Self {
         Self {
             typescript,
             tokens,
