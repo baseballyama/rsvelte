@@ -13,6 +13,7 @@ use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::source::positions::Span;
 
 mod check;
+mod number;
 mod parentheses;
 mod program;
 mod recorded;
