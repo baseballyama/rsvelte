@@ -32,6 +32,17 @@ function diagnostic(d: Diagnostic, locate: Locate) {
 	};
 }
 
+/**
+ * `code` with each lone surrogate written as its `\u` escape. A file holds UTF-8, where a lone
+ * surrogate would become U+FFFD; the compiler writes one only inside a string or template literal,
+ * where the escape is the same value.
+ */
+export const escapeLoneSurrogates = (code: string) =>
+	code.replace(
+		/[\uD800-\uDBFF](?![\uDC00-\uDFFF])|(?<![\uD800-\uDBFF])[\uDC00-\uDFFF]/g,
+		(unit) => `\\u${unit.charCodeAt(0).toString(16).toUpperCase()}`,
+	);
+
 interface CompileLike {
 	js: { code: string };
 	css: { code: string } | null;
@@ -57,7 +68,7 @@ export function compileArtifacts(
 		};
 	}
 	const out: Record<string, Artifact> = {
-		js: { text: result.js.code, ext: 'js', compare: 'js-ast' },
+		js: { text: escapeLoneSurrogates(result.js.code), ext: 'js', compare: 'js-ast' },
 	};
 	if (result.css?.code) out.css = { text: result.css.code, ext: 'css', compare: 'text' };
 	if (result.warnings.length) {

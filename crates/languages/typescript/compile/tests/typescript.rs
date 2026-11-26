@@ -7,7 +7,7 @@ use oxc_parser::Parser;
 use oxc_span::SourceType;
 use rsvelte_typescript_compile::emit;
 use rsvelte_typescript_compile::features::{
-    Feature, first_runtime_feature, first_svelte_runtime_feature_where,
+    Feature, first_erasure_feature, first_runtime_feature, first_svelte_runtime_feature_where,
 };
 use rsvelte_typescript_compile::print::print;
 use rsvelte_typescript_compile::strip::Strip;
@@ -32,6 +32,10 @@ fn javascript(source_text: &str) -> String {
 
 fn feature(source_text: &str) -> Option<(Feature, String)> {
     found(source_text, first_runtime_feature)
+}
+
+fn erasure_feature(source_text: &str) -> Option<(Feature, String)> {
+    found(source_text, first_erasure_feature)
 }
 
 fn svelte_feature(source_text: &str) -> Option<(Feature, String)> {
@@ -282,5 +286,54 @@ fn a_number_in_parentheses_or_before_a_comment_or_a_line_break_gets_no_second_do
                 );
             }
         }
+    }
+}
+
+#[test]
+fn an_ambient_enum_is_erased_and_instantiates_its_namespace() {
+    // TypeScript 6.0.3's `transpileModule` removes each, and keeps what follows.
+    for (typescript, erased) in [
+        (
+            "declare enum E { A }\nexport const x = 1;",
+            "export const x = 1;",
+        ),
+        (
+            "declare const enum E { A }\nexport let E = 1;",
+            "export let E = 1;",
+        ),
+        (
+            "declare enum E { A }\nexport const x = E;",
+            "export const x = E;",
+        ),
+        ("{ declare enum E { A } }\nlet x = 1;", "{} let x = 1;"),
+        ("function f() { declare enum E { A } }", "function f() {}"),
+        (
+            "namespace N { declare namespace M { type T = 1; } }\nlet x = 1;",
+            "let x = 1;",
+        ),
+    ] {
+        assert_eq!(erasure_feature(typescript), None, "{typescript}");
+        assert_eq!(erase(typescript), javascript(erased), "{typescript}");
+    }
+    // TypeScript emits a namespace that holds an enum or a value, `declare` or not, here or in a
+    // nested namespace, which erasing types cannot.
+    for typescript in [
+        "namespace N { declare enum E { A } }",
+        "namespace N { export declare const enum E { A } }",
+        "namespace N { declare const x: number; }",
+        "namespace N { declare namespace M { enum E { A } } }",
+    ] {
+        assert_eq!(
+            erasure_feature(typescript),
+            Some((Feature::NamespaceWithValues, typescript.to_owned())),
+            "{typescript}"
+        );
+    }
+    // A caller that prints what is left, and Svelte 5.59.1's `remove_typescript_nodes`, refuse it.
+    for find in [feature, svelte_feature] {
+        assert_eq!(
+            find("declare enum E { A }"),
+            Some((Feature::Enum, "declare enum E { A }".to_owned()))
+        );
     }
 }

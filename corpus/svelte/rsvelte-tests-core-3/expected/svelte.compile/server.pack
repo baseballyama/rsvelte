@@ -9986,7 +9986,7 @@ export default function _5dd611416a9eecf($$renderer) {
 
 	$$renderer.subsume($$inner_renderer);
 }
-=== 294 server_global_fold_fns_3388/a_lone_surrogate_is_not_folded/5c319c706b161143.svelte	js
+=== 297 server_global_fold_fns_3388/a_lone_surrogate_is_not_folded/5c319c706b161143.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function _c319c706b161143($$renderer) {
@@ -9995,14 +9995,14 @@ export default function _c319c706b161143($$renderer) {
 
 		const c = String.fromCodePoint(0xd800);
 
-		$$renderer.push(`�`);
+		$$renderer.push(`\uD800`);
 	} else {
 		$$renderer.push('<!--[-1-->');
 	}
 
 	$$renderer.push(`<!--]-->`);
 }
-=== 293 server_global_fold_fns_3388/a_lone_surrogate_is_not_folded/a56cc29375fdf25b.svelte	js
+=== 296 server_global_fold_fns_3388/a_lone_surrogate_is_not_folded/a56cc29375fdf25b.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function A56cc29375fdf25b($$renderer) {
@@ -10011,7 +10011,7 @@ export default function A56cc29375fdf25b($$renderer) {
 
 		const c = String.fromCharCode(0xd800);
 
-		$$renderer.push(`�`);
+		$$renderer.push(`\uD800`);
 	} else {
 		$$renderer.push('<!--[-1-->');
 	}

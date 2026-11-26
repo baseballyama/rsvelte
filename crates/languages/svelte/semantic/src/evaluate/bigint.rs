@@ -43,7 +43,7 @@ fn parse(text: &str) -> Option<BigInt> {
 fn compare(value: &BigInt, other: &Value) -> Option<Ordering> {
     match other {
         Value::BigInt(other) => Some(value.cmp(other)),
-        Value::String(other) => Some(value.cmp(&parse(other)?)),
+        Value::String(other) => Some(value.cmp(&parse(&other.to_string_lossy())?)),
         other => {
             let number = other.to_number();
             if number.is_nan() {
@@ -76,11 +76,7 @@ pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> 
         StrictInequality as StrictNotEq, Subtraction as Sub,
     };
     if op == Add && (matches!(a, Value::String(_)) || matches!(b, Value::String(_))) {
-        return Some(Value::String(format!(
-            "{}{}",
-            a.to_javascript_string(),
-            b.to_javascript_string()
-        )));
+        return Some(Value::concatenated(a, b));
     }
     if matches!(op, StrictEq | StrictNotEq) {
         return Some(Value::Boolean((a == b) == (op == StrictEq)));
