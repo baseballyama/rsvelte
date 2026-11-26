@@ -360,7 +360,11 @@ fn folder_config(folder: &Path) -> Result<Option<(TypeChecker, Option<Opened>)>,
         .map_err(|e| format!("{}: {e}", package.display()))?;
     let package = serde_json::to_string(&package.to_string_lossy()).map_err(|e| e.to_string())?;
     let text = format!(
-        r#"{{"extends":"./tsconfig.json","contentMappers":[{{"package":{package},"extensions":[".svelte"]}}]}}"#
+        concat!(
+            r#"{{"extends":"./tsconfig.json","#,
+            r#""contentMappers":[{{"package":{},"extensions":[".svelte"]}}]}}"#,
+        ),
+        package
     );
     let uri = file_path_to_uri(folder.join(CONFIG))
         .ok_or_else(|| format!("{} is no file URI", folder.display()))?;
@@ -375,8 +379,12 @@ fn folder_config(folder: &Path) -> Result<Option<(TypeChecker, Option<Opened>)>,
 fn write_package(package: &Path, mapper: &Path) -> std::io::Result<()> {
     let mapper = serde_json::to_string(&mapper.to_string_lossy())?;
     let text = format!(
-        r#"{{"name":"rsvelte-content-mapper","version":"{}","typescript":{{"contentMapper":{{"exec":[{mapper}]}}}}}}"#,
-        env!("CARGO_PKG_VERSION")
+        concat!(
+            r#"{{"name":"rsvelte-content-mapper","version":"{}","#,
+            r#""typescript":{{"contentMapper":{{"exec":[{}]}}}}}}"#,
+        ),
+        env!("CARGO_PKG_VERSION"),
+        mapper
     );
     let manifest = package.join("package.json");
     if std::fs::read_to_string(&manifest).is_ok_and(|written| written == text) {
