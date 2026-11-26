@@ -73,6 +73,11 @@ fn a_typescript_module_reports_an_error_in_what_its_emit_keeps() {
         let expected = Some(("js_parse_error".to_owned(), message.to_owned()));
         assert_eq!(first_error(source), expected, "{source:?}");
     }
+    // An error beside an erased member of the same class. svelte 5.59.1 words it "getter should
+    // have no params", which rsvelte does not, in a `.svelte.js` module either.
+    let source = "export class A { declare z: number; get x(a: number) { return a; } }";
+    let code = first_error(source).map(|(code, _)| code);
+    assert_eq!(code.as_deref(), Some("js_parse_error"), "{source:?}");
 }
 
 #[test]
