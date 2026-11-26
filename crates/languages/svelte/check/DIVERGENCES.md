@@ -192,3 +192,31 @@ into `never`, such as one with `generics="T, Key = T extends Map<infer K, unknow
 
 - Test: `typecheck_reports_a_value_that_is_no_component_at_its_tag` in the command line crate's
   `tests/cli/typecheck_component_values.rs`.
+
+## The script of a component svelte2tsx rejects
+
+When svelte2tsx throws, svelte-check reads the component as its instance script, else its module
+script (the `catch` in the language server's `preprocessSvelteFile`). A script that neither imports
+nor exports is then a global script. Every file of the project reads its top-level names, with
+or without `allowJs`. An import of the component reports TS2306 `File '…' is not a module.` The
+expected output of a unit can then depend on the broken units beside it. The corpus skips such
+units for `svelte.check` with the reason "svelte-check adds the script of a component
+that does not parse to the project as a global script" in
+[`units.toml`](../../../../corpus/_registry/units.toml).
+
+rsvelte reads such a script as an empty file, which is not a module either and declares nothing
+(`unprojected` in the projection crate's [`lib.rs`](../typescript_projection/src/lib.rs)). An
+import still reports TS2306, but another file that reads one of the script's names reports TS2304
+`Cannot find name`. rsvelte reads a script that imports or exports unchanged, with `export {};`
+after it.
+
+The parse of oxc decides whether a script is a module. For a script that does not parse, oxc's
+recovery can disagree with TypeScript's. `let = ;` before an `export`, for example, is a module
+for TypeScript and not for oxc, and a bare trailing `export` is the reverse. An import of such a
+component then reports TS2306 where svelte-check does not, or the other way round. No script is
+ever read as a global script.
+
+- Tests: `a_thrown_stand_in_is_a_module_where_the_script_imports_or_exports` in the projection
+  crate's `src/tests.rs`, and `typecheck_reads_a_rejected_component_as_its_script` and
+  `typecheck_declares_no_global_for_a_rejected_component_s_script` in the command line crate's
+  `tests/cli/typecheck_rejected.rs`.

@@ -14654,6 +14654,22 @@
 === 3 parse_ast_ts_type_fields/a_method_keeps_its_type_parameters/716791bccd5805a2.svelte	json
 []
 
+=== 161 parse_ast_ts_type_fields/a_new_expression_keeps_its_type_arguments/bdbb5ee754db8d67.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'C'.",
+		"start": {
+			"line": 1,
+			"character": 5
+		},
+		"end": {
+			"line": 1,
+			"character": 6
+		}
+	}
+]
+
 === 3 parse_ast_ts_type_fields/a_plain_script_emits_no_type_fields/c429e91dc5171aed.svelte	json
 []
 
@@ -14781,6 +14797,46 @@
 		"end": {
 			"line": 1,
 			"character": 23
+		}
+	}
+]
+
+=== 483 parse_class_implements_4133/implements_sits_between_super_class_and_body/8f7e3b48aa11f01f.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'X'.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 20
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Y'.",
+		"start": {
+			"line": 1,
+			"character": 21
+		},
+		"end": {
+			"line": 1,
+			"character": 22
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'B'.",
+		"start": {
+			"line": 1,
+			"character": 35
+		},
+		"end": {
+			"line": 1,
+			"character": 36
 		}
 	}
 ]

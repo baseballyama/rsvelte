@@ -2981,6 +2981,21 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser reads no script in a one-line file whose script follows the template, `{#if x}<p></p>{/if}<script lang=\"ts\">let a = 1</script>`"
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/4fd47e2cba0dad6e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/583f2b2edcebe57c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/ad7d90b669ae5faf.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/cffe1f9d59ce39ca.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_nested_special_types_2166/a_slots_interface_declared_inside_a_function_is_still_detected/4cfec2737432c169.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/a_comma_inside_another_bracket_kind_does_not_split_the_parameter/055da27d622b3fe6.svelte".skip]
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
@@ -3363,12 +3378,6 @@
 
 ["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/ec823872202ae4e8.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
-
-["svelte/rsvelte-tests-core-2/parse_ast_ts_type_fields/a_new_expression_keeps_its_type_arguments/bdbb5ee754db8d67.svelte".skip]
-"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
-
-["svelte/rsvelte-tests-core-2/parse_class_implements_4133/implements_sits_between_super_class_and_body/8f7e3b48aa11f01f.svelte".skip]
-"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
 
 ["svelte/rsvelte-tests-core-2/parse_class_implements_4133/an_export_default_class_keeps_the_clause/3e51411dfe54fa13.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
