@@ -67,3 +67,28 @@ TypeScript reads on past some syntax errors in a `.svelte.ts` module: a reserved
 - Test: `a_typescript_module_that_oxc_cannot_read_fails_where_typescript_reads_on` in
   `src/module/tests/erased_errors.rs`.
 - The report is [#5347](https://github.com/baseballyama/rsvelte/issues/5347).
+
+## JavaScript layout
+
+Svelte prints its output with esrap, and rsvelte prints with `oxc_codegen`
+([`print.rs`](../../typescript/compile/src/print.rs)). Each lays out the same tree in its own way.
+The corpus compares JavaScript as a syntax tree
+([the verdicts](../../../language_independent/corpus/README.md#verdicts)), as the oracle asks with
+`compare: 'js-ast'` in `tools/oracle/tasks/compile-artifacts.ts`.
+
+- esrap 2.4.2 compares an operand's precedence with a member's. Below it, the object of a member,
+  the function a call reads and the tag of a template get parentheses. See
+  [its precedence table](https://github.com/sveltejs/esrap/blob/f968d9e35b5bf3d3b78c191064476fa69e87fa05/src/languages/ts/index.js#L23-L30)
+  and [its member](https://github.com/sveltejs/esrap/blob/f968d9e35b5bf3d3b78c191064476fa69e87fa05/src/languages/ts/index.js#L1616-L1620).
+- Svelte 5.59.1 wraps a literal there: `"a".length` prints as `("a").length`. It wraps a
+  number, a regular expression, `true` and `null` the same way. In a module it also wraps an
+  object, a function or a class there, as in `({}).x` and `(function () {})()`. A template
+  literal, an array, a name, a member and a call stay bare.
+- rsvelte prints a literal bare, as in `"a".length` and `1 .x`. Both write the parentheses
+  JavaScript needs, such as those around an arrow function or a sequence.
+- The report is [#5387](https://github.com/baseballyama/rsvelte/issues/5387).
+- A plain `.ts` file is not part of this entry. There, TypeScript 6.0.3's emit is the output. It
+  keeps each pair of parentheses in the source except those around a type assertion, as in
+  `(f)(1)`. The emit that rsvelte writes drops them. No corpus task compares that emit
+  ([#5405](https://github.com/baseballyama/rsvelte/issues/5405)). The emit is to match
+  TypeScript's text there, as [#5389](https://github.com/baseballyama/rsvelte/issues/5389) tracks.
