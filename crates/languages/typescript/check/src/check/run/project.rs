@@ -3,7 +3,9 @@
 //! content mapper's package resolves, and follows every import, so rsvelte never matches the
 //! patterns or resolves a module itself.
 
+use std::collections::HashSet;
 use std::path::{Path, PathBuf};
+use std::time::{Duration, Instant};
 
 use rsvelte_kernel::computation::registry::Project;
 use rsvelte_kernel::diagnostics::Diagnostic;
@@ -11,8 +13,9 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
 use rsvelte_typescript_api::{Layer, Session};
 
-use super::in_temporary_directory;
 use super::mapped::{normalized, package_json};
+use super::selection::Selected;
+use super::{BaseProject, OVERLAY_CONFIG, in_temporary_directory, untyped};
 use crate::check::{MappedLanguage, Tsc};
 
 impl Tsc {
@@ -78,14 +81,24 @@ fn root_files(
     // tsconfig it opens.
     let overlay_path = root.join(OVERLAY);
     layer.files.insert(overlay_path.clone(), overlay.finish());
-    let mut session = Session::start(&tsc.checker.program, &tsc.checker.arguments, dir)?;
+    // What the check reads where it adds nothing to the project, at the path of its tsconfig, so
+    // a finding names the same project. A third project in the snapshot costs little; a snapshot
+    // of its own costs as much as the first.
+    let check_path = root.join(OVERLAY_CONFIG);
+    layer.files.insert(check_path.clone(), check_config(config));
+    // In the directory the check's processes run in, since the check goes on in this one.
+    let mut session = tsc.checker.session(root)?;
+    let opening = Instant::now();
     // The tsconfig's own errors name it, and its paths, as svelte-check prints them; the overlay
     // rebases them, and `extends` hides some, such as an empty `files`. Without the mapped
-    // languages it may have no inputs where the overlay has. One snapshot holds both projects.
+    // languages it may have no inputs where the overlay has. One snapshot holds every project.
     let mut projects = session
-        .open(&[overlay_path.as_path(), config], &layer)?
+        .open(&[overlay_path.as_path(), config, &check_path], &layer)?
         .into_iter();
-    let (Some(project), Some(own)) = (projects.next(), projects.next()) else {
+    let open = opening.elapsed();
+    let (Some(project), Some(own), Some(check)) =
+        (projects.next(), projects.next(), projects.next())
+    else {
         return Err("the checker opened no project".to_owned());
     };
     let overlay_has_no_inputs =
@@ -96,17 +109,79 @@ fn root_files(
         .map(|error| problem(error, config))
         .collect::<Result<_, _>>()?;
     // As svelte-check, a tsconfig with errors is reported instead of its program.
-    let files = if problems.is_empty() {
+    let (files, base) = if problems.is_empty() {
         let program = session.source_file_names(&project)?;
-        (program.iter())
-            .map(|file| normalized(&dir.join(file)))
+        let files = (program.iter())
+            .map(|file| normalized(&root.join(file)))
             .filter(|file| reported(file, languages, own.skip_lib_check))
-            .collect()
+            .collect();
+        (files, own_project(program, own, languages))
     } else {
-        Vec::new()
+        (Vec::new(), None)
     };
-    session.release(project.snapshot)?;
+    // The check reads the project only where the listing knows the tsconfig's own.
+    let check = base.is_some().then_some(check);
+    if check.is_none() {
+        session.release(project.snapshot)?;
+    }
+    let listed = Listed {
+        session,
+        open,
+        base,
+        check,
+    };
+    *tsc.listed
+        .lock()
+        .unwrap_or_else(std::sync::PoisonError::into_inner) = Some(listed);
     Ok(Project { files, problems })
+}
+
+/// What listing a project's files leaves for its check: the checker's process, how long it took
+/// to open the project, and, where the listing already knows them, what the check reads of the
+/// project its tsconfig describes and the project the check checks where it adds nothing.
+pub(crate) struct Listed {
+    pub(super) session: Session,
+    pub(super) open: Duration,
+    pub(super) base: Option<BaseProject>,
+    pub(super) check: Option<rsvelte_typescript_api::Project>,
+}
+
+impl std::fmt::Debug for Listed {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        f.debug_struct("Listed")
+            .field("session", &self.session)
+            .field("open", &self.open)
+            .field("check", &self.check)
+            .finish_non_exhaustive()
+    }
+}
+
+/// The project of the tsconfig `own`, whose program the overlay's `program` is where no file of
+/// the program is of a mapped language: the overlay adds only the content mappers. Without such
+/// a file no import of JavaScript can be untyped, since only a mapped document reads as one.
+fn own_project(
+    program: Vec<PathBuf>,
+    own: rsvelte_typescript_api::Project,
+    languages: &[MappedLanguage],
+) -> Option<BaseProject> {
+    if (program.iter()).any(|file| Kind::of(file, languages) == Kind::Mapped) {
+        return None;
+    }
+    let roots: HashSet<&Path> = own.root_files.iter().map(PathBuf::as_path).collect();
+    let reached = (program.into_iter())
+        .filter(|file| !roots.contains(file.as_path()))
+        .collect();
+    Some(BaseProject {
+        roots: own.root_files,
+        paths: own.paths,
+        untyped: untyped::UntypedJavaScript::None,
+        node_resolution: own.node_resolution,
+        script_modules: false,
+        selected: Selected {
+            reached,
+            external: HashSet::new(),
+        },
+    })
 }
 
 /// How svelte-check (`language-server/src/svelte-check.ts`) tells which files of the program to
@@ -162,6 +237,22 @@ fn reported(file: &Path, languages: &[MappedLanguage], skip_lib_check: bool) -> 
         Kind::JavaScript => !in_node_modules,
         Kind::Other => true,
     }
+}
+
+/// The tsconfig the check reads where it adds no file and no option to the tsconfig `config`'s
+/// project: the overlay it writes then selects the same files with the same `paths`.
+fn check_config(config: &Path) -> String {
+    let mut w = StructuredDataWriter::new(false);
+    w.begin_object()
+        .key("extends")
+        .write_string(&rsvelte_kernel::source::paths::typescript(config))
+        .key("compilerOptions")
+        .begin_object()
+        .key("noEmit")
+        .write_boolean(true)
+        .end_object()
+        .end_object();
+    w.finish()
 }
 
 /// The overlay tsconfig, only in the checker's file layer.
