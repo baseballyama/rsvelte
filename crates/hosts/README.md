@@ -93,12 +93,13 @@ registers its tools. See [the corpus guide](../../corpus/README.md) for oracle c
 
 ## Browser / WebAssembly
 
-The browser host exposes Rust functions to JavaScript through `wasm-bindgen`. Without its
-default `playground` feature, it is the WebAssembly module of the npm package's
-`rsvelte/compiler`: `compile` and `compileModule`, each returning the JSON of the Node.js addon's
-result. A browser build imports the package's browser entry, which runs the module; in Node.js,
-the package runs it where the addon does not load. `node --run generate -- --dev` from
-`apps/rsvelte/` builds it, and `node --run test:wasm` and `node --run test:browser` test it.
+The browser host exposes Rust functions to JavaScript through `wasm-bindgen`. Built without its
+default `playground` feature, the host becomes the WebAssembly module of the npm package's
+`rsvelte/compiler`. Its `compile` and `compileModule` return the result of the package's native
+module as JSON. A browser build imports the package's browser entry, which runs
+the WebAssembly module; in Node, the package runs it where the native module does not load.
+`node --run generate -- --dev` from `apps/rsvelte/` builds it, and `node --run test:wasm` and
+`node --run test:browser` test it.
 
 The site's playground calls the bindings of the `playground` feature.
 
