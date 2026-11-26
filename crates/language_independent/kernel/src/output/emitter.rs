@@ -277,7 +277,12 @@ impl Emitter {
         // The points come in generated order, so the output is read once and never indexed.
         let mut generated_cursor = LineCursor::new(&self.out, None);
         let mut source_cursor = LineCursor::new(source_text, Some(source));
-        let mut json = String::from("{\"version\":3,\"sources\":[");
+        // Five bytes per copied character and about eight per other point, measured over the
+        // corpus: small maps reserve less than doubling leaves spare.
+        let copied: usize = self.mappings.iter().map(|m| m.len as usize).sum();
+        let points = self.mappings.len() + self.atoms.len();
+        let mut json = String::with_capacity(64 + source_name.len() + 5 * copied + 8 * points);
+        json.push_str("{\"version\":3,\"sources\":[");
         crate::output::structured_data::write_string(&mut json, source_name);
         // The mappings are base64 digits, commas and semicolons, which JSON writes unescaped.
         json.push_str("],\"names\":[],\"mappings\":\"");
