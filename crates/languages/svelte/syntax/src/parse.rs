@@ -108,12 +108,19 @@ pub const ACORN_UNCHECKED_TYPESCRIPT_RULES: &[&str] = &[
     "1263", "1264", "1276", "2304", "2368", "2390", "2391", "2681", "5085",
 ];
 
+/// The component, as far as the parsers read it.
+///
+/// This is not upstream's `parse` verdict. acorn also throws at syntax oxc's parser accepts, such
+/// as `yield` as a name, and at what oxc's checker finds later, such as a name declared twice;
+/// the trees keep the first of the former, and `rsvelte_svelte_semantic::javascript_error`
+/// reports whichever upstream raises first.
+///
 /// # Errors
 ///
-/// A [`Diagnostic`] at the first syntax error in the markup or the scripts, with upstream's
-/// code, message and position, or `parse_error` at syntax this parser does not support. A style
-/// sheet's error alone is kept on [`Style::sheet`](crate::syntax_tree::Style::sheet);
-/// [`crate::fully_parsed`] reports it.
+/// A [`Diagnostic`] at the first syntax error a parser reports in the markup or the scripts,
+/// with upstream's code, message and position, or `parse_error` at syntax this parser does not
+/// support. A style sheet's error alone is kept on
+/// [`Style::sheet`](crate::syntax_tree::Style::sheet); [`crate::fully_parsed`] reports it.
 pub fn parse(source_text: &str) -> Result<Component, ParseError> {
     parse_with(source_text, Scripts::Read, false)
 }

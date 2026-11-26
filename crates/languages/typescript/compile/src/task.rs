@@ -6,7 +6,7 @@ use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::document::Document;
 use rsvelte_typescript_tree::{Parsed, document_span};
 
-use crate::features::{Feature, first_runtime_feature};
+use crate::features::{Feature, first_erasure_feature};
 
 pub(crate) static PLUGIN: Plugin = Plugin {
     identifier: "typescript.compile",
@@ -44,7 +44,7 @@ impl Task for Compile {
             }
         };
         let program = script.tree.get_program(script.root);
-        if let Some((feature, span)) = first_runtime_feature(program) {
+        if let Some((feature, span)) = first_erasure_feature(program) {
             let feature = match feature {
                 Feature::Enum => "enums",
                 Feature::NamespaceWithValues => "namespaces with values",

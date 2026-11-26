@@ -7,7 +7,7 @@ use oxc_span::{GetSpan, SourceType};
 
 use super::parentheses;
 use crate::scratch::with_scratch_arena;
-use crate::syntax_error::{Acorn, SyntaxError, shorter_number};
+use crate::syntax_error::{SyntaxError, shorter_number};
 
 /// How a part was read, from where, to read it again.
 #[derive(Clone, Copy)]
@@ -42,7 +42,7 @@ pub(super) fn at_shorter_number(
             && !diagnostics.contains(error)
     };
     if stops_before(&blanked, number, (reading, source_type), anew) {
-        error.acorn = Some(Acorn::Stops(number + shift));
+        error.acorn_stops_at = Some(number + shift);
     }
 }
 

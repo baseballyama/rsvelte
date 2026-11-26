@@ -21,15 +21,16 @@ Each unit gets one verdict per task and variant. The test pairs each official fi
 rsvelte file of the same name. Two names differ: `warnings.json` pairs with rsvelte's diagnostics,
 and `lint.txt` pairs with `lint.json`.
 
-| Verdict       | Meaning                                                                      |
-| ------------- | ---------------------------------------------------------------------------- |
-| `match`       | every file agrees                                                            |
-| `unexpected`  | rsvelte wrote a file the official tool did not, or accepted what it rejected |
-| `missing`     | the official tool wrote a file rsvelte did not                               |
-| `mismatch`    | a file differs                                                               |
-| `unparseable` | rsvelte's JavaScript does not parse                                          |
-| `refused`     | rsvelte rejected a unit the official tool accepted                           |
-| `panicked`    | a task panicked                                                              |
+| Verdict         | Meaning                                                                      |
+| --------------- | ---------------------------------------------------------------------------- |
+| `match`         | every file agrees                                                            |
+| `js-equivalent` | both raise a JavaScript syntax error, worded or placed differently           |
+| `unexpected`    | rsvelte wrote a file the official tool did not, or accepted what it rejected |
+| `missing`       | the official tool wrote a file rsvelte did not                               |
+| `mismatch`      | a file differs                                                               |
+| `unparseable`   | rsvelte's JavaScript does not parse                                          |
+| `refused`       | rsvelte rejected a unit the official tool accepted                           |
+| `panicked`      | a task panicked                                                              |
 
 A unit takes the verdict of its worst file: the lowest row of the table that applies. The test
 compares JavaScript as a syntax tree, so comments, layout and the spelling of literals do not
@@ -46,7 +47,9 @@ leaves out `@__PURE__` marks and the line that upstream writes above a module. E
 comments ledger does not compare still gets a line. The line says `official-rejected` when the
 official compiler rejected the unit and `skipped` when `units.toml` skips it. It says `refused`,
 `panicked` or `unparseable` for rsvelte's side. The test compares lint findings only for the rules rsvelte ran. JSON counts as values and everything else as bytes. When both tools reject a
-unit, the compile errors must agree.
+unit, the compile errors must agree. A JavaScript syntax error (`js_parse_error`) is the exception,
+since oxc words and places it. When only its words or its position differ, the verdict is
+`js-equivalent`.
 
 ## The ledger
 

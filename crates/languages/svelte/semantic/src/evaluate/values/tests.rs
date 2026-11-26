@@ -4,7 +4,7 @@ use super::{Value, Values};
 fn membership_preserves_order_through_growth_and_duplicates() {
     let mut values = Values::Empty;
     let expected: Vec<_> = (0..200)
-        .map(|index| Value::String(format!("value{index}")))
+        .map(|index| Value::String(format!("value{index}").into()))
         .collect();
     for value in expected.iter().chain(expected.iter().rev()) {
         values.add(value.clone());
@@ -16,7 +16,7 @@ fn membership_preserves_order_through_growth_and_duplicates() {
 fn membership_uses_same_value_zero_for_numbers_and_exact_bigints() {
     let mut values = Values::Empty;
     for index in 0..16 {
-        values.add(Value::String(format!("value{index}")));
+        values.add(Value::String(format!("value{index}").into()));
     }
     for value in [
         Value::Number(0.0),

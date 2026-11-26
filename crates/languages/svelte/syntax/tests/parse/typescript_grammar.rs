@@ -30,11 +30,9 @@ fn an_await_outside_an_async_function_fails_where_acorn_reads_it_as_a_name() {
         ("<script>function g() { await (f()); }</script>", 23),
     ] {
         let error = parse(source).expect_err(source);
-        let message = error.message.lines().next().unwrap_or_default();
         assert_eq!(
-            (message, error.span.start_offset),
-            ("Cannot use keyword 'await' outside an async function", at),
-            "{source}"
+            error.code, "js_parse_error",
+            "{source}: svelte says so at {at}"
         );
     }
 }

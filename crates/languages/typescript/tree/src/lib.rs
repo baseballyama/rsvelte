@@ -23,10 +23,13 @@ pub use builder::{
 };
 mod syntax_error;
 pub use syntax_error::{
-    Acorn, Locator, Reader, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, analysis_error,
-    babel_typescript_throws, function_as_body, syntax_error, typescript_eslint_check,
-    typescript_eslint_error, typescript_estree_throws,
+    Locator, Reader, SyntaxError, TYPESCRIPT_ESLINT_UNCHECKED, babel_typescript_throws,
+    function_as_body, syntax_error, typescript_eslint_check, typescript_eslint_error,
+    typescript_estree_throws,
 };
+
+pub mod javascript_string;
+pub use javascript_string::JavaScriptString;
 
 pub mod scratch;
 pub use scratch::with_scratch_arena;
