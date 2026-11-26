@@ -820,6 +820,11 @@
 		"claimed": 110,
 		"duplicate": 0
 	},
+	"test262": {
+		"admitted": 1792,
+		"claimed": 1792,
+		"duplicate": 0
+	},
 	"threlte": {
 		"admitted": 830,
 		"claimed": 886,
@@ -827,5 +832,10 @@
 		"not-runes-compatible:legacy_export_invalid": 1,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 1,
 		"not-runes-compatible:legacy_rest_props_invalid": 1
+	},
+	"typescript": {
+		"admitted": 1774,
+		"claimed": 1783,
+		"duplicate": 9
 	}
 }
