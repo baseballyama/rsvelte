@@ -24,6 +24,7 @@ use declarations::declaration;
 pub(crate) use lexer::lexer_failure;
 use lexer::regular_expression;
 use number::number as rejected_number;
+pub(crate) use number::shorter_number;
 use pattern::{parenthesized_element, rejected_await, reparsed};
 
 /// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one

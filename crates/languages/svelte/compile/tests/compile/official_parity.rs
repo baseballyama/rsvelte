@@ -23,6 +23,7 @@ mod namespaces;
 mod outcomes;
 mod patterns;
 mod props;
+mod radix_numbers;
 mod redeclarations;
 mod runes;
 mod signatures;

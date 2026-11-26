@@ -4,6 +4,7 @@ use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::{PartError, Token};
 use oxc_span::SourceType;
 
+use super::number::{Reading, at_shorter_number};
 use super::{Part, TreeBuilder};
 use crate::acorn_grammar::{Unsupported, lexed, read, read_before_stopping, rejection};
 use crate::syntax_error::{
@@ -48,6 +49,13 @@ impl<'a> TreeBuilder<'a> {
             let errors = diagnostics.iter().skip(first).cloned();
             let mut error = syntax_error(errors, text, &[], fallback, shift);
             error.acorn = acorn.map(|acorn| acorn.shifted(shift));
+            let reading = match part {
+                Part::Program(_) => Reading::Program(fallback),
+                Part::Expression(_) => Reading::Expression(fallback),
+                Part::Statement(_) => Reading::Statement(fallback),
+            };
+            let reported = (diagnostics, first, tokens);
+            at_shorter_number(&mut error, reported, (text, shift), (reading, source_type));
             error.typescript_eslint_at =
                 typescript_eslint_at(&diagnostics[first], visit).map(|at| at + shift);
             // acorn throws where it stops first, before an error oxc reports later or at the same
