@@ -36,10 +36,21 @@ pub(super) fn typescript_env(
             .collect(),
         replaced: vec![(types, without_any_component_module(text))],
         script_modules: vec![".svelte"],
-        notes: vec![(
-            1184,
-            "If this is a declare statement, move it into <script context=\"module\">..</script>",
-        )],
+        // svelte-check's `adjustIfNecessary`, for Svelte 5:
+        // https://github.com/sveltejs/language-tools/blob/e7826d325d734e6be6bfd7694acc3804ea264a1e/packages/language-server/src/plugins/typescript/features/DiagnosticsProvider.ts#L423-L453
+        notes: vec![
+            (
+                (2345, "ConstructorOfATypedSvelteComponent"),
+                "\n\nPossible causes:\n- You use the instance type of a component where you \
+                 should use the constructor type\n- Type definitions are missing for this Svelte \
+                 Component. ",
+            ),
+            (
+                (1184, ""),
+                "\nIf this is a declare statement, move it into <script context=\"module\">..\
+                 </script>",
+            ),
+        ],
     })
 }
 
