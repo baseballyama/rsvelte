@@ -1,3 +1,4 @@
+use oxc_allocator::Allocator;
 use oxc_ast::ast::Program;
 use oxc_diagnostics::Diagnostics;
 use oxc_parser::config::TokensParserConfig;
@@ -22,7 +23,32 @@ impl<'a> TreeBuilder<'a> {
         source_type: SourceType,
     ) -> Result<ProgramIdentifier, SyntaxError> {
         let text = &self.source_text[..range.end_offset as usize];
-        (self.read_program(text, range.start_offset, source_type, |_| false))
+        (self.read_program(
+            text,
+            range.start_offset,
+            source_type,
+            |_| false,
+            |_, _, _| Vec::new(),
+        ))
+        .map_err(|read| read.error)
+    }
+
+    /// [`Self::program`] for a host whose parser reads what `erase` leaves of it, as Svelte reads
+    /// TypeScript's emit of a module. When its last argument is true, as it is when oxc recovered
+    /// from an error, `erase` returns the spans it removes, and an error in one of them is not the
+    /// host's.
+    ///
+    /// # Errors
+    ///
+    /// The first syntax error in what `erase` keeps, or the error that stopped oxc.
+    pub fn erased_program(
+        &mut self,
+        range: Span,
+        source_type: SourceType,
+        erase: impl FnOnce(&'a Allocator, &mut Program<'a>, bool) -> Vec<oxc_span::Span>,
+    ) -> Result<ProgramIdentifier, SyntaxError> {
+        let text = &self.source_text[..range.end_offset as usize];
+        (self.read_program(text, range.start_offset, source_type, |_| false, erase))
             .map_err(|read| read.error)
     }
 
@@ -51,7 +77,7 @@ impl<'a> TreeBuilder<'a> {
     ) -> Result<ProgramIdentifier, Rejected> {
         let text = &self.source_text[..range.end_offset as usize];
         let start = range.start_offset;
-        self.read_program(text, start, source_type, keep)
+        self.read_program(text, start, source_type, keep, |_, _, _| Vec::new())
             .map_err(|rejected| {
                 let program = (rejected.recovered).map(|program| &self.programs[program].0);
                 let errors = rejected.diagnostics.into_iter().map(|e| {
@@ -157,15 +183,16 @@ impl<'a> TreeBuilder<'a> {
 
     /// Parses `text[start..]`, where `text` is the document up to the program's end, with oxc's
     /// errors when it fails, and, when `keep_recovered` accepts them, the program oxc recovered
-    /// unless an error stopped it.
+    /// unless an error stopped it. The host reads what `erase` leaves of the program.
     fn read_program(
         &mut self,
         text: &'a str,
         start: u32,
         source_type: SourceType,
         keep_recovered: fn(&Diagnostics) -> bool,
+        erase: impl FnOnce(&'a Allocator, &mut Program<'a>, bool) -> Vec<oxc_span::Span>,
     ) -> Result<ProgramIdentifier, Box<Read>> {
-        let parsed = Parser::new(self.allocator, text, source_type)
+        let mut parsed = Parser::new(self.allocator, text, source_type)
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .with_start(start)
@@ -191,7 +218,12 @@ impl<'a> TreeBuilder<'a> {
                 recovered: None,
             }));
         }
-        let part = Part::Program(&parsed.program);
+        let mut program = parsed.program;
+        let erased = erase(self.allocator, &mut program, !parsed.diagnostics.is_empty());
+        if !erased.is_empty() {
+            parsed.diagnostics.retain(|error| !in_spans(error, &erased));
+        }
+        let part = Part::Program(&program);
         let rejection = match self.check(
             &parsed.diagnostics,
             (text, start, 0),
@@ -208,7 +240,6 @@ impl<'a> TreeBuilder<'a> {
                 }));
             }
         };
-        let mut program = parsed.program;
         // The program keeps its comments; the part keeps a copy, as few programs have many.
         let comments =
             oxc_allocator::Vec::from_iter_in(program.comments.iter().cloned(), &self.allocator);
@@ -227,6 +258,14 @@ impl<'a> TreeBuilder<'a> {
             })),
         }
     }
+}
+
+/// Whether `error` is labelled in one of `spans`.
+fn in_spans(error: &oxc_diagnostics::OxcDiagnostic, spans: &[oxc_span::Span]) -> bool {
+    error.labels.first().is_some_and(|label| {
+        let at = label.offset();
+        spans.iter().any(|span| span.start <= at && at < span.end)
+    })
 }
 
 /// What oxc read of a program the host's parser rejects.

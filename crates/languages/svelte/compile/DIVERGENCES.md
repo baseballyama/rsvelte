@@ -27,3 +27,30 @@ a namespace export (`export as namespace N;`).
 - Tests: `tests/compile/official_parity/import_equals.rs`, and `namespaces.rs` for the namespace.
 - The upstream bug is item 178 of [#4939](https://github.com/baseballyama/rsvelte/issues/4939),
   and the decision is [#5218](https://github.com/baseballyama/rsvelte/issues/5218).
+
+## A `.svelte.ts` module that oxc cannot read on
+
+TypeScript reads on past some syntax errors in a `.svelte.ts` module: a reserved word as a name
+(`declare let enum: number;`, `interface enum {}`) and a type operator with no operand
+(`let v: keyof;`, `function f(this: infer) {}`).
+
+- Svelte 5.59.1 compiles TypeScript 6.0.3's emit of the module. Of the 38 shapes in the report,
+  24 compile, as `let v: keyof;` does, since the emit drops the error. The other 14 fail, since
+  the emit keeps text that acorn rejects: `declare const v = enum;` fails with "Unexpected token",
+  and `interface enum {}` fails with a reserved keyword error at `interface`.
+- rsvelte reads the module with oxc, which stops at the error. `compileModule` fails with
+  `js_parse_error` at oxc's position and message. Where oxc reads on, rsvelte reports the error
+  only in code the emit keeps: `erased_program` in the TypeScript tree crate's
+  [`program.rs`](../../typescript/tree/src/builder/program.rs) drops the others, with the spans
+  that [`erase.rs`](src/module/erase.rs) removes.
+- A bundler reads the module as oxc does. `esbuild` 0.28.2 rejects 36 of the 38 shapes and
+  accepts `declare function f({ enum }: any): void;` and `declare namespace A.enum {}`. The oxc
+  transform of `rolldown` 1.2.19 rejects all 38.
+- A number that oxc's lexer refuses stops it the same way. TypeScript writes `0_8` as `8`, which
+  Svelte compiles, and rsvelte fails with "Numeric separator is not allowed in legacy octal
+  numeric literals". TypeScript writes `export const a = 08n;` as `export const a = 8, n;`, a
+  `const` with no value, which Svelte rejects with "Unexpected token" at the `;`, and rsvelte
+  fails with "Invalid number" at the number. `07e1` gives the same pair.
+- Test: `a_typescript_module_that_oxc_cannot_read_fails_where_typescript_reads_on` in
+  `src/module/tests/erased_errors.rs`.
+- The report is [#5347](https://github.com/baseballyama/rsvelte/issues/5347).
