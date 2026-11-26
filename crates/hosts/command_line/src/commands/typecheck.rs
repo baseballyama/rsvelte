@@ -5,7 +5,7 @@ use std::fmt::Write as _;
 use std::path::{Component, Path, PathBuf};
 use std::process::ExitCode;
 
-use rsvelte_kernel::computation::pipeline::DocumentResult;
+use rsvelte_kernel::computation::pipeline::{self, DocumentResult, RunOptions, Sharing};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::diagnostics::{Diagnostic, Severity};
 use rsvelte_kernel::source::document::Document;
@@ -17,19 +17,54 @@ use crate::usage;
 
 /// Checks the files of the project the tasks check. Exit code 1 means an error was found.
 pub(crate) fn typecheck(reg: &Registry, tasks: &[&str]) -> ExitCode {
-    let files = match project_files(reg, tasks) {
-        Project::Files(files) => files,
-        Project::Problems(problems) => return problems.print(),
+    match check(reg, tasks, &|_| None) {
+        Ok(Checked::Files(checked)) => {
+            print(checked.iter().map(|(document, result)| (document, result)))
+        }
+        Ok(Checked::Problems(found)) => Problems(problems(&found, here().as_deref())).print(),
+        Err(e) => usage(&e),
+    }
+}
+
+/// What a check of the project found.
+pub(crate) enum Checked {
+    /// Each file of the project, with its result.
+    Files(Vec<(Document, DocumentResult)>),
+    /// The problems of the project's configuration, which are reported instead of its files.
+    Problems(Vec<(PathBuf, Diagnostic)>),
+}
+
+/// Checks the files of the project the tasks check. A file has the text `open` gives it, such as
+/// an editor's unsaved text, else the one the tasks read it with.
+pub(crate) fn check(
+    reg: &Registry,
+    tasks: &[&str],
+    open: &dyn Fn(&Path) -> Option<String>,
+) -> Result<Checked, String> {
+    let project = reg.project_files(tasks)?;
+    if !project.problems.is_empty() {
+        return Ok(Checked::Problems(project.problems));
+    }
+    let documents = (project.files.into_iter())
+        .map(|path| match open(&path) {
+            // A file the tasks replace, such as the svelte package's types, keeps its replacement.
+            Some(text) if !replaced(reg, &path, tasks) => files::document(path, text),
+            _ => files::read(reg, path, tasks),
+        })
+        .collect::<Result<Vec<_>, _>>()?;
+    let options = RunOptions {
+        tasks,
+        sharing: Sharing::Shared,
+        threads: None,
     };
-    let documents = match files::read_all(reg, files, tasks) {
-        Ok(documents) => documents,
-        Err(e) => return usage(&e),
-    };
-    let results = match files::run(reg, &documents, tasks) {
-        Ok(results) => results,
-        Err(code) => return code,
-    };
-    print(documents.iter().zip(&results))
+    let results = pipeline::run_per_document(reg, &documents, &options, &|_| tasks)
+        .map_err(|e| e.to_string())?;
+    Ok(Checked::Files(documents.into_iter().zip(results).collect()))
+}
+
+fn replaced(reg: &Registry, path: &Path, tasks: &[&str]) -> bool {
+    rsvelte_kernel::source::paths::canonicalize(path)
+        .is_ok_and(|real| reg.replacement(&real, tasks).is_some())
 }
 
 pub(crate) fn print<'a>(

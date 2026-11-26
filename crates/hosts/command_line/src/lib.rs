@@ -147,7 +147,9 @@ pub fn development() -> ExitCode {
         selection,
         defaults: Vec::new(),
     };
-    let (reg, tools) = match configured_registry(&config, &overrides, installation) {
+    let configured = current_directory()
+        .and_then(|here| configured_registry(&config, &overrides, installation, &here));
+    let (reg, tools) = match configured {
         Ok(configured) => configured,
         Err(error) => return usage(&error),
     };
@@ -175,15 +177,21 @@ struct Installation {
     defaults: Vec<(&'static str, String)>,
 }
 
-/// Installs the plugins with their options, and returns the programs their tasks will run. Every
-/// mistake is reported here, once, not on each file.
+/// The directory a command runs in.
+fn current_directory() -> Result<PathBuf, String> {
+    std::env::current_dir().map_err(|e| format!("current directory: {e}"))
+}
+
+/// Installs the plugins with their options, as run in `directory`, and returns the programs their
+/// tasks will run. Every mistake is reported here, once, not on each file.
 fn configured_registry(
     config: &configuration::Options,
     overrides: &[(&str, &str)],
     installation: Installation,
+    directory: &Path,
 ) -> Result<(Registry, Vec<rsvelte_plugin_interface::Tool>), String> {
-    let loaded = config.load().map_err(|error| error.to_string())?;
-    install(loaded.as_ref(), overrides, installation)
+    let loaded = config.load(directory).map_err(|error| error.to_string())?;
+    install(loaded.as_ref(), overrides, installation, directory)
 }
 
 /// [`configured_registry`] with the configuration already loaded, so that one configuration can
@@ -192,6 +200,7 @@ fn install(
     loaded: Option<&(PathBuf, LoadedConfiguration)>,
     overrides: &[(&str, &str)],
     installation: Installation,
+    directory: &Path,
 ) -> Result<(Registry, Vec<rsvelte_plugin_interface::Tool>), String> {
     let functions: std::sync::Arc<dyn rsvelte_plugin_interface::FunctionResolver> = match loaded {
         Some((_, loaded)) => std::sync::Arc::clone(&loaded.functions),
@@ -212,7 +221,8 @@ fn install(
             settings.set(plugin.clone(), options.clone(), base.clone());
         }
     }
-    let here = std::env::current_dir().map_err(|e| format!("current directory: {e}"))?;
+    // What the defaults and `--options` name is found from the directory the run is in.
+    let here = directory.to_owned();
     for (plugin, options) in installation.defaults {
         if !given.iter().any(|g| g == plugin) {
             let options =
