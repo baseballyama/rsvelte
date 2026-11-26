@@ -31,7 +31,7 @@ pub(crate) enum Verdict {
     Unexpected,
     /// Both rejected the unit for a JavaScript syntax error, which oxc and acorn word and place
     /// apart.
-    JsEquivalent,
+    JavascriptEquivalent,
     /// Not compared: the official tool rejected the unit. Only a comment verdict says so; the
     /// task's own verdict judges the rejection.
     OfficialRejected,
@@ -48,7 +48,7 @@ impl Verdict {
         Self::Mismatch,
         Self::Missing,
         Self::Unexpected,
-        Self::JsEquivalent,
+        Self::JavascriptEquivalent,
         Self::OfficialRejected,
         Self::Skipped,
         Self::Match,
@@ -62,7 +62,7 @@ impl Verdict {
             Self::Mismatch => "mismatch",
             Self::Missing => "missing",
             Self::Unexpected => "unexpected",
-            Self::JsEquivalent => "js-equivalent",
+            Self::JavascriptEquivalent => "js-equivalent",
             Self::OfficialRejected => "official-rejected",
             Self::Skipped => "skipped",
             Self::Match => "match",
@@ -210,7 +210,8 @@ fn file<'a>(output: &'a TaskOutput, name: &str) -> Option<&'a str> {
 }
 
 /// Two JSON texts compared as values; an actual text that is not JSON does not match. Two that
-/// differ only in the words and places of JavaScript syntax errors are [`Verdict::JsEquivalent`].
+/// differ only in the words and places of JavaScript syntax errors are
+/// [`Verdict::JavascriptEquivalent`].
 fn same_json(official: &str, actual: &str) -> Result<Verdict, serde_json::Error> {
     let parse = serde_json::from_str::<serde_json::Value>;
     let mut official = parse(official)?;
@@ -223,14 +224,14 @@ fn same_json(official: &str, actual: &str) -> Result<Verdict, serde_json::Error>
     blank_javascript_errors(&mut official);
     blank_javascript_errors(&mut actual);
     Ok(if actual == official {
-        Verdict::JsEquivalent
+        Verdict::JavascriptEquivalent
     } else {
         Verdict::Mismatch
     })
 }
 
 /// Where Svelte names a JavaScript syntax error by its documentation link.
-const JS_PARSE_ERROR_LINK: &str = "https://svelte.dev/e/js_parse_error";
+const JAVASCRIPT_ERROR_LINK: &str = "https://svelte.dev/e/js_parse_error";
 
 /// Drops the message and the place of every diagnostic in `value` that is a JavaScript syntax
 /// error.
@@ -239,7 +240,7 @@ fn blank_javascript_errors(value: &mut serde_json::Value) {
         serde_json::Value::Array(items) => items.iter_mut().for_each(blank_javascript_errors),
         serde_json::Value::Object(fields) => {
             let javascript = (fields.get("message").and_then(serde_json::Value::as_str))
-                .is_some_and(|message| message.contains(JS_PARSE_ERROR_LINK));
+                .is_some_and(|message| message.contains(JAVASCRIPT_ERROR_LINK));
             if javascript {
                 for key in ["message", "start", "end"] {
                     fields.remove(key);
@@ -309,14 +310,14 @@ fn error_verdict(official: &str, actual: &str) -> Result<Verdict, String> {
     };
     Ok(if *first == official {
         Verdict::Match
-    } else if first.code == JS_PARSE_ERROR && official.code == JS_PARSE_ERROR {
-        Verdict::JsEquivalent
+    } else if first.code == JAVASCRIPT_PARSE_ERROR && official.code == JAVASCRIPT_PARSE_ERROR {
+        Verdict::JavascriptEquivalent
     } else {
         Verdict::Mismatch
     })
 }
 
-const JS_PARSE_ERROR: &str = "js_parse_error";
+const JAVASCRIPT_PARSE_ERROR: &str = "js_parse_error";
 
 #[derive(Deserialize)]
 struct LintFile {
@@ -400,7 +401,7 @@ fn lint(official: &str, actual: &str) -> Result<Verdict, String> {
         (javascript, rest)
     };
     Ok(if parts(&wanted) == parts(&actual) {
-        Verdict::JsEquivalent
+        Verdict::JavascriptEquivalent
     } else {
         Verdict::Mismatch
     })
@@ -415,7 +416,7 @@ fn javascript_error_rule(line: &str) -> Option<&str> {
     else {
         return None;
     };
-    message.contains(JS_PARSE_ERROR_LINK).then_some(rule)
+    message.contains(JAVASCRIPT_ERROR_LINK).then_some(rule)
 }
 
 /// Sorts each run of lines that start at the same position, keeping the runs in order.

@@ -130,7 +130,7 @@ fn javascript_syntax_errors_agree_on_the_code() {
     );
     assert_eq!(
         judged(&ours("js_parse_error", "Expected `;`", 5)),
-        Some(Verdict::JsEquivalent)
+        Some(Verdict::JavascriptEquivalent)
     );
     assert_eq!(
         judged(&ours("expected_token", "Unexpected token", 3)),
@@ -299,7 +299,7 @@ fn lint_findings_and_json_agree_on_a_javascript_syntax_error_alone() {
             )],
             None
         ),
-        Some(Verdict::JsEquivalent)
+        Some(Verdict::JavascriptEquivalent)
     );
     assert_eq!(
         judge(
@@ -321,7 +321,7 @@ fn lint_findings_and_json_agree_on_a_javascript_syntax_error_alone() {
             &[("json", &diagnostic("Unexpected JSX expression", 2))],
             None
         ),
-        Some(Verdict::JsEquivalent)
+        Some(Verdict::JavascriptEquivalent)
     );
     assert_eq!(
         judge(&json, &[("json", "[]")], None),
