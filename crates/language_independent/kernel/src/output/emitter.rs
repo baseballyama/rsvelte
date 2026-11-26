@@ -279,7 +279,15 @@ impl Emitter {
         let mut source_cursor = LineCursor::new(source_text, Some(source));
         // Five bytes per copied character and about eight per other point, measured over the
         // corpus: small maps reserve less than doubling leaves spare.
-        let copied: usize = self.mappings.iter().map(|m| m.len as usize).sum();
+        let copied: usize = (self.mappings.iter())
+            .filter(|m| m.len > 0)
+            .map(|m| {
+                let text =
+                    &self.out.as_bytes()[m.generated as usize..(m.generated + m.len) as usize];
+                // A character starts at each byte that is not a UTF-8 continuation byte.
+                text.iter().filter(|&&b| b & 0xC0 != 0x80).count()
+            })
+            .sum();
         let points = self.mappings.len() + self.atoms.len();
         let mut json = String::with_capacity(64 + source_name.len() + 5 * copied + 8 * points);
         json.push_str("{\"version\":3,\"sources\":[");
