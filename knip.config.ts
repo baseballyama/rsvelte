@@ -29,8 +29,10 @@ export default {
 			entry: ['launcher.js', 'program.js'],
 		},
 		'apps/rsvelte': {
-			// The Rust tool that builds the WebAssembly module, which only the package job runs.
+			// The Rust tool that builds the WebAssembly module, and the module, which only the
+			// package job builds.
 			ignoreBinaries: ['wasm-pack'],
+			ignoreUnresolved: ['#wasm'],
 		},
 		'apps/vscode': {
 			// The extension host loads the bundle of the first, and VS Code the bundle of the last.
