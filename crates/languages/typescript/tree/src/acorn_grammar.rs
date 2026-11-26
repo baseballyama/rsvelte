@@ -12,7 +12,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
 use crate::TypeScriptReader;
-use crate::syntax_error::{Acorn, StaticBlockAwaits, SyntaxError};
+use crate::syntax_error::{Acorn, SyntaxError, Unreserved, UnreservedWords};
 
 mod ambient;
 mod names;
@@ -44,8 +44,8 @@ pub(crate) enum Rejection {
     Reserved(names::ReservedWord),
     /// An initializer in an ambient context, where only a `const` without a type may have one.
     AmbientInitializer,
-    /// `await` in a class static block.
-    StaticBlockAwait,
+    /// A word acorn rejects as it reads it, which oxc's parser leaves to its checker.
+    Unreserved(Unreserved),
     /// A `const`'s initializer in an ambient context that is not a literal or an enum reference.
     AmbientConstInitializer,
     /// A token acorn's lexer rejects as it reads it: a number, or an escape that strict code
@@ -70,7 +70,7 @@ impl Rejection {
             Self::StrictName { name, binds } => name.message(binds),
             Self::Reserved(word) => word.message(),
             Self::AmbientInitializer => "Initializers are not allowed in ambient contexts.",
-            Self::StaticBlockAwait => "Cannot use await in class static initialization block",
+            Self::Unreserved(word) => word.message(),
             Self::AmbientConstInitializer => concat!(
                 "A 'const' initializer in an ambient context must be a string or numeric literal ",
                 "or literal enum reference."
@@ -270,11 +270,11 @@ pub(crate) struct Unsupported<'t> {
     /// The namespace the next part of a dotted namespace name declares, whose name acorn does
     /// not check.
     dotted: Option<oxc_span::Span>,
-    awaits: StaticBlockAwaits,
+    unreserved: UnreservedWords,
 }
 
 impl<'t> Unsupported<'t> {
-    pub(crate) const fn new(typescript: Option<TypeScriptReader>, tokens: &'t [Token]) -> Self {
+    pub(crate) fn new(typescript: Option<TypeScriptReader>, tokens: &'t [Token]) -> Self {
         Self {
             typescript,
             tokens,
@@ -282,7 +282,7 @@ impl<'t> Unsupported<'t> {
             ambient: 0,
             types: 0,
             dotted: None,
-            awaits: StaticBlockAwaits::new(),
+            unreserved: UnreservedWords::new(),
         }
     }
 }
@@ -305,8 +305,8 @@ impl<'a> Visit<'a> for Unsupported<'_> {
     }
 
     fn enter_node(&mut self, kind: AstKind<'a>) {
-        let mut found = (self.awaits.enter(kind))
-            .map(|at| (at, Rejection::StaticBlockAwait))
+        let mut found = (self.unreserved.enter(kind))
+            .map(|(at, why)| (at, Rejection::Unreserved(why)))
             .or_else(|| stop(kind, self.typescript, self.tokens))
             .map(|(at, why)| Stop::at(at, why))
             .or_else(|| lexed_literal(kind, self.typescript));
