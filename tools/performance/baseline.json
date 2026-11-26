@@ -25,7 +25,7 @@
 	},
 	"allocs": 25334233,
 	"alloc_bytes": 3883978547,
-	"peak_live_growth_bytes": 3013999,
+	"peak_live_growth_bytes": 3010587,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
 			"calls": 2612,
