@@ -21,7 +21,7 @@ function $$render() {
         current = __rsvelte_untyped_prop();
       };
       {
-        for (let [, option] of __rsvelte_each(options)) {
+        for (let option of __rsvelte_each(options)) {
           {
             svelteHTML.createElement("option", {
               "value": option,

@@ -17,7 +17,7 @@ function $$render() {
         flavours = __rsvelte_untyped_prop();
       };
       {
-        for (let [, flavour] of __rsvelte_each(all)) {
+        for (let flavour of __rsvelte_each(all)) {
           {
             svelteHTML.createElement("option", {
               "value": flavour,

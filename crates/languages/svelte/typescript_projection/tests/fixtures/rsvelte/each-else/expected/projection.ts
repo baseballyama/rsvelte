@@ -10,7 +10,7 @@ function $$render() {
   }, {}, false);
   async () => {
     {
-      for (let [, result] of __rsvelte_each(results)) {
+      for (let result of __rsvelte_each(results)) {
         {
           svelteHTML.createElement("p", {});
           result.title;

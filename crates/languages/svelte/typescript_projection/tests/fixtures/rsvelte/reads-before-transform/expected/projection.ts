@@ -30,7 +30,7 @@ function $$render() {
       }
     }
     {
-      for (let [, { a, b = c, c, d = a, e = e }] of __rsvelte_each(items)) {
+      for (let { a, b = c, c, d = a, e = e } of __rsvelte_each(items)) {
         a;
         b;
         c;
@@ -39,7 +39,7 @@ function $$render() {
       }
     }
     {
-      for (let [, [x, y = z, z = x]] of __rsvelte_each(items)) {
+      for (let [x, y = z, z = x] of __rsvelte_each(items)) {
         x;
         y;
         z;

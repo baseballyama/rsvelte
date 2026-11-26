@@ -47,7 +47,7 @@ function $$render() {
       count;
     }
     {
-      for (let [, row] of __rsvelte_each(items)) {
+      for (let row of __rsvelte_each(items)) {
         {
           svelteHTML.createElement("div", {});
           const row = () => {

@@ -5,7 +5,8 @@ function $$render() {
 
   async () => {
     {
-      for (let [i, value] of __rsvelte_each(values as string[])) {
+      for (let value of __rsvelte_each(values as string[])) {
+        let i = 1;
         (i);
         {
           svelteHTML.createElement("p", {

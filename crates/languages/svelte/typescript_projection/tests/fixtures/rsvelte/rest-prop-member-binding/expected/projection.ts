@@ -88,7 +88,7 @@ function $$render() {
       rest.w2 = __rsvelte_element0.clientWidth;
     }
     {
-      for (let [, item] of __rsvelte_each(arr)) {
+      for (let item of __rsvelte_each(arr)) {
         {
           svelteHTML.createElement("input", {
             "bind:value": rest.each,

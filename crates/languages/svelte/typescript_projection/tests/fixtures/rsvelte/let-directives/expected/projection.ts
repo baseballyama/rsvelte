@@ -24,7 +24,7 @@ function $$render() {
           "pair": { a, b: [c], ...rest },
         } = $$_C0.$$slot_def.default;
         {
-          for (let [, x] of __rsvelte_each(item)) {
+          for (let x of __rsvelte_each(item)) {
             {
               svelteHTML.createElement("p", {
                 "onclick": () => k++,
