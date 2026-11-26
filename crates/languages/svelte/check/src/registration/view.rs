@@ -34,7 +34,7 @@ pub(super) fn typescript_view(
     // off the script elements whether or not svelte2tsx throws.
     let source = &context.document.text;
     let typescript = read.as_ref().map_or_else(
-        |_| rsvelte_svelte_syntax::parse::scripts_checked_as_typescript(source),
+        |_| rsvelte_svelte_syntax::parse::checked_scripts(source).typescript,
         |read| read.component.checked_as_typescript(source),
     );
     let read = match read {

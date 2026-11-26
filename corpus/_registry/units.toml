@@ -2981,6 +2981,21 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser reads no script in a one-line file whose script follows the template, `{#if x}<p></p>{/if}<script lang=\"ts\">let a = 1</script>`"
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/4fd47e2cba0dad6e.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/583f2b2edcebe57c.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/ad7d90b669ae5faf.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/an_unparseable_attribute_keeps_the_non_generic_component_export/cffe1f9d59ce39ca.svelte".skip]
+"svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
+
+["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_nested_special_types_2166/a_slots_interface_declared_inside_a_function_is_still_detected/4cfec2737432c169.svelte".skip]
+"svelte.check" = "upstream bug: svelte2tsx names this component's `$$Slots`, declared inside a function, at the top level, so svelte-check reads the global `$$Slots` a broken neighbor's script declares; alone, svelte-check reports nothing and rsvelte a check_unmapped TS2304 (https://github.com/baseballyama/rsvelte/issues/5394)"
+
 ["svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_generics_attribute_parse/a_comma_inside_another_bracket_kind_does_not_split_the_parameter/055da27d622b3fe6.svelte".skip]
 "svelte.check" = "upstream bug: svelte-check adds the script of a component that does not parse to the project as a global script, so this unit reads a name its broken neighbors declare and its expected output depends on the units beside it"
 

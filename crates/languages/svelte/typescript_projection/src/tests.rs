@@ -6,6 +6,8 @@ use rsvelte_svelte_syntax::parse::parse;
 
 use crate::syntax_tree::{Node, NodeIdentifier, SyntaxTree};
 
+mod stand_in;
+
 fn project(source: &str) -> (SyntaxTree, rsvelte_kernel::output::emitter::Emitter) {
     let component = parse(source).expect("valid Svelte source");
     let before = format!("{component:?}");
