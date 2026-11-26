@@ -14,7 +14,7 @@ const PER_DIRECTORY = 8;
 const MAX_BYTES = 8192;
 
 /** The test262 front matter's flags, and whether it expects an error. */
-function admitted(text: string): boolean {
+export function admitted(text: string): boolean {
 	const meta = /\/\*---([\s\S]*?)---\*\//.exec(text)?.[1];
 	if (meta === undefined || /^negative:/m.test(meta)) return false;
 	const flags = /^flags:\s*\[([^\]]*)\]/m.exec(meta)?.[1] ?? '';
