@@ -9,7 +9,7 @@ function $$render() {
     {
       svelteHTML.createElement("ul", {});
       {
-        for (let [, name] of __rsvelte_each(names)) {
+        for (let name of __rsvelte_each(names)) {
           {
             svelteHTML.createElement("li", {});
             name;

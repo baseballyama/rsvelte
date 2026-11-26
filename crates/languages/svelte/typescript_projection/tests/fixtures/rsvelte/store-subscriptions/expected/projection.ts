@@ -47,7 +47,7 @@ function $$render() {
       });
     }
     {
-      for (let [, item] of __rsvelte_each($obj.list)) {
+      for (let item of __rsvelte_each($obj.list)) {
         item;
       }
     }

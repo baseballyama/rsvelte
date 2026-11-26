@@ -15,7 +15,7 @@ function $$render() {
       __rsvelte_ensure_snippet(footer?.(items));
     }
     {
-      for (let [, item] of __rsvelte_each(items)) {
+      for (let item of __rsvelte_each(items)) {
         __rsvelte_ensure_snippet(item.view());
       }
     }

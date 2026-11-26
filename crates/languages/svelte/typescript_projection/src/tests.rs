@@ -261,10 +261,11 @@ fn a_typed_each_context_drops_its_annotation_as_svelte2tsx_does() {
     assert!(
         output
             .out
-            .contains("for (let [i, letter] of __rsvelte_each(letters))"),
+            .contains("for (let letter of __rsvelte_each(letters)) {\n"),
         "{}",
         output.out
     );
+    assert!(output.out.contains("let i = 1;\n"), "{}", output.out);
     assert!(!output.out.contains("letter: string"), "{}", output.out);
 }
 

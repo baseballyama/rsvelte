@@ -7,7 +7,7 @@ function $$render() {
 
   async () => {
     {
-      for (let [, x] of __rsvelte_each([1])) {
+      for (let x of __rsvelte_each([1])) {
         (x);
         {
           svelteHTML.createElement("div", {

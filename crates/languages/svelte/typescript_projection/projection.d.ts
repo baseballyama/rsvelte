@@ -1,5 +1,5 @@
 type __rsvelte_each_value<T> = 0 extends (1 & T) ? T : T extends ArrayLike<infer Value> ? Value : T extends Iterable<infer Value> ? Value : never;
-declare function __rsvelte_each<T extends ArrayLike<unknown> | Iterable<unknown>>(values: T | null | undefined): Iterable<readonly [number, __rsvelte_each_value<T>]>;
+declare function __rsvelte_each<T extends ArrayLike<unknown> | Iterable<unknown>>(values: T | null | undefined): Iterable<__rsvelte_each_value<T>>;
 // svelte2tsx's `__sveltets_2_ensureComponent` constraint, as a call: a class component, as Svelte 4 types declare one, takes the props of its instance; `any` stays `any`.
 declare function __rsvelte_component<C extends ConstructorOfATypedSvelteComponent | import('svelte').Component<any, any, any> | null | undefined>(component: C): NonNullable<C extends (new (options: any) => infer Instance extends { $$prop_def: any }) ? (internals: Parameters<import('svelte').Component>[0], props: Instance['$$prop_def']) => Instance : C>;
 declare const __rsvelte_children: () => any;

@@ -36,12 +36,18 @@ impl Builder<'_> {
         let arguments = self.tree.list(&[iterable]);
         let iterable = self.tree.push(Node::Call { callee, arguments });
         let javascript = &self.component.javascript;
-        let index = index.map(|index| javascript.get_pattern(index).span);
-        let index = index.map(|at| self.source(at, None));
         // svelte2tsx drops a context's type annotation, and `for…of` takes none.
-        let value = context.map(|context| javascript.get_pattern(context).pattern.span());
-        let value = value.map(|at| self.source(at, None));
-        let binding = self.tree.push(Node::ArrayPattern { index, value });
+        let binding = match context {
+            Some(context) => self.source(javascript.get_pattern(context).pattern.span(), None),
+            None => self.unused_name("__rsvelte_item"),
+        };
+        // svelte2tsx declares the index in the body, so that TypeScript reports each unused name
+        // and not the loop's pattern.
+        if let Some(index) = index {
+            let name = self.source(javascript.get_pattern(index).span, None);
+            let value = self.tree.push(Node::Identifier("1"));
+            self.scratch.push(self.tree.push(Node::Let { name, value }));
+        }
         if let Some(key) = key {
             let value = source_expression(node_span(self.expression(key)), None);
             self.scratch.push(self.tree.push(Node::Expression(value)));

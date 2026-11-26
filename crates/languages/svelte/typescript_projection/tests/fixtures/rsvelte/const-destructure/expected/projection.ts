@@ -11,7 +11,7 @@ function $$render() {
   }, {}, false);
   async () => {
     {
-      for (let [, item] of __rsvelte_each(items)) {
+      for (let item of __rsvelte_each(items)) {
         const { width, height } = item.size;
         const [first, second = fallback] = item.tags;
         const { label: title, ...extra } = item;

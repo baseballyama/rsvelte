@@ -23,7 +23,7 @@ function $$render() {
     regex;
     assigned;
     {
-      for (let [, { 1n: one, ['s']: s, ...item }] of __rsvelte_each(xs)) {
+      for (let { 1n: one, ['s']: s, ...item } of __rsvelte_each(xs)) {
         one;
         s;
         item;
