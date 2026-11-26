@@ -1,4 +1,4 @@
-# svelte.lint/default: 37486 match
+# svelte.lint/default: 39260 match
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/suggestions.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte	unexpected
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	js-equivalent
@@ -584,3 +584,21 @@ svelte/svelte/packages/svelte/tests/validator/samples/let-directive/input.svelte
 svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	mismatch
+svelte/test262/expressions/assignmenttargettype/simple-basic-identifierreference-await.svelte.js	mismatch
+svelte/test262/expressions/await/await-BindingIdentifier-in-global.svelte.js	mismatch
+svelte/test262/expressions/await/await-in-global.svelte.js	mismatch
+svelte/test262/expressions/await/await-in-nested-generator.svelte.js	mismatch
+svelte/test262/expressions/class/decorator/syntax/valid/decorator-call-expr-identifier-reference.svelte.js	mismatch
+svelte/test262/expressions/class/decorator/syntax/valid/decorator-member-expr-identifier-reference.svelte.js	mismatch
+svelte/test262/expressions/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference.svelte.js	mismatch
+svelte/test262/expressions/class/elements/syntax/valid/grammar-static-ctor-async-meth-valid.svelte.js	mismatch
+svelte/test262/expressions/import.meta/import-meta-is-an-ordinary-object.svelte.js	mismatch
+svelte/test262/identifiers/part-unicode-17.0.0-class-escaped.svelte.js	mismatch
+svelte/test262/statements/class/decorator/syntax/valid/class-element-decorator-call-expr-identifier-reference.svelte.js	mismatch
+svelte/test262/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-identifier-reference.svelte.js	mismatch
+svelte/test262/statements/class/decorator/syntax/valid/class-element-decorator-parenthesized-expr-identifier-reference.svelte.js	mismatch
+svelte/test262/statements/class/decorator/syntax/valid/decorator-call-expr-identifier-reference.svelte.js	mismatch
+svelte/test262/statements/class/decorator/syntax/valid/decorator-member-expr-identifier-reference.svelte.js	mismatch
+svelte/test262/statements/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference.svelte.js	mismatch
+svelte/test262/statements/labeled/value-await-non-module-escaped.svelte.js	mismatch
+svelte/test262/statements/labeled/value-await-non-module.svelte.js	mismatch

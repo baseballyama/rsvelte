@@ -14,6 +14,7 @@ result.
 | `rsvelte/check/`        | `rsvelte`                 | type check projects                            |
 | `rsvelte/crates/`       | `rsvelte`                 | files the old port's crate tests read          |
 | `rsvelte/lsp/`          | `rsvelte`                 | language server probes                         |
+| `test262/`              | `test262`                 | test262's language tests, as rune modules      |
 | `main-tests/core-1/` …  | `rsvelte-tests-core-1` …  | inputs of the compiler's tests                 |
 | `main-tests/formatter/` | `rsvelte-tests-formatter` | inputs of the formatter's tests                |
 | `main-tests/other/`     | `rsvelte-tests`           | inputs of the other crates' tests              |
@@ -24,6 +25,11 @@ why it exists. `main-tests/` holds every component and module the tests of `main
 commit passed to the compiler, the formatter, the linter or svelte2tsx, one directory per test.
 The type checker sees each source as one project, so `main-tests/` is split into sources small
 enough for svelte-check.
+
+`test262/` is the output of `node tools/oracle/test262.ts <checkout>`. It copies up to eight tests
+of each directory of test262's `test/language`, renamed to `.svelte.js`. It leaves out a test that
+must fail to parse or that runs only in sloppy mode, as a module is strict. The commit it reads is a
+constant of the tool.
 
 `held/` keeps inputs that no source reads yet, by why: rsvelte panics on them (`panic/`), prints
 a projection that is not TypeScript (`invalid-projection/`) or overflows its stack

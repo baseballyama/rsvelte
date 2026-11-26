@@ -871,6 +871,11 @@
 		"claimed": 110,
 		"duplicate": 0
 	},
+	"test262": {
+		"admitted": 1792,
+		"claimed": 1792,
+		"duplicate": 0
+	},
 	"threlte": {
 		"admitted": 830,
 		"claimed": 886,

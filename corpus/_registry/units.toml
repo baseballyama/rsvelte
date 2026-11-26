@@ -6683,3 +6683,12 @@
 
 ["svelte/svelte-spa-router/examples/dynamic-imports/src/routes/Wild.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
+
+["svelte/test262/expressions/dynamic-import/eval-export-dflt-expr-cls-named.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 drops the parentheses of `export default (class cName {})`, which makes the class expression a declaration that binds `cName`"
+
+["svelte/test262/expressions/dynamic-import/eval-export-dflt-expr-gen-anon.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 drops the parentheses of `export default (function* () {})`, which makes the generator expression a declaration"
+
+["svelte/test262/expressions/dynamic-import/eval-export-dflt-cls-named.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 writes a `;` after `export default class cName {}`, an empty statement the source does not have"
