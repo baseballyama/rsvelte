@@ -20,7 +20,7 @@ function $$render() {
     m;
     rest;
     {
-      for (let [, x] of __rsvelte_each(xs)) {
+      for (let x of __rsvelte_each(xs)) {
         const { 0x10: d } = x;
         d;
       }
