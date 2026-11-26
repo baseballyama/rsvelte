@@ -79,14 +79,18 @@ impl TypeCheck {
 impl LanguageServer for TypeCheck {
     fn initialize(
         &self,
-        params: InitializeParams,
-    ) -> impl Future<Output = Result<InitializeResult>> + Send {
         #[expect(
             deprecated,
-            reason = "a client without workspace folders sends only it"
+            reason = "a client without workspace folders sends only its root"
         )]
-        let root = params.root_uri.as_ref();
-        let listed = match &params.workspace_folders_initialize_params.workspace_folders {
+        InitializeParams {
+            root_uri,
+            workspace_folders_initialize_params: folder_parameters,
+            ..
+        }: InitializeParams,
+    ) -> impl Future<Output = Result<InitializeResult>> + Send {
+        let root = root_uri.as_ref();
+        let listed = match &folder_parameters.workspace_folders {
             Some(WorkspaceFolders::WorkspaceFolderList(folders)) => folders.as_slice(),
             _ => &[],
         };
@@ -120,17 +124,26 @@ impl LanguageServer for TypeCheck {
         std::future::ready(Ok(()))
     }
 
-    async fn did_open(&self, params: DidOpenTextDocumentParams) {
-        self.edited(&params.text_document.uri, Some(params.text_document.text));
+    async fn did_open(
+        &self,
+        DidOpenTextDocumentParams { text_document }: DidOpenTextDocumentParams,
+    ) {
+        self.edited(&text_document.uri, Some(text_document.text));
     }
 
-    fn did_change(&self, params: DidChangeTextDocumentParams) -> impl Future<Output = ()> + Send {
+    fn did_change(
+        &self,
+        DidChangeTextDocumentParams {
+            text_document,
+            content_changes,
+        }: DidChangeTextDocumentParams,
+    ) -> impl Future<Output = ()> + Send {
         // The lint takes the whole text on each change, and so does this check.
         if let Some(TextDocumentContentChangeEvent::TextDocumentContentChangeWholeDocument(
             change,
-        )) = params.content_changes.into_iter().last()
+        )) = content_changes.into_iter().last()
         {
-            let uri = &params.text_document.text_document_identifier.uri;
+            let uri = &text_document.text_document_identifier.uri;
             self.edited(uri, Some(change.text));
         }
         std::future::ready(())
@@ -140,9 +153,12 @@ impl LanguageServer for TypeCheck {
         self.state.changed.notify_one();
     }
 
-    async fn did_close(&self, params: DidCloseTextDocumentParams) {
+    async fn did_close(
+        &self,
+        DidCloseTextDocumentParams { text_document }: DidCloseTextDocumentParams,
+    ) {
         // The file's text on the disk counts again.
-        self.edited(&params.text_document.uri, None);
+        self.edited(&text_document.uri, None);
     }
 
     async fn did_change_watched_files(&self, _: DidChangeWatchedFilesParams) {

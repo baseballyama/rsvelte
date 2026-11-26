@@ -79,9 +79,9 @@ fn of(source: &str, diagnostics: &[Value]) -> Vec<(u64, u64, Value, String)> {
 /// The diagnostics of the next publication for `uri` that `done` accepts.
 fn published(client: &mut Client, uri: &str, done: impl Fn(&[Value]) -> bool) -> Vec<Value> {
     loop {
-        let params = client.notification("textDocument/publishDiagnostics");
-        let diagnostics = params["diagnostics"].as_array().expect("diagnostics");
-        if params["uri"] == uri && done(diagnostics) {
+        let parameters = client.notification("textDocument/publishDiagnostics");
+        let diagnostics = parameters["diagnostics"].as_array().expect("diagnostics");
+        if parameters["uri"] == uri && done(diagnostics) {
             return diagnostics.clone();
         }
     }
