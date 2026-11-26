@@ -41,8 +41,14 @@ impl Client {
     /// Starts the server in `root` and initializes it with `root` as the workspace folder. `pull`:
     /// the client asks for diagnostics, else the server publishes them.
     pub(crate) fn start(root: &Path, pull: bool) -> (Self, Value) {
+        Self::start_with(root, pull, &[])
+    }
+
+    /// [`Self::start`], with `arguments` after `lsp --stdio`.
+    pub(crate) fn start_with(root: &Path, pull: bool, arguments: &[&str]) -> (Self, Value) {
         let mut child = Command::new(env!("CARGO_BIN_EXE_rsvelte"))
             .args(["lsp", "--stdio"])
+            .args(arguments)
             .current_dir(root)
             .stdin(Stdio::piped())
             .stdout(Stdio::piped())
@@ -102,7 +108,7 @@ impl Client {
     }
 
     /// The result of `method`, answering the server's own requests on the way.
-    fn request(&mut self, method: &str, parameters: &Value) -> Value {
+    pub(crate) fn request(&mut self, method: &str, parameters: &Value) -> Value {
         self.next += 1;
         let id = self.next;
         self.send(&json!({ "jsonrpc": "2.0", "id": id, "method": method, "params": parameters }));

@@ -2,7 +2,7 @@
 //! theirs to the editor, with each request under an id of the side it reaches, so the editor
 //! sees one server.
 
-use std::collections::HashMap;
+use std::collections::{BTreeMap, HashMap};
 use std::fmt::Write as _;
 
 use serde::Deserialize;
@@ -16,8 +16,25 @@ use super::rpc::{self, Id, Message};
 /// reads the server's output from.
 pub(super) struct Server {
     pub(super) name: &'static str,
+    pub(super) answers: Answers,
     pub(super) input: Box<dyn AsyncWrite + Send + Unpin>,
     pub(super) output: Box<dyn AsyncRead + Send + Unpin>,
+}
+
+/// Which of the editor's requests a server answers.
+pub(super) enum Answers {
+    /// Each request that no other server answers. The first server answers these.
+    Rest,
+    /// Only the requests that every server answers.
+    Nothing,
+    /// The requests of `methods`, on a document whose URI `documents` accepts or on none. The
+    /// router answers one on another document with no result, and lends the editor the
+    /// `capabilities` of the server's answer to `initialize`.
+    Features {
+        methods: &'static [&'static str],
+        capabilities: &'static [&'static str],
+        documents: fn(&str) -> bool,
+    },
 }
 
 enum Event {
@@ -41,11 +58,12 @@ pub(super) async fn serve(
         Event::Editor,
         Event::EditorClosed,
     ));
-    let (editor, editor_writer) = writer(output);
+    let (editor, editor_writer) = rpc::writer(output);
     let mut router = Router {
         editor,
         servers: Vec::new(),
         names: Vec::new(),
+        answers: Vec::new(),
         open: servers.len(),
         next_id: 0,
         requests: HashMap::new(),
@@ -61,8 +79,9 @@ pub(super) async fn serve(
             move |message| Event::Server(index, message),
             Event::ServerClosed(index),
         ));
-        router.servers.push(Some(writer(server.input).0));
+        router.servers.push(Some(rpc::writer(server.input).0));
         router.names.push(server.name);
+        router.answers.push(server.answers);
     }
     drop(events);
     while let Some(event) = received.recv().await {
@@ -96,6 +115,7 @@ struct Router {
     /// `None` for a server that stopped.
     servers: Vec<Option<mpsc::UnboundedSender<Message>>>,
     names: Vec<&'static str>,
+    answers: Vec<Answers>,
     /// How many servers still run.
     open: usize,
     next_id: i64,
@@ -123,8 +143,8 @@ struct Shared {
     editor_id: Id,
     /// How many servers have yet to answer.
     waiting: usize,
-    /// The first server's answer.
-    answer: Option<Message>,
+    /// Each server's answer, by the server.
+    answers: Vec<Option<Message>>,
 }
 
 impl Router {
@@ -149,7 +169,10 @@ impl Router {
                 self.ask_every_server(editor_id, &message);
                 return;
             }
-            let server = 0;
+            let Some(server) = self.server_of(&message) else {
+                self.to_editor(Message::empty(editor_id));
+                return;
+            };
             let id = Id::Number(self.fresh());
             (self.requests).insert((server, id.clone()), Asked::Alone(editor_id.clone()));
             self.by_editor.insert(editor_id, (server, id.clone()));
@@ -172,6 +195,23 @@ impl Router {
         }
     }
 
+    /// The server that answers `request`; `None` where none answers it on its document.
+    fn server_of(&self, request: &Message) -> Option<usize> {
+        let method = request.method.as_deref().unwrap_or_default();
+        for (server, answers) in self.answers.iter().enumerate() {
+            if let Answers::Features {
+                methods, documents, ..
+            } = answers
+                && methods.contains(&method)
+            {
+                return document_of(request)
+                    .is_none_or(|uri| documents(&uri))
+                    .then_some(server);
+            }
+        }
+        Some(0)
+    }
+
     fn ask_every_server(&mut self, editor_id: Id, message: &Message) {
         let key = self.fresh();
         let running: Vec<usize> = (0..self.servers.len())
@@ -182,7 +222,7 @@ impl Router {
             Shared {
                 editor_id,
                 waiting: running.len(),
-                answer: None,
+                answers: (0..self.servers.len()).map(|_| None).collect(),
             },
         );
         for server in running {
@@ -204,9 +244,7 @@ impl Router {
         };
         if answer.is_some() {
             shared.waiting -= 1;
-            if server == 0 {
-                shared.answer = answer;
-            }
+            shared.answers[server] = answer;
         }
         if shared.waiting > 0 {
             return;
@@ -215,8 +253,19 @@ impl Router {
             return;
         };
         let stopped = format!("rsvelte's {} server stopped", self.names[0]);
-        let mut answer = (shared.answer)
+        let mut answers = shared.answers.into_iter();
+        let mut answer = (answers.next().flatten())
             .unwrap_or_else(|| Message::error(shared.editor_id.clone(), -32603, &stopped));
+        for (lent, server) in answers.zip(&self.answers[1..]) {
+            if let (Some(lent), Answers::Features { capabilities, .. }) = (lent, server) {
+                answer.result = lend(
+                    answer.result.as_deref(),
+                    lent.result.as_deref(),
+                    capabilities,
+                )
+                .or(answer.result);
+            }
+        }
         answer.id = Some(shared.editor_id);
         self.to_editor(answer);
     }
@@ -335,6 +384,44 @@ impl Router {
     }
 }
 
+/// The URI of the document a request is on, if it names one.
+fn document_of(request: &Message) -> Option<String> {
+    #[derive(Deserialize)]
+    #[serde(rename_all = "camelCase")]
+    struct On {
+        text_document: Document,
+    }
+    #[derive(Deserialize)]
+    struct Document {
+        uri: String,
+    }
+    let parameters = request.parameters.as_ref()?;
+    let on: On = serde_json::from_str(parameters.get()).ok()?;
+    Some(on.text_document.uri)
+}
+
+/// The answer to `initialize` of `answer` with the `capabilities` of `lent`; `None` where one of
+/// them does not read as an answer.
+fn lend(
+    answer: Option<&RawValue>,
+    lent: Option<&RawValue>,
+    capabilities: &[&str],
+) -> Option<Box<RawValue>> {
+    type Object = BTreeMap<String, Box<RawValue>>;
+    let mut answer: Object = serde_json::from_str(answer?.get()).ok()?;
+    let lent: Object = serde_json::from_str(lent?.get()).ok()?;
+    let mut own: Object = serde_json::from_str(answer.get("capabilities")?.get()).ok()?;
+    let mut lent: Object = serde_json::from_str(lent.get("capabilities")?.get()).ok()?;
+    for capability in capabilities {
+        if let Some(value) = lent.remove(*capability) {
+            own.insert((*capability).to_owned(), value);
+        }
+    }
+    let own = serde_json::value::to_raw_value(&own).ok()?;
+    answer.insert("capabilities".to_owned(), own);
+    serde_json::value::to_raw_value(&answer).ok()
+}
+
 /// The id that a `$/cancelRequest` names.
 fn cancelled(message: &Message) -> Option<Id> {
     #[derive(Deserialize)]
@@ -373,21 +460,6 @@ async fn read_all(
         }
     }
     drop(events.send(end));
-}
-
-/// A queue of messages to `output`, and the task that writes them until the queue closes.
-fn writer(
-    mut output: impl AsyncWrite + Send + Unpin + 'static,
-) -> (mpsc::UnboundedSender<Message>, tokio::task::JoinHandle<()>) {
-    let (sender, mut queue) = mpsc::unbounded_channel::<Message>();
-    let task = tokio::spawn(async move {
-        while let Some(message) = queue.recv().await {
-            if rpc::write(&mut output, &message).await.is_err() {
-                return;
-            }
-        }
-    });
-    (sender, task)
 }
 
 #[cfg(test)]
