@@ -249,6 +249,15 @@ pub struct MappedLanguage {
     pub content_mapper: PathBuf,
 }
 
+/// The checker each configured check runs, so a host can serve its projects in an editor with
+/// the checker the check uses.
+#[derive(Debug)]
+pub struct TypeCheckers;
+
+impl Contribution for TypeCheckers {
+    type Item = TypeChecker;
+}
+
 /// A document the run does not check but other documents may import.
 struct StandInPart {
     path: String,

@@ -3,8 +3,8 @@
 pub(crate) mod check;
 pub use check::{
     Check, CheckedDocument, Documents, Hidden, Import, MapBack, MappedLanguage, MappedLanguages,
-    StandIn, Tsc, TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn, TypeScriptView,
-    reported_lines,
+    StandIn, Tsc, TypeCheckers, TypeScriptDocument, TypeScriptEnv, TypeScriptStandIn,
+    TypeScriptView, reported_lines,
 };
 
 mod extension;
