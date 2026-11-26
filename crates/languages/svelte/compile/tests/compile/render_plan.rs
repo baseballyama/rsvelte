@@ -205,7 +205,11 @@ fn both_targets_reuse_the_document_plan() {
         .expect("output identity");
     for target in [Target::Client, Target::Server] {
         let mut output = TaskOutput::default();
-        rsvelte_svelte_compile::Compile { target }.run(&context, &mut output);
+        rsvelte_svelte_compile::Compile {
+            target,
+            mapped: false,
+        }
+        .run(&context, &mut output);
         assert!(
             output.diagnostics.is_empty(),
             "{target:?}: {:?}",
@@ -265,4 +269,39 @@ fn reprinted(javascript: &str) -> String {
         oxc_parser::Parser::new(&allocator, javascript, oxc_span::SourceType::mjs()).parse();
     assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
     rsvelte_typescript_compile::print::print(&parsed.program)
+}
+
+#[test]
+fn the_mapped_task_writes_the_module_the_compile_task_writes_and_its_map() {
+    let mut registry = Registry::new();
+    rsvelte_svelte_compile::register(&mut registry);
+    let document = Document::new(
+        "App.svelte",
+        include_str!("../preserve_whitespace/App.svelte"),
+    )
+    .expect("valid document");
+    let context = DocumentContext::new(&document, registry.artifacts());
+    let file = |output: &TaskOutput, name: &str| {
+        (output.files.iter().find(|f| f.name == name)).map(|f| f.text.clone())
+    };
+    for target in [Target::Client, Target::Server] {
+        let (mut plain, mut mapped) = (TaskOutput::default(), TaskOutput::default());
+        rsvelte_svelte_compile::Compile {
+            target,
+            mapped: false,
+        }
+        .run(&context, &mut plain);
+        rsvelte_svelte_compile::Compile {
+            target,
+            mapped: true,
+        }
+        .run(&context, &mut mapped);
+        assert_eq!(file(&plain, "js"), file(&mapped, "js"), "{target:?}");
+        assert_eq!(file(&plain, "js.map"), None);
+        let map = file(&mapped, "js.map").expect("a map");
+        assert!(
+            map.starts_with("{\"version\":3,\"sources\":[\"App.svelte\"]"),
+            "{map}"
+        );
+    }
 }
