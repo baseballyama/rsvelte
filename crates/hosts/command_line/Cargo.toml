@@ -41,6 +41,7 @@ rsvelte_vue_compile.workspace = true
 rsvelte_vue_check.workspace = true
 rsvelte_svelte_lint.workspace = true
 rsvelte_svelte_format.workspace = true
+rsvelte_svelte_editor.workspace = true
 rsvelte_svelte_compile.workspace = true
 rsvelte_svelte_typescript_projection.workspace = true
 rsvelte_svelte_check.workspace = true

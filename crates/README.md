@@ -17,7 +17,8 @@ crates/
 │   ├── compile/               compile tasks, or what compilers share (css: scoping)
 │   ├── format/                format tasks
 │   ├── lint/                  lint tasks, or what linters share (html: button types)
-│   └── check/                 type check tasks (svelte, typescript, vue)
+│   ├── check/                 type check tasks (svelte, typescript, vue)
+│   └── editor/                what an editor shows, such as where a component folds (svelte)
 ├── languages/svelte/typescript_projection/  Svelte to TypeScript, for type checks
 ├── languages/typescript/tree/  TypeScript's syntax crate: JavaScript and TypeScript as oxc trees
 ├── languages/typescript/api/   a client for the API of native TypeScript 7.1

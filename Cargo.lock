@@ -2314,6 +2314,7 @@ dependencies = [
  "rsvelte_plugin_interface",
  "rsvelte_svelte_check",
  "rsvelte_svelte_compile",
+ "rsvelte_svelte_editor",
  "rsvelte_svelte_format",
  "rsvelte_svelte_lint",
  "rsvelte_svelte_semantic",
@@ -2504,6 +2505,14 @@ dependencies = [
  "rsvelte_typescript_tree",
  "rustc-hash",
  "serde",
+]
+
+[[package]]
+name = "rsvelte_svelte_editor"
+version = "0.7.5"
+dependencies = [
+ "rsvelte_kernel",
+ "rsvelte_svelte_syntax",
 ]
 
 [[package]]
