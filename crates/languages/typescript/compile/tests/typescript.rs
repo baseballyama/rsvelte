@@ -176,3 +176,43 @@ fn svelte_refuses_the_namespace_around_an_import_equals_and_an_ambient_one_with_
         assert_eq!(feature(source_text), None, "{source_text}");
     }
 }
+
+#[test]
+fn an_ambient_enum_is_erased_and_instantiates_its_namespace() {
+    // TypeScript 6.0.3's `transpileModule` removes each, and keeps what follows.
+    for (typescript, erased) in [
+        (
+            "declare enum E { A }\nexport const x = 1;",
+            "export const x = 1;",
+        ),
+        (
+            "declare const enum E { A }\nexport let E = 1;",
+            "export let E = 1;",
+        ),
+        (
+            "declare enum E { A }\nexport const x = E;",
+            "export const x = E;",
+        ),
+        ("{ declare enum E { A } }\nlet x = 1;", "{} let x = 1;"),
+        ("function f() { declare enum E { A } }", "function f() {}"),
+    ] {
+        assert_eq!(feature(typescript), None, "{typescript}");
+        assert_eq!(erase(typescript), javascript(erased), "{typescript}");
+    }
+    // An enum makes TypeScript emit its namespace, `declare` or not, which erasing types cannot.
+    for typescript in [
+        "namespace N { declare enum E { A } }",
+        "namespace N { export declare const enum E { A } }",
+    ] {
+        assert_eq!(
+            feature(typescript),
+            Some((Feature::NamespaceWithValues, typescript.to_owned())),
+            "{typescript}"
+        );
+    }
+    // Svelte 5.59.1's `remove_typescript_nodes` refuses any enum.
+    assert_eq!(
+        svelte_feature("declare enum E { A }"),
+        Some((Feature::Enum, "declare enum E { A }".to_owned()))
+    );
+}

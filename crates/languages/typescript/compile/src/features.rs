@@ -79,7 +79,11 @@ impl Finder {
         self.namespaces += 1;
         walk(self);
         self.namespaces -= 1;
-        if block.is_some_and(|block| block.body.iter().any(|s| !crate::strip::is_type_only(s))) {
+        let svelte = self.svelte;
+        let value = |s: &Statement<'_>| {
+            !crate::strip::is_type_only(s) || !svelte && crate::strip::is_ambient_enum(s)
+        };
+        if block.is_some_and(|block| block.body.iter().any(value)) {
             self.found(Feature::NamespaceWithValues, span);
         }
     }
@@ -101,8 +105,11 @@ impl<'a> Visit<'a> for Finder {
     // Upstream's visitor keeps a default export as it is, without visiting what it holds.
     fn visit_export_default_declaration(&mut self, _: &ExportDefaultDeclaration<'a>) {}
 
+    // TypeScript's emit removes an ambient enum, and Svelte's `remove_typescript_nodes` refuses it.
     fn visit_ts_enum_declaration(&mut self, it: &TSEnumDeclaration<'a>) {
-        self.found(Feature::Enum, it.span);
+        if !it.declare || self.svelte {
+            self.found(Feature::Enum, it.span);
+        }
     }
 
     // An ambient declaration holds no value once types are erased, but Svelte's

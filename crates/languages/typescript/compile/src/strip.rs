@@ -10,7 +10,7 @@ use oxc_ast::ast::{
     Function, FunctionBody, FunctionType, ImportDeclaration, ImportDeclarationSpecifier,
     MethodDefinition, MethodDefinitionKind, MethodDefinitionType, NewExpression, Program,
     PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget, Statement,
-    TSModuleReference, TaggedTemplateExpression, VariableDeclarator,
+    TSModuleReference, TSNamespaceDeclaration, TaggedTemplateExpression, VariableDeclarator,
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
@@ -132,6 +132,8 @@ pub fn is_erased_module_syntax(statement: &Statement<'_>) -> bool {
 /// left to be lowered.
 pub struct ModuleErasure<'a> {
     allocator: &'a Allocator,
+    /// How many namespaces that no `declare` makes ambient hold what it visits.
+    namespaces: u32,
 }
 
 impl std::fmt::Debug for ModuleErasure<'_> {
@@ -143,14 +145,27 @@ impl std::fmt::Debug for ModuleErasure<'_> {
 impl<'a> ModuleErasure<'a> {
     #[must_use]
     pub const fn new(allocator: &'a Allocator) -> Self {
-        Self { allocator }
+        Self {
+            allocator,
+            namespaces: 0,
+        }
     }
 }
 
 impl<'a> VisitMut<'a> for ModuleErasure<'a> {
+    /// An ambient enum in a namespace stays for the lowering, which emits the namespace for it.
     fn visit_statements(&mut self, it: &mut ArenaVec<'a, Statement<'a>>) {
-        it.retain(|s| !is_erased_statement(s) || is_namespace(s));
+        let in_namespace = self.namespaces > 0;
+        it.retain(|s| {
+            !is_erased_statement(s) || is_namespace(s) || in_namespace && is_ambient_enum(s)
+        });
         walk_mut::walk_statements(self, it);
+    }
+
+    fn visit_ts_namespace_declaration(&mut self, it: &mut TSNamespaceDeclaration<'a>) {
+        self.namespaces += 1;
+        walk_mut::walk_ts_namespace_declaration(self, it);
+        self.namespaces -= 1;
     }
 
     /// An import of types only is still an import.
@@ -210,10 +225,20 @@ fn is_namespace(statement: &Statement<'_>) -> bool {
 fn is_erased_statement(statement: &Statement<'_>) -> bool {
     is_type_declaration(statement)
         || is_erased_module_syntax(statement)
-        || matches!(
-            statement.as_declaration(),
-            Some(Declaration::TSEnumDeclaration(it)) if it.declare
-        )
+        || is_ambient_enum(statement)
+}
+
+/// Whether `statement` is an enum that `declare` makes ambient, exported or not.
+///
+/// TypeScript's emit removes it, but still emits a namespace that holds it, as its binder counts
+/// any enum as instantiating the namespace.
+#[must_use]
+pub fn is_ambient_enum(statement: &Statement<'_>) -> bool {
+    let declaration = match statement {
+        Statement::ExportDeclaration(export) => Some(&export.declaration),
+        statement => statement.as_declaration(),
+    };
+    matches!(declaration, Some(Declaration::TSEnumDeclaration(it)) if it.declare)
 }
 
 fn is_type_import(specifier: &ImportDeclarationSpecifier<'_>) -> bool {
@@ -239,7 +264,7 @@ fn inner<'a>(e: &mut Expression<'a>, allocator: &'a Allocator) -> Option<Express
 
 impl<'a> VisitMut<'a> for Strip<'a> {
     fn visit_statements(&mut self, it: &mut ArenaVec<'a, Statement<'a>>) {
-        it.retain(|s| !is_type_only(s));
+        it.retain(|s| !is_type_only(s) && !is_ambient_enum(s));
         walk_mut::walk_statements(self, it);
     }
 
