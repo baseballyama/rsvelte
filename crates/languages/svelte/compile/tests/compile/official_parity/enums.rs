@@ -26,10 +26,9 @@ fn a_repeated_enum_member_leaves_the_enum_to_be_refused() {
     for &(script, code, at) in CASES {
         let source = format!("{open}{script}</script>");
         let error = compile(&source, &CompileOptions::default()).expect_err(&source);
-        assert_eq!(
-            (error.code.to_string(), error.span.start_offset),
-            (code.to_owned(), at + open.len() as u32),
-            "{source}"
-        );
+        let (raised, _, raised_at) = super::outcomes::raised(&error);
+        let (official, _, official_at) =
+            super::outcomes::official(code, "", at + open.len() as u32);
+        assert_eq!((raised, raised_at), (official, official_at), "{source}");
     }
 }

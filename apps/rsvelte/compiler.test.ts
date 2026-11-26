@@ -82,8 +82,9 @@ function thrown(compile: () => unknown) {
 	assert.fail('it compiles');
 }
 
+// A Svelte error, since a JavaScript syntax error carries oxc's words and position.
 test('an error is thrown as the official CompileError', () => {
-	const source = '<div>\n\t<p>{</p>\n</div>\n';
+	const source = '<div>\n\t</p>\n</div>\n';
 	const ours = thrown(() => rsvelte.compile(source, { filename: 'Broken.svelte' }));
 	const theirs = thrown(() => official.compile(source, { filename: 'Broken.svelte' }));
 	assert.equal(ours.name, 'CompileError');
@@ -94,7 +95,7 @@ test('an error is thrown as the official CompileError', () => {
 
 test('positions count UTF-16 code units, as the official ones do', () => {
 	// "é" is 2 UTF-8 bytes and 1 UTF-16 code unit; "😀" is 4 and 2.
-	const source = 'é😀\n<p>{</p>\n';
+	const source = 'é😀\n</p>\n';
 	assert.deepEqual(
 		fields(thrown(() => rsvelte.compile(source, {}))),
 		fields(thrown(() => official.compile(source, {}))),

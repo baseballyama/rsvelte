@@ -551,10 +551,19 @@ fn a_typescript_module_is_analyzed_with_what_its_emit_lowers() {
         let found: Vec<_> = (output.diagnostics.iter())
             .map(|d| {
                 let message = d.message.lines().next().unwrap_or_default();
+                // A JavaScript syntax error is oxc's to word and place.
+                if d.code == "js_parse_error" {
+                    return (&*d.code, String::new(), 0);
+                }
                 (&*d.code, message.to_owned(), d.span.start_offset)
             })
             .collect();
-        assert_eq!(found, [(code, message, start)], "{source:?}");
+        let expected = if code == "js_parse_error" {
+            (code, String::new(), 0)
+        } else {
+            (code, message, start)
+        };
+        assert_eq!(found, [expected], "{source:?}");
     }
     // A script keeps its legacy octals. rsvelte parenthesizes the directive TypeScript adds.
     for (source, client) in [

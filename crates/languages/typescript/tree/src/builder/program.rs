@@ -9,7 +9,7 @@ use rsvelte_kernel::source::positions::Span;
 use super::{Part, TreeBuilder, parentheses};
 use crate::ProgramIdentifier;
 use crate::acorn_grammar::{lexed, read_before_stopping, rejection};
-use crate::syntax_error::{SyntaxError, acorn, syntax_error, typescript_eslint_at};
+use crate::syntax_error::{SyntaxError, acorn_stop, syntax_error, typescript_eslint_at};
 
 impl<'a> TreeBuilder<'a> {
     /// Parses `range` of the document as a program, such as the body of a `<script>` element.
@@ -198,10 +198,10 @@ impl<'a> TreeBuilder<'a> {
             .with_start(start)
             .parse();
         if parsed.fatal_error {
-            let acorn = (parsed.diagnostics.first())
-                .and_then(|first| acorn(first, text, (&parsed.tokens, None), |_| {}));
+            let stops_at = (parsed.diagnostics.first())
+                .and_then(|first| acorn_stop(first, text, (&parsed.tokens, None), |_| {}));
             let mut error = syntax_error(parsed.diagnostics.iter().cloned(), text, &[], start, 0);
-            error.acorn = acorn;
+            error.acorn_stops_at = stops_at;
             let stop = (self.as_acorn.is_some())
                 .then(|| {
                     let read = read_before_stopping(text, &parsed.tokens, &parsed.diagnostics);
@@ -209,7 +209,7 @@ impl<'a> TreeBuilder<'a> {
                     lexed(text, read, (&parsed.irregular_whitespaces, typescript), 0)
                 })
                 .flatten();
-            if let Some(stop) = stop.filter(|stop| stop.raised <= error.acorn_raised_at()) {
+            if let Some(stop) = stop.filter(|stop| stop.at <= error.reported_at()) {
                 error = rejection(stop);
             }
             return Err(Box::new(Read {

@@ -225,13 +225,9 @@ fn eval_and_arguments_are_checked_where_acorn_checks_a_name() {
         let source = format!("{open}{script}</script>");
         let raised = compile(&source, &CompileOptions::default())
             .err()
-            .map(|error| {
-                let message = error.message.lines().next().map(str::to_owned);
-                (error.code.to_string(), message, error.span.start_offset)
-            });
+            .map(|error| super::outcomes::raised(&error));
         let expected = expected.map(|(message, at)| {
-            let at = at + open.len() as u32;
-            ("js_parse_error".to_owned(), Some(message.to_owned()), at)
+            super::outcomes::official("js_parse_error", message, at + open.len() as u32)
         });
         assert_eq!(raised, expected, "{source}");
     }

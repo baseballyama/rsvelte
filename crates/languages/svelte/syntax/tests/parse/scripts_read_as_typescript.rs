@@ -12,7 +12,6 @@ fn a_plain_script_that_only_typescript_reads_keeps_its_program() {
     let source = "<script>\n\tclass C {\n\t\tprivate m() {}\n\t}\n</script>\n\n<p>{C}</p>\n";
     let strict = parse(source).expect_err("acorn stops at the modifier");
     assert_eq!(strict.code, "js_parse_error");
-    assert_eq!(strict.span.start_offset, at(source, "m() {}"));
 
     let component = parse_reading_scripts_as_typescript(source).expect("TypeScript reads it");
     assert!(component.script_typescript_errors.is_empty());
