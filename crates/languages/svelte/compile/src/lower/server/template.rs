@@ -1,6 +1,7 @@
 use std::fmt;
 
 use oxc_ast::ast::{Expression, Statement};
+use rsvelte_typescript_tree::JsString;
 
 use crate::lower::Builder;
 
@@ -13,7 +14,7 @@ pub(super) struct Template<'b, 'o> {
     b: &'b Builder<'o>,
     statements: Vec<Statement<'o>>,
     /// The pending push's cooked quasis, one more than its expressions; empty when none is open.
-    strings: Vec<String>,
+    strings: Vec<JsString>,
     expressions: Vec<Expression<'o>>,
 }
 
@@ -27,9 +28,9 @@ impl<'b, 'o> Template<'b, 'o> {
         }
     }
 
-    fn last(&mut self) -> &mut String {
+    fn last(&mut self) -> &mut JsString {
         if self.strings.is_empty() {
-            self.strings.push(String::new());
+            self.strings.push(JsString::new());
         }
         self.strings.last_mut().expect("pushed above")
     }
@@ -38,20 +39,33 @@ impl<'b, 'o> Template<'b, 'o> {
         self.last().push_str(text);
     }
 
+    pub(super) fn js_text(&mut self, text: &JsString) {
+        self.last().push_js(text);
+    }
+
+    /// [`Self::js_text`] with `map` applied to each text run.
+    pub(super) fn js_text_mapped(
+        &mut self,
+        text: &JsString,
+        map: impl Fn(&str) -> std::borrow::Cow<'_, str>,
+    ) {
+        self.last().push_js_mapped(text, map);
+    }
+
     pub(super) fn text_fmt(&mut self, text: fmt::Arguments<'_>) {
-        fmt::Write::write_fmt(self.last(), text).expect("a `String` takes any text");
+        fmt::Write::write_fmt(self.last(), text).expect("a `JsString` takes any text");
     }
 
     pub(super) fn expression(&mut self, expression: Expression<'o>) {
         self.last();
         self.expressions.push(expression);
-        self.strings.push(String::new());
+        self.strings.push(JsString::new());
     }
 
     /// A template literal's cooked quasis and expressions, spliced into the pending push.
-    pub(super) fn quasis(&mut self, quasis: Vec<String>, expressions: Vec<Expression<'o>>) {
+    pub(super) fn quasis(&mut self, quasis: Vec<JsString>, expressions: Vec<Expression<'o>>) {
         let mut quasis = quasis.into_iter();
-        self.text(&quasis.next().expect("at least one quasi"));
+        self.js_text(&quasis.next().expect("at least one quasi"));
         self.strings.extend(quasis);
         self.expressions.extend(expressions);
     }
@@ -76,10 +90,7 @@ impl<'b, 'o> Template<'b, 'o> {
             return;
         }
         let b = self.b;
-        let template = b.template(
-            self.strings.iter().map(String::as_str),
-            self.expressions.drain(..),
-        );
+        let template = b.js_template(&self.strings, self.expressions.drain(..));
         self.strings.clear();
         let push = b.call(b.member(b.id("$$renderer"), "push"), [template]);
         self.statements.push(b.statement(push));

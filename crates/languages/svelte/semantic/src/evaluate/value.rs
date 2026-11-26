@@ -1,8 +1,9 @@
 use rsvelte_typescript_semantic::number::{number, string_to_number};
+use rsvelte_typescript_tree::JsString;
 
 #[derive(Clone, Debug)]
 pub enum Value {
-    String(String),
+    String(JsString),
     Number(f64),
     BigInt(Box<num_bigint::BigInt>),
     Boolean(bool),
@@ -63,24 +64,31 @@ impl Value {
 
     /// `String(value)` for a known value.
     #[must_use]
-    pub fn to_javascript_string(&self) -> String {
+    pub fn to_javascript_string(&self) -> JsString {
         match self {
             Self::String(s) => s.clone(),
-            Self::Number(n) => number(*n),
-            Self::BigInt(n) => n.to_string(),
-            Self::Boolean(b) => b.to_string(),
+            Self::Number(n) => number(*n).into(),
+            Self::BigInt(n) => n.to_string().into(),
+            Self::Boolean(b) => b.to_string().into(),
             Self::Null => "null".into(),
             Self::Undefined => "undefined".into(),
-            Self::RegExp { text, .. } => text.to_string(),
+            Self::RegExp { text, .. } => text.as_ref().into(),
             _ => unreachable!("only known values are rendered"),
         }
     }
 
+    /// `a + b` where either is a string.
+    pub(super) fn concatenated(a: &Self, b: &Self) -> Self {
+        let mut text = a.to_javascript_string();
+        text.push_js(&b.to_javascript_string());
+        Self::String(text)
+    }
+
     /// `String(value ?? '')` for a known value: what a template prints.
     #[must_use]
-    pub fn to_template_string(&self) -> String {
+    pub fn to_template_string(&self) -> JsString {
         match self {
-            Self::Null | Self::Undefined => String::new(),
+            Self::Null | Self::Undefined => JsString::new(),
             value => value.to_javascript_string(),
         }
     }
@@ -92,7 +100,7 @@ impl Value {
             Self::Boolean(b) => f64::from(u8::from(*b)),
             Self::Null => 0.0,
             Self::Undefined => f64::NAN,
-            Self::String(s) => string_to_number(s),
+            Self::String(s) => string_to_number(&s.to_string_lossy()),
             Self::RegExp { text, .. } => string_to_number(text),
             _ => unreachable!("only known values are converted"),
         }
@@ -101,7 +109,9 @@ impl Value {
     /// `ToPrimitive(value)`: an object is its string.
     pub(super) fn primitive(&self) -> std::borrow::Cow<'_, Self> {
         match self {
-            Self::RegExp { text, .. } => std::borrow::Cow::Owned(Self::String(text.to_string())),
+            Self::RegExp { text, .. } => {
+                std::borrow::Cow::Owned(Self::String(text.as_ref().into()))
+            }
             _ => std::borrow::Cow::Borrowed(self),
         }
     }

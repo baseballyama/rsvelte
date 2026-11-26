@@ -98,5 +98,5 @@ pub(super) fn from_code_points(a: &[Value]) -> Value {
             None => units.push(code as u16),
         }
     }
-    Value::String(String::from_utf16_lossy(&units))
+    Value::String(rsvelte_typescript_tree::JsString::from_utf16(units))
 }

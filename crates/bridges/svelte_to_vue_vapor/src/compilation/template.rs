@@ -29,7 +29,7 @@ use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_compile::build::{Builder, sanitize_template_string};
 use rsvelte_typescript_compile::strip::Strip;
-use rsvelte_typescript_tree::{ExpressionIdentifier, ParametersIdentifier};
+use rsvelte_typescript_tree::{ExpressionIdentifier, JsString, ParametersIdentifier};
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     self as vue, CompilerSyntaxTreeBuilder, Name, PropertyKind, Text,
 };
@@ -303,7 +303,7 @@ impl<'i, 't> Template<'i, '_, 't> {
         let source_text = self.i.source_text;
         let mut quasis = Vec::with_capacity(parts.len() + 1);
         let mut expressions = Vec::with_capacity(parts.len());
-        let mut text = String::new();
+        let mut text = JsString::new();
         for p in parts {
             match *p {
                 Part::Text(span) => {
@@ -312,11 +312,11 @@ impl<'i, 't> Template<'i, '_, 't> {
                 Part::Expression { expression, .. } => {
                     let evaluated = self.evaluate(expression);
                     if evaluated.is_known {
-                        text.push_str(&evaluated.value.to_template_string());
+                        text.push_js(&evaluated.value.to_template_string());
                         continue;
                     }
-                    quasis.push(sanitize_template_string(&text).into_owned());
-                    text.clear();
+                    quasis.push(text.map_text(sanitize_template_string));
+                    text = JsString::new();
                     let x = self.template_expression(expression);
                     let value = if self.i.server {
                         if evaluated.is_string && evaluated.is_defined {
@@ -335,10 +335,10 @@ impl<'i, 't> Template<'i, '_, 't> {
             }
         }
         if expressions.is_empty() {
-            return b.string(&text);
+            return b.js_string(&text);
         }
-        quasis.push(sanitize_template_string(&text).into_owned());
-        b.template(quasis.iter().map(String::as_str), expressions)
+        quasis.push(text.map_text(sanitize_template_string));
+        b.js_template(&quasis, expressions)
     }
 
     /// A `<template>` with `props`, its children set later.

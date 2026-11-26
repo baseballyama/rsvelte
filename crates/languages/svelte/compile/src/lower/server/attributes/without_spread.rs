@@ -3,15 +3,15 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier,
 };
 use rsvelte_svelte_syntax::syntax_tree::escape_markup;
+use rsvelte_typescript_tree::JsString;
 
 use super::escaped_text;
 use crate::input::Target;
 use crate::lower::attributes::{
     can_use_literal, event_attribute, implicit_attributes, is_behaviour, is_boolean_attribute,
-    is_directive, scoped_class,
+    is_directive, scoped_class, scoped_literal_class,
 };
 use crate::lower::builder::Runtime;
-use crate::lower::javascript::string_value;
 use crate::lower::server::ServerCompilationContext;
 use crate::lower::server::events::{capture_event, capture_load_events, push_captured_events};
 use crate::lower::server::template::Template;
@@ -121,14 +121,15 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         if can_use_literal(name, class_directives, style_directives)
             && let Expression::StringLiteral(literal) = &value
         {
-            let mut v = string_value(literal.value).into_owned();
+            let mut v = JsString::from_js_str(literal.value);
             if name == "class"
                 && let Some(h) = hash
             {
-                v = scoped_class(&v, h, Target::Server);
+                v = scoped_literal_class(&v, h, Target::Server);
             }
-            let v = escape_markup(&v, true);
-            template.text_fmt(format_args!(" {name}=\"{v}\""));
+            template.text_fmt(format_args!(" {name}=\""));
+            template.js_text_mapped(&v, |text| escape_markup(text, true));
+            template.text("\"");
             return;
         }
         let call = match name {

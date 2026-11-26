@@ -297,7 +297,7 @@ impl<'t> Template<'_, '_, 't> {
         let b = self.b;
         let evaluated = self.evaluate(e);
         if evaluated.is_known {
-            return b.string(&evaluated.value.to_template_string());
+            return b.js_string(&evaluated.value.to_template_string());
         }
         let x = self.template_expression(e);
         if self.i.server {

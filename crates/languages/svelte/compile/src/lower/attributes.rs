@@ -10,7 +10,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerSyntaxTree, Element, Modifiers, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, JsString};
 
 use super::Builder;
 use crate::input::Target;
@@ -209,6 +209,21 @@ pub(super) fn scoped_class(value: &str, hash: &str, target: Target) -> String {
     } else {
         format!("{value} {hash}")
     }
+}
+
+/// [`scoped_class`] of a string literal's value.
+#[must_use]
+pub(super) fn scoped_literal_class(value: &JsString, hash: &str, target: Target) -> JsString {
+    let Some(text) = value.as_str() else {
+        let mut value = match target {
+            Target::Client => value.clone(),
+            Target::Server => value.trim_start_matches(is_ecmascript_whitespace),
+        };
+        value.push(' ');
+        value.push_str(hash);
+        return value;
+    };
+    scoped_class(text, hash, target).into()
 }
 
 /// Upstream's style directive object: `{ name: value }`, or `[normal, important]` when one is

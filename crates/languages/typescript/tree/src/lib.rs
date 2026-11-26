@@ -28,6 +28,9 @@ pub use syntax_error::{
     typescript_eslint_error, typescript_estree_throws,
 };
 
+pub mod js_string;
+pub use js_string::JsString;
+
 pub mod scratch;
 pub use scratch::with_scratch_arena;
 

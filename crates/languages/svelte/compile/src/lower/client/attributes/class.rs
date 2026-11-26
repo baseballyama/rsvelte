@@ -3,13 +3,12 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, ElementKind, NodeKind,
 };
 use rsvelte_svelte_syntax::syntax_tree::escape_markup;
-use rsvelte_typescript_tree::ExpressionIdentifier;
+use rsvelte_typescript_tree::{ExpressionIdentifier, JsString};
 
 use crate::input::Target;
-use crate::lower::attributes::{needs_clsx, scoped_class};
+use crate::lower::attributes::{needs_clsx, scoped_literal_class};
 use crate::lower::builder::Runtime;
 use crate::lower::client::{ClientCompilationContext, Lists, Memo, NodeVar};
-use crate::lower::javascript::string_value;
 
 impl<'o> ClientCompilationContext<'_, 'o> {
     /// A `class` value written as one expression, through `$.clsx` when upstream's `needs_clsx`.
@@ -99,14 +98,14 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             && let Some(hash) = &self.identity.stylesheet_hash
         {
             let literal = match &value {
-                Expression::StringLiteral(s) => Some(string_value(s.value)),
-                Expression::NullLiteral(_) => Some("".into()),
+                Expression::StringLiteral(s) => Some(JsString::from_js_str(s.value)),
+                Expression::NullLiteral(_) => Some(JsString::new()),
                 _ => None,
             };
-            match literal.as_deref() {
+            match literal {
                 Some(v) => {
-                    let escaped = escape_markup(v, true);
-                    value = b.string(&scoped_class(&escaped, hash, Target::Client));
+                    let escaped = v.map_text(|text| escape_markup(text, true));
+                    value = b.js_string(&scoped_literal_class(&escaped, hash, Target::Client));
                 }
                 None => stylesheet_hash = Some(b.string(hash)),
             }

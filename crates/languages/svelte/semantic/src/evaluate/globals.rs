@@ -1,6 +1,7 @@
 use rsvelte_typescript_semantic::number::{
     exponentiate, math_max, math_min, math_round, math_sign, to_int32,
 };
+use rsvelte_typescript_tree::JsString;
 
 use super::Value;
 
@@ -21,9 +22,13 @@ fn math1(a: &[Value], f: fn(f64) -> f64) -> Value {
     Value::Number(f(num_arg(a, 0)))
 }
 
+/// `String(a[i])`, which every reader here parses as a number, where a lone surrogate reads as
+/// U+FFFD does: as neither a digit nor whitespace.
 fn string_arg(a: &[Value], i: usize) -> String {
-    a.get(i)
-        .map_or_else(|| "undefined".to_owned(), Value::to_javascript_string)
+    a.get(i).map_or_else(
+        || "undefined".to_owned(),
+        |value| value.to_javascript_string().to_string_lossy().into_owned(),
+    )
 }
 
 /// `Math.f16round`: the nearest half-precision value, ties to even.
@@ -125,16 +130,16 @@ fn function(path: (&str, Option<&str>)) -> Option<Global> {
             |a| Value::Number(text::parse_int(&string_arg(a, 0), to_int32(num_arg(a, 1))))
         }
         ("String", Some("fromCharCode")) => |a| {
-            let units: Vec<u16> = a
-                .iter()
-                .map(|v| to_int32(v.to_number()).cast_unsigned() as u16)
-                .collect();
-            Value::String(String::from_utf16_lossy(&units))
+            let units = (a.iter()).map(|v| to_int32(v.to_number()).cast_unsigned() as u16);
+            Value::String(JsString::from_utf16(units))
         },
         ("String", Some("fromCodePoint")) => |a| text::from_code_points(a),
-        ("String", None) => {
-            |a| Value::String(a.first().map_or(String::new(), Value::to_javascript_string))
-        }
+        ("String", None) => |a| {
+            Value::String(
+                a.first()
+                    .map_or_else(JsString::new, Value::to_javascript_string),
+            )
+        },
         _ => return None,
     };
     let kind = if path.0 == "String" {

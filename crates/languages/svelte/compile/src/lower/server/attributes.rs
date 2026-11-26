@@ -11,6 +11,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, Part,
 };
 use rsvelte_svelte_syntax::syntax_tree::{decode_attribute, escape_markup};
+use rsvelte_typescript_tree::JsString;
 
 use super::ServerCompilationContext;
 use crate::lower::attributes::{lowercase, needs_clsx};
@@ -87,7 +88,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         trim: bool,
     ) -> Expression<'o> {
         let b = self.b;
-        let mut quasis = vec![prefix.to_owned()];
+        let mut quasis = vec![JsString::from(prefix)];
         let mut expressions = Vec::new();
         for p in parts {
             match p {
@@ -106,7 +107,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         quasis
                             .last_mut()
                             .expect("never empty")
-                            .push_str(&evaluated.value.to_template_string());
+                            .push_js(&evaluated.value.to_template_string());
                     } else {
                         let v = self.expression(*expression);
                         let v = if evaluated.is_string && evaluated.is_defined {
@@ -115,15 +116,15 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                             b.runtime("stringify", [v])
                         };
                         expressions.push(v);
-                        quasis.push(String::new());
+                        quasis.push(JsString::new());
                     }
                 }
             }
         }
         if expressions.is_empty() {
-            return b.string(&quasis[0]);
+            return b.js_string(&quasis[0]);
         }
-        b.template(quasis.iter().map(String::as_str), expressions)
+        b.js_template(&quasis, expressions)
     }
 }
 

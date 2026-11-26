@@ -1,10 +1,10 @@
 use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
+use rsvelte_typescript_tree::JsString;
 
 use crate::input::Target;
-use crate::lower::attributes::scoped_class;
+use crate::lower::attributes::scoped_literal_class;
 use crate::lower::builder::Runtime;
-use crate::lower::javascript::string_value;
 use crate::lower::server::ServerCompilationContext;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -29,11 +29,8 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let mut stylesheet_hash = None;
         if let Some(h) = hash {
             if let Expression::StringLiteral(literal) = &value {
-                value = b.string(&scoped_class(
-                    &string_value(literal.value),
-                    h,
-                    Target::Server,
-                ));
+                let literal = JsString::from_js_str(literal.value);
+                value = b.js_string(&scoped_literal_class(&literal, h, Target::Server));
             } else {
                 stylesheet_hash = Some(b.string(h));
             }

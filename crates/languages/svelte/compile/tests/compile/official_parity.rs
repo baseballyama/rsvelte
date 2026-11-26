@@ -18,6 +18,7 @@ mod import_equals;
 mod keywords;
 mod lets;
 mod lexer_order;
+mod lone_surrogates;
 mod namespaces;
 mod outcomes;
 mod patterns;

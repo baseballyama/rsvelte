@@ -5,6 +5,7 @@ mod key_block;
 
 use oxc_ast::ast::{Argument, Expression, Statement};
 use rsvelte_typescript_compile::build::sanitize_template_string;
+use rsvelte_typescript_tree::JsString;
 
 use super::ServerCompilationContext;
 
@@ -31,8 +32,9 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             let raw = format!("{}{}", sanitize_template_string(marker), quasi.value.raw);
             quasi.value.raw = b.str(&raw).into();
             if let Some(cooked) = quasi.value.cooked {
-                let cooked = format!("{marker}{}", crate::lower::javascript::string_value(cooked));
-                quasi.value.cooked = Some(b.str(&cooked).into());
+                let mut text = JsString::from(marker);
+                text.push_js(&JsString::from_js_str(cooked));
+                quasi.value.cooked = Some(text.to_js_str_in(b));
             }
         } else {
             body.insert(0, self.push_literal(marker));
