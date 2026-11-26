@@ -9,7 +9,8 @@ function $$render() {
     {
       svelteHTML.createElement("div", {});
       {
-        for (let [index, row] of __rsvelte_each(rows)) {
+        for (let row of __rsvelte_each(rows)) {
+          let index = 1;
           (row.id);
           {
             svelteHTML.createElement("span", {});

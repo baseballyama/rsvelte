@@ -52,7 +52,7 @@ function $$render() {
       __rsvelte_bindings(__rsvelte_component_0).$$bindings = "other";
     }
     {
-      for (let [, item] of __rsvelte_each($obj.list)) {
+      for (let item of __rsvelte_each($obj.list)) {
         {
           svelteHTML.createElement("input", {
             "bind:value": item.v,

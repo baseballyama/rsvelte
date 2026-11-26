@@ -206,3 +206,71 @@ fn typecheck_reads_a_store_of_a_javascript_component_as_svelte2tsx_does() {
         expected.iter().map(|l| l.native()).collect::<Vec<_>>()
     );
 }
+
+/// svelte2tsx declares `$x` for a default or named import `x` and not for a namespace import, which
+/// has no name of its own, in either script. So `$ns` is a name TypeScript cannot find, even when
+/// the module would make a store. svelte-check 4.7.8 reports these lines.
+#[test]
+fn typecheck_reads_a_namespace_import_as_a_name_that_is_not_declared() {
+    let mut files = vec![
+        CHECK_JAVASCRIPT,
+        (
+            "src/s.ts",
+            "import { writable } from 'svelte/store';\nexport const num = 5;\n\
+             export const w = writable(1);\nexport default writable(2);\n",
+        ),
+        (
+            "src/storeish.ts",
+            "export function subscribe(run: (v: number) => void) {\n\trun(1);\n\treturn () => {};\n\
+             }\n",
+        ),
+    ];
+    let mut sources = Vec::new();
+    for (lang, suffix) in [(" lang=\"ts\"", "TS"), ("", "JS")] {
+        let component = |name: &str, head: &str, body: &str, template: &str| {
+            (
+                format!("src/{name}{suffix}.svelte"),
+                format!("{head}<script{lang}>\n\t{body}\n</script>\n\n{template}\n"),
+            )
+        };
+        let module = format!("<script module{lang}>\n\timport * as mns from './s';\n</script>\n\n");
+        sources.extend([
+            component("Ns", "", "import * as ns from './s';", "{$ns}"),
+            component("Store", "", "import * as st from './storeish';", "{$st}"),
+            component(
+                "DefaultNs",
+                "",
+                "import dw, * as ns2 from './s';",
+                "{$dw}{$ns2}",
+            ),
+            component("Module", &module, "", "{$mns}"),
+        ]);
+    }
+    files.extend(
+        sources
+            .iter()
+            .map(|(path, text)| (path.as_str(), text.as_str())),
+    );
+    let report = check(&files);
+    let lines: Vec<_> = report.lines().filter(|l| l.starts_with("src")).collect();
+    let mut expected = Vec::new();
+    for suffix in ["JS", "TS"] {
+        expected.extend([
+            format!(
+                "src/DefaultNs{suffix}.svelte(5,7): error TS2552: Cannot find name '$ns2'. Did you \
+                 mean 'ns2'?"
+            ),
+            format!(
+                "src/Module{suffix}.svelte(9,2): error TS2552: Cannot find name '$mns'. Did you \
+                 mean 'mns'?"
+            ),
+            format!("src/Ns{suffix}.svelte(5,2): error TS2304: Cannot find name '$ns'."),
+            format!("src/Store{suffix}.svelte(5,2): error TS2304: Cannot find name '$st'."),
+        ]);
+    }
+    expected.sort();
+    assert_eq!(
+        lines,
+        expected.iter().map(|l| l.native()).collect::<Vec<_>>()
+    );
+}

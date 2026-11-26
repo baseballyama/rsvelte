@@ -43,7 +43,8 @@ function $$render() {
       one = __rsvelte_untyped_prop();
     }
     {
-      for (let [i, item] of __rsvelte_each(items)) {
+      for (let item of __rsvelte_each(items)) {
+        let i = 1;
         {
           svelteHTML.createElement("input", {
             "type": "checkbox",
@@ -52,7 +53,7 @@ function $$render() {
           item.picks = __rsvelte_untyped_prop();
         }
         {
-          for (let [, n] of __rsvelte_each([1, 2])) {
+          for (let n of __rsvelte_each([1, 2])) {
             (n);
             {
               svelteHTML.createElement("input", {
@@ -66,7 +67,8 @@ function $$render() {
       }
     }
     {
-      for (let [j, item] of __rsvelte_each(items)) {
+      for (let item of __rsvelte_each(items)) {
+        let j = 1;
         (item);
         {
           svelteHTML.createElement("input", {

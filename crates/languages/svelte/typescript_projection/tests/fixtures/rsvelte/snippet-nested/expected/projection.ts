@@ -23,7 +23,8 @@ function $$render() {
         return __rsvelte_snippet_return;
       };
       {
-        for (let [i, item] of __rsvelte_each(items)) {
+        for (let item of __rsvelte_each(items)) {
+          let i = 1;
           __rsvelte_ensure_snippet(row(item, i));
         }
       }

@@ -13,7 +13,7 @@ function $$render() {
     {
       svelteHTML.createElement("ul", {});
       {
-        for (let [, item] of __rsvelte_each(items)) {
+        for (let item of __rsvelte_each(items)) {
           (item.id);
           {
             svelteHTML.createElement("li", {
