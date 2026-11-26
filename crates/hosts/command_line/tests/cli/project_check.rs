@@ -31,11 +31,25 @@ impl Project {
 
     /// Each finding of the check: its file, code and message.
     fn findings(&self, processes: Option<usize>) -> Vec<(String, serde_json::Value, String)> {
+        self.findings_with(processes, None)
+    }
+
+    /// [`Self::findings`], with every request to a checker process appended to `log`.
+    fn findings_with(
+        &self,
+        processes: Option<usize>,
+        log: Option<&Path>,
+    ) -> Vec<(String, serde_json::Value, String)> {
         let packages = NodePackages::locate();
         let (program, arguments) = packages.type_checker();
-        let command: Vec<String> = std::iter::once(program.to_string_lossy().into_owned())
+        let mut command: Vec<String> = std::iter::once(program.to_string_lossy().into_owned())
             .chain(arguments)
             .collect();
+        if let Some(log) = log {
+            let tee = ["/bin/sh", "-c", r#"tee -a "$0" | "$@""#];
+            let log = log.to_string_lossy().into_owned();
+            command.splice(0..0, tee.into_iter().map(str::to_owned).chain([log]));
+        }
         let mut tsc = serde_json::json!({
             "command": command,
             "tsconfig": self.0.join("tsconfig.json"),
@@ -419,4 +433,28 @@ fn a_javascript_component_reads_its_generics_and_hides_their_findings() {
             "src/Use.svelte TS2322"
         ]
     );
+}
+
+#[cfg(unix)]
+#[test]
+fn a_check_that_adds_nothing_to_the_project_checks_in_the_snapshot_that_lists_its_files() {
+    let project = Project::new(&[
+        ("tsconfig.json", NODENEXT),
+        ("package.json", r#"{"type":"module"}"#),
+        ("src/a.ts", "export const wrong: number = 'a';\n"),
+        (
+            "src/b.ts",
+            "import { wrong } from './a.js';\nexport const right: string = wrong;\n",
+        ),
+    ]);
+    let log = project.0.join("requests");
+    let found: Vec<_> = (project.findings_with(None, Some(&log)).into_iter())
+        .map(|(file, code, _)| format!("{file} TS{code}"))
+        .collect();
+    assert_eq!(found, ["src/a.ts TS2322", "src/b.ts TS2322"]);
+    let requests = std::fs::read(&log).expect("the checker's requests");
+    let snapshots = (requests.windows(b"createSnapshot".len()))
+        .filter(|window| *window == b"createSnapshot")
+        .count();
+    assert_eq!(snapshots, 1);
 }

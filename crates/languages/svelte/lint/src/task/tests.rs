@@ -355,6 +355,24 @@ fn an_open_brace_at_a_scripts_end_is_expected_at_the_documents_end() {
     );
 }
 
+/// tsc reads `?` after a rest element of an arrow's parameters as a conditional, and expects an
+/// expression after it.
+#[test]
+fn an_optional_rest_element_in_an_arrows_parameters_expects_an_expression_after_the_question_mark()
+{
+    for (script, at) in [
+        ("const g = ([...a?]) => {};", 35),
+        ("const g = ({...a?}) => {};", 35),
+        ("const g = ([...a ?]) => {};", 36),
+    ] {
+        assert_parse_error(
+            &format!("<script lang=\"ts\">{script}</script>"),
+            "Parsing error: Expression expected.",
+            (1, at),
+        );
+    }
+}
+
 /// tsc reports a name or an expression missing at the end of the file right after the last token.
 #[test]
 fn a_missing_node_at_a_scripts_end_is_reported_after_the_last_token() {

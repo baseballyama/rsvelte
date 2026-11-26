@@ -15,6 +15,8 @@ pub struct Settings {
     functions: Arc<dyn FunctionResolver>,
     selection: Selection,
     tools: Tools,
+    /// Whether the host reports the programs a run runs, with their versions.
+    tool_versions: bool,
     file_system: bool,
     programs: Option<PathBuf>,
 }
@@ -27,6 +29,7 @@ impl Settings {
             functions,
             selection,
             tools: Tools::default(),
+            tool_versions: false,
             file_system: true,
             programs: None,
         }
@@ -37,6 +40,14 @@ impl Settings {
     #[must_use]
     pub const fn without_file_system(mut self) -> Self {
         self.file_system = false;
+        self
+    }
+
+    /// For a host that reports the programs a run runs, as a measurement does: [`Self::tool`] asks
+    /// each one's version.
+    #[must_use]
+    pub const fn with_tool_versions(mut self) -> Self {
+        self.tool_versions = true;
         self
     }
 
@@ -98,7 +109,9 @@ impl Settings {
         CallError(format!("{task} needs {what}{why}"))
     }
 
-    /// Records a program the run will run, asking its version once however many plugins run it.
+    /// Records a program the run will run, asking its version once however many plugins run it,
+    /// where the host reports the programs. Otherwise it records nothing, since asking costs a
+    /// start of the program, and a program that cannot run fails where the run starts it.
     ///
     /// # Errors
     ///
@@ -108,6 +121,9 @@ impl Settings {
         command: String,
         version: impl FnOnce() -> Result<String, CallError>,
     ) -> Result<(), CallError> {
+        if !self.tool_versions {
+            return Ok(());
+        }
         self.tools.record(command, version)
     }
 

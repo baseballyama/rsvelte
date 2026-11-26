@@ -363,18 +363,18 @@ fn main() -> ExitCode {
     let (program, arguments) = packages.type_checker();
     let typecheck = rsvelte_svelte_check::Configuration {
         check: Some(rsvelte_svelte_check::TypeCheckConfiguration {
-            tsc: Tsc {
-                checker: TypeChecker { program, arguments },
+            tsc: Tsc::new(
+                TypeChecker { program, arguments },
                 // The configuration svelte-check had for the expected output.
-                tsconfig: Some(
+                Some(
                     concat!(
                         env!("CARGO_MANIFEST_DIR"),
                         "/../../../corpus/_registry/tsconfig.json"
                     )
                     .into(),
                 ),
-                processes: None,
-            },
+                None,
+            ),
             content_mapper: rsvelte_test_harness::content_mapper(),
             svelte: packages.package("svelte"),
         }),

@@ -52,7 +52,9 @@ from the configuration file.
 A program with a `/` starts from the configuration file. The host looks for a bare name in
 `node_modules/.bin` next to the file and in its parents, then in `PATH`. `tsconfig` defaults to
 the `tsconfig.json` next to the file, if there is one. `processes` of `typescript.check` sets the
-number of checker processes that share the documents; by default one per 50 documents, at most 4.
+number of checker processes that share the documents. By default the check adds a process only
+where it would check for as long as it takes to open the project. It uses at most one per 50
+documents and at most 4.
 
 ## Settings and functions
 

@@ -86,6 +86,7 @@ fn an_optional_rest_acorn_reads_as_an_expression_or_a_name_fails_at_the_question
         ("const g = async (a, ...p?: string[]) => {};", 24),
         ("const g = ([...a?]) => {};", 16),
         ("const g = ({...a?}) => {};", 16),
+        ("const g = ([...a ?]) => {};", 17),
         ("function f({...a?}) {}", 16),
         ("declare function f({...a?}: T): void;", 24),
         ("interface I { m({...a?}: T): void }", 21),

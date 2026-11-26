@@ -34,3 +34,18 @@ fn options_no_plugin_read_are_refused_by_name() {
     let error = install(&mut Registry::new(), &[&READS_A], &mut settings).expect_err("unread");
     assert_eq!(error.0, "no installed plugin reads the options of `b`, `c`");
 }
+
+#[test]
+fn a_program_asks_its_version_only_where_the_host_reports_the_programs() {
+    let asked = std::cell::Cell::new(0);
+    let version = || {
+        asked.set(asked.get() + 1);
+        Ok("1.0".to_owned())
+    };
+    let mut quiet = settings(&[]);
+    quiet.tool("tsc".to_owned(), version).expect("records");
+    assert_eq!((asked.get(), quiet.tools().len()), (0, 0));
+    let mut reporting = settings(&[]).with_tool_versions();
+    reporting.tool("tsc".to_owned(), version).expect("records");
+    assert_eq!((asked.get(), reporting.tools().len()), (1, 1));
+}
