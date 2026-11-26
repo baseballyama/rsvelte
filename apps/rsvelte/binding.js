@@ -8,15 +8,7 @@ const path =
 	process.env.RSVELTE_BINDING ??
 	`@rsvelte/binding-${process.platform}-${process.arch}/rsvelte.node`;
 /**
- * @typedef {{ line: number, column: number, character: number }} Position
- * @typedef {{ code: string, message: string, start: Position, end: Position }} Report
- * @typedef {{ code: string, map?: string }} Output
- * @typedef {{ compiled?: { js: Output, css?: Output, warnings: Report[] }, error?: Report }} Outcome
- * @typedef {{ filename?: unknown, generate?: unknown, preserveWhitespace?: unknown }} Options
- * @typedef {{
- *   VERSION: string,
- *   compile(source: string, options: Options): Outcome,
- *   compileModule(source: string, options: Options): Outcome,
+ * @typedef {import('./compiler-api.js').Compiler & {
  *   run(argv: string[], programs: string): number,
  * }} Binding
  */
