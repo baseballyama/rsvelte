@@ -23,10 +23,10 @@ publishes to npm, runs `lint`, `format` and `typecheck` over Svelte and TypeScri
 [README](../../apps/cli/README.md) is the user guide. `rsvelte lsp` lints, fixes, formats and type
 checks the text in an editor over the Language Server Protocol, for example for
 [the Visual Studio Code extension](../../apps/vscode/README.md). It
-[routes](command_line/src/release/language_server.rs) between the editor and three servers:
-oxlint's language server with the Svelte plugin `rsvelte lint` runs and the formatter, the type
-check of `rsvelte typecheck`, and the language server of the TypeScript 7.1 that check runs, for
-TypeScript's features in components.
+[routes](command_line/src/release/language_server.rs) between the editor and three servers. The
+first is oxlint's language server with the Svelte plugin `rsvelte lint` runs, and the formatter.
+The second is the type check of `rsvelte typecheck`. The third is the language server of the
+TypeScript 7.1 that check runs, for TypeScript's features in components.
 `rsvelte-dev` runs every task of every language, and the development commands below. Run these examples from the repository root
 with the pinned Rust toolchain:
 
