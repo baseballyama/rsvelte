@@ -1,2 +1,1 @@
-# svelte.compileModule/server: 2392 match
-svelte/rsvelte/pattern/module-legacy-octal-escape-in-a-script.svelte.ts	unexpected
+# svelte.compileModule/server: 2393 match

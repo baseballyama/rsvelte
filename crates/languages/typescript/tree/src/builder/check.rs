@@ -5,7 +5,7 @@ use oxc_parser::{PartError, Token};
 use oxc_span::SourceType;
 
 use super::{Part, TreeBuilder};
-use crate::acorn_grammar::{Unsupported, rejection, whitespace};
+use crate::acorn_grammar::{Unsupported, lexed, read, read_before_stopping, rejection};
 use crate::syntax_error::{
     Locator, SyntaxError, acorn, reported, syntax_error, typescript_eslint_at,
 };
@@ -28,9 +28,16 @@ impl<'a> TreeBuilder<'a> {
             let mut unsupported = Unsupported::new(self.typescript_reader(source_type), tokens);
             part.walk(&mut unsupported);
             let unsupported = unsupported.first.map(|stop| stop.shifted(shift));
+            // Without a diagnostic, the walk finds the literals acorn's lexer rejects.
+            let read = read(
+                if diagnostics.is_empty() { &[] } else { tokens },
+                next_token,
+            );
+            let typescript = self.typescript_reader(source_type);
+            let lexed = lexed(text, read, (irregular, typescript), shift);
             unsupported
                 .into_iter()
-                .chain(whitespace(text, irregular, shift))
+                .chain(lexed)
                 .min_by_key(|stop| stop.raised)
         } else {
             None
@@ -67,12 +74,20 @@ impl<'a> TreeBuilder<'a> {
     pub(super) fn fatal(
         &self,
         error: PartError<'_>,
-        text: &str,
-        fallback: u32,
-        shift: u32,
+        (text, fallback, shift): (&str, u32, u32),
+        source_type: SourceType,
     ) -> SyntaxError {
         let stop = (self.as_acorn.is_some())
-            .then(|| whitespace(text, &error.irregular_whitespaces, shift))
+            .then(|| {
+                let read = read_before_stopping(text, &error.tokens, &error.diagnostics);
+                let typescript = self.typescript_reader(source_type);
+                lexed(
+                    text,
+                    read,
+                    (&error.irregular_whitespaces, typescript),
+                    shift,
+                )
+            })
             .flatten();
         let syntax_error = syntax_error(error.diagnostics, text, &error.tokens, fallback, shift);
         match stop {
