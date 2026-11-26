@@ -9,9 +9,9 @@ use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::{GetSpan, SourceType};
 
-use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
 use super::word::{Home, home, keyword, misused};
+use super::{Acorn, Unreserved};
 
 mod arguments;
 mod declarations;
@@ -24,7 +24,7 @@ pub(crate) use lexer::lexer_failure;
 use lexer::regular_expression;
 use number::number as rejected_number;
 pub(crate) use number::shorter_number;
-use pattern::{parenthesized_element, rejected_await, reparsed};
+use pattern::{parenthesized_element, rejected_word, reparsed};
 
 /// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one
 /// of `unchecked`, the rules the host's parser does not check, nor, for a host that reads
@@ -236,8 +236,6 @@ pub(crate) fn acorn(
     }
 }
 
-const STATIC_BLOCK_AWAIT: &str = "Cannot use await in class static initialization block";
-
 /// Acorn's message for a target that tsc's code `number` says cannot be assigned, which names an
 /// optional chain apart.
 fn unassignable_message(number: &str) -> Option<&'static str> {
@@ -251,7 +249,8 @@ fn unassignable_message(number: &str) -> Option<&'static str> {
 }
 
 /// What acorn reports for a target that cannot be assigned, which oxc labels `start..end` with its
-/// outermost parentheses, in the part whose tokens are `tokens` and whose tree `visit` walks. In a
+/// outermost parentheses, in the part whose tokens are `tokens` and whose tree `visit` walks. A
+/// word acorn rejects as it reads the target comes first: see [`rejected_word`]. In a
 /// destructuring pattern, acorn first checks the pattern as a whole: see [`parenthesized_element`].
 /// Otherwise it reports `message` where its node starts: at the expression inside the parentheses
 /// and type assertions, or at the outermost parenthesis around an object or an array, which it
@@ -267,8 +266,8 @@ fn unassignable(
     let tokens = &tokens.collect::<Vec<_>>();
     let (home, _) = home(start, end, tokens.iter().copied(), visit);
     if let Some(home) = home {
-        if let Some(at) = rejected_await(text, (start, end), tokens, home) {
-            return Some(fails(STATIC_BLOCK_AWAIT, at));
+        if let Some((at, why)) = rejected_word(text, (start, end), tokens, home) {
+            return Some(fails(why.message(), at));
         }
         if let Some(at) = parenthesized_element(text, (start, end), tokens, home) {
             return Some(fails("Assigning to rvalue", at));
@@ -374,7 +373,7 @@ fn early_error(
             )),
             at: start,
         }),
-        "18037" | "18054" => Some(fails(STATIC_BLOCK_AWAIT, start)),
+        "18037" | "18054" => Some(fails(Unreserved::StaticBlockAwait.message(), start)),
         // acorn-typescript reports an abstract member at its start.
         "1244" | "1253" => Some(fails(
             "Abstract methods can only appear within an abstract class.",

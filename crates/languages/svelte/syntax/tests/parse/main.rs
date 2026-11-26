@@ -19,4 +19,5 @@ mod trailing_whitespace;
 mod typescript_grammar;
 mod typescript_in_javascript;
 mod unassignable_target;
+mod unreserved_words;
 mod whitespace;
