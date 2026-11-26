@@ -29,6 +29,9 @@ pub(crate) enum Verdict {
     Missing,
     /// rsvelte wrote a file that the official tool did not, or accepted what it rejected.
     Unexpected,
+    /// Both rejected the unit for a JavaScript syntax error, which oxc and acorn word and place
+    /// apart.
+    JsEquivalent,
     /// Not compared: the official tool rejected the unit. Only a comment verdict says so; the
     /// task's own verdict judges the rejection.
     OfficialRejected,
@@ -38,13 +41,14 @@ pub(crate) enum Verdict {
 }
 
 impl Verdict {
-    pub(crate) const ALL: [Self; 9] = [
+    pub(crate) const ALL: [Self; 10] = [
         Self::Panicked,
         Self::Refused,
         Self::Unparseable,
         Self::Mismatch,
         Self::Missing,
         Self::Unexpected,
+        Self::JsEquivalent,
         Self::OfficialRejected,
         Self::Skipped,
         Self::Match,
@@ -58,6 +62,7 @@ impl Verdict {
             Self::Mismatch => "mismatch",
             Self::Missing => "missing",
             Self::Unexpected => "unexpected",
+            Self::JsEquivalent => "js-equivalent",
             Self::OfficialRejected => "official-rejected",
             Self::Skipped => "skipped",
             Self::Match => "match",
@@ -95,7 +100,7 @@ pub(crate) fn verdict(
             _ if wrote => Verdict::Unexpected,
             None => Verdict::Missing,
             Some(diagnostics) if error.attributes == "error.json" => {
-                same(same_error(error.body, diagnostics)?)
+                error_verdict(error.body, diagnostics)?
             }
             Some(_) => Verdict::Match,
         }));
@@ -204,11 +209,46 @@ fn file<'a>(output: &'a TaskOutput, name: &str) -> Option<&'a str> {
         .map(|f| f.text.as_str())
 }
 
-/// Two JSON texts compared as values; an actual text that is not JSON does not match.
+/// Two JSON texts compared as values; an actual text that is not JSON does not match. Two that
+/// differ only in the words and places of JavaScript syntax errors are [`Verdict::JsEquivalent`].
 fn same_json(official: &str, actual: &str) -> Result<Verdict, serde_json::Error> {
     let parse = serde_json::from_str::<serde_json::Value>;
-    let official = parse(official)?;
-    Ok(same(parse(actual).is_ok_and(|actual| actual == official)))
+    let mut official = parse(official)?;
+    let Ok(mut actual) = parse(actual) else {
+        return Ok(Verdict::Mismatch);
+    };
+    if actual == official {
+        return Ok(Verdict::Match);
+    }
+    blank_javascript_errors(&mut official);
+    blank_javascript_errors(&mut actual);
+    Ok(if actual == official {
+        Verdict::JsEquivalent
+    } else {
+        Verdict::Mismatch
+    })
+}
+
+/// Where Svelte names a JavaScript syntax error by its documentation link.
+const JS_PARSE_ERROR_LINK: &str = "https://svelte.dev/e/js_parse_error";
+
+/// Drops the message and the place of every diagnostic in `value` that is a JavaScript syntax
+/// error.
+fn blank_javascript_errors(value: &mut serde_json::Value) {
+    match value {
+        serde_json::Value::Array(items) => items.iter_mut().for_each(blank_javascript_errors),
+        serde_json::Value::Object(fields) => {
+            let javascript = (fields.get("message").and_then(serde_json::Value::as_str))
+                .is_some_and(|message| message.contains(JS_PARSE_ERROR_LINK));
+            if javascript {
+                for key in ["message", "start", "end"] {
+                    fields.remove(key);
+                }
+            }
+            fields.values_mut().for_each(blank_javascript_errors);
+        }
+        _ => {}
+    }
 }
 
 const fn same(equal: bool) -> Verdict {
@@ -227,7 +267,7 @@ fn compare(name: &str, official: &str, actual: &str) -> Result<Verdict, String> 
             Err(Unparsed::Actual(_)) => Ok(Verdict::Unparseable),
             Err(Unparsed::Expected(e)) => Err(format!("does not parse: {e}")),
         },
-        "lint.txt" => lint(official, actual).map(same),
+        "lint.txt" => lint(official, actual),
         "warnings.json" => same_diagnostics(official, actual).map(same),
         _ if name.ends_with("json") => {
             same_json(official, actual).map_err(|e| format!("not JSON: {e}"))
@@ -258,13 +298,25 @@ fn same_diagnostics(official: &str, actual: &str) -> Result<bool, String> {
     Ok(official == actual)
 }
 
-/// The official compile error against rsvelte's first diagnostic.
-fn same_error(official: &str, actual: &str) -> Result<bool, String> {
+/// The official compile error against rsvelte's first diagnostic. A JavaScript syntax error is
+/// the parser's to word and place, so two of them agree on the code alone.
+fn error_verdict(official: &str, actual: &str) -> Result<Verdict, String> {
     let official: Diagnostic =
         serde_json::from_str(official).map_err(|e| format!("official error.json: {e}"))?;
     let actual: Vec<Diagnostic> = serde_json::from_str(actual).map_err(|e| e.to_string())?;
-    Ok(actual.first() == Some(&official))
+    let Some(first) = actual.first() else {
+        return Ok(Verdict::Mismatch);
+    };
+    Ok(if *first == official {
+        Verdict::Match
+    } else if first.code == JS_PARSE_ERROR && official.code == JS_PARSE_ERROR {
+        Verdict::JsEquivalent
+    } else {
+        Verdict::Mismatch
+    })
 }
+
+const JS_PARSE_ERROR: &str = "js_parse_error";
 
 #[derive(Deserialize)]
 struct LintFile {
@@ -301,9 +353,9 @@ impl Finding {
 /// rsvelte's findings are the official findings of those rules, plus the ones without a rule (a
 /// fatal parse error). A rule outside the official configuration runs on both sides only when
 /// the unit's own configuration comment turns it on, so its findings are compared too.
-fn lint(official: &str, actual: &str) -> Result<bool, String> {
+fn lint(official: &str, actual: &str) -> Result<Verdict, String> {
     let Ok(actual) = serde_json::from_str::<LintFile>(actual) else {
-        return Ok(false);
+        return Ok(Verdict::Mismatch);
     };
     let mut wanted = Vec::new();
     for line in official.lines() {
@@ -330,7 +382,40 @@ fn lint(official: &str, actual: &str) -> Result<bool, String> {
     // says nothing about what was found.
     sort_ties(&mut wanted);
     sort_ties(&mut actual);
-    Ok(wanted == actual)
+    if wanted == actual {
+        return Ok(Verdict::Match);
+    }
+    // A syntax error's place also orders it among the other findings, so they are set apart.
+    let parts = |lines: &[String]| -> (Vec<String>, Vec<String>) {
+        let (mut javascript, rest): (Vec<String>, Vec<String>) = lines
+            .iter()
+            .cloned()
+            .partition(|line| javascript_error_rule(line).is_some());
+        javascript = javascript
+            .iter()
+            .filter_map(|line| javascript_error_rule(line))
+            .map(str::to_owned)
+            .collect();
+        javascript.sort_unstable();
+        (javascript, rest)
+    };
+    Ok(if parts(&wanted) == parts(&actual) {
+        Verdict::JsEquivalent
+    } else {
+        Verdict::Mismatch
+    })
+}
+
+/// The rule of a `lint.txt` line that reports a JavaScript syntax error, as a fatal parse error
+/// and `svelte/valid-compile` do.
+fn javascript_error_rule(line: &str) -> Option<&str> {
+    let mut fields = line.splitn(4, ' ');
+    let (Some(_), Some(_), Some(rule), Some(message)) =
+        (fields.next(), fields.next(), fields.next(), fields.next())
+    else {
+        return None;
+    };
+    message.contains(JS_PARSE_ERROR_LINK).then_some(rule)
 }
 
 /// Sorts each run of lines that start at the same position, keeping the runs in order.
