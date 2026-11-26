@@ -147,8 +147,8 @@ mod acorn_rejection;
 pub(crate) use acorn_rejection::{acorn, lexer_failure, reported, shorter_number};
 mod locator;
 mod readers;
-mod static_block;
-pub(crate) use static_block::StaticBlockAwaits;
+mod unreserved;
+pub(crate) use unreserved::{Unreserved, UnreservedWords};
 mod typescript_eslint;
 mod word;
 
