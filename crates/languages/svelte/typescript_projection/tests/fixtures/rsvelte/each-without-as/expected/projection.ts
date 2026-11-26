@@ -12,7 +12,7 @@ function $$render() {
   }, false);
   async () => {
     {
-      for (let [, ] of __rsvelte_each(items)) {
+      for (let __rsvelte_item0 of __rsvelte_each(items)) {
         {
           svelteHTML.createElement("p", {});
           item;
@@ -20,7 +20,8 @@ function $$render() {
       }
     }
     {
-      for (let [i, ] of __rsvelte_each(items)) {
+      for (let __rsvelte_item0 of __rsvelte_each(items)) {
+        let i = 1;
         {
           svelteHTML.createElement("p", {});
           i;
@@ -28,7 +29,8 @@ function $$render() {
       }
     }
     {
-      for (let [i, ] of __rsvelte_each({ length: count })) {
+      for (let __rsvelte_item0 of __rsvelte_each({ length: count })) {
+        let i = 1;
         {
           svelteHTML.createElement("span", {});
           i;
@@ -38,7 +40,7 @@ function $$render() {
       }
     }
     {
-      for (let [, ] of __rsvelte_each({ length: 3 })) {
+      for (let __rsvelte_item0 of __rsvelte_each({ length: 3 })) {
         {
           svelteHTML.createElement("b", {});
         }

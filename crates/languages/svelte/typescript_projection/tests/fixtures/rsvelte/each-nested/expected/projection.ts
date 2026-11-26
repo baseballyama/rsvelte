@@ -10,7 +10,7 @@ function $$render() {
 
   async () => {
     {
-      for (let [, group] of __rsvelte_each(groups)) {
+      for (let group of __rsvelte_each(groups)) {
         {
           svelteHTML.createElement("h2", {});
           group.name;
@@ -18,7 +18,7 @@ function $$render() {
         {
           svelteHTML.createElement("ul", {});
           {
-            for (let [, item] of __rsvelte_each(group.items)) {
+            for (let item of __rsvelte_each(group.items)) {
               {
                 svelteHTML.createElement("li", {});
                 group.name;

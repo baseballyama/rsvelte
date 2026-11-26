@@ -34,7 +34,7 @@ function $$render() {
       $a;
     }
     {
-      for (let [, x] of __rsvelte_each($xs)) {
+      for (let x of __rsvelte_each($xs)) {
         x;
       }
       {

@@ -10,7 +10,8 @@ function $$render() {
 
   async () => {
     {
-      for (let [i, item] of __rsvelte_each(items)) {
+      for (let item of __rsvelte_each(items)) {
+        let i = 1;
         const key = item.id;
         const k2 = key + n;
         {
