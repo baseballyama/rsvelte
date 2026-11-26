@@ -55,23 +55,13 @@ fn only_a_function_with_a_body_checks_its_parameter_names() {
         let source = format!("{open}{script}</script>");
         compile(&source, &CompileOptions::default())
             .map(|_| ())
-            .map_err(|error| {
-                (
-                    error.code.to_string(),
-                    error.message.lines().next().map(str::to_owned),
-                    error.span.start_offset,
-                )
-            })
+            .map_err(|error| super::outcomes::raised(&error))
     };
     for script in COMPILES {
         assert_eq!(compiled(script), Ok(()), "{script}");
     }
     for &(script, code, message, at) in REJECTS {
-        let expected = (
-            code.to_owned(),
-            Some(message.to_owned()),
-            at + open.len() as u32,
-        );
+        let expected = super::outcomes::official(code, message, at + open.len() as u32);
         assert_eq!(compiled(script), Err(expected), "{script}");
     }
 }

@@ -1,5 +1,6 @@
 use oxc_ast::ast::{Expression, LogicalExpression, TemplateElement, UnaryExpression};
 use oxc_syntax::operator::{BinaryOperator, LogicalOperator, UnaryOperator};
+use rsvelte_typescript_tree::JavaScriptString;
 
 use super::globals::{Global, global};
 use super::operators::{binary, unary};
@@ -10,11 +11,9 @@ impl Evaluator<'_> {
         // Upstream evaluates after erasing types.
         let e = crate::typescript::without_typescript(e);
         match e {
-            // A value with a lone surrogate is no Rust string.
-            Expression::StringLiteral(s) => match s.value.as_str() {
-                Some(value) => values.add(Value::String(value.to_owned())),
-                None => values.add(Value::Unknown),
-            },
+            Expression::StringLiteral(s) => {
+                values.add(Value::String(JavaScriptString::from_oxc(s.value)));
+            }
             Expression::NumericLiteral(n) => values.add(Value::Number(n.value)),
             Expression::BigIntLiteral(b) => {
                 values.add(bigint::literal(&format!("{}n", b.value)));
@@ -56,8 +55,8 @@ impl Evaluator<'_> {
                     if ev.is_known()
                         && let Some(next) = next
                     {
-                        result.push_str(&ev.value().to_javascript_string());
-                        result.push_str(&next);
+                        result.push_string(&ev.value().to_javascript_string());
+                        result.push_string(&next);
                     } else {
                         // Upstream adds the partial string as well after giving up, and so do we.
                         values.add(Value::AnyString);
@@ -167,9 +166,7 @@ impl Evaluator<'_> {
     }
 }
 
-/// The cooked text of a template literal's quasi; `None` when it holds a lone surrogate, which is
-/// no Rust string.
-fn cooked(quasi: &TemplateElement<'_>) -> Option<String> {
-    let cooked = quasi.value.cooked?;
-    cooked.as_str().map(str::to_owned)
+/// The cooked text of a template literal's quasi; `None` for an invalid escape.
+fn cooked(quasi: &TemplateElement<'_>) -> Option<JavaScriptString> {
+    quasi.value.cooked.map(JavaScriptString::from_oxc)
 }

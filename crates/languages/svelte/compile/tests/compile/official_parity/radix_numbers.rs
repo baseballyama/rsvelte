@@ -517,12 +517,9 @@ fn acorn_stops_at_a_shorter_number_where_its_parser_takes_none() {
 fn a_module_stops_at_a_shorter_number_where_its_parser_takes_none() {
     for &(source, expected) in MODULES {
         let outcome = compile_module(source, &ModuleCompileOptions::default());
-        let raised = outcome.err().map(|error| {
-            let message = error.message.lines().next().map(str::to_owned);
-            (error.code.to_string(), message, error.span.start_offset)
-        });
+        let raised = outcome.err().map(|error| super::outcomes::raised(&error));
         let expected =
-            expected.map(|(code, message, at)| (code.to_owned(), Some(message.to_owned()), at));
+            expected.map(|(code, message, at)| super::outcomes::official(code, message, at));
         assert_eq!(raised, expected, "{source:?}");
     }
 }

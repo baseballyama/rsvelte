@@ -540,8 +540,9 @@ impl<'a> TreeBuilder<'a> {
 fn refused(message: &str, span: Span) -> SyntaxError {
     SyntaxError {
         diagnostic: Diagnostic::error("parse_error", message, span),
-        acorn: None,
+        acorn_stops_at: None,
         typescript_code: None,
+        redeclared_at: None,
         typescript_eslint_at: None,
     }
 }

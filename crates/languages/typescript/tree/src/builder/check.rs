@@ -8,7 +8,7 @@ use super::number::{Reading, at_shorter_number};
 use super::{Part, TreeBuilder};
 use crate::acorn_grammar::{Unsupported, lexed, read, read_before_stopping, rejection};
 use crate::syntax_error::{
-    Locator, SyntaxError, acorn, reported, syntax_error, typescript_eslint_at,
+    Locator, SyntaxError, acorn_stop, reported, syntax_error, typescript_eslint_at,
 };
 
 impl<'a> TreeBuilder<'a> {
@@ -39,31 +39,31 @@ impl<'a> TreeBuilder<'a> {
             unsupported
                 .into_iter()
                 .chain(lexed)
-                .min_by_key(|stop| stop.raised)
+                .min_by_key(|stop| stop.at)
         } else {
             None
         };
         if let Some(first) = first {
             // acorn may fail at the token after the part, which the parser read to end it.
-            let acorn = acorn(&diagnostics[first], text, (tokens, next_token), visit);
+            let stops_at = acorn_stop(&diagnostics[first], text, (tokens, next_token), visit);
             let errors = diagnostics.iter().skip(first).cloned();
             let mut error = syntax_error(errors, text, &[], fallback, shift);
-            error.acorn = acorn.map(|acorn| acorn.shifted(shift));
+            error.acorn_stops_at = stops_at.map(|at| at + shift);
             let reading = match part {
                 Part::Program(_) => Reading::Program(fallback),
                 Part::Expression(_) => Reading::Expression(fallback),
                 Part::Statement(_) => Reading::Statement(fallback),
             };
             let reported = (diagnostics, first, tokens);
-            if let Some(stop) = at_shorter_number(reported, (text, shift), (reading, source_type)) {
-                error.acorn = Some(stop);
+            if let Some(at) = at_shorter_number(reported, (text, shift), (reading, source_type)) {
+                error.acorn_stops_at = Some(at);
             }
             error.typescript_eslint_at =
                 typescript_eslint_at(&diagnostics[first], visit).map(|at| at + shift);
             // acorn throws where it stops first, before an error oxc reports later or at the same
             // place.
             return Err(match stop {
-                Some(stop) if stop.raised <= error.acorn_raised_at() => rejection(stop),
+                Some(stop) if stop.at <= error.reported_at() => rejection(stop),
                 _ => error,
             });
         }
@@ -103,11 +103,11 @@ impl<'a> TreeBuilder<'a> {
         let shorter = at_shorter_number(reported, (text, shift), (reading, source_type));
         let mut syntax_error =
             syntax_error(error.diagnostics, text, &error.tokens, fallback, shift);
-        if let Some(stop) = shorter {
-            syntax_error.acorn = Some(stop);
+        if let Some(at) = shorter {
+            syntax_error.acorn_stops_at = Some(at);
         }
         match stop {
-            Some(stop) if stop.raised <= syntax_error.acorn_raised_at() => rejection(stop),
+            Some(stop) if stop.at <= syntax_error.reported_at() => rejection(stop),
             _ => syntax_error,
         }
     }

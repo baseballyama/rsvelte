@@ -4,6 +4,19 @@ Where `compile` gives a different result from svelte on purpose. Each entry says
 what rsvelte does instead, and the code that does it. Behavior rsvelte has not built yet is not
 listed here.
 
+## JavaScript syntax errors
+
+Svelte parses JavaScript with acorn and rsvelte with oxc, so the two word and place a syntax error
+in their own ways.
+
+- Both raise `js_parse_error` for the same sources. The message and the position are oxc's.
+- rsvelte still follows acorn where that decides the outcome: what acorn accepts or rejects, and
+  where acorn's expression ends in the template, which decides the next Svelte error. The rest of
+  acorn's wording, position and order is not copied.
+- The corpus records such a unit as `js-equivalent` rather than `match`
+  ([the verdicts](../../../language_independent/corpus/README.md#verdicts)).
+- Tests: `tests/compile/official_parity/outcomes.rs` keeps only the code of a `js_parse_error`.
+
 ## TypeScript module syntax
 
 TypeScript's module syntax at the top of a script: an import equals (`import A = B.C;`,

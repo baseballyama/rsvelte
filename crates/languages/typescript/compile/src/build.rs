@@ -14,6 +14,7 @@ use oxc_ast::ast::{
 use oxc_ast::builder::{AstBuilder, GetAstBuilder};
 use oxc_span::{SPAN, Span};
 use rsvelte_typescript_tree::is_valid_identifier;
+use rsvelte_typescript_tree::javascript_string::{JavaScriptString, Run};
 
 mod functions;
 
@@ -77,6 +78,12 @@ impl<'o> Builder<'o> {
     #[must_use]
     pub fn string(&self, value: &str) -> Expression<'o> {
         Expression::new_string_literal(SPAN, self.str(value), None, self)
+    }
+
+    /// A string literal of a JavaScript string, which may hold a lone surrogate.
+    #[must_use]
+    pub fn javascript_string(&self, value: &JavaScriptString) -> Expression<'o> {
+        Expression::new_string_literal(SPAN, value.to_oxc_in(self), None, self)
     }
 
     #[must_use]
@@ -361,13 +368,39 @@ impl<'o> Builder<'o> {
         quasis: impl IntoIterator<Item = &'q str>,
         expressions: impl IntoIterator<Item = Expression<'o>>,
     ) -> Expression<'o> {
+        let quasis = quasis.into_iter().map(|q| {
+            let raw = self.str(&sanitize_template_string(q));
+            (raw, self.str(q).into())
+        });
+        self.template_literal(quasis, expressions)
+    }
+
+    /// [`Self::template`] of JavaScript strings, which may hold lone surrogates.
+    pub fn javascript_template<'q>(
+        &self,
+        quasis: impl IntoIterator<Item = &'q JavaScriptString>,
+        expressions: impl IntoIterator<Item = Expression<'o>>,
+    ) -> Expression<'o> {
+        let quasis = quasis.into_iter().map(|q| {
+            let raw = q.as_str().map_or_else(
+                || self.str(&template_raw(q)),
+                |text| self.str(&sanitize_template_string(text)),
+            );
+            (raw, q.to_oxc_in(self))
+        });
+        self.template_literal(quasis, expressions)
+    }
+
+    fn template_literal(
+        &self,
+        quasis: impl Iterator<Item = (&'o str, oxc_str::JSStr<'o>)>,
+        expressions: impl IntoIterator<Item = Expression<'o>>,
+    ) -> Expression<'o> {
         let mut quasis: Vec<TemplateElement<'o>> = quasis
-            .into_iter()
-            .map(|q| {
-                let raw = self.str(&sanitize_template_string(q));
+            .map(|(raw, cooked)| {
                 let value = TemplateElementValue {
                     raw: raw.into(),
-                    cooked: Some(self.str(q).into()),
+                    cooked: Some(cooked),
                 };
                 TemplateElement::new(SPAN, value, false, self)
             })
@@ -539,6 +572,23 @@ pub fn sanitize_template_string(s: &str) -> std::borrow::Cow<'_, str> {
         out.push(ch);
     }
     std::borrow::Cow::Owned(out)
+}
+
+/// The raw text of a template literal part whose cooked value `cooked` holds a lone surrogate,
+/// which only an escape can write.
+#[cold]
+fn template_raw(cooked: &JavaScriptString) -> String {
+    let mut raw = String::new();
+    for run in cooked.runs() {
+        match run {
+            Run::Text(text) => raw.push_str(&sanitize_template_string(text)),
+            Run::Surrogate(unit) => {
+                std::fmt::Write::write_fmt(&mut raw, format_args!("\\u{unit:X}"))
+                    .expect("a `String` takes any text");
+            }
+        }
+    }
+    raw
 }
 
 #[cfg(test)]

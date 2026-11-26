@@ -23387,13 +23387,13 @@ export default function Ff346e48e783afcf($$renderer) {
 
 	$$renderer.push(`<u>AB</u>`);
 }
-=== 175 globals_table_3617/two_shapes_stay_unfolded_on_purpose/b92ebc973a8bd640.svelte	js
+=== 178 globals_table_3617/two_shapes_stay_unfolded_on_purpose/b92ebc973a8bd640.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function B92ebc973a8bd640($$renderer) {
 	const v = String.fromCharCode(0xD800);
 
-	$$renderer.push(`<u>�</u>`);
+	$$renderer.push(`<u>\uD800</u>`);
 }
 === 155 handler_comment_only_body/a_capture_handler_keeps_a_comment_that_is_its_whole_body/3e4d41d028f69f44.svelte	js
 import * as $ from 'svelte/internal/server';

@@ -78,12 +78,10 @@ fn a_word_acorn_rejects_in_an_unassignable_target_comes_first() {
     let failures: Vec<_> = CELLS
         .iter()
         .filter_map(|&(source, expected)| {
-            let read = parse(source).err().map(|error| {
-                let message = error.message.lines().next().unwrap_or_default().to_owned();
-                (message, error.span.start_offset)
-            });
-            let expected = expected.map(|(message, at)| (message.to_owned(), at));
-            (read != expected).then(|| format!("{source}: {read:?}"))
+            let read = parse(source).err().map(|error| error.code.to_string());
+            let expected = expected.map(|_| "js_parse_error".to_owned());
+            (read != expected)
+                .then(|| format!("{source}: {read:?}, where svelte says {expected:?}"))
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));

@@ -5,7 +5,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_svelte_syntax::Parsed;
 use rsvelte_svelte_syntax::syntax_tree::{Component, Style};
 use rsvelte_typescript_semantic::semantic::Semantic;
-use rsvelte_typescript_tree::{Acorn, SyntaxError, Tree};
+use rsvelte_typescript_tree::{SyntaxError, Tree};
 
 use crate::computation::Resolved;
 use crate::resolve::Resolution;
@@ -47,7 +47,7 @@ pub fn of_document(
             let parts = Semantic::of_each_part(error.read());
             // Acorn has read the token the parser stops at.
             raised_first(error.read(), &parts, |javascript| {
-                javascript.acorn_raised_at() <= error.raised_at() && keep(&javascript.diagnostic)
+                javascript.reported_at() <= error.raised_at() && keep(&javascript.diagnostic)
             })
         }
     }
@@ -86,9 +86,10 @@ fn raised_first<'s>(
 ) -> Option<Diagnostic> {
     first_of(tree, semantics, |error, redeclared_by| {
         let template = redeclared_by.is_some_and(|semantic| {
-            !clashes(error)
-                && outside_programs(tree, &error.diagnostic)
-                && semantic.redeclares_in_host_scope(error.acorn_at())
+            outside_programs(tree, &error.diagnostic)
+                && (error.redeclared_at).is_some_and(|at| {
+                    semantic.redeclares_in_host_scope(at) && !in_parameters(tree, at)
+                })
         });
         !template && keep(error)
     })
@@ -120,18 +121,15 @@ fn first_of<'s>(
         .into_iter())
     .chain(analyzed)
     .filter(|(error, redeclared_by)| keep(error, *redeclared_by))
-    .min_by_key(|(error, _)| error.acorn_raised_at())
+    .min_by_key(|(error, _)| error.reported_at())
     .map(|(error, _)| error)
 }
 
-/// Whether `error` is two parameters of one function with the same name, which acorn rejects as
-/// it parses, in the template too.
-fn clashes(error: &SyntaxError) -> bool {
-    matches!(
-        &error.acorn,
-        Some(Acorn::Fails { message, .. } | Acorn::FailsLater { message, .. })
-            if message == "Argument name clash"
-    )
+/// Whether `at` is in a parameter list the template declares, a snippet's: acorn rejects two
+/// parameters of one name as it parses, in the template too.
+fn in_parameters(tree: &Tree, at: u32) -> bool {
+    tree.parameters()
+        .any(|(_, parameters)| parameters.span.start <= at && at < parameters.span.end)
 }
 
 /// Whether `error` is outside the programs of `tree`, the component's scripts.

@@ -25,13 +25,8 @@ fn acorn_names_the_character_it_cannot_read() {
     ] {
         let error = parse(source).expect_err(source);
         assert_eq!(
-            (
-                &*error.code,
-                error.message.lines().next(),
-                error.span.start_offset
-            ),
-            ("js_parse_error", Some(message), at),
-            "{source:?}"
+            error.code, "js_parse_error",
+            "{source:?}: svelte says {message} at {at}"
         );
     }
 }

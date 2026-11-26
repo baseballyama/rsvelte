@@ -7,7 +7,7 @@ use oxc_span::{GetSpan, SourceType};
 
 use super::parentheses;
 use crate::scratch::with_scratch_arena;
-use crate::syntax_error::{Acorn, shorter_number};
+use crate::syntax_error::shorter_number;
 
 /// How a part was read, from where, to read it again.
 #[derive(Clone, Copy)]
@@ -25,7 +25,7 @@ pub(super) fn at_shorter_number(
     (diagnostics, first, tokens): (&[OxcDiagnostic], usize, &[Token]),
     (text, shift): (&str, u32),
     (reading, source_type): (Reading, SourceType),
-) -> Option<Acorn> {
+) -> Option<u32> {
     let (number, end) = shorter_number(diagnostics.get(first)?, text, tokens)?;
     let anew = |error: &OxcDiagnostic| {
         (error.labels.first()).is_some_and(|label| label.offset() <= number)
@@ -34,7 +34,7 @@ pub(super) fn at_shorter_number(
     // Past the shorter number a reread meets what the first read never reached, such as the
     // `as` of `{#each (0b12) as v}`.
     stops_before(&text[..end as usize], number, (reading, source_type), anew)
-        .then_some(Acorn::Stops(number + shift))
+        .then_some(number + shift)
 }
 
 /// Whether oxc's parser, reading `text` the way `reading` did, reports an error `anew` accepts, or

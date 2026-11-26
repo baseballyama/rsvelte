@@ -1,4 +1,4 @@
-//! acorn's lexer rejects a bad escape in a string or a name as it reads it, in its own words.
+//! A bad escape in a string or a name, which acorn's lexer rejects as it reads it, as oxc's does.
 
 mod code_points;
 mod hex;
@@ -121,15 +121,12 @@ const MODULES: &[(&str, Outcome<'_>)] = &[
 ];
 
 #[test]
-fn a_module_rejects_a_bad_escape_in_acorns_words() {
+fn a_module_rejects_a_bad_escape() {
     for &(source, expected) in MODULES {
         let outcome = compile_module(source, &ModuleCompileOptions::default());
-        let raised = outcome.err().map(|error| {
-            let message = error.message.lines().next().map(str::to_owned);
-            (error.code.to_string(), message, error.span.start_offset)
-        });
+        let raised = outcome.err().map(|error| super::outcomes::raised(&error));
         let expected =
-            expected.map(|(code, message, at)| (code.to_owned(), Some(message.to_owned()), at));
+            expected.map(|(code, message, at)| super::outcomes::official(code, message, at));
         assert_eq!(raised, expected, "{source:?}");
     }
 }

@@ -29716,7 +29716,7 @@ Invalid code point 1114112
 === 22 globals_table_3617/two_shapes_stay_unfolded_on_purpose/90b344717c29bda3.svelte	error.txt
 Invalid code point -1
 
-=== 327 globals_table_3617/two_shapes_stay_unfolded_on_purpose/b92ebc973a8bd640.svelte	js
+=== 330 globals_table_3617/two_shapes_stay_unfolded_on_purpose/b92ebc973a8bd640.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
@@ -29727,7 +29727,7 @@ export default function B92ebc973a8bd640($$anchor) {
 	const v = String.fromCharCode(0xD800);
 	var u = root();
 
-	u.textContent = '�';
+	u.textContent = '\uD800';
 	$.append($$anchor, u);
 }
 === 23 globals_table_3617/two_shapes_stay_unfolded_on_purpose/f971de0d0c72cc7f.svelte	error.txt

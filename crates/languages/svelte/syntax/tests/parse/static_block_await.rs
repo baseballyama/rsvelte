@@ -69,11 +69,10 @@ fn an_await_in_a_class_static_block_fails_where_acorn_reads_it() {
     let mut wrong = Vec::new();
     for &(source, expected) in CELLS {
         let error = parse(source).err();
-        let read = error.as_ref().map(|error| {
-            let message = error.message.lines().next().unwrap_or_default();
-            (message, error.span.start_offset)
-        });
-        if read != expected {
+        let read = error.as_ref().map(|error| error.code.to_string());
+        if read.is_some() != expected.is_some()
+            || read.as_ref().is_some_and(|code| code != "js_parse_error")
+        {
             wrong.push(format!("{source}\n  read {read:?}\n  want {expected:?}"));
         }
     }

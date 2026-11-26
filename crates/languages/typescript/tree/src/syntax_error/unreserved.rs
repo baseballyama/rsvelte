@@ -56,17 +56,6 @@ impl UnreservedWords {
         }
     }
 
-    /// For a walk of the nodes in `span` on their own, which acorn reads in `home`.
-    pub(super) fn within(span: oxc_span::Span, home: Home) -> Self {
-        let mut words = Self::new();
-        words.around.push(Around {
-            span,
-            home,
-            arrow: false,
-        });
-        words
-    }
-
     /// Takes in `kind`, which the walk enters in the order of the source: where and why acorn
     /// rejects it, if it is a word acorn rejects.
     pub(crate) fn enter(&mut self, kind: AstKind<'_>) -> Option<(u32, Unreserved)> {

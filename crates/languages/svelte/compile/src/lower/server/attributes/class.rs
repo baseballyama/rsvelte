@@ -1,10 +1,11 @@
+use std::borrow::Cow;
+
 use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
 
 use crate::input::Target;
-use crate::lower::attributes::scoped_class;
+use crate::lower::attributes::scoped_literal_class;
 use crate::lower::builder::Runtime;
-use crate::lower::javascript::string_value;
 use crate::lower::server::ServerCompilationContext;
 
 impl<'o> ServerCompilationContext<'_, 'o> {
@@ -29,11 +30,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let mut stylesheet_hash = None;
         if let Some(h) = hash {
             if let Expression::StringLiteral(literal) = &value {
-                value = b.string(&scoped_class(
-                    &string_value(literal.value),
-                    h,
-                    Target::Server,
-                ));
+                let scoped = scoped_literal_class(literal.value, h, Target::Server, |text| {
+                    Cow::Borrowed(text)
+                });
+                value = b.javascript_string(&scoped);
             } else {
                 stylesheet_hash = Some(b.string(h));
             }
