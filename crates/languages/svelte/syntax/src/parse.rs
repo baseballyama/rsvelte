@@ -23,7 +23,7 @@ mod tag;
 mod token;
 mod whitespace;
 
-pub use checked_scripts::scripts_checked_as_typescript;
+pub use checked_scripts::{CheckedScripts, checked_scripts};
 pub use element_rules::{AUTOCLOSING_CHILDREN, Autoclosing, is_void};
 pub use javascript::javascript_failure;
 pub use module::parse_module;

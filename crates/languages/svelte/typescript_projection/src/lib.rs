@@ -68,13 +68,10 @@ pub enum Unprojected<'a> {
 #[must_use]
 pub fn unprojected(source: &str, why: Unprojected<'_>) -> String {
     match why {
-        Unprojected::Thrown => rsvelte_svelte_syntax::parse::parse_without_scripts(source)
-            .ok()
-            .and_then(|component| {
-                let script = component.instance.as_ref().or(component.module.as_ref())?;
-                Some(script.content.text(source).to_owned())
-            })
-            .unwrap_or_default(),
+        // svelte-check reads the scripts whether or not Svelte's parser accepts the component.
+        Unprojected::Thrown => (rsvelte_svelte_syntax::parse::checked_scripts(source).content)
+            .unwrap_or_default()
+            .to_owned(),
         // The `;` ends a module whose last statement has none.
         Unprojected::Unsupported(component) => component.module.as_ref().map_or_else(
             || STAND_IN.to_owned(),
