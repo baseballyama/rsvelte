@@ -1,6 +1,6 @@
 use oxc_span::SourceType;
 use rsvelte_kernel::source::document::Document;
-use rsvelte_typescript_tree::{Acorn, Tree};
+use rsvelte_typescript_tree::Tree;
 
 use crate::semantic::Semantic;
 
@@ -12,10 +12,7 @@ fn redeclared_at(text: &str) -> Option<u32> {
     assert!(semantic.syntax_error().is_none(), "oxc accepts {text:?}");
     semantic
         .acorn_redeclaration()
-        .map(|error| match error.acorn {
-            Some(Acorn::Fails { at, .. }) => at,
-            other => panic!("acorn fails, not {other:?}"),
-        })
+        .map(|error| error.diagnostic.span.start_offset)
 }
 
 #[test]

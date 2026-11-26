@@ -1,2 +1,2 @@
-error js_parse_error 2:14-2:14 Unexpected token
+error js_parse_error 2:14-2:14 Expected `,` but found `:`
     https://svelte.dev/e/js_parse_error

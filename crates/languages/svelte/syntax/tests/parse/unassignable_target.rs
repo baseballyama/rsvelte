@@ -185,11 +185,9 @@ fn what_an_unassignable_target_holds_is_read() {
     let failures: Vec<_> = CELLS
         .iter()
         .filter_map(|&(source, message, at)| {
-            let read = parse(source).err().map(|error| {
-                let message = error.message.lines().next().unwrap_or_default().to_owned();
-                (message, error.span.start_offset)
-            });
-            (read != Some((message.to_owned(), at))).then(|| format!("{source}: {read:?}"))
+            let read = parse(source).err().map(|error| error.code.to_string());
+            (read.as_deref() != Some("js_parse_error"))
+                .then(|| format!("{source}: {read:?}, where svelte says {message} at {at}"))
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));

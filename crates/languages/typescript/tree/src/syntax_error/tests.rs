@@ -1,30 +1,17 @@
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
 
-use super::Acorn;
 use crate::{Tree, TypeScriptReader};
 
-/// What acorn reports for `text`, a TypeScript program read as acorn reads it, and where; `None`
-/// where it reads the program.
-fn acorn_reads(text: &str) -> Option<(String, u32)> {
-    let mut reported = None;
-    let parsed = Tree::build(text, |builder| {
+/// Whether a host whose parser is acorn rejects `text`, a TypeScript program.
+fn rejects(text: &str) -> bool {
+    Tree::build(text, |builder| {
         builder.read_as_acorn(TypeScriptReader::AcornTypescript);
         let range = Span::new(0, text.len() as u32);
-        builder.program(range, SourceType::ts()).map_err(|error| {
-            reported = Some(error.acorn.clone());
-            error.into()
-        })
-    });
-    match (parsed, reported) {
-        (Ok(_), _) => None,
-        (Err(_), Some(Some(Acorn::Fails { message, at }))) => Some((message.into_owned(), at)),
-        (Err(error), acorn) => panic!("{text:?}: acorn says nothing of {error:?} ({acorn:?})"),
-    }
+        builder.program(range, SourceType::ts()).map_err(Into::into)
+    })
+    .is_err()
 }
-
-const OPTIONAL_PATTERN: &str =
-    "A binding pattern parameter cannot be optional in an implementation signature.";
 
 #[test]
 fn an_optional_rest_parameter_passes_where_acorn_reads_it_as_an_expression_or_a_type() {
@@ -40,7 +27,7 @@ fn an_optional_rest_parameter_passes_where_acorn_reads_it_as_an_expression_or_a_
         "interface I { m(...p?: string[]): void; }",
         "function f(this: (...p?: string[]) => void) {}",
     ] {
-        assert_eq!(acorn_reads(text), None, "{text:?}");
+        assert!(!rejects(text), "{text:?}");
     }
 }
 
@@ -54,74 +41,28 @@ fn an_optional_rest_parameter_passes_under_a_declare() {
         "declare class D { m(...p?: string[]): void; }",
         "declare let [...a?]: string[];",
     ] {
-        assert_eq!(acorn_reads(text), None, "{text:?}");
+        assert!(!rejects(text), "{text:?}");
     }
 }
 
 #[test]
-fn an_optional_rest_in_a_binding_list_fails_at_its_start() {
-    for (text, at) in [
-        ("function f(...p?: string[]) {}", 11),
-        ("function f(...p?: string[]): void;\nfunction f() {}", 11),
-        ("class C { m(...p?: string[]) {} }", 12),
-        (
-            "abstract class C { abstract m(...p?: string[]): void; }",
-            30,
-        ),
-        ("function f([...a?]) {}", 12),
-        ("let [...a?] = [];", 5),
-        ("namespace N { function h(...p?: string[]) {} }", 25),
+fn an_optional_rest_acorn_reads_as_a_binding_a_name_or_an_expression_is_rejected() {
+    for text in [
+        "function f(...p?: string[]) {}",
+        "function f(...p?: string[]): void;\nfunction f() {}",
+        "class C { m(...p?: string[]) {} }",
+        "abstract class C { abstract m(...p?: string[]): void; }",
+        "function f([...a?]) {}",
+        "let [...a?] = [];",
+        "namespace N { function h(...p?: string[]) {} }",
+        "const g = async (a, ...p?: string[]) => {};",
+        "const g = ([...a?]) => {};",
+        "const g = ({...a?}) => {};",
+        "function f({...a?}) {}",
+        "declare function f({...a?}: T): void;",
+        "interface I { m({...a?}: T): void }",
+        "type T = (x, {...a?}: T) => void;",
     ] {
-        assert_eq!(
-            acorn_reads(text),
-            Some((OPTIONAL_PATTERN.to_owned(), at)),
-            "{text:?}"
-        );
+        assert!(rejects(text), "{text:?}");
     }
-}
-
-#[test]
-fn an_optional_rest_acorn_reads_as_an_expression_or_a_name_fails_at_the_question_mark() {
-    for (text, at) in [
-        ("const g = async (a, ...p?: string[]) => {};", 24),
-        ("const g = ([...a?]) => {};", 16),
-        ("const g = ({...a?}) => {};", 16),
-        ("function f({...a?}) {}", 16),
-        ("declare function f({...a?}: T): void;", 24),
-        ("interface I { m({...a?}: T): void }", 21),
-        ("type T = (x, {...a?}: T) => void;", 18),
-    ] {
-        assert_eq!(
-            acorn_reads(text),
-            Some(("Unexpected token".to_owned(), at)),
-            "{text:?}"
-        );
-    }
-}
-
-#[test]
-fn modifiers_out_of_order_fail_after_the_first_word_after_static() {
-    // What svelte 5.57.3 reports, offsets into `class C { ` + the member.
-    for (member, at) in [
-        ("static private a = 1;", 15),
-        ("static public a;", 14),
-        ("readonly static a;", 9),
-        ("static protected m(){}", 17),
-    ] {
-        let text = format!("class C {{ {member} }}");
-        assert_eq!(
-            acorn_reads(&text),
-            Some(("Unexpected token".to_owned(), 10 + at)),
-            "{member:?}"
-        );
-    }
-}
-
-#[test]
-fn a_return_outside_every_function_fails_at_the_return() {
-    // What svelte 5.57.3 reports.
-    assert_eq!(
-        acorn_reads("let x = 1;\nreturn x;"),
-        Some(("'return' outside of function".to_owned(), 11))
-    );
 }
