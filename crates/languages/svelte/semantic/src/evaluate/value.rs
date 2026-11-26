@@ -1,9 +1,9 @@
 use rsvelte_typescript_semantic::number::{number, string_to_number};
-use rsvelte_typescript_tree::JsString;
+use rsvelte_typescript_tree::JavaScriptString;
 
 #[derive(Clone, Debug)]
 pub enum Value {
-    String(JsString),
+    String(JavaScriptString),
     Number(f64),
     BigInt(Box<num_bigint::BigInt>),
     Boolean(bool),
@@ -64,7 +64,7 @@ impl Value {
 
     /// `String(value)` for a known value.
     #[must_use]
-    pub fn to_javascript_string(&self) -> JsString {
+    pub fn to_javascript_string(&self) -> JavaScriptString {
         match self {
             Self::String(s) => s.clone(),
             Self::Number(n) => number(*n).into(),
@@ -80,15 +80,15 @@ impl Value {
     /// `a + b` where either is a string.
     pub(super) fn concatenated(a: &Self, b: &Self) -> Self {
         let mut text = a.to_javascript_string();
-        text.push_js(&b.to_javascript_string());
+        text.push_string(&b.to_javascript_string());
         Self::String(text)
     }
 
     /// `String(value ?? '')` for a known value: what a template prints.
     #[must_use]
-    pub fn to_template_string(&self) -> JsString {
+    pub fn to_template_string(&self) -> JavaScriptString {
         match self {
-            Self::Null | Self::Undefined => JsString::new(),
+            Self::Null | Self::Undefined => JavaScriptString::new(),
             value => value.to_javascript_string(),
         }
     }

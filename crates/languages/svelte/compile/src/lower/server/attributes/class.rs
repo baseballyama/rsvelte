@@ -1,6 +1,7 @@
+use std::borrow::Cow;
+
 use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{Attribute, AttributeValue};
-use rsvelte_typescript_tree::JsString;
 
 use crate::input::Target;
 use crate::lower::attributes::scoped_literal_class;
@@ -29,8 +30,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         let mut stylesheet_hash = None;
         if let Some(h) = hash {
             if let Expression::StringLiteral(literal) = &value {
-                let literal = JsString::from_js_str(literal.value);
-                value = b.js_string(&scoped_literal_class(&literal, h, Target::Server));
+                let scoped = scoped_literal_class(literal.value, h, Target::Server, |text| {
+                    Cow::Borrowed(text)
+                });
+                value = b.javascript_string(&scoped);
             } else {
                 stylesheet_hash = Some(b.string(h));
             }

@@ -1,6 +1,6 @@
 use rsvelte_svelte_semantic::compiler_syntax_tree::NodeKind;
 use rsvelte_svelte_syntax::syntax_tree::escape_markup;
-use rsvelte_typescript_tree::JsString;
+use rsvelte_typescript_tree::JavaScriptString;
 
 use super::template::Template;
 use super::{R, ServerCompilationContext};
@@ -47,7 +47,7 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         if sequence.is_empty() {
             return;
         }
-        let mut quasis = vec![JsString::new()];
+        let mut quasis = vec![JavaScriptString::new()];
         let mut expressions = Vec::new();
         for item in sequence.drain(..) {
             match item {
@@ -67,10 +67,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
                         quasis
                             .last_mut()
                             .expect("never empty")
-                            .push_js_mapped(&s, |text| escape_markup(text, false));
+                            .push_string_mapped(&s, |text| escape_markup(text, false));
                     } else {
                         expressions.push(self.b.runtime("escape", [self.expression(*e)]));
-                        quasis.push(JsString::new());
+                        quasis.push(JavaScriptString::new());
                     }
                 }
                 Item::Node(_) | Item::Comment => {

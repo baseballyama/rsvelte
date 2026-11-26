@@ -1,7 +1,7 @@
 use rsvelte_typescript_semantic::number::{
     exponentiate, math_max, math_min, math_round, math_sign, to_int32,
 };
-use rsvelte_typescript_tree::JsString;
+use rsvelte_typescript_tree::JavaScriptString;
 
 use super::Value;
 
@@ -131,13 +131,13 @@ fn function(path: (&str, Option<&str>)) -> Option<Global> {
         }
         ("String", Some("fromCharCode")) => |a| {
             let units = (a.iter()).map(|v| to_int32(v.to_number()).cast_unsigned() as u16);
-            Value::String(JsString::from_utf16(units))
+            Value::String(JavaScriptString::from_utf16(units))
         },
         ("String", Some("fromCodePoint")) => |a| text::from_code_points(a),
         ("String", None) => |a| {
             Value::String(
                 a.first()
-                    .map_or_else(JsString::new, Value::to_javascript_string),
+                    .map_or_else(JavaScriptString::new, Value::to_javascript_string),
             )
         },
         _ => return None,

@@ -9,7 +9,7 @@ use oxc_str::{JSStr, JSStrBuilder};
 /// A string of UTF-16 code units. Well-formed text is a plain `String`; only a string with a lone
 /// surrogate pays for one, so equal strings are always the same variant.
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
-pub enum JsString {
+pub enum JavaScriptString {
     Text(String),
     Lone(Box<Lone>),
 }
@@ -22,20 +22,20 @@ pub struct Lone {
     surrogates: Vec<(usize, u16)>,
 }
 
-/// A part of a [`JsString`]: text, or one lone surrogate.
+/// A part of a [`JavaScriptString`]: text, or one lone surrogate.
 #[derive(Clone, Copy, Debug, PartialEq, Eq)]
 pub enum Run<'s> {
     Text(&'s str),
     Surrogate(u16),
 }
 
-impl Default for JsString {
+impl Default for JavaScriptString {
     fn default() -> Self {
         Self::new()
     }
 }
 
-impl JsString {
+impl JavaScriptString {
     #[must_use]
     pub const fn new() -> Self {
         Self::Text(String::new())
@@ -44,7 +44,7 @@ impl JsString {
     /// The value of an oxc string.
     #[must_use]
     #[inline]
-    pub fn from_js_str(value: JSStr<'_>) -> Self {
+    pub fn from_oxc(value: JSStr<'_>) -> Self {
         value
             .as_str()
             .map_or_else(|| Self::from_utf16(value.encode_utf16()), Self::from)
@@ -137,16 +137,16 @@ impl JsString {
 
     /// Appends `other`, pairing a trailing lead surrogate with a leading trail surrogate.
     #[inline]
-    pub fn push_js(&mut self, other: &Self) {
+    pub fn push_string(&mut self, other: &Self) {
         match other {
             Self::Text(text) => self.push_str(text),
             Self::Lone(_) => self.push_runs(other, |text| Cow::Borrowed(text)),
         }
     }
 
-    /// Appends `other` with `map` applied to each of its text runs, as [`Self::push_js`] does.
+    /// Appends `other` with `map` applied to each of its text runs, as [`Self::push_string`] does.
     #[inline]
-    pub fn push_js_mapped(&mut self, other: &Self, map: impl Fn(&str) -> Cow<'_, str>) {
+    pub fn push_string_mapped(&mut self, other: &Self, map: impl Fn(&str) -> Cow<'_, str>) {
         match other {
             Self::Text(text) => self.push_str(&map(text)),
             Self::Lone(_) => self.push_runs(other, map),
@@ -243,7 +243,7 @@ impl JsString {
     #[must_use]
     pub fn map_text(&self, map: impl Fn(&str) -> Cow<'_, str>) -> Self {
         let mut string = Self::new();
-        string.push_js_mapped(self, map);
+        string.push_string_mapped(self, map);
         string
     }
 
@@ -259,15 +259,15 @@ impl JsString {
 
     /// The string in `allocator`, as an oxc string.
     #[inline]
-    pub fn to_js_str_in<'a>(&self, allocator: &impl GetAllocator<'a>) -> JSStr<'a> {
+    pub fn to_oxc_in<'a>(&self, allocator: &impl GetAllocator<'a>) -> JSStr<'a> {
         match self {
             Self::Text(text) => JSStr::from(allocator.allocator().alloc_str(text)),
-            Self::Lone(_) => self.lone_js_str_in(allocator),
+            Self::Lone(_) => self.lone_to_oxc_in(allocator),
         }
     }
 
     #[cold]
-    fn lone_js_str_in<'a>(&self, allocator: &impl GetAllocator<'a>) -> JSStr<'a> {
+    fn lone_to_oxc_in<'a>(&self, allocator: &impl GetAllocator<'a>) -> JSStr<'a> {
         let mut builder = JSStrBuilder::new_in(allocator);
         for run in self.runs() {
             match run {
@@ -279,44 +279,44 @@ impl JsString {
     }
 }
 
-impl From<String> for JsString {
+impl From<String> for JavaScriptString {
     fn from(text: String) -> Self {
         Self::Text(text)
     }
 }
 
-impl From<&str> for JsString {
+impl From<&str> for JavaScriptString {
     fn from(text: &str) -> Self {
         Self::Text(text.to_owned())
     }
 }
 
-impl PartialEq<str> for JsString {
+impl PartialEq<str> for JavaScriptString {
     fn eq(&self, other: &str) -> bool {
         self.as_str() == Some(other)
     }
 }
 
-impl PartialEq<&str> for JsString {
+impl PartialEq<&str> for JavaScriptString {
     fn eq(&self, other: &&str) -> bool {
         self.as_str() == Some(*other)
     }
 }
 
-impl PartialOrd for JsString {
+impl PartialOrd for JavaScriptString {
     fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
         Some(self.cmp(other))
     }
 }
 
-impl Ord for JsString {
+impl Ord for JavaScriptString {
     /// By code units, as JavaScript compares strings.
     fn cmp(&self, other: &Self) -> std::cmp::Ordering {
         self.encode_utf16().cmp(other.encode_utf16())
     }
 }
 
-impl fmt::Write for JsString {
+impl fmt::Write for JavaScriptString {
     #[inline]
     fn write_str(&mut self, s: &str) -> fmt::Result {
         self.push_str(s);

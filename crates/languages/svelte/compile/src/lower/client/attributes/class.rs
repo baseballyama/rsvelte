@@ -1,9 +1,10 @@
 use oxc_ast::ast::Expression;
+use oxc_str::JSStr;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier, ElementKind, NodeKind,
 };
 use rsvelte_svelte_syntax::syntax_tree::escape_markup;
-use rsvelte_typescript_tree::{ExpressionIdentifier, JsString};
+use rsvelte_typescript_tree::ExpressionIdentifier;
 
 use crate::input::Target;
 use crate::lower::attributes::{needs_clsx, scoped_literal_class};
@@ -98,14 +99,16 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             && let Some(hash) = &self.identity.stylesheet_hash
         {
             let literal = match &value {
-                Expression::StringLiteral(s) => Some(JsString::from_js_str(s.value)),
-                Expression::NullLiteral(_) => Some(JsString::new()),
+                Expression::StringLiteral(s) => Some(s.value),
+                Expression::NullLiteral(_) => Some(JSStr::empty()),
                 _ => None,
             };
             match literal {
                 Some(v) => {
-                    let escaped = v.map_text(|text| escape_markup(text, true));
-                    value = b.js_string(&scoped_literal_class(&escaped, hash, Target::Client));
+                    let scoped = scoped_literal_class(v, hash, Target::Client, |text| {
+                        escape_markup(text, true)
+                    });
+                    value = b.javascript_string(&scoped);
                 }
                 None => stylesheet_hash = Some(b.string(hash)),
             }

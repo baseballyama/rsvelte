@@ -4,13 +4,14 @@ use std::borrow::Cow;
 
 use oxc_ast::ast::{ArrowFunctionExpression, Expression, Function, IdentifierReference};
 use oxc_ast_visit::{Visit, walk};
+use oxc_str::JSStr;
 use oxc_syntax::scope::ScopeFlags;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerSyntaxTree, Element, Modifiers, NodeKind,
 };
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_typescript_tree::{ExpressionIdentifier, JsString};
+use rsvelte_typescript_tree::{ExpressionIdentifier, JavaScriptString};
 
 use super::Builder;
 use crate::input::Target;
@@ -211,19 +212,35 @@ pub(super) fn scoped_class(value: &str, hash: &str, target: Target) -> String {
     }
 }
 
-/// [`scoped_class`] of a string literal's value.
+/// [`scoped_class`] of a string literal's `value`, with `map` applied to its text first.
 #[must_use]
-pub(super) fn scoped_literal_class(value: &JsString, hash: &str, target: Target) -> JsString {
-    let Some(text) = value.as_str() else {
-        let mut value = match target {
-            Target::Client => value.clone(),
-            Target::Server => value.trim_start_matches(is_ecmascript_whitespace),
-        };
-        value.push(' ');
-        value.push_str(hash);
-        return value;
+pub(super) fn scoped_literal_class(
+    value: JSStr<'_>,
+    hash: &str,
+    target: Target,
+    map: impl Fn(&str) -> Cow<'_, str>,
+) -> JavaScriptString {
+    match value.as_str() {
+        Some(text) => scoped_class(&map(text), hash, target).into(),
+        None => scoped_lone_class(value, hash, target, map),
+    }
+}
+
+#[cold]
+fn scoped_lone_class(
+    value: JSStr<'_>,
+    hash: &str,
+    target: Target,
+    map: impl Fn(&str) -> Cow<'_, str>,
+) -> JavaScriptString {
+    let value = JavaScriptString::from_oxc(value).map_text(map);
+    let mut value = match target {
+        Target::Client => value,
+        Target::Server => value.trim_start_matches(is_ecmascript_whitespace),
     };
-    scoped_class(text, hash, target).into()
+    value.push(' ');
+    value.push_str(hash);
+    value
 }
 
 /// Upstream's style directive object: `{ name: value }`, or `[normal, important]` when one is

@@ -29,7 +29,7 @@ use rsvelte_svelte_semantic::resolve::Resolution;
 use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
 use rsvelte_typescript_compile::build::{Builder, sanitize_template_string};
 use rsvelte_typescript_compile::strip::Strip;
-use rsvelte_typescript_tree::{ExpressionIdentifier, JsString, ParametersIdentifier};
+use rsvelte_typescript_tree::{ExpressionIdentifier, JavaScriptString, ParametersIdentifier};
 use rsvelte_vue_semantic::compiler_syntax_tree::{
     self as vue, CompilerSyntaxTreeBuilder, Name, PropertyKind, Text,
 };
@@ -303,7 +303,7 @@ impl<'i, 't> Template<'i, '_, 't> {
         let source_text = self.i.source_text;
         let mut quasis = Vec::with_capacity(parts.len() + 1);
         let mut expressions = Vec::with_capacity(parts.len());
-        let mut text = JsString::new();
+        let mut text = JavaScriptString::new();
         for p in parts {
             match *p {
                 Part::Text(span) => {
@@ -312,7 +312,7 @@ impl<'i, 't> Template<'i, '_, 't> {
                 Part::Expression { expression, .. } => {
                     let evaluated = self.evaluate(expression);
                     if evaluated.is_known {
-                        text.push_js(&evaluated.value.to_template_string());
+                        text.push_string(&evaluated.value.to_template_string());
                         continue;
                     }
                     quasis.push(text.map_text(sanitize_template_string));
@@ -335,10 +335,10 @@ impl<'i, 't> Template<'i, '_, 't> {
             }
         }
         if expressions.is_empty() {
-            return b.js_string(&text);
+            return b.javascript_string(&text);
         }
         quasis.push(text.map_text(sanitize_template_string));
-        b.js_template(&quasis, expressions)
+        b.javascript_template(&quasis, expressions)
     }
 
     /// A `<template>` with `props`, its children set later.

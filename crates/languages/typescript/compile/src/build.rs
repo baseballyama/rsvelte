@@ -14,7 +14,7 @@ use oxc_ast::ast::{
 use oxc_ast::builder::{AstBuilder, GetAstBuilder};
 use oxc_span::{SPAN, Span};
 use rsvelte_typescript_tree::is_valid_identifier;
-use rsvelte_typescript_tree::js_string::{JsString, Run};
+use rsvelte_typescript_tree::javascript_string::{JavaScriptString, Run};
 
 mod functions;
 
@@ -82,8 +82,8 @@ impl<'o> Builder<'o> {
 
     /// A string literal of a JavaScript string, which may hold a lone surrogate.
     #[must_use]
-    pub fn js_string(&self, value: &JsString) -> Expression<'o> {
-        Expression::new_string_literal(SPAN, value.to_js_str_in(self), None, self)
+    pub fn javascript_string(&self, value: &JavaScriptString) -> Expression<'o> {
+        Expression::new_string_literal(SPAN, value.to_oxc_in(self), None, self)
     }
 
     #[must_use]
@@ -376,9 +376,9 @@ impl<'o> Builder<'o> {
     }
 
     /// [`Self::template`] of JavaScript strings, which may hold lone surrogates.
-    pub fn js_template<'q>(
+    pub fn javascript_template<'q>(
         &self,
-        quasis: impl IntoIterator<Item = &'q JsString>,
+        quasis: impl IntoIterator<Item = &'q JavaScriptString>,
         expressions: impl IntoIterator<Item = Expression<'o>>,
     ) -> Expression<'o> {
         let quasis = quasis.into_iter().map(|q| {
@@ -386,7 +386,7 @@ impl<'o> Builder<'o> {
                 || self.str(&template_raw(q)),
                 |text| self.str(&sanitize_template_string(text)),
             );
-            (raw, q.to_js_str_in(self))
+            (raw, q.to_oxc_in(self))
         });
         self.template_literal(quasis, expressions)
     }
@@ -577,7 +577,7 @@ pub fn sanitize_template_string(s: &str) -> std::borrow::Cow<'_, str> {
 /// The raw text of a template literal part whose cooked value `cooked` holds a lone surrogate,
 /// which only an escape can write.
 #[cold]
-fn template_raw(cooked: &JsString) -> String {
+fn template_raw(cooked: &JavaScriptString) -> String {
     let mut raw = String::new();
     for run in cooked.runs() {
         match run {

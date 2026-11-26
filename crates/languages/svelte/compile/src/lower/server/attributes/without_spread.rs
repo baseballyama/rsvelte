@@ -1,9 +1,11 @@
+use std::borrow::Cow;
+
 use oxc_ast::ast::Expression;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{
     Attribute, AttributeValue, CompilerNodeIdentifier,
 };
 use rsvelte_svelte_syntax::syntax_tree::escape_markup;
-use rsvelte_typescript_tree::JsString;
+use rsvelte_typescript_tree::JavaScriptString;
 
 use super::escaped_text;
 use crate::input::Target;
@@ -121,14 +123,16 @@ impl<'o> ServerCompilationContext<'_, 'o> {
         if can_use_literal(name, class_directives, style_directives)
             && let Expression::StringLiteral(literal) = &value
         {
-            let mut v = JsString::from_js_str(literal.value);
-            if name == "class"
-                && let Some(h) = hash
-            {
-                v = scoped_literal_class(&v, h, Target::Server);
-            }
+            let v = match hash {
+                Some(h) if name == "class" => {
+                    scoped_literal_class(literal.value, h, Target::Server, |text| {
+                        Cow::Borrowed(text)
+                    })
+                }
+                _ => JavaScriptString::from_oxc(literal.value),
+            };
             template.text_fmt(format_args!(" {name}=\""));
-            template.js_text_mapped(&v, |text| escape_markup(text, true));
+            template.javascript_text_mapped(&v, |text| escape_markup(text, true));
             template.text("\"");
             return;
         }

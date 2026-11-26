@@ -1,17 +1,17 @@
-use super::{JsString, Run};
+use super::{JavaScriptString, Run};
 
 #[test]
 fn a_pair_split_across_appends_is_one_character() {
-    let mut string = JsString::from_utf16([0xD83D]);
+    let mut string = JavaScriptString::from_utf16([0xD83D]);
     assert_eq!(string.as_str(), None);
-    string.push_js(&JsString::from_utf16([0xDE00]));
+    string.push_string(&JavaScriptString::from_utf16([0xDE00]));
     assert_eq!(string.as_str(), Some("😀"));
-    assert_eq!(string, JsString::from("😀"));
+    assert_eq!(string, JavaScriptString::from("😀"));
 }
 
 #[test]
 fn a_lone_surrogate_keeps_its_place_between_text() {
-    let string = JsString::from_utf16(
+    let string = JavaScriptString::from_utf16(
         "a\u{0}b"
             .encode_utf16()
             .map(|u| if u == 0 { 0xD800 } else { u }),
@@ -36,15 +36,18 @@ fn a_lone_surrogate_keeps_its_place_between_text() {
 #[test]
 fn strings_order_by_code_unit() {
     // U+1F600 is above U+FF61 by code point and below it by code unit.
-    let surrogate = JsString::from_utf16([0xD800]);
-    let (halfwidth, emoji) = (JsString::from("\u{FF61}"), JsString::from("😀"));
+    let surrogate = JavaScriptString::from_utf16([0xD800]);
+    let (halfwidth, emoji) = (
+        JavaScriptString::from("\u{FF61}"),
+        JavaScriptString::from("😀"),
+    );
     assert!(halfwidth > surrogate);
     assert!(emoji < halfwidth);
 }
 
 #[test]
 fn a_trimmed_start_stops_at_a_lone_surrogate() {
-    let string = JsString::from_utf16([0x20, 0x20, 0xD800, 0x20, 0x61]);
+    let string = JavaScriptString::from_utf16([0x20, 0x20, 0xD800, 0x20, 0x61]);
     let trimmed = string.trim_start_matches(char::is_whitespace);
     assert_eq!(
         trimmed.encode_utf16().collect::<Vec<_>>(),

@@ -1,7 +1,7 @@
 use std::fmt;
 
 use oxc_ast::ast::{Expression, Statement};
-use rsvelte_typescript_tree::JsString;
+use rsvelte_typescript_tree::JavaScriptString;
 
 use crate::lower::Builder;
 
@@ -14,7 +14,7 @@ pub(super) struct Template<'b, 'o> {
     b: &'b Builder<'o>,
     statements: Vec<Statement<'o>>,
     /// The pending push's cooked quasis, one more than its expressions; empty when none is open.
-    strings: Vec<JsString>,
+    strings: Vec<JavaScriptString>,
     expressions: Vec<Expression<'o>>,
 }
 
@@ -28,9 +28,9 @@ impl<'b, 'o> Template<'b, 'o> {
         }
     }
 
-    fn last(&mut self) -> &mut JsString {
+    fn last(&mut self) -> &mut JavaScriptString {
         if self.strings.is_empty() {
-            self.strings.push(JsString::new());
+            self.strings.push(JavaScriptString::new());
         }
         self.strings.last_mut().expect("pushed above")
     }
@@ -39,33 +39,37 @@ impl<'b, 'o> Template<'b, 'o> {
         self.last().push_str(text);
     }
 
-    pub(super) fn js_text(&mut self, text: &JsString) {
-        self.last().push_js(text);
+    pub(super) fn javascript_text(&mut self, text: &JavaScriptString) {
+        self.last().push_string(text);
     }
 
-    /// [`Self::js_text`] with `map` applied to each text run.
-    pub(super) fn js_text_mapped(
+    /// [`Self::javascript_text`] with `map` applied to each text run.
+    pub(super) fn javascript_text_mapped(
         &mut self,
-        text: &JsString,
+        text: &JavaScriptString,
         map: impl Fn(&str) -> std::borrow::Cow<'_, str>,
     ) {
-        self.last().push_js_mapped(text, map);
+        self.last().push_string_mapped(text, map);
     }
 
     pub(super) fn text_fmt(&mut self, text: fmt::Arguments<'_>) {
-        fmt::Write::write_fmt(self.last(), text).expect("a `JsString` takes any text");
+        fmt::Write::write_fmt(self.last(), text).expect("a `JavaScriptString` takes any text");
     }
 
     pub(super) fn expression(&mut self, expression: Expression<'o>) {
         self.last();
         self.expressions.push(expression);
-        self.strings.push(JsString::new());
+        self.strings.push(JavaScriptString::new());
     }
 
     /// A template literal's cooked quasis and expressions, spliced into the pending push.
-    pub(super) fn quasis(&mut self, quasis: Vec<JsString>, expressions: Vec<Expression<'o>>) {
+    pub(super) fn quasis(
+        &mut self,
+        quasis: Vec<JavaScriptString>,
+        expressions: Vec<Expression<'o>>,
+    ) {
         let mut quasis = quasis.into_iter();
-        self.js_text(&quasis.next().expect("at least one quasi"));
+        self.javascript_text(&quasis.next().expect("at least one quasi"));
         self.strings.extend(quasis);
         self.expressions.extend(expressions);
     }
@@ -90,7 +94,7 @@ impl<'b, 'o> Template<'b, 'o> {
             return;
         }
         let b = self.b;
-        let template = b.js_template(&self.strings, self.expressions.drain(..));
+        let template = b.javascript_template(&self.strings, self.expressions.drain(..));
         self.strings.clear();
         let push = b.call(b.member(b.id("$$renderer"), "push"), [template]);
         self.statements.push(b.statement(push));
