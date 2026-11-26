@@ -16,7 +16,7 @@ pub mod original_text;
 pub mod print;
 pub mod strip;
 
-/// TypeScript's emit of a `.ts` file [`features::first_runtime_feature`] found nothing to refuse
+/// TypeScript's emit of a `.ts` file [`features::first_erasure_feature`] found nothing to refuse
 /// in.
 #[must_use]
 pub fn emit(program: &Program<'_>) -> String {

@@ -1,5 +1,5 @@
 //! Type erasure in place: what upstream's `remove_typescript_nodes` removes, on a tree that
-//! [`crate::features::first_runtime_feature`] found nothing to refuse in.
+//! [`crate::features::first_erasure_feature`] found nothing to refuse in.
 
 use oxc_allocator::{Allocator, TakeIn, Vec as ArenaVec};
 use oxc_ast::Comment;
@@ -10,7 +10,8 @@ use oxc_ast::ast::{
     Function, FunctionBody, FunctionType, ImportDeclaration, ImportDeclarationSpecifier,
     MethodDefinition, MethodDefinitionKind, MethodDefinitionType, NewExpression, Program,
     PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget, Statement,
-    TSModuleReference, TSNamespaceDeclaration, TaggedTemplateExpression, VariableDeclarator,
+    TSModuleReference, TSNamespaceDeclaration, TSNamespaceDeclarationBody,
+    TaggedTemplateExpression, VariableDeclarator,
 };
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
@@ -172,13 +173,14 @@ impl<'a> ModuleErasure<'a> {
 }
 
 impl<'a> VisitMut<'a> for ModuleErasure<'a> {
-    /// An ambient enum in a namespace stays for the lowering, which emits the namespace for it.
+    /// What makes a namespace emitted stays in it for the lowering, which then emits the namespace.
     fn visit_statements(&mut self, it: &mut ArenaVec<'a, Statement<'a>>) {
         let in_namespace = self.namespaces > 0;
         let erased = &mut self.erased;
         it.retain(|s| {
-            let kept =
-                !is_erased_statement(s) || is_namespace(s) || in_namespace && is_ambient_enum(s);
+            let kept = !is_erased_statement(s)
+                || is_namespace(s)
+                || in_namespace && instantiates_namespace(s);
             if let (false, Some(erased)) = (kept, erased.as_mut()) {
                 erased.push(s.span());
             }
@@ -259,16 +261,53 @@ fn is_erased_statement(statement: &Statement<'_>) -> bool {
 }
 
 /// Whether `statement` is an enum that `declare` makes ambient, exported or not.
-///
-/// TypeScript's emit removes it, but still emits a namespace that holds it, as its binder counts
-/// any enum as instantiating the namespace.
-#[must_use]
-pub fn is_ambient_enum(statement: &Statement<'_>) -> bool {
+fn is_ambient_enum(statement: &Statement<'_>) -> bool {
     let declaration = match statement {
         Statement::ExportDeclaration(export) => Some(&export.declaration),
         statement => statement.as_declaration(),
     };
     matches!(declaration, Some(Declaration::TSEnumDeclaration(it)) if it.declare)
+}
+
+/// Whether `statement` makes TypeScript emit the namespace that holds it.
+///
+/// That is what its binder's `getModuleInstanceState` (and oxc's port of it) decides: `declare`
+/// does not change it, so an ambient value or enum does, and a nested namespace does when its own
+/// body does.
+#[must_use]
+pub fn instantiates_namespace(statement: &Statement<'_>) -> bool {
+    let declaration = match statement {
+        Statement::TSInterfaceDeclaration(_)
+        | Statement::TSTypeAliasDeclaration(_)
+        | Statement::TSImportEqualsDeclaration(_) => return false,
+        // oxc resolves what each name exports; a list of types only is the approximation here.
+        Statement::ExportNamedDeclaration(export) => {
+            return !export.specifiers.iter().all(is_type_export);
+        }
+        Statement::ExportDeclaration(export) => &export.declaration,
+        statement => match statement.as_declaration() {
+            Some(declaration) => declaration,
+            None => return true,
+        },
+    };
+    match declaration {
+        Declaration::TSNamespaceDeclaration(it) => namespace_instantiates(it),
+        Declaration::TSExternalModuleDeclaration(it) => {
+            (it.body.as_ref()).is_none_or(|block| block.body.iter().any(instantiates_namespace))
+        }
+        Declaration::TSInterfaceDeclaration(_) | Declaration::TSTypeAliasDeclaration(_) => false,
+        // An exported import equals is a value.
+        _ => true,
+    }
+}
+
+fn namespace_instantiates(namespace: &TSNamespaceDeclaration<'_>) -> bool {
+    match &namespace.body {
+        TSNamespaceDeclarationBody::TSModuleBlock(block) => {
+            block.body.iter().any(instantiates_namespace)
+        }
+        TSNamespaceDeclarationBody::TSNamespaceDeclaration(inner) => namespace_instantiates(inner),
+    }
 }
 
 fn is_type_import(specifier: &ImportDeclarationSpecifier<'_>) -> bool {

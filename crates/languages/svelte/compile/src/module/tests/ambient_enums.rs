@@ -45,6 +45,8 @@ fn a_typescript_module_keeps_a_namespace_that_holds_an_ambient_enum() {
     for source in [
         "namespace N { declare enum E { A } }\nexport const x = 1;\n",
         "namespace N { export declare const enum E { A } }\nexport const x = 1;\n",
+        "namespace N { declare const x: number; }\nexport const x = 1;\n",
+        "namespace N { declare namespace M { enum E { A } } }\nexport const x = 1;\n",
     ] {
         for target in [Target::Client, Target::Server] {
             let body = body(source, target);
@@ -55,6 +57,14 @@ fn a_typescript_module_keeps_a_namespace_that_holds_an_ambient_enum() {
         }
     }
     // A namespace of types only is not emitted.
-    let source = "namespace N { export type T = 1; }\nexport const x = 1;\n";
-    assert_eq!(body(source, Target::Client), "exportconstx=1;");
+    for source in [
+        "namespace N { export type T = 1; }\nexport const x = 1;\n",
+        "namespace N { declare namespace M { type T = 1; } }\nexport const x = 1;\n",
+    ] {
+        assert_eq!(
+            body(source, Target::Client),
+            "exportconstx=1;",
+            "{source:?}"
+        );
+    }
 }
