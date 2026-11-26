@@ -4,6 +4,7 @@ import * as vscode from 'vscode';
 import { LanguageClient } from 'vscode-languageclient/node';
 import { outermost } from './folders.ts';
 import { findProgram } from './program.ts';
+import { typescriptArguments, type Setting } from './typescript.ts';
 
 /** The languages `rsvelte lsp` lints and formats. */
 const LANGUAGES = ['svelte', 'javascript', 'javascriptreact', 'typescript', 'typescriptreact'];
@@ -23,7 +24,8 @@ export async function activate(context: vscode.ExtensionContext): Promise<void> 
 		vscode.workspace.onDidChangeConfiguration((event) => {
 			if (
 				event.affectsConfiguration('rsvelte.enable') ||
-				event.affectsConfiguration('rsvelte.path')
+				event.affectsConfiguration('rsvelte.path') ||
+				event.affectsConfiguration('rsvelte.typescript')
 			)
 				void restart();
 		}),
@@ -72,10 +74,18 @@ async function serve({
 	folder: vscode.WorkspaceFolder;
 	program: string;
 }): Promise<LanguageClient | undefined> {
+	const setting = vscode.workspace
+		.getConfiguration('rsvelte', folder)
+		.get<Setting>('typescript', 'auto');
+	const svelte = vscode.extensions.getExtension('svelte.svelte-vscode') !== undefined;
 	const client = new LanguageClient(
 		'rsvelte',
 		`rsvelte (${folder.name})`,
-		{ command: program, args: ['lsp'], options: { cwd: folder.uri.fsPath } },
+		{
+			command: program,
+			args: ['lsp', ...typescriptArguments(setting, svelte)],
+			options: { cwd: folder.uri.fsPath },
+		},
 		{
 			documentSelector: LANGUAGES.map((language) => ({
 				scheme: 'file',

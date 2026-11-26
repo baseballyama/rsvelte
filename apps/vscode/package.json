@@ -56,6 +56,22 @@
 					"scope": "machine",
 					"description": "The rsvelte program to run, instead of the one the workspace folder's @rsvelte/cli installs."
 				},
+				"rsvelte.typescript": {
+					"type": "string",
+					"enum": [
+						"auto",
+						"on",
+						"off"
+					],
+					"enumDescriptions": [
+						"On unless the Svelte extension is installed, which offers them too.",
+						"On, also beside the Svelte extension.",
+						"Off."
+					],
+					"default": "auto",
+					"scope": "resource",
+					"description": "Offer TypeScript's hover, completion, definitions, references and renames in Svelte components, from the type checker that rsvelte typecheck runs."
+				},
 				"rsvelte.trace.server": {
 					"type": "string",
 					"enum": [

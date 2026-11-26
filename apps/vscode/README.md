@@ -1,8 +1,8 @@
 # rsvelte for Visual Studio Code
 
 The extension shows the problems `rsvelte lint` and `rsvelte typecheck` find in Svelte,
-TypeScript and JavaScript files as you type, fixes the lint's, and formats files as
-`rsvelte format` does. It runs `rsvelte lsp`, the
+TypeScript and JavaScript files as you type, fixes the lint's, formats files as
+`rsvelte format` does, and offers TypeScript's hover and completion in Svelte components. It runs `rsvelte lsp`, the
 language server of the [`@rsvelte/cli`](../cli/README.md) that each workspace folder installs, so
 the editor and the folder's scripts run the same version:
 
@@ -23,6 +23,10 @@ cannot set it.
   of the project, with the texts in the editor, saved or not. As for `rsvelte typecheck`, the
   folder needs a `tsconfig.json` and TypeScript 7.1 installed. They follow each change after a
   short pause.
+- TypeScript in Svelte components: hover, completion, signature help, definitions, references,
+  highlights and renames, from the TypeScript 7.1 that `rsvelte typecheck` runs. It reads each
+  component as the type check does. To let TypeScript start that reader, rsvelte writes a small
+  package to `node_modules/.cache/rsvelte/`; it does not change your `tsconfig.json`.
 - Fixes: oxlint's quick fixes and its fix of all problems. To fix on save:
 
   ```json
@@ -39,9 +43,11 @@ cannot set it.
 It lints as oxc's extension does, with Svelte files too, so turn that one off in the
 folder: with both, each problem shows twice.
 
-It does not highlight Svelte syntax or offer TypeScript features such as completion. The
+It does not highlight Svelte syntax. The
 [Svelte extension](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) does,
-and the two can run together. That extension reports type errors too; to see each once, set
+and the two can run together. That extension offers the TypeScript features too, so while it is
+installed rsvelte leaves them to it; `"rsvelte.typescript": "on"` or `"off"` decides instead of
+`"auto"`. It reports type errors too; to see each once, set
 `svelte.plugin.typescript.diagnostics.enable` to `false`.
 
 It runs only in a trusted workspace, because it runs the workspace's program and configuration
