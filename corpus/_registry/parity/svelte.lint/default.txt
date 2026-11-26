@@ -1,4 +1,4 @@
-# svelte.lint/default: 37490 match
+# svelte.lint/default: 37486 match
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/suggestions.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte	unexpected
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	js-equivalent
@@ -515,6 +515,7 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/props_id_
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_type_dollar_events_throws/1b161dfe8e55cab0.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_type_dollar_props_throws/eaa03a9c78c87a89.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_type_dollar_slots_throws/fa4fcf48fd739f6d.svelte	js-equivalent
+svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/a_typed_dispatchers_own_dispatch_calls_are_not_scanned/2d878381cb5c90fb.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/an_event_declared_by_two_typed_dispatchers_also_becomes_a_custom_event/b01fa1aa066f852e.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/every_typed_dispatcher_contributes_its_own_event_typings/8d81e5b3fe2e0e7c.svelte	js-equivalent

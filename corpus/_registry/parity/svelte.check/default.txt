@@ -1,4 +1,4 @@
-# svelte.check/default: 35024 match
+# svelte.check/default: 35020 match
 svelte/appwrite-console/src/lib/commandCenter/panels/buckets.svelte	mismatch
 svelte/appwrite-console/src/lib/commandCenter/panels/databases.svelte	mismatch
 svelte/appwrite-console/src/lib/commandCenter/panels/files.svelte	mismatch
@@ -388,6 +388,7 @@ svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/783aa2047eafb367.s
 svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/81cd6b670d392100.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/every_unterminated_statement_in_one_script_is_recovered/147d312bc327f7bb.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/export_is_blanked_when_the_instance_script_does_not_parse/59e03ffbb50128a1.svelte	mismatch
+svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	mismatch
 svelte/rsvelte/pattern/issues/3200-asi-reactive-block.svelte	mismatch
 svelte/rsvelte/pattern/issues/3201-template-fast-path-escape.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/3201-template-fast-path-reserved.svelte	js-equivalent
