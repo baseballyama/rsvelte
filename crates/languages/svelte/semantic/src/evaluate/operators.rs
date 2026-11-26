@@ -27,11 +27,7 @@ pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> 
     match op {
         Add => {
             if matches!(a, Value::String(_)) || matches!(b, Value::String(_)) {
-                Some(Value::String(format!(
-                    "{}{}",
-                    a.to_javascript_string(),
-                    b.to_javascript_string()
-                )))
+                Some(Value::concatenated(a, b))
             } else {
                 Some(Value::Number(a.to_number() + b.to_number()))
             }
@@ -42,7 +38,7 @@ pub(super) fn binary(op: BinaryOperator, a: &Value, b: &Value) -> Option<Value> 
         NotEq => Some(Value::Boolean(!loose_eq(a, b))),
         Lt | LtEq | Gt | GtEq => {
             let ord = if let (Value::String(x), Value::String(y)) = (a, b) {
-                Some(x.encode_utf16().cmp(y.encode_utf16()))
+                Some(x.cmp(y))
             } else {
                 a.to_number().partial_cmp(&b.to_number())
             };

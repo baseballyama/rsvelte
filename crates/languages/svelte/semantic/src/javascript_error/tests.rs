@@ -417,3 +417,5 @@ fn first_error_if_any(source: &str) -> Option<(String, String, u32)> {
     let error = parsed.or_else(|| super::of_document(&context, |_| true))?;
     Some(as_judged(&error))
 }
+
+mod parse_rejections;

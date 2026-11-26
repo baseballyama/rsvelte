@@ -43,7 +43,7 @@ fn global_folding_preserves_known_and_unknown_results() {
         ("Math.max(1, 7, 3, 2);", Value::Number(7.0)),
         ("Math.max(1, 2, 3n);", Value::Unknown),
         ("Math.max(1, missing, 3);", Value::AnyNumber),
-        ("String();", Value::String(String::new())),
+        ("String();", Value::String("".into())),
         ("Number.isFinite(2);", Value::Boolean(true)),
         ("Math.PI;", Value::Number(std::f64::consts::PI)),
         ("String(12);", Value::String("12".into())),
