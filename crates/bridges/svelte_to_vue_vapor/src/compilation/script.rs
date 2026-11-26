@@ -152,7 +152,7 @@ pub(crate) fn plan(c: &Component, res: &Resolution) -> R<Plan> {
     let instance = c.instance.as_ref().map(|s| tree.get_program(s.program));
     if let Some(program) = instance {
         check_redeclared(res, program)?;
-        for s in &program.body {
+        for s in statements(program) {
             statement(s, res, &mut plan, &mut consumed)?;
         }
         runes::collect(res, &Root::Program(program), &mut plan, &mut consumed)?;
@@ -281,6 +281,14 @@ impl<'a> Root<'a> {
             }
         }
     }
+}
+
+/// The top-level statements of `program` that erasing its types keeps, as it keeps a nested list's.
+fn statements<'p, 'a>(program: &'p Program<'a>) -> impl Iterator<Item = &'p Statement<'a>> {
+    program
+        .body
+        .iter()
+        .filter(|s| !rsvelte_typescript_compile::strip::strips(s))
 }
 
 /// Svelte reads a redeclared `var` as reassigned; the shared scope sees one declaration and folds

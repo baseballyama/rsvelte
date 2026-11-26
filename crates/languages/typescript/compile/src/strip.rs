@@ -331,9 +331,15 @@ fn inner<'a>(e: &mut Expression<'a>, allocator: &'a Allocator) -> Option<Express
     Some(inner.take_in(&allocator))
 }
 
+/// Whether [`Strip`] removes `statement` from the list that holds it.
+#[must_use]
+pub fn strips(statement: &Statement<'_>) -> bool {
+    is_type_only(statement) || is_ambient_enum(statement)
+}
+
 impl<'a> VisitMut<'a> for Strip<'a> {
     fn visit_statements(&mut self, it: &mut ArenaVec<'a, Statement<'a>>) {
-        it.retain(|s| !is_type_only(s) && !is_ambient_enum(s));
+        it.retain(|s| !strips(s));
         walk_mut::walk_statements(self, it);
     }
 
