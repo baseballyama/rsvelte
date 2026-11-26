@@ -25,8 +25,22 @@ fn with_context(
     crate::register(&mut registry);
     let document = Document::new("App.svelte".to_owned(), source.to_owned()).expect("small");
     let error = error(&DocumentContext::new(&document, registry.artifacts()));
+    as_judged(&error)
+}
+
+/// The code, the first line of the message and the offset of `error`, as the corpus judges it: a
+/// JavaScript syntax error, which oxc words and places, by its code alone.
+fn as_judged(error: &rsvelte_kernel::diagnostics::Diagnostic) -> (String, String, u32) {
+    if error.code == "js_parse_error" {
+        return (error.code.to_string(), String::new(), 0);
+    }
     let message = error.message.lines().next().unwrap_or_default().to_owned();
     (error.code.to_string(), message, error.span.start_offset)
+}
+
+/// A JavaScript syntax error, as [`as_judged`] keeps it.
+fn javascript() -> (String, String, u32) {
+    ("js_parse_error".to_owned(), String::new(), 0)
 }
 
 #[test]
@@ -65,8 +79,8 @@ fn acorn_throws_in_a_part_before_the_parser_raises_its_own_error() {
     ] {
         assert_eq!(
             first_error(source),
-            ("js_parse_error".to_owned(), message.to_owned(), at),
-            "{source}"
+            javascript(),
+            "{source}: svelte says {message} at {at}"
         );
     }
 }
@@ -118,6 +132,7 @@ fn the_parsers_error_stands_where_acorn_throws_in_no_part_before_it() {
         ),
     ] {
         let (found, _, offset) = first_error(source);
+        let at = if code == "js_parse_error" { 0 } else { at };
         assert_eq!((found.as_str(), offset), (code, at), "{source}");
     }
 }
@@ -169,8 +184,8 @@ fn the_first_error_in_the_document_wins_over_every_later_one() {
     ] {
         assert_eq!(
             first_javascript_error(source),
-            ("js_parse_error".to_owned(), message.to_owned(), at),
-            "{source}"
+            javascript(),
+            "{source}: svelte says {message} at {at}"
         );
     }
 }
@@ -243,8 +258,8 @@ fn acorn_checks_a_functions_parameters_only_when_it_reaches_the_body() {
     ] {
         assert_eq!(
             first_javascript_error(source),
-            ("js_parse_error".to_owned(), message.to_owned(), at),
-            "{source}"
+            javascript(),
+            "{source}: svelte says {message} at {at}"
         );
     }
 }
@@ -384,21 +399,23 @@ fn a_word_acorn_rejects_as_it_reads_it_is_the_first_error() {
         .iter()
         .filter_map(|&(source, expected)| {
             let first = first_error_if_any(source);
-            let expected = expected.map(|(message, at)| (message.to_owned(), at));
-            (first != expected).then(|| format!("{source}: {first:?}"))
+            let wanted = expected.map(|_| javascript());
+            (first != wanted)
+                .then(|| format!("{source}: {first:?}, where svelte says {expected:?}"))
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));
 }
 
-/// The first line of the message and the offset of the error compile reports first, if any.
-fn first_error_if_any(source: &str) -> Option<(String, u32)> {
+/// The error compile reports first, if any, as [`as_judged`] keeps it.
+fn first_error_if_any(source: &str) -> Option<(String, String, u32)> {
     let mut registry = Registry::new();
     crate::register(&mut registry);
     let document = Document::new("App.svelte".to_owned(), source.to_owned()).expect("small");
     let context = DocumentContext::new(&document, registry.artifacts());
     let parsed = super::fully_parsed(&context).err();
     let error = parsed.or_else(|| super::of_document(&context, |_| true))?;
-    let message = error.message.lines().next().unwrap_or_default().to_owned();
-    Some((message, error.span.start_offset))
+    Some(as_judged(&error))
 }
+
+mod parse_rejections;

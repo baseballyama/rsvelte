@@ -163,6 +163,7 @@ fn installation(tasks: &[&str]) -> Installation {
         extensions: EXTENSIONS,
         selection: Selection::Named(tasks.iter().map(|&task| task.to_owned()).collect()),
         defaults,
+        tool_versions: false,
     }
 }
 

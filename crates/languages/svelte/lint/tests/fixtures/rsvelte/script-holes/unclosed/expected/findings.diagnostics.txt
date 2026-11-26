@@ -1,2 +1,2 @@
-error js_parse_error 4:1-4:1 Unexpected token
+error js_parse_error 4:1-4:1 Expected `}` but found `EOF`
     https://svelte.dev/e/js_parse_error

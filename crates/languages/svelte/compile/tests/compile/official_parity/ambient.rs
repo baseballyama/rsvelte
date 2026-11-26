@@ -119,8 +119,14 @@ fn acorn_typescript_reads_statements_and_methods_in_an_ambient_context() {
         let source = format!("{open}{script}</script>");
         let raised = compile(&source, &CompileOptions::default())
             .err()
-            .map(|error| (error.code.to_string(), error.span.start_offset));
-        let expected = expected.map(|(code, at)| (code.to_owned(), at + open.len() as u32));
+            .map(|error| {
+                let (code, _, at) = super::outcomes::raised(&error);
+                (code, at)
+            });
+        let expected = expected.map(|(code, at)| {
+            let (code, _, at) = super::outcomes::official(code, "", at + open.len() as u32);
+            (code, at)
+        });
         assert_eq!(raised, expected, "{source}");
     }
 }

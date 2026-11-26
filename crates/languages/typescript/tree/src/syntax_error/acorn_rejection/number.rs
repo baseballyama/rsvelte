@@ -1,23 +1,23 @@
-//! What acorn reports where it reads a number oxc does not.
+//! Where acorn reads a number oxc does not, which decides where its expression ends.
 
 use oxc_diagnostics::OxcDiagnostic;
 use oxc_parser::Token;
 use oxc_syntax::identifier::is_identifier_start;
 
-use super::fails;
-use crate::syntax_error::Acorn;
-
 /// oxc's message for a name or a digit right after a number.
 const AFTER_NUMBER: &str = "Invalid characters after number";
 
-/// Where acorn, having read `tokens`, fails in the number oxc's lexer rejects at `start`, or stops
-/// after it.
-pub(super) fn number(
+/// Where acorn, having read `tokens`, stops after the number oxc's lexer rejects at `start` as a
+/// shorter one, with the token after it read too.
+pub(super) fn stops_after_number(
     error: &OxcDiagnostic,
     text: &str,
     start: u32,
     tokens: impl Iterator<Item = Token>,
-) -> Option<Acorn> {
+) -> Option<u32> {
+    if error.message != AFTER_NUMBER {
+        return None;
+    }
     let from = number_start(text, start, tokens)?;
     let mut reader = Reader {
         text,
@@ -26,19 +26,13 @@ pub(super) fn number(
     if !reader.at_number() {
         return None;
     }
-    let mut read = reader.read();
-    if read.is_ok() && error.message == AFTER_NUMBER {
-        let stop = u32::try_from(reader.at).ok()?;
-        // acorn reads the token after the number before it stops there.
-        if reader.at_number() {
-            read = reader.read();
-        }
-        if read.is_ok() {
-            return Some(Acorn::Stops(stop));
-        }
+    reader.read().ok()?;
+    let stop = u32::try_from(reader.at).ok()?;
+    // acorn reads the token after the number before it stops there.
+    if reader.at_number() {
+        reader.read().ok()?;
     }
-    let (message, at) = read.err()?;
-    Some(fails(message, u32::try_from(at).ok()?))
+    Some(stop)
 }
 
 /// What acorn throws as it reads the number that starts at `at` in `text`, and where.

@@ -2,6 +2,7 @@ use oxc_ast::ast::{Expression, LogicalOperator};
 use rsvelte_svelte_semantic::compiler_syntax_tree::Part;
 use rsvelte_svelte_semantic::evaluate::Evaluator;
 use rsvelte_svelte_syntax::syntax_tree::decode_attribute;
+use rsvelte_typescript_tree::JavaScriptString;
 
 use super::{ClientCompilationContext, Memo};
 use crate::render_plan::{Item, Text};
@@ -25,7 +26,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
         if_state: bool,
     ) -> (Expression<'o>, bool) {
         let b = self.b;
-        let mut quasis: Vec<String> = vec![String::new()];
+        let mut quasis = vec![JavaScriptString::new()];
         let mut expressions: Vec<Expression<'o>> = Vec::new();
         let mut has_state = false;
         for item in values {
@@ -54,7 +55,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
                     quasis
                         .last_mut()
                         .expect("never empty")
-                        .push_str(&v.to_javascript_string());
+                        .push_string(&v.to_javascript_string());
                     continue;
                 }
                 Expression::NullLiteral(_) => continue,
@@ -76,7 +77,7 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             has_state |= meta.has_state && known.is_none();
             if values.len() == 1 {
                 if let Some(k) = known {
-                    value = b.string(&k.value.to_template_string());
+                    value = b.javascript_string(&k.value.to_template_string());
                 }
                 return (value, has_state);
             }
@@ -91,23 +92,20 @@ impl<'o> ClientCompilationContext<'_, 'o> {
             }
             if let Some(k) = known {
                 let s = k.value.to_template_string();
-                quasis.last_mut().expect("never empty").push_str(&s);
+                quasis.last_mut().expect("never empty").push_string(&s);
             } else {
                 if !evaluated.is_defined {
                     value = b.logical(value, LogicalOperator::Coalesce, b.string(""));
                 }
                 expressions.push(value);
-                quasis.push(String::new());
+                quasis.push(JavaScriptString::new());
             }
         }
         if expressions.is_empty() {
             let s = quasis.pop().expect("never empty");
-            return (b.string(&s), has_state);
+            return (b.javascript_string(&s), has_state);
         }
-        (
-            b.template(quasis.iter().map(String::as_str), expressions),
-            has_state,
-        )
+        (b.javascript_template(&quasis, expressions), has_state)
     }
 
     pub(super) fn chunk_items(&self, parts: &[Part]) -> Vec<Item> {

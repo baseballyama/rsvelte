@@ -58,12 +58,15 @@ pub(crate) fn read_as(
 /// The documents of the files at `paths`, in their order, with the text `tasks` read them with.
 pub(crate) fn read_all(
     reg: &Registry,
-    paths: impl IntoIterator<Item = PathBuf>,
+    paths: Vec<PathBuf>,
     tasks: &[&str],
 ) -> Result<Vec<Document>, String> {
-    (paths.into_iter())
+    use rayon::iter::{IntoParallelIterator, ParallelIterator};
+    // In parallel, then the first error in order, as one by one.
+    let read: Vec<_> = (paths.into_par_iter())
         .map(|path| read(reg, path, tasks))
-        .collect()
+        .collect();
+    read.into_iter().collect()
 }
 
 /// What a walk skips besides `node_modules`, `.git` and what `.gitignore` and `.ignore` skip.

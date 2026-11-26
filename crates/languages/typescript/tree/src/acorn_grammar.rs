@@ -12,12 +12,10 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
 use crate::TypeScriptReader;
-use crate::syntax_error::{Acorn, SyntaxError, Unreserved, UnreservedWords};
+use crate::syntax_error::{SyntaxError, Unreserved, UnreservedWords};
 
 mod ambient;
 mod names;
-
-pub(crate) use names::head_checked_at;
 
 /// Why acorn rejects a part.
 #[derive(Clone, Copy, Debug)]
@@ -84,28 +82,21 @@ impl Rejection {
     }
 }
 
-/// Where acorn rejects, and why. acorn raises once it has read up to `raised`, which orders the
-/// rejection among the errors it meets; that is past `at` where it checks a node after reading it.
+/// Where acorn rejects, and why.
 #[derive(Clone, Copy, Debug)]
 pub(crate) struct Stop {
     pub(crate) at: u32,
-    pub(crate) raised: u32,
     why: Rejection,
 }
 
 impl Stop {
     const fn at(at: u32, why: Rejection) -> Self {
-        Self {
-            at,
-            raised: at,
-            why,
-        }
+        Self { at, why }
     }
 
     pub(crate) const fn shifted(self, shift: u32) -> Self {
         Self {
             at: self.at + shift,
-            raised: self.raised + shift,
             why: self.why,
         }
     }
@@ -221,12 +212,9 @@ fn lexed_literal(kind: AstKind<'_>, typescript: Option<TypeScriptReader>) -> Opt
         }
         _ => return None,
     };
-    let (at, why) = crate::syntax_error::lexer_failure(&raw, 0, typescript)?;
-    Some(Stop {
-        at: span.start + at,
-        raised: span.start,
-        why,
-    })
+    // acorn rejects the token as it reads it, which places the error among the others.
+    let why = crate::syntax_error::lexer_failure(&raw, 0, typescript)?;
+    Some(Stop::at(span.start, why))
 }
 
 /// The statements `kind` holds as its bodies, outside any block.
@@ -316,7 +304,7 @@ impl<'a> Visit<'a> for Unsupported<'_> {
             found = self.ambient_stop(kind, found);
         }
         if let Some(found) = found
-            && self.first.is_none_or(|first| found.raised < first.raised)
+            && self.first.is_none_or(|first| found.at < first.at)
         {
             self.first = Some(found);
         }
@@ -356,7 +344,7 @@ impl Unsupported<'_> {
         ]
         .into_iter()
         .flatten()
-        .min_by_key(|found| found.raised)
+        .min_by_key(|found| found.at)
     }
 }
 
@@ -373,10 +361,6 @@ fn whitespace(text: &str, irregular: &[oxc_span::Span], shift: u32) -> Option<St
     })
 }
 
-/// Where acorn first stops in a part oxc read of `text`, before its parser looks at the tokens
-/// that start at `starts`: at whitespace in `irregular` that ECMAScript does not allow, or at a
-/// token its lexer rejects as it reads it, which orders the rejection by where the token starts.
-/// `shift` moves it into the document.
 /// Whether acorn's lexer can reject `token` where oxc read it: a number, a string with an escape,
 /// an `@`, or a `#`.
 fn may_reject(token: &Token) -> bool {
@@ -389,6 +373,10 @@ fn may_reject(token: &Token) -> bool {
         )
 }
 
+/// Where acorn first stops in a part oxc read of `text`, before its parser looks at the tokens
+/// that start at `starts`: at whitespace in `irregular` that ECMAScript does not allow, or at a
+/// token its lexer rejects as it reads it, which orders the rejection by where the token starts.
+/// `shift` moves it into the document.
 pub(crate) fn lexed(
     text: &str,
     starts: impl IntoIterator<Item = u32>,
@@ -396,21 +384,15 @@ pub(crate) fn lexed(
     shift: u32,
 ) -> Option<Stop> {
     let token = starts.into_iter().find_map(|start| {
-        let (at, why) = crate::syntax_error::lexer_failure(text, start, typescript)?;
-        Some(Stop {
-            at: at + shift,
-            raised: start + shift,
-            why,
-        })
+        let why = crate::syntax_error::lexer_failure(text, start, typescript)?;
+        Some(Stop::at(start + shift, why))
     });
     whitespace(text, irregular, shift)
         .into_iter()
         .chain(token)
-        .min_by_key(|stop| stop.raised)
+        .min_by_key(|stop| stop.at)
 }
 
-/// The starts of `tokens` that oxc read before it stopped, and of the token it stopped at, which
-/// `diagnostics` label first: acorn has read that token when its parser fails there.
 /// Where the tokens acorn may reject start, of a part and of the token its parser read to end it.
 pub(crate) fn read(tokens: &[Token], next: Option<Token>) -> impl Iterator<Item = u32> {
     let part = tokens
@@ -420,6 +402,8 @@ pub(crate) fn read(tokens: &[Token], next: Option<Token>) -> impl Iterator<Item 
     part.chain(next.filter(may_reject).map(|token| token.start()))
 }
 
+/// The starts of `tokens` that oxc read before it stopped, and of the token it stopped at, which
+/// `diagnostics` label first: acorn has read that token when its parser fails there.
 pub(crate) fn read_before_stopping(
     text: &str,
     tokens: &[Token],
@@ -431,7 +415,9 @@ pub(crate) fn read_before_stopping(
             let rest = text.get(label.offset() as usize..)?;
             let blank = rest.len() - rest.trim_start_matches([' ', '\t']).len();
             Some(label.offset() + u32::try_from(blank).ok()?)
-        });
+        })
+        // A label inside a token oxc read is not where a token starts.
+        .filter(|&at| tokens.last().is_none_or(|token| token.end() <= at));
     tokens
         .iter()
         .filter(|token| may_reject(token))
@@ -440,23 +426,13 @@ pub(crate) fn read_before_stopping(
 }
 
 /// What acorn throws where it rejects.
-pub(crate) fn rejection(Stop { at, raised, why }: Stop) -> SyntaxError {
-    let acorn_message = why.message();
+pub(crate) fn rejection(Stop { at, why }: Stop) -> SyntaxError {
+    let message = why.message();
     SyntaxError {
-        diagnostic: Diagnostic::error("parse_error", acorn_message.to_string(), Span::new(at, at)),
-        acorn: Some(if raised == at {
-            Acorn::Fails {
-                message: acorn_message,
-                at,
-            }
-        } else {
-            Acorn::FailsLater {
-                message: acorn_message,
-                at,
-                raised,
-            }
-        }),
+        diagnostic: Diagnostic::error("parse_error", message.to_string(), Span::new(at, at)),
+        acorn_stops_at: None,
         typescript_code: None,
+        redeclared_at: None,
         typescript_eslint_at: None,
     }
 }

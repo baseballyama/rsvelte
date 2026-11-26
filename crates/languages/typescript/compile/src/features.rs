@@ -24,7 +24,14 @@ pub enum Feature {
 /// `remove_typescript_nodes` meets them: a namespace's body before the namespace.
 #[must_use]
 pub fn first_runtime_feature(program: &Program<'_>) -> Option<(Feature, Span)> {
-    find(program, false, |_| true)
+    find(program, Host::Printer, |_| true)
+}
+
+/// [`first_runtime_feature`] for a caller that erases with [`crate::strip::Strip`], which removes
+/// an ambient enum as TypeScript's emit does.
+#[must_use]
+pub fn first_erasure_feature(program: &Program<'_>) -> Option<(Feature, Span)> {
+    find(program, Host::Erasure, |_| true)
 }
 
 /// [`first_runtime_feature`] among the features `wanted` keeps, as Svelte's
@@ -35,17 +42,24 @@ pub fn first_svelte_runtime_feature_where(
     program: &Program<'_>,
     wanted: fn(Feature) -> bool,
 ) -> Option<(Feature, Span)> {
-    find(program, true, wanted)
+    find(program, Host::Svelte, wanted)
 }
 
-fn find(
-    program: &Program<'_>,
-    svelte: bool,
-    wanted: fn(Feature) -> bool,
-) -> Option<(Feature, Span)> {
+/// What reads the program once the finder accepts it.
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum Host {
+    /// Svelte's `remove_typescript_nodes`, which refuses any enum.
+    Svelte,
+    /// [`crate::strip::Strip`], which removes an ambient enum and the namespaces that emit nothing.
+    Erasure,
+    /// A printer that keeps what the program declares, ambient or not.
+    Printer,
+}
+
+fn find(program: &Program<'_>, host: Host, wanted: fn(Feature) -> bool) -> Option<(Feature, Span)> {
     let mut finder = Finder {
         found: None,
-        svelte,
+        host,
         namespaces: 0,
         wanted,
     };
@@ -55,7 +69,7 @@ fn find(
 
 struct Finder {
     found: Option<(Feature, Span)>,
-    svelte: bool,
+    host: Host,
     /// How many namespace bodies the walk is in.
     namespaces: u32,
     wanted: fn(Feature) -> bool,
@@ -79,7 +93,12 @@ impl Finder {
         self.namespaces += 1;
         walk(self);
         self.namespaces -= 1;
-        if block.is_some_and(|block| block.body.iter().any(|s| !crate::strip::is_type_only(s))) {
+        // TypeScript emits a namespace that holds an ambient value, which erasing it cannot.
+        let value = match self.host {
+            Host::Erasure => crate::strip::instantiates_namespace,
+            Host::Svelte | Host::Printer => |s: &Statement<'_>| !crate::strip::is_type_only(s),
+        };
+        if block.is_some_and(|block| block.body.iter().any(value)) {
             self.found(Feature::NamespaceWithValues, span);
         }
     }
@@ -101,14 +120,17 @@ impl<'a> Visit<'a> for Finder {
     // Upstream's visitor keeps a default export as it is, without visiting what it holds.
     fn visit_export_default_declaration(&mut self, _: &ExportDefaultDeclaration<'a>) {}
 
+    // TypeScript's emit removes an ambient enum, and Svelte's `remove_typescript_nodes` refuses it.
     fn visit_ts_enum_declaration(&mut self, it: &TSEnumDeclaration<'a>) {
-        self.found(Feature::Enum, it.span);
+        if !it.declare || self.host != Host::Erasure {
+            self.found(Feature::Enum, it.span);
+        }
     }
 
     // An ambient declaration holds no value once types are erased, but Svelte's
     // `remove_typescript_nodes` refuses one with a value like any namespace.
     fn visit_ts_namespace_declaration(&mut self, it: &TSNamespaceDeclaration<'a>) {
-        if it.declare && !self.svelte {
+        if it.declare && self.host != Host::Svelte {
             return;
         }
         let block = match &it.body {
@@ -121,7 +143,7 @@ impl<'a> Visit<'a> for Finder {
     }
 
     fn visit_ts_external_module_declaration(&mut self, it: &TSExternalModuleDeclaration<'a>) {
-        if self.svelte {
+        if self.host == Host::Svelte {
             self.namespace(it.span, it.body.as_deref(), |this| {
                 walk::walk_ts_external_module_declaration(this, it);
             });
@@ -129,7 +151,7 @@ impl<'a> Visit<'a> for Finder {
     }
 
     fn visit_ts_global_declaration(&mut self, it: &TSGlobalDeclaration<'a>) {
-        if self.svelte {
+        if self.host == Host::Svelte {
             self.namespace(it.span, Some(&it.body), |this| {
                 walk::walk_ts_global_declaration(this, it);
             });
@@ -156,7 +178,7 @@ impl<'a> Visit<'a> for Finder {
 
     fn visit_ts_import_equals_declaration(&mut self, it: &TSImportEqualsDeclaration<'a>) {
         // Svelte keeps it as a value, so the namespace around it is what it refuses.
-        if self.svelte && self.namespaces > 0 {
+        if self.host == Host::Svelte && self.namespaces > 0 {
             return;
         }
         self.found(Feature::ImportEquals, it.span);

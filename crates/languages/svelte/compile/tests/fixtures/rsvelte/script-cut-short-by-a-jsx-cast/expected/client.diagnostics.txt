@@ -1,2 +1,2 @@
-error js_parse_error 2:10-2:10 Unexpected token
+error js_parse_error 2:10-2:10 Unexpected JSX expression
     https://svelte.dev/e/js_parse_error

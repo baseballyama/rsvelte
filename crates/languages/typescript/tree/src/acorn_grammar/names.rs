@@ -4,10 +4,8 @@
 
 use oxc_ast::AstKind;
 use oxc_ast::ast::{
-    ArrowFunctionBody, BindingIdentifier, BindingPattern, FormalParameters,
-    TSNamespaceDeclarationBody,
+    BindingIdentifier, BindingPattern, FormalParameters, TSNamespaceDeclarationBody,
 };
-use oxc_span::GetSpan;
 
 use super::{Rejection, Stop};
 
@@ -114,24 +112,7 @@ pub(super) fn reserved(kind: AstKind<'_>, in_type: bool) -> Option<Stop> {
         AstKind::IdentifierReference(it) if !in_type => (it.name.as_str(), it.span),
         _ => return None,
     };
-    ReservedWord::of(name).map(|word| Stop {
-        at: span.start,
-        raised: span.start,
-        why: Rejection::Reserved(word),
-    })
-}
-
-/// Where acorn checks the names the head of the function `kind` is binds: at the start of its
-/// block body or the end of its expression body. A function without a body has none.
-pub(crate) fn head_checked_at(kind: AstKind<'_>) -> Option<u32> {
-    match kind {
-        AstKind::Function(it) => it.body.as_ref().map(|body| body.span.start),
-        AstKind::ArrowFunctionExpression(it) => Some(match &it.body {
-            ArrowFunctionBody::FunctionBody(body) => body.span.start,
-            body => body.span().end,
-        }),
-        _ => None,
-    }
+    ReservedWord::of(name).map(|word| Stop::at(span.start, Rejection::Reserved(word)))
 }
 
 /// The namespace the next part of `kind`'s dotted name declares.
@@ -152,50 +133,43 @@ pub(super) fn strict_name(kind: AstKind<'_>, nested: bool) -> Option<Stop> {
         // acorn reads a declaration's name as it checks it, and checks the name of a function
         // without a body as assigned.
         AstKind::Function(it) if it.is_declaration() => {
-            (it.id.as_ref()).and_then(|id| checked(id, it.body.is_some(), None))
+            (it.id.as_ref()).and_then(|id| checked(id, it.body.is_some()))
         }
-        // An expression's own name it checks at its body, after the parameters.
-        AstKind::Function(it) => {
-            let raised = head_checked_at(kind)?;
-            parameter(&it.params, Some(raised)).or_else(|| {
-                it.id
-                    .as_ref()
-                    .and_then(|id| checked(id, true, Some(raised)))
-            })
+        // An expression's own name and parameters it checks at its body, so not without one.
+        AstKind::Function(it) if it.body.is_some() => {
+            parameter(&it.params).or_else(|| it.id.as_ref().and_then(|id| checked(id, true)))
         }
-        AstKind::ArrowFunctionExpression(it) => parameter(&it.params, head_checked_at(kind)),
+        AstKind::ArrowFunctionExpression(it) => parameter(&it.params),
         AstKind::Class(it) if it.is_declaration() => {
-            it.id.as_ref().and_then(|id| checked(id, true, None))
+            it.id.as_ref().and_then(|id| checked(id, true))
         }
-        AstKind::TSNamespaceDeclaration(it) if !nested => checked(&it.id, true, None),
-        AstKind::TSEnumDeclaration(it) => checked(&it.id, true, None),
-        AstKind::TSInterfaceDeclaration(it) => checked(&it.id, true, None),
-        AstKind::TSTypeAliasDeclaration(it) => checked(&it.id, true, None),
-        AstKind::TSImportEqualsDeclaration(it) => checked(&it.id, true, None),
-        AstKind::ImportDeclaration(it) => (it.specifiers.iter().flatten())
-            .find_map(|specifier| checked(specifier.local(), true, None)),
-        AstKind::CatchParameter(it) => {
-            bound(&it.pattern).and_then(|id| checked(id, true, Some(it.pattern.span().end)))
+        AstKind::TSNamespaceDeclaration(it) if !nested => checked(&it.id, true),
+        AstKind::TSEnumDeclaration(it) => checked(&it.id, true),
+        AstKind::TSInterfaceDeclaration(it) => checked(&it.id, true),
+        AstKind::TSTypeAliasDeclaration(it) => checked(&it.id, true),
+        AstKind::TSImportEqualsDeclaration(it) => checked(&it.id, true),
+        AstKind::ImportDeclaration(it) => {
+            (it.specifiers.iter().flatten()).find_map(|specifier| checked(specifier.local(), true))
         }
+        AstKind::CatchParameter(it) => bound(&it.pattern).and_then(|id| checked(id, true)),
         _ => None,
     }
 }
 
-fn checked(id: &BindingIdentifier<'_>, binds: bool, raised: Option<u32>) -> Option<Stop> {
+fn checked(id: &BindingIdentifier<'_>, binds: bool) -> Option<Stop> {
     let name = Restricted::of(&id.name)?;
-    Some(Stop {
-        at: id.span.start,
-        raised: raised.unwrap_or(id.span.start),
-        why: Rejection::StrictName { name, binds },
-    })
+    Some(Stop::at(
+        id.span.start,
+        Rejection::StrictName { name, binds },
+    ))
 }
 
-/// The first restricted name a parameter of `parameters` binds, checked at `raised`.
-fn parameter(parameters: &FormalParameters<'_>, raised: Option<u32>) -> Option<Stop> {
+/// The first restricted name a parameter of `parameters` binds.
+fn parameter(parameters: &FormalParameters<'_>) -> Option<Stop> {
     (parameters.items.iter().map(|parameter| &parameter.pattern))
         .chain(parameters.rest.iter().map(|rest| &rest.rest.argument))
         .find_map(bound)
-        .and_then(|id| checked(id, true, raised))
+        .and_then(|id| checked(id, true))
 }
 
 /// The first restricted name `pattern` binds.

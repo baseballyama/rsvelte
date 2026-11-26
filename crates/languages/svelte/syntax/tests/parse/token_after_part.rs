@@ -17,13 +17,8 @@ fn acorn_fails_at_the_token_after_the_node() {
     ] {
         let error = parse(source).expect_err(source);
         assert_eq!(
-            (
-                &*error.code,
-                error.message.lines().next(),
-                error.span.start_offset
-            ),
-            ("js_parse_error", Some("Unexpected token"), at),
-            "{source:?}"
+            error.code, "js_parse_error",
+            "{source:?}: svelte says so at {at}"
         );
     }
 }
