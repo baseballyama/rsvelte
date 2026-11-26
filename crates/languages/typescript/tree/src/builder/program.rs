@@ -1,3 +1,4 @@
+use oxc_allocator::Allocator;
 use oxc_ast::ast::Program;
 use oxc_diagnostics::Diagnostics;
 use oxc_parser::config::TokensParserConfig;
@@ -44,7 +45,7 @@ impl<'a> TreeBuilder<'a> {
         &mut self,
         range: Span,
         source_type: SourceType,
-        erase: impl FnOnce(&'a oxc_allocator::Allocator, &mut Program<'a>, bool) -> Vec<oxc_span::Span>,
+        erase: impl FnOnce(&'a Allocator, &mut Program<'a>, bool) -> Vec<oxc_span::Span>,
     ) -> Result<ProgramIdentifier, SyntaxError> {
         let text = &self.source_text[..range.end_offset as usize];
         (self.read_program(text, range.start_offset, source_type, |_| false, erase))
@@ -189,7 +190,7 @@ impl<'a> TreeBuilder<'a> {
         start: u32,
         source_type: SourceType,
         keep_recovered: fn(&Diagnostics) -> bool,
-        erase: impl FnOnce(&'a oxc_allocator::Allocator, &mut Program<'a>, bool) -> Vec<oxc_span::Span>,
+        erase: impl FnOnce(&'a Allocator, &mut Program<'a>, bool) -> Vec<oxc_span::Span>,
     ) -> Result<ProgramIdentifier, Box<Read>> {
         let mut parsed = Parser::new(self.allocator, text, source_type)
             .with_options(parentheses::options(false))
