@@ -289,6 +289,8 @@ pub enum Documents {
 struct Prepared {
     path: String,
     source_text: String,
+    /// Whether `source_text` is what the disk holds in the document's file.
+    on_disk: bool,
     document: Arc<CheckedDocument>,
 }
 
@@ -362,6 +364,7 @@ impl FinishTask for Check {
             Ok(TypeScriptDocument::Checked(document)) => Some(Box::new(Prepared {
                 path: context.document.file_path().to_string_lossy().into_owned(),
                 source_text: context.source_text().to_owned(),
+                on_disk: context.document.on_disk,
                 document: Arc::clone(document),
             })),
         }
@@ -491,6 +494,17 @@ fn check_projected(
         files: docs
             .iter()
             .map(|d| d.document.projection.out.as_str())
+            .collect(),
+        // The checker reads a mapped document's source without its byte order mark, and any
+        // other document's projection.
+        on_disk: (docs.iter())
+            .map(|d| {
+                let read = match d.document.env.mapped_extension {
+                    Some(_) => byte_order_mark(&d.source_text) == 0,
+                    None => d.document.projection.out == d.source_text,
+                };
+                d.on_disk && read
+            })
             .collect(),
     };
     let report = match tsc.check(&req) {

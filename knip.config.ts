@@ -29,8 +29,10 @@ export default {
 			entry: ['launcher.js', 'program.js'],
 		},
 		'apps/rsvelte': {
-			// crates/hosts/node's test runs them with the addon it builds, not a package script.
-			entry: ['bin.js', 'compiler.test.ts', 'command.test.ts'],
+			// The Rust tool that builds the WebAssembly module, and the module, which only the
+			// package job builds.
+			ignoreBinaries: ['wasm-pack'],
+			ignoreUnresolved: ['#wasm'],
 		},
 		'apps/vscode': {
 			// The extension host loads the bundle of the first, and VS Code the bundle of the last.

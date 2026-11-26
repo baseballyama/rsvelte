@@ -51,8 +51,14 @@ pub(crate) fn read_as(
     file: PathBuf,
     tasks: &[&str],
 ) -> Result<Document, String> {
-    let text = (reg.read(&file, tasks)).map_err(|e| format!("{}: {e}", file.display()))?;
-    named(name, file, text)
+    let read = (reg.read_file(&file, tasks)).map_err(|e| format!("{}: {e}", file.display()))?;
+    let document =
+        Document::new(name, read.text).map_err(|e| format!("{}: {e:?}", file.display()))?;
+    Ok(if read.on_disk {
+        document.read_from_disk(file)
+    } else {
+        document.read_from(file)
+    })
 }
 
 /// The documents of the files at `paths`, in their order, with the text `tasks` read them with.
