@@ -4,7 +4,7 @@ use std::fmt::Write as _;
 use std::process::ExitCode;
 
 use super::{TYPECHECK, installation};
-use crate::{configuration, install, usage};
+use crate::{Installation, configuration, install, usage};
 
 /// What of each command the corpus compares with official tools, and those tools' names and
 /// versions.
@@ -16,7 +16,11 @@ pub(super) fn version(config: &configuration::Options) -> ExitCode {
         Ok(loaded) => loaded,
         Err(error) => return usage(&error.to_string()),
     };
-    let checker = match install(loaded.as_ref(), &[], installation(TYPECHECK)) {
+    let reported = Installation {
+        tool_versions: true,
+        ..installation(TYPECHECK)
+    };
+    let checker = match install(loaded.as_ref(), &[], reported) {
         Ok((_, tools)) => (tools.iter())
             .map(|tool| format!("{} {}", tool.command, tool.version))
             .collect::<Vec<_>>()

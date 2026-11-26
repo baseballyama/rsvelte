@@ -4,6 +4,7 @@ use oxc_parser::{Kind, Token};
 use oxc_syntax::identifier::is_identifier_start;
 use rsvelte_kernel::source::characters::is_ecmascript_line_terminator;
 
+use super::escape::{code_point, hex_char, word};
 use super::fails;
 use super::number::{Failure, read_at};
 use crate::TypeScriptReader;
@@ -30,7 +31,11 @@ pub(crate) fn lexer_failure(
         b'@' if typescript.is_none() => return Some((start, Rejection::At)),
         b'#' => {
             let after = rest[1..].chars().next();
-            if after.is_some_and(|c| is_identifier_start(c) || c == '\\') {
+            if after == Some('\\') {
+                let (message, at) = word(text, start as usize + 1)?;
+                return Some((u32::try_from(at).ok()?, Rejection::Lexed(message)));
+            }
+            if after.is_some_and(is_identifier_start) {
                 return None;
             }
             // acorn reads past the end of its input as U+10000.
@@ -39,27 +44,12 @@ pub(crate) fn lexer_failure(
                 Rejection::Character(after.unwrap_or('\u{10000}')),
             ));
         }
+        b'\\' => word(text, start as usize)?,
+        _ if rest.chars().next().is_some_and(is_identifier_start) => word(text, start as usize)?,
         _ => return None,
     };
     let (message, at) = failure;
     Some((u32::try_from(at).ok()?, Rejection::Lexed(message)))
-}
-
-/// The length of a valid `\x` or `\u` escape whose letter starts `escape`, its `\` included.
-fn hex_escape(escape: &[u8]) -> Option<usize> {
-    let hex = |digits: &[u8]| digits.iter().all(u8::is_ascii_hexdigit);
-    match escape {
-        [b'x', digits @ ..] if digits.len() >= 2 && hex(&digits[..2]) => Some(4),
-        [b'u', b'{', rest @ ..] => {
-            let close = rest.iter().position(|&b| b == b'}')?;
-            let digits = std::str::from_utf8(&rest[..close]).ok()?;
-            let valid =
-                !digits.is_empty() && u32::from_str_radix(digits, 16).is_ok_and(|v| v <= 0x10_FFFF);
-            valid.then_some(close + 4)
-        }
-        [b'u', digits @ ..] if digits.len() >= 4 && hex(&digits[..4]) => Some(6),
-        _ => None,
-    }
 }
 
 /// acorn's `readEscapedChar` in strict code over the string literal `raw` starts, opened by
@@ -99,7 +89,14 @@ fn octal_escape(raw: &str, quote: u8) -> Option<Failure> {
                 }
                 at += 1 + length;
             }
-            b'x' | b'u' => at += hex_escape(&bytes[at + 1..])?,
+            b'x' => match hex_char(bytes, at + 2, 2) {
+                Ok((_, end)) => at = end,
+                Err(failure) => return Some(failure),
+            },
+            b'u' => match code_point(bytes, at + 2) {
+                Ok((_, end)) => at = end,
+                Err(failure) => return Some(failure),
+            },
             b'\r' if bytes.get(at + 2) == Some(&b'\n') => at += 3,
             _ => at += 2,
         }
