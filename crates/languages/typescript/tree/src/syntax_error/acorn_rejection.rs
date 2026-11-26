@@ -166,6 +166,7 @@ pub(crate) fn acorn(
         }
         // `enum` where an expression belongs: acorn reads it as a reserved name.
         "1109" if kind_at(start) == Some(Kind::Enum) => reserved(start),
+        "1109" if let Some(q) = question_before(tokens, start) => after_question(q, start, visit),
         // `()`: oxc labels both parentheses, and acorn fails at the closing one.
         "1109" if text.get(start as usize..end as usize)?.starts_with('(') => {
             Some(fails("Unexpected token", end.checked_sub(1)?))
@@ -455,6 +456,21 @@ fn token_after(text: &str, at: u32) -> Option<u32> {
         };
         tokens.first().map(Token::start)
     })
+}
+
+/// The `?` right before `at`, among `tokens`.
+fn question_before(tokens: &[Token], at: u32) -> Option<Token> {
+    let index = tokens
+        .partition_point(|token| token.start() < at)
+        .checked_sub(1)?;
+    Some(tokens[index]).filter(|token| token.kind() == Kind::Question)
+}
+
+/// Where acorn fails at what tsc reports as a missing expression at `at`, right after `question`:
+/// at an optional rest element's `?`, as where oxc reports that `?`, and at `at` otherwise.
+fn after_question(question: Token, at: u32, visit: impl FnOnce(&mut Locator)) -> Option<Acorn> {
+    optional_rest(question.start(), question.end(), visit)
+        .map_or_else(|| Some(fails("Unexpected token", at)), Result::err)
 }
 
 /// What acorn does with a rest element whose `?` is `question..end`: `Ok` where it reads one.
