@@ -15,6 +15,7 @@ use super::word::{Home, home, keyword, misused};
 
 mod arguments;
 mod declarations;
+mod escape;
 mod lexer;
 mod number;
 mod pattern;
