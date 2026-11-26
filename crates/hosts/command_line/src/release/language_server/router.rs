@@ -163,7 +163,7 @@ impl Router {
             else {
                 return;
             };
-            message.params = cancellation(&id);
+            message.parameters = cancellation(&id);
             self.send(server, message);
             return;
         }
@@ -250,26 +250,26 @@ impl Router {
             else {
                 return;
             };
-            message.params = cancellation(&editor_id);
+            message.parameters = cancellation(&editor_id);
         } else if message.method.as_deref() == Some("textDocument/publishDiagnostics") {
             // One it cannot read is the editor's to reject.
-            if let Some(params) = self.published(server, message.params.as_deref()) {
-                message.params = Some(params);
+            if let Some(parameters) = self.published(server, message.parameters.as_deref()) {
+                message.parameters = Some(parameters);
             }
         }
         self.to_editor(message);
     }
 
-    /// The parameters that publish every server's diagnostics of the document that `params` of
+    /// The parameters that publish every server's diagnostics of the document that `parameters` of
     /// `server` publish.
-    fn published(&mut self, server: usize, params: Option<&RawValue>) -> Option<Box<RawValue>> {
+    fn published(&mut self, server: usize, parameters: Option<&RawValue>) -> Option<Box<RawValue>> {
         #[derive(Deserialize)]
         struct Published {
             uri: String,
             version: Option<i64>,
             diagnostics: Vec<Box<RawValue>>,
         }
-        let published: Published = serde_json::from_str(params?.get()).ok()?;
+        let published: Published = serde_json::from_str(parameters?.get()).ok()?;
         let key = (server, published.uri);
         if published.diagnostics.is_empty() {
             self.published.remove(&key);
@@ -282,16 +282,16 @@ impl Router {
             .flatten()
             .map(AsRef::as_ref)
             .collect();
-        let mut params = format!(
+        let mut parameters = format!(
             r#"{{"uri":{},"diagnostics":{}"#,
             serde_json::to_string(&uri).ok()?,
             serde_json::to_string(&every).ok()?,
         );
         if let Some(version) = published.version {
-            write!(params, r#","version":{version}"#).ok()?;
+            write!(parameters, r#","version":{version}"#).ok()?;
         }
-        params.push('}');
-        RawValue::from_string(params).ok()
+        parameters.push('}');
+        RawValue::from_string(parameters).ok()
     }
 
     /// Answers what `server` left unanswered; whether a server still runs.
@@ -341,8 +341,8 @@ fn cancelled(message: &Message) -> Option<Id> {
     struct Cancel {
         id: Id,
     }
-    let params = message.params.as_ref()?;
-    serde_json::from_str::<Cancel>(params.get())
+    let parameters = message.parameters.as_ref()?;
+    serde_json::from_str::<Cancel>(parameters.get())
         .ok()
         .map(|cancel| cancel.id)
 }
