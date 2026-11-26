@@ -15,7 +15,7 @@ use rsvelte_typescript_api::{Layer, Session};
 
 use super::mapped::{normalized, package_json};
 use super::selection::Selected;
-use super::{BaseProject, in_temporary_directory, untyped};
+use super::{BaseProject, OVERLAY_CONFIG, in_temporary_directory, untyped};
 use crate::check::{MappedLanguage, Tsc};
 
 impl Tsc {
@@ -81,17 +81,24 @@ fn root_files(
     // tsconfig it opens.
     let overlay_path = root.join(OVERLAY);
     layer.files.insert(overlay_path.clone(), overlay.finish());
+    // What the check reads where it adds nothing to the project, at the path of its tsconfig, so
+    // a finding names the same project. A third project in the snapshot costs little; a snapshot
+    // of its own costs as much as the first.
+    let check_path = root.join(OVERLAY_CONFIG);
+    layer.files.insert(check_path.clone(), check_config(config));
     // In the directory the check's processes run in, since the check goes on in this one.
     let mut session = tsc.checker.session(root)?;
     let opening = Instant::now();
     // The tsconfig's own errors name it, and its paths, as svelte-check prints them; the overlay
     // rebases them, and `extends` hides some, such as an empty `files`. Without the mapped
-    // languages it may have no inputs where the overlay has. One snapshot holds both projects.
+    // languages it may have no inputs where the overlay has. One snapshot holds every project.
     let mut projects = session
-        .open(&[overlay_path.as_path(), config], &layer)?
+        .open(&[overlay_path.as_path(), config, &check_path], &layer)?
         .into_iter();
     let open = opening.elapsed();
-    let (Some(project), Some(own)) = (projects.next(), projects.next()) else {
+    let (Some(project), Some(own), Some(check)) =
+        (projects.next(), projects.next(), projects.next())
+    else {
         return Err("the checker opened no project".to_owned());
     };
     let overlay_has_no_inputs =
@@ -112,11 +119,16 @@ fn root_files(
     } else {
         (Vec::new(), None)
     };
-    session.release(project.snapshot)?;
+    // The check reads the project only where the listing knows the tsconfig's own.
+    let check = base.is_some().then_some(check);
+    if check.is_none() {
+        session.release(project.snapshot)?;
+    }
     let listed = Listed {
         session,
         open,
         base,
+        check,
     };
     *tsc.listed
         .lock()
@@ -125,12 +137,13 @@ fn root_files(
 }
 
 /// What listing a project's files leaves for its check: the checker's process, how long it took
-/// to open the project, and what the check reads of the project its tsconfig describes, where
-/// the listing already knows it.
+/// to open the project, and, where the listing already knows them, what the check reads of the
+/// project its tsconfig describes and the project the check checks where it adds nothing.
 pub(crate) struct Listed {
     pub(super) session: Session,
     pub(super) open: Duration,
     pub(super) base: Option<BaseProject>,
+    pub(super) check: Option<rsvelte_typescript_api::Project>,
 }
 
 impl std::fmt::Debug for Listed {
@@ -138,6 +151,7 @@ impl std::fmt::Debug for Listed {
         f.debug_struct("Listed")
             .field("session", &self.session)
             .field("open", &self.open)
+            .field("check", &self.check)
             .finish_non_exhaustive()
     }
 }
@@ -223,6 +237,22 @@ fn reported(file: &Path, languages: &[MappedLanguage], skip_lib_check: bool) -> 
         Kind::JavaScript => !in_node_modules,
         Kind::Other => true,
     }
+}
+
+/// The tsconfig the check reads where it adds no file and no option to the tsconfig `config`'s
+/// project: the overlay it writes then selects the same files with the same `paths`.
+fn check_config(config: &Path) -> String {
+    let mut w = StructuredDataWriter::new(false);
+    w.begin_object()
+        .key("extends")
+        .write_string(&rsvelte_kernel::source::paths::typescript(config))
+        .key("compilerOptions")
+        .begin_object()
+        .key("noEmit")
+        .write_boolean(true)
+        .end_object()
+        .end_object();
+    w.finish()
 }
 
 /// The overlay tsconfig, only in the checker's file layer.

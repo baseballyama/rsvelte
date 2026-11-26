@@ -10,7 +10,7 @@ use rsvelte_kernel::output::structured_data::StructuredDataWriter;
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::paths;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
-use rsvelte_typescript_api::{Layer, Position, Session};
+use rsvelte_typescript_api::{Layer, Position, Project, Session};
 use selection::Selected;
 use shares::{Checked, Helpers, check_shares};
 use untyped::{UntypedDocuments, UntypedImport, UntypedJavaScript, ambient};
@@ -110,7 +110,7 @@ impl Tsc {
         let failed = |e: String| format!("{e}; rsvelte needs {CONTRACT}");
         let _p = measurement::phase("ts.tsc");
         let javascript = untyped::javascript_documents(req, &root, &paths);
-        let (mut session, listed_open, mut own) = self
+        let (mut session, left, mut own) = self
             .own_project(
                 req,
                 (base.as_deref(), &root),
@@ -119,29 +119,14 @@ impl Tsc {
                 &mut layer,
             )
             .map_err(failed)?;
-        let mut roots = std::mem::take(&mut own.roots);
-        own.script_modules =
-            own.node_resolution && script_module::add(&mut layer, &roots, &paths, req);
         let all_untyped = own.untyped == UntypedJavaScript::All;
-        if all_untyped {
-            let declaration = untyped::options_declaration(&overlay);
-            roots.push(declaration.0.clone());
-            layer.files.insert(declaration.0, declaration.1);
-        }
-        // A document is a root only where the project does not reach it.
-        roots.extend(
-            (paths.iter())
-                .filter(|path| !own.selected.reached.contains(*path))
-                .cloned(),
+        let (roots, adds_roots) = overlay_roots(
+            req,
+            (&root, &paths),
+            &mut own,
+            declarations,
+            (&overlay, &mut layer),
         );
-        // Upstream's project holds every component, so one that is not checked still declares
-        // its globals.
-        roots.extend(req.stand_ins(&root).map(|(path, _)| path).filter(|path| {
-            (req.env.script_modules.iter())
-                .any(|extension| path.as_os_str().to_string_lossy().ends_with(extension))
-        }));
-        roots.extend(declarations);
-        roots.extend(req.env.include.iter().cloned());
         let config = root.join(OVERLAY_CONFIG);
         layer.files.insert(
             config.clone(),
@@ -152,10 +137,25 @@ impl Tsc {
         // Where an import of JavaScript may be untyped, the checker resolves each import.
         let resolve =
             (all_untyped || !external.is_empty()).then_some((req, paths.as_slice(), &javascript));
-        let helpers = self.helpers(paths.len(), &root, listed_open);
-        let (mut checked, idle) =
-            check_shares(&mut session, helpers, &config, &layer, &files, resolve)
-                .map_err(failed)?;
+        // Where the overlay adds no root, no `paths` and no option, and the layer only what the
+        // disk holds, the check's project is the one the listing opened.
+        let opened = (left.check.zip(left.open)).filter(|_| {
+            !adds_roots
+                && req.env.paths.is_empty()
+                && !own.script_modules
+                && resolve.is_none()
+                && as_on_disk(&layer, &config)
+        });
+        let helpers = self.helpers(paths.len(), &root, left.open);
+        let (mut checked, idle) = check_shares(
+            &mut session,
+            helpers,
+            (&config, opened),
+            &layer,
+            &files,
+            resolve,
+        )
+        .map_err(failed)?;
         untyped::drop_loaded(req, &checked.modules, &mut external);
         if !external.is_empty() {
             // The components a search of `node_modules` finds read as untyped JavaScript, which
@@ -171,7 +171,7 @@ impl Tsc {
                 ..self.helpers(paths.len(), &root, None)
             };
             let modules = std::mem::take(&mut checked.modules);
-            checked = check_shares(&mut session, helpers, &config, &layer, &files, None)
+            checked = check_shares(&mut session, helpers, (&config, None), &layer, &files, None)
                 .map_err(failed)?
                 .0;
             checked.modules = modules;
@@ -208,9 +208,9 @@ impl Tsc {
         Ok(Report { diagnostics, root })
     }
 
-    /// The checker's session, which listing the project's files may have left with how long it
-    /// took to open the project, and the project's own root files, as its tsconfig `base`
-    /// selects them, components included, which the overlay keeps.
+    /// The checker's session, with what listing the project's files left of it, and the
+    /// project's own root files, as its tsconfig `base` selects them, components included, which
+    /// the overlay keeps.
     fn own_project(
         &self,
         req: &CheckRequest<'_>,
@@ -218,27 +218,33 @@ impl Tsc {
         overlay: (&Path, &Path),
         javascript: &HashSet<PathBuf>,
         layer: &mut Layer,
-    ) -> Result<(Session, Option<Duration>, BaseProject), String> {
+    ) -> Result<(Session, Left, BaseProject), String> {
         let listed = (self.listed.lock())
             .unwrap_or_else(std::sync::PoisonError::into_inner)
             .take();
         let Some(listed) = listed else {
             let mut session = self.checker.session(root)?;
             let own = base_project(&mut session, base, req, overlay, javascript, layer)?;
-            return Ok((session, None, own));
+            return Ok((session, Left::default(), own));
         };
         let Listed {
             mut session,
             open,
             base: known,
+            check,
         } = listed;
         // Where no document is mapped, the listing's project is the tsconfig's own.
         let unmapped = req.mapped_files.iter().all(Option::is_none) && javascript.is_empty();
-        let own = match known.filter(|_| unmapped && base.is_some()) {
-            Some(own) => own,
-            None => base_project(&mut session, base, req, overlay, javascript, layer)?,
-        };
-        Ok((session, Some(open), own))
+        let open = Some(open);
+        if let Some(own) = known.filter(|_| unmapped && base.is_some()) {
+            return Ok((session, Left { open, check }, own));
+        }
+        // `base_project` opens its projects in a snapshot of their own.
+        if let Some(check) = check {
+            session.release(check.snapshot)?;
+        }
+        let own = base_project(&mut session, base, req, overlay, javascript, layer)?;
+        Ok((session, Left { open, check: None }, own))
     }
 
     /// The errors of `checked`, at the lines of the documents `index` names, with the TS7016 of
@@ -306,6 +312,64 @@ impl Tsc {
             idle: Vec::new(),
         }
     }
+}
+
+/// What listing the project's files left for the check: how long it took to open the project,
+/// and the project the check checks where it adds nothing to it.
+#[derive(Default)]
+struct Left {
+    open: Option<Duration>,
+    check: Option<Project>,
+}
+
+/// The overlay's roots: the project's own, then each of the documents at `paths` the project
+/// does not reach, the stand-ins of script modules, the declarations and the included files; and
+/// whether any of them is not one of the project's own.
+fn overlay_roots(
+    req: &CheckRequest<'_>,
+    (root, paths): (&Path, &[PathBuf]),
+    own: &mut BaseProject,
+    declarations: Vec<PathBuf>,
+    (overlay, layer): (&Path, &mut Layer),
+) -> (Vec<PathBuf>, bool) {
+    let mut roots = std::mem::take(&mut own.roots);
+    let own_roots = roots.len();
+    own.script_modules = own.node_resolution && script_module::add(layer, &roots, paths, req);
+    if own.untyped == UntypedJavaScript::All {
+        let declaration = untyped::options_declaration(overlay);
+        roots.push(declaration.0.clone());
+        layer.files.insert(declaration.0, declaration.1);
+    }
+    // A document is a root only where the project does not reach it.
+    roots.extend(
+        (paths.iter())
+            .filter(|path| !own.selected.reached.contains(*path))
+            .cloned(),
+    );
+    // Upstream's project holds every component, so one that is not checked still declares its
+    // globals.
+    roots.extend(req.stand_ins(root).map(|(path, _)| path).filter(|path| {
+        (req.env.script_modules.iter())
+            .any(|extension| path.as_os_str().to_string_lossy().ends_with(extension))
+    }));
+    roots.extend(declarations);
+    roots.extend(req.env.include.iter().cloned());
+    let (own_part, added) = roots.split_at(own_roots);
+    let own_part: HashSet<&PathBuf> = own_part.iter().collect();
+    let adds = added.iter().any(|root| !own_part.contains(root));
+    (roots, adds)
+}
+
+/// Whether the checker reads every file of `layer` but `config` as the disk holds it, as it reads
+/// a file the layer does not hold.
+fn as_on_disk(layer: &Layer, config: &Path) -> bool {
+    let files: Vec<_> = (layer.files.iter())
+        .filter(|(path, _)| *path != config)
+        .collect();
+    let same = rsvelte_kernel::performance::parallel::map(&files, |(path, text)| {
+        std::fs::read(path).is_ok_and(|disk| disk == text.as_bytes())
+    });
+    same.into_iter().all(|same| same)
 }
 
 /// How long opening a project may take before its helpers open it before the check's cost is

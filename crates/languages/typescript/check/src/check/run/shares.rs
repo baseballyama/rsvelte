@@ -63,6 +63,7 @@ impl Helpers {
 
 /// The program, syntactic and semantic findings of `files` in the project of `config`, and the
 /// modules their imports read when `resolve` asks; with the helpers that checked, for a later pass.
+/// `session` checks the project `opened` when given, which took the time given to open.
 /// Every process takes shares of the files from `Shares` until none is left; `session` also asks
 /// for the program and syntactic findings.
 ///
@@ -72,7 +73,7 @@ impl Helpers {
 pub(super) fn check_shares(
     session: &mut Session,
     mut helpers: Helpers,
-    config: &Path,
+    (config, opened): (&Path, Option<(Project, Duration)>),
     layer: &Layer,
     files: &[&Path],
     resolve: Resolve<'_>,
@@ -99,10 +100,14 @@ pub(super) fn check_shares(
         } else {
             Vec::new()
         };
-        let opening = Instant::now();
-        let project = (session.open(&[config], layer)?.into_iter().next())
-            .ok_or("the checker opened no project")?;
-        let open = opening.elapsed();
+        let (project, open) = if let Some(opened) = opened {
+            opened
+        } else {
+            let opening = Instant::now();
+            let project = (session.open(&[config], layer)?.into_iter().next())
+                .ok_or("the checker opened no project")?;
+            (project, opening.elapsed())
+        };
         let program = session.diagnostics(&project, DiagnosticKind::Program, None)?;
         let syntactic = session.diagnostics(&project, DiagnosticKind::Syntactic, Some(files))?;
         let (mut semantic, mut modules) = (Vec::new(), Vec::new());
