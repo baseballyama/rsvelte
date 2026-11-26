@@ -402,3 +402,5 @@ fn first_error_if_any(source: &str) -> Option<(String, u32)> {
     let message = error.message.lines().next().unwrap_or_default().to_owned();
     Some((message, error.span.start_offset))
 }
+
+mod parse_rejections;
