@@ -136,8 +136,14 @@ impl Registry {
     ///
     /// `file` cannot be read.
     pub fn read(&self, file: &std::path::Path, tasks: &[&str]) -> std::io::Result<String> {
-        // Only a file the tasks may read replaced needs its real path.
-        if self.replaced(tasks).next().is_none() {
+        // Only a file the tasks may read replaced needs its real path, which costs a lookup of
+        // each directory of it. The real path ends in the file's own name unless the file is a
+        // link, and a replaced file's real path ends in its name.
+        let name = file.file_name();
+        let named = |replaced: &ReplacedFile| name.is_none() || replaced.path.file_name() == name;
+        let may_be_replaced = self.replaced(tasks).next().is_some()
+            && (self.replaced(tasks).any(named) || std::fs::symlink_metadata(file)?.is_symlink());
+        if !may_be_replaced {
             return std::fs::read_to_string(file);
         }
         let real = crate::source::paths::canonicalize(file)?;
