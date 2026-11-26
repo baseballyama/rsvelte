@@ -410,7 +410,7 @@
 36:1 36:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 37:1 37:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 28565 src/examples/tests/TestCls.svelte	lint.txt
+=== 28503 src/examples/tests/TestCls.svelte	lint.txt
 1:1 183:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -552,7 +552,6 @@
 138:1 138:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 140:1 140:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 141:1 141:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-141:40 141:49 no-unused-vars "'n' is defined but never used."
 142:1 142:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 143:1 143:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 144:1 144:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."

@@ -1,5 +1,5 @@
 # rsvelte pack 1
-=== 26229 src/lib/CodeMirror.svelte	lint.txt
+=== 26026 src/lib/CodeMirror.svelte	lint.txt
 1:1 98:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -75,13 +75,10 @@
 77:1 77:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 79:1 79:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 80:1 80:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-80:21 80:34 no-unused-vars "'value' is defined but never used."
 81:1 81:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 82:1 82:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-82:20 82:36 no-unused-vars "'view' is defined but never used."
 83:1 83:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 84:1 84:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-84:26 84:42 no-unused-vars "'view' is defined but never used."
 85:1 85:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 87:1 87:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 88:1 88:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -176,7 +173,7 @@
 185:1 185:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 187:1 187:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 188:1 188:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-188:9 188:76 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+188:9 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 189:1 189:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 190:1 190:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 191:1 191:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."

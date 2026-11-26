@@ -85,7 +85,7 @@
 
 === 165 demos/playground-lite/src/ToolbarPlayground.svelte	lint.txt
 3:1 54:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-53:9 53:32 no-unused-vars "'settings' is assigned a value but never used."
+53:9 53:17 no-unused-vars "'settings' is assigned a value but never used."
 
 === 3993 demos/playground-lite/src/settings/Settings.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -477,9 +477,8 @@
 16:14 16:68 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
 16:68 16:68 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 950 packages/svelte-lexical/src/lib/components/generic/button/CloseCircleButton.svelte	lint.txt
+=== 888 packages/svelte-lexical/src/lib/components/generic/button/CloseCircleButton.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-3:16 3:33 no-unused-vars "'event' is defined but never used."
 3:23 3:33 no-undef "'MouseEvent' is not defined."
 11:17 11:26 svelte/max-attributes-per-line "'onclick' should be on a new line."
 12:18 12:24 svelte/max-attributes-per-line "'cy' should be on a new line."
@@ -491,10 +490,8 @@
 29:3 29:9 svelte/consistent-selector-style "Selector should select by element type instead of ID"
 33:3 33:9 svelte/consistent-selector-style "Selector should select by element type instead of ID"
 
-=== 3422 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPicker.svelte	lint.txt
+=== 3283 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPicker.svelte	lint.txt
 3:1 78:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-18:17 18:30 no-unused-vars "'value' is defined but never used."
-18:32 18:57 no-unused-vars "'skipHistoryStack' is defined but never used."
 23:48 23:53 svelte/valid-compile "This reference only captures the initial value of `color`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 24:27 24:32 svelte/valid-compile "This reference only captures the initial value of `color`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 25:20 25:34 no-undef "'HTMLDivElement' is not defined."
@@ -530,29 +527,23 @@
 116:35 116:76 svelte/sort-attributes "Attribute 'style' should go before 'class'."
 116:42 116:75 svelte/prefer-style-directive "Can use style directives instead."
 
-=== 580 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDialog.svelte	lint.txt
+=== 382 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDialog.svelte	lint.txt
 1:1 42:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-9:9 9:22 no-unused-vars "'value' is defined but never used."
-9:24 9:49 no-unused-vars "'skipHistoryStack' is defined but never used."
-22:24 22:37 no-unused-vars "'value' is defined but never used."
 47:3 47:22 svelte/no-unused-class-name "Unused class \"modal\"."
 48:5 48:30 svelte/no-unused-class-name "Unused class \"Modal__title\"."
 49:5 49:33 svelte/no-unused-class-name "Unused class \"Modal__content\"."
 50:28 50:52 svelte/max-attributes-per-line "'onChange' should be on a new line."
 
-=== 711 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDropDown.svelte	lint.txt
+=== 572 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDropDown.svelte	lint.txt
 1:1 27:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-15:17 15:30 no-unused-vars "'color' is defined but never used."
-15:32 15:57 no-unused-vars "'skipHistoryStack' is defined but never used."
 32:3 32:20 svelte/sort-attributes "Attribute 'buttonAriaLabel' should go before 'buttonClassName'."
 34:3 34:26 svelte/sort-attributes "Attribute 'disabled' should go before 'title'."
 35:3 35:25 svelte/sort-attributes "Attribute 'stopCloseOnClickSelf' should go before 'title'."
 35:25 35:25 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 36:24 36:34 svelte/max-attributes-per-line "'onChange' should be on a new line."
 
-=== 1154 packages/svelte-lexical/src/lib/components/generic/colorpicker/MoveWrapper.svelte	lint.txt
+=== 1091 packages/svelte-lexical/src/lib/components/generic/colorpicker/MoveWrapper.svelte	lint.txt
 1:1 66:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-8:16 8:46 no-unused-vars "'coords' is defined but never used."
 19:15 19:29 no-undef "'HTMLDivElement' is not defined."
 26:20 26:30 no-undef "'MouseEvent' is not defined."
 38:27 38:37 no-undef "'MouseEvent' is not defined."
@@ -568,17 +559,11 @@
 69:43 69:50 svelte/sort-attributes "Attribute 'style' should go before 'class'."
 69:43 69:50 svelte/require-optimized-style-attribute "It cannot be optimized because style attribute is specified using shorthand."
 
-=== 1440 packages/svelte-lexical/src/lib/components/generic/contextmenu/ContextMenu.svelte	lint.txt
+=== 956 packages/svelte-lexical/src/lib/components/generic/contextmenu/ContextMenu.svelte	lint.txt
 1:1 226:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:56 svelte/max-attributes-per-line "'generics=\"TOption extends MenuOption\"' should be on a new line."
 1:19 1:56 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 27:23 27:34 no-undef "'HTMLElement' is not defined."
-33:7 33:22 no-unused-vars "'option' is defined but never used."
-34:7 34:47 no-unused-vars "'textNodeContainingQuery' is defined but never used."
-35:7 35:28 no-unused-vars "'closeMenu' is defined but never used."
-36:7 36:29 no-unused-vars "'matchingString' is defined but never used."
-58:5 58:66 @typescript-eslint/no-unused-vars "Definition for rule '@typescript-eslint/no-unused-vars' was not found."
-59:11 59:25 no-unused-vars "'matchingString' is assigned a value but never used."
 124:30 124:43 no-undef "'KeyboardEvent' is not defined."
 133:1 133:19 svelte/indent "Expected indentation of 16 spaces but found 18 spaces."
 134:1 134:19 svelte/indent "Expected indentation of 16 spaces but found 18 spaces."
@@ -589,12 +574,11 @@
 187:30 187:43 no-undef "'KeyboardEvent' is not defined."
 207:17 207:30 no-undef "'KeyboardEvent' is not defined."
 
-=== 3449 packages/svelte-lexical/src/lib/components/generic/contextmenu/TypeAheadMenu.svelte	lint.txt
+=== 3382 packages/svelte-lexical/src/lib/components/generic/contextmenu/TypeAheadMenu.svelte	lint.txt
 3:1 290:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:19 3:56 svelte/max-attributes-per-line "'generics=\"TOption extends MenuOption\"' should be on a new line."
 3:19 3:56 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 42:20 42:31 no-undef "'HTMLElement' is not defined."
-44:27 44:44 no-unused-vars "'isInView' is defined but never used."
 52:15 52:23 no-undef "'document' is not defined."
 60:13 60:19 no-undef "'window' is not defined."
 77:36 77:50 no-undef "'ResizeObserver' is not defined."
@@ -634,9 +618,8 @@
 303:5 303:25 svelte/sort-attributes "Attribute 'preselectFirstItem' should go before 'resolution'."
 303:25 303:26 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 572 packages/svelte-lexical/src/lib/components/generic/dialog/ModalDialog.svelte	lint.txt
+=== 510 packages/svelte-lexical/src/lib/components/generic/dialog/ModalDialog.svelte	lint.txt
 1:1 40:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-5:16 5:33 no-unused-vars "'event' is defined but never used."
 5:23 5:33 no-undef "'MouseEvent' is not defined."
 16:15 16:32 no-undef "'HTMLDialogElement' is not defined."
 28:37 28:47 no-undef "'MouseEvent' is not defined."
@@ -687,9 +670,8 @@
 63:3 63:26 svelte/sort-attributes "Attribute 'bind:this' should go before 'class'."
 64:28 64:28 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 1018 packages/svelte-lexical/src/lib/components/generic/input/FileInput.svelte	lint.txt
+=== 956 packages/svelte-lexical/src/lib/components/generic/input/FileInput.svelte	lint.txt
 1:1 17:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-6:16 6:38 no-unused-vars "'files' is defined but never used."
 6:23 6:31 no-undef "'FileList' is not defined."
 19:1 19:29 svelte/no-unused-class-name "Unused class \"Input__wrapper\"."
 20:3 20:40 svelte/no-unused-class-name "Unused class \"Input__label\"."
@@ -702,9 +684,8 @@
 29:5 29:9 svelte/sort-attributes "Attribute 'id' should go before 'type'."
 29:9 29:10 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 1201 packages/svelte-lexical/src/lib/components/generic/input/NumberInput.svelte	lint.txt
+=== 1139 packages/svelte-lexical/src/lib/components/generic/input/NumberInput.svelte	lint.txt
 1:1 21:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-8:18 8:31 no-unused-vars "'value' is defined but never used."
 23:1 23:29 svelte/no-unused-class-name "Unused class \"Input__wrapper\"."
 24:3 24:40 svelte/no-unused-class-name "Unused class \"Input__label\"."
 24:31 24:39 svelte/max-attributes-per-line "'for' should be on a new line."
@@ -719,9 +700,8 @@
 33:5 38:7 svelte/sort-attributes "Attribute 'onchange' should go before 'type'."
 38:7 38:8 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 1201 packages/svelte-lexical/src/lib/components/generic/input/TextInput.svelte	lint.txt
+=== 1139 packages/svelte-lexical/src/lib/components/generic/input/TextInput.svelte	lint.txt
 1:1 21:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-8:18 8:31 no-unused-vars "'value' is defined but never used."
 23:1 23:29 svelte/no-unused-class-name "Unused class \"Input__wrapper\"."
 24:3 24:40 svelte/no-unused-class-name "Unused class \"Input__label\"."
 24:31 24:39 svelte/max-attributes-per-line "'for' should be on a new line."
@@ -1439,12 +1419,9 @@
 67:11 67:32 svelte/sort-attributes "Attribute 'onclick' should go before 'type'."
 67:32 67:32 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 678 packages/svelte-lexical/src/lib/core/Composer.svelte	lint.txt
+=== 487 packages/svelte-lexical/src/lib/core/Composer.svelte	lint.txt
 1:1 17:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
-6:9 6:30 no-unused-vars "'editor' is defined but never used."
-11:15 11:27 no-unused-vars "'error' is defined but never used."
-11:29 11:50 no-unused-vars "'editor' is defined but never used."
 21:1 95:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 58:7 58:20 svelte/valid-compile "This reference only captures the initial value of `initialConfig`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
@@ -1460,13 +1437,12 @@
 104:3 104:10 svelte/require-optimized-style-attribute "It cannot be optimized because style attribute is specified using shorthand."
 105:22 105:22 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 468 packages/svelte-lexical/src/lib/core/Decorator.svelte	lint.txt
+=== 404 packages/svelte-lexical/src/lib/core/Decorator.svelte	lint.txt
 2:1 84:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 35:13 35:18 svelte/prefer-const "'unreg' is never reassigned. Use 'const' instead."
 37:19 37:26 no-unused-vars "'payload' is defined but never used."
 38:23 38:26 svelte/prefer-const "'key' is never reassigned. Use 'const' instead."
 38:28 38:31 svelte/prefer-const "'val' is never reassigned. Use 'const' instead."
-59:23 59:53 no-unused-vars "'props' is defined but never used."
 
 === 1464 packages/svelte-lexical/src/lib/core/NestedComposer.svelte	lint.txt
 3:1 68:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1480,15 +1456,11 @@
 === 90 packages/svelte-lexical/src/lib/core/plugins/AutoFocusPlugin.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 151 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPlugin.svelte	lint.txt
+=== 90 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPlugin.svelte	lint.txt
 1:1 40:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-9:22 9:34 no-unused-vars "'text' is defined but never used."
 
-=== 282 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPluginCore.svelte	lint.txt
+=== 91 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPluginCore.svelte	lint.txt
 1:1 484:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-27:25 27:43 no-unused-vars "'url' is defined but never used."
-27:45 27:67 no-unused-vars "'prevUrl' is defined but never used."
-37:23 37:35 no-unused-vars "'text' is defined but never used."
 
 === 1085 packages/svelte-lexical/src/lib/core/plugins/BlockWithAlignableContents.svelte	lint.txt
 3:1 96:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1586,11 +1558,10 @@
 31:12 31:12 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 33:3 33:22 svelte/no-unused-class-name "Unused class \"text\"."
 
-=== 958 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte	lint.txt
+=== 893 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte	lint.txt
 22:1 73:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 56:1 56:11 svelte/indent "Expected indentation of 12 spaces but found 10 spaces."
 76:21 76:32 no-undef "'HTMLElement' is not defined."
-82:30 82:59 no-unused-vars "'option' is defined but never used."
 87:7 87:75 svelte/no-unused-class-name "Unused class \"typeahead-popover\"."
 87:7 87:75 svelte/no-unused-class-name "Unused class \"component-picker-menu\"."
 87:7 87:75 svelte/no-unused-class-name "Unused class \"svelte-lexical\"."
@@ -1769,10 +1740,8 @@
 1:1 37:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 20:8 20:12 no-unused-vars "'type' is defined but never used."
 
-=== 451 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorCollaborationPlugin.svelte	lint.txt
+=== 322 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorCollaborationPlugin.svelte	lint.txt
 3:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-10:23 10:33 no-unused-vars "'id' is defined but never used."
-10:35 10:62 no-unused-vars "'yjsDocMap' is defined but never used."
 18:24 18:39 svelte/valid-compile "This reference only captures the initial value of `providerFactory`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
 === 89 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorHistoryPlugin.svelte	lint.txt
@@ -1842,11 +1811,10 @@
 397:5 397:22 svelte/sort-attributes "Attribute 'captionsEnabled' should go before 'showCaption'."
 397:22 397:23 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 1266 packages/svelte-lexical/src/lib/core/plugins/Image/ImagePlugin.svelte	lint.txt
+=== 1200 packages/svelte-lexical/src/lib/core/plugins/Image/ImagePlugin.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
-3:15 3:24 no-unused-vars "'DragEvent' is defined but never used."
 5:21 5:25 no-undef "'Node' is not defined."
 14:1 221:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 53:12 53:28 no-undef "'HTMLImageElement' is not defined."
@@ -1865,13 +1833,10 @@
 211:15 211:23 no-undef "'document' is not defined."
 223:1 223:42 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 
-=== 5683 packages/svelte-lexical/src/lib/core/plugins/Image/ImageResizer.svelte	lint.txt
+=== 5493 packages/svelte-lexical/src/lib/core/plugins/Image/ImageResizer.svelte	lint.txt
 3:1 255:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-11:7 11:32 no-unused-vars "'width' is defined but never used."
-12:7 12:33 no-unused-vars "'height' is defined but never used."
 14:25 14:42 no-undef "'HTMLButtonElement' is not defined."
 15:15 15:26 no-undef "'HTMLElement' is not defined."
-19:22 19:35 no-unused-vars "'show' is defined but never used."
 35:26 35:40 no-undef "'HTMLDivElement' is not defined."
 75:29 75:35 svelte/valid-compile "This reference only captures the initial value of `editor`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 77:29 77:37 svelte/valid-compile "This reference only captures the initial value of `maxWidth`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -1942,11 +1907,8 @@
 === 90 packages/svelte-lexical/src/lib/core/plugins/MarkdownShortcut/MarkdownShortcutPlugin.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 285 packages/svelte-lexical/src/lib/core/plugins/OnChangePlugin.svelte	lint.txt
+=== 90 packages/svelte-lexical/src/lib/core/plugins/OnChangePlugin.svelte	lint.txt
 1:1 42:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-15:7 15:31 no-unused-vars "'editorState' is defined but never used."
-16:7 16:28 no-unused-vars "'editor' is defined but never used."
-17:7 17:24 no-unused-vars "'tags' is defined but never used."
 
 === 90 packages/svelte-lexical/src/lib/core/plugins/PlaceHolder.svelte	lint.txt
 1:1 38:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1966,10 +1928,9 @@
 7:1 115:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 66:30 66:43 no-undef "'KeyboardEvent' is not defined."
 
-=== 11385 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenu.svelte	lint.txt
+=== 11320 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenu.svelte	lint.txt
 2:1 2:47 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 3:1 443:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-47:21 47:36 no-unused-vars "'isOpen' is defined but never used."
 48:24 48:35 no-undef "'HTMLElement' is not defined."
 63:20 63:34 no-undef "'HTMLDivElement' is not defined."
 64:30 64:44 svelte/valid-compile "This reference only captures the initial value of `_tableCellNode`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -2222,7 +2183,7 @@
 17:40 17:61 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 32:13 32:27 no-undef "'queueMicrotask' is not defined."
 
-=== 3259 packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte	lint.txt
+=== 3124 packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte	lint.txt
 1:1 658:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 78:23 78:34 no-undef "'HTMLElement' is not defined."
 79:17 79:33 no-undef "'HTMLInputElement' is not defined."
@@ -2233,8 +2194,6 @@
 239:1 239:13 svelte/indent "Expected indentation of 8 spaces but found 12 spaces."
 240:1 240:13 svelte/indent "Expected indentation of 8 spaces but found 12 spaces."
 250:30 250:35 no-undef "'Event' is not defined."
-269:15 269:32 no-unused-vars "'node' is defined but never used."
-269:34 269:58 no-unused-vars "'indentArr' is defined but never used."
 561:17 561:25 no-undef "'document' is not defined."
 566:31 566:38 no-undef "'Element' is not defined."
 572:18 572:26 no-undef "'document' is not defined."
@@ -2289,10 +2248,8 @@
 24:38 24:50 svelte/prefer-style-directive "Can use style directives instead."
 28:7 28:41 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 
-=== 3149 packages/svelte-lexical/src/lib/core/plugins/collaboration/CollaborationPlugin.svelte	lint.txt
+=== 3020 packages/svelte-lexical/src/lib/core/plugins/collaboration/CollaborationPlugin.svelte	lint.txt
 3:1 74:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-24:23 24:33 no-unused-vars "'id' is defined but never used."
-24:35 24:62 no-unused-vars "'yjsDocMap' is defined but never used."
 28:27 28:38 no-undef "'HTMLElement' is not defined."
 48:49 48:57 svelte/valid-compile "This reference only captures the initial value of `username`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 48:59 48:70 svelte/valid-compile "This reference only captures the initial value of `cursorColor`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -2317,14 +2274,12 @@
 91:46 91:53 svelte/sort-attributes "Attribute 'color' should go before 'editor'."
 91:54 91:69 svelte/sort-attributes "Attribute 'awarenessData' should go before 'editor'."
 
-=== 1389 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsCollaboration.svelte	lint.txt
+=== 1194 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsCollaboration.svelte	lint.txt
 3:1 336:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 38:27 38:38 no-undef "'HTMLElement' is not defined."
-60:3 60:64 @typescript-eslint/no-unused-vars "Definition for rule '@typescript-eslint/no-unused-vars' was not found."
-61:7 61:10 no-unused-vars "'doc' is assigned a value but never used."
 61:13 61:19 svelte/valid-compile "This reference only captures the initial value of `docMap`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 61:24 61:26 svelte/valid-compile "This reference only captures the initial value of `id`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
-105:7 105:69 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+105:7 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 126:7 126:15 no-undef "'document' is not defined."
 195:17 195:25 no-undef "'document' is not defined."
 196:43 196:51 no-undef "'document' is not defined."
@@ -2396,9 +2351,8 @@
 128:3 128:15 svelte/sort-attributes "Attribute 'anchorElem' should go before 'editor'."
 129:18 129:19 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 2666 packages/svelte-lexical/src/lib/core/plugins/link/LinkPlugin.svelte	lint.txt
+=== 2604 packages/svelte-lexical/src/lib/core/plugins/link/LinkPlugin.svelte	lint.txt
 1:1 88:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-20:20 20:31 no-unused-vars "'url' is defined but never used."
 55:1 55:13 svelte/indent "Expected indentation of 10 spaces but found 12 spaces."
 56:1 56:13 svelte/indent "Expected indentation of 10 spaces but found 12 spaces."
 57:1 57:15 svelte/indent "Expected indentation of 12 spaces but found 14 spaces."
@@ -2431,9 +2385,8 @@
 84:1 84:13 svelte/indent "Expected indentation of 10 spaces but found 12 spaces."
 85:1 85:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 
-=== 830 packages/svelte-lexical/src/lib/core/plugins/twitter/TweetComponent.svelte	lint.txt
+=== 766 packages/svelte-lexical/src/lib/core/plugins/twitter/TweetComponent.svelte	lint.txt
 1:1 76:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-17:16 17:29 no-unused-vars "'error' is defined but never used."
 31:21 31:35 no-undef "'HTMLDivElement' is not defined."
 39:13 39:19 no-undef "'window' is not defined."
 59:24 59:32 no-undef "'document' is not defined."

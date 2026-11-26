@@ -1416,9 +1416,7 @@
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 171 sites/docs/src/lib/notifications/context.svelte.ts	lint.txt
-8:19 8:34 no-unused-vars "'message' is defined but never used."
-8:36 8:50 no-unused-vars "'title' is defined but never used."
+=== 45 sites/docs/src/lib/notifications/context.svelte.ts	lint.txt
 25:16 25:19 no-undef "'App' is not defined."
 
 === 464 sites/docs/src/lib/settings/context.svelte.ts	lint.txt

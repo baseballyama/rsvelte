@@ -100,13 +100,13 @@
 1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 15:24 15:36 svelte/max-attributes-per-line "'class' should be on a new line."
 
-=== 530 src/lib/bottom-navigation/BottomNavItem.svelte	lint.txt
+=== 524 src/lib/bottom-navigation/BottomNavItem.svelte	lint.txt
 1:1 64:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 35:1 35:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
 36:1 36:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 37:1 37:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 38:1 38:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
-49:3 49:59 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+49:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 
 === 177 src/lib/breadcrumb/Breadcrumb.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -152,9 +152,9 @@
 53:23 53:76 svelte/max-attributes-per-line "'class' should be on a new line."
 57:21 57:74 svelte/max-attributes-per-line "'class' should be on a new line."
 
-=== 5234 src/lib/carousel/Carousel.svelte	lint.txt
+=== 5215 src/lib/carousel/Carousel.svelte	lint.txt
 1:1 184:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-82:5 82:61 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+82:5 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 86:20 86:31 no-undef "'setInterval' is not defined."
 93:18 93:31 no-undef "'clearInterval' is not defined."
 105:20 105:31 no-undef "'HTMLElement' is not defined."
@@ -167,7 +167,7 @@
 113:27 113:37 no-undef "'TouchEvent' is not defined."
 119:29 119:39 no-undef "'MouseEvent' is not defined."
 119:42 119:52 no-undef "'TouchEvent' is not defined."
-121:5 121:67 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+121:5 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 138:15 138:25 no-undef "'MouseEvent' is not defined."
 138:28 138:38 no-undef "'TouchEvent' is not defined."
 139:1 139:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
@@ -836,7 +836,7 @@
 69:7 69:26 svelte/prefer-const "'background' is never reassigned. Use 'const' instead."
 72:22 72:36 no-undef "'HTMLDivElement' is not defined."
 91:7 91:17 no-undef "'setTimeout' is not defined."
-143:31 143:44 no-unused-vars "'_event' is defined but never used."
+143:31 143:37 no-unused-vars "'_event' is defined but never used."
 143:39 143:44 no-undef "'Event' is not defined."
 159:5 159:15 no-undef "'setTimeout' is not defined."
 166:40 166:53 no-undef "'KeyboardEvent' is not defined."
@@ -1201,10 +1201,10 @@
 
 === 2256 src/lib/kanban/KanbanBoard.svelte	lint.txt
 1:1 75:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-10:15 10:36 no-unused-vars "'_card' is defined but never used."
-10:38 10:61 no-unused-vars "'_from' is defined but never used."
-10:63 10:84 no-unused-vars "'_to' is defined but never used."
-11:18 11:40 no-unused-vars "'_col' is defined but never used."
+10:15 10:20 no-unused-vars "'_card' is defined but never used."
+10:38 10:43 no-unused-vars "'_from' is defined but never used."
+10:63 10:66 no-unused-vars "'_to' is defined but never used."
+11:18 11:22 no-unused-vars "'_col' is defined but never used."
 33:30 33:39 no-undef "'DragEvent' is not defined."
 38:31 38:40 no-undef "'DragEvent' is not defined."
 39:46 39:57 no-undef "'HTMLElement' is not defined."
@@ -1305,12 +1305,11 @@
 27:35 27:52 no-undef "'HTMLButtonElement' is not defined."
 33:23 33:50 svelte/max-attributes-per-line "'onclick' should be on a new line."
 
-=== 674 src/lib/navbar/NavLi.svelte	lint.txt
+=== 610 src/lib/navbar/NavLi.svelte	lint.txt
 1:1 36:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 8:7 8:15 svelte/prefer-const "'navState' is never reassigned. Use 'const' instead."
 9:7 9:23 svelte/prefer-const "'navBreakpointCtx' is never reassigned. Use 'const' instead."
 24:31 24:41 no-undef "'MouseEvent' is not defined."
-33:20 33:37 no-unused-vars "'event' is defined but never used."
 33:27 33:37 no-undef "'MouseEvent' is not defined."
 40:33 40:54 svelte/max-attributes-per-line "'onclick' should be on a new line."
 40:33 40:54 svelte/sort-attributes "Attribute 'onclick' should go before 'role'."
@@ -1454,7 +1453,7 @@
 31:29 31:51 svelte/max-attributes-per-line "'stop-color' should be on a new line."
 40:5 40:166 svelte/sort-attributes "Attribute 'd' should go before 'fill'."
 
-=== 2087 src/lib/rating/Rating.svelte	lint.txt
+=== 1967 src/lib/rating/Rating.svelte	lint.txt
 1:1 28:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 22:25 22:31 no-undef "'crypto' is not defined."
 30:21 30:74 svelte/max-attributes-per-line "'class' should be on a new line."
@@ -1462,7 +1461,6 @@
 32:36 32:49 svelte/sort-attributes "Attribute 'iconIndex' should go before 'size'."
 32:50 32:73 svelte/sort-attributes "Attribute 'groupId' should go before 'size'."
 36:5 36:61 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
-37:32 37:33 no-unused-vars "'_' is defined but never used."
 38:20 38:37 svelte/max-attributes-per-line "'fillPercent' should be on a new line."
 38:20 38:37 svelte/sort-attributes "Attribute 'fillPercent' should go before 'size'."
 38:38 38:51 svelte/sort-attributes "Attribute 'iconIndex' should go before 'size'."
@@ -1474,7 +1472,6 @@
 41:70 41:113 svelte/sort-attributes "Attribute 'groupId' should go before 'size'."
 41:78 41:113 svelte/prefer-attribute-interpolation "Prefer attribute interpolation over a template literal."
 43:5 43:61 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
-44:32 44:33 no-unused-vars "'_' is defined but never used."
 45:20 45:35 svelte/max-attributes-per-line "'fillPercent' should be on a new line."
 45:20 45:35 svelte/sort-attributes "Attribute 'fillPercent' should go before 'size'."
 45:36 45:49 svelte/sort-attributes "Attribute 'iconIndex' should go before 'size'."
@@ -2031,7 +2028,7 @@
 39:5 39:49 svelte/sort-attributes "Attribute 'currentSize' should go before 'direction'."
 42:5 42:34 svelte/sort-attributes "Attribute 'onKeyDown' should go before 'onMouseDown'."
 
-=== 2971 src/lib/split-pane/SplitPane.svelte	lint.txt
+=== 2847 src/lib/split-pane/SplitPane.svelte	lint.txt
 1:1 378:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 29:7 29:14 no-undef "'console' is not defined."
 32:7 32:14 no-undef "'console' is not defined."
@@ -2053,7 +2050,6 @@
 245:5 245:11 no-undef "'window' is not defined."
 247:5 247:13 no-undef "'document' is not defined."
 248:5 248:13 no-undef "'document' is not defined."
-251:37 251:50 no-unused-vars "'e' is defined but never used."
 251:40 251:50 no-undef "'MouseEvent' is not defined."
 254:5 254:11 no-undef "'window' is not defined."
 255:5 255:11 no-undef "'window' is not defined."
@@ -2068,7 +2064,6 @@
 274:5 274:55 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
 274:5 274:11 no-undef "'window' is not defined."
 276:5 276:13 no-undef "'document' is not defined."
-279:42 279:55 no-unused-vars "'e' is defined but never used."
 279:45 279:55 no-undef "'TouchEvent' is not defined."
 282:5 282:11 no-undef "'window' is not defined."
 283:5 283:11 no-undef "'window' is not defined."
@@ -2481,15 +2476,13 @@
 1:1 25:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 27:22 27:39 svelte/max-attributes-per-line "'class' should be on a new line."
 
-=== 604 src/lib/uiHelpers.svelte.ts	lint.txt
+=== 476 src/lib/uiHelpers.svelte.ts	lint.txt
 30:39 30:50 no-undef "'HTMLElement' is not defined."
-30:71 30:88 no-unused-vars "'event' is defined but never used."
 30:78 30:88 no-undef "'MouseEvent' is not defined."
 31:27 31:37 no-undef "'MouseEvent' is not defined."
 33:42 33:46 no-undef "'Node' is not defined."
 38:7 38:14 no-undef "'console' is not defined."
 42:3 42:64 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
-45:34 45:51 no-unused-vars "'event' is defined but never used."
 45:41 45:51 no-undef "'MouseEvent' is not defined."
 49:9 49:16 no-undef "'console' is not defined."
 
@@ -2530,7 +2523,7 @@
 44:11 44:209 svelte/sort-attributes "Attribute 'd' should go before 'fill-rule'."
 45:11 45:30 svelte/sort-attributes "Attribute 'clip-rule' should go before 'fill-rule'."
 
-=== 3259 src/lib/utils/Popper.svelte	lint.txt
+=== 3196 src/lib/utils/Popper.svelte	lint.txt
 1:1 234:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 38:7 38:25 svelte/prefer-const "'focusable' is never reassigned. Use 'const' instead."
 42:16 42:27 no-undef "'HTMLElement' is not defined."
@@ -2554,7 +2547,6 @@
 155:7 155:71 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
 166:26 166:37 no-undef "'ToggleEvent' is not defined."
 180:31 180:42 no-undef "'HTMLElement' is not defined."
-181:29 181:38 no-unused-vars "'ev' is defined but never used."
 181:33 181:38 no-undef "'Event' is not defined."
 189:75 189:86 no-undef "'HTMLElement' is not defined."
 190:88 190:99 no-undef "'HTMLElement' is not defined."
@@ -2992,14 +2984,12 @@
 44:47 44:70 svelte/sort-attributes "Attribute 'class' should go before 'href'."
 44:71 44:86 svelte/no-target-blank "Using target=\"_blank\" without rel=\"noopener noreferrer\" is a security risk."
 
-=== 1332 src/routes/admin-dashboard/(sidebar)/Frame.svelte	lint.txt
+=== 1204 src/routes/admin-dashboard/(sidebar)/Frame.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
 25:1 114:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-33:26 33:43 no-unused-vars "'node' is defined but never used."
 33:32 33:43 no-undef "'HTMLElement' is not defined."
-33:45 33:56 no-unused-vars "'params' is defined but never used."
 36:42 36:53 no-undef "'HTMLElement' is not defined."
 44:12 44:23 no-undef "'HTMLElement' is not defined."
 45:18 45:29 no-undef "'HTMLElement' is not defined."
@@ -4287,9 +4277,9 @@
 40:5 40:65 svelte/no-unused-class-name "Unused class \"dark:text-gray-400\"."
 46:22 46:41 svelte/max-attributes-per-line "'section' should be on a new line."
 
-=== 864 src/routes/blocks/utils/CompoAttributesViewer.svelte	lint.txt
+=== 858 src/routes/blocks/utils/CompoAttributesViewer.svelte	lint.txt
 1:1 57:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-28:3 28:59 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+28:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 47:7 47:14 no-undef "'console' is not defined."
 54:7 54:14 no-undef "'console' is not defined."
 61:5 61:31 svelte/require-each-key "Each block should have a key"
@@ -4487,9 +4477,9 @@
 24:3 24:347 svelte/sort-attributes "Attribute 'class' should go before 'onclick'."
 31:3 31:25 svelte/no-unused-class-name "Unused class \"sr-only\"."
 
-=== 13344 src/routes/blocks/utils/ExampleWrapper.svelte	lint.txt
+=== 13338 src/routes/blocks/utils/ExampleWrapper.svelte	lint.txt
 1:1 184:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-26:3 26:59 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+26:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 29:15 29:26 no-undef "'HTMLElement' is not defined."
 30:30 30:44 no-undef "'HTMLDivElement' is not defined."
 33:22 33:25 no-undef "'URL' is not defined."
@@ -8244,7 +8234,7 @@
 === 1101 src/routes/docs-examples/components/banner/Onclose.svelte	lint.txt
 1:1 43:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 10:22 10:34 no-undef "'localStorage' is not defined."
-15:22 15:40 no-unused-vars "'_event' is defined but never used."
+15:22 15:28 no-unused-vars "'_event' is defined but never used."
 15:30 15:40 no-undef "'MouseEvent' is not defined."
 16:7 16:19 no-undef "'localStorage' is not defined."
 22:7 22:19 no-undef "'localStorage' is not defined."
@@ -12444,10 +12434,9 @@
 6:22 6:53 svelte/max-attributes-per-line "'class' should be on a new line."
 6:22 6:53 svelte/sort-attributes "Attribute 'class' should go before 'offset'."
 
-=== 3345 src/routes/docs-examples/components/popover/Password.svelte	lint.txt
+=== 3283 src/routes/docs-examples/components/popover/Password.svelte	lint.txt
 1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 4:37 4:42 no-undef "'Event' is not defined."
-4:49 4:57 no-unused-vars "'event' is defined but never used."
 11:5 11:10 no-undef "'alert' is not defined."
 15:1 15:55 svelte/no-unused-class-name "Unused class \"mb-8\"."
 15:42 15:54 svelte/max-attributes-per-line "'class' should be on a new line."
@@ -18147,9 +18136,8 @@
 53:39 53:51 svelte/sort-attributes "Attribute 'class' should go before 'size'."
 53:52 53:87 svelte/sort-attributes "Attribute 'onclick' should go before 'size'."
 
-=== 976 src/routes/docs-examples/extend/virtual-list/Jump.svelte	lint.txt
+=== 914 src/routes/docs-examples/extend/virtual-list/Jump.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-5:21 5:34 no-unused-vars "'index' is defined but never used."
 12:1 12:24 svelte/no-unused-class-name "Unused class \"space-y-4\"."
 15:24 15:42 svelte/max-attributes-per-line "'minItemHeight' should be on a new line."
 15:43 15:55 svelte/sort-attributes "Attribute 'height' should go before 'items'."
@@ -18330,7 +18318,7 @@
 
 === 3608 src/routes/docs-examples/extend/virtual-masonry/+page.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-17:59 17:73 no-unused-vars "'_index' is defined but never used."
+17:59 17:65 no-unused-vars "'_index' is defined but never used."
 25:1 25:52 svelte/no-unused-class-name "Unused class \"container\"."
 25:1 25:52 svelte/no-unused-class-name "Unused class \"mx-auto\"."
 25:1 25:52 svelte/no-unused-class-name "Unused class \"max-w-5xl\"."
@@ -18381,7 +18369,7 @@
 
 === 3444 src/routes/docs-examples/extend/virtual-masonry/Default.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-16:59 16:73 no-unused-vars "'_index' is defined but never used."
+16:59 16:65 no-unused-vars "'_index' is defined but never used."
 24:1 24:42 svelte/no-unused-class-name "Unused class \"container\"."
 24:1 24:42 svelte/no-unused-class-name "Unused class \"mx-auto\"."
 24:1 24:42 svelte/no-unused-class-name "Unused class \"px-4\"."
@@ -21707,7 +21695,7 @@
 26:5 26:12 no-undef "'console' is not defined."
 30:5 30:12 no-undef "'console' is not defined."
 34:5 34:12 no-undef "'console' is not defined."
-38:36 38:50 no-unused-vars "'_index' is defined but never used."
+38:36 38:42 no-unused-vars "'_index' is defined but never used."
 63:3 63:32 svelte/sort-attributes "Attribute 'onInitStart' should go before 'bind:isLoading'."
 64:3 64:38 svelte/sort-attributes "Attribute 'onInitComplete' should go before 'bind:isLoading'."
 65:3 65:32 svelte/sort-attributes "Attribute 'onInitError' should go before 'bind:isLoading'."
@@ -21717,17 +21705,17 @@
 69:3 69:20 svelte/sort-attributes "Attribute 'selectable' should go before 'bind:isLoading'."
 70:3 70:39 svelte/sort-attributes "Attribute 'dataTableOptions' should go before 'items'."
 
-=== 707 src/routes/docs/plugins/examples/datatable/CustomCellRenderer.svelte	lint.txt
+=== 705 src/routes/docs/plugins/examples/datatable/CustomCellRenderer.svelte	lint.txt
 1:1 171:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-28:43 28:59 no-unused-vars "'_cell' is defined but never used."
-28:61 28:79 no-unused-vars "'_dataIndex' is defined but never used."
-28:81 28:99 no-unused-vars "'_cellIndex' is defined but never used."
-38:82 38:100 no-unused-vars "'_cellIndex' is defined but never used."
-55:61 55:79 no-unused-vars "'_dataIndex' is defined but never used."
-55:81 55:99 no-unused-vars "'_cellIndex' is defined but never used."
-75:63 75:81 no-unused-vars "'_dataIndex' is defined but never used."
-75:83 75:101 no-unused-vars "'_cellIndex' is defined but never used."
-131:46 131:60 no-unused-vars "'_index' is defined but never used."
+28:43 28:48 no-unused-vars "'_cell' is defined but never used."
+28:61 28:71 no-unused-vars "'_dataIndex' is defined but never used."
+28:81 28:91 no-unused-vars "'_cellIndex' is defined but never used."
+38:82 38:92 no-unused-vars "'_cellIndex' is defined but never used."
+55:61 55:71 no-unused-vars "'_dataIndex' is defined but never used."
+55:81 55:91 no-unused-vars "'_cellIndex' is defined but never used."
+75:63 75:73 no-unused-vars "'_dataIndex' is defined but never used."
+75:83 75:93 no-unused-vars "'_cellIndex' is defined but never used."
+131:46 131:52 no-unused-vars "'_index' is defined but never used."
 
 === 89 src/routes/docs/plugins/examples/datatable/DefaultDatatable.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -21764,7 +21752,7 @@
 
 === 414 src/routes/docs/plugins/examples/datatable/SelectingRows.svelte	lint.txt
 1:1 21:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-6:36 6:50 no-unused-vars "'_index' is defined but never used."
+6:36 6:42 no-unused-vars "'_index' is defined but never used."
 23:19 23:26 svelte/max-attributes-per-line "'items' should be on a new line."
 23:19 23:26 svelte/sort-attributes "Attribute 'items' should go before 'selectable'."
 23:27 23:63 svelte/sort-attributes "Attribute 'dataTableOptions' should go before 'selectable'."
@@ -22354,9 +22342,9 @@
 38:97 38:116 svelte/sort-attributes "Attribute 'color' should go before 'size'."
 38:117 38:150 svelte/sort-attributes "Attribute 'onclick' should go before 'size'."
 
-=== 6094 src/routes/landing/Contributors.svelte	lint.txt
+=== 6088 src/routes/landing/Contributors.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-12:3 12:59 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+12:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 14:31 14:42 no-undef "'HTMLElement' is not defined."
 22:3 22:81 svelte/no-unused-class-name "Unused class \"mx-auto\"."
 22:3 22:81 svelte/no-unused-class-name "Unused class \"flex\"."
@@ -22942,9 +22930,9 @@
 === 89 src/routes/landing/utils/Section.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 4811 src/routes/layouts/ComponentsLayout.svelte	lint.txt
+=== 4805 src/routes/layouts/ComponentsLayout.svelte	lint.txt
 1:1 80:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-18:3 18:59 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+18:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 26:7 26:28 svelte/prefer-writable-derived "Prefer using writable $derived instead of $state and $effect"
 66:5 66:13 no-undef "'document' is not defined."
 70:7 70:16 svelte/prefer-const "'spanClass' is never reassigned. Use 'const' instead."
@@ -23005,7 +22993,7 @@
 === 6753 src/routes/layouts/FlowbiteSvelteLayout.svelte	lint.txt
 1:1 66:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 19:7 19:11 svelte/prefer-const "'logo' is never reassigned. Use 'const' instead."
-38:26 38:44 no-unused-vars "'_event' is defined but never used."
+38:26 38:32 no-unused-vars "'_event' is defined but never used."
 68:24 68:49 svelte/max-attributes-per-line "'class' should be on a new line."
 68:24 68:49 svelte/sort-attributes "Attribute 'class' should go before 'color'."
 68:73 68:96 svelte/sort-attributes "Attribute 'onclose' should go before 'bind:open'."
@@ -23094,12 +23082,12 @@
 126:1 126:33 svelte/no-unused-class-name "Unused class \"md:mx-auto\"."
 126:1 126:33 svelte/no-unused-class-name "Unused class \"lg:flex\"."
 
-=== 2145 src/routes/layouts/component/+page.svelte	lint.txt
+=== 2133 src/routes/layouts/component/+page.svelte	lint.txt
 5:12 5:16 no-import-assign "'code' is read-only."
 5:18 5:20 no-import-assign "'h2' is read-only."
 5:22 5:24 no-import-assign "'h3' is read-only."
 8:1 29:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-20:5 20:66 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+20:5 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 31:29 31:36 svelte/max-attributes-per-line "'title' should be on a new line."
 31:37 31:42 svelte/sort-attributes "Attribute 'dir' should go before 'title'."
 31:43 31:56 svelte/sort-attributes "Attribute 'description' should go before 'title'."
@@ -23214,9 +23202,9 @@
 39:1 39:60 svelte/no-unused-class-name "Unused class \"hidden\"."
 39:1 39:60 svelte/no-unused-class-name "Unused class \"sm:block\"."
 
-=== 615 src/routes/utils/CompoAttributesViewer.svelte	lint.txt
+=== 609 src/routes/utils/CompoAttributesViewer.svelte	lint.txt
 1:1 90:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-29:3 29:59 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+29:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 42:9 42:14 no-undef "'fetch' is not defined."
 43:9 43:14 no-undef "'fetch' is not defined."
 80:7 80:14 no-undef "'console' is not defined."
@@ -23806,10 +23794,9 @@
 17:3 19:5 svelte/sort-attributes "Attribute 'facebook' should go before 'title'."
 20:3 34:5 svelte/sort-attributes "Attribute 'openGraph' should go before 'title'."
 
-=== 6985 src/routes/utils/Newsletter.svelte	lint.txt
+=== 6921 src/routes/utils/Newsletter.svelte	lint.txt
 1:1 57:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:37 13:42 no-undef "'Event' is not defined."
-13:49 13:57 no-unused-vars "'event' is defined but never used."
 36:28 36:36 no-undef "'FormData' is not defined."
 38:41 38:47 no-undef "'window' is not defined."
 40:13 40:18 no-undef "'fetch' is not defined."
@@ -23936,7 +23923,7 @@
 59:32 59:122 svelte/sort-attributes "Attribute 'class' should go before 'href'."
 68:3 68:26 svelte/no-unused-class-name "Unused class \"sm:hidden\"."
 
-=== 1662 src/routes/utils/PlusPlaceholder.svelte	lint.txt
+=== 1602 src/routes/utils/PlusPlaceholder.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 15:3 15:90 svelte/no-unused-class-name "Unused class \"flex\"."
 15:3 15:90 svelte/no-unused-class-name "Unused class \"h-24\"."
@@ -23959,7 +23946,6 @@
 24:1 24:41 svelte/no-unused-class-name "Unused class \"grid\"."
 24:1 24:41 svelte/no-unused-class-name "Unused class \"gap-4\"."
 26:3 26:43 svelte/require-each-key "Each block should have a key"
-26:41 26:42 no-unused-vars "'_' is defined but never used."
 
 === 562 src/routes/utils/Seealso.svelte	lint.txt
 1:1 105:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

@@ -3009,7 +3009,7 @@
 15:9 15:67 svelte/sort-attributes "Attribute 'helper' should go before 'bind:value'."
 15:67 15:68 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 27011 src/lib/components/filters/content.svelte	lint.txt
+=== 26891 src/lib/components/filters/content.svelte	lint.txt
 1:1 189:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -3040,7 +3040,6 @@
 29:1 29:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 30:1 30:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 31:1 31:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-32:9 32:64 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
 33:1 33:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 34:1 34:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 35:1 35:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -3807,7 +3806,7 @@
 83:1 83:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 84:1 84:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 17794 src/lib/components/git/DirectoryItem.svelte	lint.txt
+=== 17729 src/lib/components/git/DirectoryItem.svelte	lint.txt
 1:1 81:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -3837,7 +3836,6 @@
 28:1 28:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 29:1 29:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 30:1 30:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-30:21 30:86 no-unused-vars "'detail' is defined but never used."
 31:1 31:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 33:1 33:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 35:1 35:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4018,7 +4016,7 @@
 185:5 185:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
 213:5 213:11 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 7753 src/lib/components/git/DirectoryPicker.svelte	lint.txt
+=== 7623 src/lib/components/git/DirectoryPicker.svelte	lint.txt
 1:1 84:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4041,13 +4039,11 @@
 21:1 21:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 23:1 23:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-23:21 27:10 no-unused-vars "'detail' is defined but never used."
 24:1 24:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 25:1 25:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 26:1 26:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 27:1 27:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 28:1 28:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-28:21 28:49 no-unused-vars "'detail' is defined but never used."
 29:1 29:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 31:1 31:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 32:1 32:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4127,7 +4123,7 @@
 11:9 11:1712 svelte/sort-attributes "Attribute 'd' should go before 'fill'."
 11:1712 11:1713 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 14777 src/lib/components/git/connectRepoModal.svelte	lint.txt
+=== 14633 src/lib/components/git/connectRepoModal.svelte	lint.txt
 1:1 85:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4156,8 +4152,6 @@
 27:1 27:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 28:1 28:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 29:1 29:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-29:20 29:42 no-unused-vars "'installationId' is defined but never used."
-29:44 29:64 no-unused-vars "'repositoryId' is defined but never used."
 30:1 30:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 32:1 32:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 33:1 33:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -4304,7 +4298,7 @@
 158:1 158:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 159:1 159:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 9175 src/lib/components/git/deploymentDomains.svelte	lint.txt
+=== 9112 src/lib/components/git/deploymentDomains.svelte	lint.txt
 1:1 38:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4329,7 +4323,6 @@
 23:1 23:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 24:1 24:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 25:1 25:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-25:19 25:32 no-unused-vars "'show' is defined but never used."
 26:1 26:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 28:1 28:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 29:1 29:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -4580,7 +4573,7 @@
 130:1 130:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 132:1 132:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 32225 src/lib/components/git/repositories.svelte	lint.txt
+=== 32156 src/lib/components/git/repositories.svelte	lint.txt
 1:1 152:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4625,7 +4618,6 @@
 43:1 43:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 44:1 44:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 45:1 45:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-45:20 45:57 no-unused-vars "'repository' is defined but never used."
 46:1 46:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 48:1 48:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 49:1 49:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -5883,7 +5875,7 @@
 31:1 31:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 35:5 35:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 18121 src/lib/components/multiSelectTable.svelte	lint.txt
+=== 17731 src/lib/components/multiSelectTable.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -5892,10 +5884,7 @@
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:1 8:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-8:9 8:51 no-unused-vars "'deleteFn' is defined but never used."
-8:20 8:30 no-unused-vars "'id' is defined but never used."
 9:1 9:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-9:9 9:27 no-unused-vars "'batchSize' is defined but never used."
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 156:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -5936,10 +5925,8 @@
 50:1 50:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 51:1 51:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 52:1 52:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
-52:13 52:41 no-unused-vars "'batchDelete' is defined but never used."
 53:1 53:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 57:1 57:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
-57:13 57:35 no-unused-vars "'selectedRows' is defined but never used."
 58:1 58:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 59:1 59:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 60:1 60:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -5966,7 +5953,6 @@
 88:1 88:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 89:1 89:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 90:1 90:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-90:20 90:30 no-unused-vars "'id' is defined but never used."
 91:1 91:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 92:1 92:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 93:1 93:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -6652,7 +6638,7 @@
 56:1 56:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 57:1 57:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 31050 src/lib/components/permissions/row.svelte	lint.txt
+=== 30987 src/lib/components/permissions/row.svelte	lint.txt
 1:1 148:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -6688,7 +6674,6 @@
 35:1 35:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 36:1 36:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 37:1 37:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-37:23 37:35 no-unused-vars "'role' is defined but never used."
 38:1 38:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 40:1 40:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 42:1 42:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -7278,7 +7263,7 @@
 100:1 100:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 101:1 101:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4996 src/lib/components/sortButton.svelte	lint.txt
+=== 4932 src/lib/components/sortButton.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
@@ -7299,7 +7284,6 @@
 19:1 19:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 21:1 21:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-21:19 21:39 no-unused-vars "'query' is defined but never used."
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 23:1 23:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 25:1 25:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8231,7 +8215,7 @@
 48:1 48:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 48:7 48:8 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
-=== 18942 src/lib/elements/forms/Seekbar.svelte	lint.txt
+=== 18878 src/lib/elements/forms/Seekbar.svelte	lint.txt
 1:1 166:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8265,7 +8249,6 @@
 32:1 32:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 33:1 33:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 34:1 34:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-34:21 34:34 no-unused-vars "'value' is defined but never used."
 35:1 35:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 37:1 37:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 38:1 38:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8465,7 +8448,7 @@
 307:5 307:11 svelte/consistent-selector-style "Selector should select by ID instead of class"
 319:5 319:11 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 6266 src/lib/elements/forms/inputLine.svelte	lint.txt
+=== 5933 src/lib/elements/forms/inputLine.svelte	lint.txt
 1:1 39:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8478,13 +8461,8 @@
 11:1 11:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 12:1 12:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-13:22 13:35 no-unused-vars "'index' is defined but never used."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-14:25 14:38 no-unused-vars "'index' is defined but never used."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-15:25 15:43 no-unused-vars "'pointIndex' is defined but never used."
-15:45 15:63 no-unused-vars "'coordIndex' is defined but never used."
-15:65 15:81 no-unused-vars "'newValue' is defined but never used."
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8545,7 +8523,7 @@
 66:1 66:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 67:1 67:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 5422 src/lib/elements/forms/inputPoint.svelte	lint.txt
+=== 5291 src/lib/elements/forms/inputPoint.svelte	lint.txt
 1:1 28:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8559,8 +8537,6 @@
 12:1 12:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-14:25 14:38 no-unused-vars "'index' is defined but never used."
-14:40 14:56 no-unused-vars "'newValue' is defined but never used."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8614,7 +8590,7 @@
 55:1 55:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 56:1 56:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 5963 src/lib/elements/forms/inputPolygon.svelte	lint.txt
+=== 5498 src/lib/elements/forms/inputPolygon.svelte	lint.txt
 1:1 33:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -8625,20 +8601,13 @@
 9:1 9:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 10:1 10:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 11:1 11:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-11:22 11:35 no-unused-vars "'index' is defined but never used."
 12:1 12:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-12:22 12:35 no-unused-vars "'index' is defined but never used."
 13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-13:25 13:38 no-unused-vars "'index' is defined but never used."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
-15:13 15:30 no-unused-vars "'lineIndex' is defined but never used."
 16:1 16:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
-16:13 16:31 no-unused-vars "'pointIndex' is defined but never used."
 17:1 17:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
-17:13 17:31 no-unused-vars "'coordIndex' is defined but never used."
 18:1 18:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
-18:13 18:29 no-unused-vars "'newValue' is defined but never used."
 19:1 19:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -12962,7 +12931,7 @@
 50:1 50:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 51:1 51:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 12705 src/routes/(console)/organization-[organization]/createMember.svelte	lint.txt
+=== 12642 src/routes/(console)/organization-[organization]/createMember.svelte	lint.txt
 1:1 89:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -12988,7 +12957,6 @@
 24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 25:1 25:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 26:1 26:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-26:22 26:45 no-unused-vars "'team' is defined but never used."
 27:1 27:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 29:1 29:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 31:1 31:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -14050,7 +14018,7 @@
 186:1 186:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 187:1 187:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 12678 src/routes/(console)/organization-[organization]/members/edit.svelte	lint.txt
+=== 12609 src/routes/(console)/organization-[organization]/members/edit.svelte	lint.txt
 1:1 106:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -14081,7 +14049,6 @@
 29:1 29:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 30:1 30:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 31:1 31:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-31:22 31:51 no-unused-vars "'membership' is defined but never used."
 32:1 32:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 34:1 34:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 35:1 35:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -14206,7 +14173,7 @@
 145:24 145:40 svelte/sort-attributes "Attribute 'submissionLoader' should go before 'submit'."
 146:1 146:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 14724 src/routes/(console)/organization-[organization]/projectAccessSelector.svelte	lint.txt
+=== 14657 src/routes/(console)/organization-[organization]/projectAccessSelector.svelte	lint.txt
 1:1 135:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -14291,7 +14258,6 @@
 100:1 100:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 101:1 101:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 101:32 101:75 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
-101:49 101:63 no-unused-vars "'search' is defined but never used."
 102:1 102:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 103:1 103:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 104:1 104:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -14674,14 +14640,13 @@
 46:1 46:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 47:1 47:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 3004 src/routes/(console)/project-[region]-[project]/auth/(providers)/googlePromptPicker.svelte	lint.txt
+=== 2942 src/routes/(console)/project-[region]-[project]/auth/(providers)/googlePromptPicker.svelte	lint.txt
 1:1 30:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:1 6:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 7:1 7:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-7:21 7:55 no-unused-vars "'value' is defined but never used."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -14714,14 +14679,13 @@
 39:1 39:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 40:1 40:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 3165 src/routes/(console)/project-[region]-[project]/auth/(providers)/oidcPromptPicker.svelte	lint.txt
+=== 3103 src/routes/(console)/project-[region]-[project]/auth/(providers)/oidcPromptPicker.svelte	lint.txt
 1:1 31:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:1 6:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 7:1 7:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-7:21 7:53 no-unused-vars "'value' is defined but never used."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -19208,7 +19172,7 @@
 40:1 40:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 41:1 41:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 12089 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/create.svelte	lint.txt
+=== 11897 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/create.svelte	lint.txt
 1:1 118:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -19231,9 +19195,6 @@
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 23:1 23:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 24:1 24:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-24:26 24:36 no-unused-vars "'id' is defined but never used."
-24:38 24:50 no-unused-vars "'name' is defined but never used."
-24:52 24:70 no-unused-vars "'dimension' is defined but never used."
 25:1 25:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 27:1 27:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 29:1 29:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -19594,7 +19555,7 @@
 101:1 101:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 104:1 128:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 27989 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/create.svelte	lint.txt
+=== 27925 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/create.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
@@ -19632,7 +19593,6 @@
 36:1 36:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 37:1 37:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 38:1 38:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-38:25 38:57 no-unused-vars "'index' is defined but never used."
 39:1 39:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 41:1 41:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 42:1 42:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -19932,7 +19892,7 @@
 329:1 329:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 332:1 337:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 5780 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/delete.svelte	lint.txt
+=== 5709 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/delete.svelte	lint.txt
 1:1 60:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -19947,7 +19907,6 @@
 13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-15:27 15:49 no-unused-vars "'selectedKeys' is defined but never used."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -20079,7 +20038,7 @@
 53:1 53:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 54:1 54:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 34753 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/view.svelte	lint.txt
+=== 34621 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/view.svelte	lint.txt
 1:1 190:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -20134,9 +20093,7 @@
 53:1 53:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 54:1 54:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 55:1 55:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-55:25 55:57 no-unused-vars "'index' is defined but never used."
 56:1 56:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-56:27 56:46 no-unused-vars "'indexKeys' is defined but never used."
 57:1 57:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 58:1 58:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 59:1 59:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -20549,7 +20506,7 @@
 46:1 46:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 47:1 47:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 13725 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sheetOptions.svelte	lint.txt
+=== 13463 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/sheetOptions.svelte	lint.txt
 1:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -20630,12 +20587,8 @@
 85:1 85:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 86:1 86:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 87:1 87:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-87:32 87:48 no-unused-vars "'visible' is defined but never used."
 88:1 88:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-88:20 88:60 no-unused-vars "'option' is defined but never used."
-88:62 88:78 no-unused-vars "'columnId' is defined but never used."
 89:1 89:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-89:37 89:49 no-unused-vars "'event' is defined but never used."
 89:44 89:49 no-undef "'Event' is not defined."
 90:1 90:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 92:1 92:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -21187,7 +21140,7 @@
 96:1 96:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 97:1 97:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4733 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/name.svelte	lint.txt
+=== 4663 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/name.svelte	lint.txt
 1:1 41:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -21202,7 +21155,6 @@
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-15:24 15:43 no-unused-vars "'updatedName' is defined but never used."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:37 18:43 svelte/valid-compile "This reference only captures the initial value of `entity`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -21246,7 +21198,7 @@
 58:1 58:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 59:1 59:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 5106 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/permissions.svelte	lint.txt
+=== 5036 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/permissions.svelte	lint.txt
 1:1 49:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -21263,7 +21215,6 @@
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-17:31 17:52 no-unused-vars "'permissions' is defined but never used."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 20:46 20:52 svelte/valid-compile "This reference only captures the initial value of `entity`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -21310,7 +21261,7 @@
 65:45 65:73 svelte/max-attributes-per-line "'on:click' should be on a new line."
 66:1 66:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4952 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/security.svelte	lint.txt
+=== 4878 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/security.svelte	lint.txt
 1:1 46:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -21324,7 +21275,6 @@
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-14:28 14:52 no-unused-vars "'updatedSecurity' is defined but never used."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 17:42 17:48 svelte/valid-compile "This reference only captures the initial value of `entity`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -21373,7 +21323,7 @@
 64:40 64:65 svelte/max-attributes-per-line "'on:click' should be on a new line."
 65:1 65:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 4387 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/status.svelte	lint.txt
+=== 4315 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/settings/status.svelte	lint.txt
 1:1 40:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -21388,7 +21338,6 @@
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-15:26 15:48 no-unused-vars "'updatedStatus' is defined but never used."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:35 18:41 svelte/valid-compile "This reference only captures the initial value of `entity`. Did you mean to reference it inside a derived instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
@@ -21757,7 +21706,7 @@
 135:1 135:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 138:1 150:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 8457 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/options.svelte	lint.txt
+=== 8199 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/options.svelte	lint.txt
 1:1 42:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -21775,17 +21724,13 @@
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-18:37 18:49 no-unused-vars "'event' is defined but never used."
 18:44 18:49 no-undef "'Event' is not defined."
 19:1 19:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-19:44 19:56 no-unused-vars "'event' is defined but never used."
 19:51 19:56 no-undef "'Event' is not defined."
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-20:50 20:62 no-unused-vars "'event' is defined but never used."
 20:57 20:62 no-undef "'Event' is not defined."
 21:1 21:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-22:31 22:47 no-unused-vars "'showing' is defined but never used."
 23:1 23:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 24:1 24:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 25:1 25:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -23153,7 +23098,7 @@
 35:1 35:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 36:1 36:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 7359 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/embeddingModal.svelte	lint.txt
+=== 7290 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/embeddingModal.svelte	lint.txt
 1:1 53:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -23168,7 +23113,6 @@
 13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-15:22 15:42 no-unused-vars "'embeddings' is defined but never used."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 19:1 19:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -23252,7 +23196,7 @@
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 12:5 12:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 4898 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/inputs/displayName.svelte	lint.txt
+=== 4834 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/inputs/displayName.svelte	lint.txt
 1:1 58:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -23269,7 +23213,6 @@
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-17:22 17:34 no-unused-vars "'error' is defined but never used."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 20:9 20:52 svelte/prefer-writable-derived "Prefer using writable $derived instead of $state and $effect"
@@ -24081,7 +24024,7 @@
 66:1 66:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 67:1 67:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 28267 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/indexes/createIndex.svelte	lint.txt
+=== 28203 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/indexes/createIndex.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
@@ -24113,7 +24056,6 @@
 30:1 30:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 31:1 31:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 32:1 32:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-32:25 32:57 no-unused-vars "'index' is defined but never used."
 33:1 33:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 35:1 35:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 36:1 36:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -25422,7 +25364,7 @@
 72:1 72:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 73:1 73:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 75:1 75:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-75:31 75:40 no-unused-vars "'_' is defined but never used."
+75:31 75:32 no-unused-vars "'_' is defined but never used."
 76:1 76:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 77:1 77:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
 78:1 78:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -25885,7 +25827,7 @@
 50:1 50:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 51:1 51:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 19478 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/createColumn.svelte	lint.txt
+=== 19411 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/createColumn.svelte	lint.txt
 1:1 196:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -25931,7 +25873,6 @@
 45:1 45:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 46:1 46:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 47:1 47:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-47:29 47:47 no-unused-vars "'newOrder' is defined but never used."
 48:1 48:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 50:1 50:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 51:1 51:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -26328,7 +26269,7 @@
 149:1 149:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 150:1 150:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 5401 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/cell/edit.svelte	lint.txt
+=== 5215 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/cell/edit.svelte	lint.txt
 1:1 63:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -26349,11 +26290,8 @@
 19:1 19:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 21:1 21:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-21:21 21:43 no-unused-vars "'row' is defined but never used."
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-22:21 22:43 no-unused-vars "'row' is defined but never used."
 23:1 23:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-23:33 23:48 no-unused-vars "'row' is defined but never used."
 24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 26:1 26:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 27:1 27:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -26449,7 +26387,7 @@
 43:1 43:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 44:1 44:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 14406 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/columns/columnItem.svelte	lint.txt
+=== 14337 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/columns/columnItem.svelte	lint.txt
 1:1 64:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -26472,7 +26410,6 @@
 21:1 21:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 23:1 23:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-23:31 23:49 no-unused-vars "'formValues' is defined but never used."
 24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 26:1 26:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 26:9 26:18 svelte/prefer-const "'formStore' is never reassigned. Use 'const' instead."
@@ -27872,7 +27809,7 @@
 390:1 390:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 393:1 397:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 2751 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/relatedRowColumns.svelte	lint.txt
+=== 2682 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/relatedRowColumns.svelte	lint.txt
 1:1 19:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -27888,7 +27825,6 @@
 14:1 14:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-16:30 16:48 no-unused-vars "'formValues' is defined but never used."
 17:1 17:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 21:34 21:39 svelte/max-attributes-per-line "'gap' should be on a new line."
@@ -28120,7 +28056,7 @@
 143:1 143:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 144:1 144:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 14872 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/sheetOptions.svelte	lint.txt
+=== 14610 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/sheetOptions.svelte	lint.txt
 1:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -28202,12 +28138,8 @@
 86:1 86:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 87:1 87:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 88:1 88:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-88:32 88:48 no-unused-vars "'visible' is defined but never used."
 89:1 89:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-89:20 89:60 no-unused-vars "'option' is defined but never used."
-89:62 89:78 no-unused-vars "'columnId' is defined but never used."
 90:1 90:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-90:37 90:49 no-unused-vars "'event' is defined but never used."
 90:44 90:49 no-undef "'Event' is not defined."
 91:1 91:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 93:1 93:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -28399,7 +28331,7 @@
 88:1 88:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 89:1 89:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 10402 src/routes/(console)/project-[region]-[project]/databases/empty.svelte	lint.txt
+=== 10339 src/routes/(console)/project-[region]-[project]/databases/empty.svelte	lint.txt
 1:1 39:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -28423,7 +28355,6 @@
 29:1 29:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 30:1 30:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 31:1 31:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-31:35 31:53 no-unused-vars "'type' is defined but never used."
 32:1 32:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 34:1 34:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 35:1 35:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -39356,7 +39287,7 @@
 481:1 481:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 484:1 500:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 16700 src/routes/(console)/project-[region]-[project]/overview/platforms/llmBanner.svelte	lint.txt
+=== 16635 src/routes/(console)/project-[region]-[project]/overview/platforms/llmBanner.svelte	lint.txt
 1:1 99:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -39395,7 +39326,6 @@
 41:1 41:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 42:1 42:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 43:1 43:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-43:16 43:30 no-unused-vars "'prompt' is defined but never used."
 44:1 44:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 45:1 45:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 46:1 46:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -47222,7 +47152,7 @@
 98:1 98:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 100:1 100:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 102:1 102:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-102:28 102:43 no-unused-vars "'_e' is defined but never used."
+102:28 102:30 no-unused-vars "'_e' is defined but never used."
 102:32 102:43 no-undef "'CustomEvent' is not defined."
 103:1 103:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 104:1 104:13 svelte/indent "Expected indentation of 6 spaces but found 12 spaces."
@@ -48563,7 +48493,7 @@
 35:5 35:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
 55:9 55:22 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 80460 src/routes/(public)/oauth2/consent-card.svelte	lint.txt
+=== 80324 src/routes/(public)/oauth2/consent-card.svelte	lint.txt
 1:1 394:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -48632,8 +48562,6 @@
 68:1 68:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 69:1 69:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 70:1 70:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-70:19 70:41 no-unused-vars "'outcome' is defined but never used."
-70:43 70:63 no-unused-vars "'redirectUrl' is defined but never used."
 71:1 71:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 72:1 72:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 74:1 74:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -50201,7 +50129,7 @@
 107:1 282:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 113:5 113:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 25151 src/routes/(public)/oauth2/resource-selector.svelte	lint.txt
+=== 24897 src/routes/(public)/oauth2/resource-selector.svelte	lint.txt
 1:1 160:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -50227,12 +50155,8 @@
 25:1 25:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 26:1 26:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 27:1 27:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-27:16 27:28 no-unused-vars "'term' is defined but never used."
-27:30 27:44 no-unused-vars "'offset' is defined but never used."
-27:46 27:59 no-unused-vars "'limit' is defined but never used."
 28:1 28:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 29:1 29:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-29:24 29:37 no-unused-vars "'ids' is defined but never used."
 30:1 30:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 31:1 31:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 33:1 33:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."

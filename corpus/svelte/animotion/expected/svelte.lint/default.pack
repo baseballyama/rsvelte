@@ -36,7 +36,7 @@
 35:2 35:74 svelte/no-unused-class-name "Unused class \"hidden\"."
 35:22 35:45 svelte/max-attributes-per-line "'class' should be on a new line."
 
-=== 48817 src/lib/components/code.svelte	lint.txt
+=== 48754 src/lib/components/code.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -76,7 +76,6 @@
 41:1 41:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 42:1 42:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 43:1 43:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-43:10 43:39 no-unused-vars "'self' is defined but never used."
 44:1 44:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 46:1 46:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 47:1 47:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."

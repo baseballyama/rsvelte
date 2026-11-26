@@ -149,13 +149,11 @@
 === 89 src/routes/examples/events/+page.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 3900 src/routes/examples/events/code.svelte	lint.txt
+=== 3773 src/routes/examples/events/code.svelte	lint.txt
 1:1 56:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-10:23 10:36 no-unused-vars "'index' is defined but never used."
-10:38 10:51 no-unused-vars "'item' is defined but never used."
 16:5 16:12 no-undef "'console' is not defined."
 19:7 19:41 svelte/prefer-const "'scrollToProps' is never reassigned. Use 'const' instead."
-37:37 37:47 no-unused-vars "'_item' is defined but never used."
+37:37 37:42 no-unused-vars "'_item' is defined but never used."
 59:1 59:22 svelte/no-unused-class-name "Unused class \"actions\"."
 60:3 60:23 svelte/no-unused-class-name "Unused class \"select\"."
 63:7 69:94 svelte/no-unused-class-name "Unused class \"input\"."
@@ -213,12 +211,10 @@
 === 89 src/routes/examples/positioning/+page.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 3907 src/routes/examples/positioning/code.svelte	lint.txt
+=== 3780 src/routes/examples/positioning/code.svelte	lint.txt
 1:1 67:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-20:23 20:36 no-unused-vars "'index' is defined but never used."
-20:38 20:51 no-unused-vars "'item' is defined but never used."
 30:7 30:41 svelte/prefer-const "'scrollToProps' is never reassigned. Use 'const' instead."
-48:37 48:47 no-unused-vars "'_item' is defined but never used."
+48:37 48:42 no-unused-vars "'_item' is defined but never used."
 69:1 69:22 svelte/no-unused-class-name "Unused class \"actions\"."
 70:3 70:23 svelte/no-unused-class-name "Unused class \"select\"."
 73:7 79:94 svelte/no-unused-class-name "Unused class \"input\"."

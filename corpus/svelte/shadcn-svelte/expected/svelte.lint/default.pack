@@ -5565,7 +5565,7 @@
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3860 docs/src/lib/components/copy-button.svelte	lint.txt
+=== 3854 docs/src/lib/components/copy-button.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5584,7 +5584,7 @@
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-20:2 20:64 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+20:2 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:1 25:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6568,7 +6568,7 @@
 126:1 126:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 127:1 127:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2112 docs/src/lib/components/ethical.svelte	lint.txt
+=== 2106 docs/src/lib/components/ethical.svelte	lint.txt
 1:1 21:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6585,7 +6585,7 @@
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:23 16:29 no-undef "'window' is not defined."
 17:1 17:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-17:4 17:66 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+17:4 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 18:1 18:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 18:5 18:11 no-undef "'window' is not defined."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -8623,7 +8623,7 @@
 15:3 15:33 svelte/no-unused-class-name "Unused class \"2xl:block\"."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 34510 docs/src/lib/components/theme-customizer-code.svelte	lint.txt
+=== 34447 docs/src/lib/components/theme-customizer-code.svelte	lint.txt
 1:1 26:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8642,7 +8642,6 @@
 17:1 17:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-19:21 19:33 no-unused-vars "'text' is defined but never used."
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9348,9 +9347,7 @@
 45:1 45:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 46:1 46:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 123 docs/src/lib/features/design-system/components/design-system-provider-state.svelte.ts	lint.txt
-36:9 36:28 no-unused-vars "'key' is defined but never used."
-37:11 37:30 no-unused-vars "'key' is defined but never used."
+=== 0 docs/src/lib/features/design-system/components/design-system-provider-state.svelte.ts	lint.txt
 
 === 20030 docs/src/lib/features/design-system/components/design-system-provider.svelte	lint.txt
 1:1 259:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -25200,7 +25197,7 @@
 169:1 169:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 170:1 170:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 5451 docs/src/lib/registry/blocks/sidebar-07/components/nav-main.svelte	lint.txt
+=== 5445 docs/src/lib/registry/blocks/sidebar-07/components/nav-main.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -25212,7 +25209,7 @@
 10:1 10:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 11:1 11:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 12:1 12:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-13:4 13:66 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+13:4 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 14:1 14:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 15:1 15:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 16:1 16:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -25266,7 +25263,7 @@
 62:1 62:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 63:1 63:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 6239 docs/src/lib/registry/blocks/sidebar-07/components/nav-projects.svelte	lint.txt
+=== 6233 docs/src/lib/registry/blocks/sidebar-07/components/nav-projects.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -25282,7 +25279,7 @@
 14:1 14:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 15:1 15:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 16:1 16:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-17:4 17:66 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+17:4 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 18:1 18:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -25457,7 +25454,7 @@
 85:1 85:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 86:1 86:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 7830 docs/src/lib/registry/blocks/sidebar-07/components/team-switcher.svelte	lint.txt
+=== 7825 docs/src/lib/registry/blocks/sidebar-07/components/team-switcher.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -25465,7 +25462,7 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:2 9:64 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+9:2 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -25824,7 +25821,7 @@
 177:1 177:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 178:1 178:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 5339 docs/src/lib/registry/blocks/sidebar-08/components/nav-main.svelte	lint.txt
+=== 5333 docs/src/lib/registry/blocks/sidebar-08/components/nav-main.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -25836,7 +25833,7 @@
 10:1 10:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 11:1 11:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 12:1 12:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-13:4 13:66 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+13:4 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 14:1 14:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 15:1 15:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 16:1 16:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -25889,7 +25886,7 @@
 63:1 63:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 64:1 64:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 6239 docs/src/lib/registry/blocks/sidebar-08/components/nav-projects.svelte	lint.txt
+=== 6233 docs/src/lib/registry/blocks/sidebar-08/components/nav-projects.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -25905,7 +25902,7 @@
 14:1 14:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 15:1 15:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 16:1 16:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-17:4 17:66 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+17:4 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 18:1 18:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -27293,7 +27290,7 @@
 76:1 76:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 77:1 77:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 6751 docs/src/lib/registry/blocks/sidebar-10/components/team-switcher.svelte	lint.txt
+=== 6745 docs/src/lib/registry/blocks/sidebar-10/components/team-switcher.svelte	lint.txt
 1:1 21:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -27305,7 +27302,7 @@
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 12:1 12:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-13:4 13:66 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+13:4 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 14:1 14:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 15:1 15:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -37718,7 +37715,7 @@
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4283 docs/src/lib/registry/examples/create/calendar/calendar-with-presets.svelte	lint.txt
+=== 4086 docs/src/lib/registry/examples/create/calendar/calendar-with-presets.svelte	lint.txt
 1:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -37728,9 +37725,7 @@
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-10:2 10:63 @typescript-eslint/no-unused-vars "Definition for rule '@typescript-eslint/no-unused-vars' was not found."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-11:6 11:18 no-unused-vars "'currentMonth' is assigned a value but never used."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -46148,7 +46143,7 @@
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 37812 docs/src/lib/registry/examples/create/elevenlabs/live-waveform.svelte	lint.txt
+=== 37683 docs/src/lib/registry/examples/create/elevenlabs/live-waveform.svelte	lint.txt
 1:1 447:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -46173,9 +46168,7 @@
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 24:1 24:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-24:14 24:26 no-unused-vars "'error' is defined but never used."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-25:20 25:39 no-unused-vars "'stream' is defined but never used."
 25:28 25:39 no-undef "'MediaStream' is not defined."
 26:1 26:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 27:1 27:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -65110,10 +65103,10 @@
 413:3 413:24 svelte/sort-attributes "Attribute 'remixicon' should go before 'tabler'."
 414:1 414:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 23807 docs/src/lib/registry/examples/create/sidebar-inset/sidebar-inset.svelte	lint.txt
+=== 23802 docs/src/lib/registry/examples/create/sidebar-inset/sidebar-inset.svelte	lint.txt
 1:1 139:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:2 2:57 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+2:2 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -77642,7 +77635,7 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 15399 docs/src/lib/registry/ui/chart/chart-tooltip.svelte	lint.txt
+=== 15259 docs/src/lib/registry/ui/chart/chart-tooltip.svelte	lint.txt
 1:1 91:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -77650,9 +77643,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:2 8:64 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+8:2 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:40 9:66 no-unused-vars "'_payload' is defined but never used."
+9:40 9:48 no-unused-vars "'_payload' is defined but never used."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -77679,10 +77672,8 @@
 33:1 33:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 34:1 34:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-35:20 35:82 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+35:20 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 36:1 36:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-36:6 36:16 no-unused-vars "'value' is defined but never used."
-36:18 36:43 no-unused-vars "'payload' is defined but never used."
 37:1 37:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 38:1 38:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 39:1 39:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
@@ -82815,8 +82806,7 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:32 7:46 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
-=== 393 docs/src/lib/registry/ui/sidebar/context.svelte.ts	lint.txt
-20:12 20:25 no-unused-vars "'open' is defined but never used."
+=== 330 docs/src/lib/registry/ui/sidebar/context.svelte.ts	lint.txt
 25:9 25:45 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 29:10 29:67 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 44:30 44:43 no-undef "'KeyboardEvent' is not defined."
@@ -83325,7 +83315,7 @@
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4421 docs/src/lib/registry/ui/sidebar/sidebar-provider.svelte	lint.txt
+=== 4358 docs/src/lib/registry/ui/sidebar/sidebar-provider.svelte	lint.txt
 1:1 36:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -83349,7 +83339,6 @@
 21:35 21:49 no-undef "'HTMLDivElement' is not defined."
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-23:19 23:32 no-unused-vars "'open' is defined but never used."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 27:1 27:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -83436,7 +83425,7 @@
 17:2 17:54 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3936 docs/src/lib/registry/ui/sidebar/sidebar-trigger.svelte	lint.txt
+=== 3876 docs/src/lib/registry/ui/sidebar/sidebar-trigger.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -83450,7 +83439,6 @@
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-14:14 14:27 no-unused-vars "'e' is defined but never used."
 14:17 14:27 no-undef "'MouseEvent' is not defined."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -92729,7 +92717,7 @@
 38:1 38:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 39:1 39:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4969 docs/src/routes/(app)/(layout)/examples/playground/(components)/model-item.svelte	lint.txt
+=== 4905 docs/src/routes/(app)/(layout)/examples/playground/(components)/model-item.svelte	lint.txt
 1:1 37:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -92741,7 +92729,6 @@
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-12:12 12:24 no-unused-vars "'model' is defined but never used."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

@@ -106,11 +106,11 @@
 8:50 8:84 svelte/max-attributes-per-line "'onclick' should be on a new line."
 8:50 8:84 svelte/sort-attributes "Attribute 'onclick' should go before 'title'."
 
-=== 414 apps/docs/src/components/global-opts/globalopts.svelte.ts	lint.txt
+=== 396 apps/docs/src/components/global-opts/globalopts.svelte.ts	lint.txt
 7:61 7:75 no-undef "'HTMLDivElement' is not defined."
-29:3 29:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
-35:3 35:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
-50:3 50:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+29:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
+35:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
+50:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 
 === 91 apps/docs/src/components/global-opts/sltheme.svelte.ts	lint.txt
 1:12 1:26 svelte/prefer-const "'starlightTheme' is never reassigned. Use 'const' instead."
@@ -625,7 +625,7 @@
 1:1 76:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 8:14 8:28 no-undef "'HTMLDivElement' is not defined."
 12:21 12:37 no-undef "'getComputedStyle' is not defined."
-72:5 72:75 no-unused-vars "'event' is defined but never used."
+72:5 72:10 no-unused-vars "'event' is defined but never used."
 72:12 72:22 no-undef "'MouseEvent' is not defined."
 72:42 72:53 no-undef "'EventTarget' is not defined."
 72:56 72:73 no-undef "'HTMLButtonElement' is not defined."
@@ -696,11 +696,11 @@
 17:17 17:25 svelte/sort-attributes "Attribute 'isEven' should go before 'number'."
 17:26 17:35 svelte/sort-attributes "Attribute 'doubled' should go before 'number'."
 
-=== 1217 packages/svelte/src/doclib/Ace.svelte	lint.txt
+=== 1211 packages/svelte/src/doclib/Ace.svelte	lint.txt
 1:1 69:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 10:20 10:34 no-undef "'HTMLDivElement' is not defined."
 16:34 16:48 no-undef "'HTMLDivElement' is not defined."
-22:5 22:67 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+22:5 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 23:7 23:13 no-undef "'window' is not defined."
 71:22 71:33 svelte/max-attributes-per-line "'class:valid' should be on a new line."
 72:20 72:35 svelte/max-attributes-per-line "'bind:this' should be on a new line."
@@ -744,7 +744,7 @@
 10:3 10:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
 20:5 20:11 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 1649 packages/svelte/src/doclib/examples/AllTypes.svelte	lint.txt
+=== 1635 packages/svelte/src/doclib/examples/AllTypes.svelte	lint.txt
 1:1 466:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 55:9 55:12 svelte/prefer-const "'val' is never reassigned. Use 'const' instead."
 55:38 65:6 svelte/require-store-callbacks-use-set-param "Store callbacks must use `set` param."
@@ -754,11 +754,11 @@
 79:5 79:15 no-undef "'setTimeout' is not defined."
 190:14 190:17 no-undef "'URL' is not defined."
 216:62 216:72 no-undef "'setTimeout' is not defined."
-235:11 235:73 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+235:11 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 236:63 236:73 no-undef "'setTimeout' is not defined."
 267:9 - - "Unused eslint-disable directive (no problems were reported from 'no-console')."
 268:9 268:16 no-undef "'console' is not defined."
-280:9 280:71 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+280:9 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 281:13 281:22 no-unassigned-vars "'goof' is always 'undefined' because it's never assigned."
 448:22 448:28 no-undef "'window' is not defined."
 452:18 452:24 no-undef "'window' is not defined."
@@ -767,10 +767,8 @@
 488:3 488:26 svelte/sort-attributes "Attribute 'search' should go before 'values'."
 491:1 491:12 svelte/html-self-closing "Require self-closing on Svelte custom components."
 
-=== 1016 packages/svelte/src/doclib/examples/BasicEditable.svelte	lint.txt
+=== 889 packages/svelte/src/doclib/examples/BasicEditable.svelte	lint.txt
 1:1 55:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-54:17 54:43 no-unused-vars "'name' is defined but never used."
-54:45 54:59 no-unused-vars "'value' is defined but never used."
 57:1 57:23 svelte/no-unused-class-name "Unused class \"col\"."
 63:11 63:38 svelte/no-inline-styles "Found disallowed style attribute."
 63:18 63:37 svelte/prefer-style-directive "Can use style directives instead."
@@ -896,13 +894,12 @@
 12:49 12:98 svelte/sort-attributes "Attribute 'multiLine' should go before 'normal'."
 12:59 12:98 svelte/no-useless-mustaches "Unexpected mustache interpolation with a string literal value."
 
-=== 724 packages/svelte/src/doclib/examples/Other.svelte	lint.txt
+=== 630 packages/svelte/src/doclib/examples/Other.svelte	lint.txt
 1:1 59:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 13:7 13:13 svelte/prefer-const "'frames' is never reassigned. Use 'const' instead."
 29:11 29:23 no-unassigned-vars "'lol' is always 'undefined' because it's never assigned."
 30:1 30:9 svelte/indent "Expected indentation of 6 spaces but found 8 spaces."
-30:9 30:113 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
-30:9 30:113 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+30:9 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions' or '@typescript-eslint/no-explicit-any')."
 61:1 61:23 svelte/no-unused-class-name "Unused class \"flex\"."
 61:1 61:23 svelte/no-unused-class-name "Unused class \"col\"."
 
@@ -915,12 +912,10 @@
 36:3 36:25 svelte/button-has-type "Missing an explicit type attribute for button."
 39:35 39:53 svelte/max-attributes-per-line "'code' should be on a new line."
 
-=== 1150 packages/svelte/src/doclib/examples/Stores.svelte	lint.txt
+=== 1023 packages/svelte/src/doclib/examples/Stores.svelte	lint.txt
 1:1 67:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 11:9 11:30 no-unused-vars "'_globalInspectOptions' is assigned a value but never used."
 13:9 13:19 no-unused-vars "'_setOption' is assigned a value but never used."
-14:17 14:43 no-unused-vars "'name' is defined but never used."
-14:45 14:59 no-unused-vars "'value' is defined but never used."
 18:9 18:12 svelte/prefer-const "'val' is never reassigned. Use 'const' instead."
 18:38 28:6 svelte/require-store-callbacks-use-set-param "Store callbacks must use `set` param."
 20:20 20:26 no-undef "'window' is not defined."
@@ -1016,11 +1011,8 @@
 85:21 85:50 svelte/prefer-style-directive "Can use style directives instead."
 85:51 85:69 svelte/prefer-style-directive "Can use style directives instead."
 
-=== 1268 packages/svelte/src/lib/PanelToolbar.svelte	lint.txt
+=== 1079 packages/svelte/src/lib/PanelToolbar.svelte	lint.txt
 1:1 34:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-16:21 16:31 no-unused-vars "'xPos' is defined but never used."
-16:33 16:43 no-unused-vars "'yPos' is defined but never used."
-17:23 17:52 no-unused-vars "'keys' is defined but never used."
 38:46 38:88 svelte/max-attributes-per-line "'onclick' should be on a new line."
 38:46 38:88 svelte/sort-attributes "Attribute 'onclick' should go before 'title'."
 46:46 46:69 svelte/max-attributes-per-line "'onclick' should be on a new line."
@@ -1048,10 +1040,9 @@
 35:1 35:11 svelte/indent "Expected indentation of 8 spaces but found 10 spaces."
 35:31 36:9 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 
-=== 1394 packages/svelte/src/lib/Resize.svelte	lint.txt
+=== 1325 packages/svelte/src/lib/Resize.svelte	lint.txt
 1:1 84:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 6:10 6:21 no-undef "'HTMLElement' is not defined."
-11:16 11:46 no-unused-vars "'dimensions' is defined but never used."
 24:20 24:27 no-undef "'DOMRect' is not defined."
 30:12 30:22 no-undef "'MouseEvent' is not defined."
 30:42 30:53 no-undef "'EventTarget' is not defined."
@@ -1059,7 +1050,7 @@
 39:31 39:41 no-undef "'MouseEvent' is not defined."
 39:61 39:72 no-undef "'EventTarget' is not defined."
 39:75 39:81 no-undef "'Window' is not defined."
-61:22 61:82 no-unused-vars "'_event' is defined but never used."
+61:22 61:28 no-unused-vars "'_event' is defined but never used."
 61:30 61:40 no-undef "'MouseEvent' is not defined."
 61:60 61:71 no-undef "'EventTarget' is not defined."
 61:74 61:80 no-undef "'Window' is not defined."
@@ -1111,15 +1102,12 @@
 258:33 258:40 no-undef "'console' is not defined."
 259:26 259:27 no-unused-vars "'_' is defined but never used."
 
-=== 625 packages/svelte/src/lib/attachments/update-flash.svelte.ts	lint.txt
-4:24 4:65 no-unused-vars "'flashStyle' is defined but never used."
+=== 424 packages/svelte/src/lib/attachments/update-flash.svelte.ts	lint.txt
 4:45 4:64 no-undef "'CSSStyleDeclaration' is not defined."
 6:33 6:40 no-undef "'Element' is not defined."
 6:43 6:54 no-undef "'HTMLElement' is not defined."
 6:57 6:67 no-undef "'SVGElement' is not defined."
-8:15 8:22 no-unused-vars "'node' is defined but never used."
 20:36 20:47 no-undef "'CustomEvent' is not defined."
-35:13 35:27 no-unused-vars "'HTMLAttributes' is defined but never used."
 35:38 35:49 no-undef "'EventTarget' is not defined."
 35:59 35:73 no-undef "'AriaAttributes' is not defined."
 35:75 35:88 no-undef "'DOMAttributes' is not defined."
@@ -1155,9 +1143,9 @@
 31:3 31:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
 43:5 43:10 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 1218 packages/svelte/src/lib/components/ClassView.svelte	lint.txt
+=== 1204 packages/svelte/src/lib/components/ClassView.svelte	lint.txt
 1:1 21:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-11:3 11:73 @typescript-eslint/no-unsafe-function-type "Definition for rule '@typescript-eslint/no-unsafe-function-type' was not found."
+11:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unsafe-function-type')."
 23:45 23:65 svelte/max-attributes-per-line "'length' should be on a new line."
 25:5 25:32 svelte/no-unused-class-name "Unused class \"value\"."
 31:9 31:22 svelte/sort-attributes "Attribute 'postfix' should go before 'prefix'."
@@ -1171,9 +1159,8 @@
 51:11 51:16 svelte/sort-attributes "Attribute 'key' should go before 'keyPrefix'."
 53:11 53:17 svelte/sort-attributes "Attribute 'path' should go before 'value'."
 
-=== 1010 packages/svelte/src/lib/components/CollapseButton.svelte	lint.txt
+=== 942 packages/svelte/src/lib/components/CollapseButton.svelte	lint.txt
 1:1 47:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-11:17 11:35 no-unused-vars "'collapsed' is defined but never used."
 18:34 18:42 no-unused-vars "'onchange' is assigned a value but never used."
 23:7 23:14 svelte/prefer-const "'options' is never reassigned. Use 'const' instead."
 33:5 33:11 no-undef "'window' is not defined."
@@ -1539,9 +1526,9 @@
 29:34 29:40 svelte/max-attributes-per-line "'path' should be on a new line."
 29:41 29:52 svelte/sort-attributes "Attribute 'key' should go before 'path'."
 
-=== 1665 packages/svelte/src/lib/components/Node.svelte	lint.txt
+=== 1659 packages/svelte/src/lib/components/Node.svelte	lint.txt
 1:1 104:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-35:5 35:67 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+35:5 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 37:9 37:14 svelte/prefer-const "'entry' is never reassigned. Use 'const' instead."
 40:12 40:21 svelte/prefer-const "'component' is never reassigned. Use 'const' instead."
 40:23 40:29 svelte/prefer-const "'propfn' is never reassigned. Use 'const' instead."
@@ -1626,9 +1613,9 @@
 
 === 0 packages/svelte/src/lib/components/Options.svelte	lint.txt
 
-=== 968 packages/svelte/src/lib/components/PromiseView.svelte	lint.txt
+=== 956 packages/svelte/src/lib/components/PromiseView.svelte	lint.txt
 1:1 70:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-61:5 61:73 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+61:5 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 81:7 81:95 svelte/no-unused-class-name "Unused class \"promise\"."
 81:44 81:94 svelte/max-attributes-per-line "'in:fade' should be on a new line."
 87:13 87:23 svelte/sort-attributes "Attribute 'prefix' should go before 'showPreview'."
@@ -1672,9 +1659,8 @@
 43:56 43:61 svelte/sort-attributes "Attribute 'key' should go before 'value'."
 43:62 43:68 svelte/sort-attributes "Attribute 'path' should go before 'value'."
 
-=== 656 packages/svelte/src/lib/components/Row.svelte	lint.txt
+=== 588 packages/svelte/src/lib/components/Row.svelte	lint.txt
 6:1 123:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-27:17 27:35 no-unused-vars "'collapsed' is defined but never used."
 48:29 48:42 no-undef "'KeyboardEvent' is not defined."
 128:3 128:78 svelte/sort-attributes "Attribute 'class' should go before 'data-testid'."
 129:3 129:27 svelte/sort-attributes "Attribute 'aria-disabled' should go before 'data-testid'."
@@ -2029,34 +2015,16 @@
 32:12 32:21 no-undef "'navigator' is not defined."
 35:10 35:19 no-undef "'navigator' is not defined."
 
-=== 1048 packages/svelte/src/lib/options.svelte.ts	lint.txt
-179:12 179:21 no-unused-vars "'t' is defined but never used."
-278:9 278:23 no-unused-vars "'value' is defined but never used."
-279:9 279:21 no-unused-vars "'type' is defined but never used."
-280:9 280:24 no-unused-vars "'path' is defined but never used."
-288:14 288:28 no-unused-vars "'value' is defined but never used."
-288:30 288:42 no-unused-vars "'type' is defined but never used."
-288:44 288:59 no-unused-vars "'path' is defined but never used."
-296:12 296:26 no-unused-vars "'value' is defined but never used."
-296:28 296:40 no-unused-vars "'type' is defined but never used."
-296:42 296:57 no-unused-vars "'path' is defined but never used."
-302:23 302:43 no-unused-vars "'state' is defined but never used."
-481:3 481:41 no-unused-vars "'options' is defined but never used."
+=== 200 packages/svelte/src/lib/options.svelte.ts	lint.txt
 487:17 487:40 no-redeclare "'setGlobalInspectOptions' is already defined."
-487:41 487:73 no-unused-vars "'options' is defined but never used."
 488:17 488:40 no-redeclare "'setGlobalInspectOptions' is already defined."
 492:5 492:12 no-undef "'console' is not defined."
 
-=== 402 packages/svelte/src/lib/state.svelte.ts	lint.txt
-1:1 1:55 @typescript-eslint/no-unused-vars "Definition for rule '@typescript-eslint/no-unused-vars' was not found."
-15:62 15:82 no-unused-vars "'value' is defined but never used."
+=== 96 packages/svelte/src/lib/state.svelte.ts	lint.txt
 40:9 40:16 no-undef "'console' is not defined."
 61:9 61:16 no-undef "'console' is not defined."
-64:31 64:43 no-unused-vars "'path' is defined but never used."
-81:39 81:58 no-unused-vars "'path' is defined but never used."
 
-=== 212 packages/svelte/src/lib/typingbuffer.svelte.ts	lint.txt
-13:23 13:38 no-unused-vars "'scopeId' is defined but never used."
+=== 146 packages/svelte/src/lib/typingbuffer.svelte.ts	lint.txt
 19:7 19:17 no-undef "'setTimeout' is not defined."
 24:5 24:11 no-undef "'window' is not defined."
 25:31 25:37 no-undef "'window' is not defined."
@@ -2067,15 +2035,12 @@
 5:29 5:43 no-undef "'MutationRecord' is not defined."
 7:24 7:40 no-undef "'MutationObserver' is not defined."
 
-=== 755 packages/svelte/src/lib/util/persisted.svelte.ts	lint.txt
+=== 564 packages/svelte/src/lib/util/persisted.svelte.ts	lint.txt
 4:66 4:72 no-undef "'window' is not defined."
-10:15 10:23 no-unused-vars "'value' is defined but never used."
-11:17 11:30 no-unused-vars "'value' is defined but never used."
 19:55 19:61 no-undef "'Window' is not defined."
 19:84 19:91 no-undef "'Storage' is not defined."
 53:14 53:26 no-undef "'VoidFunction' is not defined."
 54:11 54:23 no-undef "'VoidFunction' is not defined."
-55:15 55:35 no-unused-vars "'root' is defined but never used."
 90:14 90:21 no-undef "'Storage' is not defined."
 91:16 91:28 no-undef "'VoidFunction' is not defined."
 92:12 92:24 no-undef "'VoidFunction' is not defined."
@@ -2083,12 +2048,12 @@
 166:7 166:14 no-undef "'console' is not defined."
 177:7 177:14 no-undef "'console' is not defined."
 
-=== 3476 packages/svelte/src/routes/(app)/+layout.svelte	lint.txt
+=== 3469 packages/svelte/src/routes/(app)/+layout.svelte	lint.txt
 1:1 246:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 229:29 229:42 no-undef "'KeyboardEvent' is not defined."
 229:62 229:73 no-undef "'EventTarget' is not defined."
 229:76 229:82 no-undef "'Window' is not defined."
-238:3 238:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+238:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 245:7 245:21 svelte/prefer-const "'wiggleOnUpdate' is never reassigned. Use 'const' instead."
 251:3 251:88 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
 273:27 273:44 svelte/max-attributes-per-line "'href' should be on a new line."
@@ -2440,9 +2405,9 @@
 22:36 22:43 svelte/sort-attributes "Attribute 'boolean' should go before 'we'."
 22:44 22:49 svelte/sort-attributes "Attribute 'props' should go before 'we'."
 
-=== 1792 packages/svelte/src/routes/(app)/testing/search/+page.svelte	lint.txt
+=== 1787 packages/svelte/src/routes/(app)/testing/search/+page.svelte	lint.txt
 1:1 42:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-8:3 8:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+8:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 17:7 17:17 svelte/prefer-const "'otherStuff' is never reassigned. Use 'const' instead."
 44:1 47:6 svelte/button-has-type "Missing an explicit type attribute for button."
 47:5 47:5 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."

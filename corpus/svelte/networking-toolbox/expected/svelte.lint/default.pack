@@ -17,15 +17,10 @@
 15:7 15:34 svelte/no-unused-class-name "Unused class \"error-content\"."
 16:37 16:46 svelte/max-attributes-per-line "'size' should be on a new line."
 
-=== 1270 src/lib/components/common/ExamplesCard.svelte	lint.txt
+=== 946 src/lib/components/common/ExamplesCard.svelte	lint.txt
 1:1 24:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:59 svelte/max-attributes-per-line "'generics=\"T extends Record<string, any>\"' should be on a new line."
 1:19 1:59 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
-8:16 8:26 no-unused-vars "'example' is defined but never used."
-8:28 8:41 no-unused-vars "'index' is defined but never used."
-10:16 10:26 no-unused-vars "'example' is defined but never used."
-11:22 11:32 no-unused-vars "'example' is defined but never used."
-12:19 12:29 no-unused-vars "'example' is defined but never used."
 26:1 26:33 svelte/no-unused-class-name "Unused class \"card\"."
 26:1 26:33 svelte/no-unused-class-name "Unused class \"examples-card\"."
 27:3 27:37 svelte/no-unused-class-name "Unused class \"examples-details\"."
@@ -421,11 +416,10 @@
 486:5 486:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
 504:5 504:27 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 1480 src/lib/components/global/SegmentedControl.svelte	lint.txt
+=== 1416 src/lib/components/global/SegmentedControl.svelte	lint.txt
 1:1 69:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:46 svelte/max-attributes-per-line "'generics=\"T extends string\"' should be on a new line."
 1:19 1:46 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
-16:17 16:25 no-unused-vars "'value' is defined but never used."
 23:25 23:39 no-undef "'HTMLDivElement' is not defined."
 36:7 36:28 no-undef "'requestAnimationFrame' is not defined."
 39:48 39:65 no-undef "'HTMLButtonElement' is not defined."
@@ -442,11 +436,10 @@
 87:11 87:39 svelte/no-unused-class-name "Unused class \"segment-label\"."
 94:1 167:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 1701 src/lib/components/global/ToolContentContainer.svelte	lint.txt
+=== 1637 src/lib/components/global/ToolContentContainer.svelte	lint.txt
 1:1 79:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:46 svelte/max-attributes-per-line "'generics=\"T extends string\"' should be on a new line."
 1:19 1:46 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
-23:20 23:28 no-unused-vars "'value' is defined but never used."
 43:36 43:42 no-undef "'window' is not defined."
 59:5 59:56 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
 59:5 59:11 no-undef "'window' is not defined."
@@ -1046,7 +1039,7 @@
 1:1 441:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 56:7 56:23 no-unused-vars "'_selectedExample' is assigned a value but never used."
 58:7 58:20 no-unused-vars "'_userModified' is assigned a value but never used."
-230:5 230:26 no-unused-vars "'_prefixLength' is defined but never used."
+230:5 230:18 no-unused-vars "'_prefixLength' is defined but never used."
 273:40 273:53 no-unused-vars "'_prefixLength' is assigned a value but never used."
 451:5 451:39 svelte/no-unused-class-name "Unused class \"examples-details\"."
 452:7 452:41 svelte/no-unused-class-name "Unused class \"examples-summary\"."
@@ -1423,9 +1416,9 @@
 455:1 862:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 492:3 492:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 5505 src/lib/components/tools/DHCPOption119Builder.svelte	lint.txt
+=== 5492 src/lib/components/tools/DHCPOption119Builder.svelte	lint.txt
 1:1 288:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-100:7 100:75 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+100:7 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 271:1 271:9 svelte/indent "Expected indentation of 10 spaces but found 8 spaces."
 292:3 292:175 svelte/sort-attributes "Attribute 'description' should go before 'title'."
 293:3 293:27 svelte/sort-attributes "Attribute 'navOptions' should go before 'title'."
@@ -1490,9 +1483,9 @@
 807:3 807:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
 818:3 818:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 6343 src/lib/components/tools/DHCPOption121Builder.svelte	lint.txt
+=== 6330 src/lib/components/tools/DHCPOption121Builder.svelte	lint.txt
 1:1 310:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-110:7 110:75 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+110:7 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 290:1 290:9 svelte/indent "Expected indentation of 10 spaces but found 8 spaces."
 291:1 291:11 svelte/indent "Expected indentation of 12 spaces but found 10 spaces."
 292:1 292:13 svelte/indent "Expected indentation of 14 spaces but found 12 spaces."
@@ -1567,9 +1560,9 @@
 871:3 871:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
 882:3 882:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 8017 src/lib/components/tools/DHCPOption150Builder.svelte	lint.txt
+=== 8004 src/lib/components/tools/DHCPOption150Builder.svelte	lint.txt
 1:1 345:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-132:7 132:75 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+132:7 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 322:1 322:9 svelte/indent "Expected indentation of 10 spaces but found 8 spaces."
 323:1 323:11 svelte/indent "Expected indentation of 12 spaces but found 10 spaces."
 324:1 324:11 svelte/indent "Expected indentation of 12 spaces but found 10 spaces."
@@ -1796,10 +1789,10 @@
 745:5 745:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
 768:7 768:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 4994 src/lib/components/tools/DHCPOption82Builder.svelte	lint.txt
+=== 4981 src/lib/components/tools/DHCPOption82Builder.svelte	lint.txt
 1:1 267:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 24:7 24:13 svelte/prefer-const "'config' is never reassigned. Use 'const' instead."
-130:7 130:75 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+130:7 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 247:1 247:9 svelte/indent "Expected indentation of 10 spaces but found 8 spaces."
 248:1 248:9 svelte/indent "Expected indentation of 10 spaces but found 8 spaces."
 249:1 249:9 svelte/indent "Expected indentation of 10 spaces but found 8 spaces."
@@ -9332,13 +9325,8 @@
 === 89 src/routes/ip-address-convertor/ipv6/teredo/+page.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 5429 src/routes/ip-address-convertor/mac-address/+page.svelte	lint.txt
+=== 5129 src/routes/ip-address-convertor/mac-address/+page.svelte	lint.txt
 1:1 237:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-10:22 10:44 no-unused-vars "'c' is defined but never used."
-11:14 11:36 no-unused-vars "'c' is defined but never used."
-14:19 14:41 no-unused-vars "'c' is defined but never used."
-15:18 15:40 no-unused-vars "'c' is defined but never used."
-16:16 16:38 no-unused-vars "'c' is defined but never used."
 35:7 35:19 svelte/prefer-const "'copiedStates' is never reassigned. Use 'const' instead."
 194:13 194:22 no-undef "'navigator' is not defined."
 196:7 196:17 no-undef "'setTimeout' is not defined."

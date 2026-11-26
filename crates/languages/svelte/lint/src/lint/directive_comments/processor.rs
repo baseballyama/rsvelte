@@ -6,7 +6,7 @@ use rsvelte_lint_runner::finding::Finding;
 use rsvelte_svelte_syntax::syntax_tree::Component;
 use rustc_hash::{FxHashMap, FxHashSet};
 
-use super::{Kind, markup_directives};
+use super::{Kind, markup_directives, rule_named};
 use crate::pattern::Pattern;
 
 /// Which rules a directive of the processor applies to.
@@ -216,7 +216,12 @@ pub(crate) fn template<'a>(
             directive
                 .rules
                 .iter()
-                .map(|rule| (Target::Rule(rule.text(source)), rule.start_offset))
+                .map(|rule| {
+                    (
+                        Target::Rule(rule_named(rule.text(source))),
+                        rule.start_offset,
+                    )
+                })
                 .collect()
         };
         for (target, define) in targets {

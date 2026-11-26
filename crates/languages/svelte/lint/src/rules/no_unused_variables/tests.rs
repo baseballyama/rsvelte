@@ -66,6 +66,42 @@ fn a_name_used_only_in_types_is_used() {
     );
 }
 
+// Expected value from the oracle (tools/oracle svelte.lint on this input): a signature's
+// parameter is used, and a report covers the name without its annotation.
+#[test]
+fn a_signature_parameter_is_used() {
+    let got = lint(
+        "<script lang=\"ts\">\n\tlet { cb }: { cb: (mode: string) => void } = $props();\
+         \n\tfunction f(x: number) {}\n\tf(1);\n\tcb('a');\n</script>",
+    );
+    let want = "\"findings\": [\
+                    \n\t\t{\
+                    \n\t\t\t\"rule\": \"no-unused-vars\",\
+                    \n\t\t\t\"message\": \"'x' is defined but never used.\",\
+                    \n\t\t\t\"start\": {\n\t\t\t\t\"line\": 3,\n\t\t\t\t\"column\": 13\n\t\t\t},\
+                    \n\t\t\t\"end\": {\n\t\t\t\t\"line\": 3,\n\t\t\t\t\"column\": 14\n\t\t\t}\
+                    \n\t\t}\
+                    \n\t]\n}\n";
+    assert!(got.ends_with(want), "{got}");
+}
+
+// Expected values from the oracle (tools/oracle svelte.lint on this input), which names the rule
+// as typescript-eslint does.
+#[test]
+fn a_directive_names_the_rule_as_typescript_eslint_does() {
+    let disable = "// eslint-disable-next-line @typescript-eslint/no-unused-vars";
+    assert_eq!(
+        unused(&format!(
+            "<script lang=\"ts\">\n\t{disable}\n\tlet a = 1;\n\t{disable}\n\tlet b = 1;\
+             \n\tconsole.log(b);\n</script>"
+        )),
+        [
+            "Unused eslint-disable directive (no problems were reported from \
+             '@typescript-eslint/no-unused-vars')."
+        ]
+    );
+}
+
 // Expected value from the oracle (tools/oracle svelte.lint on this input).
 #[test]
 fn exported_declarations_are_not_unused() {
