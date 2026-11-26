@@ -22,13 +22,11 @@ fn fixtures() -> rsvelte_test_harness::Fixtures {
     let packages = NodePackages::locate();
     let configuration = Configuration {
         check: Some(TypeCheckConfiguration {
-            tsc: rsvelte_typescript_check::Tsc {
-                checker: checker(&packages),
-                tsconfig: Some(
-                    concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into(),
-                ),
-                processes: None,
-            },
+            tsc: rsvelte_typescript_check::Tsc::new(
+                checker(&packages),
+                Some(concat!(env!("CARGO_MANIFEST_DIR"), "/tests/fixtures/tsconfig.json").into()),
+                None,
+            ),
             content_mapper: rsvelte_test_harness::content_mapper(),
             svelte: packages.package("svelte"),
         }),

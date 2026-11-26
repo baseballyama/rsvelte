@@ -2,7 +2,7 @@ use oxc_ast::ast::Expression;
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_tree::{Acorn, ExpressionIdentifier, SyntaxError};
+use rsvelte_typescript_tree::{ExpressionIdentifier, SyntaxError};
 
 use super::identifier::identifier_len;
 use super::{ParseResult, Parser, javascript_error, svelte_error};
@@ -41,7 +41,7 @@ impl<'a> Parser<'a, '_> {
             {
                 Ok(read) => read,
                 Err(error) => {
-                    let Some(Acorn::Stops(stop)) = error.acorn else {
+                    let Some(stop) = error.acorn_stops_at else {
                         return Err(javascript_failure(error));
                     };
                     // Acorn's expression ends where it stops, and the template goes on from there.
@@ -93,17 +93,13 @@ impl<'a> Parser<'a, '_> {
     }
 }
 
-/// Upstream's error for `error`, which acorn reports in its own words.
+/// Svelte's error for `error`: where acorn stops, or oxc's error in its own words.
 #[cold]
 #[must_use]
 pub fn javascript_failure(error: SyntaxError) -> Diagnostic {
-    match error.acorn {
-        Some(Acorn::Stops(at)) => unexpected_token(at),
-        Some(Acorn::Fails { message, at } | Acorn::FailsLater { message, at, .. }) => {
-            svelte_error("js_parse_error", message, Span::new(at, at))
-        }
-        None => javascript_error(error.into()),
-    }
+    error
+        .acorn_stops_at
+        .map_or_else(|| javascript_error(error.into()), unexpected_token)
 }
 
 /// Acorn's error at a token it cannot read.

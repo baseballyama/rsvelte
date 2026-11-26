@@ -108,11 +108,10 @@ fn read_in_template(c: &Component, rejected: &SyntaxError) -> bool {
             walk::walk_arrow_function_expression(self, it);
         }
     }
-    if rejected.typescript_code != Some(DUPLICATE_IDENTIFIER) {
+    let Some(second) = rejected.redeclared_at else {
         return false;
-    }
-    // oxc labels the first declaration, and acorn reports the second.
-    let (first, second) = (rejected.diagnostic.span.start_offset, rejected.acorn_at());
+    };
+    let first = rejected.diagnostic.span.start_offset;
     let in_script = c
         .scripts()
         .any(|script| script.content.start_offset <= second && second <= script.content.end_offset);

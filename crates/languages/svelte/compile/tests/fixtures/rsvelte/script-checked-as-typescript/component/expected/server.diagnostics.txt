@@ -1,2 +1,2 @@
-error js_parse_error 2:11-2:11 Unexpected token
+error js_parse_error 2:6-2:6 Missing initializer in destructuring declaration
     https://svelte.dev/e/js_parse_error

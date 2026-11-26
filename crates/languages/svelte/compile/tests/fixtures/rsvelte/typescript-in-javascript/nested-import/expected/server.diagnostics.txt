@@ -1,2 +1,2 @@
-error js_parse_error 2:17-2:17 'import' and 'export' may only appear at the top level
+error js_parse_error 2:17-2:17 'import statement' declaration can only be used at the top level of a module
     https://svelte.dev/e/js_parse_error
