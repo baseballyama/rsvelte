@@ -310,8 +310,15 @@ impl Emitter {
             prev_source_text_column = i64::from(s_column);
             // Each later character of the line moves both columns alike.
             let units = line_segments(&mut json, line);
-            prev_gen_column += units;
-            prev_source_text_column += units;
+            prev_gen_column += i64::from(units);
+            prev_source_text_column += i64::from(units);
+            // A copied line is the same text on both sides, so both cursors step over it alike.
+            if let Some(last) = line.chars().next_back() {
+                let units =
+                    (last != '\n').then(|| units + if u32::from(last) > 0xFFFF { 2 } else { 1 });
+                generated_cursor.step_over(line.len() as u32, units);
+                source_cursor.step_over(line.len() as u32, units);
+            }
         });
         json.push_str("\"}");
         json
@@ -320,7 +327,7 @@ impl Emitter {
 
 /// Writes a segment for each character of `line` after its first, one step of the UTF-16 units
 /// of the character before, and returns the units: `,CAAC` for one unit and `,EAAE` for two.
-fn line_segments(json: &mut String, line: &str) -> i64 {
+fn line_segments(json: &mut String, line: &str) -> u32 {
     const ASCII: &str =
         ",CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC";
     // A line is part of the output, whose offsets are u32.
@@ -333,7 +340,7 @@ fn line_segments(json: &mut String, line: &str) -> i64 {
             json.push_str(&ASCII[..n * 5]);
             left -= n;
         }
-        return i64::from(steps);
+        return steps;
     }
     let mut units = 0;
     let mut chars = line.chars().peekable();
