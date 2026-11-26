@@ -1,7 +1,5 @@
-//! oxc's syntax errors as the document's diagnostics, keeping what acorn reports for each, for a
-//! host that reports as acorn does.
-
-use std::borrow::Cow;
+//! oxc's syntax errors as the document's diagnostics, with where acorn's expression ends for a
+//! host whose parser is acorn.
 
 pub use locator::Locator;
 use locator::{Find, locate};
@@ -10,33 +8,20 @@ use oxc_parser::Token;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
-/// A syntax error, and what acorn reports for it when oxc's code says.
+/// A syntax error, in oxc's words.
 #[derive(Clone, Debug)]
 pub struct SyntaxError {
     pub diagnostic: Diagnostic,
-    pub acorn: Option<Acorn>,
+    /// Where acorn, which reads no TypeScript, ends the expression before the text oxc rejected:
+    /// at a type assertion's keyword, or inside a number it reads shorter. A template goes on
+    /// from there, and a program fails there with "Unexpected token".
+    pub acorn_stops_at: Option<u32>,
     /// The number of tsc's diagnostic for it, when oxc gives one.
     pub typescript_code: Option<u32>,
+    /// For a name declared twice, where the second declaration is, which oxc labels second.
+    pub redeclared_at: Option<u32>,
     /// Where typescript-eslint throws it, when that is not where oxc labels it.
     pub typescript_eslint_at: Option<u32>,
-}
-
-/// What acorn, which knows no TypeScript, does with the text oxc rejected.
-#[derive(Clone, Debug, PartialEq, Eq)]
-pub enum Acorn {
-    /// Its expression ends before `at`, where TypeScript-only syntax or a token acorn reads apart
-    /// starts; a program fails there with "Unexpected token".
-    Stops(u32),
-    /// It fails at `at` with `message`.
-    Fails { message: Cow<'static, str>, at: u32 },
-    /// It fails at `at` with `message` once it has read on to `raised`: a check of a function's
-    /// parameters, which acorn makes at the start of its block body or the end of its expression
-    /// body.
-    FailsLater {
-        message: Cow<'static, str>,
-        at: u32,
-        raised: u32,
-    },
 }
 
 impl From<SyntaxError> for Diagnostic {
@@ -62,8 +47,9 @@ pub fn syntax_error(
                 "invalid syntax",
                 Span::new(fallback, fallback),
             ),
-            acorn: None,
+            acorn_stops_at: None,
             typescript_code: None,
+            redeclared_at: None,
             typescript_eslint_at: None,
         };
     };
@@ -76,22 +62,13 @@ pub fn syntax_error(
     );
     SyntaxError {
         diagnostic: Diagnostic::error("parse_error", error.message.to_string(), span),
-        acorn: acorn(&error, text, (tokens, None), |_| {}).map(|acorn| acorn.shifted(shift)),
+        acorn_stops_at: acorn_stop(&error, text, (tokens, None), |_| {}).map(|at| at + shift),
         typescript_code: typescript_code(&error),
+        redeclared_at: (typescript_code(&error) == Some(2300))
+            .then(|| error.labels.get(1).map(|label| label.offset() + shift))
+            .flatten(),
         typescript_eslint_at: None,
     }
-}
-
-/// [`syntax_error`] for an error of the analysis of a whole document, whose nodes `visit` hands
-/// to [`Locator::enter`] in the order they were walked.
-pub fn analysis_error(
-    error: &OxcDiagnostic,
-    text: &str,
-    visit: impl FnOnce(&mut Locator),
-) -> SyntaxError {
-    let mut syntax_error = syntax_error([error.clone()], text, &[], 0, 0);
-    syntax_error.acorn = acorn(error, text, (&[], None), visit);
-    syntax_error
 }
 
 /// The number of `error`'s tsc diagnostic.
@@ -103,48 +80,18 @@ pub(crate) fn typescript_code(error: &OxcDiagnostic) -> Option<u32> {
 }
 
 impl SyntaxError {
-    /// Where acorn reports this error: where it stops, or oxc's place when its code does not say.
+    /// Where the error is reported: where acorn stops, or where oxc labels it.
     #[must_use]
-    pub const fn acorn_at(&self) -> u32 {
-        match self.acorn {
-            Some(Acorn::Stops(at) | Acorn::Fails { at, .. } | Acorn::FailsLater { at, .. }) => at,
+    pub const fn reported_at(&self) -> u32 {
+        match self.acorn_stops_at {
+            Some(at) => at,
             None => self.diagnostic.span.start_offset,
-        }
-    }
-
-    /// How far acorn has read when it raises this error, which orders the errors it meets.
-    #[must_use]
-    pub const fn acorn_raised_at(&self) -> u32 {
-        match self.acorn {
-            Some(Acorn::FailsLater { raised, .. }) => raised,
-            _ => self.acorn_at(),
-        }
-    }
-}
-
-impl Acorn {
-    pub(crate) fn shifted(self, shift: u32) -> Self {
-        match self {
-            Self::Stops(at) => Self::Stops(at + shift),
-            Self::Fails { message, at } => Self::Fails {
-                message,
-                at: at + shift,
-            },
-            Self::FailsLater {
-                message,
-                at,
-                raised,
-            } => Self::FailsLater {
-                message,
-                at: at + shift,
-                raised: raised + shift,
-            },
         }
     }
 }
 
 mod acorn_rejection;
-pub(crate) use acorn_rejection::{acorn, lexer_failure, reported, shorter_number};
+pub(crate) use acorn_rejection::{acorn_stop, lexer_failure, reported, shorter_number};
 mod locator;
 mod readers;
 mod unreserved;

@@ -1,7 +1,7 @@
 use oxc_span::SourceType;
 use rsvelte_kernel::source::positions::Span;
 
-use crate::{Acorn, Tree, TypeScriptReader};
+use crate::{Tree, TypeScriptReader};
 
 /// Where acorn stops in `text`, a module read as acorn reads it: at a syntax error the part
 /// reports, or where the tree shows syntax acorn rejects.
@@ -14,19 +14,17 @@ fn acorn_stops_at(text: &str, source_type: SourceType) -> Option<(String, u32)> 
             .program(range, source_type)
             .map(drop)
             .map_err(|error| {
-                failed = Some(error.acorn.clone());
+                let diagnostic = &error.diagnostic;
+                failed = Some((diagnostic.message.clone(), diagnostic.span.start_offset));
                 error.into()
             })
     });
     let Ok((tree, ())) = built else {
-        return match failed {
-            Some(Some(Acorn::Fails { message, at })) => Some((message.into_owned(), at)),
-            other => panic!("{text:?}: acorn says nothing ({other:?})"),
-        };
+        return failed;
     };
-    tree.acorn_rejection().map(|error| match error.acorn {
-        Some(Acorn::Fails { message, at }) => (message.into_owned(), at),
-        other => panic!("{text:?}: acorn fails, not {other:?}"),
+    (tree.acorn_rejection()).map(|error| {
+        let diagnostic = error.diagnostic;
+        (diagnostic.message, diagnostic.span.start_offset)
     })
 }
 

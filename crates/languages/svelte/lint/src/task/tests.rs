@@ -286,12 +286,22 @@ fn an_abstract_initializer_fails_the_parse_at_the_initializer() {
     }
 }
 
-/// Each of these fails the parse where `line:column` says.
+/// Each of these fails the parse where `line:column` says; a JavaScript syntax error, which oxc
+/// words and places, by its code alone.
 fn assert_parse_error(source: &str, message: &str, (line, column): (u64, u64)) {
     let document =
         Document::new("App.svelte".to_owned(), source.to_owned()).expect("a small document");
     let (json, _) = lint_with("svelte/no-svelte-internal", &document, |_| {});
     let finding = &json["findings"][0];
+    let javascript = "https://svelte.dev/e/js_parse_error";
+    if message.ends_with(javascript) {
+        let raised = finding["message"].as_str().unwrap_or_default();
+        assert!(
+            raised.ends_with(javascript),
+            "{source}: {raised}, where svelte says {message} at {line}:{column}"
+        );
+        return;
+    }
     assert_eq!(finding["message"].as_str(), Some(message), "{source}");
     assert_eq!(finding["start"]["line"].as_u64(), Some(line), "{source}");
     assert_eq!(

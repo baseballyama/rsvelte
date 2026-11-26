@@ -5,7 +5,7 @@ use oxc_ast::AstKind;
 use oxc_semantic::SymbolFlags;
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
-use rsvelte_typescript_tree::{Acorn, SyntaxError};
+use rsvelte_typescript_tree::SyntaxError;
 
 use super::Semantic;
 
@@ -52,12 +52,10 @@ impl Semantic {
         first.map(|(at, name)| {
             let message = format!("Identifier '{name}' has already been declared");
             SyntaxError {
-                diagnostic: Diagnostic::error("parse_error", message.clone(), Span::new(at, at)),
-                acorn: Some(Acorn::Fails {
-                    message: message.into(),
-                    at,
-                }),
+                diagnostic: Diagnostic::error("parse_error", message, Span::new(at, at)),
+                acorn_stops_at: None,
                 typescript_code: None,
+                redeclared_at: Some(at),
                 typescript_eslint_at: None,
             }
         })

@@ -1,2 +1,2 @@
-error js_parse_error 2:19-2:19 Unterminated regular expression
+error js_parse_error 2:18-2:18 Unterminated regular expression
     https://svelte.dev/e/js_parse_error

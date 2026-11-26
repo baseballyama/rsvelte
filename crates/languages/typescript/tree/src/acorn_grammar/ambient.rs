@@ -24,11 +24,7 @@ pub(super) fn initializer(kind: AstKind<'_>) -> Option<Stop> {
         } else {
             Rejection::AmbientConstInitializer
         };
-        Some(Stop {
-            at: init.span().start,
-            raised: declaration.span.end,
-            why,
-        })
+        Some(Stop::at(init.span().start, why))
     })
 }
 

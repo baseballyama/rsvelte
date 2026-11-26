@@ -25,8 +25,8 @@ struct Analyzed<'a> {
     /// `None` only while [`Semantic`] drops, which takes it to give its scoping arena back.
     scoping: Option<Scoping>,
     nodes: AstNodes<'a>,
-    /// The errors a module rejects that the parser does not, in the order acorn meets them:
-    /// `delete x`, a name declared twice, an octal escape, ….
+    /// The errors a module rejects that the parser does not, in source order: `delete x`, a name
+    /// declared twice, an octal escape, ….
     syntax_errors: Box<[SyntaxError]>,
 }
 
@@ -109,14 +109,13 @@ impl Semantic {
             .map(|error| &error.diagnostic)
     }
 
-    /// [`Self::syntax_error`], with what acorn reports for it.
+    /// [`Self::syntax_error`], as a syntax error of the tree.
     #[must_use]
     pub fn javascript_syntax_error(&self) -> Option<&SyntaxError> {
         self.javascript_syntax_errors().first()
     }
 
-    /// Every error a module rejects that the parser does not report, with what acorn reports for
-    /// each, in the order acorn meets them.
+    /// Every error a module rejects that the parser does not report, in source order.
     #[must_use]
     pub fn javascript_syntax_errors(&self) -> &[SyntaxError] {
         &self.0.borrow_dependent().syntax_errors
@@ -129,8 +128,7 @@ impl Semantic {
     }
 }
 
-/// The errors of `analysis` a module rejects that the parser does not, in the order acorn
-/// meets them.
+/// The errors of `analysis` a module rejects that the parser does not, in source order.
 fn syntax_errors(tree: &Tree, analysis: &SemanticBuilderReturn<'_>) -> Box<[SyntaxError]> {
     let mut errors = analysis.diagnostics.errors().peekable();
     if errors.peek().is_none() {
@@ -142,10 +140,10 @@ fn syntax_errors(tree: &Tree, analysis: &SemanticBuilderReturn<'_>) -> Box<[Synt
     let text = tree.source_text();
     let mut reported: Box<[SyntaxError]> = errors
         .filter(|error| tree.reports(error, visit))
-        .map(|error| rsvelte_typescript_tree::analysis_error(error, text, visit))
+        .map(|error| rsvelte_typescript_tree::syntax_error([error.clone()], text, &[], 0, 0))
         .collect();
-    // oxc checks the programs one after another, not in the order acorn reads them.
-    reported.sort_by_key(SyntaxError::acorn_raised_at);
+    // oxc checks the programs one after another.
+    reported.sort_by_key(SyntaxError::reported_at);
     reported
 }
 

@@ -1,6 +1,7 @@
-//! Every rejection svelte 5.59.1's `parse` raises, against the error rsvelte reports first.
+//! Every rejection svelte 5.59.1's `parse` raises, against the error rsvelte reports first, which
+//! is a JavaScript syntax error as each of them is.
 
-use super::first_error_if_any;
+use super::{first_error_if_any, javascript};
 
 /// Every rejection acorn raises as svelte 5.59.1's `parse` reads a component, with the message
 /// and offset `parse` reports: in each kind of script and in the template.
@@ -226,8 +227,9 @@ fn every_rejection_svelte_parse_raises_is_the_first_error() {
         .iter()
         .filter_map(|&(source, expected)| {
             let first = first_error_if_any(source);
-            let expected = expected.map(|(message, at)| (message.to_owned(), at));
-            (first != expected).then(|| format!("{source:?}: {first:?}"))
+            let wanted = expected.map(|_| javascript());
+            (first != wanted)
+                .then(|| format!("{source:?}: {first:?}, where svelte says {expected:?}"))
         })
         .collect();
     assert!(failures.is_empty(), "{}", failures.join("\n"));

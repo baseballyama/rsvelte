@@ -1,31 +1,19 @@
 //! Where acorn fails, or reads what oxc rejects, for a host that reports as acorn does.
 
-use std::borrow::Cow;
-
 use oxc_ast::AstType;
-use oxc_ast::ast::Expression;
 use oxc_diagnostics::OxcDiagnostic;
-use oxc_parser::config::TokensParserConfig;
-use oxc_parser::{Kind, Parser, Token};
-use oxc_span::{GetSpan, SourceType};
+use oxc_parser::{Kind, Token};
 
 use super::locator::{Find, Holder, Locator, Reading, locate};
-use super::word::{Home, home, keyword, misused};
-use super::{Acorn, Unreserved};
+use super::word::{Home, home};
 
 mod arguments;
-mod declarations;
-mod escape;
 mod lexer;
 mod number;
-mod pattern;
-use arguments::{ARGUMENTS_IN_STATIC_BLOCK, arguments_misused, in_static_block};
-use declarations::declaration;
+use arguments::{ARGUMENTS_IN_STATIC_BLOCK, in_static_block};
 pub(crate) use lexer::lexer_failure;
-use lexer::regular_expression;
-use number::number as rejected_number;
 pub(crate) use number::shorter_number;
-use pattern::{parenthesized_element, rejected_word, reparsed};
+use number::stops_after_number;
 
 /// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one
 /// of `unchecked`, the rules the host's parser does not check, nor, for a host that reads
@@ -56,9 +44,9 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
     };
     let (start, end) = (label.offset(), label.offset() + label.len());
     match number {
-        "1047" => optional_rest(start, end, visit) == Some(Ok(())),
+        "1047" => optional_rest(start, end, visit),
         // An `await` where acorn reads it as the keyword: an enum at the top level is one.
-        "1308" => (home(start, end, std::iter::empty(), visit).0).is_some_and(Home::awaits),
+        "1308" => home(start, end, std::iter::empty(), visit).is_some_and(Home::awaits),
         // acorn-typescript reads any statement in an ambient namespace, which upstream then
         // refuses as a namespace with values, and checks the body of a function declaration only.
         "1036" => true,
@@ -104,462 +92,51 @@ fn acorn_accepts(error: &OxcDiagnostic, number: &str, visit: impl FnOnce(&mut Lo
     }
 }
 
-/// What acorn reports for `error`, in the part whose text is `text`, whose tokens are `tokens`,
-/// followed by the token after the part that ended it, and whose tree `visit` walks; `None` for an
-/// error whose code does not say, or that acorn accepts.
+/// Where acorn stops for `error`, in the part whose text is `text` and whose tokens are `tokens`,
+/// followed by the token after the part that ended it, and whose tree `visit` walks: at the
+/// keyword of a type assertion, which acorn does not read, or after a number it reads shorter, so
+/// that the expression before ends there. `None` for any other error, which oxc reports in its
+/// own words.
 #[cold]
-pub(crate) fn acorn(
+pub(crate) fn acorn_stop(
     error: &OxcDiagnostic,
     text: &str,
     (tokens, next): (&[Token], Option<Token>),
     visit: impl FnOnce(&mut Locator),
-) -> Option<Acorn> {
+) -> Option<u32> {
     let label = error.labels.first()?;
     let (start, end) = (label.offset(), label.offset() + label.len());
     let read = || tokens.iter().copied().chain(next);
-    let token_at = |at: u32| {
-        let token = read().nth(tokens.partition_point(|token| token.start() < at))?;
-        (token.start() == at).then_some(token)
-    };
-    let kind_at = |at: u32| token_at(at).map(|token| token.kind());
-    // A script is a module, so acorn reads every reserved word in a binding as an error of its own.
-    let reserved = |at: u32| {
-        let kind = kind_at(at)?;
-        (kind == Kind::Enum || kind.is_future_reserved_keyword())
-            .then(|| keyword(kind.to_str(), at))
-    };
     if error.code.scope.as_deref() != Some("TS") {
-        return rejected_number(error, text, start, read())
-            .or_else(|| arguments_misused(error, start))
-            .or_else(|| misused(start, end, read(), visit, false))
-            .or_else(|| regular_expression(text, start, read()))
-            // oxc stops at `enum` in JavaScript, where acorn reads it as a reserved name.
-            .or_else(|| reserved(start).filter(|_| kind_at(start) == Some(Kind::Enum)));
+        return stops_after_number(error, text, start, read());
     }
-    let token = |after: u32, kind: Option<Kind>| {
-        read()
-            .filter(|token| token.start() >= after)
-            .find(|token| kind.is_none_or(|kind| token.kind() == kind))
-            .map(|token| token.start())
+    let keyword = match error.code.number.as_deref()? {
+        "8016" => Kind::As,
+        "8037" => Kind::Satisfies,
+        _ => return None,
     };
-    let number = error.code.number.as_deref()?;
-    match number {
-        // `as`, `satisfies`: oxc labels the whole assertion, and the operand's span leaves out
-        // its parentheses, so acorn stops at the keyword after it.
-        "8016" | "8037" => {
-            let keyword = if number == "8016" {
-                Kind::As
-            } else {
-                Kind::Satisfies
-            };
-            let operand_end = locate(start, end, Find::OperandEnd, visit)?.0;
-            token(operand_end, Some(keyword)).map(Acorn::Stops)
-        }
-        "8009" if text.get(start as usize..end as usize) == Some("?") => {
-            Some(fails("Unexpected token", optional_member(start, read())))
-        }
-        // A parameter's modifier is a binding to acorn, so a reserved one fails where it starts.
-        "8012" if reserved(start).is_some() => reserved(start),
-        // A modifier: acorn reads it as the member's name and fails at the token after it. So it
-        // does after a lone name that a token on its line follows, and after a declaration's
-        // binding that has no initializer.
-        "8009" | "8012" | "1434" | "1435" | "1155" | "1182" => {
-            Some(fails("Unexpected token", token(end, None)?))
-        }
-        // `enum` where an expression belongs: acorn reads it as a reserved name.
-        "1109" if kind_at(start) == Some(Kind::Enum) => reserved(start),
-        "1109" if let Some(q) = question_before(tokens, start) => after_question(q, start, visit),
-        // `()`: oxc labels both parentheses, and acorn fails at the closing one.
-        "1109" if text.get(start as usize..end as usize)?.starts_with('(') => {
-            Some(fails("Unexpected token", end.checked_sub(1)?))
-        }
-        // Modifiers out of order: acorn fails after the member's first word after `static`.
-        "1029" => Some(fails(
-            "Unexpected token",
-            after_member_name(start, end, read(), visit)?,
-        )),
-        // A numeric enum member, a class's `implements`, a token where an expression or a type
-        // belongs and JSX are where acorn fails.
-        "2452" | "8005" | "1109" | "1110" | "17004" => Some(fails("Unexpected token", start)),
-        // oxc labels the slash, and acorn reports the body after it.
-        "1161" => Some(fails("Unterminated regular expression", start + 1)),
-        // A missing token: acorn fails at the next token from where oxc labels it, or at the end.
-        "1005" => Some(fails(
-            "Unexpected token",
-            missing(error, (text, start), read).unwrap_or(text.len() as u32),
-        )),
-        // An arrow function's type parameters, where acorn fails at the `<`.
-        "8004" => Some(fails(
-            "Unexpected token",
-            read()
-                .take_while(|token| token.start() < start)
-                .last()?
-                .start(),
-        )),
-        number if let Some(message) = unassignable_message(number) => {
-            unassignable(message, (text, start, end), read(), visit)
-        }
-        "1127" => unexpected_character(text, start, end),
-        // A word reserved in strict code, or `await` outside an async function, which acorn reads
-        // as a name.
-        "1212" | "1308" => misused(start, end, read(), visit, true),
-        "1049" => Some(fails("setter should have exactly one param", start)),
-        "1108" => Some(fails("'return' outside of function", start)),
-        "1473" | "1474" => Some(fails(
-            "'import' and 'export' may only appear at the top level",
-            start,
-        )),
-        // acorn-typescript reads `<>` and fails at the token after it, and an index signature's
-        // second parameter at its comma.
-        "1098" => Some(fails(
-            "Type parameter list cannot be empty.",
-            token(end, None)?,
-        )),
-        "1096" => Some(fails("Unexpected token", token(start, Some(Kind::Comma))?)),
-        // The lexer's errors: acorn reads a template's body and a regular expression's from the
-        // byte after the opening, and a shorthand's initializer from its `=`.
-        "1002" => Some(fails("Unterminated string constant", start)),
-        "1160" => Some(fails("Unterminated template", start + 1)),
-        "1010" => Some(fails("Unterminated comment", start)),
-        "1499" => Some(fails(
-            "Invalid regular expression flag",
-            read()
-                .take_while(|token| token.start() <= start)
-                .last()?
-                .start()
-                + 1,
-        )),
-        "1312" => Some(fails(
-            "Shorthand property assignments are valid only in destructuring patterns",
-            token(start, Some(Kind::Eq))?,
-        )),
-        "1183" | "1392" | "1039" | "1267" => declaration(number, (start, end), text, read(), visit),
-        _ => early_error(error, number, text, (start, end), visit),
-    }
-}
-
-/// Acorn's message for a target that tsc's code `number` says cannot be assigned, which names an
-/// optional chain apart.
-fn unassignable_message(number: &str) -> Option<&'static str> {
-    match number {
-        "2364" | "2701" | "2357" | "2406" | "2487" => Some("Assigning to rvalue"),
-        "2777" | "2778" | "2779" | "2780" | "2781" => {
-            Some("Optional chaining cannot appear in left-hand side")
-        }
-        _ => None,
-    }
-}
-
-/// What acorn reports for a target that cannot be assigned, which oxc labels `start..end` with its
-/// outermost parentheses, in the part whose tokens are `tokens` and whose tree `visit` walks. A
-/// word acorn rejects as it reads the target comes first: see [`rejected_word`]. In a
-/// destructuring pattern, acorn first checks the pattern as a whole: see [`parenthesized_element`].
-/// Otherwise it reports `message` where its node starts: at the expression inside the parentheses
-/// and type assertions, or at the outermost parenthesis around an object or an array, which it
-/// reads as a pattern. Both read the target where acorn does, which decides what `await` and
-/// `yield` are: where that is not known, the message stays, at the first token inside the
-/// parentheses or at them around a pattern.
-fn unassignable(
-    message: &'static str,
-    (text, start, end): (&str, u32, u32),
-    tokens: impl Iterator<Item = Token>,
-    visit: impl FnOnce(&mut Locator),
-) -> Option<Acorn> {
-    let tokens = &tokens.collect::<Vec<_>>();
-    let (home, _) = home(start, end, tokens.iter().copied(), visit);
-    if let Some(home) = home {
-        if let Some((at, why)) = rejected_word(text, (start, end), tokens, home) {
-            return Some(fails(why.message(), at));
-        }
-        if let Some(at) = parenthesized_element(text, (start, end), tokens, home) {
-            return Some(fails("Assigning to rvalue", at));
-        }
-        let node = reparsed(text, (start, end), home, |target| {
-            match target.expression.get_inner_expression() {
-                Expression::ObjectExpression(_) | Expression::ArrayExpression(_) => start,
-                inner => target.at(inner.span().start),
-            }
-        });
-        if let Some(at) = node {
-            return Some(fails(message, at));
-        }
-    }
-    let mut after = tokens.iter().skip_while(|token| token.start() < start);
-    let first = after.next()?;
-    let inside = std::iter::once(first)
-        .chain(after)
-        .find(|token| token.kind() != Kind::LParen)?;
-    let pattern = matches!(inside.kind(), Kind::LCurly | Kind::LBrack);
-    Some(fails(
-        message,
-        if pattern {
-            first.start()
-        } else {
-            inside.start()
-        },
-    ))
-}
-
-/// What acorn reports for an error of the analysis, which oxc labels from `start` to `end` and
-/// acorn reports at a node around that or at the second label.
-fn early_error(
-    error: &OxcDiagnostic,
-    number: &str,
-    text: &str,
-    (start, end): (u32, u32),
-    visit: impl FnOnce(&mut Locator),
-) -> Option<Acorn> {
-    let second_label = || {
-        let label = error.labels.get(1)?;
-        Some((label.offset(), label.offset() + label.len()))
-    };
-    let second = || {
-        let (start, end) = second_label()?;
-        Some((start, text.get(start as usize..end as usize)?))
-    };
-    match number {
-        "1101" => Some(fails("'with' in strict mode", start)),
-        "2660" => Some(fails("'super' keyword outside a method", start)),
-        // `super()` where it is not allowed: acorn first asks whether `super` is allowed at all.
-        "2337" | "2335" => match locate(start, end, Find::SuperHome, visit) {
-            None | Some((_, AstType::Function)) => {
-                Some(fails("'super' keyword outside a method", start))
-            }
-            Some(_) => Some(fails(
-                "super() call outside constructor of a subclass",
-                start,
-            )),
-        },
-        "17013" => Some(fails(
-            "'new.target' can only be used in functions and class static block",
-            start,
-        )),
-        "2524" => Some(fails("Await expression cannot be a default value", start)),
-        "2523" => Some(fails("Yield expression cannot be a default value", start)),
-        // A second declaration: oxc labels the first one first, and acorn fails at this one. A
-        // private name shared by a static and an instance member is one too.
-        "2300" | "2804" => redeclaration((start, end), second_label()?, text, visit),
-        "1114" => {
-            let (at, name) = second()?;
-            Some(Acorn::Fails {
-                message: Cow::Owned(format!("Label '{name}' is already declared")),
-                at,
-            })
-        }
-        "2392" => Some(fails(
-            "Duplicate constructor in the same class",
-            second()?.0,
-        )),
-        "1117" => Some(fails("Redefinition of __proto__ property", second()?.0)),
-        // oxc labels the declaration, and acorn-typescript reports the module reference.
-        // acorn tells a name declared from a name assigned to.
-        "1100" => {
-            let name = text.get(start as usize..end as usize)?;
-            let mut locator = Locator::new(start, end, Find::Binding);
-            visit(&mut locator);
-            if locator.found.is_some() && locator.declares {
-                let message = Cow::Owned(format!("Binding {name} in strict mode"));
-                return Some(locator.checked(message, start));
-            }
-            Some(Acorn::Fails {
-                message: Cow::Owned(format!("Assigning to {name} in strict mode")),
-                at: start,
-            })
-        }
-        // acorn reports a private name no class around declares in one message, inside a class
-        // or outside one.
-        "1111" | "18016" => Some(Acorn::Fails {
-            message: Cow::Owned(format!(
-                "Private field '{}' must be declared in an enclosing class",
-                text.get(start as usize..end as usize)?
-            )),
-            at: start,
-        }),
-        "18037" | "18054" => Some(fails(Unreserved::StaticBlockAwait.message(), start)),
-        // acorn-typescript reports an abstract member at its start.
-        "1244" | "1253" => Some(fails(
-            "Abstract methods can only appear within an abstract class.",
-            locate(start, end, Find::Member, visit)?.0,
-        )),
-        "1047" => optional_rest(start, end, visit)?.err(),
-        "1347" => Some(fails(
-            "Illegal 'use strict' directive in function with non-simple parameter list",
-            locate(start, end, Find::Function, visit)?.0,
-        )),
-        // A jump to nowhere: acorn fails at its statement.
-        "1104" | "1105" | "1107" | "1115" => match locate(start, end, Find::Jump, visit)? {
-            (at, AstType::BreakStatement) => Some(fails("Unsyntactic break", at)),
-            (at, _) => Some(fails("Unsyntactic continue", at)),
-        },
-        // A legacy octal: acorn reports a number at its start, and an escape at its backslash or
-        // at the digit after it.
-        "1121" | "1489" => Some(fails("Invalid number", start)),
-        "1487" => Some(fails("Octal literal in strict mode", start)),
-        "1488" => Some(fails("Invalid escape sequence", start + 1)),
-        "1102" => Some(fails(
-            "Deleting local variable in strict mode",
-            locate(start, end, Find::Unary, visit)?.0,
-        )),
-        "18011" => Some(fails(
-            "Private fields can not be deleted",
-            locate(start, end, Find::Unary, visit)?.0,
-        )),
-        _ => None,
-    }
-}
-/// Where acorn fails at an optional member whose `?` is at `start`: at the `?`, after the name it
-/// reads, or at the name after `accessor`, which acorn reads as the name.
-fn optional_member(start: u32, tokens: impl Iterator<Item = Token>) -> u32 {
-    let (modifier, name) = tokens
-        .take_while(|token| token.start() < start)
-        .fold((None, None), |(_, previous), token| (previous, Some(token)));
-    let accessor = modifier.is_some_and(|token: Token| token.kind() == Kind::Accessor);
-    name.filter(|_| accessor).map_or(start, |name| name.start())
-}
-
-/// The token acorn fails at where oxc finds one missing at `start`. In a parenthesized expression
-/// acorn reads an optional parameter's `?` as a conditional, so it fails at the token after it.
-fn missing<I: Iterator<Item = Token>>(
-    error: &OxcDiagnostic,
-    (text, start): (&str, u32),
-    read: impl Fn() -> I,
-) -> Option<u32> {
-    let question = read()
-        .find(|token| token.start() == start)
-        .is_some_and(|token| token.kind() == Kind::Question);
-    let conditional = question
-        && error.labels.get(1).is_some_and(|open| {
-            let before = read().take_while(|token| token.start() < open.offset());
-            before
-                .last()
-                .is_none_or(|token| !token.kind().is_identifier_name())
-        });
-    if !conditional {
-        return read()
-            .find(|token| token.start() >= start)
-            .map(|token| token.start());
-    }
+    // oxc labels the whole assertion, and the operand's span leaves out its parentheses.
+    let operand_end = locate(start, end, Find::OperandEnd, visit)?.0;
     read()
-        .find(|token| token.start() > start)
+        .find(|token| token.start() >= operand_end && token.kind() == keyword)
         .map(|token| token.start())
-        .or_else(|| token_after(text, start + 1))
 }
 
-/// The start of the first token from `at`, which oxc stopped before reading.
-#[cold]
-fn token_after(text: &str, at: u32) -> Option<u32> {
-    crate::scratch::with_scratch_arena(|allocator| {
-        let parser =
-            Parser::new(allocator, text, SourceType::mjs()).with_config(TokensParserConfig);
-        let tokens = match parser.parse_expression_at(at) {
-            Ok(parsed) => parsed.tokens,
-            Err(error) => error.tokens,
-        };
-        tokens.first().map(Token::start)
-    })
-}
-
-/// The `?` right before `at`, among `tokens`.
-fn question_before(tokens: &[Token], at: u32) -> Option<Token> {
-    let index = tokens
-        .partition_point(|token| token.start() < at)
-        .checked_sub(1)?;
-    Some(tokens[index]).filter(|token| token.kind() == Kind::Question)
-}
-
-/// Where acorn fails at what tsc reports as a missing expression at `at`, right after `question`:
-/// at an optional rest element's `?`, as where oxc reports that `?`, and at `at` otherwise.
-fn after_question(question: Token, at: u32, visit: impl FnOnce(&mut Locator)) -> Option<Acorn> {
-    optional_rest(question.start(), question.end(), visit)
-        .map_or_else(|| Some(fails("Unexpected token", at)), Result::err)
-}
-
-/// What acorn does with a rest element whose `?` is `question..end`: `Ok` where it reads one.
-fn optional_rest(
-    question: u32,
-    end: u32,
-    visit: impl FnOnce(&mut Locator),
-) -> Option<Result<(), Acorn>> {
+/// Whether acorn reads the rest element whose `?` is `question..end` as an optional one.
+fn optional_rest(question: u32, end: u32, visit: impl FnOnce(&mut Locator)) -> bool {
     let mut locator = Locator::new(question, end, Find::OptionalRest);
     visit(&mut locator);
     let around = locator.rest;
-    let (rest, holder) = around.rest?;
-    let unexpected = |at| Err(fails("Unexpected token", at));
-    Some(match (holder, around.reading) {
+    let Some((_, holder)) = around.rest else {
+        return false;
+    };
+    match (holder, around.reading) {
         // acorn reads an object pattern's rest as a name, which ends before the `?`.
-        (Holder::Object, _) => unexpected(question),
-        (_, Reading::Type) | (Holder::Parameters, Reading::Arrow { is_async: false }) => Ok(()),
-        (_, Reading::Arrow { .. }) => unexpected(question),
-        (_, Reading::Binding) if around.ambient => Ok(()),
-        (_, Reading::Binding) => Err(fails(
-            "A binding pattern parameter cannot be optional in an implementation signature.",
-            rest.start,
-        )),
-    })
-}
-
-/// acorn names the character it cannot read, which after `#` is the one oxc's label `start..end`
-/// ends with.
-fn unexpected_character(text: &str, start: u32, end: u32) -> Option<Acorn> {
-    let label = text.get(start as usize..end as usize)?;
-    // An escape in a name, which oxc labels from its `\`: acorn expects a `u` after it.
-    if let Some(escape) = label.strip_prefix('\\') {
-        return (!escape.starts_with('u'))
-            .then(|| fails("Expecting Unicode escape sequence \\uXXXX", start + 1));
+        (Holder::Object, _) => false,
+        (_, Reading::Type) | (Holder::Parameters, Reading::Arrow { is_async: false }) => true,
+        (_, Reading::Arrow { .. }) => false,
+        (_, Reading::Binding) => around.ambient,
     }
-    // An escape of a character no name holds, which oxc labels with no length at its `\`.
-    if label.is_empty() && text.get(start as usize..)?.starts_with("\\u") {
-        return Some(fails("Invalid Unicode escape", start));
-    }
-    let at = start + u32::from(label.starts_with('#'));
-    let character = text.get(at as usize..)?.chars().next()?;
-    Some(Acorn::Fails {
-        message: Cow::Owned(format!("Unexpected character '{character}'")),
-        at,
-    })
-}
-
-/// Where acorn fails at modifiers out of order labeled `start..end`: the token after the member's
-/// first word after `static`, or the label outside a class member.
-fn after_member_name(
-    start: u32,
-    end: u32,
-    tokens: impl Iterator<Item = Token>,
-    visit: impl FnOnce(&mut Locator),
-) -> Option<u32> {
-    let Some((member, _)) = locate(start, end, Find::Member, visit) else {
-        return Some(start);
-    };
-    let mut words = tokens
-        .skip_while(|token| token.start() < member)
-        .skip_while(|token| token.kind() == Kind::Static);
-    words.nth(1).map(|token| token.start())
-}
-
-/// What acorn reports for the name oxc labels at `first` and declares again in `second`. acorn
-/// fails at the name; acorn-typescript checks a type alias only against the types before it.
-fn redeclaration(
-    first: (u32, u32),
-    second: (u32, u32),
-    text: &str,
-    visit: impl FnOnce(&mut Locator),
-) -> Option<Acorn> {
-    let name = text.get(first.0 as usize..first.1 as usize)?;
-    let locator = redeclared(first, second, visit);
-    let at = locator.redeclared_name()?.start;
-    let message = match (locator.found, locator.first_is_type) {
-        (Some((_, AstType::FormalParameters)), _) => {
-            return Some(locator.checked(Cow::Borrowed("Argument name clash"), at));
-        }
-        (Some((_, AstType::TSTypeAliasDeclaration)), true) => {
-            format!("type '{name}' has already been declared.")
-        }
-        _ => format!("Identifier '{name}' has already been declared"),
-    };
-    Some(Acorn::Fails {
-        message: Cow::Owned(message),
-        at,
-    })
 }
 
 /// The walk for a name oxc labels at `first` and declares again at `second`.
@@ -568,11 +145,4 @@ fn redeclared(first: (u32, u32), second: (u32, u32), visit: impl FnOnce(&mut Loc
     let mut locator = Locator::new(second.0, second.1, Find::Redeclared(first));
     visit(&mut locator);
     locator
-}
-
-const fn fails(message: &'static str, at: u32) -> Acorn {
-    Acorn::Fails {
-        message: Cow::Borrowed(message),
-        at,
-    }
 }
