@@ -146,6 +146,7 @@ pub fn development() -> ExitCode {
         extensions: EXTENSIONS,
         selection,
         defaults: Vec::new(),
+        tool_versions: matches!(command, Some("benchmark" | "performance")),
     };
     let (reg, tools) = match configured_registry(&config, &overrides, installation) {
         Ok(configured) => configured,
@@ -173,6 +174,8 @@ struct Installation {
     extensions: &'static [&'static Extension],
     selection: Selection,
     defaults: Vec<(&'static str, String)>,
+    /// Whether the command reports the programs it runs, with their versions.
+    tool_versions: bool,
 }
 
 /// Installs the plugins with their options, and returns the programs their tasks will run. Every
@@ -198,6 +201,9 @@ fn install(
         None => std::sync::Arc::new(rsvelte_plugin_interface::NoFunctions),
     };
     let mut settings = rsvelte_plugin_interface::Settings::new(installation.selection, functions);
+    if installation.tool_versions {
+        settings = settings.with_tool_versions();
+    }
     if let Some(programs) = programs() {
         settings = settings.with_programs(programs);
     }

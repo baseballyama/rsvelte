@@ -159,11 +159,7 @@ pub fn type_checker(settings: &mut Settings, runs: bool) -> Result<Option<Tsc>, 
             checker.identify().map_err(CallError)
         })?;
     }
-    Ok(Some(Tsc {
-        checker,
-        tsconfig,
-        processes: options.value.processes,
-    }))
+    Ok(Some(Tsc::new(checker, tsconfig, options.value.processes)))
 }
 
 /// The error when no installed checker has the API: what it found, and the command that installs

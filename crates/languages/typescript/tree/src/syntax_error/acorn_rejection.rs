@@ -9,12 +9,13 @@ use oxc_parser::config::TokensParserConfig;
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::{GetSpan, SourceType};
 
-use super::Acorn;
 use super::locator::{Find, Holder, Locator, Reading, locate};
 use super::word::{Home, home, keyword, misused};
+use super::{Acorn, Unreserved};
 
 mod arguments;
 mod declarations;
+mod escape;
 mod lexer;
 mod number;
 mod pattern;
@@ -24,7 +25,7 @@ pub(crate) use lexer::lexer_failure;
 use lexer::regular_expression;
 use number::number as rejected_number;
 pub(crate) use number::shorter_number;
-use pattern::{parenthesized_element, rejected_await, reparsed};
+use pattern::{parenthesized_element, rejected_word, reparsed};
 
 /// Whether a host reports `error`, in the part whose tree `visit` walks: not when its code is one
 /// of `unchecked`, the rules the host's parser does not check, nor, for a host that reads
@@ -167,6 +168,7 @@ pub(crate) fn acorn(
         }
         // `enum` where an expression belongs: acorn reads it as a reserved name.
         "1109" if kind_at(start) == Some(Kind::Enum) => reserved(start),
+        "1109" if let Some(q) = question_before(tokens, start) => after_question(q, start, visit),
         // `()`: oxc labels both parentheses, and acorn fails at the closing one.
         "1109" if text.get(start as usize..end as usize)?.starts_with('(') => {
             Some(fails("Unexpected token", end.checked_sub(1)?))
@@ -236,8 +238,6 @@ pub(crate) fn acorn(
     }
 }
 
-const STATIC_BLOCK_AWAIT: &str = "Cannot use await in class static initialization block";
-
 /// Acorn's message for a target that tsc's code `number` says cannot be assigned, which names an
 /// optional chain apart.
 fn unassignable_message(number: &str) -> Option<&'static str> {
@@ -251,7 +251,8 @@ fn unassignable_message(number: &str) -> Option<&'static str> {
 }
 
 /// What acorn reports for a target that cannot be assigned, which oxc labels `start..end` with its
-/// outermost parentheses, in the part whose tokens are `tokens` and whose tree `visit` walks. In a
+/// outermost parentheses, in the part whose tokens are `tokens` and whose tree `visit` walks. A
+/// word acorn rejects as it reads the target comes first: see [`rejected_word`]. In a
 /// destructuring pattern, acorn first checks the pattern as a whole: see [`parenthesized_element`].
 /// Otherwise it reports `message` where its node starts: at the expression inside the parentheses
 /// and type assertions, or at the outermost parenthesis around an object or an array, which it
@@ -267,8 +268,8 @@ fn unassignable(
     let tokens = &tokens.collect::<Vec<_>>();
     let (home, _) = home(start, end, tokens.iter().copied(), visit);
     if let Some(home) = home {
-        if let Some(at) = rejected_await(text, (start, end), tokens, home) {
-            return Some(fails(STATIC_BLOCK_AWAIT, at));
+        if let Some((at, why)) = rejected_word(text, (start, end), tokens, home) {
+            return Some(fails(why.message(), at));
         }
         if let Some(at) = parenthesized_element(text, (start, end), tokens, home) {
             return Some(fails("Assigning to rvalue", at));
@@ -374,7 +375,7 @@ fn early_error(
             )),
             at: start,
         }),
-        "18037" | "18054" => Some(fails(STATIC_BLOCK_AWAIT, start)),
+        "18037" | "18054" => Some(fails(Unreserved::StaticBlockAwait.message(), start)),
         // acorn-typescript reports an abstract member at its start.
         "1244" | "1253" => Some(fails(
             "Abstract methods can only appear within an abstract class.",
@@ -456,6 +457,21 @@ fn token_after(text: &str, at: u32) -> Option<u32> {
         };
         tokens.first().map(Token::start)
     })
+}
+
+/// The `?` right before `at`, among `tokens`.
+fn question_before(tokens: &[Token], at: u32) -> Option<Token> {
+    let index = tokens
+        .partition_point(|token| token.start() < at)
+        .checked_sub(1)?;
+    Some(tokens[index]).filter(|token| token.kind() == Kind::Question)
+}
+
+/// Where acorn fails at what tsc reports as a missing expression at `at`, right after `question`:
+/// at an optional rest element's `?`, as where oxc reports that `?`, and at `at` otherwise.
+fn after_question(question: Token, at: u32, visit: impl FnOnce(&mut Locator)) -> Option<Acorn> {
+    optional_rest(question.start(), question.end(), visit)
+        .map_or_else(|| Some(fails("Unexpected token", at)), Result::err)
 }
 
 /// What acorn does with a rest element whose `?` is `question..end`: `Ok` where it reads one.

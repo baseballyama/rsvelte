@@ -12,7 +12,7 @@ use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 
 use crate::TypeScriptReader;
-use crate::syntax_error::{Acorn, StaticBlockAwaits, SyntaxError};
+use crate::syntax_error::{Acorn, SyntaxError, Unreserved, UnreservedWords};
 
 mod ambient;
 mod names;
@@ -44,8 +44,8 @@ pub(crate) enum Rejection {
     Reserved(names::ReservedWord),
     /// An initializer in an ambient context, where only a `const` without a type may have one.
     AmbientInitializer,
-    /// `await` in a class static block.
-    StaticBlockAwait,
+    /// A word acorn rejects as it reads it, which oxc's parser leaves to its checker.
+    Unreserved(Unreserved),
     /// A `const`'s initializer in an ambient context that is not a literal or an enum reference.
     AmbientConstInitializer,
     /// A token acorn's lexer rejects as it reads it: a number, or an escape that strict code
@@ -70,7 +70,7 @@ impl Rejection {
             Self::StrictName { name, binds } => name.message(binds),
             Self::Reserved(word) => word.message(),
             Self::AmbientInitializer => "Initializers are not allowed in ambient contexts.",
-            Self::StaticBlockAwait => "Cannot use await in class static initialization block",
+            Self::Unreserved(word) => word.message(),
             Self::AmbientConstInitializer => concat!(
                 "A 'const' initializer in an ambient context must be a string or numeric literal ",
                 "or literal enum reference."
@@ -270,11 +270,11 @@ pub(crate) struct Unsupported<'t> {
     /// The namespace the next part of a dotted namespace name declares, whose name acorn does
     /// not check.
     dotted: Option<oxc_span::Span>,
-    awaits: StaticBlockAwaits,
+    unreserved: UnreservedWords,
 }
 
 impl<'t> Unsupported<'t> {
-    pub(crate) const fn new(typescript: Option<TypeScriptReader>, tokens: &'t [Token]) -> Self {
+    pub(crate) fn new(typescript: Option<TypeScriptReader>, tokens: &'t [Token]) -> Self {
         Self {
             typescript,
             tokens,
@@ -282,7 +282,7 @@ impl<'t> Unsupported<'t> {
             ambient: 0,
             types: 0,
             dotted: None,
-            awaits: StaticBlockAwaits::new(),
+            unreserved: UnreservedWords::new(),
         }
     }
 }
@@ -305,8 +305,8 @@ impl<'a> Visit<'a> for Unsupported<'_> {
     }
 
     fn enter_node(&mut self, kind: AstKind<'a>) {
-        let mut found = (self.awaits.enter(kind))
-            .map(|at| (at, Rejection::StaticBlockAwait))
+        let mut found = (self.unreserved.enter(kind))
+            .map(|(at, why)| (at, Rejection::Unreserved(why)))
             .or_else(|| stop(kind, self.typescript, self.tokens))
             .map(|(at, why)| Stop::at(at, why))
             .or_else(|| lexed_literal(kind, self.typescript));
@@ -373,22 +373,22 @@ fn whitespace(text: &str, irregular: &[oxc_span::Span], shift: u32) -> Option<St
     })
 }
 
-/// Where acorn first stops in a part oxc read of `text`, before its parser looks at the tokens
-/// that start at `starts`: at whitespace in `irregular` that ECMAScript does not allow, or at a
-/// token its lexer rejects as it reads it, which orders the rejection by where the token starts.
-/// `shift` moves it into the document.
-/// Whether acorn's lexer can reject `token` where oxc read it: a number, a string with an escape,
-/// an `@`, or a `#`.
+/// Whether acorn's lexer can reject `token` where oxc read it: a number, a string or a name with
+/// an escape, an `@`, or a `#`.
 fn may_reject(token: &Token) -> bool {
     let kind = token.kind();
     kind.is_number()
-        || (kind == Kind::Str && token.escaped())
+        || ((kind == Kind::Str || kind.is_identifier_name()) && token.escaped())
         || matches!(
             kind,
             Kind::At | Kind::PrivateIdentifier | Kind::Undetermined
         )
 }
 
+/// Where acorn first stops in a part oxc read of `text`, before its parser looks at the tokens
+/// that start at `starts`: at whitespace in `irregular` that ECMAScript does not allow, or at a
+/// token its lexer rejects as it reads it, which orders the rejection by where the token starts.
+/// `shift` moves it into the document.
 pub(crate) fn lexed(
     text: &str,
     starts: impl IntoIterator<Item = u32>,
@@ -409,8 +409,6 @@ pub(crate) fn lexed(
         .min_by_key(|stop| stop.raised)
 }
 
-/// The starts of `tokens` that oxc read before it stopped, and of the token it stopped at, which
-/// `diagnostics` label first: acorn has read that token when its parser fails there.
 /// Where the tokens acorn may reject start, of a part and of the token its parser read to end it.
 pub(crate) fn read(tokens: &[Token], next: Option<Token>) -> impl Iterator<Item = u32> {
     let part = tokens
@@ -420,6 +418,8 @@ pub(crate) fn read(tokens: &[Token], next: Option<Token>) -> impl Iterator<Item 
     part.chain(next.filter(may_reject).map(|token| token.start()))
 }
 
+/// The starts of `tokens` that oxc read before it stopped, and of the token it stopped at, which
+/// `diagnostics` label first: acorn has read that token when its parser fails there.
 pub(crate) fn read_before_stopping(
     text: &str,
     tokens: &[Token],
@@ -431,7 +431,9 @@ pub(crate) fn read_before_stopping(
             let rest = text.get(label.offset() as usize..)?;
             let blank = rest.len() - rest.trim_start_matches([' ', '\t']).len();
             Some(label.offset() + u32::try_from(blank).ok()?)
-        });
+        })
+        // A label inside a token oxc read is not where a token starts.
+        .filter(|&at| tokens.last().is_none_or(|token| token.end() <= at));
     tokens
         .iter()
         .filter(|token| may_reject(token))
