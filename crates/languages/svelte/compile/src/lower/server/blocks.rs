@@ -4,8 +4,8 @@ mod if_block;
 mod key_block;
 
 use oxc_ast::ast::{Argument, Expression, Statement};
+use oxc_str::JSStrBuilder;
 use rsvelte_typescript_compile::build::sanitize_template_string;
-use rsvelte_typescript_tree::JsString;
 
 use super::ServerCompilationContext;
 
@@ -32,9 +32,10 @@ impl<'o> ServerCompilationContext<'_, 'o> {
             let raw = format!("{}{}", sanitize_template_string(marker), quasi.value.raw);
             quasi.value.raw = b.str(&raw).into();
             if let Some(cooked) = quasi.value.cooked {
-                let mut text = JsString::from(marker);
-                text.push_js(&JsString::from_js_str(cooked));
-                quasi.value.cooked = Some(text.to_js_str_in(b));
+                let mut text = JSStrBuilder::with_capacity_in(marker.len() + cooked.len(), b);
+                text.push_str(marker);
+                text.push_js_str(cooked);
+                quasi.value.cooked = Some(text.into_js_str());
             }
         } else {
             body.insert(0, self.push_literal(marker));

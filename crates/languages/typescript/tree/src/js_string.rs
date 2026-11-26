@@ -6,48 +6,20 @@ use std::fmt;
 use oxc_allocator::GetAllocator;
 use oxc_str::{JSStr, JSStrBuilder};
 
-/// A string of UTF-16 code units: the well-formed text, and each lone surrogate at the byte
-/// offset of `text` it comes before. A surrogate pair is always one `char` of `text`, so equal
-/// strings are equal values.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-pub struct JsString {
+/// A string of UTF-16 code units. Well-formed text is a plain `String`; only a string with a lone
+/// surrogate pays for one, so equal strings are always the same variant.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub enum JsString {
+    Text(String),
+    Lone(Box<Lone>),
+}
+
+/// The well-formed text of a string with lone surrogates, and each surrogate at the byte offset
+/// of `text` it comes before; never empty. A surrogate pair is always one `char` of `text`.
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
+pub struct Lone {
     text: String,
-    surrogates: Surrogates,
-}
-
-/// The lone surrogates of a [`JsString`], boxed so that the string is a word larger than its text
-/// and `None` when there are none, which keeps equal strings equal.
-#[derive(Clone, Debug, Default, PartialEq, Eq, Hash)]
-struct Surrogates(Option<Box<[(usize, u16)]>>);
-
-impl Surrogates {
-    #[inline]
-    const fn is_empty(&self) -> bool {
-        self.0.is_none()
-    }
-
-    fn as_slice(&self) -> &[(usize, u16)] {
-        self.0.as_deref().unwrap_or_default()
-    }
-
-    fn push(&mut self, surrogate: (usize, u16)) {
-        let mut surrogates = self.0.take().map_or_else(Vec::new, Vec::from);
-        surrogates.push(surrogate);
-        self.0 = Some(surrogates.into_boxed_slice());
-    }
-
-    fn pop(&mut self) {
-        let mut surrogates = self.0.take().map_or_else(Vec::new, Vec::from);
-        surrogates.pop();
-        *self = surrogates.into_iter().collect();
-    }
-}
-
-impl FromIterator<(usize, u16)> for Surrogates {
-    fn from_iter<I: IntoIterator<Item = (usize, u16)>>(iter: I) -> Self {
-        let surrogates: Box<[_]> = iter.into_iter().collect();
-        Self((!surrogates.is_empty()).then_some(surrogates))
-    }
+    surrogates: Vec<(usize, u16)>,
 }
 
 /// A part of a [`JsString`]: text, or one lone surrogate.
@@ -57,13 +29,16 @@ pub enum Run<'s> {
     Surrogate(u16),
 }
 
+impl Default for JsString {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl JsString {
     #[must_use]
     pub const fn new() -> Self {
-        Self {
-            text: String::new(),
-            surrogates: Surrogates(None),
-        }
+        Self::Text(String::new())
     }
 
     /// The value of an oxc string.
@@ -81,7 +56,7 @@ impl JsString {
         let mut string = Self::new();
         for unit in char::decode_utf16(units) {
             match unit {
-                Ok(character) => string.text.push(character),
+                Ok(character) => string.push(character),
                 Err(error) => string.push_surrogate(error.unpaired_surrogate()),
             }
         }
@@ -92,93 +67,152 @@ impl JsString {
     #[must_use]
     #[inline]
     pub fn as_str(&self) -> Option<&str> {
-        self.surrogates.is_empty().then_some(self.text.as_str())
+        match self {
+            Self::Text(text) => Some(text),
+            Self::Lone(_) => None,
+        }
+    }
+
+    fn parts(&self) -> (&str, &[(usize, u16)]) {
+        match self {
+            Self::Text(text) => (text, &[]),
+            Self::Lone(lone) => (&lone.text, &lone.surrogates),
+        }
+    }
+
+    fn text_mut(&mut self) -> &mut String {
+        match self {
+            Self::Text(text) => text,
+            Self::Lone(lone) => &mut lone.text,
+        }
     }
 
     /// The text, each lone surrogate replaced by U+FFFD, as `TextEncoder` writes it.
     #[must_use]
     #[inline]
     pub fn to_string_lossy(&self) -> Cow<'_, str> {
-        if self.surrogates.is_empty() {
-            return Cow::Borrowed(&self.text);
+        match self {
+            Self::Text(text) => Cow::Borrowed(text),
+            Self::Lone(_) => Cow::Owned(self.lossy()),
         }
-        let mut text =
-            String::with_capacity(self.text.len() + 3 * self.surrogates.as_slice().len());
+    }
+
+    #[cold]
+    fn lossy(&self) -> String {
+        let mut text = String::new();
         for run in self.runs() {
             match run {
                 Run::Text(part) => text.push_str(part),
                 Run::Surrogate(_) => text.push(char::REPLACEMENT_CHARACTER),
             }
         }
-        Cow::Owned(text)
+        text
     }
 
     #[must_use]
     pub const fn is_empty(&self) -> bool {
-        self.text.is_empty() && self.surrogates.is_empty()
+        match self {
+            Self::Text(text) => text.is_empty(),
+            Self::Lone(_) => false,
+        }
+    }
+
+    /// Empties the string, keeping its text's buffer.
+    pub fn clear(&mut self) {
+        if let Self::Lone(lone) = self {
+            *self = Self::Text(std::mem::take(&mut lone.text));
+        }
+        self.text_mut().clear();
     }
 
     #[inline]
     pub fn push_str(&mut self, text: &str) {
-        self.text.push_str(text);
+        self.text_mut().push_str(text);
     }
 
     #[inline]
     pub fn push(&mut self, character: char) {
-        self.text.push(character);
+        self.text_mut().push(character);
     }
 
     /// Appends `other`, pairing a trailing lead surrogate with a leading trail surrogate.
     #[inline]
     pub fn push_js(&mut self, other: &Self) {
-        if other.surrogates.is_empty() {
-            return self.text.push_str(&other.text);
+        match other {
+            Self::Text(text) => self.push_str(text),
+            Self::Lone(_) => self.push_runs(other, |text| Cow::Borrowed(text)),
         }
+    }
+
+    /// Appends `other` with `map` applied to each of its text runs, as [`Self::push_js`] does.
+    #[inline]
+    pub fn push_js_mapped(&mut self, other: &Self, map: impl Fn(&str) -> Cow<'_, str>) {
+        match other {
+            Self::Text(text) => self.push_str(&map(text)),
+            Self::Lone(_) => self.push_runs(other, map),
+        }
+    }
+
+    #[cold]
+    fn push_runs(&mut self, other: &Self, map: impl Fn(&str) -> Cow<'_, str>) {
         for run in other.runs() {
             match run {
-                Run::Text(part) => self.text.push_str(part),
+                Run::Text(part) => self.push_str(&map(part)),
                 Run::Surrogate(unit) => self.push_surrogate(unit),
             }
         }
     }
 
+    #[cold]
     fn push_surrogate(&mut self, unit: u16) {
-        let end = self.text.len();
-        if let Some(&(at, lead)) = self.surrogates.as_slice().last()
-            && at == end
-            && (0xD800..0xDC00).contains(&lead)
-            && (0xDC00..0xE000).contains(&unit)
-            && let Some(Ok(character)) = char::decode_utf16([lead, unit]).next()
-        {
-            self.surrogates.pop();
-            self.text.push(character);
+        if let Self::Text(text) = self {
+            let text = std::mem::take(text);
+            let surrogates = vec![(text.len(), unit)];
+            *self = Self::Lone(Box::new(Lone { text, surrogates }));
             return;
         }
-        self.surrogates.push((end, unit));
+        let Self::Lone(lone) = self else {
+            unreachable!("a string with text only was handled above")
+        };
+        let end = lone.text.len();
+        let pair = match lone.surrogates.last() {
+            Some(&(at, lead)) if at == end => char::decode_utf16([lead, unit]).next(),
+            _ => None,
+        };
+        let Some(Ok(character)) = pair else {
+            return lone.surrogates.push((end, unit));
+        };
+        lone.surrogates.pop();
+        lone.text.push(character);
+        if lone.surrogates.is_empty() {
+            *self = Self::Text(std::mem::take(&mut lone.text));
+        }
     }
 
     /// The string without the characters that `trim` matches at its start, before any lone
     /// surrogate.
     #[must_use]
     pub fn trim_start_matches(&self, trim: impl Fn(char) -> bool) -> Self {
-        let limit = self
-            .surrogates
-            .as_slice()
-            .first()
-            .map_or(self.text.len(), |&(at, _)| at);
-        let cut = limit - self.text[..limit].trim_start_matches(trim).len();
-        Self {
-            text: self.text[cut..].to_owned(),
-            surrogates: (self.surrogates.as_slice().iter())
-                .map(|&(at, unit)| (at - cut, unit))
-                .collect(),
+        match self {
+            Self::Text(text) => Self::Text(text.trim_start_matches(trim).to_owned()),
+            Self::Lone(lone) => {
+                let limit = lone.surrogates[0].0;
+                let cut = limit - lone.text[..limit].trim_start_matches(trim).len();
+                Self::Lone(Box::new(Lone {
+                    text: lone.text[cut..].to_owned(),
+                    surrogates: (lone.surrogates.iter())
+                        .map(|&(at, unit)| (at - cut, unit))
+                        .collect(),
+                }))
+            }
         }
     }
 
     /// The text between lone surrogates, and the surrogates, in order.
     pub fn runs(&self) -> impl Iterator<Item = Run<'_>> {
+        let (text, surrogates) = self.parts();
         let mut from = 0;
-        let mut surrogates = self.surrogates.as_slice().iter();
+        let mut surrogates = surrogates.iter();
         let mut pending = None;
         std::iter::from_fn(move || {
             if let Some(unit) = pending.take() {
@@ -186,7 +220,7 @@ impl JsString {
             }
             match surrogates.next() {
                 Some(&(at, unit)) => {
-                    let part = &self.text[from..at];
+                    let part = &text[from..at];
                     from = at;
                     if part.is_empty() {
                         Some(Run::Surrogate(unit))
@@ -195,9 +229,9 @@ impl JsString {
                         Some(Run::Text(part))
                     }
                 }
-                None if from < self.text.len() => {
-                    let part = &self.text[from..];
-                    from = self.text.len();
+                None if from < text.len() => {
+                    let part = &text[from..];
+                    from = text.len();
                     Some(Run::Text(part))
                 }
                 None => None,
@@ -213,20 +247,6 @@ impl JsString {
         string
     }
 
-    /// Appends `other` with `map` applied to each of its text runs, as [`Self::push_js`] does.
-    #[inline]
-    pub fn push_js_mapped(&mut self, other: &Self, map: impl Fn(&str) -> Cow<'_, str>) {
-        if other.surrogates.is_empty() {
-            return self.text.push_str(&map(&other.text));
-        }
-        for run in other.runs() {
-            match run {
-                Run::Text(part) => self.text.push_str(&map(part)),
-                Run::Surrogate(unit) => self.push_surrogate(unit),
-            }
-        }
-    }
-
     pub fn encode_utf16(&self) -> impl Iterator<Item = u16> + '_ {
         self.runs().flat_map(|run| {
             let (text, unit) = match run {
@@ -240,13 +260,15 @@ impl JsString {
     /// The string in `allocator`, as an oxc string.
     #[inline]
     pub fn to_js_str_in<'a>(&self, allocator: &impl GetAllocator<'a>) -> JSStr<'a> {
-        if self.surrogates.is_empty() {
-            return JSStr::from_str_in(&self.text, allocator);
+        match self {
+            Self::Text(text) => JSStr::from(allocator.allocator().alloc_str(text)),
+            Self::Lone(_) => self.lone_js_str_in(allocator),
         }
-        let mut builder = JSStrBuilder::with_capacity_in(
-            self.text.len() + 3 * self.surrogates.as_slice().len(),
-            allocator,
-        );
+    }
+
+    #[cold]
+    fn lone_js_str_in<'a>(&self, allocator: &impl GetAllocator<'a>) -> JSStr<'a> {
+        let mut builder = JSStrBuilder::new_in(allocator);
         for run in self.runs() {
             match run {
                 Run::Text(part) => builder.push_str(part),
@@ -259,16 +281,13 @@ impl JsString {
 
 impl From<String> for JsString {
     fn from(text: String) -> Self {
-        Self {
-            text,
-            surrogates: Surrogates(None),
-        }
+        Self::Text(text)
     }
 }
 
 impl From<&str> for JsString {
     fn from(text: &str) -> Self {
-        Self::from(text.to_owned())
+        Self::Text(text.to_owned())
     }
 }
 
@@ -300,7 +319,13 @@ impl Ord for JsString {
 impl fmt::Write for JsString {
     #[inline]
     fn write_str(&mut self, s: &str) -> fmt::Result {
-        self.text.push_str(s);
+        self.push_str(s);
+        Ok(())
+    }
+
+    #[inline]
+    fn write_char(&mut self, c: char) -> fmt::Result {
+        self.push(c);
         Ok(())
     }
 }

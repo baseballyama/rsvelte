@@ -316,7 +316,7 @@ impl<'i, 't> Template<'i, '_, 't> {
                         continue;
                     }
                     quasis.push(text.map_text(sanitize_template_string));
-                    text = JsString::new();
+                    text.clear();
                     let x = self.template_expression(expression);
                     let value = if self.i.server {
                         if evaluated.is_string && evaluated.is_defined {
