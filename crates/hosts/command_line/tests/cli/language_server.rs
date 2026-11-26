@@ -110,7 +110,11 @@ impl Client {
             let message = self.receive();
             if message.get("id") == Some(&json!(id)) && message.get("method").is_none() {
                 assert!(message.get("error").is_none(), "{method}: {message}");
-                return message["result"].clone();
+                // A client rejects a response without one, `null` as for `shutdown` too.
+                let result = message.get("result");
+                return result
+                    .unwrap_or_else(|| panic!("{method}: {message}"))
+                    .clone();
             }
             self.answer_or_keep(message);
         }
