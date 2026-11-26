@@ -90,3 +90,20 @@ fn a_typescript_module_that_oxc_cannot_read_fails_where_typescript_reads_on() {
         assert_eq!(first_error(source), expected, "{source:?}");
     }
 }
+
+#[test]
+fn a_typescript_module_writes_a_number_with_a_leading_zero_as_its_value() {
+    // TypeScript 6.0.3's emit writes the value, which svelte 5.59.1's `compileModule` compiles.
+    for (source, value) in [
+        ("export const a = 08;\n", "export const a = 8;"),
+        ("export const a = 010;\n", "export const a = 8;"),
+        ("export const a = 08.5e1;\n", "export const a = 85;"),
+        (
+            "export const a = { 010: 1 };\n",
+            "export const a = { 8: 1 };",
+        ),
+    ] {
+        let javascript = compile("a.svelte.ts", source, Target::Client);
+        assert!(javascript.contains(value), "{source:?}: {javascript}");
+    }
+}

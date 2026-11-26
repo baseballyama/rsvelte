@@ -27,14 +27,15 @@ impl<'a> TreeBuilder<'a> {
             range.start_offset,
             source_type,
             |_| false,
-            |_, _| Vec::new(),
+            |_, _, _| Vec::new(),
         ))
         .map_err(|read| read.error)
     }
 
     /// [`Self::program`] for a host whose parser reads what `erase` leaves of it, as Svelte reads
-    /// TypeScript's emit of a module. `erase` returns the spans it removes, and an error oxc
-    /// recovered from in one of them is not the host's.
+    /// TypeScript's emit of a module. When its last argument is true, as it is when oxc recovered
+    /// from an error, `erase` returns the spans it removes, and an error in one of them is not the
+    /// host's.
     ///
     /// # Errors
     ///
@@ -43,7 +44,7 @@ impl<'a> TreeBuilder<'a> {
         &mut self,
         range: Span,
         source_type: SourceType,
-        erase: impl FnOnce(&'a oxc_allocator::Allocator, &mut Program<'a>) -> Vec<oxc_span::Span>,
+        erase: impl FnOnce(&'a oxc_allocator::Allocator, &mut Program<'a>, bool) -> Vec<oxc_span::Span>,
     ) -> Result<ProgramIdentifier, SyntaxError> {
         let text = &self.source_text[..range.end_offset as usize];
         (self.read_program(text, range.start_offset, source_type, |_| false, erase))
@@ -75,7 +76,7 @@ impl<'a> TreeBuilder<'a> {
     ) -> Result<ProgramIdentifier, Rejected> {
         let text = &self.source_text[..range.end_offset as usize];
         let start = range.start_offset;
-        self.read_program(text, start, source_type, keep, |_, _| Vec::new())
+        self.read_program(text, start, source_type, keep, |_, _, _| Vec::new())
             .map_err(|rejected| {
                 let program = (rejected.recovered).map(|program| &self.programs[program].0);
                 let errors = rejected.diagnostics.into_iter().map(|e| {
@@ -188,9 +189,9 @@ impl<'a> TreeBuilder<'a> {
         start: u32,
         source_type: SourceType,
         keep_recovered: fn(&Diagnostics) -> bool,
-        erase: impl FnOnce(&'a oxc_allocator::Allocator, &mut Program<'a>) -> Vec<oxc_span::Span>,
+        erase: impl FnOnce(&'a oxc_allocator::Allocator, &mut Program<'a>, bool) -> Vec<oxc_span::Span>,
     ) -> Result<ProgramIdentifier, Box<Read>> {
-        let parsed = Parser::new(self.allocator, text, source_type)
+        let mut parsed = Parser::new(self.allocator, text, source_type)
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .with_start(start)
@@ -213,14 +214,13 @@ impl<'a> TreeBuilder<'a> {
             }));
         }
         let mut program = parsed.program;
-        let erased = erase(self.allocator, &mut program);
-        let kept: Vec<_> = (parsed.diagnostics.iter())
-            .filter(|error| !in_spans(error, &erased))
-            .cloned()
-            .collect();
+        let erased = erase(self.allocator, &mut program, !parsed.diagnostics.is_empty());
+        if !erased.is_empty() {
+            parsed.diagnostics.retain(|error| !in_spans(error, &erased));
+        }
         let part = Part::Program(&program);
         let rejection = match self.check(
-            &kept,
+            &parsed.diagnostics,
             (text, start, 0),
             (&parsed.tokens, None, &parsed.irregular_whitespaces),
             (part, source_type),

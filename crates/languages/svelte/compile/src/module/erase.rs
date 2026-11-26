@@ -6,9 +6,13 @@ use oxc_span::{SPAN, Span};
 use rsvelte_typescript_compile::strip::{ErasedComments, ModuleErasure, is_erased_module_syntax};
 
 /// Removes from a `.svelte.ts` module what TypeScript's emit, which upstream reads instead of the
-/// module, does not keep, and returns the spans of what it removed. The lowered module is emitted
-/// later.
-pub(super) fn erase<'a>(allocator: &'a Allocator, program: &mut Program<'a>) -> Vec<Span> {
+/// module, does not keep, and, when `record` is true, returns the spans of what it removed. The
+/// lowered module is emitted later.
+pub(super) fn erase<'a>(
+    allocator: &'a Allocator,
+    program: &mut Program<'a>,
+    record: bool,
+) -> Vec<Span> {
     let module =
         (program.body.iter()).any(|s| s.is_module_declaration() || is_erased_module_syntax(s));
     let erased = ErasedComments::new(program);
@@ -17,7 +21,11 @@ pub(super) fn erase<'a>(allocator: &'a Allocator, program: &mut Program<'a>) -> 
         kept.binary_search_by_key(&comment.span.start, |s| s.start)
             .is_ok()
     });
-    let mut erasure = ModuleErasure::new(allocator);
+    let mut erasure = if record {
+        ModuleErasure::recording(allocator)
+    } else {
+        ModuleErasure::new(allocator)
+    };
     erasure.visit_program(program);
     // A module left without an import or an export stays one.
     if module && !program.body.iter().any(Statement::is_module_declaration) {

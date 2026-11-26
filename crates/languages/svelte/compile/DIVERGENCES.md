@@ -46,6 +46,11 @@ TypeScript reads on past some syntax errors in a `.svelte.ts` module: a reserved
 - A bundler reads the module as oxc does. `esbuild` 0.28.2 rejects 36 of the 38 shapes and
   accepts `declare function f({ enum }: any): void;` and `declare namespace A.enum {}`. The oxc
   transform of `rolldown` 1.2.19 rejects all 38.
+- A number that oxc's lexer refuses stops it the same way. TypeScript writes `0_8` as `8`, which
+  Svelte compiles, and rsvelte fails with "Numeric separator is not allowed in legacy octal
+  numeric literals". TypeScript writes `export const a = 08n;` as `export const a = 8, n;`, a
+  `const` with no value, which Svelte rejects with "Unexpected token" at the `;`, and rsvelte
+  fails with "Invalid number" at the number. `07e1` gives the same pair.
 - Test: `a_typescript_module_that_oxc_cannot_read_fails_where_typescript_reads_on` in
   `src/module/tests/erased_errors.rs`.
 - The report is [#5347](https://github.com/baseballyama/rsvelte/issues/5347).
