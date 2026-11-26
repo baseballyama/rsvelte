@@ -39,12 +39,15 @@ pub fn of_document(
     match context.get::<Parsed>() {
         Ok(_) => {
             let res = context.get::<Resolved>().as_ref()?;
-            raised_first(res.tree(), [res.semantic()], keep)
+            raised_first(res.tree(), [res.semantic()], |error| {
+                keep(&error.diagnostic)
+            })
         }
         Err(error) => {
             let parts = Semantic::of_each_part(error.read());
+            // Acorn has read the token the parser stops at.
             raised_first(error.read(), &parts, |javascript| {
-                javascript.span.start_offset < error.raised_at() && keep(javascript)
+                javascript.acorn_raised_at() <= error.raised_at() && keep(&javascript.diagnostic)
             })
         }
     }
@@ -79,7 +82,7 @@ pub fn fully_parsed<'a>(context: &'a DocumentContext<'_>) -> Result<&'a Componen
 fn raised_first<'s>(
     tree: &Tree,
     semantics: impl IntoIterator<Item = &'s Semantic>,
-    keep: impl Fn(&Diagnostic) -> bool,
+    keep: impl Fn(&SyntaxError) -> bool,
 ) -> Option<Diagnostic> {
     first_of(tree, semantics, |error, redeclared_by| {
         let template = redeclared_by.is_some_and(|semantic| {
@@ -87,7 +90,7 @@ fn raised_first<'s>(
                 && outside_programs(tree, &error.diagnostic)
                 && semantic.redeclares_in_host_scope(error.acorn_at())
         });
-        !template && keep(&error.diagnostic)
+        !template && keep(error)
     })
     .map(rsvelte_svelte_syntax::parse::javascript_failure)
 }

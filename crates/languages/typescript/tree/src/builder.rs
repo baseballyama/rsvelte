@@ -125,7 +125,7 @@ impl<'a> TreeBuilder<'a> {
     }
 
     /// What reads a part of `source_type` before acorn, if it is TypeScript.
-    fn typescript_reader(&self, source_type: SourceType) -> Option<TypeScriptReader> {
+    pub(super) fn typescript_reader(&self, source_type: SourceType) -> Option<TypeScriptReader> {
         self.as_acorn.filter(|_| source_type.is_typescript())
     }
 
@@ -195,7 +195,7 @@ impl<'a> TreeBuilder<'a> {
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
-            .map_err(|error| self.fatal(error, text, start, 0))?;
+            .map_err(|error| self.fatal(error, (text, start, 0), source_type))?;
         let part = Part::Expression(&parsed.expression);
         self.check(
             &parsed.diagnostics,
@@ -251,7 +251,7 @@ impl<'a> TreeBuilder<'a> {
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
-            .map_err(|error| self.fatal(error, self.source_text, start, 0))?;
+            .map_err(|error| self.fatal(error, (self.source_text, start, 0), source_type))?;
         let part = Part::Statement(&parsed.statement);
         self.check(
             &parsed.diagnostics,
@@ -432,7 +432,7 @@ impl<'a> TreeBuilder<'a> {
             .with_options(parentheses::options(parenthesized))
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
-            .map_err(|error| self.fatal(error, text, 0, shift))?;
+            .map_err(|error| self.fatal(error, (text, 0, shift), source_type))?;
         if parenthesized {
             let recorded = &mut self.parentheses;
             parentheses::strip(self.allocator, &mut parsed.expression, shift, recorded);

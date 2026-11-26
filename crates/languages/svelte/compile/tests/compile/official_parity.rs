@@ -17,6 +17,7 @@ mod import_aliases;
 mod import_equals;
 mod keywords;
 mod lets;
+mod lexer_order;
 mod namespaces;
 mod outcomes;
 mod patterns;

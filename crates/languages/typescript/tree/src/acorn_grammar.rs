@@ -48,11 +48,16 @@ pub(crate) enum Rejection {
     StaticBlockAwait,
     /// A `const`'s initializer in an ambient context that is not a literal or an enum reference.
     AmbientConstInitializer,
+    /// A token acorn's lexer rejects as it reads it: a number, or an escape that strict code
+    /// forbids.
+    Lexed(&'static str),
+    /// A `#` that no name follows: acorn names the character after it.
+    Character(char),
 }
 
 impl Rejection {
-    const fn message(self) -> &'static str {
-        match self {
+    fn message(self) -> std::borrow::Cow<'static, str> {
+        let message = match self {
             Self::Unexpected => "Unexpected token",
             Self::Override => concat!(
                 "This member cannot have an 'override' modifier because its containing class does ",
@@ -70,7 +75,12 @@ impl Rejection {
                 "A 'const' initializer in an ambient context must be a string or numeric literal ",
                 "or literal enum reference."
             ),
-        }
+            Self::Lexed(message) => message,
+            Self::Character(character) => {
+                return std::borrow::Cow::Owned(format!("Unexpected character '{character}'"));
+            }
+        };
+        std::borrow::Cow::Borrowed(message)
     }
 }
 
@@ -196,6 +206,29 @@ fn stop(
     }
 }
 
+/// Where acorn's lexer rejects the literal `kind` in strict code, which oxc can read without a
+/// diagnostic: a number with a leading zero, or a string with an escape.
+fn lexed_literal(kind: AstKind<'_>, typescript: Option<TypeScriptReader>) -> Option<Stop> {
+    let (span, raw) = match kind {
+        AstKind::NumericLiteral(number)
+            if matches!(number.raw?.as_bytes(), [b'0', b'0'..=b'9', ..]) =>
+        {
+            (number.span, number.raw?)
+        }
+        // Each escape is longer than what it stands for.
+        AstKind::StringLiteral(string) if string.raw?.len() != string.value.len() + 2 => {
+            (string.span, string.raw?)
+        }
+        _ => return None,
+    };
+    let (at, why) = crate::syntax_error::lexer_failure(&raw, 0, typescript)?;
+    Some(Stop {
+        at: span.start + at,
+        raised: span.start,
+        why,
+    })
+}
+
 /// The statements `kind` holds as its bodies, outside any block.
 pub(crate) const fn bodies(kind: AstKind<'_>) -> [Option<&Statement<'_>>; 2] {
     match kind {
@@ -275,7 +308,8 @@ impl<'a> Visit<'a> for Unsupported<'_> {
         let mut found = (self.awaits.enter(kind))
             .map(|at| (at, Rejection::StaticBlockAwait))
             .or_else(|| stop(kind, self.typescript, self.tokens))
-            .map(|(at, why)| Stop::at(at, why));
+            .map(|(at, why)| Stop::at(at, why))
+            .or_else(|| lexed_literal(kind, self.typescript));
         // oxc's checker reports these names and initializers outside an ambient context itself, and
         // in one only acorn-typescript checks them.
         if self.typescript == Some(TypeScriptReader::AcornTypescript) && self.ambient > 0 {
@@ -328,7 +362,7 @@ impl Unsupported<'_> {
 
 /// Where acorn stops at the first whitespace in `irregular`, the spans oxc lists in `text`, that
 /// ECMAScript does not allow; `shift` moves them into the document.
-pub(crate) fn whitespace(text: &str, irregular: &[oxc_span::Span], shift: u32) -> Option<Stop> {
+fn whitespace(text: &str, irregular: &[oxc_span::Span], shift: u32) -> Option<Stop> {
     irregular.iter().find_map(|span| {
         let rejection = match text.get(span.start as usize..)?.chars().next()? {
             '\u{85}' => Rejection::NextLine,
@@ -339,12 +373,77 @@ pub(crate) fn whitespace(text: &str, irregular: &[oxc_span::Span], shift: u32) -
     })
 }
 
+/// Where acorn first stops in a part oxc read of `text`, before its parser looks at the tokens
+/// that start at `starts`: at whitespace in `irregular` that ECMAScript does not allow, or at a
+/// token its lexer rejects as it reads it, which orders the rejection by where the token starts.
+/// `shift` moves it into the document.
+/// Whether acorn's lexer can reject `token` where oxc read it: a number, a string with an escape,
+/// an `@`, or a `#`.
+fn may_reject(token: &Token) -> bool {
+    let kind = token.kind();
+    kind.is_number()
+        || (kind == Kind::Str && token.escaped())
+        || matches!(
+            kind,
+            Kind::At | Kind::PrivateIdentifier | Kind::Undetermined
+        )
+}
+
+pub(crate) fn lexed(
+    text: &str,
+    starts: impl IntoIterator<Item = u32>,
+    (irregular, typescript): (&[oxc_span::Span], Option<TypeScriptReader>),
+    shift: u32,
+) -> Option<Stop> {
+    let token = starts.into_iter().find_map(|start| {
+        let (at, why) = crate::syntax_error::lexer_failure(text, start, typescript)?;
+        Some(Stop {
+            at: at + shift,
+            raised: start + shift,
+            why,
+        })
+    });
+    whitespace(text, irregular, shift)
+        .into_iter()
+        .chain(token)
+        .min_by_key(|stop| stop.raised)
+}
+
+/// The starts of `tokens` that oxc read before it stopped, and of the token it stopped at, which
+/// `diagnostics` label first: acorn has read that token when its parser fails there.
+/// Where the tokens acorn may reject start, of a part and of the token its parser read to end it.
+pub(crate) fn read(tokens: &[Token], next: Option<Token>) -> impl Iterator<Item = u32> {
+    let part = tokens
+        .iter()
+        .filter(|token| may_reject(token))
+        .map(Token::start);
+    part.chain(next.filter(may_reject).map(|token| token.start()))
+}
+
+pub(crate) fn read_before_stopping(
+    text: &str,
+    tokens: &[Token],
+    diagnostics: &[oxc_diagnostics::OxcDiagnostic],
+) -> impl Iterator<Item = u32> {
+    let stopped = (diagnostics.first())
+        .and_then(|error| error.labels.first())
+        .and_then(|label| {
+            let rest = text.get(label.offset() as usize..)?;
+            let blank = rest.len() - rest.trim_start_matches([' ', '\t']).len();
+            Some(label.offset() + u32::try_from(blank).ok()?)
+        });
+    tokens
+        .iter()
+        .filter(|token| may_reject(token))
+        .map(Token::start)
+        .chain(stopped)
+}
+
 /// What acorn throws where it rejects.
 pub(crate) fn rejection(Stop { at, raised, why }: Stop) -> SyntaxError {
-    let message = why.message();
-    let acorn_message = std::borrow::Cow::Borrowed(message);
+    let acorn_message = why.message();
     SyntaxError {
-        diagnostic: Diagnostic::error("parse_error", message, Span::new(at, at)),
+        diagnostic: Diagnostic::error("parse_error", acorn_message.to_string(), Span::new(at, at)),
         acorn: Some(if raised == at {
             Acorn::Fails {
                 message: acorn_message,
