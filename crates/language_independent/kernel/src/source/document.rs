@@ -16,6 +16,9 @@ pub struct Document {
     /// corpus unit or an editor buffer, so no task looks for files next to it. It names the same
     /// file as `path`, perhaps spelled another way.
     pub file: Option<PathBuf>,
+    /// Whether `text` is what the disk holds in `file`, so a program that reads the file, such as
+    /// a type checker, reads the same text.
+    pub on_disk: bool,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -37,6 +40,7 @@ impl Document {
             path: path.into(),
             text,
             file: None,
+            on_disk: false,
         })
     }
 
@@ -45,6 +49,15 @@ impl Document {
     pub fn read_from(mut self, file: PathBuf) -> Self {
         self.file = Some(file);
         self
+    }
+
+    /// The document as read from `file`, whose text is what the disk holds there.
+    #[must_use]
+    pub fn read_from_disk(self, file: PathBuf) -> Self {
+        Self {
+            on_disk: true,
+            ..self.read_from(file)
+        }
     }
 
     /// The file the text was read from, else the path: what a tool that reads the files around

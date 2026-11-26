@@ -31,6 +31,8 @@ pub(crate) struct CheckRequest<'a> {
     pub stand_ins: Vec<(String, StandIn)>,
     /// Each document's imports.
     pub imports: Vec<Vec<CheckedImport>>,
+    /// Whether the text the checker reads of each document is what the disk holds in its file.
+    pub on_disk: Vec<bool>,
 }
 
 #[derive(Debug, PartialEq, Eq)]
@@ -144,7 +146,7 @@ impl Tsc {
                 && req.env.paths.is_empty()
                 && !own.script_modules
                 && resolve.is_none()
-                && as_on_disk(&layer, &config)
+                && as_on_disk(req, (&root, &paths), &layer, &config)
         });
         let helpers = self.helpers(paths.len(), &root, left.open);
         let (mut checked, idle) = check_shares(
@@ -323,10 +325,20 @@ struct Left {
 }
 
 /// Whether the checker reads every file of `layer` but `config` as the disk holds it, as it reads
-/// a file the layer does not hold.
-fn as_on_disk(layer: &Layer, config: &Path) -> bool {
+/// a file the layer does not hold. Only the files that are not documents the host read from the
+/// disk are read again.
+fn as_on_disk(
+    req: &CheckRequest<'_>,
+    (root, paths): (&Path, &[PathBuf]),
+    layer: &Layer,
+    config: &Path,
+) -> bool {
+    let read: HashSet<&Path> = (0..paths.len())
+        .filter(|&i| req.checked_as_on_disk(root, i))
+        .map(|i| paths[i].as_path())
+        .collect();
     let files: Vec<_> = (layer.files.iter())
-        .filter(|(path, _)| *path != config)
+        .filter(|(path, _)| *path != config && !read.contains(path.as_path()))
         .collect();
     let same = rsvelte_kernel::performance::parallel::map(&files, |(path, text)| {
         std::fs::read(path).is_ok_and(|disk| disk == text.as_bytes())
