@@ -1042,6 +1042,16 @@
 		}
 	},
 	{
+		"id": "rsvelte-mutants",
+		"url": null,
+		"commit": null,
+		"checkout": "corpus/_own/mutants",
+		"license": {
+			"spdx": "MIT",
+			"file": "LICENSE"
+		}
+	},
+	{
 		"id": "test262",
 		"url": null,
 		"commit": null,

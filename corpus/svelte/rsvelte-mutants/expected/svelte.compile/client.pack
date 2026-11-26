@@ -1,0 +1,1809 @@
+# rsvelte pack 1
+=== 307 animotion/bind-sum/bind_invalid_expression/115e576d493188f9.svelte	error.json
+{
+	"code": "bind_invalid_expression",
+	"message": "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression",
+	"start": {
+		"line": 705,
+		"column": 7,
+		"character": 20487
+	},
+	"end": {
+		"line": 705,
+		"column": 27,
+		"character": 20507
+	}
+}
+
+=== 301 animotion/bind-sum/bind_invalid_expression/1aebddc9b32ae8b0.svelte	error.json
+{
+	"code": "bind_invalid_expression",
+	"message": "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression",
+	"start": {
+		"line": 35,
+		"column": 6,
+		"character": 802
+	},
+	"end": {
+		"line": 35,
+		"column": 24,
+		"character": 820
+	}
+}
+
+=== 412 animotion/const-at-root/const_tag_invalid_placement/b399d6e564b0e75d.svelte	error.json
+{
+	"code": "const_tag_invalid_placement",
+	"message": "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 57,
+		"character": 57
+	}
+}
+
+=== 412 animotion/const-at-root/const_tag_invalid_placement/fbdc205b3b1919c1.svelte	error.json
+{
+	"code": "const_tag_invalid_placement",
+	"message": "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 52,
+		"character": 52
+	}
+}
+
+=== 228 animotion/drop-close/block_unclosed/257243e1793b9e85.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 12,
+		"column": 0,
+		"character": 338
+	},
+	"end": {
+		"line": 12,
+		"column": 1,
+		"character": 339
+	}
+}
+
+=== 228 animotion/drop-close/block_unclosed/3b318146e67b6801.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 29,
+		"column": 0,
+		"character": 628
+	},
+	"end": {
+		"line": 29,
+		"column": 1,
+		"character": 629
+	}
+}
+
+=== 228 animotion/drop-close/block_unclosed/66eeea51011c5566.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 25,
+		"column": 0,
+		"character": 561
+	},
+	"end": {
+		"line": 25,
+		"column": 1,
+		"character": 562
+	}
+}
+
+=== 234 animotion/drop-close/block_unclosed/bb8e0555be00a0a9.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 704,
+		"column": 0,
+		"character": 20468
+	},
+	"end": {
+		"line": 704,
+		"column": 1,
+		"character": 20469
+	}
+}
+
+=== 224 animotion/drop-close/block_unclosed/bc3529d510fb02f9.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 85
+	},
+	"end": {
+		"line": 5,
+		"column": 1,
+		"character": 86
+	}
+}
+
+=== 238 animotion/drop-close/element_unclosed/298b13dadbbb1994.svelte	error.json
+{
+	"code": "element_unclosed",
+	"message": "`<div>` was left open\nhttps://svelte.dev/e/element_unclosed",
+	"start": {
+		"line": 145,
+		"column": 0,
+		"character": 3664
+	},
+	"end": {
+		"line": 145,
+		"column": 1,
+		"character": 3665
+	}
+}
+
+=== 236 animotion/drop-close/element_unclosed/4b1c8b9edfc6e77f.svelte	error.json
+{
+	"code": "element_unclosed",
+	"message": "`<aside>` was left open\nhttps://svelte.dev/e/element_unclosed",
+	"start": {
+		"line": 11,
+		"column": 0,
+		"character": 160
+	},
+	"end": {
+		"line": 11,
+		"column": 1,
+		"character": 161
+	}
+}
+
+=== 253 animotion/duplicate-attribute/attribute_duplicate/0a8d05b68f7173bc.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 148,
+		"column": 30,
+		"character": 3451
+	},
+	"end": {
+		"line": 148,
+		"column": 45,
+		"character": 3466
+	}
+}
+
+=== 249 animotion/duplicate-attribute/attribute_duplicate/179533f38d9f3bee.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 32,
+		"column": 22,
+		"character": 754
+	},
+	"end": {
+		"line": 32,
+		"column": 33,
+		"character": 765
+	}
+}
+
+=== 253 animotion/duplicate-attribute/attribute_duplicate/37a8468299cb0fbf.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 185,
+		"column": 20,
+		"character": 4553
+	},
+	"end": {
+		"line": 185,
+		"column": 34,
+		"character": 4567
+	}
+}
+
+=== 245 animotion/duplicate-attribute/attribute_duplicate/4881734dd963ad28.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	},
+	"end": {
+		"line": 1,
+		"column": 27,
+		"character": 27
+	}
+}
+
+=== 249 animotion/duplicate-attribute/attribute_duplicate/a97fd4980c668486.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 11,
+		"column": 21,
+		"character": 181
+	},
+	"end": {
+		"line": 11,
+		"column": 34,
+		"character": 194
+	}
+}
+
+=== 253 animotion/duplicate-attribute/attribute_duplicate/c59c7906f2eac7f3.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 118,
+		"column": 41,
+		"character": 2655
+	},
+	"end": {
+		"line": 118,
+		"column": 66,
+		"character": 2680
+	}
+}
+
+=== 233 animotion/open-expression/expected_token/04a37a070739638b.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 705,
+		"column": 39,
+		"character": 20519
+	},
+	"end": {
+		"line": 705,
+		"column": 39,
+		"character": 20519
+	}
+}
+
+=== 227 animotion/open-expression/expected_token/4e279d268823aae0.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 32,
+		"column": 21,
+		"character": 753
+	},
+	"end": {
+		"line": 32,
+		"column": 21,
+		"character": 753
+	}
+}
+
+=== 243 animotion/open-expression/js_parse_error/35da9d6bccd68cc1.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unterminated string constant\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 146,
+		"column": 32,
+		"character": 3739
+	},
+	"end": {
+		"line": 146,
+		"column": 32,
+		"character": 3739
+	}
+}
+
+=== 243 animotion/open-expression/js_parse_error/bf2dfbcca3b401fb.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unterminated string constant\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 186,
+		"column": 32,
+		"character": 4586
+	},
+	"end": {
+		"line": 186,
+		"column": 32,
+		"character": 4586
+	}
+}
+
+=== 403 animotion/rune-in-template/state_invalid_placement/42391e3708aa7376.svelte	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 32,
+		"column": 14,
+		"character": 746
+	},
+	"end": {
+		"line": 32,
+		"column": 28,
+		"character": 760
+	}
+}
+
+=== 409 animotion/rune-in-template/state_invalid_placement/db5c203aaf8c5ef6.svelte	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 705,
+		"column": 30,
+		"character": 20510
+	},
+	"end": {
+		"line": 705,
+		"column": 46,
+		"character": 20526
+	}
+}
+
+=== 323 animotion/script-twice/script_duplicate/10566a228261770d.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 17,
+		"column": 0,
+		"character": 561
+	},
+	"end": {
+		"line": 17,
+		"column": 0,
+		"character": 561
+	}
+}
+
+=== 323 animotion/script-twice/script_duplicate/6b7b9879b366a353.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 28,
+		"column": 0,
+		"character": 627
+	},
+	"end": {
+		"line": 28,
+		"column": 0,
+		"character": 627
+	}
+}
+
+=== 226 animotion/swap-close/expected_token/41b1591f38d47f2f.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token if\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 36,
+		"column": 2,
+		"character": 878
+	},
+	"end": {
+		"line": 36,
+		"column": 2,
+		"character": 878
+	}
+}
+
+=== 232 animotion/swap-close/expected_token/6aca7567d443f784.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token if\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 714,
+		"column": 2,
+		"character": 20833
+	},
+	"end": {
+		"line": 714,
+		"column": 2,
+		"character": 20833
+	}
+}
+
+=== 232 animotion/swap-close/expected_token/72d2e2ad3b4a8060.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token each\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 132,
+		"column": 6,
+		"character": 3403
+	},
+	"end": {
+		"line": 132,
+		"column": 6,
+		"character": 3403
+	}
+}
+
+=== 228 animotion/swap-close/expected_token/f82b6982cba413c7.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token each\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 34,
+		"column": 2,
+		"character": 837
+	},
+	"end": {
+		"line": 34,
+		"column": 2,
+		"character": 837
+	}
+}
+
+=== 249 attractions/duplicate-attribute/attribute_duplicate/5ff1e1e04aad50be.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 16,
+		"column": 28,
+		"character": 391
+	},
+	"end": {
+		"line": 16,
+		"column": 48,
+		"character": 411
+	}
+}
+
+=== 245 attractions/duplicate-attribute/attribute_duplicate/aa679f9a03e81487.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 25,
+		"character": 25
+	},
+	"end": {
+		"line": 1,
+		"column": 41,
+		"character": 41
+	}
+}
+
+=== 250 attractions/duplicate-attribute/attribute_duplicate/d3a4439dd06d6ad5.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 15,
+		"column": 63,
+		"character": 384
+	},
+	"end": {
+		"line": 15,
+		"column": 118,
+		"character": 439
+	}
+}
+
+=== 231 attractions/swap-close/expected_token/bc5f2234497403b0.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token await\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 55,
+		"column": 4,
+		"character": 1663
+	},
+	"end": {
+		"line": 55,
+		"column": 4,
+		"character": 1663
+	}
+}
+
+=== 260 bits-ui/bind-sum/attribute_invalid_name/06880dae52249363.svelte	error.json
+{
+	"code": "attribute_invalid_name",
+	"message": "'+' is not a valid attribute name\nhttps://svelte.dev/e/attribute_invalid_name",
+	"start": {
+		"line": 24,
+		"column": 19,
+		"character": 534
+	},
+	"end": {
+		"line": 24,
+		"column": 20,
+		"character": 535
+	}
+}
+
+=== 260 bits-ui/bind-sum/attribute_invalid_name/5591bc9ac0badcba.svelte	error.json
+{
+	"code": "attribute_invalid_name",
+	"message": "'+' is not a valid attribute name\nhttps://svelte.dev/e/attribute_invalid_name",
+	"start": {
+		"line": 39,
+		"column": 36,
+		"character": 864
+	},
+	"end": {
+		"line": 39,
+		"column": 37,
+		"character": 865
+	}
+}
+
+=== 227 bits-ui/bind-sum/expected_token/f1c641d58729022f.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 70,
+		"column": 6,
+		"character": 1446
+	},
+	"end": {
+		"line": 70,
+		"column": 6,
+		"character": 1446
+	}
+}
+
+=== 228 bits-ui/drop-close/block_unclosed/04a0cecbbef640d1.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 39,
+		"column": 0,
+		"character": 938
+	},
+	"end": {
+		"line": 39,
+		"column": 1,
+		"character": 939
+	}
+}
+
+=== 228 bits-ui/drop-close/block_unclosed/0c0c1f0cf4f5aab0.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 39,
+		"column": 0,
+		"character": 930
+	},
+	"end": {
+		"line": 39,
+		"column": 1,
+		"character": 931
+	}
+}
+
+=== 224 bits-ui/drop-close/block_unclosed/52d8f12f9f89e4b2.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 65
+	},
+	"end": {
+		"line": 5,
+		"column": 1,
+		"character": 66
+	}
+}
+
+=== 228 bits-ui/drop-close/block_unclosed/53b47a9ebb0d59b8.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 17,
+		"column": 0,
+		"character": 633
+	},
+	"end": {
+		"line": 17,
+		"column": 1,
+		"character": 634
+	}
+}
+
+=== 228 bits-ui/drop-close/block_unclosed/edb20c83971d75fc.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 11,
+		"column": 0,
+		"character": 309
+	},
+	"end": {
+		"line": 11,
+		"column": 1,
+		"character": 310
+	}
+}
+
+=== 232 bits-ui/drop-close/expected_token/7152e920ef7ae04b.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token </style>\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 28,
+		"column": 7,
+		"character": 583
+	},
+	"end": {
+		"line": 28,
+		"column": 7,
+		"character": 583
+	}
+}
+
+=== 234 bits-ui/drop-close/expected_token/9f40e77af21cc25d.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token </style>\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 40,
+		"column": 6,
+		"character": 1152
+	},
+	"end": {
+		"line": 40,
+		"column": 6,
+		"character": 1152
+	}
+}
+
+=== 249 bits-ui/duplicate-attribute/attribute_duplicate/00775f1dd4da52f1.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 20,
+		"column": 43,
+		"character": 635
+	},
+	"end": {
+		"line": 20,
+		"column": 68,
+		"character": 660
+	}
+}
+
+=== 249 bits-ui/duplicate-attribute/attribute_duplicate/741147987ead288f.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 31,
+		"column": 14,
+		"character": 454
+	},
+	"end": {
+		"line": 31,
+		"column": 21,
+		"character": 461
+	}
+}
+
+=== 249 bits-ui/duplicate-attribute/attribute_duplicate/b47955a9b98ec15a.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 16,
+		"column": 18,
+		"character": 275
+	},
+	"end": {
+		"line": 16,
+		"column": 34,
+		"character": 291
+	}
+}
+
+=== 249 bits-ui/duplicate-attribute/attribute_duplicate/c1c2a259a99bfce6.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 33,
+		"column": 43,
+		"character": 729
+	},
+	"end": {
+		"line": 33,
+		"column": 68,
+		"character": 754
+	}
+}
+
+=== 249 bits-ui/duplicate-attribute/attribute_duplicate/f4f6da9a10d043e2.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 28,
+		"column": 4,
+		"character": 1131
+	},
+	"end": {
+		"line": 33,
+		"column": 3,
+		"character": 1280
+	}
+}
+
+=== 227 bits-ui/rune-in-template/expected_token/dc16ebc7943acc57.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 23,
+		"column": 13,
+		"character": 992
+	},
+	"end": {
+		"line": 23,
+		"column": 13,
+		"character": 992
+	}
+}
+
+=== 227 bits-ui/rune-in-template/expected_token/ece97342cd6fa900.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 50,
+		"column": 9,
+		"character": 1285
+	},
+	"end": {
+		"line": 50,
+		"column": 9,
+		"character": 1285
+	}
+}
+
+=== 233 bits-ui/swap-close/expected_token/1b7b7ce7f43051af.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token snippet\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 31,
+		"column": 2,
+		"character": 1179
+	},
+	"end": {
+		"line": 31,
+		"column": 2,
+		"character": 1179
+	}
+}
+
+=== 229 bits-ui/swap-close/expected_token/2bd46aed566d11bc.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token key\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 51,
+		"column": 2,
+		"character": 1235
+	},
+	"end": {
+		"line": 51,
+		"column": 2,
+		"character": 1235
+	}
+}
+
+=== 233 bits-ui/swap-close/expected_token/32c51c45000f5b2a.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token snippet\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 35,
+		"column": 2,
+		"character": 1211
+	},
+	"end": {
+		"line": 35,
+		"column": 2,
+		"character": 1211
+	}
+}
+
+=== 229 bits-ui/swap-close/expected_token/c4fb13497ae43160.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token key\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 51,
+		"column": 2,
+		"character": 1188
+	},
+	"end": {
+		"line": 51,
+		"column": 2,
+		"character": 1188
+	}
+}
+
+=== 306 cnblocks/drop-close/element_invalid_closing_tag/7bafc6617a5157e6.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</svelte:element>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 149,
+		"column": 0,
+		"character": 4709
+	},
+	"end": {
+		"line": 149,
+		"column": 0,
+		"character": 4709
+	}
+}
+
+=== 299 cnblocks/drop-close/element_invalid_closing_tag/fce097ac761af9df.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</svelte:head>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 43,
+		"column": 0,
+		"character": 910
+	},
+	"end": {
+		"line": 43,
+		"column": 0,
+		"character": 910
+	}
+}
+
+=== 232 cnblocks/drop-close/unexpected_eof/0c3e1a6ec645c96d.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 22,
+		"column": 1,
+		"character": 714
+	},
+	"end": {
+		"line": 22,
+		"column": 1,
+		"character": 714
+	}
+}
+
+=== 232 cnblocks/drop-close/unexpected_eof/23b79150accab06b.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 22,
+		"column": 1,
+		"character": 863
+	},
+	"end": {
+		"line": 22,
+		"column": 1,
+		"character": 863
+	}
+}
+
+=== 229 cnblocks/duplicate-attribute/expected_token/13ac5e85dcdb0ab7.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 16,
+		"column": 291,
+		"character": 786
+	},
+	"end": {
+		"line": 16,
+		"column": 291,
+		"character": 786
+	}
+}
+
+=== 225 cnblocks/duplicate-attribute/expected_token/1ffa51762f62b706.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 8,
+		"column": 27,
+		"character": 303
+	},
+	"end": {
+		"line": 8,
+		"column": 27,
+		"character": 303
+	}
+}
+
+=== 223 cnblocks/duplicate-attribute/expected_token/7a556e431c90630e.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 26,
+		"character": 26
+	},
+	"end": {
+		"line": 1,
+		"column": 26,
+		"character": 26
+	}
+}
+
+=== 225 cnblocks/duplicate-attribute/expected_token/974dfe20e053c714.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 7,
+		"column": 27,
+		"character": 214
+	},
+	"end": {
+		"line": 7,
+		"column": 27,
+		"character": 214
+	}
+}
+
+=== 223 cnblocks/duplicate-attribute/expected_token/a22d6c3178e84aac.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 26,
+		"character": 26
+	},
+	"end": {
+		"line": 1,
+		"column": 26,
+		"character": 26
+	}
+}
+
+=== 238 cnblocks/script-twice/js_parse_error/5556caa365c1a1d9.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unterminated regular expression\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 178
+	},
+	"end": {
+		"line": 5,
+		"column": 2,
+		"character": 178
+	}
+}
+
+=== 240 cnblocks/script-twice/js_parse_error/d18921f6ddf6dbf3.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unterminated regular expression\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 10,
+		"column": 2,
+		"character": 441
+	},
+	"end": {
+		"line": 10,
+		"column": 2,
+		"character": 441
+	}
+}
+
+=== 247 edra/duplicate-attribute/attribute_duplicate/9c4d455d8348b5f1.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 6,
+		"column": 45,
+		"character": 172
+	},
+	"end": {
+		"line": 6,
+		"column": 62,
+		"character": 189
+	}
+}
+
+=== 295 eslint-plugin-svelte/drop-close/svelte_meta_invalid_placement/5b0c8da3d20fe1a9.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 10,
+		"column": 0,
+		"character": 145
+	},
+	"end": {
+		"line": 10,
+		"column": 0,
+		"character": 145
+	}
+}
+
+=== 295 eslint-plugin-svelte/drop-close/svelte_meta_invalid_placement/f07052f296a83c32.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 10,
+		"column": 0,
+		"character": 166
+	},
+	"end": {
+		"line": 10,
+		"column": 0,
+		"character": 166
+	}
+}
+
+=== 247 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/2cc474032a381180.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 7,
+		"column": 19,
+		"character": 105
+	},
+	"end": {
+		"line": 7,
+		"column": 31,
+		"character": 117
+	}
+}
+
+=== 247 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/95f644cb0ac55354.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 7,
+		"column": 39,
+		"character": 109
+	},
+	"end": {
+		"line": 7,
+		"column": 60,
+		"character": 130
+	}
+}
+
+=== 247 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/b214083851676a5c.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 8,
+		"column": 56,
+		"character": 239
+	},
+	"end": {
+		"line": 8,
+		"column": 76,
+		"character": 259
+	}
+}
+
+=== 248 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/ba965b44a8b21b2d.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 8,
+		"column": 59,
+		"character": 150
+	},
+	"end": {
+		"line": 8,
+		"column": 102,
+		"character": 193
+	}
+}
+
+=== 247 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/beaec40f4153cde7.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 8,
+		"column": 58,
+		"character": 241
+	},
+	"end": {
+		"line": 8,
+		"column": 79,
+		"character": 262
+	}
+}
+
+=== 256 eslint-plugin-svelte/duplicate-attribute/declaration_duplicate/c83689e9c0d7cc37.svelte	error.json
+{
+	"code": "declaration_duplicate",
+	"message": "`thing` has already been declared\nhttps://svelte.dev/e/declaration_duplicate",
+	"start": {
+		"line": 6,
+		"column": 32,
+		"character": 130
+	},
+	"end": {
+		"line": 6,
+		"column": 37,
+		"character": 135
+	}
+}
+
+=== 276 eslint-plugin-svelte/duplicate-attribute/transition_duplicate/13ea2106dfb5027e.svelte	error.json
+{
+	"code": "transition_duplicate",
+	"message": "Cannot use multiple `out:` directives on a single element\nhttps://svelte.dev/e/transition_duplicate",
+	"start": {
+		"line": 6,
+		"column": 11,
+		"character": 65
+	},
+	"end": {
+		"line": 6,
+		"column": 16,
+		"character": 70
+	}
+}
+
+=== 284 eslint-plugin-svelte/duplicate-attribute/transition_duplicate/5b60fbfa5f089339.svelte	error.json
+{
+	"code": "transition_duplicate",
+	"message": "Cannot use multiple `transition:` directives on a single element\nhttps://svelte.dev/e/transition_duplicate",
+	"start": {
+		"line": 5,
+		"column": 22,
+		"character": 90
+	},
+	"end": {
+		"line": 5,
+		"column": 37,
+		"character": 105
+	}
+}
+
+=== 501 eslint-plugin-svelte/rune-in-template/svelte_options_invalid_customelement/9885ce99e4c41e74.svelte	error.json
+{
+	"code": "svelte_options_invalid_customelement",
+	"message": "\"customElement\" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: \"open\" | \"none\" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }\nhttps://svelte.dev/e/svelte_options_invalid_customelement",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 74,
+		"character": 74
+	}
+}
+
+=== 229 eslint-plugin-svelte/swap-close/expected_token/a9278f39f5409db0.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token await\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 11,
+		"column": 3,
+		"character": 372
+	},
+	"end": {
+		"line": 11,
+		"column": 3,
+		"character": 372
+	}
+}
+
+=== 313 flowbite-svelte/bind-sum/illegal_element_attribute/d373cfe71c3a6c7c.svelte	error.json
+{
+	"code": "illegal_element_attribute",
+	"message": "`<svelte:window>` does not support non-event attributes or spread attributes\nhttps://svelte.dev/e/illegal_element_attribute",
+	"start": {
+		"line": 107,
+		"column": 31,
+		"character": 2878
+	},
+	"end": {
+		"line": 107,
+		"column": 32,
+		"character": 2879
+	}
+}
+
+=== 291 flowbite-svelte/duplicate-attribute/transition_duplicate/69f152299ced34d9.svelte	error.json
+{
+	"code": "transition_duplicate",
+	"message": "Cannot use multiple `transition:` directives on a single element\nhttps://svelte.dev/e/transition_duplicate",
+	"start": {
+		"line": 117,
+		"column": 68,
+		"character": 4921
+	},
+	"end": {
+		"line": 117,
+		"column": 98,
+		"character": 4951
+	}
+}
+
+=== 309 joy-of-code/bind-sum/illegal_element_attribute/347b4013f7479821.svelte	error.json
+{
+	"code": "illegal_element_attribute",
+	"message": "`<svelte:window>` does not support non-event attributes or spread attributes\nhttps://svelte.dev/e/illegal_element_attribute",
+	"start": {
+		"line": 13,
+		"column": 28,
+		"character": 359
+	},
+	"end": {
+		"line": 13,
+		"column": 29,
+		"character": 360
+	}
+}
+
+=== 222 language-tools/drop-close/block_unclosed/43bd7f768610379b.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 226 language-tools/drop-close/block_unclosed/ebc798d0bcf81db0.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 8,
+		"column": 0,
+		"character": 136
+	},
+	"end": {
+		"line": 8,
+		"column": 1,
+		"character": 137
+	}
+}
+
+=== 301 language-tools/drop-close/element_invalid_closing_tag/a5ca1f1b91573063.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</svelte:boundary>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 6,
+		"column": 0,
+		"character": 118
+	},
+	"end": {
+		"line": 6,
+		"column": 0,
+		"character": 118
+	}
+}
+
+=== 265 language-tools/duplicate-attribute/animation_duplicate/1ba73d2c465732ff.svelte	error.json
+{
+	"code": "animation_duplicate",
+	"message": "An element can only have one 'animate' directive\nhttps://svelte.dev/e/animation_duplicate",
+	"start": {
+		"line": 2,
+		"column": 18,
+		"character": 53
+	},
+	"end": {
+		"line": 2,
+		"column": 30,
+		"character": 65
+	}
+}
+
+=== 267 language-tools/duplicate-attribute/animation_duplicate/b0d71e2b6a1ed6ee.svelte	error.json
+{
+	"code": "animation_duplicate",
+	"message": "An element can only have one 'animate' directive\nhttps://svelte.dev/e/animation_duplicate",
+	"start": {
+		"line": 8,
+		"column": 22,
+		"character": 146
+	},
+	"end": {
+		"line": 8,
+		"column": 34,
+		"character": 158
+	}
+}
+
+=== 245 language-tools/duplicate-attribute/attribute_duplicate/492063be357dc570.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 34,
+		"character": 34
+	},
+	"end": {
+		"line": 1,
+		"column": 50,
+		"character": 50
+	}
+}
+
+=== 247 language-tools/duplicate-attribute/attribute_duplicate/a0983945ad9573b4.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 6,
+		"column": 34,
+		"character": 110
+	},
+	"end": {
+		"line": 6,
+		"column": 46,
+		"character": 122
+	}
+}
+
+=== 256 language-tools/duplicate-attribute/declaration_duplicate/14a274839779d4b7.svelte	error.json
+{
+	"code": "declaration_duplicate",
+	"message": "`valid1` has already been declared\nhttps://svelte.dev/e/declaration_duplicate",
+	"start": {
+		"line": 5,
+		"column": 18,
+		"character": 97
+	},
+	"end": {
+		"line": 5,
+		"column": 28,
+		"character": 107
+	}
+}
+
+=== 253 language-tools/duplicate-attribute/declaration_duplicate/f2387ee60051463c.svelte	error.json
+{
+	"code": "declaration_duplicate",
+	"message": "`prop` has already been declared\nhttps://svelte.dev/e/declaration_duplicate",
+	"start": {
+		"line": 2,
+		"column": 22,
+		"character": 33
+	},
+	"end": {
+		"line": 2,
+		"column": 30,
+		"character": 41
+	}
+}
+
+=== 299 layerchart/drop-close/svelte_meta_invalid_placement/541d4997192da810.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:window>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 82,
+		"column": 0,
+		"character": 1845
+	},
+	"end": {
+		"line": 82,
+		"column": 0,
+		"character": 1845
+	}
+}
+
+=== 297 originui-svelte/drop-close/svelte_meta_invalid_placement/d2e0fd2ece014682.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 77,
+		"column": 0,
+		"character": 2748
+	},
+	"end": {
+		"line": 77,
+		"column": 0,
+		"character": 2748
+	}
+}
+
+=== 225 shadcn-svelte/bind-sum/expected_token/ea39f15a51c4a775.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 27,
+		"column": 4,
+		"character": 685
+	},
+	"end": {
+		"line": 27,
+		"column": 4,
+		"character": 685
+	}
+}
+
+=== 295 svar-core/drop-close/svelte_meta_invalid_placement/5b881f08a9559cbd.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 15,
+		"column": 0,
+		"character": 297
+	},
+	"end": {
+		"line": 15,
+		"column": 0,
+		"character": 297
+	}
+}
+
+=== 295 svar-core/drop-close/svelte_meta_invalid_placement/5e682366181f7c35.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 15,
+		"column": 0,
+		"character": 289
+	},
+	"end": {
+		"line": 15,
+		"column": 0,
+		"character": 289
+	}
+}
+
+=== 297 svelte-bits/drop-close/svelte_meta_invalid_placement/d491bbb413e9d28f.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 90,
+		"column": 0,
+		"character": 4219
+	},
+	"end": {
+		"line": 90,
+		"column": 0,
+		"character": 4219
+	}
+}
+
+=== 266 svelte-eslint-parser/drop-close/tag_invalid_placement/aed3d470dae0873b.svelte	error.json
+{
+	"code": "tag_invalid_placement",
+	"message": "{@html ...} tag cannot be inside <textarea>\nhttps://svelte.dev/e/tag_invalid_placement",
+	"start": {
+		"line": 12,
+		"column": 0,
+		"character": 192
+	},
+	"end": {
+		"line": 12,
+		"column": 0,
+		"character": 192
+	}
+}
+
+=== 254 svelte-eslint-parser/duplicate-attribute/declaration_duplicate/d3c6daadd11cfea8.svelte	error.json
+{
+	"code": "declaration_duplicate",
+	"message": "`bar` has already been declared\nhttps://svelte.dev/e/declaration_duplicate",
+	"start": {
+		"line": 6,
+		"column": 30,
+		"character": 147
+	},
+	"end": {
+		"line": 6,
+		"column": 33,
+		"character": 150
+	}
+}
+
+=== 254 svelte-eslint-parser/duplicate-attribute/declaration_duplicate/da8d54d13a6ba686.svelte	error.json
+{
+	"code": "declaration_duplicate",
+	"message": "`bar` has already been declared\nhttps://svelte.dev/e/declaration_duplicate",
+	"start": {
+		"line": 6,
+		"column": 30,
+		"character": 138
+	},
+	"end": {
+		"line": 6,
+		"column": 33,
+		"character": 141
+	}
+}
+
+=== 291 svelte/drop-close/element_invalid_closing_tag/4f9ef3d5db8771f5.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 11,
+		"column": 0,
+		"character": 103
+	},
+	"end": {
+		"line": 11,
+		"column": 0,
+		"character": 103
+	}
+}
+
+=== 299 svelte/drop-close/element_invalid_closing_tag/87cd4e17776319cc.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</svelte:head>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 14,
+		"column": 0,
+		"character": 297
+	},
+	"end": {
+		"line": 14,
+		"column": 0,
+		"character": 297
+	}
+}
+
+=== 303 svelte/drop-close/element_invalid_closing_tag/ac13a599d66140ab.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</svelte:boundary>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 13,
+		"column": 0,
+		"character": 172
+	},
+	"end": {
+		"line": 13,
+		"column": 0,
+		"character": 172
+	}
+}
+
+=== 303 svelte/drop-close/element_invalid_closing_tag/c638d1ba9ae7923f.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</svelte:boundary>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 23,
+		"column": 0,
+		"character": 266
+	},
+	"end": {
+		"line": 23,
+		"column": 0,
+		"character": 266
+	}
+}
+
+=== 227 svelte/drop-close/js_parse_error/8ba02cb57beef12d.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 15,
+		"column": 24,
+		"character": 212
+	},
+	"end": {
+		"line": 15,
+		"column": 24,
+		"character": 212
+	}
+}
+
+=== 423 svelte/drop-close/node_invalid_placement/57677e348b5302b3.svelte	error.json
+{
+	"code": "node_invalid_placement",
+	"message": "`<button>` cannot be a child of `<button>`. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+	"start": {
+		"line": 15,
+		"column": 1,
+		"character": 432
+	},
+	"end": {
+		"line": 15,
+		"column": 59,
+		"character": 490
+	}
+}
+
+=== 291 svelte/drop-close/svelte_meta_invalid_placement/da76a605eaf94d39.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:head>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 41
+	},
+	"end": {
+		"line": 5,
+		"column": 0,
+		"character": 41
+	}
+}
+
+=== 249 svelte/duplicate-attribute/attribute_duplicate/102b73aa6481d468.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 15,
+		"column": 27,
+		"character": 326
+	},
+	"end": {
+		"line": 15,
+		"column": 36,
+		"character": 335
+	}
+}
+
+=== 246 svelte/duplicate-attribute/attribute_duplicate/4bbd3e078729b0e5.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 6,
+		"column": 30,
+		"character": 98
+	},
+	"end": {
+		"line": 6,
+		"column": 41,
+		"character": 109
+	}
+}
+
+=== 245 svelte/duplicate-attribute/attribute_duplicate/783f314da31e52c7.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 43,
+		"character": 43
+	},
+	"end": {
+		"line": 1,
+		"column": 72,
+		"character": 72
+	}
+}
+
+=== 245 svelte/duplicate-attribute/attribute_duplicate/f90ee7029ad30d7f.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 43,
+		"character": 43
+	},
+	"end": {
+		"line": 1,
+		"column": 72,
+		"character": 72
+	}
+}
+
+=== 296 svelte/rune-in-template/svelte_options_invalid_attribute_value/3192d662d0ff7a0c.svelte	error.json
+{
+	"code": "svelte_options_invalid_attribute_value",
+	"message": "Value must be true or false, if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 50,
+		"character": 50
+	},
+	"end": {
+		"line": 1,
+		"column": 70,
+		"character": 70
+	}
+}
+
+=== 296 svelte/rune-in-template/svelte_options_invalid_attribute_value/e9c2fb78b09368dc.svelte	error.json
+{
+	"code": "svelte_options_invalid_attribute_value",
+	"message": "Value must be true or false, if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 36,
+		"character": 36
+	}
+}
+
+=== 501 svelte/rune-in-template/svelte_options_invalid_customelement/d283efd45d300c0f.svelte	error.json
+{
+	"code": "svelte_options_invalid_customelement",
+	"message": "\"customElement\" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: \"open\" | \"none\" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }\nhttps://svelte.dev/e/svelte_options_invalid_customelement",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 93,
+		"character": 93
+	}
+}
+

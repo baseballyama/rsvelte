@@ -1,6 +1,18 @@
-# svelte.lint/default: 39260 match
+# svelte.lint/default: 37595 match
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/suggestions.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte	unexpected
+svelte/rsvelte-mutants/animotion/open-expression/js_parse_error/35da9d6bccd68cc1.svelte	js-equivalent
+svelte/rsvelte-mutants/animotion/open-expression/js_parse_error/bf2dfbcca3b401fb.svelte	js-equivalent
+svelte/rsvelte-mutants/bits-ui/bind-sum/attribute_invalid_name/06880dae52249363.svelte	mismatch
+svelte/rsvelte-mutants/bits-ui/bind-sum/attribute_invalid_name/5591bc9ac0badcba.svelte	mismatch
+svelte/rsvelte-mutants/cnblocks/duplicate-attribute/expected_token/7a556e431c90630e.svelte	mismatch
+svelte/rsvelte-mutants/cnblocks/duplicate-attribute/expected_token/a22d6c3178e84aac.svelte	mismatch
+svelte/rsvelte-mutants/eslint-plugin-svelte/duplicate-attribute/declaration_duplicate/c83689e9c0d7cc37.svelte	mismatch
+svelte/rsvelte-mutants/language-tools/duplicate-attribute/declaration_duplicate/14a274839779d4b7.svelte	mismatch
+svelte/rsvelte-mutants/language-tools/duplicate-attribute/declaration_duplicate/f2387ee60051463c.svelte	mismatch
+svelte/rsvelte-mutants/svelte-eslint-parser/drop-close/tag_invalid_placement/aed3d470dae0873b.svelte	mismatch
+svelte/rsvelte-mutants/svelte-eslint-parser/duplicate-attribute/declaration_duplicate/d3c6daadd11cfea8.svelte	mismatch
+svelte/rsvelte-mutants/svelte-eslint-parser/duplicate-attribute/declaration_duplicate/da8d54d13a6ba686.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/await_in_a_parameter_default_is_rejected_in_every_function_form/0c704bb7f1602a97.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/await_in_a_parameter_default_is_rejected_in_every_function_form/1b66601a2e945c58.svelte	js-equivalent
@@ -525,6 +537,8 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_asy
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/8371c625b986c189.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/b791981ddba05886.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e059fc71ff7da8cf.svelte	js-equivalent
+svelte/rsvelte/errors/script_invalid_attribute_value.svelte	mismatch
+svelte/rsvelte/errors/script_reserved_attribute.svelte	mismatch
 svelte/rsvelte/lint/block-lang/05-case-insensitive.svelte	js-equivalent
 svelte/rsvelte/lint/no-dupe-on-directives/16-cr-only-lineno.svelte	unexpected
 svelte/rsvelte/lint/prefer-const/23-redeclared-let.svelte	js-equivalent
@@ -539,7 +553,6 @@ svelte/rsvelte/pattern/issues/3201-template-strict-param-clash.svelte	js-equival
 svelte/rsvelte/pattern/issues/3201-template-strict-proto.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/3201-template-strict-with.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/3220-assign-rvalue-member.svelte	js-equivalent
-svelte/rsvelte/pattern/issues/3220-assign-rvalue-target.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/ts-bodiless-constructor-alone.svelte	mismatch
 svelte/rsvelte/pattern/javascript-accessor-optional-field.svelte	js-equivalent
 svelte/rsvelte/pattern/module-legacy-octal-escape-in-a-script.svelte.ts	mismatch
@@ -584,21 +597,3 @@ svelte/svelte/packages/svelte/tests/validator/samples/let-directive/input.svelte
 svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	mismatch
-svelte/test262/expressions/assignmenttargettype/simple-basic-identifierreference-await.svelte.js	mismatch
-svelte/test262/expressions/await/await-BindingIdentifier-in-global.svelte.js	mismatch
-svelte/test262/expressions/await/await-in-global.svelte.js	mismatch
-svelte/test262/expressions/await/await-in-nested-generator.svelte.js	mismatch
-svelte/test262/expressions/class/decorator/syntax/valid/decorator-call-expr-identifier-reference.svelte.js	mismatch
-svelte/test262/expressions/class/decorator/syntax/valid/decorator-member-expr-identifier-reference.svelte.js	mismatch
-svelte/test262/expressions/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference.svelte.js	mismatch
-svelte/test262/expressions/class/elements/syntax/valid/grammar-static-ctor-async-meth-valid.svelte.js	mismatch
-svelte/test262/expressions/import.meta/import-meta-is-an-ordinary-object.svelte.js	mismatch
-svelte/test262/identifiers/part-unicode-17.0.0-class-escaped.svelte.js	mismatch
-svelte/test262/statements/class/decorator/syntax/valid/class-element-decorator-call-expr-identifier-reference.svelte.js	mismatch
-svelte/test262/statements/class/decorator/syntax/valid/class-element-decorator-member-expr-identifier-reference.svelte.js	mismatch
-svelte/test262/statements/class/decorator/syntax/valid/class-element-decorator-parenthesized-expr-identifier-reference.svelte.js	mismatch
-svelte/test262/statements/class/decorator/syntax/valid/decorator-call-expr-identifier-reference.svelte.js	mismatch
-svelte/test262/statements/class/decorator/syntax/valid/decorator-member-expr-identifier-reference.svelte.js	mismatch
-svelte/test262/statements/class/decorator/syntax/valid/decorator-parenthesized-expr-identifier-reference.svelte.js	mismatch
-svelte/test262/statements/labeled/value-await-non-module-escaped.svelte.js	mismatch
-svelte/test262/statements/labeled/value-await-non-module.svelte.js	mismatch

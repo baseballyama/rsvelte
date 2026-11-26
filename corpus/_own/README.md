@@ -14,6 +14,8 @@ result.
 | `rsvelte/check/`        | `rsvelte`                 | type check projects                            |
 | `rsvelte/crates/`       | `rsvelte`                 | files the old port's crate tests read          |
 | `rsvelte/lsp/`          | `rsvelte`                 | language server probes                         |
+| `rsvelte/errors/`       | `rsvelte`                 | a component for each code no other unit raises |
+| `mutants/`              | `rsvelte-mutants`         | broken copies of components svelte compiles    |
 | `test262/`              | `test262`                 | test262's language tests, as rune modules      |
 | `main-tests/core-1/` …  | `rsvelte-tests-core-1` …  | inputs of the compiler's tests                 |
 | `main-tests/formatter/` | `rsvelte-tests-formatter` | inputs of the formatter's tests                |
@@ -25,6 +27,14 @@ why it exists. `main-tests/` holds every component and module the tests of `main
 commit passed to the compiler, the formatter, the linter or svelte2tsx, one directory per test.
 The type checker sees each source as one project, so `main-tests/` is split into sources small
 enough for svelte-check.
+
+`rsvelte/errors/` holds a component for each error or warning code no other unit raises, named
+after the code. The codes `uncovered-codes.txt` still lists need a compile option, legacy mode,
+experimental async, a custom renderer or a file that is not a component, or svelte never raises
+them. `mutants/` is the output of
+`node tools/oracle/mutate.ts`: it breaks one node of each component of the MIT sources, and keeps
+a copy that svelte rejects. It keeps two for each mutation, code and kind of node, under
+`<source>/<mutation>/<code>/`.
 
 `test262/` is the output of `node tools/oracle/test262.ts <checkout>`. It copies up to eight tests
 of each directory of test262's `test/language`, renamed to `.svelte.js`. It leaves out a test that

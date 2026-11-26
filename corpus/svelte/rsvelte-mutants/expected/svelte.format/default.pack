@@ -1,0 +1,3506 @@
+# rsvelte pack 1
+=== 22609 animotion/bind-sum/bind_invalid_expression/115e576d493188f9.svelte	svelte
+<script lang="ts" module>
+  import type { BundledLanguage, BundledTheme, SpecialLanguage } from "shiki";
+  import { createHighlighter, type HighlighterCore } from "shiki";
+
+  type Lang = BundledLanguage | SpecialLanguage;
+
+  const highlighterCache = new Map<string, Promise<HighlighterCore>>();
+
+  function getHighlighter(theme: BundledTheme, lang: Lang) {
+    const key = `${theme}-${lang}`;
+    if (!highlighterCache.has(key)) {
+      highlighterCache.set(
+        key,
+        createHighlighter({ themes: [theme], langs: [lang] }),
+      );
+    }
+    return highlighterCache.get(key)!;
+  }
+</script>
+
+<script lang="ts">
+  import type { ClassValue } from "svelte/elements";
+  import Action from "$lib/components/action.svelte";
+  import Code from "$lib/components/code.svelte";
+  import {
+    codeToKeyedTokens,
+    createMagicMoveMachine,
+  } from "@shikijs/magic-move/core";
+  import { MagicMoveRenderer } from "@shikijs/magic-move/renderer";
+  import type {
+    KeyedToken,
+    KeyedTokensInfo,
+    MagicMoveDifferOptions,
+    MagicMoveRenderOptions,
+  } from "@shikijs/magic-move/types";
+  import { getPresentation } from "./store.svelte.js";
+  import "../styles/shiki.css";
+
+  type Promises = Promise<unknown>[];
+  type Lang = BundledLanguage | SpecialLanguage;
+  type CodeProp = { code: string; codes?: never };
+  type CodesProp = { code?: never; codes: string[] };
+  type CodeProps = (CodeProp | CodesProp) & {
+    lang: Lang;
+    theme: BundledTheme;
+    options?: MagicMoveRenderOptions & MagicMoveDifferOptions;
+    autoIndent?: boolean;
+    class?: ClassValue;
+    ref?: (self: ReturnType<typeof Code>) => void;
+  };
+
+  let {
+    code,
+    codes,
+    lang,
+    theme = "poimandres",
+    options = {},
+    autoIndent = true,
+    ref,
+    ...props
+  }: CodeProps = $props();
+
+  let container: HTMLPreElement | undefined = $state();
+  let self: ReturnType<typeof Code> | undefined = $state();
+  let highlighter: HighlighterCore;
+  let machine: ReturnType<typeof createMagicMoveMachine>;
+  let renderer: MagicMoveRenderer;
+  let ready = false;
+
+  let currentCode: string = "";
+  let currentTokens: (KeyedToken & { line: number })[] = [];
+
+  const is = {
+    htmlEl: (el: Element): el is HTMLElement => el instanceof HTMLElement,
+    token: (el: HTMLElement) => el.className.includes("shiki-magic-move-item"),
+    newLine: (el: HTMLElement) => el.tagName === "BR",
+  };
+
+  function getRevealScale() {
+    const deck = getPresentation().slides;
+    return deck?.getScale?.() ?? 1;
+  }
+
+  // splits bracket characters for finer-grained selection
+  function splitPunctuationTokens(result: KeyedTokensInfo): KeyedTokensInfo {
+    const brackets = /[{}\[\]()]/g;
+    const newTokens: KeyedToken[] = [];
+
+    for (const token of result.tokens) {
+      if (token.content === "\n") {
+        newTokens.push(token);
+        continue;
+      }
+
+      const matches = [...token.content.matchAll(brackets)];
+      if (matches.length === 0) {
+        newTokens.push(token);
+        continue;
+      }
+
+      const splitPositions = matches.map((m) => m.index!);
+      let lastEnd = 0;
+      const splits: { content: string; offset: number }[] = [];
+
+      for (const pos of splitPositions) {
+        if (pos > lastEnd) {
+          splits.push({
+            content: token.content.slice(lastEnd, pos),
+            offset: token.offset + lastEnd,
+          });
+        }
+        splits.push({
+          content: token.content.slice(pos, pos + 1),
+          offset: token.offset + pos,
+        });
+        lastEnd = pos + 1;
+      }
+
+      if (lastEnd < token.content.length) {
+        splits.push({
+          content: token.content.slice(lastEnd),
+          offset: token.offset + lastEnd,
+        });
+      }
+
+      for (let i = 0; i < splits.length; i++) {
+        newTokens.push({
+          ...token,
+          content: splits[i].content,
+          offset: splits[i].offset,
+          key: i === 0 ? token.key : `${token.key}-${i}`,
+        });
+      }
+    }
+
+    return { ...result, tokens: newTokens };
+  }
+
+  /**
+   * removes common leading indentation from code
+   */
+  export function indent(text: string) {
+    const trimmed = text.trim();
+    const lines = trimmed.split("\n");
+    if (lines.length === 1) return trimmed;
+
+    const firstIndented = lines.find((line) => /^[\t ]/.test(line));
+    if (!firstIndented) return trimmed;
+
+    const isTabs = firstIndented[0] === "\t";
+
+    if (isTabs) {
+      const common = lines
+        .map((line) => line.match(/^(\t+)/)?.[1] || "")
+        .filter((tabs) => tabs.length > 0)
+        .sort((a, b) => a.length - b.length)[0];
+
+      if (!common || common === "\t") return trimmed;
+
+      return lines.map((line) => line.replace(common, "")).join("\n");
+    } else {
+      const common = lines
+        .map((line) => line.match(/^( +)/)?.[1] || "")
+        .filter((spaces) => spaces.length > 0)
+        .sort((a, b) => a.length - b.length)[0];
+
+      if (!common || common === " ") return trimmed;
+
+      return lines.map((line) => line.replace(common, "")).join("\n");
+    }
+  }
+
+  /**
+   * modified indent mostly used by replace
+   */
+  function dedent(text: string) {
+    const lines = text.split("\n");
+
+    let baseIndent = "";
+
+    for (const line of lines) {
+      if (line.trim() === "") continue;
+      baseIndent = line.match(/^(\s*)/)?.[1] ?? "";
+      break;
+    }
+
+    if (!baseIndent) return text.trim();
+
+    const result = lines.map((line) => {
+      if (line.trim() === "") return "";
+      if (line.startsWith(baseIndent)) return line.slice(baseIndent.length);
+      return line.trimStart();
+    });
+
+    while (result.length && result[0].trim() === "") result.shift();
+    while (result.length && result[result.length - 1].trim() === "")
+      result.pop();
+
+    return result.join("\n");
+  }
+
+  function parseSelection(raw: string): {
+    line: number | null;
+    index: number | null;
+    pattern: string;
+  } {
+    let line: number | null = null;
+    let index: number | null = null;
+    let pattern = raw.trim();
+
+    const indexMatch = pattern.match(/:(\d+)$/);
+    if (indexMatch) {
+      index = parseInt(indexMatch[1], 10);
+      pattern = pattern.slice(0, -indexMatch[0].length).trim();
+    }
+
+    const parts = pattern.split(/\s+/);
+    if (parts.length > 0 && /^\d+$/.test(parts[0])) {
+      line = parseInt(parts[0], 10);
+      pattern = parts.slice(1).join(" ");
+    }
+
+    return { line, index, pattern };
+  }
+
+  function stripWhitespace(code: string): {
+    stripped: string;
+    positions: number[];
+  } {
+    const stripped: string[] = [];
+    const positions: number[] = [];
+
+    for (let i = 0; i < code.length; i++) {
+      if (!/\s/.test(code[i])) {
+        stripped.push(code[i]);
+        positions.push(i);
+      }
+    }
+
+    return { stripped: stripped.join(""), positions };
+  }
+
+  function findOccurrences(
+    code: string,
+    pattern: string,
+    line: number | null,
+    index: number | null,
+  ): { start: number; end: number }[] {
+    const { stripped: strippedSource, positions } = stripWhitespace(code);
+    const strippedPattern = pattern.replace(/\s+/g, "");
+
+    if (!strippedPattern) return [];
+
+    const occurrences: { start: number; end: number }[] = [];
+    let searchPos = 0;
+
+    while (searchPos < strippedSource.length) {
+      const found = strippedSource.indexOf(strippedPattern, searchPos);
+      if (found === -1) break;
+
+      const start = positions[found];
+      const end = positions[found + strippedPattern.length - 1] + 1;
+      occurrences.push({ start, end });
+      searchPos = found + 1;
+    }
+
+    if (occurrences.length === 0) return [];
+
+    // filter by line if specified
+    if (line !== null) {
+      const lines = code.split("\n");
+      let charPos = 0;
+      const lineRanges: { start: number; end: number }[] = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        lineRanges.push({ start: charPos, end: charPos + lines[i].length });
+        charPos += lines[i].length + 1;
+      }
+
+      const lineIndex = line - 1;
+      if (lineIndex >= 0 && lineIndex < lineRanges.length) {
+        const targetRange = lineRanges[lineIndex];
+        return occurrences.filter(
+          (occ) => occ.start >= targetRange.start && occ.end <= targetRange.end,
+        );
+      }
+    }
+
+    // apply index if specified
+    if (index !== null) {
+      const idx = index;
+      return occurrences[idx] ? [occurrences[idx]] : [];
+    }
+
+    return occurrences;
+  }
+
+  function getTokenOffsets(
+    tokens: (KeyedToken & { line: number })[],
+    occurrences: { start: number; end: number }[],
+  ): Set<number> {
+    const offsets = new Set<number>();
+
+    for (const occ of occurrences) {
+      for (const token of tokens) {
+        const tokenStart = token.offset;
+        const tokenEnd = token.offset + token.content.length;
+        if (tokenEnd > occ.start && tokenStart < occ.end) {
+          offsets.add(token.offset);
+        }
+      }
+    }
+
+    return offsets;
+  }
+
+  function addLineNumbers(
+    tokens: KeyedToken[],
+  ): (KeyedToken & { line: number })[] {
+    let line = 1;
+    return tokens.map((token) => {
+      const tokenWithLine = { ...token, line };
+      if (token.content === "\n") line++;
+      return tokenWithLine;
+    });
+  }
+
+  function createRange(start: number, end: number): number[] {
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }
+
+  function getLines(range: string): number[] {
+    if (range === "*") return [];
+
+    return range.split(",").flatMap((part) => {
+      if (part.includes("-")) {
+        const [start, end] = part.split("-").map(Number);
+        return createRange(start, end);
+      }
+      return [+part];
+    });
+  }
+
+  function merge(strings: TemplateStringsArray, expressions: string[]): string {
+    let result = "";
+    for (let i = 0; i < strings.length; i++) {
+      result += strings[i];
+      if (expressions[i]) result += expressions[i].trim();
+    }
+    return result;
+  }
+
+  function transition(el: HTMLElement, selected: boolean): Promise<unknown> {
+    const { promise, resolve } = Promise.withResolvers();
+
+    const willTransition =
+      (!selected && el.classList.contains("selected")) ||
+      (selected && el.classList.contains("deselected")) ||
+      (!selected && !el.classList.contains("deselected"));
+
+    if (willTransition) {
+      el.ontransitionend = resolve;
+    } else {
+      resolve("finished");
+    }
+
+    el.classList.toggle("selected", selected);
+    el.classList.toggle("deselected", !selected);
+
+    return promise;
+  }
+
+  function applyToTokens(
+    container: HTMLElement,
+    tokens: (KeyedToken & { line: number })[],
+    selectedOffsets: Set<number>,
+    mode: "replace" | "add",
+  ): Promise<unknown> {
+    const children = container.children;
+    const promises: Promise<unknown>[] = [];
+    let tokenIndex = 0;
+
+    for (const el of children) {
+      if (!is.htmlEl(el)) continue;
+
+      if (is.token(el)) {
+        const token = tokens[tokenIndex];
+        tokenIndex++;
+
+        if (token) {
+          const isSelected = selectedOffsets.has(token.offset);
+          if (mode === "replace") {
+            promises.push(transition(el, isSelected));
+          } else if (mode === "add" && isSelected) {
+            promises.push(transition(el, true));
+          }
+        }
+      }
+
+      if (is.newLine(el)) {
+        tokenIndex++;
+      }
+    }
+
+    return Promise.all(promises);
+  }
+
+  async function init() {
+    if (!container) return;
+    highlighter = await getHighlighter(theme, lang);
+    machine = createMagicMoveMachine((code) => {
+      const result = codeToKeyedTokens(
+        highlighter,
+        code,
+        { lang, theme },
+        options.lineNumbers,
+      );
+      return splitPunctuationTokens(result);
+    }, options);
+    renderer = new MagicMoveRenderer(container);
+    Object.assign(renderer.options, {
+      ...options,
+      globalScale: getRevealScale(),
+    });
+    const indentedCode = autoIndent ? indent(code!) : code!;
+    currentCode = indentedCode;
+    const result = machine.commit(indentedCode);
+    currentTokens = addLineNumbers(result.current.tokens);
+    renderer.render(result.current);
+    ready = true;
+  }
+
+  async function render(code: string) {
+    if (!ready) return;
+    const indentedCode = autoIndent ? indent(code) : code;
+    currentCode = indentedCode;
+    const result = machine.commit(indentedCode);
+    if (result.previous) renderer.replace(result.previous);
+    currentTokens = addLineNumbers(result.current.tokens);
+    renderer.options.globalScale = getRevealScale();
+    await renderer.render(result.current);
+  }
+
+  /**
+   * updates the code with animation
+   */
+  export function update(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    return expressions.length > 0
+      ? render(merge(strings, expressions))
+      : render(strings[0]);
+  }
+
+  /**
+   * appends code to the current code with animation
+   */
+  export function append(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    const newCode =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const dedentedCode = autoIndent ? indent(newCode) : newCode;
+    return render(currentCode + "\n\n" + dedentedCode);
+  }
+
+  /**
+   * removes lines by line number with animation
+   * supports: single line (5), range (5-7), multiple (5,7,9), or combinations (5,7-10)
+   */
+  export function remove(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    const input =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const lineNumbers = getLines(input.trim());
+    if (lineNumbers.length === 0) {
+      console.warn("remove: invalid line range");
+      return Promise.resolve();
+    }
+    const lines = currentCode.split("\n");
+    const sortedLines = [...lineNumbers].sort((a, b) => b - a);
+    for (const lineNum of sortedLines) {
+      if (lineNum >= 1 && lineNum <= lines.length) {
+        lines.splice(lineNum - 1, 1);
+      }
+    }
+    return render(lines.join("\n"));
+  }
+
+  function detectIndentStyle(lines: string[]): { char: string; size: number } {
+    for (const line of lines) {
+      const match = line.match(/^(\s+)/);
+      if (match) {
+        const whitespace = match[1];
+        if (whitespace.includes("\t")) {
+          return { char: "\t", size: 1 };
+        }
+        const spaces = whitespace.length;
+        return { char: " ", size: spaces <= 2 ? 2 : 4 };
+      }
+    }
+    return { char: " ", size: 2 };
+  }
+
+  /**
+   * inserts code at a specific line with animation
+   * format: `<lineNumber>:<indentLevel> <code>` where line number is 1-indexed
+   * indentLevel is optional (defaults to 0)
+   */
+  export function insert(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    const input =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const match = input.match(/^(\d+)(?::(\d+))?[ \t]*/);
+    if (!match) {
+      console.warn("insert: line number required at start of code");
+      return Promise.resolve();
+    }
+    const lineNumber = parseInt(match[1], 10);
+    const indentLevel = match[2] ? parseInt(match[2], 10) : 0;
+    const codeFragment = input.slice(match[0].length);
+
+    // preserve leading newlines before dedenting
+    const leadingNewlines = codeFragment.match(/^\n*/)?.[0].length ?? 0;
+    const codeWithoutLeadingNewlines = codeFragment.slice(leadingNewlines);
+    const dedentedCode = autoIndent
+      ? indent(codeWithoutLeadingNewlines)
+      : codeWithoutLeadingNewlines;
+
+    const lines = currentCode.split("\n");
+    const { char, size } = detectIndentStyle(lines);
+    const actualIndent =
+      char === "\t" ? "\t".repeat(indentLevel) : " ".repeat(indentLevel * size);
+    const codeLines = dedentedCode.split("\n");
+    const indentedLines = codeLines.map((line) =>
+      line ? actualIndent + line : line,
+    );
+    const blankLines = Array(leadingNewlines).fill("");
+    lines.splice(lineNumber - 1, 0, ...blankLines, ...indentedLines);
+    return render(lines.join("\n"));
+  }
+
+  /**
+   * replaces matching code with new code with animation
+   */
+  export function replace(from: string, to: string) {
+    const dedentedFrom = autoIndent ? dedent(from) : from;
+    const dedentedTo = autoIndent ? dedent(to) : to;
+
+    const [occ] = findOccurrences(currentCode, dedentedFrom, null, 0);
+    if (!occ) {
+      console.warn("replace: pattern not found");
+      return Promise.resolve();
+    }
+
+    const lineStart = currentCode.lastIndexOf("\n", occ.start - 1) + 1;
+    const lineIndent = currentCode.slice(lineStart).match(/^\s*/)?.[0] ?? "";
+
+    const toLines = dedentedTo.split("\n");
+    const reindentedTo = toLines
+      .map((line, i) => (i === 0 ? line : line ? lineIndent + line : line))
+      .join("\n");
+
+    return render(
+      currentCode.slice(0, occ.start) +
+        reindentedTo +
+        currentCode.slice(occ.end),
+    );
+  }
+
+  /**
+   * highlights specific lines, or all lines if `*` is passed
+   */
+  export function selectLines(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    if (!container) return;
+
+    const range =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const lines = getLines(range);
+    const children = container.children;
+    const promises: Promises = [];
+    let currentLine = 1;
+
+    for (const el of children) {
+      if (!is.htmlEl(el)) return;
+
+      if (is.token(el)) {
+        const selected =
+          lines.length === 0 ? true : lines.includes(currentLine);
+        promises.push(transition(el, selected));
+      }
+
+      if (is.newLine(el)) currentLine++;
+    }
+
+    return Promise.all(promises);
+  }
+
+  /**
+   * adds specific lines to the current selection without deselecting others
+   */
+  export function selectLinesAdd(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    if (!container) return;
+
+    const range =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const lines = getLines(range);
+    const children = container.children;
+    const promises: Promises = [];
+    let currentLine = 1;
+
+    for (const el of children) {
+      if (!is.htmlEl(el)) return;
+
+      if (is.token(el)) {
+        const shouldSelect =
+          lines.length === 0 ? true : lines.includes(currentLine);
+        if (shouldSelect) {
+          promises.push(transition(el, true));
+        }
+      }
+
+      if (is.newLine(el)) currentLine++;
+    }
+
+    return Promise.all(promises);
+  }
+
+  /**
+   * scrolls to make a specific line visible
+   */
+  export function scrollToLine(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    if (!container) return;
+
+    const raw =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const line = parseInt(raw.trim());
+
+    if (isNaN(line) || line < 1) return;
+
+    let tokenIndex = 0;
+    let targetElement: HTMLElement | null = null;
+
+    /*
+     * shiki inserts an anchor span at index 0, then renders
+     * every token (including \n as <br>) as a direct child.
+     * we skip the anchor and map each remaining child 1:1 with currentTokens
+     * to find the first token element on the target line.
+     */
+    for (let i = 1; i < container.children.length; i++) {
+      const el = container.children[i];
+      if (!is.htmlEl(el)) continue;
+      if (tokenIndex >= currentTokens.length) break;
+
+      const token = currentTokens[tokenIndex];
+      tokenIndex++;
+
+      if (is.token(el) && token.line === line) {
+        targetElement = el;
+        break;
+      }
+    }
+
+    if (!targetElement) return;
+
+    return new Promise<void>((resolve) => {
+      /*
+       * calculate where the target would be when centered so we can
+       * skip the animation if we're already there
+       */
+      const containerRect = container!.getBoundingClientRect();
+      const targetRect = targetElement!.getBoundingClientRect();
+      const targetOffsetTop =
+        targetRect.top - containerRect.top + container!.scrollTop;
+      const centerOffset = containerRect.height / 2 - targetRect.height / 2;
+      const scrollPosition = Math.max(0, targetOffsetTop - centerOffset);
+
+      if (Math.abs(container!.scrollTop - scrollPosition) < 1) {
+        resolve();
+        return;
+      }
+
+      targetElement!.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      let resolved = false;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve();
+      };
+
+      container!.addEventListener("scrollend", done, { once: true });
+      setTimeout(done, 500);
+    });
+  }
+
+  /**
+   * selects tokens matching a pattern, optionally filtered by line number or index
+   */
+  export function select(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    if (!container || !currentCode) return;
+
+    const raw =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const { line, index, pattern } = parseSelection(raw);
+
+    if (!pattern) return;
+
+    const occurrences = findOccurrences(currentCode, pattern, line, index);
+    const selectedOffsets = getTokenOffsets(currentTokens, occurrences);
+
+    return applyToTokens(container, currentTokens, selectedOffsets, "replace");
+  }
+
+  /**
+   * adds to the current selection without deselecting other tokens
+   */
+  export function selectAdd(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    if (!container || !currentCode) return;
+
+    const raw =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const { line, index, pattern } = parseSelection(raw);
+
+    if (!pattern) return;
+
+    const occurrences = findOccurrences(currentCode, pattern, line, index);
+    const selectedOffsets = getTokenOffsets(currentTokens, occurrences);
+
+    return applyToTokens(container, currentTokens, selectedOffsets, "add");
+  }
+
+  /**
+   * @deprecated use `select` instead
+   */
+  export function selectToken(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    console.warn("selectToken is deprecated, use select instead");
+    return select(strings, ...expressions);
+  }
+
+  $effect(() => {
+    init();
+  });
+
+  $effect(() => {
+    ref?.(self!);
+  });
+</script>
+
+{#if codes}
+  <Code
+    bind:this={self + 1}
+    code={codes[0]}
+    {lang}
+    {theme}
+    {options}
+    {autoIndent}
+    {...props}
+  />
+
+  {#each codes as _, i}
+    {#if codes[i + 1]}
+      <Action
+        do={() => self!.update`${codes[i + 1]}`}
+        undo={() => self!.update`${codes[i]}`}
+      />
+    {/if}
+  {/each}
+{:else}
+  <pre
+    bind:this={container}
+    {...props}
+    class="shiki-magic-move-container {props.class}"></pre>
+{/if}
+
+=== 940 animotion/bind-sum/bind_invalid_expression/1aebddc9b32ae8b0.svelte	svelte
+<script lang="ts">
+  import Action from "$lib/components/action.svelte";
+
+  type ActionProps = {
+    order?: number;
+    do?: () => void;
+    undo?: () => void;
+    actions?: Array<() => void>;
+  };
+
+  let { order, actions, ...props }: ActionProps = $props();
+  let el = $state<HTMLDivElement>();
+
+  const noop = () => {};
+  const action = () => props?.do?.() ?? noop();
+  const undo = () => props?.undo?.() ?? noop();
+
+  $effect(() => {
+    el?.addEventListener("current", action);
+    el?.addEventListener("out", undo);
+
+    return () => {
+      el?.removeEventListener("current", action);
+      el?.removeEventListener("out", undo);
+    };
+  });
+</script>
+
+{#if actions}
+  {#each actions as action, i}
+    {@const previousAction = i === 0 ? undo : actions[i - 1]}
+    <Action do={action} undo={previousAction} />
+  {/each}
+{:else}
+  <div
+    bind:this={el + 1}
+    class="fragment hidden"
+    data-fragment-index={order}
+  ></div>
+{/if}
+
+=== 918 animotion/const-at-root/const_tag_invalid_placement/b399d6e564b0e75d.svelte	svelte
+<script lang="ts">
+  import Action from "$lib/components/action.svelte";
+
+  type ActionProps = {
+    order?: number;
+    do?: () => void;
+    undo?: () => void;
+    actions?: Array<() => void>;
+  };
+
+  let { order, actions, ...props }: ActionProps = $props();
+  let el = $state<HTMLDivElement>();
+
+  const noop = () => {};
+  const action = () => props?.do?.() ?? noop();
+  const undo = () => props?.undo?.() ?? noop();
+
+  $effect(() => {
+    el?.addEventListener("current", action);
+    el?.addEventListener("out", undo);
+
+    return () => {
+      el?.removeEventListener("current", action);
+      el?.removeEventListener("out", undo);
+    };
+  });
+</script>
+
+{@const previousAction = i === 0 ? undo : actions[i - 1]}
+
+{#if actions}
+  {#each actions as action, i}
+    <Action do={action} undo={previousAction} />
+  {/each}
+{:else}
+  <div bind:this={el} class="fragment hidden" data-fragment-index={order}></div>
+{/if}
+
+=== 891 animotion/const-at-root/const_tag_invalid_placement/fbdc205b3b1919c1.svelte	svelte
+<svelte:options runes />
+
+<script lang="ts">
+  import AnimotionSlide from "./slide.svelte";
+  import type { Component } from "svelte";
+
+  let { center = false } = $props();
+
+  const slides = Object.entries(
+    import.meta.glob<{
+      default: Component;
+      component?: Component;
+      props?: any;
+    }>("/src/slides/**/slide.svelte", {
+      eager: true,
+    }),
+  )
+    .map(([filename, exports]) => {
+      const matches = filename.match(/slides\/(?<number>\d+)\/slide.svelte/);
+      return [+matches!.groups!.number, exports] as const;
+    })
+    .sort(([a], [b]) => a - b);
+</script>
+
+{@const Wrapper = Slide.component ?? AnimotionSlide}
+
+{#each slides as [_, Slide]}
+  {@const props = {
+    class: center ? "h-full place-content-center place-items-center" : null,
+    ...(Slide.props ?? {}),
+  }}
+  <Wrapper {...props}>
+    <Slide.default></Slide.default>
+  </Wrapper>
+{/each}
+
+=== 335 animotion/drop-close/block_unclosed/257243e1793b9e85.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  1 | <script lang="ts">
+  2 | 	import { Presentation, Slide, Code, Transition, Action } from '$lib/index.js';
+> 3 | 	import { tween } from '@animotion/motion';
+    | 	                                         ^
+  4 |
+  5 | 	let text: HTMLParagraphElement;
+  6 | 	let code: Code;
+
+=== 231 animotion/drop-close/block_unclosed/3b318146e67b6801.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  1 | <script lang="ts">
+  2 | 	import Action from '$lib/components/action.svelte';
+> 3 |
+    | ^
+  4 | 	type ActionProps = {
+  5 | 		order?: number;
+  6 | 		do?: () => void;
+
+=== 283 animotion/drop-close/block_unclosed/66eeea51011c5566.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  3 | <script lang="ts">
+  4 | 	import AnimotionSlide from './slide.svelte';
+> 5 | 	import type { Component } from 'svelte';
+    | 	                                       ^
+  6 |
+  7 | 	let { center = false } = $props();
+  8 |
+
+=== 331 animotion/drop-close/block_unclosed/bb8e0555be00a0a9.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  3 | 	import { createHighlighter, type HighlighterCore } from 'shiki';
+  4 |
+> 5 | 	type Lang = BundledLanguage | SpecialLanguage;
+    | 	                                             ^
+  6 |
+  7 | 	const highlighterCache = new Map<string, Promise<HighlighterCore>>();
+  8 |
+
+=== 314 animotion/drop-close/block_unclosed/bc3529d510fb02f9.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  1 | <script lang="ts">
+  2 | 	import { Presentation, Slides } from '$lib/index.js';
+> 3 | </script>
+    |         ^
+  4 |
+  5 | <Presentation options={{ history: true, transition: 'slide', controls: true, progress: true }}>
+  6 | 	<Slides center={true} />
+
+=== 405 animotion/drop-close/element_unclosed/298b13dadbbb1994.svelte	error.txt
+`<div>` was left open
+https://svelte.dev/e/element_unclosed
+  1 | <script lang="ts">
+  2 | 	import { tick, type Snippet } from 'svelte';
+> 3 | 	import type { ClassValue } from 'svelte/elements';
+    | 	                                                 ^
+  4 | 	import type { RevealConfig, RevealApi, RevealPluginFactory } from 'reveal.js';
+  5 | 	import { setPresentation } from './store.svelte.js';
+  6 |
+
+=== 211 animotion/drop-close/element_unclosed/4b1c8b9edfc6e77f.svelte	error.txt
+`<aside>` was left open
+https://svelte.dev/e/element_unclosed
+  1 | <script lang="ts">
+  2 | 	import type { Snippet } from 'svelte';
+> 3 |
+    | ^
+  4 | 	type NotesProps = {
+  5 | 		children: Snippet;
+  6 | 	};
+
+=== 342 animotion/duplicate-attribute/attribute_duplicate/0a8d05b68f7173bc.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+   6 | 	if (browser) {
+   7 | 		const style = document.createElement('style');
+>  8 | 		style.dataset.id = 'view-transitions';
+     | 		                           ^^^^^^^^^^^^^^^
+   9 | 		document.head.appendChild(style);
+  10 | 		customViewTransitions = style;
+  11 | 	}
+
+=== 257 animotion/duplicate-attribute/attribute_duplicate/179533f38d9f3bee.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  4 | 	type ActionProps = {
+  5 | 		order?: number;
+> 6 | 		do?: () => void;
+    | 		                ^^^^^^^^^^^
+  7 | 		undo?: () => void;
+  8 | 		actions?: Array<() => void>;
+  9 | 	};
+
+=== 429 animotion/duplicate-attribute/attribute_duplicate/37a8468299cb0fbf.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  1 | <script lang="ts">
+  2 | 	import { tick, type Snippet } from 'svelte';
+> 3 | 	import type { ClassValue } from 'svelte/elements';
+    | 	                  ^^^^^^^^^^^^^^
+  4 | 	import { setPresentation } from './store.svelte.js';
+  5 | 	import type { RevealConfig, RevealApi, RevealPluginFactory } from 'reveal.js';
+  6 | 	import 'reveal.js/reveal.css';
+
+=== 225 animotion/duplicate-attribute/attribute_duplicate/4881734dd963ad28.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+> 1 | <script lang="ts" lang="ts">
+    |                  ^^^^^^^^^
+  2 | 	import '../styles/app.css';
+  3 | 	import type { Snippet } from 'svelte';
+  4 |
+
+=== 231 animotion/duplicate-attribute/attribute_duplicate/a97fd4980c668486.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  1 | <script lang="ts">
+  2 | 	import type { Snippet } from 'svelte';
+> 3 |
+    | ^^^^^^^^^^^^^
+  4 | 	type NotesProps = {
+  5 | 		children: Snippet;
+  6 | 	};
+
+=== 274 animotion/duplicate-attribute/attribute_duplicate/c59c7906f2eac7f3.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  1 | <script lang="ts">
+  2 | 	type Props = {
+> 3 | 		codec?: string;
+    | 		               ^^^^^^^^^^^^^^^^^^^^^^^^^
+  4 | 		fps?: number;
+  5 | 		videoBitrate?: number;
+  6 | 		audioBitrate?: number;
+
+=== 276 animotion/open-expression/expected_token/04a37a070739638b.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  4 |
+  5 | 	type Lang = BundledLanguage | SpecialLanguage;
+> 6 |
+    | ^
+  7 | 	const highlighterCache = new Map<string, Promise<HighlighterCore>>();
+  8 |
+  9 | 	function getHighlighter(theme: BundledTheme, lang: Lang) {
+
+=== 230 animotion/open-expression/expected_token/4e279d268823aae0.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  4 | 	type ActionProps = {
+  5 | 		order?: number;
+> 6 | 		do?: () => void;
+    | 		                ^
+  7 | 		undo?: () => void;
+  8 | 		actions?: Array<() => void>;
+  9 | 	};
+
+=== 404 animotion/open-expression/js_parse_error/35da9d6bccd68cc1.svelte	error.txt
+Unterminated string constant
+https://svelte.dev/e/js_parse_error
+  2 | 	import { tick, type Snippet } from 'svelte';
+  3 | 	import type { ClassValue } from 'svelte/elements';
+> 4 | 	import type { RevealConfig, RevealApi, RevealPluginFactory } from 'reveal.js';
+    | 	                              ^
+  5 | 	import { setPresentation } from './store.svelte.js';
+  6 |
+  7 | 	import 'reveal.js/reveal.css';
+
+=== 404 animotion/open-expression/js_parse_error/bf2dfbcca3b401fb.svelte	error.txt
+Unterminated string constant
+https://svelte.dev/e/js_parse_error
+  2 | 	import { tick, type Snippet } from 'svelte';
+  3 | 	import type { ClassValue } from 'svelte/elements';
+> 4 | 	import { setPresentation } from './store.svelte.js';
+    | 	                              ^
+  5 | 	import type { RevealConfig, RevealApi, RevealPluginFactory } from 'reveal.js';
+  6 | 	import 'reveal.js/reveal.css';
+  7 |
+
+=== 929 animotion/rune-in-template/state_invalid_placement/42391e3708aa7376.svelte	svelte
+<script lang="ts">
+  import Action from "$lib/components/action.svelte";
+
+  type ActionProps = {
+    order?: number;
+    do?: () => void;
+    undo?: () => void;
+    actions?: Array<() => void>;
+  };
+
+  let { order, actions, ...props }: ActionProps = $props();
+  let el = $state<HTMLDivElement>();
+
+  const noop = () => {};
+  const action = () => props?.do?.() ?? noop();
+  const undo = () => props?.undo?.() ?? noop();
+
+  $effect(() => {
+    el?.addEventListener("current", action);
+    el?.addEventListener("out", undo);
+
+    return () => {
+      el?.removeEventListener("current", action);
+      el?.removeEventListener("out", undo);
+    };
+  });
+</script>
+
+{#if actions}
+  {#each actions as action, i}
+    {@const previousAction = i === 0 ? undo : actions[i - 1]}
+    <Action do={$state(action)} undo={previousAction} />
+  {/each}
+{:else}
+  <div bind:this={el} class="fragment hidden" data-fragment-index={order}></div>
+{/if}
+
+=== 22613 animotion/rune-in-template/state_invalid_placement/db5c203aaf8c5ef6.svelte	svelte
+<script lang="ts" module>
+  import type { BundledLanguage, BundledTheme, SpecialLanguage } from "shiki";
+  import { createHighlighter, type HighlighterCore } from "shiki";
+
+  type Lang = BundledLanguage | SpecialLanguage;
+
+  const highlighterCache = new Map<string, Promise<HighlighterCore>>();
+
+  function getHighlighter(theme: BundledTheme, lang: Lang) {
+    const key = `${theme}-${lang}`;
+    if (!highlighterCache.has(key)) {
+      highlighterCache.set(
+        key,
+        createHighlighter({ themes: [theme], langs: [lang] }),
+      );
+    }
+    return highlighterCache.get(key)!;
+  }
+</script>
+
+<script lang="ts">
+  import type { ClassValue } from "svelte/elements";
+  import Action from "$lib/components/action.svelte";
+  import Code from "$lib/components/code.svelte";
+  import {
+    codeToKeyedTokens,
+    createMagicMoveMachine,
+  } from "@shikijs/magic-move/core";
+  import { MagicMoveRenderer } from "@shikijs/magic-move/renderer";
+  import type {
+    KeyedToken,
+    KeyedTokensInfo,
+    MagicMoveDifferOptions,
+    MagicMoveRenderOptions,
+  } from "@shikijs/magic-move/types";
+  import { getPresentation } from "./store.svelte.js";
+  import "../styles/shiki.css";
+
+  type Promises = Promise<unknown>[];
+  type Lang = BundledLanguage | SpecialLanguage;
+  type CodeProp = { code: string; codes?: never };
+  type CodesProp = { code?: never; codes: string[] };
+  type CodeProps = (CodeProp | CodesProp) & {
+    lang: Lang;
+    theme: BundledTheme;
+    options?: MagicMoveRenderOptions & MagicMoveDifferOptions;
+    autoIndent?: boolean;
+    class?: ClassValue;
+    ref?: (self: ReturnType<typeof Code>) => void;
+  };
+
+  let {
+    code,
+    codes,
+    lang,
+    theme = "poimandres",
+    options = {},
+    autoIndent = true,
+    ref,
+    ...props
+  }: CodeProps = $props();
+
+  let container: HTMLPreElement | undefined = $state();
+  let self: ReturnType<typeof Code> | undefined = $state();
+  let highlighter: HighlighterCore;
+  let machine: ReturnType<typeof createMagicMoveMachine>;
+  let renderer: MagicMoveRenderer;
+  let ready = false;
+
+  let currentCode: string = "";
+  let currentTokens: (KeyedToken & { line: number })[] = [];
+
+  const is = {
+    htmlEl: (el: Element): el is HTMLElement => el instanceof HTMLElement,
+    token: (el: HTMLElement) => el.className.includes("shiki-magic-move-item"),
+    newLine: (el: HTMLElement) => el.tagName === "BR",
+  };
+
+  function getRevealScale() {
+    const deck = getPresentation().slides;
+    return deck?.getScale?.() ?? 1;
+  }
+
+  // splits bracket characters for finer-grained selection
+  function splitPunctuationTokens(result: KeyedTokensInfo): KeyedTokensInfo {
+    const brackets = /[{}\[\]()]/g;
+    const newTokens: KeyedToken[] = [];
+
+    for (const token of result.tokens) {
+      if (token.content === "\n") {
+        newTokens.push(token);
+        continue;
+      }
+
+      const matches = [...token.content.matchAll(brackets)];
+      if (matches.length === 0) {
+        newTokens.push(token);
+        continue;
+      }
+
+      const splitPositions = matches.map((m) => m.index!);
+      let lastEnd = 0;
+      const splits: { content: string; offset: number }[] = [];
+
+      for (const pos of splitPositions) {
+        if (pos > lastEnd) {
+          splits.push({
+            content: token.content.slice(lastEnd, pos),
+            offset: token.offset + lastEnd,
+          });
+        }
+        splits.push({
+          content: token.content.slice(pos, pos + 1),
+          offset: token.offset + pos,
+        });
+        lastEnd = pos + 1;
+      }
+
+      if (lastEnd < token.content.length) {
+        splits.push({
+          content: token.content.slice(lastEnd),
+          offset: token.offset + lastEnd,
+        });
+      }
+
+      for (let i = 0; i < splits.length; i++) {
+        newTokens.push({
+          ...token,
+          content: splits[i].content,
+          offset: splits[i].offset,
+          key: i === 0 ? token.key : `${token.key}-${i}`,
+        });
+      }
+    }
+
+    return { ...result, tokens: newTokens };
+  }
+
+  /**
+   * removes common leading indentation from code
+   */
+  export function indent(text: string) {
+    const trimmed = text.trim();
+    const lines = trimmed.split("\n");
+    if (lines.length === 1) return trimmed;
+
+    const firstIndented = lines.find((line) => /^[\t ]/.test(line));
+    if (!firstIndented) return trimmed;
+
+    const isTabs = firstIndented[0] === "\t";
+
+    if (isTabs) {
+      const common = lines
+        .map((line) => line.match(/^(\t+)/)?.[1] || "")
+        .filter((tabs) => tabs.length > 0)
+        .sort((a, b) => a.length - b.length)[0];
+
+      if (!common || common === "\t") return trimmed;
+
+      return lines.map((line) => line.replace(common, "")).join("\n");
+    } else {
+      const common = lines
+        .map((line) => line.match(/^( +)/)?.[1] || "")
+        .filter((spaces) => spaces.length > 0)
+        .sort((a, b) => a.length - b.length)[0];
+
+      if (!common || common === " ") return trimmed;
+
+      return lines.map((line) => line.replace(common, "")).join("\n");
+    }
+  }
+
+  /**
+   * modified indent mostly used by replace
+   */
+  function dedent(text: string) {
+    const lines = text.split("\n");
+
+    let baseIndent = "";
+
+    for (const line of lines) {
+      if (line.trim() === "") continue;
+      baseIndent = line.match(/^(\s*)/)?.[1] ?? "";
+      break;
+    }
+
+    if (!baseIndent) return text.trim();
+
+    const result = lines.map((line) => {
+      if (line.trim() === "") return "";
+      if (line.startsWith(baseIndent)) return line.slice(baseIndent.length);
+      return line.trimStart();
+    });
+
+    while (result.length && result[0].trim() === "") result.shift();
+    while (result.length && result[result.length - 1].trim() === "")
+      result.pop();
+
+    return result.join("\n");
+  }
+
+  function parseSelection(raw: string): {
+    line: number | null;
+    index: number | null;
+    pattern: string;
+  } {
+    let line: number | null = null;
+    let index: number | null = null;
+    let pattern = raw.trim();
+
+    const indexMatch = pattern.match(/:(\d+)$/);
+    if (indexMatch) {
+      index = parseInt(indexMatch[1], 10);
+      pattern = pattern.slice(0, -indexMatch[0].length).trim();
+    }
+
+    const parts = pattern.split(/\s+/);
+    if (parts.length > 0 && /^\d+$/.test(parts[0])) {
+      line = parseInt(parts[0], 10);
+      pattern = parts.slice(1).join(" ");
+    }
+
+    return { line, index, pattern };
+  }
+
+  function stripWhitespace(code: string): {
+    stripped: string;
+    positions: number[];
+  } {
+    const stripped: string[] = [];
+    const positions: number[] = [];
+
+    for (let i = 0; i < code.length; i++) {
+      if (!/\s/.test(code[i])) {
+        stripped.push(code[i]);
+        positions.push(i);
+      }
+    }
+
+    return { stripped: stripped.join(""), positions };
+  }
+
+  function findOccurrences(
+    code: string,
+    pattern: string,
+    line: number | null,
+    index: number | null,
+  ): { start: number; end: number }[] {
+    const { stripped: strippedSource, positions } = stripWhitespace(code);
+    const strippedPattern = pattern.replace(/\s+/g, "");
+
+    if (!strippedPattern) return [];
+
+    const occurrences: { start: number; end: number }[] = [];
+    let searchPos = 0;
+
+    while (searchPos < strippedSource.length) {
+      const found = strippedSource.indexOf(strippedPattern, searchPos);
+      if (found === -1) break;
+
+      const start = positions[found];
+      const end = positions[found + strippedPattern.length - 1] + 1;
+      occurrences.push({ start, end });
+      searchPos = found + 1;
+    }
+
+    if (occurrences.length === 0) return [];
+
+    // filter by line if specified
+    if (line !== null) {
+      const lines = code.split("\n");
+      let charPos = 0;
+      const lineRanges: { start: number; end: number }[] = [];
+
+      for (let i = 0; i < lines.length; i++) {
+        lineRanges.push({ start: charPos, end: charPos + lines[i].length });
+        charPos += lines[i].length + 1;
+      }
+
+      const lineIndex = line - 1;
+      if (lineIndex >= 0 && lineIndex < lineRanges.length) {
+        const targetRange = lineRanges[lineIndex];
+        return occurrences.filter(
+          (occ) => occ.start >= targetRange.start && occ.end <= targetRange.end,
+        );
+      }
+    }
+
+    // apply index if specified
+    if (index !== null) {
+      const idx = index;
+      return occurrences[idx] ? [occurrences[idx]] : [];
+    }
+
+    return occurrences;
+  }
+
+  function getTokenOffsets(
+    tokens: (KeyedToken & { line: number })[],
+    occurrences: { start: number; end: number }[],
+  ): Set<number> {
+    const offsets = new Set<number>();
+
+    for (const occ of occurrences) {
+      for (const token of tokens) {
+        const tokenStart = token.offset;
+        const tokenEnd = token.offset + token.content.length;
+        if (tokenEnd > occ.start && tokenStart < occ.end) {
+          offsets.add(token.offset);
+        }
+      }
+    }
+
+    return offsets;
+  }
+
+  function addLineNumbers(
+    tokens: KeyedToken[],
+  ): (KeyedToken & { line: number })[] {
+    let line = 1;
+    return tokens.map((token) => {
+      const tokenWithLine = { ...token, line };
+      if (token.content === "\n") line++;
+      return tokenWithLine;
+    });
+  }
+
+  function createRange(start: number, end: number): number[] {
+    return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+  }
+
+  function getLines(range: string): number[] {
+    if (range === "*") return [];
+
+    return range.split(",").flatMap((part) => {
+      if (part.includes("-")) {
+        const [start, end] = part.split("-").map(Number);
+        return createRange(start, end);
+      }
+      return [+part];
+    });
+  }
+
+  function merge(strings: TemplateStringsArray, expressions: string[]): string {
+    let result = "";
+    for (let i = 0; i < strings.length; i++) {
+      result += strings[i];
+      if (expressions[i]) result += expressions[i].trim();
+    }
+    return result;
+  }
+
+  function transition(el: HTMLElement, selected: boolean): Promise<unknown> {
+    const { promise, resolve } = Promise.withResolvers();
+
+    const willTransition =
+      (!selected && el.classList.contains("selected")) ||
+      (selected && el.classList.contains("deselected")) ||
+      (!selected && !el.classList.contains("deselected"));
+
+    if (willTransition) {
+      el.ontransitionend = resolve;
+    } else {
+      resolve("finished");
+    }
+
+    el.classList.toggle("selected", selected);
+    el.classList.toggle("deselected", !selected);
+
+    return promise;
+  }
+
+  function applyToTokens(
+    container: HTMLElement,
+    tokens: (KeyedToken & { line: number })[],
+    selectedOffsets: Set<number>,
+    mode: "replace" | "add",
+  ): Promise<unknown> {
+    const children = container.children;
+    const promises: Promise<unknown>[] = [];
+    let tokenIndex = 0;
+
+    for (const el of children) {
+      if (!is.htmlEl(el)) continue;
+
+      if (is.token(el)) {
+        const token = tokens[tokenIndex];
+        tokenIndex++;
+
+        if (token) {
+          const isSelected = selectedOffsets.has(token.offset);
+          if (mode === "replace") {
+            promises.push(transition(el, isSelected));
+          } else if (mode === "add" && isSelected) {
+            promises.push(transition(el, true));
+          }
+        }
+      }
+
+      if (is.newLine(el)) {
+        tokenIndex++;
+      }
+    }
+
+    return Promise.all(promises);
+  }
+
+  async function init() {
+    if (!container) return;
+    highlighter = await getHighlighter(theme, lang);
+    machine = createMagicMoveMachine((code) => {
+      const result = codeToKeyedTokens(
+        highlighter,
+        code,
+        { lang, theme },
+        options.lineNumbers,
+      );
+      return splitPunctuationTokens(result);
+    }, options);
+    renderer = new MagicMoveRenderer(container);
+    Object.assign(renderer.options, {
+      ...options,
+      globalScale: getRevealScale(),
+    });
+    const indentedCode = autoIndent ? indent(code!) : code!;
+    currentCode = indentedCode;
+    const result = machine.commit(indentedCode);
+    currentTokens = addLineNumbers(result.current.tokens);
+    renderer.render(result.current);
+    ready = true;
+  }
+
+  async function render(code: string) {
+    if (!ready) return;
+    const indentedCode = autoIndent ? indent(code) : code;
+    currentCode = indentedCode;
+    const result = machine.commit(indentedCode);
+    if (result.previous) renderer.replace(result.previous);
+    currentTokens = addLineNumbers(result.current.tokens);
+    renderer.options.globalScale = getRevealScale();
+    await renderer.render(result.current);
+  }
+
+  /**
+   * updates the code with animation
+   */
+  export function update(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    return expressions.length > 0
+      ? render(merge(strings, expressions))
+      : render(strings[0]);
+  }
+
+  /**
+   * appends code to the current code with animation
+   */
+  export function append(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    const newCode =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const dedentedCode = autoIndent ? indent(newCode) : newCode;
+    return render(currentCode + "\n\n" + dedentedCode);
+  }
+
+  /**
+   * removes lines by line number with animation
+   * supports: single line (5), range (5-7), multiple (5,7,9), or combinations (5,7-10)
+   */
+  export function remove(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    const input =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const lineNumbers = getLines(input.trim());
+    if (lineNumbers.length === 0) {
+      console.warn("remove: invalid line range");
+      return Promise.resolve();
+    }
+    const lines = currentCode.split("\n");
+    const sortedLines = [...lineNumbers].sort((a, b) => b - a);
+    for (const lineNum of sortedLines) {
+      if (lineNum >= 1 && lineNum <= lines.length) {
+        lines.splice(lineNum - 1, 1);
+      }
+    }
+    return render(lines.join("\n"));
+  }
+
+  function detectIndentStyle(lines: string[]): { char: string; size: number } {
+    for (const line of lines) {
+      const match = line.match(/^(\s+)/);
+      if (match) {
+        const whitespace = match[1];
+        if (whitespace.includes("\t")) {
+          return { char: "\t", size: 1 };
+        }
+        const spaces = whitespace.length;
+        return { char: " ", size: spaces <= 2 ? 2 : 4 };
+      }
+    }
+    return { char: " ", size: 2 };
+  }
+
+  /**
+   * inserts code at a specific line with animation
+   * format: `<lineNumber>:<indentLevel> <code>` where line number is 1-indexed
+   * indentLevel is optional (defaults to 0)
+   */
+  export function insert(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    const input =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const match = input.match(/^(\d+)(?::(\d+))?[ \t]*/);
+    if (!match) {
+      console.warn("insert: line number required at start of code");
+      return Promise.resolve();
+    }
+    const lineNumber = parseInt(match[1], 10);
+    const indentLevel = match[2] ? parseInt(match[2], 10) : 0;
+    const codeFragment = input.slice(match[0].length);
+
+    // preserve leading newlines before dedenting
+    const leadingNewlines = codeFragment.match(/^\n*/)?.[0].length ?? 0;
+    const codeWithoutLeadingNewlines = codeFragment.slice(leadingNewlines);
+    const dedentedCode = autoIndent
+      ? indent(codeWithoutLeadingNewlines)
+      : codeWithoutLeadingNewlines;
+
+    const lines = currentCode.split("\n");
+    const { char, size } = detectIndentStyle(lines);
+    const actualIndent =
+      char === "\t" ? "\t".repeat(indentLevel) : " ".repeat(indentLevel * size);
+    const codeLines = dedentedCode.split("\n");
+    const indentedLines = codeLines.map((line) =>
+      line ? actualIndent + line : line,
+    );
+    const blankLines = Array(leadingNewlines).fill("");
+    lines.splice(lineNumber - 1, 0, ...blankLines, ...indentedLines);
+    return render(lines.join("\n"));
+  }
+
+  /**
+   * replaces matching code with new code with animation
+   */
+  export function replace(from: string, to: string) {
+    const dedentedFrom = autoIndent ? dedent(from) : from;
+    const dedentedTo = autoIndent ? dedent(to) : to;
+
+    const [occ] = findOccurrences(currentCode, dedentedFrom, null, 0);
+    if (!occ) {
+      console.warn("replace: pattern not found");
+      return Promise.resolve();
+    }
+
+    const lineStart = currentCode.lastIndexOf("\n", occ.start - 1) + 1;
+    const lineIndent = currentCode.slice(lineStart).match(/^\s*/)?.[0] ?? "";
+
+    const toLines = dedentedTo.split("\n");
+    const reindentedTo = toLines
+      .map((line, i) => (i === 0 ? line : line ? lineIndent + line : line))
+      .join("\n");
+
+    return render(
+      currentCode.slice(0, occ.start) +
+        reindentedTo +
+        currentCode.slice(occ.end),
+    );
+  }
+
+  /**
+   * highlights specific lines, or all lines if `*` is passed
+   */
+  export function selectLines(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    if (!container) return;
+
+    const range =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const lines = getLines(range);
+    const children = container.children;
+    const promises: Promises = [];
+    let currentLine = 1;
+
+    for (const el of children) {
+      if (!is.htmlEl(el)) return;
+
+      if (is.token(el)) {
+        const selected =
+          lines.length === 0 ? true : lines.includes(currentLine);
+        promises.push(transition(el, selected));
+      }
+
+      if (is.newLine(el)) currentLine++;
+    }
+
+    return Promise.all(promises);
+  }
+
+  /**
+   * adds specific lines to the current selection without deselecting others
+   */
+  export function selectLinesAdd(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    if (!container) return;
+
+    const range =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const lines = getLines(range);
+    const children = container.children;
+    const promises: Promises = [];
+    let currentLine = 1;
+
+    for (const el of children) {
+      if (!is.htmlEl(el)) return;
+
+      if (is.token(el)) {
+        const shouldSelect =
+          lines.length === 0 ? true : lines.includes(currentLine);
+        if (shouldSelect) {
+          promises.push(transition(el, true));
+        }
+      }
+
+      if (is.newLine(el)) currentLine++;
+    }
+
+    return Promise.all(promises);
+  }
+
+  /**
+   * scrolls to make a specific line visible
+   */
+  export function scrollToLine(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    if (!container) return;
+
+    const raw =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const line = parseInt(raw.trim());
+
+    if (isNaN(line) || line < 1) return;
+
+    let tokenIndex = 0;
+    let targetElement: HTMLElement | null = null;
+
+    /*
+     * shiki inserts an anchor span at index 0, then renders
+     * every token (including \n as <br>) as a direct child.
+     * we skip the anchor and map each remaining child 1:1 with currentTokens
+     * to find the first token element on the target line.
+     */
+    for (let i = 1; i < container.children.length; i++) {
+      const el = container.children[i];
+      if (!is.htmlEl(el)) continue;
+      if (tokenIndex >= currentTokens.length) break;
+
+      const token = currentTokens[tokenIndex];
+      tokenIndex++;
+
+      if (is.token(el) && token.line === line) {
+        targetElement = el;
+        break;
+      }
+    }
+
+    if (!targetElement) return;
+
+    return new Promise<void>((resolve) => {
+      /*
+       * calculate where the target would be when centered so we can
+       * skip the animation if we're already there
+       */
+      const containerRect = container!.getBoundingClientRect();
+      const targetRect = targetElement!.getBoundingClientRect();
+      const targetOffsetTop =
+        targetRect.top - containerRect.top + container!.scrollTop;
+      const centerOffset = containerRect.height / 2 - targetRect.height / 2;
+      const scrollPosition = Math.max(0, targetOffsetTop - centerOffset);
+
+      if (Math.abs(container!.scrollTop - scrollPosition) < 1) {
+        resolve();
+        return;
+      }
+
+      targetElement!.scrollIntoView({ behavior: "smooth", block: "center" });
+
+      let resolved = false;
+      const done = () => {
+        if (resolved) return;
+        resolved = true;
+        resolve();
+      };
+
+      container!.addEventListener("scrollend", done, { once: true });
+      setTimeout(done, 500);
+    });
+  }
+
+  /**
+   * selects tokens matching a pattern, optionally filtered by line number or index
+   */
+  export function select(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    if (!container || !currentCode) return;
+
+    const raw =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const { line, index, pattern } = parseSelection(raw);
+
+    if (!pattern) return;
+
+    const occurrences = findOccurrences(currentCode, pattern, line, index);
+    const selectedOffsets = getTokenOffsets(currentTokens, occurrences);
+
+    return applyToTokens(container, currentTokens, selectedOffsets, "replace");
+  }
+
+  /**
+   * adds to the current selection without deselecting other tokens
+   */
+  export function selectAdd(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    if (!container || !currentCode) return;
+
+    const raw =
+      expressions.length > 0 ? merge(strings, expressions) : strings[0];
+    const { line, index, pattern } = parseSelection(raw);
+
+    if (!pattern) return;
+
+    const occurrences = findOccurrences(currentCode, pattern, line, index);
+    const selectedOffsets = getTokenOffsets(currentTokens, occurrences);
+
+    return applyToTokens(container, currentTokens, selectedOffsets, "add");
+  }
+
+  /**
+   * @deprecated use `select` instead
+   */
+  export function selectToken(
+    strings: TemplateStringsArray,
+    ...expressions: string[]
+  ) {
+    console.warn("selectToken is deprecated, use select instead");
+    return select(strings, ...expressions);
+  }
+
+  $effect(() => {
+    init();
+  });
+
+  $effect(() => {
+    ref?.(self!);
+  });
+</script>
+
+{#if codes}
+  <Code
+    bind:this={self}
+    code={$state(codes[0])}
+    {lang}
+    {theme}
+    {options}
+    {autoIndent}
+    {...props}
+  />
+
+  {#each codes as _, i}
+    {#if codes[i + 1]}
+      <Action
+        do={() => self!.update`${codes[i + 1]}`}
+        undo={() => self!.update`${codes[i]}`}
+      />
+    {/if}
+  {/each}
+{:else}
+  <pre
+    bind:this={container}
+    {...props}
+    class="shiki-magic-move-container {props.class}"></pre>
+{/if}
+
+=== 481 animotion/script-twice/script_duplicate/10566a228261770d.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  1 | <script lang="ts" module>
+> 2 | 	import type { BundledLanguage, BundledTheme, SpecialLanguage } from 'shiki';
+    | 	                                                                           ^
+  3 | 	import { createHighlighter, type HighlighterCore } from 'shiki';
+  4 |
+  5 | 	type Lang = BundledLanguage | SpecialLanguage;
+
+=== 350 animotion/script-twice/script_duplicate/6b7b9879b366a353.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  1 | <script lang="ts">
+> 2 | 	import Action from '$lib/components/action.svelte';
+    | 	                                                  ^
+  3 |
+  4 | 	type ActionProps = {
+  5 | 		order?: number;
+
+=== 235 animotion/swap-close/expected_token/41b1591f38d47f2f.svelte	error.txt
+Expected token if
+https://svelte.dev/e/expected_token
+   8 | 		actions?: Array<() => void>;
+   9 | 	};
+> 10 |
+     | ^
+  11 | 	let { order, actions, ...props }: ActionProps = $props();
+  12 | 	let el = $state<HTMLDivElement>();
+  13 |
+
+=== 179 animotion/swap-close/expected_token/6aca7567d443f784.svelte	error.txt
+Expected token if
+https://svelte.dev/e/expected_token
+  13 | 		}
+  14 | 		return highlighterCache.get(key)!;
+> 15 | 	}
+     | 	^
+  16 | </script>
+  17 |
+  18 | <script lang="ts">
+
+=== 379 animotion/swap-close/expected_token/72d2e2ad3b4a8060.svelte	error.txt
+Expected token each
+https://svelte.dev/e/expected_token
+  121 | 			<div class={layout}>
+  122 | 				{#each items as item, i (item)}
+> 123 | 					<Transition
+      | 					^
+  124 | 						class="grid h-45 w-45 place-content-center rounded-2xl border-t-2 border-white bg-gray-200 text-6xl font-semibold text-black shadow-2xl"
+  125 | 						entry="rotate"
+  126 | 						duration={2}
+
+=== 211 animotion/swap-close/expected_token/f82b6982cba413c7.svelte	error.txt
+Expected token each
+https://svelte.dev/e/expected_token
+  12 | 			component?: Component;
+  13 | 			props?: any;
+> 14 | 		}>('/src/slides/**/slide.svelte', {
+     | 	^
+  15 | 			eager: true
+  16 | 		})
+  17 | 	)
+
+=== 296 attractions/duplicate-attribute/attribute_duplicate/5ff1e1e04aad50be.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+   8 | </script>
+   9 |
+> 10 | <div class={classes('spinner', _class)}>
+     |                            ^^^^^^^^^^^^^^^^^^^^
+  11 |   <div class="bounce1" />
+  12 |   <div class="bounce2" />
+  13 |   <div class="bounce3" />
+
+=== 325 attractions/duplicate-attribute/attribute_duplicate/aa679f9a03e81487.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+> 1 | <script context="module" context="module">
+    |                         ^^^^^^^^^^^^^^^^
+  2 |   import Heading1 from 'src/mdsvex/h1.svelte';
+  3 |   import Heading2 from 'src/mdsvex/h2.svelte';
+  4 |   import Heading3 from 'src/mdsvex/h3.svelte';
+
+=== 385 attractions/duplicate-attribute/attribute_duplicate/d3a4439dd06d6ad5.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  10 |   <CopyableCode>
+  11 |     <slot name="source" />
+> 12 |   </CopyableCode>
+     |                  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  13 | </section>
+  14 |
+  15 | <style src="../../../static/css/containers/docs/showcase.scss" src="../../../static/css/containers/docs/showcase.scss">
+
+=== 286 attractions/swap-close/expected_token/bc5f2234497403b0.svelte	error.txt
+Expected token await
+https://svelte.dev/e/expected_token
+  35 |     <InfoTile
+  36 |       icon={FeatherIcon}
+> 37 |       title="Calculating bundle size"
+     |    ^
+  38 |       subtitle="gimme a sec..."
+  39 |       href="https://bundlephobia.com/result?p=attractions"
+  40 |     />
+
+=== 604 bits-ui/bind-sum/attribute_invalid_name/06880dae52249363.svelte	svelte
+<script lang="ts">
+  import { mergeProps, srOnlyStyles } from "svelte-toolbelt";
+  import type { HTMLInputAttributes } from "svelte/elements";
+
+  let { value = $bindable(), ...restProps }: HTMLInputAttributes = $props();
+
+  const mergedProps = $derived(
+    mergeProps(restProps, {
+      "aria-hidden": "true",
+      tabindex: -1,
+      style: {
+        ...srOnlyStyles,
+        position: "absolute",
+        top: "0",
+        left: "0",
+      },
+    }),
+  );
+</script>
+
+{#if mergedProps.type === "checkbox"}
+  <input {...mergedProps} {value} />
+{:else}
+  <input bind:value + 1 {...mergedProps} />
+{/if}
+
+=== 934 bits-ui/bind-sum/attribute_invalid_name/5591bc9ac0badcba.svelte	svelte
+<script lang="ts">
+  import { boxWith, mergeProps } from "svelte-toolbelt";
+  import type { CommandInputProps } from "../types.js";
+  import { CommandInputState } from "../command.svelte.js";
+  import { createId } from "$lib/internal/create-id.js";
+
+  const uid = $props.id();
+
+  let {
+    value = $bindable(""),
+    autofocus = false,
+    id = createId(uid),
+    ref = $bindable(null),
+    child,
+    ...restProps
+  }: CommandInputProps = $props();
+
+  const inputState = CommandInputState.create({
+    id: boxWith(() => id),
+    ref: boxWith(
+      () => ref,
+      (v) => (ref = v),
+    ),
+    value: boxWith(
+      () => value,
+      (v) => {
+        value = v;
+      },
+    ),
+    autofocus: boxWith(() => autofocus ?? false),
+  });
+
+  const mergedProps = $derived(mergeProps(restProps, inputState.props));
+</script>
+
+{#if child}
+  {@render child({ props: mergedProps })}
+{:else}
+  <input {...mergedProps} bind:value + 1 />
+{/if}
+
+=== 189 bits-ui/bind-sum/expected_token/f1c641d58729022f.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  41 | 					indeterminate
+  42 | 				{:else}
+> 43 | 					{checked}
+     | 					^
+  44 | 				{/if}
+  45 | 			</span>
+  46 | 		{/snippet}
+
+=== 450 bits-ui/drop-close/block_unclosed/04a0cecbbef640d1.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  1 | <script lang="ts">
+  2 | 	import { boxWith, mergeProps } from "svelte-toolbelt";
+> 3 | 	import type { CommandLinkItemProps } from "../types.js";
+    | 	                                                       ^
+  4 | 	import { CommandItemState } from "../command.svelte.js";
+  5 | 	import { noop } from "$lib/internal/noop.js";
+  6 | 	import { createId } from "$lib/internal/create-id.js";
+
+=== 442 bits-ui/drop-close/block_unclosed/0c0c1f0cf4f5aab0.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  1 | <script lang="ts">
+  2 | 	import { boxWith, mergeProps } from "svelte-toolbelt";
+> 3 | 	import type { CommandItemProps } from "../types.js";
+    | 	                                                   ^
+  4 | 	import { CommandItemState } from "../command.svelte.js";
+  5 | 	import { noop } from "$lib/internal/noop.js";
+  6 | 	import { createId } from "$lib/internal/create-id.js";
+
+=== 238 bits-ui/drop-close/block_unclosed/52d8f12f9f89e4b2.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  1 | <script lang="ts">
+  2 | 	import Item from "./item.svelte";
+> 3 | </script>
+    |         ^
+  4 |
+  5 | {#each { length: 6 } as _, i (i)}
+  6 | 	<Item value="Project {i + 1}">
+
+=== 414 bits-ui/drop-close/block_unclosed/53b47a9ebb0d59b8.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  1 | <script lang="ts">
+  2 | 	import { DropdownMenu } from "bits-ui";
+> 3 | 	import CaretDown from "phosphor-svelte/lib/CaretDown";
+    | 	                                                     ^
+  4 | 	import OpenAiLogo from "phosphor-svelte/lib/OpenAiLogo";
+  5 | 	import FileMd from "phosphor-svelte/lib/FileMd";
+  6 | 	import { page } from "$app/state";
+
+=== 371 bits-ui/drop-close/block_unclosed/edb20c83971d75fc.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  1 | <script lang="ts">
+  2 | 	import { cn } from "$lib/utils/styles.js";
+> 3 | 	import { Accordion, useId, Button } from "bits-ui";
+    | 	                                                  ^
+  4 | 	import CaretDown from "phosphor-svelte/lib/CaretDown";
+  5 | 	import { SvelteSet } from "svelte/reactivity";
+  6 |
+
+=== 284 bits-ui/drop-close/expected_token/7152e920ef7ae04b.svelte	error.txt
+Expected token </style>
+https://svelte.dev/e/expected_token
+  22 | 					<Dialog.Title>title</Dialog.Title>
+  23 | 					<Dialog.Close data-testid="close">close</Dialog.Close>
+> 24 | 				</Dialog.Content>
+     | 				  ^
+  25 | 			</Dialog.Portal>
+  26 | 		</Dialog.Root>
+  27 | 	</div>
+
+=== 403 bits-ui/drop-close/expected_token/9f40e77af21cc25d.svelte	error.txt
+Expected token </style>
+https://svelte.dev/e/expected_token
+  30 | 				<DropdownMenu.Item data-testid="item-1">Item 1</DropdownMenu.Item>
+  31 | 				<DropdownMenu.Item data-testid="item-2">Item 2</DropdownMenu.Item>
+> 32 | 				<DropdownMenu.Item data-testid="item-3">Item 3</DropdownMenu.Item>
+     | 				 ^
+  33 | 			</DropdownMenu.Content>
+  34 | 		</DropdownMenu.Portal>
+  35 | 	</DropdownMenu.Root>
+
+=== 475 bits-ui/duplicate-attribute/attribute_duplicate/00775f1dd4da52f1.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  1 | <script lang="ts">
+  2 | 	import { Command, Dialog } from "bits-ui";
+> 3 | 	import CalendarBlank from "phosphor-svelte/lib/CalendarBlank";
+    | 	                                         ^^^^^^^^^^^^^^^^^^^^^^^^^
+  4 | 	import CodeBlock from "phosphor-svelte/lib/CodeBlock";
+  5 | 	import Palette from "phosphor-svelte/lib/Palette";
+  6 | 	import RadioButton from "phosphor-svelte/lib/RadioButton";
+
+=== 168 bits-ui/duplicate-attribute/attribute_duplicate/741147987ead288f.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+   5 | 		h1,
+   6 | 		h2,
+>  7 | 		h3,
+     | 		   ^^^^^^^
+   8 | 		h4,
+   9 | 		h5,
+  10 | 		h6,
+
+=== 191 bits-ui/duplicate-attribute/attribute_duplicate/b47955a9b98ec15a.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  3 |
+  4 | 	let {
+> 5 | 		href,
+    | 		     ^^^^^^^^^^^^^^^^
+  6 | 		type,
+  7 | 		children,
+  8 | 		disabled = false,
+
+=== 371 bits-ui/duplicate-attribute/attribute_duplicate/c1c2a259a99bfce6.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  1 | <script lang="ts">
+  2 | 	import { Command, Popover } from "bits-ui";
+> 3 | 	import SubItem from "./sub-item.svelte";
+    | 	                                        ^^^^^^^^^^^^^^^^^^^^^^^^^
+  4 | 	import { FinderIcon, StarIcon, WindowIcon } from "./icons/index.js";
+  5 |
+  6 | 	type Props = {
+
+=== 1099 bits-ui/duplicate-attribute/attribute_duplicate/f4f6da9a10d043e2.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+   7 | 	import CardTimer from "$lib/components/homepage/card-timer.svelte";
+   8 | 	import CardToggle from "$lib/components/homepage/card-toggle.svelte";
+>  9 | 	import { Logo } from "$icons/index.js";
+     | 	  ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 10 | 	import LightSwitch from "$lib/components/light-switch.svelte";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 11 |
+     | ^
+> 12 | 	import Customizable from "$lib/components/homepage/svg-customizable.svelte";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 13 | 	import Accessible from "$lib/components/homepage/svg-accessible.svelte";
+     | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+> 14 | 	import AccessibleDark from "$lib/components/homepage/svg-accessible-dark.svelte";
+     | ^^
+  15 | 	import Consistent from "$lib/components/homepage/svg-consistent.svelte";
+  16 | 	import { goto } from "$app/navigation";
+  17 | 	import Search from "$lib/components/search.svelte";
+
+=== 407 bits-ui/rune-in-template/expected_token/dc16ebc7943acc57.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+   7 | 	import type { Component } from "svelte";
+   8 | 	import Claude from "$icons/claude.svelte";
+>  9 |
+     | ^
+  10 | 	const q = $derived(
+  11 | 		`The following is a documentation page from Bits UI (a headless component library for Svelte 5): https://bits-ui.com${page.url.pathname}. Be ready to help answer questions about this page.`
+  12 | 	);
+
+=== 444 bits-ui/rune-in-template/expected_token/ece97342cd6fa900.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  3 | 	import { Collapsible, Tabs } from "bits-ui";
+  4 | 	import DemoCodeTabs from "./demo-code-tabs.svelte";
+> 5 | 	import AppCSS from "./code-renders/app-css.svelte";
+    | 	       ^
+  6 | 	import ScrollArea from "$lib/components/ui/scroll-area.svelte";
+  7 | 	import { cn } from "$lib/utils/styles.js";
+  8 | 	import { useCopyToClipboard } from "$lib/utils/copy-to-clipboard.svelte.js";
+
+=== 413 bits-ui/swap-close/expected_token/1b7b7ce7f43051af.svelte	error.txt
+Expected token snippet
+https://svelte.dev/e/expected_token
+  15 | </script>
+  16 |
+> 17 | {#snippet LinkItem({ href, icon, label }: { href: string; icon: Component; label: string })}
+     |  ^
+  18 | 	<DropdownMenu.Item
+  19 | 		class="rounded-button data-highlighted:bg-muted ring-0! ring-transparent! flex h-10 select-none items-center py-3 pl-3 pr-1.5 text-sm font-medium focus-visible:outline-none"
+  20 | 	>
+
+=== 203 bits-ui/swap-close/expected_token/2bd46aed566d11bc.svelte	error.txt
+Expected token key
+https://svelte.dev/e/expected_token
+  13 | 		value = "",
+  14 | 		disabled = false,
+> 15 | 		children,
+     | 	^
+  16 | 		child,
+  17 | 		onSelect = noop,
+  18 | 		forceMount = false,
+
+=== 288 bits-ui/swap-close/expected_token/32c51c45000f5b2a.svelte	error.txt
+Expected token snippet
+https://svelte.dev/e/expected_token
+  25 | 			<span class="w-full text-left">
+  26 | 				{title}
+> 27 | 			</span>
+     | 	^
+  28 | 			<span
+  29 | 				class="hover:bg-dark-10 inline-flex size-8 items-center justify-center rounded-[7px] bg-transparent"
+  30 | 			>
+
+=== 203 bits-ui/swap-close/expected_token/c4fb13497ae43160.svelte	error.txt
+Expected token key
+https://svelte.dev/e/expected_token
+  13 | 		value = "",
+  14 | 		disabled = false,
+> 15 | 		children,
+     | 	^
+  16 | 		child,
+  17 | 		onSelect = noop,
+  18 | 		forceMount = false,
+
+=== 392 cnblocks/drop-close/element_invalid_closing_tag/7bafc6617a5157e6.svelte	error.txt
+`</svelte:element>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+  61 | 			type?: HTMLButtonAttributes["type"];
+  62 | 			href?: never;
+> 63 | 			disabled?: HTMLButtonAttributes["disabled"];
+     | 			                                           ^
+  64 | 		};
+  65 |
+  66 | 	export type ButtonProps = AnchorElementProps | ButtonElementProps;
+
+=== 298 cnblocks/drop-close/element_invalid_closing_tag/fce097ac761af9df.svelte	error.txt
+`</svelte:head>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+   8 | 		keywords?: string[];
+   9 | 		canonical?: string;
+> 10 | 		noindex?: boolean;
+     | 		                 ^
+  11 | 		images?: {
+  12 | 			url: string;
+  13 | 			width?: number;
+
+=== 238 cnblocks/drop-close/unexpected_eof/0c3e1a6ec645c96d.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+   9 | 		class: className,
+  10 | 		...restProps
+> 11 | 	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
+     | ^
+  12 | </script>
+  13 |
+  14 | <textarea
+
+=== 238 cnblocks/drop-close/unexpected_eof/23b79150accab06b.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+   9 | 		class: className,
+  10 | 		...restProps
+> 11 | 	}: WithoutChildren<WithElementRef<HTMLTextareaAttributes>> = $props();
+     | ^
+  12 | </script>
+  13 |
+  14 | <textarea
+
+=== 345 cnblocks/duplicate-attribute/expected_token/13ac5e85dcdb0ab7.svelte	error.txt
+Expected token =
+https://svelte.dev/e/expected_token
+   5 | 	import type { Snippet } from "svelte";
+   6 | 	import { fly } from "svelte/transition";
+>  7 |
+     | ^
+   8 | 	let { children }: { children: Snippet } = $props();
+   9 | 	let visible = $derived(typeof scrollY.current === "undefined" ? 600 : scrollY.current > 1200);
+  10 | </script>
+
+=== 398 cnblocks/duplicate-attribute/expected_token/1ffa51762f62b706.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  1 | <script lang="ts">
+  2 | 	import { all_veils_call_to_action } from "$lib/all_veils/call-to-action";
+> 3 | 	import MistBlockPreview from "$lib/components/web/MistBlockPreview.svelte";
+    | 	                         ^
+  4 | 	import { seoMetaTags } from "$lib/config/seo";
+  5 | 	import { MetaTags } from "svelte-meta-tags";
+  6 | </script>
+
+=== 245 cnblocks/duplicate-attribute/expected_token/7a556e431c90630e.svelte	error.txt
+Expected token =
+https://svelte.dev/e/expected_token
+> 1 | <script lang="ts  lang="ts">
+    |                          ^
+  2 | 	import PreviewComponent from "$lib/components/veil/call-to-action/call-to-action-four.svelte";
+  3 | </script>
+  4 |
+
+=== 309 cnblocks/duplicate-attribute/expected_token/974dfe20e053c714.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  1 | <script lang="ts">
+  2 | 	import Button from "$lib/components/ui/button/button.svelte";
+> 3 | 	import { seoMetaTags } from "$lib/config/seo";
+    | 	                         ^
+  4 | 	import { MetaTags } from "svelte-meta-tags";
+  5 | </script>
+  6 |
+
+=== 244 cnblocks/duplicate-attribute/expected_token/a22d6c3178e84aac.svelte	error.txt
+Expected token =
+https://svelte.dev/e/expected_token
+> 1 | <script lang="ts  lang="ts">
+    |                          ^
+  2 | 	import PreviewComponent from "$lib/components/veil/call-to-action/call-to-action-one.svelte";
+  3 | </script>
+  4 |
+
+=== 1300 cnblocks/script-twice/js_parse_error/5556caa365c1a1d9.svelte	svelte
+﻿<script lang="ts">
+	import Button from "$lib/components/ui/button/button.svelte";
+	import { seoMetaTags } from "$lib/config/seo";
+	import { MetaTags } from "svelte-meta-tags";
+</script
+﻿<script lang="ts">
+	import Button from "$lib/components/ui/button/button.svelte";
+	import { seoMetaTags } from "$lib/config/seo";
+	import { MetaTags } from "svelte-meta-tags";
+</script>
+
+<MetaTags {...seoMetaTags} title="Veil Blocks" />
+
+<section>
+  <div
+    class="mx-4 max-w-7xl border-x border-b px-8 py-16 [--color-border:color-mix(in_oklab,var(--color-zinc-200)_75%,transparent)] md:mx-auto dark:[--color-border:color-mix(in_oklab,var(--color-zinc-800)_60%,transparent)]"
+  >
+    <div class="max-w-2xl">
+      <h1 class="text-3xl font-bold text-balance sm:text-4xl">Veil Blocks</h1>
+      <p class="mt-3 mb-6 text-base text-muted-foreground">
+        Modern marketing and UI blocks for Svelte, designed with the Veil visual
+        style.
+      </p>
+
+      <div class="flex flex-wrap items-center gap-2 sm:space-x-2">
+        <Button href="/veil/hero" class="w-full sm:w-fit">Get Started</Button>
+        <Button
+          href="/docs/installation"
+          variant="outline"
+          class="w-full sm:w-fit"
+        >
+          Visit Docs
+        </Button>
+      </div>
+    </div>
+  </div>
+</section>
+
+=== 1864 cnblocks/script-twice/js_parse_error/d18921f6ddf6dbf3.svelte	svelte
+﻿<script lang="ts">
+	import { scrollY } from "svelte/reactivity/window";
+	import Button from "$lib/components/ui/button/button.svelte";
+	import VeilCategoryNav from "$lib/web/layouts/VeilCategoryNav.svelte";
+	import type { Snippet } from "svelte";
+	import { fly } from "svelte/transition";
+
+	let { children }: { children: Snippet } = $props();
+	let visible = $derived(typeof scrollY.current === "undefined" ? 600 : scrollY.current > 1200);
+</script
+﻿<script lang="ts">
+	import { scrollY } from "svelte/reactivity/window";
+	import Button from "$lib/components/ui/button/button.svelte";
+	import VeilCategoryNav from "$lib/web/layouts/VeilCategoryNav.svelte";
+	import type { Snippet } from "svelte";
+	import { fly } from "svelte/transition";
+
+	let { children }: { children: Snippet } = $props();
+	let visible = $derived(typeof scrollY.current === "undefined" ? 600 : scrollY.current > 1200);
+</script>
+
+<div>
+  <VeilCategoryNav />
+  <section>
+    <div
+      class="h-6 w-full bg-[repeating-linear-gradient(-45deg,var(--color-border),var(--color-border)_1px,transparent_1px,transparent_6px)] opacity-35"
+    ></div>
+  </section>
+  {@render children()}
+  {#if visible}
+    {@render scrollToTop()}
+  {/if}
+</div>
+
+{#snippet scrollToTop()}
+  <div
+    in:fly={{ y: 20 }}
+    out:fly={{ y: 20 }}
+    class="fixed right-4 bottom-4 z-50"
+  >
+    <Button
+      size="icon"
+      variant="secondary"
+      class="rounded-full"
+      onclick={() => window.scrollTo({ top: 0, behavior: "smooth" })}
+    >
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-6 w-6"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M5 10l7-7m0 0l7 7m-7-7v18"
+        />
+      </svg>
+    </Button>
+  </div>
+{/snippet}
+
+=== 375 edra/duplicate-attribute/attribute_duplicate/9c4d455d8348b5f1.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  2 | 	let { as = 'span', class: className }: { as?: string; class?: string } = $props();
+  3 | </script>
+> 4 |
+    | ^^^^^^^^^^^^^^^^^
+  5 | {#key 'mvc'}
+  6 | 	<svelte:element this={as} class={className} class={className} data-mark-view-content="" style="white-space: inherit"
+  7 | 	></svelte:element>
+
+=== 224 eslint-plugin-svelte/drop-close/svelte_meta_invalid_placement/5b0c8da3d20fe1a9.svelte	error.txt
+`<svelte:head>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+   8 |
+   9 | <!-- prettier-ignore -->
+> 10 | <svelte:head></svelte:head>
+     |                           ^
+  11 |
+
+=== 198 eslint-plugin-svelte/drop-close/svelte_meta_invalid_placement/f07052f296a83c32.svelte	error.txt
+`<svelte:head>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+   8 |
+   9 | <!-- prettier-ignore -->
+> 10 | <svelte:head/>
+     |              ^
+  11 |
+
+=== 228 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/2cc474032a381180.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  1 | <script lang="ts">
+  2 | 	interface $$Slots {
+> 3 | 		named: Record<string, never>;
+    | 		                ^^^^^^^^^^^^
+  4 | 	}
+  5 | </script>
+  6 |
+
+=== 245 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/95f644cb0ac55354.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  3 | </script>
+  4 |
+> 5 | <div>
+    |      ^^^^^^^^^^^^^^^^^^^^^
+  6 |   {#if foo > 0.5}
+  7 |     <svelte:self style="display:block" style="display:block" />
+  8 |   {/if}
+
+=== 356 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/b214083851676a5c.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  1 | <script>
+  2 | 	import MyComponent from './MyComponent.svelte';
+> 3 | 	import { writable } from 'svelte/store';
+    | 	                                        ^^^^^^^^^^^^^^^^^^^^
+  4 | 	let store = writable('hello');
+  5 | 	let component = writable(MyComponent);
+  6 | </script>
+
+=== 317 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/ba965b44a8b21b2d.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  3 | 	let current = 'foo';
+  4 | </script>
+> 5 |
+    | ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  6 | <div>
+  7 | 	{#if foo > 0.5}
+  8 | 		<svelte:self class={current === 'foo' ? 'selected' : ''} class={current === 'foo' ? 'selected' : ''} />
+
+=== 357 eslint-plugin-svelte/duplicate-attribute/attribute_duplicate/beaec40f4153cde7.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  1 | <script>
+  2 | 	import MyComponent from './MyComponent.svelte';
+> 3 | 	import { writable } from 'svelte/store';
+    | 	                                        ^^^^^^^^^^^^^^^^^^^^^
+  4 | 	let store = writable('hello');
+  5 | 	let component = writable(MyComponent);
+  6 | </script>
+
+=== 380 eslint-plugin-svelte/duplicate-attribute/declaration_duplicate/c83689e9c0d7cc37.svelte	svelte
+<script>
+  import FancyList from "./FancyListFancyList.svelte";
+  let items = [1, 2, 3];
+</script>
+
+<FancyList let:a={thing} let:a={thing} {items} let:b={thing2}>
+  <div>{thing.text}</div>
+</FancyList>
+
+<FancyList let:a={thing} let:b={thing2} {items}>
+  <div>{thing.text}</div>
+</FancyList>
+
+<FancyList {items} let:b={thing2} let:a={thing}>
+  <div>{thing.text}</div>
+</FancyList>
+
+=== 81 eslint-plugin-svelte/duplicate-attribute/transition_duplicate/13ea2106dfb5027e.svelte	svelte
+<script>
+  function a() {}
+  function b() {}
+</script>
+
+<div out:a out:a in:b />
+
+=== 198 eslint-plugin-svelte/duplicate-attribute/transition_duplicate/5b60fbfa5f089339.svelte	svelte
+<script>
+  import { fade, fly } from "svelte/transition";
+</script>
+
+<span transition:fade transition:fade>Hello World!</span>
+
+<span transition:fly={{ y: 200, duration: 2000 }}>Hello World!</span>
+
+=== 517 eslint-plugin-svelte/rune-in-template/svelte_options_invalid_customelement/9885ce99e4c41e74.svelte	error.txt
+"customElement" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: "open" | "none" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }
+https://svelte.dev/e/svelte_options_invalid_customelement
+> 1 | <svelte:options customElement={$state({ tag: 'my-component', props: {} })} />
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | <script>
+  4 | 	let props = $props();
+
+=== 221 eslint-plugin-svelte/swap-close/expected_token/a9278f39f5409db0.svelte	error.txt
+Expected token await
+https://svelte.dev/e/expected_token
+   9 | 		<label tabindex="0">Click</label>
+  10 | 		<ul tabindex="0"></ul>
+> 11 | 	{/if}
+     | 	 ^
+  12 | </div>
+  13 | <div>
+  14 | 	{#await Promise.resolve(42)}
+
+=== 5401 flowbite-svelte/bind-sum/illegal_element_attribute/d373cfe71c3a6c7c.svelte	svelte
+<script lang="ts">
+  import type { SidebarContextType, SidebarProps } from "$lib/types";
+  import { trapFocus } from "$lib/utils/actions";
+  import { getTheme, warnThemeDeprecation } from "$lib/theme/themeUtils";
+  import clsx from "clsx";
+  import { setSidebarContext, setActiveUrlContext } from "$lib/context";
+  import { sineIn } from "svelte/easing";
+  import { writable } from "svelte/store";
+  import { fly } from "svelte/transition";
+  import { sidebar } from "./theme";
+  import { untrack } from "svelte";
+
+  let {
+    children,
+    isOpen = false,
+    closeSidebar,
+    isSingle = true,
+    breakpoint = "md",
+    alwaysOpen = false,
+    position = "fixed",
+    activateClickOutside = true,
+    backdrop = true,
+    backdropClass,
+    transition = fly,
+    params,
+    divClass,
+    ariaLabel,
+    nonActiveClass,
+    activeClass,
+    activeUrl = "",
+    class: className,
+    classes,
+    disableBreakpoints = false,
+    ...restProps
+  }: SidebarProps = $props();
+
+  warnThemeDeprecation(
+    "Sidebar",
+    untrack(() => ({ backdropClass, divClass, nonActiveClass, activeClass })),
+    {
+      backdropClass: "backdrop",
+      divClass: "div",
+      nonActiveClass: "nonactive",
+      activeClass: "active",
+    },
+  );
+
+  const styling = $derived(
+    classes ?? {
+      backdrop: backdropClass,
+      div: divClass,
+      nonactive: nonActiveClass,
+      active: activeClass,
+    },
+  );
+
+  const theme = $derived(getTheme("sidebar"));
+
+  const breakpointValues = {
+    sm: 640,
+    md: 768,
+    lg: 1024,
+    xl: 1280,
+    "2xl": 1536,
+  };
+
+  let innerWidth: number = $state(-1);
+  let isLargeScreen = $derived(
+    disableBreakpoints
+      ? false
+      : alwaysOpen || innerWidth >= breakpointValues[breakpoint],
+  );
+
+  // Create reactive context for activeUrl using getter
+  const activeUrlContext = {
+    get value() {
+      return activeUrl;
+    },
+  };
+  setActiveUrlContext(activeUrlContext);
+
+  $effect(() => {
+    if (disableBreakpoints) isOpen = true;
+  });
+  const {
+    base,
+    active,
+    nonactive,
+    div,
+    backdrop: backdropCls,
+  } = $derived(
+    sidebar({
+      isOpen,
+      breakpoint,
+      position,
+      backdrop,
+      alwaysOpen: alwaysOpen && !disableBreakpoints,
+    }),
+  );
+
+  const selectedStore = $derived(
+    isSingle ? writable<object | null>(null) : undefined,
+  );
+  let sidebarCtx: SidebarContextType = {
+    get closeSidebar() {
+      return closeSidebar;
+    },
+    get activeClass() {
+      return active({ class: clsx(theme?.active, styling.active) });
+    },
+    get nonActiveClass() {
+      return nonactive({ class: clsx(theme?.nonactive, styling.nonactive) });
+    },
+    get isSingle() {
+      return isSingle;
+    },
+    get selected() {
+      return selectedStore;
+    },
+  };
+
+  let transitionParams = $derived(
+    params ? params : { x: -320, duration: 200, easing: sineIn },
+  );
+
+  setSidebarContext(sidebarCtx);
+
+  // Handler for Escape key
+  const handleEscape = () => {
+    closeSidebar?.();
+  };
+</script>
+
+<svelte:window bind:innerWidth + 1 />
+
+{#if !disableBreakpoints}
+  {#if isOpen || isLargeScreen}
+    {#if isOpen && !alwaysOpen}
+      {#if backdrop && activateClickOutside}
+        <div
+          role="presentation"
+          class={backdropCls({
+            class: clsx(theme?.backdrop, styling.backdrop),
+          })}
+          onclick={closeSidebar}
+        ></div>
+      {:else if backdrop && !activateClickOutside}
+        <div
+          role="presentation"
+          class={backdropCls({
+            class: clsx(theme?.backdrop, styling.backdrop),
+          })}
+        ></div>
+      {:else if !backdrop && activateClickOutside}
+        <div
+          role="presentation"
+          class="fixed start-0 top-0 z-50 h-full w-full"
+          onclick={closeSidebar}
+        ></div>
+      {:else if !backdrop && !activateClickOutside}
+        <div
+          role="presentation"
+          class="fixed start-0 top-0 z-50 h-full w-full"
+        ></div>
+      {/if}
+    {/if}
+    <aside
+      use:trapFocus={!isLargeScreen && isOpen && !alwaysOpen
+        ? { onEscape: closeSidebar ? handleEscape : undefined }
+        : null}
+      transition:transition={!alwaysOpen ? transitionParams : undefined}
+      {...restProps}
+      class={base({ class: clsx(theme?.base, className) })}
+      aria-label={ariaLabel}
+    >
+      <div class={div({ class: clsx(theme?.base, styling.div) })}>
+        {@render children()}
+      </div>
+    </aside>
+  {/if}
+{:else}
+  <aside
+    use:trapFocus={isOpen
+      ? { onEscape: closeSidebar ? handleEscape : undefined }
+      : null}
+    {...restProps}
+    class={base({ class: clsx(theme?.base, className) })}
+    aria-label={ariaLabel}
+  >
+    <div class={div({ class: clsx(theme?.base, styling.div) })}>
+      {@render children()}
+    </div>
+  </aside>
+{/if}
+
+<!--
+@component
+[Go to docs](https://flowbite-svelte.com/)
+## Type
+[SidebarProps](https://github.com/themesberg/flowbite-svelte/blob/main/src/lib/types.ts#L1453)
+## Props
+@prop children
+@prop isOpen = false
+@prop closeSidebar
+@prop isSingle = true
+@prop breakpoint = "md"
+@prop alwaysOpen = false
+@prop position = "fixed"
+@prop activateClickOutside = true
+@prop backdrop = true
+@prop backdropClass
+@prop transition = fly
+@prop params
+@prop divClass
+@prop ariaLabel
+@prop nonActiveClass
+@prop activeClass
+@prop activeUrl = ""
+@prop class: className
+@prop classes
+@prop disableBreakpoints = false
+@prop ...restProps
+-->
+
+=== 5500 flowbite-svelte/duplicate-attribute/transition_duplicate/69f152299ced34d9.svelte	svelte
+<script module lang="ts">
+  export type FrameColor = keyof typeof bgColors;
+  const bgColors = {
+    gray: "bg-gray-50 dark:bg-gray-800",
+    red: "bg-red-50 dark:bg-gray-800",
+    yellow: "bg-yellow-50 dark:bg-gray-800 ",
+    green: "bg-green-50 dark:bg-gray-800 ",
+    indigo: "bg-indigo-50 dark:bg-gray-800 ",
+    purple: "bg-purple-50 dark:bg-gray-800 ",
+    pink: "bg-pink-50 dark:bg-gray-800 ",
+    blue: "bg-blue-50 dark:bg-gray-800 ",
+    light: "bg-gray-50 dark:bg-gray-700",
+    dark: "bg-gray-50 dark:bg-gray-800",
+    default: "bg-white dark:bg-gray-800",
+    dropdown: "bg-white dark:bg-gray-700",
+    navbar: "bg-white dark:bg-gray-900",
+    navbarUl: "bg-gray-50 dark:bg-gray-800",
+    form: "bg-gray-50 dark:bg-gray-700",
+    primary: "bg-primary-50 dark:bg-gray-800 ",
+    orange: "bg-orange-50 dark:bg-orange-800",
+    none: "",
+  };
+</script>
+
+<script lang="ts">
+  import type { Snippet } from "svelte";
+  import { setContext } from "svelte";
+  import { twMerge } from "tailwind-merge";
+
+  import type { Action } from "svelte/action";
+  import type { HTMLAttributes } from "svelte/elements";
+  import { type TransitionConfig } from "svelte/transition";
+  type TransitionFunc = (node: HTMLElement, params: any) => TransitionConfig;
+  const noop = () => {};
+
+  interface Props extends HTMLAttributes<HTMLElement> {
+    children: Snippet;
+    tag?: string;
+    href?: string;
+    color?: FrameColor;
+    rounded?: boolean;
+    border?: boolean;
+    shadow?: boolean;
+    node?: HTMLElement;
+    use?: Action<HTMLElement, any>;
+    options?: Record<string, any>;
+    role?: string;
+    transition?: TransitionFunc;
+    params?: object;
+    open?: boolean;
+    class?: string;
+  }
+
+  let {
+    children,
+    tag,
+    href,
+    color = "default",
+    rounded,
+    border,
+    shadow,
+    node,
+    use = noop,
+    options = {},
+    role,
+    transition,
+    params,
+    open = true,
+    class: className,
+    ...restProps
+  }: Props = $props();
+
+  let computedTag = $derived(tag ?? (href ? "a" : "div"));
+
+  setContext("background", true);
+
+  // const dispatch = createEventDispatcher();
+  // $: dispatch(open ? 'open' : 'close');
+  // $: dispatch('show', open);
+
+  // $: color = color ?? 'default'; // for cases when undefined
+  $effect(() => {
+    setContext("color", color);
+  });
+
+  // your script goes here
+
+  const textColors = {
+    gray: "text-gray-800 dark:text-gray-300",
+    red: "text-red-800 dark:text-red-400",
+    yellow: "text-yellow-800 dark:text-yellow-300",
+    green: "text-green-800 dark:text-green-400",
+    indigo: "text-indigo-800 dark:text-indigo-400",
+    purple: "text-purple-800 dark:text-purple-400",
+    pink: "text-pink-800 dark:text-pink-400",
+    blue: "text-blue-800 dark:text-blue-400",
+    light: "text-gray-700 dark:text-gray-300",
+    dark: "text-gray-700 dark:text-gray-300",
+    default: "text-gray-500 dark:text-gray-300",
+    dropdown: "text-gray-700 dark:text-gray-200",
+    navbar: "text-gray-700 dark:text-gray-200",
+    navbarUl: "text-gray-700 dark:text-gray-300",
+    form: "text-gray-900 dark:text-white",
+    primary: "text-primary-800 dark:text-primary-400",
+    orange: "text-orange-800 dark:text-orange-400",
+    none: "",
+  };
+
+  const borderColors = {
+    gray: "border-gray-300 dark:border-gray-800 divide-gray-300 dark:divide-gray-800",
+    red: "border-red-300 dark:border-red-800 divide-red-300 dark:divide-red-800",
+    yellow:
+      "border-yellow-300 dark:border-yellow-800 divide-yellow-300 dark:divide-yellow-800",
+    green:
+      "border-green-300 dark:border-green-800 divide-green-300 dark:divide-green-800",
+    indigo:
+      "border-indigo-300 dark:border-indigo-800 divide-indigo-300 dark:divide-indigo-800",
+    purple:
+      "border-purple-300 dark:border-purple-800 divide-purple-300 dark:divide-purple-800",
+    pink: "border-pink-300 dark:border-pink-800 divide-pink-300 dark:divide-pink-800",
+    blue: "border-blue-300 dark:border-blue-800 divide-blue-300 dark:divide-blue-800",
+    light: "border-gray-500 divide-gray-500",
+    dark: "border-gray-500 divide-gray-500",
+    default:
+      "border-gray-200 dark:border-gray-700 divide-gray-200 dark:divide-gray-700",
+    dropdown:
+      "border-gray-100 dark:border-gray-600 divide-gray-100 dark:divide-gray-600",
+    navbar:
+      "border-gray-100 dark:border-gray-700 divide-gray-100 dark:divide-gray-700",
+    navbarUl:
+      "border-gray-100 dark:border-gray-700 divide-gray-100 dark:divide-gray-700",
+    form: "border-gray-300 dark:border-gray-700 divide-gray-300 dark:divide-gray-700",
+    primary:
+      "border-primary-500 dark:border-primary-200  divide-primary-500 dark:divide-primary-200 ",
+    orange:
+      "border-orange-300 dark:border-orange-800 divide-orange-300 dark:divide-orange-800",
+    none: "",
+  };
+
+  let divClass: string = $derived(
+    twMerge(
+      bgColors[color],
+      textColors[color],
+      rounded && "rounded-lg",
+      border && "border",
+      borderColors[color],
+      shadow && "shadow-md",
+      className,
+    ),
+  );
+</script>
+
+{#if transition && open}
+  <svelte:element
+    this={computedTag}
+    transition:transition={params}
+    transition:transition={params}
+    use:use={options}
+    bind:this={node}
+    {role}
+    {...restProps}
+    class={divClass}
+  >
+    {@render children()}
+  </svelte:element>
+{:else if open}
+  <svelte:element
+    this={computedTag}
+    use:use={options}
+    bind:this={node}
+    {role}
+    {...restProps}
+    class={divClass}
+  >
+    {@render children()}
+  </svelte:element>
+{/if}
+
+=== 1625 joy-of-code/bind-sum/illegal_element_attribute/347b4013f7479821.svelte	svelte
+<script lang="ts">
+  import Logo from "./logo.svelte";
+  import Search from "./search";
+  import Socials from "./socials.svelte";
+  import Preferences from "./preferences/index.svelte";
+  import Menu from "./menu.svelte";
+  import * as config from "$lib/site/config";
+
+  let scrollY = $state(0);
+  let scrolled = $derived(scrollY > 0);
+</script>
+
+<svelte:window bind:scrollY + 1 />
+
+<header class:scrolled>
+  <div class="container">
+    <div class="logo">
+      <Logo />
+      <a href="/">{config.siteName}</a>
+    </div>
+
+    <Search />
+    <Socials />
+
+    <nav>
+      <Preferences />
+      <Menu />
+    </nav>
+  </div>
+</header>
+
+<style>
+  header {
+    position: sticky;
+    top: 10px;
+    width: 90%;
+    max-width: 800px;
+    margin-inline: auto;
+    padding: var(--spacing-16) var(--spacing-24);
+    font-size: var(--font-18);
+    border-radius: 10px;
+    z-index: 20;
+    view-transition-name: header;
+    transition:
+      background-color 0.3s ease,
+      color 0.3s ease,
+      box-shadow 0.3s ease,
+      backdrop-filter 0.3s ease;
+
+    &.scrolled {
+      background-color: var(--clr-header-bg);
+      color: var(--clr-primary);
+      box-shadow: 1px 1px 10px hsl(0 0% 0% / 40%);
+      backdrop-filter: blur(20px);
+    }
+  }
+
+  .container {
+    max-inline-size: 1200px;
+    display: flex;
+    justify-content: space-between;
+
+    .logo {
+      display: flex;
+      align-items: center;
+      gap: var(--spacing-8);
+
+      a {
+        text-box: trim-both cap alphabetic;
+      }
+
+      a::before {
+        content: none;
+      }
+    }
+
+    nav {
+      display: flex;
+      gap: var(--spacing-8);
+    }
+  }
+</style>
+
+=== 181 language-tools/drop-close/block_unclosed/43bd7f768610379b.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+> 1 | {#await somePromise catch error}
+    |                                ^
+  2 |     <h1>Promise Pending</h1>
+  3 |
+  4 |
+
+=== 228 language-tools/drop-close/block_unclosed/ebc798d0bcf81db0.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+  2 |     const promise = Promise.resolve({foo: true});
+  3 |     const shadowed = true;
+> 4 |     shadowed;
+    |             ^
+  5 | </script>
+  6 |
+  7 | <!-- valid -->
+
+=== 217 language-tools/drop-close/element_invalid_closing_tag/a5ca1f1b91573063.svelte	error.txt
+`</svelte:boundary>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+  4 |         <p>error: {e}</p>
+  5 |     
+> 6 | </svelte:boundary>
+    |                  ^
+  7 |
+
+=== 179 language-tools/duplicate-attribute/animation_duplicate/1ba73d2c465732ff.svelte	svelte
+{#each list as item, index (item)}
+  <li animate:flip animate:flip>{item}</li>
+{/each}
+
+{#each list as item, index (item)}
+  <li animate:flip={{ delay: 500 }}>{item}</li>
+{/each}
+
+=== 169 language-tools/duplicate-attribute/animation_duplicate/b0d71e2b6a1ed6ee.svelte	svelte
+<script>
+  import { flip } from "svelte/animate";
+
+  let items = [{ id: 1 }];
+</script>
+
+{#each items as item (item.id)}
+  <div animate:flip animate:flip></div>
+{/each}
+
+=== 280 language-tools/duplicate-attribute/attribute_duplicate/492063be357dc570.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+> 1 | <svelte:boundary onerror={e => e} onerror={e => e}>
+    |                                  ^^^^^^^^^^^^^^^^
+  2 |     <ComponentThatFails />
+  3 |     {#snippet failed(e)}
+  4 |         <p>error: {e}</p>
+
+=== 283 language-tools/duplicate-attribute/attribute_duplicate/a0983945ad9573b4.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  4 |     </svelte:fragment>
+  5 |
+> 6 |     <svelte:fragment slot="named" slot="named">
+    |                                  ^^^^^^^^^^^^
+  7 |         <p>hi</p>
+  8 |     </svelte:fragment>
+  9 | </Component>
+
+=== 383 language-tools/duplicate-attribute/declaration_duplicate/14a274839779d4b7.svelte	svelte
+<script lang="ts">
+  import Slots from "../$$slots/input.svelte";
+</script>
+
+<Slots let:valid1 let:valid1 let:validPropWrongType1 let:invalidProp1>
+  {valid1 === true}
+  {validPropWrongType1 === true}
+  {invalidProp1}
+  <div slot="foo" let:valid2 let:validPropWrongType2 let:invalidProp2>
+    {valid2 === true}
+    {validPropWrongType2 === true}
+    {invalidProp2}
+  </div>
+</Slots>
+
+=== 175 language-tools/duplicate-attribute/declaration_duplicate/f2387ee60051463c.svelte	svelte
+{#if true}
+  <svelte:self let:prop let:prop>
+    <slot {prop} />
+  </svelte:self>
+{/if}
+<svelte:component this={testComponent} let:prop>
+  <slot {prop} />
+</svelte:component>
+
+=== 265 layerchart/drop-close/svelte_meta_invalid_placement/541d4997192da810.svelte	error.txt
+`<svelte:window>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+  64 | 								}}
+  65 | 							>
+> 66 | 								Click me
+     | 								       ^
+  67 | 							</Button>
+  68 | 						</Tooltip.Item>
+  69 | 					{/each}
+
+=== 637 originui-svelte/drop-close/svelte_meta_invalid_placement/d2e0fd2ece014682.svelte	error.txt
+`<svelte:head>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+   5 | 	import ComponentCard from '$lib/demo/component-card.svelte';
+   6 | 	import { getComponentDialogCtx } from '$lib/demo/component-preview/component-dialog-context.svelte.js';
+>  7 | 	import ComponentUnavailable from '$lib/demo/component-unavailable.svelte';
+     | 	                                                                         ^
+   8 | 	import Component from '$lib/demo/component.svelte';
+   9 | 	import PageGrid from '$lib/demo/page-grid.svelte';
+  10 | 	import PageHeader from '$lib/demo/page-header.svelte';
+
+=== 219 shadcn-svelte/bind-sum/expected_token/ea39f15a51c4a775.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+   7 |
+   8 | 	let {
+>  9 | 		color,
+     | 		 ^
+  10 | 		class: className,
+  11 | 		...restProps
+  12 | 	}: Omit<ComponentProps<typeof Select.Trigger>, "color"> & {
+
+=== 288 svar-core/drop-close/svelte_meta_invalid_placement/5b881f08a9559cbd.svelte	error.txt
+`<svelte:head>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+   7 | </script>
+   8 |
+>  9 | {#if children}
+     |              ^
+  10 | 	<div class="wx-theme wx-willow-theme" style="height:100%">
+  11 | 		{@render children()}
+  12 | 	</div>
+
+=== 281 svar-core/drop-close/svelte_meta_invalid_placement/5e682366181f7c35.svelte	error.txt
+`<svelte:head>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+   7 | </script>
+   8 |
+>  9 | {#if children}
+     |              ^
+  10 | 	<div class="wx-material-theme" style="height:100%">
+  11 | 		{@render children()}
+  12 | 	</div>
+
+=== 481 svelte-bits/drop-close/svelte_meta_invalid_placement/d491bbb413e9d28f.svelte	error.txt
+`<svelte:head>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+  21 | 	let verticalDistance = $state(DEFAULTS.verticalDistance);
+  22 | 	let delay = $state(DEFAULTS.delay);
+> 23 | 	let skewAmount = $state(DEFAULTS.skewAmount);
+     | 	                                            ^
+  24 | 	let easing = $state<'elastic' | 'linear'>(DEFAULTS.easing);
+  25 | 	let pauseOnHover = $state(DEFAULTS.pauseOnHover);
+  26 | 	let key = $state(0);
+
+=== 259 svelte-eslint-parser/drop-close/tag_invalid_placement/aed3d470dae0873b.svelte	error.txt
+{@html ...} tag cannot be inside <textarea>
+https://svelte.dev/e/tag_invalid_placement
+   5 |
+   6 | <style>
+>  7 | 	textarea { width: 100%; height: 200px; }
+     | 	                                       ^
+   8 | </style>
+   9 |
+  10 | <textarea bind:value>
+
+=== 182 svelte-eslint-parser/duplicate-attribute/declaration_duplicate/d3c6daadd11cfea8.svelte	svelte
+<script lang="ts">
+  import Component from "./ts-slot-binding01-sveltev4-input-child.svelte";
+</script>
+
+<Component>
+  <div let:foo={bar} let:foo={bar}>{bar.prop}</div>
+</Component>
+
+=== 173 svelte-eslint-parser/duplicate-attribute/declaration_duplicate/da8d54d13a6ba686.svelte	svelte
+<script lang="ts">
+  import Component from "./ts-slot-binding01-input-child.svelte";
+</script>
+
+<Component>
+  <div let:foo={bar} let:foo={bar}>{bar.prop}</div>
+</Component>
+
+=== 243 svelte/drop-close/element_invalid_closing_tag/4f9ef3d5db8771f5.svelte	error.txt
+`</div>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+   9 |     B
+  10 |   </textarea>
+> 11 | </div>
+     |      ^
+  12 |
+  13 | <div id="textarea-with-leading-newline">
+  14 |   <textarea>
+
+=== 371 svelte/drop-close/element_invalid_closing_tag/87cd4e17776319cc.svelte	error.txt
+`</svelte:head>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+   5 |
+   6 | 	const scriptSrcs = [ 1, 2, 3 ]
+>  7 | 		.map(n => jssrc(`document.getElementById('r${n}').innerText = '${n}';`));
+     | 		                                                                        ^
+   8 | </script>
+   9 |
+  10 | <svelte:head>
+
+=== 260 svelte/drop-close/element_invalid_closing_tag/ac13a599d66140ab.svelte	error.txt
+`</svelte:boundary>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+   9 |
+  10 | 	{#snippet pending()}
+> 11 | 		<p>loading...</p>
+     | 		                ^
+  12 | 	{/snippet}
+  13 | </svelte:boundary>
+  14 |
+
+=== 258 svelte/drop-close/element_invalid_closing_tag/c638d1ba9ae7923f.svelte	error.txt
+`</svelte:boundary>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+  21 | 		{foo}
+  22 | 	{/snippet}
+> 23 | </svelte:boundary>
+     |                  ^
+  24 |
+  25 | <!-- error -->
+  26 | <svelte:boundary>
+
+=== 183 svelte/drop-close/js_parse_error/8ba02cb57beef12d.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+   5 | 	});
+   6 | 	let checked = $state({
+>  7 | 		checked: false,
+     | 		               ^
+   8 | 	});
+   9 | </script>
+  10 |
+
+=== 675 svelte/drop-close/node_invalid_placement/57677e348b5302b3.svelte	svelte
+<script>
+  import Trigger from "./Trigger.svelte";
+
+  let mounted = $state(true);
+  let broken = $state(false);
+
+  // Throwing derived — nothing in the live template reads `appContext`, so
+  // invalidating it does NOT throw immediately (becomes dirty-and-unread).
+  let data = $derived(broken ? null : { value: "ok" });
+  let appContext = $derived(data.value);
+</script>
+
+<svelte:boundary>
+  <button onclick={() => (broken = true)}>
+    break
+    <button onclick={() => (mounted = false)}>unmount</button>
+
+    {#if mounted}
+      <Trigger getValue={() => appContext} />
+    {/if}
+
+    {#snippet failed()}
+      <p>caught</p>
+    {/snippet}
+  </button>
+</svelte:boundary>
+
+=== 205 svelte/drop-close/svelte_meta_invalid_placement/da76a605eaf94d39.svelte	error.txt
+`<svelte:head>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+  3 |
+  4 |
+> 5 | <svelte:head>
+    |             ^
+  6 | 	{@render head()}
+  7 | </svelte:head>
+
+=== 203 svelte/duplicate-attribute/attribute_duplicate/102b73aa6481d468.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  1 | <script>
+  2 | 	import Child from "./Child.svelte";
+> 3 |
+    | ^^^^^^^^^
+  4 | 	let foo;
+  5 |
+  6 | 	function onerror(err) {
+
+=== 246 svelte/duplicate-attribute/attribute_duplicate/4bbd3e078729b0e5.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+  2 | 	import Nested from './Nested.svelte';
+  3 | </script>
+> 4 |
+    | ^^^^^^^^^^^
+  5 | <Nested>
+  6 | 	<svelte:fragment slot="name" slot="name">
+  7 | 		<span>Hello</span>
+
+=== 248 svelte/duplicate-attribute/attribute_duplicate/783f314da31e52c7.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+> 1 | <svelte:body onmousemove={handleMousemove} onmousemove={handleMousemove}></svelte:body>
+    |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+
+=== 236 svelte/duplicate-attribute/attribute_duplicate/f90ee7029ad30d7f.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+> 1 | <svelte:body onmousemove={handleMousemove} onmousemove={handleMousemove} />
+    |                                           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+
+=== 312 svelte/rune-in-template/svelte_options_invalid_attribute_value/3192d662d0ff7a0c.svelte	error.txt
+Value must be true or false, if specified
+https://svelte.dev/e/svelte_options_invalid_attribute_value
+> 1 | <svelte:options customElement="my-custom-element" runes={$state(true)} />
+    |                                                  ^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | <script module lang="ts">
+  4 | </script>
+
+=== 262 svelte/rune-in-template/svelte_options_invalid_attribute_value/e9c2fb78b09368dc.svelte	error.txt
+Value must be true or false, if specified
+https://svelte.dev/e/svelte_options_invalid_attribute_value
+> 1 | <svelte:options runes={$state(true)} namespace="html" css="injected" customElement="my-custom-element" />
+    |                ^^^^^^^^^^^^^^^^^^^^
+  2 |
+
+=== 545 svelte/rune-in-template/svelte_options_invalid_customelement/d283efd45d300c0f.svelte	error.txt
+"customElement" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: "open" | "none" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }
+https://svelte.dev/e/svelte_options_invalid_customelement
+> 1 | <svelte:options customElement={$state({ tag: "custom-element", shadow: { mode: 'closed' } })} />
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+  3 | <h1>Hello world!</h1>
+  4 |
+
