@@ -135,7 +135,7 @@ impl Router {
             else {
                 return;
             };
-            message.params = cancellation(&id);
+            message.parameters = cancellation(&id);
             self.send(server, message);
             return;
         }
@@ -170,7 +170,7 @@ impl Router {
             else {
                 return;
             };
-            message.params = cancellation(&editor_id);
+            message.parameters = cancellation(&editor_id);
         }
         self.to_editor(message);
     }
@@ -213,8 +213,8 @@ fn cancelled(message: &Message) -> Option<Id> {
     struct Cancel {
         id: Id,
     }
-    let params = message.params.as_ref()?;
-    serde_json::from_str::<Cancel>(params.get())
+    let parameters = message.parameters.as_ref()?;
+    serde_json::from_str::<Cancel>(parameters.get())
         .ok()
         .map(|cancel| cancel.id)
 }
