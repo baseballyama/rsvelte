@@ -55,7 +55,9 @@ impl<'a> TreeBuilder<'a> {
                 Part::Statement(_) => Reading::Statement(fallback),
             };
             let reported = (diagnostics, first, tokens);
-            at_shorter_number(&mut error, reported, (text, shift), (reading, source_type));
+            if let Some(stop) = at_shorter_number(reported, (text, shift), (reading, source_type)) {
+                error.acorn = Some(stop);
+            }
             error.typescript_eslint_at =
                 typescript_eslint_at(&diagnostics[first], visit).map(|at| at + shift);
             // acorn throws where it stops first, before an error oxc reports later or at the same
@@ -97,17 +99,12 @@ impl<'a> TreeBuilder<'a> {
                 )
             })
             .flatten();
-        let diagnostics = error.diagnostics.into_vec();
-        let errors = diagnostics.iter().cloned();
-        let mut syntax_error = syntax_error(errors, text, &error.tokens, fallback, shift);
-        if !diagnostics.is_empty() {
-            let reported = (diagnostics.as_slice(), 0, error.tokens.as_slice());
-            at_shorter_number(
-                &mut syntax_error,
-                reported,
-                (text, shift),
-                (reading, source_type),
-            );
+        let reported = (error.diagnostics.as_slice(), 0, error.tokens.as_slice());
+        let shorter = at_shorter_number(reported, (text, shift), (reading, source_type));
+        let mut syntax_error =
+            syntax_error(error.diagnostics, text, &error.tokens, fallback, shift);
+        if let Some(stop) = shorter {
+            syntax_error.acorn = Some(stop);
         }
         match stop {
             Some(stop) if stop.raised <= syntax_error.acorn_raised_at() => rejection(stop),
