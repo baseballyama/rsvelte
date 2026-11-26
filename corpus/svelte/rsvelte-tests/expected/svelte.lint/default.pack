@@ -94,9 +94,9 @@
 === 39 rsvelte_bindings_support/napi_raw_parse/tests/flag_byte_set_when_requested/f0b1233d8271d90d.svelte	lint.txt
 1:5 1:6 no-undef "'x' is not defined."
 
-=== 232 rsvelte_bindings_support/napi_raw_parse/tests/raw_json_offsets_are_utf16/db277d38dd49ece7.svelte	lint.txt
+=== 231 rsvelte_bindings_support/napi_raw_parse/tests/raw_json_offsets_are_utf16/db277d38dd49ece7.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-3:7 3:16 no-unused-vars "'n' is assigned a value but never used."
+3:7 3:8 no-unused-vars "'n' is assigned a value but never used."
 3:7 3:16 svelte/prefer-const "'n' is never reassigned. Use 'const' instead."
 
 === 0 rsvelte_capi/callbacks/css_hash_callback_class_appears_in_css/6e9080fb982e61e3.svelte	lint.txt
@@ -193,9 +193,8 @@
 === 89 rsvelte_check/svelte_check/overlay/tests/external_package_hash_subpath_import_is_pointed_at_its_mirror/e88361805d6d90bc.svelte	lint.txt
 1:1 1:59 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 147 rsvelte_check/svelte_check/overlay/tests/generic_arrow_in_a_ts_component_is_disambiguated_in_its_tsx_shadow/6e84283a141f5c1c.svelte	lint.txt
+=== 89 rsvelte_check/svelte_check/overlay/tests/generic_arrow_in_a_ts_component_is_disambiguated_in_its_tsx_shadow/6e84283a141f5c1c.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:31 2:40 no-unused-vars "'n' is defined but never used."
 
 === 78 rsvelte_check/svelte_check/overlay/tests/incremental_skips_unchanged_files/86c2e567985740cf.svelte	lint.txt
 1:13 1:14 svelte/prefer-const "'z' is never reassigned. Use 'const' instead."
@@ -281,9 +280,8 @@
 === 89 rsvelte_check/svelte_check_cross_package/external_package_self_referential_alias_import_is_rewritten_to_its_own_shadow/7bc979695e08f197.svelte	lint.txt
 1:1 1:66 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 297 rsvelte_check/svelte_check_cross_package/external_package_self_referential_alias_import_is_rewritten_to_its_own_shadow/e3bd4dd1aa8b1ad0.svelte	lint.txt
+=== 239 rsvelte_check/svelte_check_cross_package/external_package_self_referential_alias_import_is_rewritten_to_its_own_shadow/e3bd4dd1aa8b1ad0.svelte	lint.txt
 1:1 2:45 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:49 1:58 no-unused-vars "'v' is defined but never used."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:7 2:15 no-unused-vars "'onChange' is assigned a value but never used."
 
@@ -4163,7 +4161,7 @@
 
 === 147 rsvelte_language_server/tsgo_code_actions/tests/only_top_level_script_blocks_enable_source_actions/16d875a463b1bcb6.svelte	lint.txt
 1:1 1:42 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:23 1:32 no-unused-vars "'x' is defined but never used."
+1:23 1:24 no-unused-vars "'x' is defined but never used."
 
 === 304 rsvelte_language_server/tsgo_code_actions/tests/only_top_level_script_blocks_enable_source_actions/387cd6f449a79ffb.svelte	lint.txt
 1:71 1:76 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<p ...></p>` rather than `<p ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
@@ -4231,7 +4229,7 @@
 
 === 234 rsvelte_language_server/tsgo_overlay/tests/a_component_without_a_typescript_script_opens_as_javascript/8381f5d79e103bdb.svelte	lint.txt
 1:1 1:46 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:23 1:32 no-unused-vars "'a' is assigned a value but never used."
+1:23 1:24 no-unused-vars "'a' is assigned a value but never used."
 1:23 1:32 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 
 === 39 rsvelte_language_server/tsgo_overlay/tests/a_component_without_a_typescript_script_opens_as_javascript/e3857735e3b3d1be.svelte	lint.txt
@@ -4474,10 +4472,10 @@
 5:9 5:17 no-undef "'document' is not defined."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 272 rsvelte_lint/browser_globals_ts_assertion/identifier_inside_a_real_type_annotation_is_still_skipped/a352f9cf79e2790c.svelte	lint.txt
+=== 271 rsvelte_lint/browser_globals_ts_assertion/identifier_inside_a_real_type_annotation_is_still_skipped/a352f9cf79e2790c.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:19 no-unused-vars "'x' is defined but never used."
+2:6 2:7 no-unused-vars "'x' is defined but never used."
 2:9 2:15 no-undef "'window' is not defined."
 
 === 797 rsvelte_lint/browser_globals_ts_assertion/window_wrapped_in_as_and_non_null_is_flagged/65e891d64497c535.svelte	lint.txt
@@ -4597,28 +4595,28 @@
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:8 3:20 no-unused-vars "'props' is assigned a value but never used."
+3:8 3:13 no-unused-vars "'props' is assigned a value but never used."
 
 === 391 rsvelte_lint/non_ascii_word_boundary/event_prefix_non_ascii_space_is_a_boundary/f50f9f79d4c3e872.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:11 2:12 no-irregular-whitespace "Irregular whitespace not allowed."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:8 3:20 no-unused-vars "'props' is assigned a value but never used."
+3:8 3:13 no-unused-vars "'props' is assigned a value but never used."
 
 === 430 rsvelte_lint/non_ascii_word_boundary/event_prefix_type_name_is_not_matched_by_a_non_ascii_suffixed_type/24da32669426728e.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:12 2:18 no-unused-vars "'Propsé' is defined but never used."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:8 3:20 no-unused-vars "'props' is assigned a value but never used."
+3:8 3:13 no-unused-vars "'props' is assigned a value but never used."
 3:15 3:20 no-undef "'Props' is not defined."
 
 === 321 rsvelte_lint/non_ascii_word_boundary/unused_props_member_name_keeps_non_ascii_letters/8cf785b7e095c162.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:8 3:20 no-unused-vars "'props' is assigned a value but never used."
+3:8 3:13 no-unused-vars "'props' is assigned a value but never used."
 
 === 393 rsvelte_lint/non_ascii_word_boundary/unused_props_non_ascii_space_is_a_boundary/98999e8e7930b50e.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -4693,10 +4691,10 @@
 1:16 1:29 no-undef "'moduleMissing' is not defined."
 1:47 1:62 no-undef "'instanceMissing' is not defined."
 
-=== 832 rsvelte_lint/rules/no_undef/tests/reports_unresolved_values_but_not_type_references_or_default_typeof/9585a699a948f959.svelte	lint.txt
+=== 831 rsvelte_lint/rules/no_undef/tests/reports_unresolved_values_but_not_type_references_or_default_typeof/9585a699a948f959.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:5 2:19 no-unused-vars "'x' is defined but never used."
+2:5 2:6 no-unused-vars "'x' is defined but never used."
 2:8 2:19 no-undef "'MissingType' is not defined."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:6 3:7 no-unused-vars "'T' is defined but never used."
@@ -5101,9 +5099,10 @@
 4:6 4:7 no-unused-vars "'v' is assigned a value but never used."
 4:10 4:38 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
-=== 750 rsvelte_lint/rules/prefer_derived_over_derived_by/tests/autofix_matches_upstream_ts/83b6c61c1cc90bd6.svelte	lint.txt
+=== 824 rsvelte_lint/rules/prefer_derived_over_derived_by/tests/autofix_matches_upstream_ts/83b6c61c1cc90bd6.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:7 no-unused-vars "'a' is assigned a value but only used as a type."
 2:6 2:7 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:7 no-unused-vars "'b' is assigned a value but never used."
@@ -5811,12 +5810,13 @@
 5:7 5:8 no-unused-vars "'x' is assigned a value but never used."
 7:11 7:12 no-unused-vars "'s' is defined but never used."
 
-=== 467 rsvelte_projection/svelte2tsx/nodes/snippet_hoisting/tests/param_annotation_and_default_identifiers_are_references/df1c95fffb9c67b6.svelte	lint.txt
+=== 541 rsvelte_projection/svelte2tsx/nodes/snippet_hoisting/tests/param_annotation_and_default_identifiers_are_references/df1c95fffb9c67b6.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+5:7 5:8 no-unused-vars "'c' is assigned a value but only used as a type."
 7:11 7:12 no-unused-vars "'s' is defined but never used."
 
 === 144 rsvelte_projection/svelte2tsx/nodes/snippet_hoisting/tests/reverse_blocked_chain_moves_inside_render/475cdd3ab0c99d9d.svelte	lint.txt
@@ -5888,7 +5888,7 @@
 === 239 rsvelte_projection/svelte2tsx/script/exported_names/tests/test_empty_props_ts_file_uses_as_cast/b1811eb223f20ea7.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:7 2:23 no-unused-vars "'internal' is assigned a value but never used."
+2:7 2:15 no-unused-vars "'internal' is assigned a value but never used."
 
 === 318 rsvelte_projection/svelte2tsx/script/exported_names/tests/test_export_let_props_in_output/87b3a1a6ab350590.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -5934,11 +5934,11 @@
 7:1 7:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 8:1 8:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 347 rsvelte_projection/svelte2tsx/script/hoistable_types/tests/dollar_generic_alias_is_a_generic_in_scope_on_render/ef37ecb21c8d7a1e.svelte	lint.txt
+=== 346 rsvelte_projection/svelte2tsx/script/hoistable_types/tests/dollar_generic_alias_is_a_generic_in_scope_on_render/ef37ecb21c8d7a1e.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:12 2:21 no-undef "'$$Generic' is not defined."
 4:9 4:10 no-unused-vars "'a' is assigned a value but never used."
-5:7 5:23 no-unused-vars "'u' is assigned a value but never used."
+5:7 5:8 no-unused-vars "'u' is assigned a value but never used."
 5:7 5:23 svelte/prefer-const "'u' is never reassigned. Use 'const' instead."
 
 === 204 rsvelte_projection/svelte2tsx/script/hoistable_types/tests/dollar_generic_alias_is_a_generic_in_scope_on_render/efd2209a7033600b.svelte	lint.txt
@@ -6501,16 +6501,16 @@
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 7:1 7:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 299 rsvelte_projection/svelte2tsx/script/hoistable_types/tests/object_binding_shorthand_in_a_type_is_not_a_value_reference/1f684dbdc364e02f.svelte	lint.txt
+=== 237 rsvelte_projection/svelte2tsx/script/hoistable_types/tests/object_binding_shorthand_in_a_type_is_not_a_value_reference/1f684dbdc364e02f.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-4:21 4:26 no-unused-vars "'title' is defined but never used."
 6:11 6:16 no-unused-vars "'title' is assigned a value but never used."
 6:18 6:29 no-unused-vars "'textFactory' is assigned a value but never used."
 
-=== 231 rsvelte_projection/svelte2tsx/script/hoistable_types/tests/object_binding_shorthand_in_a_type_is_not_a_value_reference/d31153ca426f587c.svelte	lint.txt
+=== 304 rsvelte_projection/svelte2tsx/script/hoistable_types/tests/object_binding_shorthand_in_a_type_is_not_a_value_reference/d31153ca426f587c.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:7 2:8 no-unused-vars "'v' is assigned a value but only used as a type."
 2:7 2:8 svelte/prefer-const "'v' is never reassigned. Use 'const' instead."
-5:7 5:15 no-unused-vars "'p' is assigned a value but never used."
+5:7 5:8 no-unused-vars "'p' is assigned a value but never used."
 
 === 243 rsvelte_projection/svelte2tsx/script/hoistable_types/tests/props_type_argument_does_not_type_the_props/c4f57603dfe23232.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -6653,7 +6653,7 @@
 
 === 374 rsvelte_projection/svelte2tsx/script/stores/tests/props_id_rune_next_to_props_declaration_is_not_a_store/c1144c764992de79.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-2:9 2:23 no-unused-vars "'props' is assigned a value but never used."
+2:9 2:14 no-unused-vars "'props' is assigned a value but never used."
 2:14 2:14 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 2:16 2:23 no-undef "'MyProps' is not defined."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -6822,7 +6822,7 @@
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:12 2:18 svelte/prefer-const "'shared' is never reassigned. Use 'const' instead."
 
-=== 2429 rsvelte_projection/svelte2tsx/script/tests/top_level_binding_inventory_covers_every_prepass_declaration/50ad972536a7020f.svelte	lint.txt
+=== 2365 rsvelte_projection/svelte2tsx/script/tests/top_level_binding_inventory_covers_every_prepass_declaration/50ad972536a7020f.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:8 2:22 no-unused-vars "'default_import' is defined but never used."
@@ -6845,7 +6845,6 @@
 10:1 10:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 10:1 10:25 svelte/valid-compile "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
 10:6 10:15 no-unused-vars "'PlainEnum' is defined but never used."
-10:18 10:23 no-unused-vars "'Value' is defined but never used."
 11:1 11:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 12:1 12:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 13:1 13:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -6877,7 +6876,7 @@
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:7 2:12 no-unused-vars "'multi' is assigned a value but never used."
-2:28 2:32 no-unused-vars "'y' is defined but never used."
+2:28 2:29 no-unused-vars "'y' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:7 3:18 no-unused-vars "'constrained' is assigned a value but never used."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -6920,7 +6919,7 @@
 2:7 2:12 no-unused-vars "'store' is assigned a value but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:10 3:15 no-unused-vars "'outer' is defined but never used."
-3:16 3:31 no-unused-vars "'$store' is defined but never used."
+3:16 3:22 no-unused-vars "'$store' is defined but never used."
 4:1 4:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 5:1 5:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
 5:19 5:24 no-undef "'Inner' is not defined."
@@ -7762,18 +7761,18 @@
 
 === 415 rsvelte_projection/svelte2tsx_action_prefix_map_4693/an_action_before_the_other_attributes_keeps_both_sides/9ab48b70ffcdd03f.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:16 2:29 no-unused-vars "'node' is defined but never used."
+2:16 2:20 no-unused-vars "'node' is defined but never used."
 2:22 2:29 no-undef "'Element' is not defined."
-2:31 2:43 no-unused-vars "'text' is defined but never used."
+2:31 2:35 no-unused-vars "'text' is defined but never used."
 6:21 6:32 svelte/max-attributes-per-line "'class' should be on a new line."
 6:21 6:32 svelte/sort-attributes "Attribute 'class' should go before 'use:tip'."
 
 === 527 rsvelte_projection/svelte2tsx_action_prefix_map_4693/an_action_name_and_its_parameters_carry_a_mapping/bdf89b7a13c51746.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:16 2:29 no-unused-vars "'node' is defined but never used."
+2:16 2:20 no-unused-vars "'node' is defined but never used."
 2:22 2:29 no-undef "'Element' is not defined."
-2:31 2:43 no-unused-vars "'text' is defined but never used."
-3:16 3:29 no-unused-vars "'node' is defined but never used."
+2:31 2:35 no-unused-vars "'text' is defined but never used."
+3:16 3:20 no-unused-vars "'node' is defined but never used."
 3:22 3:29 no-undef "'Element' is not defined."
 7:18 7:32 svelte/max-attributes-per-line "'use:tip' should be on a new line."
 7:33 7:40 svelte/sort-attributes "Attribute 'use:log' should go before 'use:tip'."
@@ -8278,7 +8277,7 @@
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:15 3:25 no-unused-vars "'_' is defined but never used."
+3:15 3:16 no-unused-vars "'_' is defined but never used."
 
 === 433 rsvelte_projection/svelte2tsx_bind_suffix_map_4103/a_one_way_binding_not_on_the_element_carries_its_own_map_segments/ee00fd9be3022ca2.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -8980,9 +8979,9 @@
 === 652 rsvelte_projection/svelte2tsx_directive_suffix_map_4464/a_directive_name_and_its_parameters_carry_a_mapping/6131d61eb07dbc8c.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:25 2:32 no-undef "'Element' is not defined."
-3:20 3:33 no-unused-vars "'node' is defined but never used."
+3:20 3:24 no-unused-vars "'node' is defined but never used."
 3:26 3:33 no-undef "'Element' is not defined."
-3:35 3:48 no-unused-vars "'rect' is defined but never used."
+3:35 3:39 no-unused-vars "'rect' is defined but never used."
 3:41 3:48 no-undef "'DOMRect' is not defined."
 7:18 7:53 svelte/max-attributes-per-line "'transition:myFade' should be on a new line."
 7:54 7:69 svelte/valid-compile "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement(animation_invalid_placement)"
@@ -9168,14 +9167,14 @@
 6:6 6:10 svelte/prefer-const "'rest' is never reassigned. Use 'const' instead."
 9:28 9:42 svelte/max-attributes-per-line "'bind:this' should be on a new line."
 
-=== 1286 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_dynamic_element_whose_this_follows_another_attribute_still_maps_it/b62fe30d4435a599.svelte	lint.txt
+=== 1285 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_dynamic_element_whose_this_follows_another_attribute_still_maps_it/b62fe30d4435a599.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 no-unused-vars "'flag' is assigned a value but never used."
 3:6 3:10 svelte/prefer-const "'flag' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:33 no-unused-vars "'el' is assigned a value but never used."
+4:6 4:8 no-unused-vars "'el' is assigned a value but never used."
 4:6 4:33 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
 4:10 4:21 no-undef "'HTMLElement' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9187,14 +9186,14 @@
 9:29 9:39 svelte/max-attributes-per-line "'this' should be on a new line."
 9:29 9:39 svelte/sort-attributes "Attribute 'this' should go before 'title'."
 
-=== 1299 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_multiline_dynamic_element_carries_its_own_map_segments/4d45ae7c34926adf.svelte	lint.txt
+=== 1298 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_multiline_dynamic_element_carries_its_own_map_segments/4d45ae7c34926adf.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 no-unused-vars "'flag' is assigned a value but never used."
 3:6 3:10 svelte/prefer-const "'flag' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:33 no-unused-vars "'el' is assigned a value but never used."
+4:6 4:8 no-unused-vars "'el' is assigned a value but never used."
 4:6 4:33 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
 4:10 4:21 no-undef "'HTMLElement' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9206,14 +9205,14 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1133 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_plain_element_attribute_still_carries_its_map_segments/b5fd630411853ba0.svelte	lint.txt
+=== 1132 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_plain_element_attribute_still_carries_its_map_segments/b5fd630411853ba0.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 no-unused-vars "'flag' is assigned a value but never used."
 3:6 3:10 svelte/prefer-const "'flag' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:33 no-unused-vars "'el' is assigned a value but never used."
+4:6 4:8 no-unused-vars "'el' is assigned a value but never used."
 4:6 4:33 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
 4:10 4:21 no-undef "'HTMLElement' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9223,14 +9222,14 @@
 6:6 6:10 no-unused-vars "'rest' is assigned a value but never used."
 6:6 6:10 svelte/prefer-const "'rest' is never reassigned. Use 'const' instead."
 
-=== 1209 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_self_closing_dynamic_element_carries_its_own_map_segments/c5f4defe83a9bc1e.svelte	lint.txt
+=== 1208 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_self_closing_dynamic_element_carries_its_own_map_segments/c5f4defe83a9bc1e.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 no-unused-vars "'flag' is assigned a value but never used."
 3:6 3:10 svelte/prefer-const "'flag' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:33 no-unused-vars "'el' is assigned a value but never used."
+4:6 4:8 no-unused-vars "'el' is assigned a value but never used."
 4:6 4:33 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
 4:10 4:21 no-undef "'HTMLElement' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9241,14 +9240,14 @@
 6:6 6:10 svelte/prefer-const "'rest' is never reassigned. Use 'const' instead."
 9:28 9:39 svelte/max-attributes-per-line "'title' should be on a new line."
 
-=== 1144 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_spread_in_a_dynamic_element_carries_its_own_map_segments/7c2f11aa936f3006.svelte	lint.txt
+=== 1143 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_spread_in_a_dynamic_element_carries_its_own_map_segments/7c2f11aa936f3006.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 no-unused-vars "'flag' is assigned a value but never used."
 3:6 3:10 svelte/prefer-const "'flag' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:33 no-unused-vars "'el' is assigned a value but never used."
+4:6 4:8 no-unused-vars "'el' is assigned a value but never used."
 4:6 4:33 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
 4:10 4:21 no-undef "'HTMLElement' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9258,14 +9257,14 @@
 6:6 6:10 svelte/prefer-const "'rest' is never reassigned. Use 'const' instead."
 9:28 9:37 svelte/max-attributes-per-line "'{...rest}' should be on a new line."
 
-=== 1437 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_string_literal_this_stays_unmapped/bef7cf62178d1bda.svelte	lint.txt
+=== 1436 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_string_literal_this_stays_unmapped/bef7cf62178d1bda.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 no-unused-vars "'flag' is assigned a value but never used."
 3:6 3:10 svelte/prefer-const "'flag' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:33 no-unused-vars "'el' is assigned a value but never used."
+4:6 4:8 no-unused-vars "'el' is assigned a value but never used."
 4:6 4:33 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
 4:10 4:21 no-undef "'HTMLElement' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9277,14 +9276,14 @@
 9:17 9:27 svelte/valid-compile "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this(svelte_element_invalid_this)"
 9:28 9:39 svelte/max-attributes-per-line "'title' should be on a new line."
 
-=== 1148 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_style_directive_in_a_dynamic_element_carries_its_own_map_segments/1963b2c961c8452a.svelte	lint.txt
+=== 1147 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/a_style_directive_in_a_dynamic_element_carries_its_own_map_segments/1963b2c961c8452a.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 no-unused-vars "'flag' is assigned a value but never used."
 3:6 3:10 svelte/prefer-const "'flag' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:33 no-unused-vars "'el' is assigned a value but never used."
+4:6 4:8 no-unused-vars "'el' is assigned a value but never used."
 4:6 4:33 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
 4:10 4:21 no-undef "'HTMLElement' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9294,14 +9293,14 @@
 6:6 6:10 svelte/prefer-const "'rest' is never reassigned. Use 'const' instead."
 9:28 9:45 svelte/max-attributes-per-line "'style:color' should be on a new line."
 
-=== 1209 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/an_attribute_value_in_a_dynamic_element_carries_its_own_map_segments/9ea57572ea9e6956.svelte	lint.txt
+=== 1208 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/an_attribute_value_in_a_dynamic_element_carries_its_own_map_segments/9ea57572ea9e6956.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 no-unused-vars "'flag' is assigned a value but never used."
 3:6 3:10 svelte/prefer-const "'flag' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:33 no-unused-vars "'el' is assigned a value but never used."
+4:6 4:8 no-unused-vars "'el' is assigned a value but never used."
 4:6 4:33 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
 4:10 4:21 no-undef "'HTMLElement' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9312,13 +9311,13 @@
 6:6 6:10 svelte/prefer-const "'rest' is never reassigned. Use 'const' instead."
 9:28 9:39 svelte/max-attributes-per-line "'title' should be on a new line."
 
-=== 1321 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/an_event_handler_in_a_dynamic_element_carries_its_own_map_segments/1407b7fe708b67c4.svelte	lint.txt
+=== 1320 rsvelte_projection/svelte2tsx_dynamic_element_opener_map_4102/an_event_handler_in_a_dynamic_element_carries_its_own_map_segments/1407b7fe708b67c4.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:10 no-unused-vars "'flag' is assigned a value but never used."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:33 no-unused-vars "'el' is assigned a value but never used."
+4:6 4:8 no-unused-vars "'el' is assigned a value but never used."
 4:6 4:33 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
 4:10 4:21 no-undef "'HTMLElement' is not defined."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9685,13 +9684,12 @@
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 5:5 5:6 svelte/prefer-const "'k' is never reassigned. Use 'const' instead."
 
-=== 1172 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/33c045d3de18a8cc.svelte	lint.txt
+=== 1114 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/33c045d3de18a8cc.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:8 2:20 svelte/valid-compile "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:17 2:18 no-unused-vars "'A' is defined but never used."
 4:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 5:5 5:6 svelte/prefer-const "'k' is never reassigned. Use 'const' instead."
@@ -9702,19 +9700,17 @@
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:5 3:6 svelte/prefer-const "'k' is never reassigned. Use 'const' instead."
 
-=== 929 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/4f502367a85185f5.svelte	lint.txt
+=== 871 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/4f502367a85185f5.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:8 2:20 svelte/valid-compile "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:17 2:18 no-unused-vars "'A' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:5 3:6 svelte/prefer-const "'k' is never reassigned. Use 'const' instead."
 
-=== 929 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/93aa98e8cfc269c9.svelte	lint.txt
+=== 871 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/93aa98e8cfc269c9.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:8 2:26 svelte/valid-compile "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:23 2:24 no-unused-vars "'A' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:5 3:6 svelte/prefer-const "'k' is never reassigned. Use 'const' instead."
 
@@ -9727,13 +9723,12 @@
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 5:5 5:6 svelte/prefer-const "'k' is never reassigned. Use 'const' instead."
 
-=== 1172 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/e78084eb26a40016.svelte	lint.txt
+=== 1114 rsvelte_projection/svelte2tsx_export_modifier_kinds_3257/a_declaration_outside_the_allow_list_keeps_its_export/e78084eb26a40016.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:16 1:25 svelte/max-attributes-per-line "'lang' should be on a new line."
 1:16 1:25 svelte/sort-attributes "Attribute 'lang' should go before 'module'."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:8 2:26 svelte/valid-compile "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:23 2:24 no-unused-vars "'A' is defined but never used."
 4:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 5:5 5:6 svelte/prefer-const "'k' is never reassigned. Use 'const' instead."
@@ -9833,7 +9828,7 @@
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:7 2:8 no-unused-vars "'m' is assigned a value but never used."
-2:24 2:28 no-unused-vars "'y' is defined but never used."
+2:24 2:25 no-unused-vars "'y' is defined but never used."
 
 === 456 rsvelte_projection/svelte2tsx_generic_arrow_verbatim_4399/every_cell_is_copied_verbatim_in_both_modes/9e2206caa23ddef9.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -9859,12 +9854,10 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:10 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
-=== 558 rsvelte_projection/svelte2tsx_generics_attribute_parse/a_comma_inside_another_bracket_kind_does_not_split_the_parameter/334a871f0efefb10.svelte	lint.txt
+=== 442 rsvelte_projection/svelte2tsx_generics_attribute_parse/a_comma_inside_another_bracket_kind_does_not_split_the_parameter/334a871f0efefb10.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:60 svelte/max-attributes-per-line "'generics=\"T extends (a: 1, b: 2) => void\"' should be on a new line."
 1:19 1:60 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
-1:40 1:44 no-unused-vars "'a' is defined but never used."
-1:46 1:50 no-unused-vars "'b' is defined but never used."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:10 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
@@ -9982,13 +9975,12 @@
 1:1 1:64 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:25 1:26 no-unused-vars "'a' is assigned a value but never used."
 
-=== 533 rsvelte_projection/svelte2tsx_generics_prop_inference/runes_generic_component_does_not_discard_generic_via_fn_component/d3747cac9b933aa1.svelte	lint.txt
+=== 473 rsvelte_projection/svelte2tsx_generics_prop_inference/runes_generic_component_does_not_discard_generic_via_fn_component/d3747cac9b933aa1.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:31 svelte/max-attributes-per-line "'generics=\"T\"' should be on a new line."
 1:19 1:31 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:57 3:63 no-unused-vars "'row' is defined but never used."
 5:1 5:18 svelte/require-each-key "Each block should have a key"
 
 === 230 rsvelte_projection/svelte2tsx_hoisted_import_map/every_hoisted_import_of_a_group_maps_back/73e57a26ed786ee8.svelte	lint.txt
@@ -10047,7 +10039,7 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:9 svelte/prefer-const "'hue' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:15 no-unused-vars "'Comp' is assigned a value but never used."
+4:6 4:10 no-unused-vars "'Comp' is assigned a value but never used."
 4:6 4:15 svelte/prefer-const "'Comp' is never reassigned. Use 'const' instead."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:6 5:10 no-unused-vars "'rest' is assigned a value but never used."
@@ -10075,7 +10067,7 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:6 3:9 svelte/prefer-const "'hue' is never reassigned. Use 'const' instead."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:6 4:15 no-unused-vars "'Comp' is assigned a value but never used."
+4:6 4:10 no-unused-vars "'Comp' is assigned a value but never used."
 4:6 4:15 svelte/prefer-const "'Comp' is never reassigned. Use 'const' instead."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:6 5:10 no-unused-vars "'rest' is assigned a value but never used."
@@ -10097,9 +10089,9 @@
 1:19 1:34 svelte/max-attributes-per-line "'generics=\"L, R\"' should be on a new line."
 1:19 1:34 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 
-=== 398 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/1570d0c799ca1161.svelte	lint.txt
+=== 397 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/1570d0c799ca1161.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:7 2:13 no-unused-vars "'q' is defined but never used."
+2:7 2:8 no-unused-vars "'q' is defined but never used."
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:21 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
@@ -10115,15 +10107,15 @@
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:18 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 398 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/618193136877fe6c.svelte	lint.txt
+=== 397 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/618193136877fe6c.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:7 2:13 no-unused-vars "'q' is defined but never used."
+2:7 2:8 no-unused-vars "'q' is defined but never used."
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:25 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 398 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/62b152e130eb5c99.svelte	lint.txt
+=== 397 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/62b152e130eb5c99.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:7 2:13 no-unused-vars "'q' is defined but never used."
+2:7 2:8 no-unused-vars "'q' is defined but never used."
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:21 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
@@ -10139,9 +10131,9 @@
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:20 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 398 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/8c7ca2edd312aab9.svelte	lint.txt
+=== 397 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/8c7ca2edd312aab9.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:7 2:13 no-unused-vars "'q' is defined but never used."
+2:7 2:8 no-unused-vars "'q' is defined but never used."
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:24 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
@@ -10151,9 +10143,9 @@
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:17 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 398 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/a26715a59bb48df6.svelte	lint.txt
+=== 397 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/a26715a59bb48df6.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:7 2:13 no-unused-vars "'q' is defined but never used."
+2:7 2:8 no-unused-vars "'q' is defined but never used."
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:19 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
@@ -10163,9 +10155,9 @@
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:26 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 398 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/c4720130c8706221.svelte	lint.txt
+=== 397 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/c4720130c8706221.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:7 2:13 no-unused-vars "'q' is defined but never used."
+2:7 2:8 no-unused-vars "'q' is defined but never used."
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:29 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
@@ -10175,9 +10167,9 @@
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:12 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 398 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/c9bfbe8efc4c7402.svelte	lint.txt
+=== 397 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/c9bfbe8efc4c7402.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:7 2:13 no-unused-vars "'q' is defined but never used."
+2:7 2:8 no-unused-vars "'q' is defined but never used."
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:26 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
@@ -10193,9 +10185,9 @@
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:35 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
-=== 398 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/d9efe64dc382cdcd.svelte	lint.txt
+=== 397 rsvelte_projection/svelte2tsx_invalidate_paren/an_as_expression_is_parenthesised_inside_the_invalidate_arrow/d9efe64dc382cdcd.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:7 2:13 no-unused-vars "'q' is defined but never used."
+2:7 2:8 no-unused-vars "'q' is defined but never used."
 3:12 3:13 no-unused-vars "'f' is defined but never used."
 4:3 4:33 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
 
@@ -10218,8 +10210,8 @@
 
 === 530 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/01ff59844505201c.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:18 2:23 svelte/max-attributes-per-line "'is' should be on a new line."
 2:18 2:23 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:24 2:40 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10227,8 +10219,8 @@
 === 900 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/07e0a8aa28b4c559.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:1 2:29 svelte/button-has-type "Missing an explicit type attribute for button."
 2:1 2:38 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
 2:9 2:11 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
@@ -10238,8 +10230,8 @@
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/0833bc46957a9734.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:8 2:16 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:17 2:33 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:17 2:33 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10247,8 +10239,8 @@
 === 594 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/0cf63a44e1e79620.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:6 2:8 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:9 2:25 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:9 2:25 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10257,14 +10249,14 @@
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
 1:51 1:58 no-unassigned-vars "'tt' is always 'undefined' because it's never assigned."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:28 2:44 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:44 2:62 svelte/html-self-closing "Require self-closing on Svelte special elements."
 
 === 625 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/1c5df63c9055c50c.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
 1:64 1:70 no-unassigned-vars "'v' is always 'undefined' because it's never assigned."
 2:6 2:17 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:18 2:34 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
@@ -10273,14 +10265,14 @@
 === 264 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/1d64b1a2e2e97e67.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 
 === 702 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/1ed0b694cbb30b7e.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
 1:51 1:58 no-unassigned-vars "'tt' is always 'undefined' because it's never assigned."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:27 2:37 svelte/max-attributes-per-line "'is' should be on a new line."
 2:27 2:37 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:38 2:54 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10289,14 +10281,14 @@
 === 264 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/22c23db230d6e7e9.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/3061037cf274c16c.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:6 2:16 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:17 2:33 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:17 2:33 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10305,7 +10297,7 @@
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
 1:51 1:58 no-unassigned-vars "'tt' is always 'undefined' because it's never assigned."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:27 2:35 svelte/max-attributes-per-line "'is' should be on a new line."
 2:27 2:35 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:36 2:52 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10314,37 +10306,37 @@
 === 264 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/3debe3a83e629179.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/3e9c35fda0682377.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:8 2:10 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:11 2:27 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:11 2:27 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
 
 === 530 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/40baa0e62c0278d3.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:18 2:26 svelte/max-attributes-per-line "'is' should be on a new line."
 2:18 2:26 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:27 2:43 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
 
 === 289 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/41e422027ed8dfcb.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:19 2:35 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 
 === 702 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/45e4e7568857feed.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
 1:51 1:58 no-unassigned-vars "'tt' is always 'undefined' because it's never assigned."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:27 2:29 svelte/max-attributes-per-line "'is' should be on a new line."
 2:27 2:29 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:30 2:46 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10353,8 +10345,8 @@
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/4ee788de0f206eca.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:6 2:14 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:15 2:31 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:15 2:31 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10362,23 +10354,23 @@
 === 509 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/579d20f09409bb02.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:6 2:14 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:15 2:26 svelte/max-attributes-per-line "'viewBox' should be on a new line."
 
 === 522 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/591068695462adab.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:15 2:24 svelte/max-attributes-per-line "'onFoo' should be on a new line."
 2:15 2:24 svelte/valid-compile "Event attribute must be a JavaScript expression, not a string\nhttps://svelte.dev/e/attribute_invalid_event_handler(attribute_invalid_event_handler)"
 
 === 530 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/5fd9087d17292c8b.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:18 2:20 svelte/max-attributes-per-line "'is' should be on a new line."
 2:18 2:20 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:21 2:37 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10386,7 +10378,7 @@
 === 625 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/6a5ee7564ace9375.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
 1:64 1:70 no-unassigned-vars "'v' is always 'undefined' because it's never assigned."
 2:6 2:17 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:18 2:34 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
@@ -10395,16 +10387,16 @@
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/6a6cbdaf96c1cda8.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:8 2:18 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:19 2:35 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:19 2:35 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
 
 === 530 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/7777f8c529c53bf4.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:18 2:28 svelte/max-attributes-per-line "'is' should be on a new line."
 2:18 2:28 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:29 2:45 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10412,16 +10404,16 @@
 === 567 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/79d93ecdc0c626b8.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:1 2:27 svelte/button-has-type "Missing an explicit type attribute for button."
 2:1 2:36 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
 
 === 900 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/809d0297bb2b0cb5.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:1 2:35 svelte/button-has-type "Missing an explicit type attribute for button."
 2:1 2:44 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
 2:9 2:17 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
@@ -10432,7 +10424,7 @@
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
 1:51 1:58 no-unassigned-vars "'tt' is always 'undefined' because it's never assigned."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:27 2:32 svelte/max-attributes-per-line "'is' should be on a new line."
 2:27 2:32 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:33 2:49 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10441,8 +10433,8 @@
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/8a333f709bb56363.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:6 2:11 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:12 2:28 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:12 2:28 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10450,8 +10442,8 @@
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/8b37b6bf468730e7.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:8 2:16 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:17 2:33 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:17 2:33 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10459,8 +10451,8 @@
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/919b3dd74d0757b1.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:8 2:13 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:14 2:30 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:14 2:30 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10468,8 +10460,8 @@
 === 900 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/97ba2030c52714c2.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:1 2:32 svelte/button-has-type "Missing an explicit type attribute for button."
 2:1 2:41 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
 2:9 2:14 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
@@ -10479,8 +10471,8 @@
 === 585 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/b3988596fabe7c08.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:8 2:18 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:19 2:29 svelte/max-attributes-per-line "'fooBar' should be on a new line."
 2:19 2:29 svelte/sort-attributes "Attribute 'fooBar' should go before 'is'."
@@ -10488,8 +10480,8 @@
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/b8a376dc5da804b3.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:8 2:13 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:14 2:30 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:14 2:30 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10497,8 +10489,8 @@
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/bcdf1ca3c01a859a.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:8 2:18 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:19 2:35 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:19 2:35 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -10506,8 +10498,8 @@
 === 900 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/dc453e4c91bec815.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:1 2:37 svelte/button-has-type "Missing an explicit type attribute for button."
 2:1 2:46 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
 2:9 2:19 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
@@ -10517,8 +10509,8 @@
 === 597 rsvelte_projection/svelte2tsx_is_attribute_custom_element/an_is_attribute_makes_an_element_custom_and_keeps_its_attribute_case/e601b513f55d481a.svelte	lint.txt
 1:1 1:80 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:26 1:27 no-unused-vars "'C' is defined but never used."
-1:51 1:58 no-unused-vars "'tt' is defined but never used."
-1:64 1:70 no-unused-vars "'v' is defined but never used."
+1:51 1:53 no-unused-vars "'tt' is defined but never used."
+1:64 1:65 no-unused-vars "'v' is defined but never used."
 2:8 2:10 svelte/valid-compile "The \"is\" attribute is not supported cross-browser and should be avoided\nhttps://svelte.dev/e/attribute_avoid_is(attribute_avoid_is)"
 2:11 2:27 svelte/max-attributes-per-line "'defaultValue' should be on a new line."
 2:11 2:27 svelte/sort-attributes "Attribute 'defaultValue' should go before 'is'."
@@ -11718,22 +11710,20 @@
 2:28 2:29 no-unused-vars "'a' is assigned a value but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 853 rsvelte_projection/svelte2tsx_namespace_export_3257/a_non_value_declaration_keeps_its_export_keyword/3c305c57ba3de6c7.svelte	lint.txt
+=== 795 rsvelte_projection/svelte2tsx_namespace_export_3257/a_non_value_declaration_keeps_its_export_keyword/3c305c57ba3de6c7.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:8 2:20 svelte/valid-compile "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:17 2:18 no-unused-vars "'A' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
 === 166 rsvelte_projection/svelte2tsx_namespace_export_3257/a_non_value_declaration_keeps_its_export_keyword/45e10f02ecbab877.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 853 rsvelte_projection/svelte2tsx_namespace_export_3257/a_non_value_declaration_keeps_its_export_keyword/7fd62d874cf2e8b9.svelte	lint.txt
+=== 795 rsvelte_projection/svelte2tsx_namespace_export_3257/a_non_value_declaration_keeps_its_export_keyword/7fd62d874cf2e8b9.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:8 2:27 svelte/valid-compile "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
-2:24 2:25 no-unused-vars "'A' is defined but never used."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
 === 166 rsvelte_projection/svelte2tsx_namespace_export_3257/a_non_value_declaration_keeps_its_export_keyword/874db8ff6781e7aa.svelte	lint.txt
@@ -11870,7 +11860,7 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-7:18 7:35 no-unused-vars "'node' is defined but never used."
+7:18 7:22 no-unused-vars "'node' is defined but never used."
 7:24 7:35 no-undef "'HTMLElement' is not defined."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12275,10 +12265,10 @@
 1:18 1:23 no-unused-vars "'state' is defined but never used."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 333 rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/6acf848cca34bb7a.svelte	lint.txt
-1:9 1:22 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
-1:12 1:17 no-unused-vars "'state' is defined but never used."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+=== 243 rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/6acf848cca34bb7a.svelte	error.txt
+Cannot read properties of undefined (reading 'type')
+Occurred while linting rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/6acf848cca34bb7a.svelte:1
+Rule: "@typescript-eslint/no-unused-vars"
 
 === 215 rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/84097062946bc2f5.svelte	lint.txt
 1:13 1:15 no-empty "Empty block statement."
@@ -12292,25 +12282,19 @@
 1:13 1:20 svelte/prefer-const "'derived' is never reassigned. Use 'const' instead."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 492 rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/9506f56b106acab8.svelte	lint.txt
-1:13 1:19 svelte/prefer-const "'source' is never reassigned. Use 'const' instead."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:25 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
-2:7 2:12 no-unused-vars "'state' is defined but never used."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+=== 243 rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/9506f56b106acab8.svelte	error.txt
+Cannot read properties of undefined (reading 'type')
+Occurred while linting rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/9506f56b106acab8.svelte:1
+Rule: "@typescript-eslint/no-unused-vars"
 
 === 153 rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/ca51e67125e39aa8.svelte	lint.txt
 1:13 1:18 no-unused-vars "'state' is assigned a value but never used."
 1:13 1:18 svelte/prefer-const "'state' is never reassigned. Use 'const' instead."
 
-=== 628 rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/d5f6e059e85fa828.svelte	lint.txt
-1:1 4:22 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-1:19 1:42 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:5 2:11 svelte/prefer-const "'source' is never reassigned. Use 'const' instead."
-3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:7 3:12 no-unused-vars "'state' is defined but never used."
-4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+=== 243 rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/d5f6e059e85fa828.svelte	error.txt
+Cannot read properties of undefined (reading 'type')
+Occurred while linting rsvelte_projection/svelte2tsx_runes_reference_3260/a_shadowed_rune_name_stays_a_store_subscription/d5f6e059e85fa828.svelte:1
+Rule: "@typescript-eslint/no-unused-vars"
 
 === 200 rsvelte_projection/svelte2tsx_runes_reference_3260/instance_script_reference_enters_runes_mode/042414ca82524a36.svelte	lint.txt
 1:18 1:19 no-unused-vars "'f' is defined but never used."
@@ -13305,7 +13289,7 @@
 
 === 155 rsvelte_projection/svelte2tsx_sourcemap_columns/copied_script_line_maps_every_generated_column/614d2500d5b155cb.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:9 2:18 no-unused-vars "'n' is assigned a value but never used."
+2:9 2:10 no-unused-vars "'n' is assigned a value but never used."
 
 === 591 rsvelte_projection/svelte2tsx_sourcemap_columns/generated_columns_advance_within_every_line/e5bd7d0965bd09b5.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -14206,13 +14190,6 @@
 3:7 3:8 no-unused-vars "'r' is assigned a value but never used."
 3:18 3:19 no-undef "'g' is not defined."
 
-=== 457 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/56133462a29e565e.svelte	lint.txt
-1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:18 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
-2:4 2:5 no-unused-vars "'x' is defined but never used."
-2:14 2:15 no-undef "'f' is not defined."
-
 === 717 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/564d7001418b83c1.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -14473,12 +14450,11 @@
 2:14 2:23 svelte/valid-compile "Cannot use `await` in deriveds and template expressions, or at the top level of a component, unless the `experimental.async` compiler option is `true`\nhttps://svelte.dev/e/experimental_async(experimental_async)"
 2:20 2:21 no-undef "'g' is not defined."
 
-=== 873 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/aa446511b03e48e7.svelte	lint.txt
+=== 815 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/aa446511b03e48e7.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:1 2:25 svelte/valid-compile "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature(typescript_invalid_feature)"
 2:6 2:7 no-unused-vars "'E' is defined but never used."
-2:10 2:11 no-unused-vars "'A' is defined but never used."
 2:20 2:21 no-undef "'f' is not defined."
 
 === 569 rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/abb92cae37530c55.svelte	lint.txt

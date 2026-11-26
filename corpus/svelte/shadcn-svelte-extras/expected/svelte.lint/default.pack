@@ -1,12 +1,11 @@
 # rsvelte pack 1
-=== 294 src/lib/actions/active.svelte.ts	lint.txt
+=== 282 src/lib/actions/active.svelte.ts	lint.txt
 22:7 22:10 no-undef "'URL' is not defined."
 35:30 35:47 no-undef "'HTMLAnchorElement' is not defined."
-39:3 39:71 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+39:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 63:35 63:52 no-undef "'HTMLAnchorElement' is not defined."
 
-=== 397 src/lib/actions/shortcut.svelte.ts	lint.txt
-7:13 7:29 no-unused-vars "'e' is defined but never used."
+=== 339 src/lib/actions/shortcut.svelte.ts	lint.txt
 7:16 7:29 no-undef "'KeyboardEvent' is not defined."
 37:32 37:43 no-undef "'HTMLElement' is not defined."
 38:28 38:41 no-undef "'KeyboardEvent' is not defined."
@@ -50,7 +49,7 @@
 33:1 33:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 6110 src/lib/components/button.svelte	lint.txt
+=== 6053 src/lib/components/button.svelte	lint.txt
 1:1 38:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -58,7 +57,6 @@
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-7:4 9:58 no-unused-vars "'e' is defined but never used."
 8:1 8:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
 8:36 8:53 no-undef "'HTMLButtonElement' is not defined."
 9:1 9:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
@@ -3667,7 +3665,7 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4145 src/lib/components/ui/add/add-registry-logo.svelte	lint.txt
+=== 4085 src/lib/components/ui/add/add-registry-logo.svelte	lint.txt
 1:1 50:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3691,7 +3689,6 @@
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-26:27 26:36 no-unused-vars "'r' is defined but never used."
 27:1 27:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 28:1 28:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 29:1 29:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -3735,25 +3732,13 @@
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1800 src/lib/components/ui/add/add.svelte.ts	lint.txt
-26:23 26:59 no-unused-vars "'opts' is defined but never used."
-52:12 52:27 no-unused-vars "'opts' is defined but never used."
-53:12 53:57 no-unused-vars "'provider' is defined but never used."
+=== 1022 src/lib/components/ui/add/add.svelte.ts	lint.txt
 99:23 103:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-139:23 139:41 no-unused-vars "'root' is defined but never used."
 141:10 143:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-152:12 152:45 no-unused-vars "'opts' is defined but never used."
-153:12 153:30 no-unused-vars "'root' is defined but never used."
 156:10 161:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-170:12 170:48 no-unused-vars "'opts' is defined but never used."
-171:12 171:30 no-unused-vars "'root' is defined but never used."
 174:10 179:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-188:12 188:49 no-unused-vars "'opts' is defined but never used."
-189:12 189:30 no-unused-vars "'root' is defined but never used."
 192:10 197:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-201:23 201:41 no-unused-vars "'root' is defined but never used."
 203:10 205:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-213:23 213:41 no-unused-vars "'root' is defined but never used."
 215:10 217:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 216:19 216:25 no-undef "'window' is not defined."
 
@@ -5617,7 +5602,7 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 15399 src/lib/components/ui/chart/chart-tooltip.svelte	lint.txt
+=== 15259 src/lib/components/ui/chart/chart-tooltip.svelte	lint.txt
 1:1 91:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5625,9 +5610,9 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:2 8:64 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+8:2 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-9:40 9:66 no-unused-vars "'_payload' is defined but never used."
+9:40 9:48 no-unused-vars "'_payload' is defined but never used."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5654,10 +5639,8 @@
 33:1 33:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 34:1 34:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-35:20 35:82 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+35:20 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 36:1 36:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-36:6 36:16 no-unused-vars "'value' is defined but never used."
-36:18 36:43 no-unused-vars "'payload' is defined but never used."
 37:1 37:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 38:1 38:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 39:1 39:5 svelte/indent "Expected indentation of 8 spaces but found 4 whitespaces."
@@ -6085,11 +6068,7 @@
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 31:1 31:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 258 src/lib/components/ui/code/code.svelte.ts	lint.txt
-12:23 12:51 no-unused-vars "'opts' is defined but never used."
-36:12 36:36 no-unused-vars "'opts' is defined but never used."
-37:12 37:40 no-unused-vars "'overflow' is defined but never used."
-103:23 103:42 no-unused-vars "'root' is defined but never used."
+=== 0 src/lib/components/ui/code/code.svelte.ts	lint.txt
 
 === 417 src/lib/components/ui/collapsible/collapsible-content.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -6791,7 +6770,7 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:38 7:52 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
-=== 7641 src/lib/components/ui/copy-button/copy-button.svelte	lint.txt
+=== 7576 src/lib/components/ui/copy-button/copy-button.svelte	lint.txt
 1:1 19:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6806,7 +6785,6 @@
 11:1 11:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 12:1 12:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 13:1 13:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-13:14 13:55 no-unused-vars "'status' is defined but never used."
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6886,9 +6864,9 @@
 93:1 93:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 94:1 94:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 242 src/lib/components/ui/data-table/data-table.svelte.ts	lint.txt
-90:1 90:63 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
-136:5 136:67 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+=== 229 src/lib/components/ui/data-table/data-table.svelte.ts	lint.txt
+90:1 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
+136:5 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 
 === 3058 src/lib/components/ui/data-table/flex-render.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -7277,16 +7255,7 @@
 26:49 26:70 svelte/sort-attributes "Attribute 'class' should go before 'data-slot'."
 27:1 27:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 571 src/lib/components/ui/demo/demo.svelte.ts	lint.txt
-19:23 19:42 no-unused-vars "'opts' is defined but never used."
-32:12 32:34 no-unused-vars "'opts' is defined but never used."
-33:12 33:27 no-unused-vars "'root' is defined but never used."
-62:12 62:31 no-unused-vars "'opts' is defined but never used."
-63:12 63:27 no-unused-vars "'root' is defined but never used."
-87:12 87:39 no-unused-vars "'opts' is defined but never used."
-88:12 88:27 no-unused-vars "'root' is defined but never used."
-105:23 105:38 no-unused-vars "'root' is defined but never used."
-115:23 115:38 no-unused-vars "'root' is defined but never used."
+=== 0 src/lib/components/ui/demo/demo.svelte.ts	lint.txt
 
 === 831 src/lib/components/ui/dialog/dialog-close.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -8098,7 +8067,7 @@
 28:1 28:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 29:1 29:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2526 src/lib/components/ui/emoji-picker/emoji-picker-skin-tone-selector.svelte	lint.txt
+=== 2520 src/lib/components/ui/emoji-picker/emoji-picker-skin-tone-selector.svelte	lint.txt
 1:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -8117,7 +8086,7 @@
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 23:1 23:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-23:11 23:71 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+23:11 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:1 25:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 25:2 25:8 svelte/sort-attributes "Attribute 'size' should go before 'variant'."
@@ -8182,16 +8151,7 @@
 43:2 43:37 svelte/sort-attributes "Attribute 'onValueChange' should go before 'shouldFilter'."
 45:1 45:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 651 src/lib/components/ui/emoji-picker/emoji-picker.svelte.ts	lint.txt
-24:14 24:34 no-unused-vars "'emoji' is defined but never used."
-28:18 28:39 no-unused-vars "'skin' is defined but never used."
-35:23 35:49 no-unused-vars "'opts' is defined but never used."
-106:23 106:49 no-unused-vars "'root' is defined but never used."
-137:12 137:38 no-unused-vars "'root' is defined but never used."
-138:12 138:39 no-unused-vars "'opts' is defined but never used."
-150:23 150:49 no-unused-vars "'root' is defined but never used."
-159:12 159:38 no-unused-vars "'root' is defined but never used."
-160:12 160:38 no-unused-vars "'opts' is defined but never used."
+=== 71 src/lib/components/ui/emoji-picker/emoji-picker.svelte.ts	lint.txt
 167:11 167:12 no-unused-vars "'_' is assigned a value but never used."
 
 === 1549 src/lib/components/ui/empty/empty-content.svelte	lint.txt
@@ -8879,16 +8839,13 @@
 35:1 35:56 svelte/no-unused-class-name "Unused class \"hidden\"."
 35:23 35:43 svelte/max-attributes-per-line "'{...rootState.props}' should be on a new line."
 
-=== 3287 src/lib/components/ui/file-drop-zone/file-drop-zone.svelte.ts	lint.txt
+=== 2757 src/lib/components/ui/file-drop-zone/file-drop-zone.svelte.ts	lint.txt
 6:33 6:45 no-undef "'DataTransfer' is not defined."
 6:55 6:59 no-undef "'File' is not defined."
 10:33 10:45 no-undef "'DataTransfer' is not defined."
-17:13 17:26 no-unused-vars "'files' is defined but never used."
 17:20 17:24 no-undef "'File' is not defined."
-21:20 21:68 no-unused-vars "'opts' is defined but never used."
 21:62 21:66 no-undef "'File' is not defined."
 27:36 27:50 no-undef "'ClipboardEvent' is not defined."
-29:23 29:53 no-unused-vars "'opts' is defined but never used."
 31:4 31:11 no-undef "'console' is not defined."
 41:13 41:27 no-undef "'ClipboardEvent' is not defined."
 46:6 46:15 no-undef "'DragEvent' is not defined."
@@ -8902,7 +8859,6 @@
 124:31 124:35 no-undef "'File' is not defined."
 127:21 127:25 no-undef "'File' is not defined."
 162:10 171:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-175:23 175:51 no-unused-vars "'rootState' is defined but never used."
 177:16 177:25 no-undef "'DragEvent' is not defined."
 182:6 182:15 no-undef "'DragEvent' is not defined."
 183:19 183:30 no-undef "'EventTarget' is not defined."
@@ -8911,14 +8867,10 @@
 198:29 198:48 no-undef "'HTMLTextAreaElement' is not defined."
 199:25 199:44 no-undef "'HTMLTextAreaElement' is not defined."
 200:26 200:45 no-undef "'HTMLTextAreaElement' is not defined."
-205:12 205:45 no-unused-vars "'opts' is defined but never used."
-206:12 206:40 no-unused-vars "'rootState' is defined but never used."
 209:54 209:73 no-undef "'HTMLTextAreaElement' is not defined."
 214:50 214:69 no-undef "'HTMLTextAreaElement' is not defined."
 219:51 219:70 no-undef "'HTMLTextAreaElement' is not defined."
 225:10 229:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-240:12 240:53 no-unused-vars "'opts' is defined but never used."
-241:12 241:40 no-unused-vars "'rootState' is defined but never used."
 250:17 250:96 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 252:13 252:68 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 254:17 254:26 no-undef "'DragEvent' is not defined."
@@ -9215,7 +9167,7 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:36 7:50 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
-=== 2695 src/lib/components/ui/image-cropper/image-cropper-cancel.svelte	lint.txt
+=== 2689 src/lib/components/ui/image-cropper/image-cropper-cancel.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9229,7 +9181,7 @@
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-18:14 18:74 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+18:14 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:2 20:8 svelte/sort-attributes "Attribute 'size' should go before 'bind:ref'."
@@ -9265,7 +9217,7 @@
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2695 src/lib/components/ui/image-cropper/image-cropper-crop.svelte	lint.txt
+=== 2689 src/lib/components/ui/image-cropper/image-cropper-crop.svelte	lint.txt
 1:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -9279,7 +9231,7 @@
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-18:14 18:74 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+18:14 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:2 20:8 svelte/sort-attributes "Attribute 'size' should go before 'bind:ref'."
@@ -9427,20 +9379,11 @@
 42:2 42:24 svelte/sort-attributes "Attribute 'style' should go before 'onchange'."
 42:9 42:23 svelte/prefer-style-directive "Can use style directives instead."
 
-=== 780 src/lib/components/ui/image-cropper/image-cropper.svelte.ts	lint.txt
-22:15 22:26 no-unused-vars "'url' is defined but never used."
-23:23 23:33 no-unused-vars "'file' is defined but never used."
+=== 180 src/lib/components/ui/image-cropper/image-cropper.svelte.ts	lint.txt
 23:29 23:33 no-undef "'File' is not defined."
-32:23 32:50 no-unused-vars "'opts' is defined but never used."
 39:17 39:21 no-undef "'File' is not defined."
 45:18 45:21 no-undef "'URL' is not defined."
 76:4 76:7 no-undef "'URL' is not defined."
-86:23 86:55 no-unused-vars "'rootState' is defined but never used."
-90:23 90:55 no-unused-vars "'rootState' is defined but never used."
-94:23 94:55 no-unused-vars "'rootState' is defined but never used."
-98:23 98:55 no-unused-vars "'rootState' is defined but never used."
-108:23 108:55 no-unused-vars "'rootState' is defined but never used."
-118:23 118:55 no-unused-vars "'rootState' is defined but never used."
 
 === 4189 src/lib/components/ui/input-group/input-group-addon.svelte	lint.txt
 1:1 21:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -10319,7 +10262,7 @@
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 5047 src/lib/components/ui/language-switcher/language-switcher.svelte	lint.txt
+=== 4984 src/lib/components/ui/language-switcher/language-switcher.svelte	lint.txt
 1:1 27:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10339,7 +10282,6 @@
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-23:15 23:27 no-unused-vars "'code' is defined but never used."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 29:1 48:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -10960,8 +10902,7 @@
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 63 src/lib/components/ui/modal/modal.svelte.ts	lint.txt
-13:22 13:42 no-unused-vars "'root' is defined but never used."
+=== 0 src/lib/components/ui/modal/modal.svelte.ts	lint.txt
 
 === 825 src/lib/components/ui/native-select/native-select-opt-group.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -11240,7 +11181,7 @@
 29:1 29:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4596 src/lib/components/ui/nlp-date-input/nlp-date-input.svelte	lint.txt
+=== 4535 src/lib/components/ui/nlp-date-input/nlp-date-input.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11248,7 +11189,6 @@
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-6:15 6:50 no-unused-vars "'opts' is defined but never used."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 29:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11298,7 +11238,7 @@
 52:1 52:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 53:1 53:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4457 src/lib/components/ui/number-field/number-field-decrement.svelte	lint.txt
+=== 4451 src/lib/components/ui/number-field/number-field-decrement.svelte	lint.txt
 1:1 37:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11346,7 +11286,7 @@
 46:2 46:45 svelte/sort-attributes "Attribute 'class' should go before 'variant'."
 47:1 47:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 48:1 48:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-48:11 48:71 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+48:11 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 50:1 50:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 51:1 51:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 52:1 52:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11375,7 +11315,7 @@
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4457 src/lib/components/ui/number-field/number-field-increment.svelte	lint.txt
+=== 4451 src/lib/components/ui/number-field/number-field-increment.svelte	lint.txt
 1:1 37:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11423,7 +11363,7 @@
 46:2 46:45 svelte/sort-attributes "Attribute 'class' should go before 'variant'."
 47:1 47:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 48:1 48:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-48:11 48:71 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+48:11 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 50:1 50:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 51:1 51:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 52:1 52:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11472,13 +11412,9 @@
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 596 src/lib/components/ui/number-field/number-field.svelte.ts	lint.txt
-18:23 18:49 no-unused-vars "'opts' is defined but never used."
-30:23 30:56 no-unused-vars "'rootState' is defined but never used."
+=== 334 src/lib/components/ui/number-field/number-field.svelte.ts	lint.txt
 32:28 32:44 no-undef "'HTMLInputElement' is not defined."
 49:10 56:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-73:12 73:45 no-unused-vars "'rootState' is defined but never used."
-74:12 74:40 no-unused-vars "'opts' is defined but never used."
 148:10 155:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
 === 1301 src/lib/components/ui/pagination/pagination-content.svelte	lint.txt
@@ -11879,18 +11815,11 @@
 24:22 24:66 svelte/max-attributes-per-line "'class' should be on a new line."
 25:1 25:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 651 src/lib/components/ui/password/password.svelte.ts	lint.txt
-65:23 65:51 no-unused-vars "'opts' is defined but never used."
+=== 198 src/lib/components/ui/password/password.svelte.ts	lint.txt
 105:8 105:24 no-undef "'HTMLInputElement' is not defined."
-110:12 110:35 no-unused-vars "'root' is defined but never used."
-111:12 111:41 no-unused-vars "'opts' is defined but never used."
 140:10 146:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-150:23 150:46 no-unused-vars "'root' is defined but never used."
-163:23 163:46 no-unused-vars "'root' is defined but never used."
-181:12 181:35 no-unused-vars "'root' is defined but never used."
-182:12 182:44 no-unused-vars "'opts' is defined but never used."
 
-=== 8582 src/lib/components/ui/phone-input/country-selector.svelte	lint.txt
+=== 8400 src/lib/components/ui/phone-input/country-selector.svelte	lint.txt
 1:1 43:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11907,11 +11836,8 @@
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 17:1 17:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-17:15 17:38 no-unused-vars "'val' is defined but never used."
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-19:12 19:22 no-unused-vars "'a' is defined but never used."
-19:24 19:34 no-unused-vars "'b' is defined but never used."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -13031,7 +12957,7 @@
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 10635 src/lib/components/ui/rename/rename.svelte	lint.txt
+=== 10507 src/lib/components/ui/rename/rename.svelte	lint.txt
 1:1 21:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -13050,10 +12976,8 @@
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 17:1 17:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-17:13 17:26 no-unused-vars "'value' is defined but never used."
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-19:15 19:28 no-unused-vars "'value' is defined but never used."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 23:1 92:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 23:19 23:65 svelte/max-attributes-per-line "'generics=\"TagName extends TextElementTagNames\"' should be on a new line."
@@ -13154,20 +13078,13 @@
 116:1 116:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 117:1 117:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1216 src/lib/components/ui/rename/rename.svelte.ts	lint.txt
-16:23 16:57 no-unused-vars "'providerState' is defined but never used."
-26:23 26:57 no-unused-vars "'providerState' is defined but never used."
-36:23 36:57 no-unused-vars "'providerState' is defined but never used."
+=== 712 src/lib/components/ui/rename/rename.svelte.ts	lint.txt
 48:12 48:28 no-undef "'HTMLInputElement' is not defined."
 48:31 48:50 no-undef "'HTMLTextAreaElement' is not defined."
 49:11 49:22 no-undef "'HTMLElement' is not defined."
-56:13 56:26 no-unused-vars "'value' is defined but never used."
-58:14 58:27 no-unused-vars "'value' is defined but never used."
 64:12 64:69 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-75:12 75:39 no-unused-vars "'opts' is defined but never used."
-76:12 76:47 no-unused-vars "'providerState' is defined but never used."
-94:4 94:72 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
-111:4 111:72 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+94:4 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
+111:4 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 157:26 157:39 no-undef "'KeyboardEvent' is not defined."
 175:30 175:40 no-undef "'setTimeout' is not defined."
 177:20 177:26 no-undef "'window' is not defined."
@@ -13718,8 +13635,7 @@
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:32 7:46 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
-=== 393 src/lib/components/ui/sidebar/context.svelte.ts	lint.txt
-20:12 20:25 no-unused-vars "'open' is defined but never used."
+=== 330 src/lib/components/ui/sidebar/context.svelte.ts	lint.txt
 25:9 25:45 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 29:10 29:67 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 44:30 44:43 no-undef "'KeyboardEvent' is not defined."
@@ -14235,7 +14151,7 @@
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4421 src/lib/components/ui/sidebar/sidebar-provider.svelte	lint.txt
+=== 4358 src/lib/components/ui/sidebar/sidebar-provider.svelte	lint.txt
 1:1 36:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14259,7 +14175,6 @@
 21:35 21:49 no-undef "'HTMLDivElement' is not defined."
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-23:19 23:32 no-unused-vars "'open' is defined but never used."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 27:1 27:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -14346,7 +14261,7 @@
 17:2 17:56 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3179 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
+=== 3119 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14360,7 +14275,6 @@
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-14:14 14:27 no-unused-vars "'e' is defined but never used."
 14:17 14:27 no-undef "'MouseEvent' is not defined."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14583,7 +14497,7 @@
 48:1 48:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 49:1 49:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3482 src/lib/components/ui/snippet/snippet.svelte	lint.txt
+=== 3417 src/lib/components/ui/snippet/snippet.svelte	lint.txt
 1:1 27:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14607,7 +14521,6 @@
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 24:1 24:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 25:1 25:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-25:13 25:43 no-unused-vars "'status' is defined but never used."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 29:1 31:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14821,7 +14734,7 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4226 src/lib/components/ui/split-button/split-button.svelte	lint.txt
+=== 4034 src/lib/components/ui/split-button/split-button.svelte	lint.txt
 1:1 19:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14835,11 +14748,8 @@
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-12:14 12:42 no-unused-vars "'event' is defined but never used."
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-13:21 13:49 no-unused-vars "'event' is defined but never used."
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-14:21 14:34 no-unused-vars "'value' is defined but never used."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -14875,29 +14785,21 @@
 51:41 51:54 svelte/sort-attributes "Attribute 'orientation' should go before 'bind:ref'."
 52:1 52:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1440 src/lib/components/ui/split-button/split-button.svelte.ts	lint.txt
+=== 913 src/lib/components/ui/split-button/split-button.svelte.ts	lint.txt
 7:17 7:27 no-undef "'MouseEvent' is not defined."
 8:18 8:29 no-undef "'EventTarget' is not defined."
 8:33 8:50 no-undef "'HTMLButtonElement' is not defined."
 8:53 8:70 no-undef "'HTMLAnchorElement' is not defined."
-17:14 17:42 no-unused-vars "'event' is defined but never used."
-18:21 18:49 no-unused-vars "'event' is defined but never used."
-19:21 19:34 no-unused-vars "'value' is defined but never used."
-25:23 25:49 no-unused-vars "'opts' is defined but never used."
 54:10 54:20 no-undef "'MouseEvent' is not defined."
 55:19 55:30 no-undef "'EventTarget' is not defined."
 55:34 55:51 no-undef "'HTMLButtonElement' is not defined."
 55:54 55:71 no-undef "'HTMLAnchorElement' is not defined."
-81:12 81:45 no-unused-vars "'opts' is defined but never used."
-82:12 82:43 no-unused-vars "'rootState' is defined but never used."
 87:13 87:93 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 90:10 90:20 no-undef "'MouseEvent' is not defined."
 91:19 91:30 no-undef "'EventTarget' is not defined."
 91:34 91:51 no-undef "'HTMLButtonElement' is not defined."
 91:54 91:71 no-undef "'HTMLAnchorElement' is not defined."
-94:3 94:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
-106:12 106:51 no-unused-vars "'opts' is defined but never used."
-107:12 107:43 no-unused-vars "'rootState' is defined but never used."
+94:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 
 === 3140 src/lib/components/ui/star-rating/star-rating-star.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -15183,23 +15085,16 @@
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2427 src/lib/components/ui/stepper/stepper.svelte.ts	lint.txt
+=== 1763 src/lib/components/ui/stepper/stepper.svelte.ts	lint.txt
 10:41 10:58 no-undef "'HTMLButtonElement' is not defined."
-11:23 11:45 no-unused-vars "'opts' is defined but never used."
 22:17 24:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 31:17 33:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-67:23 67:44 no-unused-vars "'opts' is defined but never used."
 69:10 72:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 81:22 81:39 no-undef "'HTMLButtonElement' is not defined."
-83:12 83:34 no-unused-vars "'opts' is defined but never used."
-84:12 84:37 no-unused-vars "'navState' is defined but never used."
-85:12 85:39 no-unused-vars "'rootState' is defined but never used."
 94:11 96:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 98:12 100:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 108:10 112:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 116:7 116:24 no-undef "'HTMLButtonElement' is not defined."
-124:12 124:41 no-unused-vars "'opts' is defined but never used."
-125:12 125:39 no-unused-vars "'itemState' is defined but never used."
 135:14 135:24 no-undef "'MouseEvent' is not defined."
 135:44 135:55 no-undef "'EventTarget' is not defined."
 135:58 135:75 no-undef "'HTMLButtonElement' is not defined."
@@ -15207,10 +15102,7 @@
 140:49 140:60 no-undef "'EventTarget' is not defined."
 140:63 140:80 no-undef "'HTMLButtonElement' is not defined."
 165:10 172:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-176:23 176:50 no-unused-vars "'itemState' is defined but never used."
 178:10 180:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-190:12 190:40 no-unused-vars "'opts' is defined but never used."
-191:12 191:39 no-unused-vars "'rootState' is defined but never used."
 210:10 213:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
 === 2419 src/lib/components/ui/switch/switch.svelte	lint.txt
@@ -15492,14 +15384,13 @@
 17:2 17:87 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2728 src/lib/components/ui/tags-input/tags-input-suggestion.svelte	lint.txt
+=== 2666 src/lib/components/ui/tags-input/tags-input-suggestion.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-6:14 6:27 no-unused-vars "'value' is defined but never used."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 22:2 svelte/no-unused-class-name "Unused class \"hover:bg-accent\"."
@@ -15529,7 +15420,7 @@
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 23:1 23:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2838 src/lib/components/ui/tags-input/tags-input-tag.svelte	lint.txt
+=== 2776 src/lib/components/ui/tags-input/tags-input-tag.svelte	lint.txt
 1:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -15537,7 +15428,6 @@
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-8:14 8:27 no-unused-vars "'value' is defined but never used."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 17:2 svelte/no-unused-class-name "Unused class \"bg-secondary\"."
@@ -15567,7 +15457,7 @@
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 23:1 23:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 28978 src/lib/components/ui/tags-input/tags-input.svelte	lint.txt
+=== 28954 src/lib/components/ui/tags-input/tags-input.svelte	lint.txt
 1:1 313:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -15628,7 +15518,7 @@
 69:1 69:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 71:1 71:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 72:1 72:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-72:3 72:71 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+72:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 73:1 73:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 75:1 75:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 76:1 76:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -15637,7 +15527,7 @@
 79:1 79:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 81:1 81:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 82:1 82:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-83:3 83:71 @typescript-eslint/no-unused-expressions "Definition for rule '@typescript-eslint/no-unused-expressions' was not found."
+83:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-unused-expressions')."
 84:1 84:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 86:1 86:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 87:1 87:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -16079,16 +15969,11 @@
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 575 src/lib/components/ui/terminal/terminal.svelte.ts	lint.txt
+=== 260 src/lib/components/ui/terminal/terminal.svelte.ts	lint.txt
 4:41 4:51 no-undef "'setTimeout' is not defined."
-11:23 11:46 no-unused-vars "'opts' is defined but never used."
-31:12 31:35 no-unused-vars "'opts' is defined but never used."
-32:12 32:31 no-unused-vars "'loop' is defined but never used."
 38:19 38:29 no-undef "'setTimeout' is not defined."
 42:35 42:45 no-undef "'setTimeout' is not defined."
 61:3 61:15 no-undef "'clearTimeout' is not defined."
-72:9 72:22 no-unused-vars "'speed' is defined but never used."
-81:12 81:37 no-unused-vars "'opts' is defined but never used."
 91:3 91:15 no-undef "'clearTimeout' is not defined."
 
 === 1577 src/lib/components/ui/textarea/textarea.svelte	lint.txt
@@ -16615,10 +16500,7 @@
 31:2 31:46 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 331 src/lib/components/ui/underline-tabs/underline-tabs.svelte.ts	lint.txt
-20:23 20:51 no-unused-vars "'opts' is defined but never used."
-35:12 35:43 no-unused-vars "'opts' is defined but never used."
-36:12 36:45 no-unused-vars "'rootState' is defined but never used."
+=== 137 src/lib/components/ui/underline-tabs/underline-tabs.svelte.ts	lint.txt
 71:10 77:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
 === 2837 src/lib/components/ui/window/window.svelte	lint.txt
@@ -20610,7 +20492,7 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2455 src/lib/docs/api-reference/api-reference.svelte	lint.txt
+=== 2450 src/lib/docs/api-reference/api-reference.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20618,7 +20500,7 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:2 8:64 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+8:2 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -20904,16 +20786,14 @@
 91:22 91:30 no-undef "'document' is not defined."
 93:3 93:11 no-undef "'document' is not defined."
 
-=== 255 src/lib/hooks/use-frecency.svelte.ts	lint.txt
-22:12 22:36 no-unused-vars "'opts' is assigned a value but never used."
+=== 183 src/lib/hooks/use-frecency.svelte.ts	lint.txt
 40:14 40:16 no-unused-vars "'_a' is defined but never used."
 41:12 41:14 no-unused-vars "'_a' is defined but never used."
 41:21 41:23 no-unused-vars "'_b' is defined but never used."
 
 === 0 src/lib/hooks/use-media.svelte.ts	lint.txt
 
-=== 67 src/lib/hooks/use-promise.svelte.ts	lint.txt
-22:12 22:24 no-unused-vars "'fallback' is defined but never used."
+=== 0 src/lib/hooks/use-promise.svelte.ts	lint.txt
 
 === 314 src/lib/hooks/use-ramp.svelte.ts	lint.txt
 38:42 38:52 no-undef "'setTimeout' is not defined."

@@ -3880,13 +3880,13 @@
 50:36 50:52 svelte/sort-attributes "Attribute 'tracking' should go before 'weight'."
 51:1 51:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 5634 packages/svelteui-demos/src/demos/core/AppShell/AppShell.demo.usage.svelte	lint.txt
+=== 5630 packages/svelteui-demos/src/demos/core/AppShell/AppShell.demo.usage.svelte	lint.txt
 1:1 40:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:35 svelte/max-attributes-per-line "'context' should be on a new line."
 1:19 1:35 svelte/sort-attributes "Attribute 'context' should go before 'lang'."
 1:19 1:35 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:2 2:56 @typescript-eslint/ban-ts-comment "Definition for rule '@typescript-eslint/ban-ts-comment' was not found."
+2:2 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/ban-ts-comment')."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:2 20:3 no-useless-escape "Unnecessary escape character: \\/."

@@ -3843,14 +3843,13 @@
 12:1 12:81 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 12:1 12:81 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 
-=== 1376 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-input.svelte	lint.txt
+=== 1316 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-input.svelte	lint.txt
 2:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 4:4 no-unused-vars "'foo' is defined but never used."
 4:1 4:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 5:1 5:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 6:1 6:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
-7:1 7:13 no-unused-vars "'arg2' is defined but never used."
 7:1 7:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
 8:1 8:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 9:1 9:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
@@ -3863,10 +3862,9 @@
 17:1 17:73 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 17:1 17:73 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 
-=== 442 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-output.svelte	lint.txt
+=== 382 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-output.svelte	lint.txt
 2:1 15:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 4:5 4:8 no-unused-vars "'foo' is defined but never used."
-7:7 7:19 no-unused-vars "'arg2' is defined but never used."
 14:5 14:8 no-unused-vars "'bar' is defined but never used."
 17:1 17:73 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 17:1 17:73 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
@@ -3951,14 +3949,13 @@
 61:1 61:74 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 61:1 61:74 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 
-=== 4723 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface02-input.svelte	lint.txt
+=== 4549 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface02-input.svelte	lint.txt
 2:1 55:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:11 3:12 no-unused-vars "'A' is defined but never used."
 4:1 4:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 5:1 5:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
 6:1 6:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
-7:1 9:7 no-unused-vars "'a' is defined but never used."
 7:1 7:1 svelte/indent "Expected indentation of 8 spaces but found 0 spaces."
 8:1 8:1 svelte/indent "Expected indentation of 10 spaces but found 0 spaces."
 9:1 9:1 svelte/indent "Expected indentation of 10 spaces but found 0 spaces."
@@ -3987,7 +3984,6 @@
 30:1 30:1 svelte/indent "Expected indentation of 10 spaces but found 0 spaces."
 31:1 31:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 32:1 32:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
-33:1 35:2 no-unused-vars "'e' is defined but never used."
 33:1 33:1 svelte/indent "Expected indentation of 8 spaces but found 0 spaces."
 34:1 34:1 svelte/indent "Expected indentation of 10 spaces but found 0 spaces."
 35:1 35:2 no-undef "'E' is not defined."
@@ -4002,7 +3998,6 @@
 42:11 42:12 no-unused-vars "'D' is defined but never used."
 43:1 43:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 44:1 44:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
-45:1 49:2 no-unused-vars "'arg' is defined but never used."
 45:1 45:1 svelte/indent "Expected indentation of 8 spaces but found 0 spaces."
 46:1 46:1 svelte/indent "Expected indentation of 10 spaces but found 0 spaces."
 47:1 47:1 svelte/indent "Expected indentation of 10 spaces but found 0 spaces."
@@ -4016,19 +4011,16 @@
 57:1 57:74 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 57:1 57:74 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 
-=== 864 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface02-output.svelte	lint.txt
+=== 687 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-interface02-output.svelte	lint.txt
 2:1 55:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:13 3:14 no-unused-vars "'A' is defined but never used."
-7:9 9:17 no-unused-vars "'a' is defined but never used."
 15:13 15:14 no-unused-vars "'B' is defined but never used."
 26:13 26:14 no-unused-vars "'C' is defined but never used."
 28:7 28:8 no-unused-vars "'T' is defined but never used."
 30:11 30:12 no-undef "'U' is not defined."
-33:9 35:12 no-unused-vars "'e' is defined but never used."
 35:11 35:12 no-undef "'E' is not defined."
 38:7 38:8 no-undef "'R' is not defined."
 42:13 42:14 no-unused-vars "'D' is defined but never used."
-45:9 49:14 no-unused-vars "'arg' is defined but never used."
 57:1 57:74 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 57:1 57:74 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 
@@ -4138,10 +4130,10 @@
 43:1 43:86 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 43:1 43:86 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 
-=== 2804 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation01-input.svelte	lint.txt
+=== 2688 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation01-input.svelte	lint.txt
 2:1 31:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-4:1 6:2 no-unused-vars "'A' is assigned a value but never used."
+4:1 4:2 no-unused-vars "'A' is assigned a value but never used."
 4:1 4:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 5:1 5:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
 6:1 6:2 no-undef "'T' is not defined."
@@ -4154,13 +4146,11 @@
 12:6 12:7 no-unused-vars "'b' is defined but never used."
 13:1 13:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 14:1 14:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
-15:1 17:2 no-unused-vars "'a' is defined but never used."
 15:1 15:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
 16:1 16:1 svelte/indent "Expected indentation of 8 spaces but found 0 spaces."
 17:1 17:2 no-undef "'T' is not defined."
 17:1 17:1 svelte/indent "Expected indentation of 8 spaces but found 0 spaces."
 18:1 18:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
-19:1 21:2 no-unused-vars "'b' is defined but never used."
 19:1 19:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
 20:1 20:1 svelte/indent "Expected indentation of 8 spaces but found 0 spaces."
 21:1 21:2 no-undef "'T' is not defined."
@@ -4179,14 +4169,12 @@
 33:1 33:80 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 33:1 33:80 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 
-=== 768 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation01-output.svelte	lint.txt
+=== 650 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation01-output.svelte	lint.txt
 2:1 31:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-4:5 6:8 no-unused-vars "'A' is assigned a value but never used."
+4:5 4:6 no-unused-vars "'A' is assigned a value but never used."
 6:7 6:8 no-undef "'T' is not defined."
 12:8 12:9 no-unused-vars "'b' is defined but never used."
-15:7 17:10 no-unused-vars "'a' is defined but never used."
 17:9 17:10 no-undef "'T' is not defined."
-19:7 21:10 no-unused-vars "'b' is defined but never used."
 21:9 21:10 no-undef "'T' is not defined."
 26:8 26:9 no-unused-vars "'C' is defined but never used."
 28:5 28:6 no-undef "'D' is not defined."
@@ -4197,7 +4185,7 @@
 === 3831 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-input.svelte	lint.txt
 2:1 48:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-3:5 8:5 no-unused-vars "'x' is defined but never used."
+3:5 3:6 no-unused-vars "'x' is defined but never used."
 4:1 4:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 5:1 5:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
 6:1 6:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
@@ -4205,7 +4193,7 @@
 8:1 8:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
 9:1 9:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 11:1 11:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-11:5 22:2 no-unused-vars "'y' is defined but never used."
+11:5 11:6 no-unused-vars "'y' is defined but never used."
 12:1 12:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 13:1 13:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
 14:1 14:1 svelte/indent "Expected indentation of 8 spaces but found 0 spaces."
@@ -4246,10 +4234,10 @@
 50:1 50:80 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 50:1 50:80 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 
-=== 607 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-output.svelte	lint.txt
+=== 606 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-output.svelte	lint.txt
 2:1 48:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-3:7 8:11 no-unused-vars "'x' is defined but never used."
-11:7 22:6 no-unused-vars "'y' is defined but never used."
+3:7 3:8 no-unused-vars "'x' is defined but never used."
+11:7 11:8 no-unused-vars "'y' is defined but never used."
 33:9 33:12 no-undef "'arr' is not defined."
 38:7 38:10 no-unused-vars "'foo' is assigned a value but never used."
 40:7 40:10 no-unused-vars "'bar' is assigned a value but never used."
@@ -4379,7 +4367,7 @@
 8:9 8:10 no-undef "'U' is not defined."
 11:9 11:12 no-undef "'arg' is not defined."
 
-=== 6655 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-input.svelte	lint.txt
+=== 6595 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-input.svelte	lint.txt
 2:1 75:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:6 3:7 no-unused-vars "'a' is defined but never used."
@@ -4450,7 +4438,6 @@
 56:1 56:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 57:1 57:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
 58:1 58:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
-59:1 59:4 no-unused-vars "'key' is defined but never used."
 59:1 59:1 svelte/indent "Expected indentation of 8 spaces but found 0 spaces."
 60:1 60:1 svelte/indent "Expected indentation of 10 spaces but found 0 spaces."
 61:1 61:2 no-undef "'O' is not defined."
@@ -4472,7 +4459,7 @@
 77:1 77:70 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
 77:1 77:70 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 
-=== 1060 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-output.svelte	lint.txt
+=== 999 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types01-output.svelte	lint.txt
 2:1 75:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:8 3:9 no-unused-vars "'a' is defined but never used."
 7:8 7:9 no-unused-vars "'b' is defined but never used."
@@ -4488,7 +4475,6 @@
 48:8 48:9 no-unused-vars "'M' is defined but never used."
 52:11 52:12 no-undef "'L' is not defined."
 54:13 54:14 no-undef "'N' is not defined."
-59:9 59:12 no-unused-vars "'key' is defined but never used."
 61:11 61:12 no-undef "'O' is not defined."
 68:13 68:14 no-undef "'P' is not defined."
 77:1 77:70 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
@@ -8110,7 +8096,7 @@
 === 502 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/state-generic-input.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:8 2:35 no-unused-vars "'element' is assigned a value but never used."
+2:8 2:15 no-unused-vars "'element' is assigned a value but never used."
 2:17 2:28 no-undef "'HTMLElement' is not defined."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:8 3:20 no-unused-vars "'stateElement' is assigned a value but never used."
@@ -8119,7 +8105,7 @@
 === 284 packages/eslint-plugin-svelte/tests/fixtures/rules/no-top-level-browser-globals/valid/ts01-input.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:26 no-unused-vars "'element' is defined but never used."
+2:6 2:13 no-unused-vars "'element' is defined but never used."
 2:15 2:26 no-undef "'HTMLElement' is not defined."
 
 === 1381 packages/eslint-plugin-svelte/tests/fixtures/rules/no-trailing-spaces/invalid/ignoreComments/test01-input.svelte	lint.txt
@@ -13225,7 +13211,7 @@
 1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 4:9 4:10 no-unused-vars "'B' is defined but never used."
 4:11 4:12 no-unused-vars "'T' is defined but never used."
-10:17 10:26 no-unused-vars "'s' is defined but never used."
+10:17 10:18 no-unused-vars "'s' is defined but never used."
 12:13 12:14 no-unused-vars "'I' is defined but never used."
 
 === 397 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/ts/test01-input.svelte	lint.txt

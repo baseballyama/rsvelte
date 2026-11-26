@@ -1009,7 +1009,7 @@
 89:1 89:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 90:1 90:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 9088 docs/src/lib/components/demo-code-tabs.svelte	lint.txt
+=== 9024 docs/src/lib/components/demo-code-tabs.svelte	lint.txt
 1:1 30:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1029,7 +1029,6 @@
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-20:20 20:33 no-unused-vars "'value' is defined but never used."
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -20880,18 +20879,16 @@
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 463 docs/src/lib/utils/copy-to-clipboard.svelte.ts	lint.txt
+=== 391 docs/src/lib/utils/copy-to-clipboard.svelte.ts	lint.txt
 11:12 11:56 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-13:23 13:49 no-unused-vars "'opts' is assigned a value but never used."
 20:41 20:50 no-undef "'navigator' is not defined."
 23:3 23:12 no-undef "'navigator' is not defined."
 30:4 30:14 no-undef "'setTimeout' is not defined."
 33:6 33:13 no-undef "'console' is not defined."
 36:31 36:42 no-undef "'HTMLElement' is not defined."
 
-=== 205 docs/src/lib/utils/use-site-config.svelte.ts	lint.txt
+=== 138 docs/src/lib/utils/use-site-config.svelte.ts	lint.txt
 33:12 33:46 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-34:23 34:49 no-unused-vars "'getProps' is defined but never used."
 
 === 362 docs/src/lib/utils/use-toc.svelte.ts	lint.txt
 52:24 52:44 no-undef "'IntersectionObserver' is not defined."
@@ -22813,9 +22810,7 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1748 packages/bits-ui/src/lib/bits/accordion/accordion.svelte.ts	lint.txt
-112:24 112:36 no-unused-vars "'item' is defined but never used."
-113:22 113:34 no-unused-vars "'item' is defined but never used."
+=== 1618 packages/bits-ui/src/lib/bits/accordion/accordion.svelte.ts	lint.txt
 115:19 124:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 189:22 189:88 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 190:24 192:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -23379,9 +23374,7 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 6909 packages/bits-ui/src/lib/bits/calendar/calendar.svelte.ts	lint.txt
-81:57 81:70 no-unused-vars "'month' is defined but never used."
-82:55 82:67 no-unused-vars "'year' is defined but never used."
+=== 6649 packages/bits-ui/src/lib/bits/calendar/calendar.svelte.ts	lint.txt
 97:27 97:85 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 231:22 237:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 239:36 241:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -23412,10 +23405,10 @@
 701:26 706:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 708:19 724:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 736:24 736:73 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-749:10 749:27 no-unused-vars "'_' is defined but never used."
+749:10 749:11 no-unused-vars "'_' is defined but never used."
 754:19 769:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 781:24 781:73 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-794:10 794:27 no-unused-vars "'_' is defined but never used."
+794:10 794:11 no-unused-vars "'_' is defined but never used."
 799:19 814:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 834:19 847:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 867:19 876:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -23423,14 +23416,12 @@
 923:19 932:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 951:19 960:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 979:19 988:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-995:57 995:70 no-unused-vars "'month' is defined but never used."
 1041:26 1041:85 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1043:24 1045:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1047:26 1057:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1059:18 1059:23 no-undef "'Event' is not defined."
 1061:34 1061:51 no-undef "'HTMLSelectElement' is not defined."
 1068:19 1080:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-1087:55 1087:67 no-unused-vars "'year' is defined but never used."
 1137:25 1137:83 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1139:24 1141:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1143:26 1151:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -23979,7 +23970,7 @@
 231:26 234:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 236:19 261:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 280:26 280:72 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-287:10 287:27 no-unused-vars "'_' is defined but never used."
+287:10 287:11 no-unused-vars "'_' is defined but never used."
 292:19 305:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
 === 2081 packages/bits-ui/src/lib/bits/checkbox/components/checkbox-group-label.svelte	lint.txt
@@ -24411,12 +24402,8 @@
 83:1 83:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 85:1 85:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 5165 packages/bits-ui/src/lib/bits/command/command.svelte.ts	lint.txt
+=== 4905 packages/bits-ui/src/lib/bits/command/command.svelte.ts	lint.txt
 59:7 59:18 no-undef "'HTMLElement' is not defined."
-67:13 67:26 no-unused-vars "'value' is defined but never used."
-67:28 67:42 no-unused-vars "'search' is defined but never used."
-67:44 67:63 no-unused-vars "'keywords' is defined but never used."
-74:21 74:50 no-unused-vars "'state' is defined but never used."
 105:13 105:30 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 106:14 106:44 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
 107:11 107:68 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
@@ -24458,8 +24445,8 @@
 1349:19 1366:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1390:29 1392:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1407:24 1409:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-1463:16 1463:35 no-unused-vars "'_' is defined but never used."
-1468:10 1468:27 no-unused-vars "'_' is defined but never used."
+1463:16 1463:17 no-unused-vars "'_' is defined but never used."
+1468:10 1468:11 no-unused-vars "'_' is defined but never used."
 1473:19 1489:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1510:19 1522:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1539:26 1541:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -25492,12 +25479,7 @@
 95:1 95:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 96:1 96:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2745 packages/bits-ui/src/lib/bits/date-field/date-field.svelte.ts	lint.txt
-82:18 82:42 no-unused-vars "'root' is defined but never used."
-83:18 83:42 no-unused-vars "'root' is defined but never used."
-87:21 87:34 no-unused-vars "'value' is defined but never used."
-87:36 87:60 no-unused-vars "'root' is defined but never used."
-88:17 93:3 no-unused-vars "'props' is defined but never used."
+=== 2429 packages/bits-ui/src/lib/bits/date-field/date-field.svelte.ts	lint.txt
 207:33 207:90 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 207:51 207:89 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 209:22 209:33 no-undef "'HTMLElement' is not defined."
@@ -25515,11 +25497,11 @@
 798:26 798:66 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 799:22 801:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 807:19 813:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-834:10 834:27 no-unused-vars "'_' is defined but never used."
+834:10 834:11 no-unused-vars "'_' is defined but never used."
 841:19 851:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-1103:13 1103:30 no-unused-vars "'_' is defined but never used."
+1103:13 1103:14 no-unused-vars "'_' is defined but never used."
 1154:19 1165:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-1301:13 1301:30 no-unused-vars "'_' is defined but never used."
+1301:13 1301:14 no-unused-vars "'_' is defined but never used."
 1481:19 1489:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1518:19 1532:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
@@ -25782,9 +25764,7 @@
 157:1 157:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 161:1 161:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 127 packages/bits-ui/src/lib/bits/date-picker/date-picker.svelte.ts	lint.txt
-38:57 38:70 no-unused-vars "'month' is defined but never used."
-39:55 39:67 no-unused-vars "'year' is defined but never used."
+=== 0 packages/bits-ui/src/lib/bits/date-picker/date-picker.svelte.ts	lint.txt
 
 === 2887 packages/bits-ui/src/lib/bits/date-range-field/components/date-range-field-input.svelte	lint.txt
 1:1 33:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -25975,13 +25955,12 @@
 143:1 143:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 144:1 144:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 779 packages/bits-ui/src/lib/bits/date-range-field/date-range-field.svelte.ts	lint.txt
+=== 713 packages/bits-ui/src/lib/bits/date-range-field/date-range-field.svelte.ts	lint.txt
 70:21 70:32 no-undef "'HTMLElement' is not defined."
 71:21 71:32 no-undef "'HTMLElement' is not defined."
 72:27 72:38 no-undef "'HTMLElement' is not defined."
 73:32 73:93 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 74:30 74:89 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-207:20 207:36 no-unused-vars "'value' is defined but never used."
 213:19 222:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 249:19 259:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
@@ -26271,9 +26250,7 @@
 222:1 222:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 223:1 223:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 127 packages/bits-ui/src/lib/bits/date-range-picker/date-range-picker.svelte.ts	lint.txt
-44:57 44:70 no-unused-vars "'month' is defined but never used."
-45:55 45:67 no-unused-vars "'year' is defined but never used."
+=== 0 packages/bits-ui/src/lib/bits/date-range-picker/date-range-picker.svelte.ts	lint.txt
 
 === 2333 packages/bits-ui/src/lib/bits/dialog/components/dialog-close.svelte	lint.txt
 1:1 29:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -27147,14 +27124,12 @@
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1033 packages/bits-ui/src/lib/bits/link-preview/link-preview.svelte.ts	lint.txt
+=== 909 packages/bits-ui/src/lib/bits/link-preview/link-preview.svelte.ts	lint.txt
 59:23 59:34 no-undef "'HTMLElement' is not defined."
 62:23 62:34 no-undef "'HTMLElement' is not defined."
-200:9 200:26 no-unused-vars "'_' is defined but never used."
+200:9 200:10 no-unused-vars "'_' is defined but never used."
 204:19 220:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-226:24 226:39 no-unused-vars "'e' is defined but never used."
 226:27 226:39 no-undef "'PointerEvent' is not defined."
-227:22 227:38 no-unused-vars "'e' is defined but never used."
 227:25 227:38 no-undef "'KeyboardEvent' is not defined."
 282:26 282:38 no-undef "'PointerEvent' is not defined."
 288:24 288:37 no-undef "'KeyboardEvent' is not defined."
@@ -28318,12 +28293,10 @@
 45:1 45:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 49:1 49:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 6347 packages/bits-ui/src/lib/bits/menu/menu.svelte.ts	lint.txt
+=== 6074 packages/bits-ui/src/lib/bits/menu/menu.svelte.ts	lint.txt
 114:21 114:32 no-undef "'HTMLElement' is not defined."
 115:21 115:32 no-undef "'HTMLElement' is not defined."
 116:27 116:38 no-undef "'HTMLElement' is not defined."
-119:17 119:43 no-unused-vars "'pointerPoint' is defined but never used."
-120:26 120:40 no-unused-vars "'value' is defined but never used."
 262:36 262:46 no-undef "'setTimeout' is not defined."
 284:31 284:43 no-undef "'PointerEvent' is not defined."
 290:32 290:44 no-undef "'PointerEvent' is not defined."
@@ -28360,22 +28333,21 @@
 738:15 738:22 no-undef "'DOMRect' is not defined."
 822:23 822:34 no-undef "'HTMLElement' is not defined."
 824:23 824:34 no-undef "'HTMLElement' is not defined."
-873:23 873:35 no-unused-vars "'event' is defined but never used."
 873:30 873:35 no-undef "'Event' is not defined."
 970:26 970:37 no-undef "'HTMLElement' is not defined."
 989:49 989:60 no-undef "'HTMLElement' is not defined."
 995:8 995:20 no-undef "'PointerEvent' is not defined."
 1005:25 1005:30 no-undef "'Event' is not defined."
 1085:20 1085:31 no-undef "'HTMLElement' is not defined."
-1106:10 1106:27 no-unused-vars "'_' is defined but never used."
+1106:10 1106:11 no-unused-vars "'_' is defined but never used."
 1129:27 1129:39 no-undef "'PointerEvent' is not defined."
 1155:26 1155:90 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1157:19 1176:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1179:25 1179:30 no-undef "'Event' is not defined."
 1240:19 1257:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1292:27 1292:38 no-undef "'CustomEvent' is not defined."
-1319:10 1319:27 no-unused-vars "'_' is defined but never used."
-1332:16 1332:35 no-unused-vars "'_' is defined but never used."
+1319:10 1319:11 no-unused-vars "'_' is defined but never used."
+1332:16 1332:17 no-unused-vars "'_' is defined but never used."
 1336:19 1343:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1448:27 1448:38 no-undef "'CustomEvent' is not defined."
 1463:19 1481:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -28396,7 +28368,6 @@
 1884:32 1884:39 no-undef "'DOMRect' is not defined."
 1903:7 1903:14 no-undef "'DOMRect' is not defined."
 1963:19 1979:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-1985:20 1985:35 no-unused-vars "'value' is defined but never used."
 2031:19 2040:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
 === 2673 packages/bits-ui/src/lib/bits/menubar/components/menubar-content-static.svelte	lint.txt
@@ -28579,7 +28550,7 @@
 46:1 46:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 47:1 47:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2232 packages/bits-ui/src/lib/bits/menubar/menubar.svelte.ts	lint.txt
+=== 1984 packages/bits-ui/src/lib/bits/menubar/menubar.svelte.ts	lint.txt
 54:25 54:76 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
 118:26 118:43 no-undef "'HTMLButtonElement' is not defined."
 135:19 143:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -28594,13 +28565,9 @@
 271:29 271:40 no-undef "'HTMLElement' is not defined."
 275:28 275:39 no-undef "'HTMLElement' is not defined."
 279:19 302:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-309:22 309:30 no-unused-vars "'e' is defined but never used."
 309:25 309:30 no-undef "'Event' is not defined."
-310:23 310:31 no-unused-vars "'e' is defined but never used."
 310:26 310:31 no-undef "'Event' is not defined."
-311:21 311:34 no-unused-vars "'e' is defined but never used."
 311:24 311:34 no-undef "'FocusEvent' is not defined."
-312:24 312:39 no-unused-vars "'e' is defined but never used."
 312:27 312:39 no-undef "'PointerEvent' is not defined."
 332:25 332:30 no-undef "'Event' is not defined."
 337:23 337:33 no-undef "'FocusEvent' is not defined."
@@ -28647,7 +28614,7 @@
 === 137 packages/bits-ui/src/lib/bits/meter/meter.svelte.ts	lint.txt
 31:19 45:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
-=== 8449 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-content-impl.svelte	lint.txt
+=== 8387 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-content-impl.svelte	lint.txt
 1:1 55:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -28678,7 +28645,6 @@
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-32:18 32:41 no-unused-vars "'ref' is defined but never used."
 32:23 32:34 no-undef "'HTMLElement' is not defined."
 33:1 33:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 34:1 34:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -29115,12 +29081,8 @@
 50:1 50:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 51:1 51:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 6169 packages/bits-ui/src/lib/bits/navigation-menu/navigation-menu.svelte.ts	lint.txt
+=== 5835 packages/bits-ui/src/lib/bits/navigation-menu/navigation-menu.svelte.ts	lint.txt
 87:27 87:38 no-undef "'HTMLElement' is not defined."
-92:19 92:36 no-unused-vars "'itemValue' is defined but never used."
-92:38 92:79 no-unused-vars "'itemState' is defined but never used."
-96:17 96:34 no-unused-vars "'itemValue' is defined but never used."
-96:36 96:77 no-unused-vars "'itemState' is defined but never used."
 105:32 105:43 no-undef "'HTMLElement' is not defined."
 106:26 106:37 no-undef "'HTMLElement' is not defined."
 242:19 252:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -29138,7 +29100,7 @@
 431:10 438:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 459:28 459:39 no-undef "'HTMLElement' is not defined."
 470:18 472:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-503:20 503:58 no-unused-vars "'_' is defined but never used."
+503:20 503:21 no-unused-vars "'_' is defined but never used."
 503:40 503:57 no-undef "'HTMLButtonElement' is not defined."
 528:29 528:46 no-undef "'HTMLButtonElement' is not defined."
 542:34 542:51 no-undef "'HTMLButtonElement' is not defined."
@@ -29146,11 +29108,10 @@
 559:49 559:60 no-undef "'HTMLElement' is not defined."
 569:19 587:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 589:29 597:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-604:15 604:23 no-unused-vars "'e' is defined but never used."
 604:18 604:23 no-undef "'Event' is not defined."
 638:31 638:48 no-undef "'HTMLAnchorElement' is not defined."
-654:13 654:30 no-unused-vars "'_' is defined but never used."
-658:12 658:29 no-unused-vars "'_' is defined but never used."
+654:13 654:14 no-unused-vars "'_' is defined but never used."
+658:12 658:13 no-unused-vars "'_' is defined but never used."
 673:38 673:55 no-undef "'HTMLAnchorElement' is not defined."
 681:19 697:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 707:23 707:82 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -29160,7 +29121,7 @@
 770:19 793:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 814:18 816:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 817:19 817:73 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-846:20 846:39 no-unused-vars "'_' is defined but never used."
+846:20 846:21 no-unused-vars "'_' is defined but never used."
 855:19 863:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 954:23 954:28 no-undef "'Event' is not defined."
 956:30 956:41 no-undef "'HTMLElement' is not defined."
@@ -29169,7 +29130,7 @@
 1017:17 1017:28 no-undef "'HTMLElement' is not defined."
 1017:69 1017:80 no-undef "'HTMLElement' is not defined."
 1021:48 1021:59 no-undef "'HTMLElement' is not defined."
-1039:21 1039:37 no-unused-vars "'_' is defined but never used."
+1039:21 1039:22 no-unused-vars "'_' is defined but never used."
 1039:24 1039:37 no-undef "'KeyboardEvent' is not defined."
 1046:19 1060:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1072:18 1072:70 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -29441,10 +29402,8 @@
 69:1 69:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 70:1 70:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2211 packages/bits-ui/src/lib/bits/pin-input/pin-input.svelte.ts	lint.txt
+=== 2020 packages/bits-ui/src/lib/bits/pin-input/pin-input.svelte.ts	lint.txt
 37:14 37:30 no-undef "'HTMLInputElement' is not defined."
-43:20 43:24 no-unused-vars "'args' is defined but never used."
-44:24 44:36 no-unused-vars "'text' is defined but never used."
 87:42 87:58 no-undef "'HTMLInputElement' is not defined."
 120:5 120:11 no-undef "'window' is not defined."
 175:31 175:45 no-undef "'ResizeObserver' is not defined."
@@ -29456,17 +29415,16 @@
 380:26 380:36 no-undef "'InputEvent' is not defined."
 380:38 380:54 no-undef "'HTMLInputElement' is not defined."
 396:52 396:57 no-undef "'Event' is not defined."
-401:13 401:48 no-unused-vars "'_' is defined but never used."
+401:13 401:14 no-unused-vars "'_' is defined but never used."
 401:31 401:47 no-undef "'HTMLInputElement' is not defined."
 413:26 413:40 no-undef "'ClipboardEvent' is not defined."
-464:17 464:34 no-unused-vars "'_' is defined but never used."
-468:18 468:35 no-unused-vars "'_' is defined but never used."
-472:12 472:29 no-unused-vars "'_' is defined but never used."
+464:17 464:18 no-unused-vars "'_' is defined but never used."
+468:18 468:19 no-unused-vars "'_' is defined but never used."
+472:12 472:13 no-unused-vars "'_' is defined but never used."
 480:24 501:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 503:20 522:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 524:26 528:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 550:19 559:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-563:38 563:42 no-unused-vars "'args' is defined but never used."
 570:32 570:45 no-undef "'CSSStyleSheet' is not defined."
 575:3 575:10 no-undef "'console' is not defined."
 
@@ -29863,23 +29821,21 @@
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 28:1 28:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1576 packages/bits-ui/src/lib/bits/popover/popover.svelte.ts	lint.txt
+=== 1452 packages/bits-ui/src/lib/bits/popover/popover.svelte.ts	lint.txt
 52:23 52:34 no-undef "'HTMLElement' is not defined."
 54:23 54:34 no-undef "'HTMLElement' is not defined."
 55:23 55:34 no-undef "'HTMLElement' is not defined."
 297:19 314:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-320:24 320:39 no-unused-vars "'e' is defined but never used."
 320:27 320:39 no-undef "'PointerEvent' is not defined."
-321:22 321:38 no-unused-vars "'e' is defined but never used."
 321:25 321:38 no-undef "'KeyboardEvent' is not defined."
 322:27 322:38 no-undef "'HTMLElement' is not defined."
-357:16 357:35 no-unused-vars "'_' is defined but never used."
+357:16 357:17 no-unused-vars "'_' is defined but never used."
 378:26 378:38 no-undef "'PointerEvent' is not defined."
 389:16 389:24 no-undef "'document' is not defined."
 396:24 396:37 no-undef "'KeyboardEvent' is not defined."
 411:26 411:84 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 413:19 432:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-459:10 459:29 no-unused-vars "'_' is defined but never used."
+459:10 459:11 no-unused-vars "'_' is defined but never used."
 469:19 479:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 503:26 503:84 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 505:19 517:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -30016,12 +29972,12 @@
 106:25 108:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 109:25 109:75 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 110:24 110:87 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-141:10 141:27 no-unused-vars "'_' is defined but never used."
-146:10 146:27 no-unused-vars "'_' is defined but never used."
+141:10 141:11 no-unused-vars "'_' is defined but never used."
+146:10 146:11 no-unused-vars "'_' is defined but never used."
 171:26 171:75 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 173:19 194:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 203:26 203:86 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-210:10 210:27 no-unused-vars "'_' is defined but never used."
+210:10 210:11 no-unused-vars "'_' is defined but never used."
 214:19 223:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
 === 2417 packages/bits-ui/src/lib/bits/range-calendar/components/range-calendar-cell.svelte	lint.txt
@@ -30226,11 +30182,7 @@
 151:1 151:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 152:1 152:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4863 packages/bits-ui/src/lib/bits/range-calendar/range-calendar.svelte.ts	lint.txt
-74:21 74:36 no-unused-vars "'date' is defined but never used."
-75:24 75:39 no-unused-vars "'date' is defined but never used."
-90:57 90:70 no-unused-vars "'month' is defined but never used."
-91:55 91:67 no-unused-vars "'year' is defined but never used."
+=== 4544 packages/bits-ui/src/lib/bits/range-calendar/range-calendar.svelte.ts	lint.txt
 103:27 103:85 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 119:22 125:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 156:34 162:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -30238,7 +30190,6 @@
 182:31 184:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 210:36 212:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 214:26 220:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-414:20 414:36 no-unused-vars "'value' is defined but never used."
 513:19 513:30 no-undef "'HTMLElement' is not defined."
 544:21 544:26 no-undef "'Event' is not defined."
 678:26 681:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -30263,8 +30214,8 @@
 807:29 829:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 831:19 842:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 866:23 873:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-880:15 880:32 no-unused-vars "'_' is defined but never used."
-885:12 885:29 no-unused-vars "'_' is defined but never used."
+880:15 880:16 no-unused-vars "'_' is defined but never used."
+885:12 885:13 no-unused-vars "'_' is defined but never used."
 890:26 895:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 897:19 915:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
@@ -30712,7 +30663,7 @@
 38:1 38:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 39:1 39:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4511 packages/bits-ui/src/lib/bits/scroll-area/scroll-area.svelte.ts	lint.txt
+=== 4028 packages/bits-ui/src/lib/bits/scroll-area/scroll-area.svelte.ts	lint.txt
 71:26 71:37 no-undef "'HTMLElement' is not defined."
 72:24 72:35 no-undef "'HTMLElement' is not defined."
 73:23 73:34 no-undef "'HTMLElement' is not defined."
@@ -30725,18 +30676,14 @@
 172:26 172:91 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 242:19 247:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 274:22 274:80 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-318:17 318:36 no-unused-vars "'_' is defined but never used."
-322:17 322:36 no-unused-vars "'_' is defined but never used."
+318:17 318:18 no-unused-vars "'_' is defined but never used."
+322:17 322:18 no-unused-vars "'_' is defined but never used."
 326:19 333:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 360:19 365:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 376:21 376:32 no-undef "'HTMLElement' is not defined."
 383:24 383:97 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 384:22 384:92 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-478:23 478:59 no-unused-vars "'pointerPos' is defined but never used."
-479:17 479:53 no-unused-vars "'pointerPos' is defined but never used."
-480:18 480:31 no-unused-vars "'e' is defined but never used."
 480:21 480:31 no-undef "'WheelEvent' is not defined."
-480:33 480:53 no-unused-vars "'maxScrollPos' is defined but never used."
 502:25 502:44 no-undef "'CSSStyleDeclaration' is not defined."
 514:26 514:42 no-undef "'getComputedStyle' is not defined."
 541:22 541:32 no-undef "'WheelEvent' is not defined."
@@ -30748,20 +30695,17 @@
 672:23 674:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 676:19 690:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 705:20 705:27 no-undef "'DOMRect' is not defined."
-709:22 709:35 no-unused-vars "'e' is defined but never used."
 709:25 709:35 no-undef "'WheelEvent' is not defined."
-709:37 709:57 no-unused-vars "'maxScrollPos' is defined but never used."
-710:27 710:63 no-unused-vars "'pointerPos' is defined but never used."
 712:26 714:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 732:28 732:38 no-undef "'WheelEvent' is not defined."
 733:30 733:41 no-undef "'HTMLElement' is not defined."
 764:22 764:34 no-undef "'PointerEvent' is not defined."
 780:30 780:41 no-undef "'HTMLElement' is not defined."
 796:30 796:41 no-undef "'HTMLElement' is not defined."
-803:23 803:42 no-unused-vars "'_' is defined but never used."
+803:23 803:24 no-unused-vars "'_' is defined but never used."
 807:19 820:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 881:29 881:40 no-undef "'HTMLElement' is not defined."
-889:14 889:33 no-unused-vars "'_' is defined but never used."
+889:14 889:15 no-unused-vars "'_' is defined but never used."
 893:19 908:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 949:19 961:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1043:42 1043:53 no-undef "'HTMLElement' is not defined."
@@ -31313,7 +31257,7 @@
 91:73 91:87 svelte/max-attributes-per-line "'autocomplete' should be on a new line."
 91:73 91:87 svelte/sort-attributes "Attribute 'autocomplete' should go before 'bind:value'."
 
-=== 4957 packages/bits-ui/src/lib/bits/select/select.svelte.ts	lint.txt
+=== 4766 packages/bits-ui/src/lib/bits/select/select.svelte.ts	lint.txt
 99:21 99:32 no-undef "'HTMLElement' is not defined."
 100:23 100:34 no-undef "'HTMLElement' is not defined."
 102:24 102:35 no-undef "'HTMLElement' is not defined."
@@ -31333,17 +31277,15 @@
 637:30 637:46 no-undef "'HTMLInputElement' is not defined."
 642:19 658:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 703:19 716:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-777:21 777:36 no-unused-vars "'_' is defined but never used."
+777:21 777:22 no-unused-vars "'_' is defined but never used."
 777:24 777:36 no-undef "'PointerEvent' is not defined."
 877:18 877:29 no-undef "'HTMLElement' is not defined."
 924:41 924:52 no-undef "'HTMLElement' is not defined."
 934:30 934:41 no-undef "'HTMLElement' is not defined."
 962:19 980:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-986:24 986:39 no-unused-vars "'e' is defined but never used."
 986:27 986:39 no-undef "'PointerEvent' is not defined."
-987:22 987:38 no-unused-vars "'e' is defined but never used."
 987:25 987:38 no-undef "'KeyboardEvent' is not defined."
-1033:16 1033:35 no-unused-vars "'_' is defined but never used."
+1033:16 1033:17 no-unused-vars "'_' is defined but never used."
 1037:21 1039:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1041:26 1041:38 no-undef "'PointerEvent' is not defined."
 1051:24 1051:37 no-undef "'KeyboardEvent' is not defined."
@@ -31361,9 +31303,8 @@
 1331:26 1331:79 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1349:19 1358:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1382:19 1398:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-1404:12 1404:24 no-unused-vars "'tick' is defined but never used."
-1456:16 1456:35 no-unused-vars "'_' is defined but never used."
-1475:17 1475:36 no-unused-vars "'_' is defined but never used."
+1456:16 1456:17 no-unused-vars "'_' is defined but never used."
+1475:17 1475:18 no-unused-vars "'_' is defined but never used."
 1479:19 1492:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1541:6 1541:18 no-undef "'clearTimeout' is not defined."
 1561:38 1561:54 no-undef "'getComputedStyle' is not defined."
@@ -31667,7 +31608,7 @@
 
 === 2454 packages/bits-ui/src/lib/bits/slider/slider.svelte.ts	lint.txt
 78:29 80:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-94:16 94:30 no-unused-vars "'_index' is defined but never used."
+94:16 94:22 no-unused-vars "'_index' is defined but never used."
 106:43 106:54 no-undef "'HTMLElement' is not defined."
 157:19 169:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 248:26 248:38 no-undef "'PointerEvent' is not defined."
@@ -31772,7 +31713,7 @@
 53:1 53:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 1028 packages/bits-ui/src/lib/bits/switch/switch.svelte.ts	lint.txt
-62:10 62:29 no-unused-vars "'_' is defined but never used."
+62:10 62:11 no-unused-vars "'_' is defined but never used."
 67:25 71:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 73:26 75:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 77:19 92:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -31921,8 +31862,8 @@
 146:23 148:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 149:25 151:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 152:27 154:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-182:10 182:27 no-unused-vars "'_' is defined but never used."
-187:10 187:27 no-unused-vars "'_' is defined but never used."
+182:10 182:11 no-unused-vars "'_' is defined but never used."
+187:10 187:11 no-unused-vars "'_' is defined but never used."
 202:19 222:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 238:23 240:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 241:29 243:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -32107,9 +32048,7 @@
 91:1 91:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 92:1 92:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2575 packages/bits-ui/src/lib/bits/time-field/time-field.svelte.ts	lint.txt
-79:18 79:42 no-unused-vars "'root' is defined but never used."
-80:18 80:42 no-unused-vars "'root' is defined but never used."
+=== 2449 packages/bits-ui/src/lib/bits/time-field/time-field.svelte.ts	lint.txt
 179:33 179:90 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 179:51 179:89 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Set class. Use SvelteSet instead."
 181:22 181:33 no-undef "'HTMLElement' is not defined."
@@ -32127,9 +32066,9 @@
 690:26 690:66 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 691:22 693:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 699:19 706:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-726:10 726:27 no-unused-vars "'_' is defined but never used."
+726:10 726:11 no-unused-vars "'_' is defined but never used."
 733:19 743:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-977:13 977:30 no-unused-vars "'_' is defined but never used."
+977:13 977:14 no-unused-vars "'_' is defined but never used."
 1028:10 1039:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1208:19 1216:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 1239:19 1254:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -32323,13 +32262,12 @@
 143:1 143:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 144:1 144:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 779 packages/bits-ui/src/lib/bits/time-range-field/time-range-field.svelte.ts	lint.txt
+=== 713 packages/bits-ui/src/lib/bits/time-range-field/time-range-field.svelte.ts	lint.txt
 77:21 77:32 no-undef "'HTMLElement' is not defined."
 78:21 78:32 no-undef "'HTMLElement' is not defined."
 79:27 79:38 no-undef "'HTMLElement' is not defined."
 80:32 80:93 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 81:30 81:89 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-230:20 230:39 no-unused-vars "'value' is defined but never used."
 236:10 245:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 271:19 281:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
@@ -32436,7 +32374,7 @@
 177:23 177:89 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 179:26 181:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 183:26 185:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-208:10 208:27 no-unused-vars "'_' is defined but never used."
+208:10 208:11 no-unused-vars "'_' is defined but never used."
 227:26 229:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 231:19 250:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
@@ -32481,7 +32419,7 @@
 46:1 46:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
 === 334 packages/bits-ui/src/lib/bits/toggle/toggle.svelte.ts	lint.txt
-37:10 37:27 no-unused-vars "'_' is defined but never used."
+37:10 37:11 no-unused-vars "'_' is defined but never used."
 42:26 44:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 46:19 58:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
@@ -32670,7 +32608,7 @@
 111:24 111:73 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 143:24 143:77 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 209:25 211:3 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
-232:10 232:27 no-unused-vars "'_' is defined but never used."
+232:10 232:11 no-unused-vars "'_' is defined but never used."
 248:23 248:90 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 250:26 252:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 254:26 256:4 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -33058,7 +32996,7 @@
 54:1 54:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 55:1 55:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2893 packages/bits-ui/src/lib/bits/tooltip/tooltip.svelte.ts	lint.txt
+=== 2769 packages/bits-ui/src/lib/bits/tooltip/tooltip.svelte.ts	lint.txt
 33:8 33:19 no-undef "'HTMLElement' is not defined."
 53:16 53:38 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
 60:16 60:38 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
@@ -33085,9 +33023,7 @@
 726:30 726:41 no-undef "'HTMLElement' is not defined."
 742:29 742:40 no-undef "'HTMLElement' is not defined."
 748:30 748:41 no-undef "'HTMLElement' is not defined."
-786:24 786:39 no-unused-vars "'e' is defined but never used."
 786:27 786:39 no-undef "'PointerEvent' is not defined."
-787:22 787:38 no-unused-vars "'e' is defined but never used."
 787:25 787:38 no-undef "'KeyboardEvent' is not defined."
 811:18 811:29 no-undef "'HTMLElement' is not defined."
 828:26 828:38 no-undef "'PointerEvent' is not defined."
@@ -33393,10 +33329,8 @@
 23:3 23:6 svelte/valid-compile "This reference only captures the initial value of `ref`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1148 packages/bits-ui/src/lib/bits/utilities/focus-scope/focus-scope.svelte.ts	lint.txt
-9:21 9:33 no-unused-vars "'event' is defined but never used."
+=== 1022 packages/bits-ui/src/lib/bits/utilities/focus-scope/focus-scope.svelte.ts	lint.txt
 9:28 9:33 no-undef "'Event' is not defined."
-10:22 10:34 no-unused-vars "'event' is defined but never used."
 10:29 10:34 no-undef "'Event' is not defined."
 20:9 20:20 no-undef "'HTMLElement' is not defined."
 25:14 25:25 no-undef "'HTMLElement' is not defined."
@@ -33439,15 +33373,15 @@
 24:20 24:36 svelte/max-attributes-per-line "'{...mergedProps}' should be on a new line."
 
 === 379 packages/bits-ui/src/lib/bits/utilities/is-using-keyboard/is-using-keyboard.svelte.ts	lint.txt
-22:29 22:44 no-unused-vars "'_' is defined but never used."
+22:29 22:30 no-unused-vars "'_' is defined but never used."
 22:32 22:44 no-undef "'PointerEvent' is not defined."
-26:29 26:45 no-unused-vars "'_' is defined but never used."
+26:29 26:30 no-unused-vars "'_' is defined but never used."
 26:32 26:45 no-undef "'KeyboardEvent' is not defined."
 31:10 31:18 no-undef "'document' is not defined."
 34:10 34:18 no-undef "'document' is not defined."
 37:10 37:18 no-undef "'document' is not defined."
 
-=== 1312 packages/bits-ui/src/lib/bits/utilities/mounted.svelte	lint.txt
+=== 1248 packages/bits-ui/src/lib/bits/utilities/mounted.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -33455,7 +33389,6 @@
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:45 8:61 no-unused-vars "'mounted' is defined but never used."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -34052,16 +33985,14 @@
 165:5 165:13 no-undef "'document' is not defined."
 245:14 245:15 no-unused-vars "'_' is assigned a value but never used."
 
-=== 108 packages/bits-ui/src/lib/internal/box-auto-reset.svelte.ts	lint.txt
-6:14 6:22 no-unused-vars "'value' is defined but never used."
+=== 46 packages/bits-ui/src/lib/internal/box-auto-reset.svelte.ts	lint.txt
 7:19 7:25 no-undef "'Window' is not defined."
 
-=== 248 packages/bits-ui/src/lib/internal/data-typeahead.svelte.ts	lint.txt
-6:12 6:25 no-unused-vars "'value' is defined but never used."
+=== 186 packages/bits-ui/src/lib/internal/data-typeahead.svelte.ts	lint.txt
 10:19 10:25 no-undef "'Window' is not defined."
 15:30 15:77 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 
-=== 1517 packages/bits-ui/src/lib/internal/date-time/calendar-helpers.svelte.ts	lint.txt
+=== 991 packages/bits-ui/src/lib/internal/date-time/calendar-helpers.svelte.ts	lint.txt
 40:59 40:70 no-undef "'HTMLElement' is not defined."
 194:50 194:61 no-undef "'HTMLElement' is not defined."
 199:15 199:26 no-undef "'HTMLElement' is not defined."
@@ -34069,17 +34000,9 @@
 222:8 222:19 no-undef "'HTMLElement' is not defined."
 237:16 237:27 no-undef "'HTMLElement' is not defined."
 366:9 366:22 no-undef "'KeyboardEvent' is not defined."
-367:20 367:32 no-unused-vars "'event' is defined but never used."
 367:27 367:32 no-undef "'Event' is not defined."
-367:34 367:49 no-unused-vars "'date' is defined but never used."
-368:15 368:32 no-unused-vars "'node' is defined but never used."
 368:21 368:32 no-undef "'HTMLElement' is not defined."
-368:34 368:45 no-unused-vars "'add' is defined but never used."
-414:14 414:40 no-unused-vars "'months' is defined but never used."
-420:19 420:34 no-unused-vars "'date' is defined but never used."
-507:14 507:40 no-unused-vars "'months' is defined but never used."
 537:16 537:27 no-undef "'HTMLElement' is not defined."
-588:14 588:40 no-unused-vars "'months' is defined but never used."
 747:36 747:41 no-undef "'Event' is not defined."
 748:38 748:49 no-undef "'HTMLElement' is not defined."
 749:40 749:51 no-undef "'HTMLElement' is not defined."
@@ -34088,13 +34011,11 @@
 782:19 782:30 no-undef "'HTMLElement' is not defined."
 866:22 866:32 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
 
-=== 482 packages/bits-ui/src/lib/internal/dom-typeahead.svelte.ts	lint.txt
-6:13 6:30 no-unused-vars "'item' is defined but never used."
+=== 358 packages/bits-ui/src/lib/internal/dom-typeahead.svelte.ts	lint.txt
 6:19 6:30 no-undef "'HTMLElement' is not defined."
 7:25 7:36 no-undef "'HTMLElement' is not defined."
 8:26 8:37 no-undef "'HTMLElement' is not defined."
 9:19 9:25 no-undef "'Window' is not defined."
-15:13 15:30 no-unused-vars "'item' is defined but never used."
 15:19 15:30 no-undef "'HTMLElement' is not defined."
 19:25 19:36 no-undef "'HTMLElement' is not defined."
 35:49 35:60 no-undef "'HTMLElement' is not defined."
@@ -34109,10 +34030,9 @@
 213:24 213:31 no-undef "'Element' is not defined."
 215:22 215:33 no-undef "'HTMLElement' is not defined."
 
-=== 541 packages/bits-ui/src/lib/internal/grace-area.svelte.ts	lint.txt
+=== 477 packages/bits-ui/src/lib/internal/grace-area.svelte.ts	lint.txt
 16:22 16:33 no-undef "'HTMLElement' is not defined."
 17:22 17:33 no-undef "'HTMLElement' is not defined."
-19:27 19:41 no-unused-vars "'value' is defined but never used."
 45:36 45:48 no-undef "'PointerEvent' is not defined."
 49:36 49:48 no-undef "'PointerEvent' is not defined."
 63:41 63:53 no-undef "'PointerEvent' is not defined."
@@ -34171,7 +34091,7 @@
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4960 tests/src/tests/accordion/accordion-hidden-until-found-test.svelte	lint.txt
+=== 4900 tests/src/tests/accordion/accordion-hidden-until-found-test.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -34191,7 +34111,6 @@
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-21:20 21:29 no-unused-vars "'v' is defined but never used."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 27:1 27:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -34232,7 +34151,7 @@
 50:18 51:2 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 51:1 51:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4922 tests/src/tests/accordion/accordion-multi-hidden-until-found-test.svelte	lint.txt
+=== 4862 tests/src/tests/accordion/accordion-multi-hidden-until-found-test.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -34252,7 +34171,6 @@
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-21:20 21:31 no-unused-vars "'v' is defined but never used."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 27:1 27:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -34292,7 +34210,7 @@
 49:91 50:2 svelte/html-closing-bracket-new-line "Expected no line breaks before closing bracket, but 1 line break found."
 50:1 50:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2987 tests/src/tests/accordion/accordion-multi-test.svelte	lint.txt
+=== 2927 tests/src/tests/accordion/accordion-multi-test.svelte	lint.txt
 1:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -34307,7 +34225,6 @@
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-16:20 16:31 no-unused-vars "'v' is defined but never used."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 22:33 22:40 svelte/max-attributes-per-line "'value' should be on a new line."
@@ -34951,7 +34868,7 @@
 82:1 82:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 83:1 83:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 6397 tests/src/tests/checkbox/checkbox-group-test.svelte	lint.txt
+=== 6272 tests/src/tests/checkbox/checkbox-group-test.svelte	lint.txt
 1:1 28:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -34971,10 +34888,8 @@
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-22:19 22:31 no-unused-vars "'fd' is defined but never used."
 22:23 22:31 no-undef "'FormData' is not defined."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-23:15 23:30 no-unused-vars "'value' is defined but never used."
 24:1 24:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 25:1 25:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 27:1 27:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -35031,7 +34946,7 @@
 82:1 82:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 83:1 83:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3005 tests/src/tests/checkbox/checkbox-test.svelte	lint.txt
+=== 2946 tests/src/tests/checkbox/checkbox-test.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -35040,7 +34955,6 @@
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-9:19 9:31 no-unused-vars "'fd' is defined but never used."
 9:23 9:31 no-undef "'FormData' is not defined."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -35294,7 +35208,7 @@
 129:34 129:52 svelte/max-attributes-per-line "'id' should be on a new line."
 129:34 129:52 svelte/sort-attributes "Attribute 'id' should go before 'data-testid'."
 
-=== 12078 tests/src/tests/combobox/combobox-multi-test.svelte	lint.txt
+=== 12017 tests/src/tests/combobox/combobox-multi-test.svelte	lint.txt
 1:1 26:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -35318,7 +35232,6 @@
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 24:1 24:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-24:19 24:31 no-unused-vars "'fd' is defined but never used."
 24:23 24:31 no-undef "'FormData' is not defined."
 25:1 25:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 28:1 47:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -39256,7 +39169,7 @@
 111:34 111:52 svelte/max-attributes-per-line "'id' should be on a new line."
 111:34 111:52 svelte/sort-attributes "Attribute 'id' should go before 'data-testid'."
 
-=== 9994 tests/src/tests/select/select-multi-test.svelte	lint.txt
+=== 9869 tests/src/tests/select/select-multi-test.svelte	lint.txt
 1:1 24:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -39277,9 +39190,7 @@
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-21:28 21:41 no-unused-vars "'value' is defined but never used."
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-22:19 22:31 no-unused-vars "'fd' is defined but never used."
 22:23 22:31 no-undef "'FormData' is not defined."
 23:1 23:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 56:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

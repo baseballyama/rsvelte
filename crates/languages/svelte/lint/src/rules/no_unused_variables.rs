@@ -19,7 +19,8 @@ use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
 #[cfg(test)]
 mod tests;
 
-/// `ESLint`'s core rule over a component; `typescript.lint` owns it for modules.
+/// typescript-eslint's rule over a component, which oxlint's rule of this name follows;
+/// `typescript.lint` owns it for modules.
 pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "no-unused-vars",
     files: Files::Components,
@@ -36,9 +37,9 @@ impl SvelteRule for NoUnusedVariables {
     }
 }
 
-/// The core rule, without the names `svelte-eslint-parser` marks used: `$bindable()` props,
-/// names a re-export lists, subscribed stores, snippets passed to a component, and one of two
-/// top-level names the scripts share. Its reads include the scripts' references to top-level
+/// typescript-eslint's rule, without the names `svelte-eslint-parser` marks used: `$bindable()`
+/// props, names a re-export lists, subscribed stores, snippets passed to a component, and one of
+/// two top-level names the scripts share. Its reads include the scripts' references to top-level
 /// snippets.
 fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let mut skipped = FxHashSet::default();
@@ -57,7 +58,7 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     let defaulted_lets = std::cell::OnceCell::new();
     rsvelte_typescript_lint::no_unused_variables(
         file.semantic(),
-        rsvelte_typescript_lint::Dialect::Core,
+        rsvelte_typescript_lint::Dialect::TypeScriptEslint,
         |symbol| !skipped.contains(&symbol),
         |symbol| reads.get(&symbol).map_or(&[], Vec::as_slice),
         |symbol| bodies.get(&symbol).copied(),

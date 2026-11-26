@@ -58,9 +58,8 @@
 42:1 42:79 svelte/no-unused-class-name "Unused class \"maplibregl-ctrl\"."
 42:21 42:39 svelte/max-attributes-per-line "'class' should be on a new line."
 
-=== 836 src/lib/ControlButton.svelte	lint.txt
+=== 776 src/lib/ControlButton.svelte	lint.txt
 1:1 25:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-14:16 14:29 no-unused-vars "'e' is defined but never used."
 14:19 14:29 no-undef "'MouseEvent' is not defined."
 27:23 27:30 svelte/max-attributes-per-line "'title' should be on a new line."
 27:23 27:30 svelte/sort-attributes "Attribute 'title' should go before 'type'."
@@ -74,25 +73,18 @@
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 12:1 12:49 svelte/no-unused-class-name "Unused class \"maplibregl-ctrl-group\"."
 
-=== 659 src/lib/DeckGlLayer.svelte	lint.txt
+=== 479 src/lib/DeckGlLayer.svelte	lint.txt
 1:1 152:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:34 svelte/max-attributes-per-line "'generics=\"DATA\"' should be on a new line."
 1:19 1:34 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
-29:16 29:36 no-unused-vars "'e' is defined but never used."
-30:20 30:40 no-unused-vars "'e' is defined but never used."
-31:21 31:41 no-unused-vars "'e' is defined but never used."
 65:19 65:21 svelte/valid-compile "This reference only captures the initial value of `id`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
-=== 868 src/lib/DefaultMarker.svelte	lint.txt
+=== 626 src/lib/DefaultMarker.svelte	lint.txt
 1:1 165:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:60 svelte/max-attributes-per-line "'generics=\"DATA extends Feature = Feature\"' should be on a new line."
 1:19 1:60 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
-30:15 30:51 no-unused-vars "'e' is defined but never used."
-31:20 31:56 no-unused-vars "'e' is defined but never used."
-32:18 32:54 no-unused-vars "'e' is defined but never used."
 95:7 95:16 svelte/prefer-const "'lngLatBox' is never reassigned. Use 'const' instead."
 115:9 115:15 svelte/prefer-const "'newPos' is never reassigned. Use 'const' instead."
-131:16 131:52 no-unused-vars "'e' is defined but never used."
 134:9 134:12 svelte/prefer-const "'loc' is never reassigned. Use 'const' instead."
 140:9 140:48 svelte/prefer-const "'data' is never reassigned. Use 'const' instead."
 
@@ -221,7 +213,7 @@
 161:9 161:17 svelte/prefer-const "'features' is never reassigned. Use 'const' instead."
 163:9 163:18 svelte/prefer-const "'clusterId' is never reassigned. Use 'const' instead."
 165:9 165:18 svelte/prefer-const "'featureId' is never reassigned. Use 'const' instead."
-192:29 192:45 no-unused-vars "'e' is defined but never used."
+192:29 192:30 no-unused-vars "'e' is defined but never used."
 247:13 247:19 svelte/prefer-const "'layers' is never reassigned. Use 'const' instead."
 248:13 248:22 svelte/prefer-const "'layerFunc' is never reassigned. Use 'const' instead."
 252:13 252:24 svelte/prefer-const "'beforeLayer' is never reassigned. Use 'const' instead."
@@ -264,49 +256,14 @@
 61:3 61:16 svelte/sort-attributes "Attribute 'onmousemove' should go before 'type'."
 62:3 62:17 svelte/sort-attributes "Attribute 'onmouseleave' should go before 'type'."
 
-=== 991 src/lib/MapEvents.svelte	lint.txt
+=== 91 src/lib/MapEvents.svelte	lint.txt
 1:1 110:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-12:16 12:43 no-unused-vars "'e' is defined but never used."
-13:19 13:46 no-unused-vars "'e' is defined but never used."
-14:22 14:49 no-unused-vars "'e' is defined but never used."
-15:20 15:35 no-unused-vars "'e' is defined but never used."
-16:20 16:35 no-unused-vars "'e' is defined but never used."
-17:18 17:33 no-unused-vars "'e' is defined but never used."
-18:20 18:50 no-unused-vars "'e' is defined but never used."
-19:15 19:45 no-unused-vars "'e' is defined but never used."
-20:18 20:48 no-unused-vars "'e' is defined but never used."
-21:16 21:46 no-unused-vars "'e' is defined but never used."
-22:17 22:47 no-unused-vars "'e' is defined but never used."
-23:16 23:43 no-unused-vars "'e' is defined but never used."
-24:15 24:78 no-unused-vars "'e' is defined but never used."
-25:20 25:51 no-unused-vars "'e' is defined but never used."
-26:15 26:42 no-unused-vars "'e' is defined but never used."
 
-=== 3103 src/lib/MapLibre.svelte	lint.txt
+=== 1855 src/lib/MapLibre.svelte	lint.txt
 1:1 524:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 33:20 33:34 no-undef "'HTMLDivElement' is not defined."
-62:19 62:27 no-unused-vars "'url' is defined but never used."
 62:24 62:27 no-undef "'URL' is not defined."
-89:22 89:58 no-unused-vars "'layer' is defined but never used."
-103:15 103:34 no-unused-vars "'map' is defined but never used."
-104:16 104:42 no-unused-vars "'error' is defined but never used."
 104:31 104:41 no-undef "'ErrorEvent' is not defined."
-105:16 105:43 no-unused-vars "'e' is defined but never used."
-106:19 106:46 no-unused-vars "'e' is defined but never used."
-107:20 107:47 no-unused-vars "'e' is defined but never used."
-108:22 108:49 no-unused-vars "'e' is defined but never used."
-109:20 109:35 no-unused-vars "'e' is defined but never used."
-110:18 110:33 no-unused-vars "'e' is defined but never used."
-111:20 111:50 no-unused-vars "'e' is defined but never used."
-112:15 112:45 no-unused-vars "'e' is defined but never used."
-113:18 113:48 no-unused-vars "'e' is defined but never used."
-114:16 114:46 no-unused-vars "'e' is defined but never used."
-115:17 115:47 no-unused-vars "'e' is defined but never used."
-116:16 116:43 no-unused-vars "'e' is defined but never used."
-117:15 117:78 no-unused-vars "'e' is defined but never used."
-118:20 118:37 no-unused-vars "'e' is defined but never used."
-119:20 119:51 no-unused-vars "'e' is defined but never used."
-120:15 120:42 no-unused-vars "'e' is defined but never used."
 140:7 140:13 no-undef "'window' is not defined."
 140:35 140:41 no-undef "'window' is not defined."
 206:13 206:22 svelte/prefer-const "'imageData' is never reassigned. Use 'const' instead."
@@ -328,19 +285,10 @@
 533:3 533:30 svelte/sort-attributes "Attribute 'data-testid' should go before 'use:createMap'."
 540:9 540:64 svelte/sort-attributes "Attribute 'fitBoundsOptions' should go before 'position'."
 
-=== 2359 src/lib/Marker.svelte	lint.txt
+=== 1819 src/lib/Marker.svelte	lint.txt
 1:1 241:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:63 svelte/max-attributes-per-line "'generics=\"FEATURE extends Feature = Feature\"' should be on a new line."
 1:19 1:63 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
-39:15 39:57 no-unused-vars "'e' is defined but never used."
-40:20 40:62 no-unused-vars "'e' is defined but never used."
-41:18 41:60 no-unused-vars "'e' is defined but never used."
-42:16 42:58 no-unused-vars "'e' is defined but never used."
-43:19 43:61 no-unused-vars "'e' is defined but never used."
-44:22 44:64 no-unused-vars "'e' is defined but never used."
-45:21 45:63 no-unused-vars "'e' is defined but never used."
-46:21 46:63 no-unused-vars "'e' is defined but never used."
-47:20 47:62 no-unused-vars "'e' is defined but never used."
 70:27 70:41 no-undef "'HTMLDivElement' is not defined."
 117:32 117:46 no-undef "'HTMLDivElement' is not defined."
 146:7 146:16 svelte/prefer-const "'lngLatBox' is never reassigned. Use 'const' instead."
@@ -360,18 +308,10 @@
 269:3 269:45 svelte/sort-attributes "Attribute 'onmousemove' should go before 'use:addMarker'."
 270:3 270:28 svelte/sort-attributes "Attribute 'onkeydown' should go before 'use:addMarker'."
 
-=== 2782 src/lib/MarkerLayer.svelte	lint.txt
+=== 2290 src/lib/MarkerLayer.svelte	lint.txt
 1:1 222:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:63 svelte/max-attributes-per-line "'generics=\"FEATURE extends Feature = Feature\"' should be on a new line."
 1:19 1:63 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
-33:21 33:37 no-unused-vars "'feature' is defined but never used."
-44:25 44:41 no-unused-vars "'feature' is defined but never used."
-48:16 48:42 no-unused-vars "'e' is defined but never used."
-49:19 49:45 no-unused-vars "'e' is defined but never used."
-50:22 50:48 no-unused-vars "'e' is defined but never used."
-51:15 51:41 no-unused-vars "'e' is defined but never used."
-52:20 52:46 no-unused-vars "'e' is defined but never used."
-53:18 53:44 no-unused-vars "'e' is defined but never used."
 179:9 179:20 svelte/prefer-const "'featureList' is never reassigned. Use 'const' instead."
 184:9 184:19 svelte/prefer-const "'featureMap' is never reassigned. Use 'const' instead."
 184:22 184:72 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
@@ -398,14 +338,11 @@
 === 90 src/lib/NavigationControl.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 2042 src/lib/Popup.svelte	lint.txt
+=== 1847 src/lib/Popup.svelte	lint.txt
 1:1 416:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:44 svelte/max-attributes-per-line "'generics=\"DATA = Feature\"' should be on a new line."
 1:19 1:44 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
 5:23 5:30 no-unused-vars "'onMount' is defined but never used."
-59:16 59:49 no-unused-vars "'features' is defined but never used."
-61:15 61:38 no-unused-vars "'popup' is defined but never used."
-62:16 62:39 no-unused-vars "'popup' is defined but never used."
 87:7 87:22 svelte/prefer-const "'inheritedLngLat' is never reassigned. Use 'const' instead."
 99:21 99:32 no-undef "'HTMLElement' is not defined."
 105:9 105:11 svelte/prefer-const "'el' is never reassigned. Use 'const' instead."
@@ -414,7 +351,7 @@
 134:5 142:6 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
 226:5 226:15 no-undef "'setTimeout' is not defined."
 239:9 239:17 svelte/prefer-const "'distance' is never reassigned. Use 'const' instead."
-255:34 255:55 no-unused-vars "'e' is defined but never used."
+255:34 255:35 no-unused-vars "'e' is defined but never used."
 290:9 290:22 svelte/prefer-const "'checkElements' is never reassigned. Use 'const' instead."
 298:74 298:78 no-undef "'Node' is not defined."
 319:16 319:30 no-undef "'HTMLDivElement' is not defined."
@@ -487,10 +424,8 @@
 === 90 src/lib/TerrainControl.svelte	lint.txt
 1:1 29:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
-=== 1019 src/lib/TopoJSON.svelte	lint.txt
+=== 892 src/lib/TopoJSON.svelte	lint.txt
 1:1 124:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-35:15 35:36 no-unused-vars "'fc' is defined but never used."
-37:16 37:31 no-unused-vars "'message' is defined but never used."
 78:19 78:26 no-undef "'console' is not defined."
 84:7 84:14 no-undef "'console' is not defined."
 103:28 103:43 no-undef "'AbortController' is not defined."
@@ -515,15 +450,13 @@
 19:34 19:41 svelte/valid-compile "This reference only captures the initial value of `minzoom`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 19:43 19:50 svelte/valid-compile "This reference only captures the initial value of `maxzoom`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 
-=== 638 src/lib/context.svelte.ts	lint.txt
+=== 508 src/lib/context.svelte.ts	lint.txt
 37:15 37:43 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
 39:38 39:43 no-undef "'Event' is not defined."
 41:9 41:11 svelte/prefer-const "'id' is never reassigned. Use 'const' instead."
 46:9 46:17 svelte/prefer-const "'features' is never reassigned. Use 'const' instead."
 47:9 47:14 svelte/prefer-const "'topId' is never reassigned. Use 'const' instead."
-54:18 54:38 no-unused-vars "'event' is defined but never used."
 226:7 226:18 svelte/prefer-const "'currentZoom' is never reassigned. Use 'const' instead."
-246:29 246:51 no-unused-vars "'event' is defined but never used."
 
 === 2187 src/routes/+layout.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1417,7 +1350,7 @@
 
 === 377 src/routes/tests/standalone-popup/+page.svelte	lint.txt
 1:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-7:9 7:44 no-unused-vars "'features' is assigned a value but never used."
+7:9 7:17 no-unused-vars "'features' is assigned a value but never used."
 7:19 7:26 no-undef "'GeoJSON' is not defined."
 29:3 29:19 svelte/sort-attributes "Attribute 'standardControls' should go before 'zoom'."
 31:26 31:30 svelte/max-attributes-per-line "'open' should be on a new line."

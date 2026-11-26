@@ -84,7 +84,7 @@
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 21:2 21:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 4738 src/lib/components/ToastWrapper.svelte	lint.txt
+=== 4673 src/lib/components/ToastWrapper.svelte	lint.txt
 1:1 32:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -94,7 +94,6 @@
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-11:15 11:29 no-unused-vars "'height' is defined but never used."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

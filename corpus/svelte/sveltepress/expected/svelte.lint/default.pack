@@ -178,11 +178,10 @@
 67:5 67:26 svelte/sort-attributes "Attribute 'bind:this' should go before 'class'."
 72:3 72:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 7861 packages/theme-blog/src/components/GlobalLayout.svelte	lint.txt
+=== 7800 packages/theme-blog/src/components/GlobalLayout.svelte	lint.txt
 2:1 121:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 42:7 42:15 no-undef "'document' is not defined."
 42:19 42:27 no-undef "'Document' is not defined."
-43:32 43:62 no-unused-vars "'cb' is defined but never used."
 49:9 49:15 no-undef "'window' is not defined."
 50:18 50:26 no-undef "'document' is not defined."
 54:37 54:45 no-undef "'document' is not defined."
@@ -545,9 +544,8 @@
 49:3 49:20 svelte/consistent-selector-style "Selector should select by element type instead of class"
 62:3 62:20 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 3342 packages/theme-blog/src/components/SearchModal.svelte	lint.txt
+=== 3282 packages/theme-blog/src/components/SearchModal.svelte	lint.txt
 2:1 124:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-25:14 25:23 no-unused-vars "'q' is defined but never used."
 38:14 38:30 no-undef "'HTMLInputElement' is not defined."
 40:32 40:42 no-undef "'setTimeout' is not defined."
 48:22 48:28 no-undef "'window' is not defined."

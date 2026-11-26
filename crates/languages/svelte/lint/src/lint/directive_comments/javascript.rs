@@ -8,7 +8,7 @@ use rsvelte_lint_runner::finding::{Finding, Fix, UNUSED_DIRECTIVE};
 use rsvelte_typescript_tree::document_span;
 use rustc_hash::FxHashMap;
 
-use super::{Kind, justification_start};
+use super::{Kind, justification_start, rule_named};
 
 /// One rule name of a directive comment, or every rule (`None`), at `ESLint`'s position: a line
 /// and a 1-based column, where column 0 comes before the line's first finding.
@@ -159,7 +159,7 @@ fn credit(
             match applied.rule {
                 None => all = Some(next),
                 Some(rule) => {
-                    named.insert(parsed[applied.directive].rules[rule].0, next);
+                    named.insert(rule_named(parsed[applied.directive].rules[rule].0), next);
                 }
             }
             next += 1;
@@ -206,7 +206,10 @@ fn unused(
         finding.fix = fix;
         finding
     };
-    let all_run = directive.rules.iter().all(|&(rule, _)| running(rule));
+    let all_run = directive
+        .rules
+        .iter()
+        .all(|&(rule, _)| running(rule_named(rule)));
     let any_used = directive.rules.iter().any(|&(_, used)| used);
     if all_run && !any_used {
         let names: Vec<String> = directive
@@ -235,7 +238,7 @@ fn unused(
         .find(directive.list)
         .map(|i| directive.span.start_offset as usize + i);
     unused
-        .filter(|&&(rule, _)| running(rule))
+        .filter(|&&(rule, _)| running(rule_named(rule)))
         .map(|(rule, _)| {
             let fix = list_start.and_then(|start| {
                 let (from, to) = removal::rule_removal(directive.list, rule)?;

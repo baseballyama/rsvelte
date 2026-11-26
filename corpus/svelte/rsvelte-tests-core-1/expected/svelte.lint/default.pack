@@ -819,7 +819,7 @@
 2:6 2:7 svelte/valid-compile "`m` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
 2:6 2:7 no-useless-assignment "The value assigned to 'm' is not used in subsequent statements."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:24 3:30 no-unused-vars "'e' is defined but never used."
+3:24 3:25 no-unused-vars "'e' is defined but never used."
 
 === 541 aligner_resync_4291/cell_first_fragment_after_an_import/c0dec4974f965134.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -852,10 +852,10 @@
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 
-=== 309 annotation_interior_comments/an_uncommented_annotation_gains_no_comment_field/09753392f1eb15b8.svelte	lint.txt
+=== 308 annotation_interior_comments/an_uncommented_annotation_gains_no_comment_field/09753392f1eb15b8.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:5 2:21 no-unused-vars "'x' is assigned a value but never used."
+2:5 2:6 no-unused-vars "'x' is assigned a value but never used."
 2:5 2:21 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 
 === 482 annotation_interior_comments/every_annotation_context_carries_its_interior_comment/05c2214ce9c01902.svelte	lint.txt
@@ -869,7 +869,7 @@
 === 546 annotation_interior_comments/every_annotation_context_carries_its_interior_comment/0a27f1b6a744e552.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:5 5:2 no-unused-vars "'x' is assigned a value but never used."
+2:5 2:6 no-unused-vars "'x' is assigned a value but never used."
 2:5 5:2 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
@@ -8776,7 +8776,7 @@
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
-=== 1073 compiler/phases/phase2_analyze/store_subscriptions/tests/dollar_named_parameters_are_not_outer_store_subscriptions/620841e8ef148b9f.svelte	lint.txt
+=== 1011 compiler/phases/phase2_analyze/store_subscriptions/tests/dollar_named_parameters_are_not_outer_store_subscriptions/620841e8ef148b9f.svelte	lint.txt
 1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:9 2:13 svelte/prefer-const "'work' is never reassigned. Use 'const' instead."
@@ -8784,7 +8784,6 @@
 4:1 4:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-7:36 7:60 no-unused-vars "'value' is defined but never used."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:14 8:20 no-unused-vars "'update' is defined but never used."
 9:1 9:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -9091,7 +9090,7 @@
 7:1 7:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 8:1 8:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 9:1 9:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-9:13 9:28 no-unused-vars "'props' is assigned a value but never used."
+9:13 9:18 no-unused-vars "'props' is assigned a value but never used."
 9:13 9:28 svelte/prefer-const "'props' is never reassigned. Use 'const' instead."
 10:1 10:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
@@ -9230,27 +9229,23 @@
 1:40 1:60 svelte/require-each-key "Each block should have a key"
 1:60 1:97 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 962 compiler/phases/phase3_transform/client/tests/erased_typescript_interface_comment_follows_the_declarator_count/4063c539d30068bc.svelte	lint.txt
+=== 781 compiler/phases/phase3_transform/client/tests/erased_typescript_interface_comment_follows_the_declarator_count/4063c539d30068bc.svelte	lint.txt
 1:1 7:14 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 2:19 2:26 no-unused-vars "'$$Props' is defined but never used."
 3:1 3:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-3:9 3:70 @typescript-eslint/no-unused-vars "Definition for rule '@typescript-eslint/no-unused-vars' was not found."
 4:1 4:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-4:19 4:27 no-unused-vars "'$$Events' is defined but never used."
 5:1 5:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 5:9 6:33 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 6:1 6:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
 
-=== 883 compiler/phases/phase3_transform/client/tests/erased_typescript_interface_comment_follows_the_declarator_count/ebc115023e06fb9b.svelte	lint.txt
+=== 702 compiler/phases/phase3_transform/client/tests/erased_typescript_interface_comment_follows_the_declarator_count/ebc115023e06fb9b.svelte	lint.txt
 1:1 6:14 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 2:19 2:26 no-unused-vars "'$$Props' is defined but never used."
 3:1 3:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-3:9 3:70 @typescript-eslint/no-unused-vars "Definition for rule '@typescript-eslint/no-unused-vars' was not found."
 4:1 4:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-4:19 4:27 no-unused-vars "'$$Events' is defined but never used."
 5:1 5:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
 5:9 5:39 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 6:1 6:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
@@ -9698,17 +9693,10 @@
 1:63 1:80 svelte/valid-compile "Cannot reassign or bind to each block argument in runes mode. Use the array and index variables instead (e.g. `array[i] = value` instead of `entry = value`, or `bind:value={array[i]}` instead of `bind:value={entry}`)\nhttps://svelte.dev/e/each_item_invalid_assignment(each_item_invalid_assignment)"
 1:80 1:81 svelte/html-self-closing "Require self-closing on HTML void elements."
 
-=== 876 compiler/phases/phase3_transform/client/tests/reactive_iife_local_store_spelling_is_not_rewritten/f5bc6b420bfc7d93.svelte	lint.txt
-2:1 2:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-3:1 3:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-4:1 4:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-4:9 7:14 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
-4:12 4:17 no-unused-vars "'label' is defined but never used."
-5:1 5:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
-6:1 6:13 svelte/indent "Expected indentation of 4 spaces but found 12 spaces."
-7:1 7:9 svelte/indent "Expected indentation of 2 spaces but found 8 spaces."
-8:1 8:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
-9:1 9:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
+=== 242 compiler/phases/phase3_transform/client/tests/reactive_iife_local_store_spelling_is_not_rewritten/f5bc6b420bfc7d93.svelte	error.txt
+Cannot read properties of undefined (reading 'type')
+Occurred while linting compiler/phases/phase3_transform/client/tests/reactive_iife_local_store_spelling_is_not_rewritten/f5bc6b420bfc7d93.svelte:1
+Rule: "@typescript-eslint/no-unused-vars"
 
 === 745 compiler/phases/phase3_transform/client/tests/reactive_statement_order_ignores_whitespace_around_the_assignment/e9a09be062bd52ca.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -9779,12 +9767,10 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:49 svelte/button-has-type "Missing an explicit type attribute for button."
 
-=== 691 compiler/phases/phase3_transform/client/tests/retained_typescript_projection_reduces_fixture_reparses_from_five_to_one/5ef4b292ec023de7.svelte	lint.txt
+=== 575 compiler/phases/phase3_transform/client/tests/retained_typescript_projection_reduces_fixture_reparses_from_five_to_one/5ef4b292ec023de7.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:13 2:23 no-unused-vars "'a' is defined but never used."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:13 3:22 no-unused-vars "'a' is defined but never used."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -11350,11 +11336,10 @@
 === 82 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_keyed_each/ecc7ac44342230b5.svelte	lint.txt
 1:13 1:18 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
 
-=== 405 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/375e9976956f6365.svelte	lint.txt
-1:13 1:14 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
-2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
-2:1 2:14 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
-2:4 2:5 no-unused-vars "'b' is defined but never used."
+=== 238 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/375e9976956f6365.svelte	error.txt
+Cannot read properties of undefined (reading 'type')
+Occurred while linting compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/375e9976956f6365.svelte:1
+Rule: "@typescript-eslint/no-unused-vars"
 
 === 164 compiler/phases/phase3_transform/server/ast/tests/ast_matches_oracle_legacy_instance_prologue/4ba40b8828cfcd35.svelte	lint.txt
 1:9 1:33 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
@@ -12132,16 +12117,10 @@
 === 122 compiler/print/css_test/tests/test_print_simple_css_rule/4055e78d64905549.svelte	lint.txt
 5:1 5:4 svelte/valid-compile "Unused CSS selector \"div\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
-=== 810 compiler/print/tests/print_without_source_keeps_statement_bodies/ff3b94f4e70146ad.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-3:2 3:25 svelte/valid-compile "`$:` is not allowed in runes mode, use `$derived` or `$effect` instead\nhttps://svelte.dev/e/legacy_reactive_statement_invalid(legacy_reactive_statement_invalid)"
-3:5 3:12 no-unused-vars "'doubled' is defined but never used."
-4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-4:8 4:9 no-unused-vars "'f' is assigned a value but never used."
-5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+=== 209 compiler/print/tests/print_without_source_keeps_statement_bodies/ff3b94f4e70146ad.svelte	error.txt
+Cannot read properties of undefined (reading 'type')
+Occurred while linting compiler/print/tests/print_without_source_keeps_statement_bodies/ff3b94f4e70146ad.svelte:1
+Rule: "@typescript-eslint/no-unused-vars"
 
 === 317 compiler/print/tests/print_without_source_rejects_unrepresentable_nodes/31b0d62d7f787dcf.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

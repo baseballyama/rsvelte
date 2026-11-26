@@ -24482,7 +24482,7 @@
 714:1 714:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 715:1 715:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4507 sites/themes.skeleton.dev/src/lib/components/generator/Edges/EdgeOption.svelte	lint.txt
+=== 4445 sites/themes.skeleton.dev/src/lib/components/generator/Edges/EdgeOption.svelte	lint.txt
 1:1 29:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -24491,7 +24491,6 @@
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-9:14 9:27 no-unused-vars "'value' is defined but never used."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

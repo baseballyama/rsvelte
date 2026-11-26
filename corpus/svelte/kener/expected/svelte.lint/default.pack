@@ -1117,10 +1117,8 @@
 272:52 272:77 svelte/max-attributes-per-line "'label' should be on a new line."
 272:78 272:90 svelte/sort-attributes "Attribute 'height' should go before 'label'."
 
-=== 2435 src/lib/components/MonitorPicker.svelte	lint.txt
+=== 2310 src/lib/components/MonitorPicker.svelte	lint.txt
 1:1 43:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-21:16 21:27 no-unused-vars "'tag' is defined but never used."
-22:18 22:32 no-unused-vars "'tags' is defined but never used."
 51:9 51:24 svelte/sort-attributes "Attribute 'role' should go before 'variant'."
 52:9 52:29 svelte/sort-attributes "Attribute 'aria-expanded' should go before 'variant'."
 53:9 53:51 svelte/sort-attributes "Attribute 'class' should go before 'variant'."
@@ -1330,7 +1328,7 @@
 31:23 31:37 no-undef "'ResizeObserver' is not defined."
 79:10 79:34 no-undef "'CanvasRenderingContext2D' is not defined."
 239:35 239:45 no-undef "'MouseEvent' is not defined."
-283:27 283:44 no-unused-vars "'event' is defined but never used."
+283:27 283:32 no-unused-vars "'event' is defined but never used."
 283:34 283:44 no-undef "'MouseEvent' is not defined."
 307:12 307:29 no-unused-vars "'handleDialogClose' is defined but never used."
 323:11 323:17 no-undef "'window' is not defined."
@@ -1974,14 +1972,12 @@
 14:15 14:21 svelte/prefer-const "'_theme' is never reassigned. Use 'const' instead."
 14:23 14:29 svelte/prefer-const "'prefix' is never reassigned. Use 'const' instead."
 
-=== 1878 src/lib/components/ui/chart/chart-tooltip.svelte	lint.txt
+=== 1738 src/lib/components/ui/chart/chart-tooltip.svelte	lint.txt
 1:1 72:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-8:3 8:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
-9:41 9:67 no-unused-vars "'_payload' is defined but never used."
+8:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
+9:41 9:49 no-unused-vars "'_payload' is defined but never used."
 27:52 27:66 no-undef "'HTMLDivElement' is not defined."
-35:22 35:84 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
-36:9 36:19 no-unused-vars "'value' is defined but never used."
-36:21 36:46 no-unused-vars "'payload' is defined but never used."
+35:22 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 97:5 97:31 svelte/no-unused-class-name "Unused class \"grid\"."
 97:5 97:31 svelte/no-unused-class-name "Unused class \"gap-1.5\"."
 99:9 99:72 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
@@ -3604,8 +3600,7 @@
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 7:32 7:46 svelte/max-attributes-per-line "'{...restProps}' should be on a new line."
 
-=== 394 src/lib/components/ui/sidebar/context.svelte.ts	lint.txt
-20:13 20:26 no-unused-vars "'open' is defined but never used."
+=== 331 src/lib/components/ui/sidebar/context.svelte.ts	lint.txt
 25:10 25:46 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 29:11 29:68 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 44:31 44:44 no-undef "'KeyboardEvent' is not defined."
@@ -3719,10 +3714,9 @@
 16:3 16:22 svelte/sort-attributes "Attribute 'data-sidebar' should go before 'data-slot'."
 17:3 17:62 svelte/sort-attributes "Attribute 'class' should go before 'data-slot'."
 
-=== 841 src/lib/components/ui/sidebar/sidebar-provider.svelte	lint.txt
+=== 778 src/lib/components/ui/sidebar/sidebar-provider.svelte	lint.txt
 1:1 31:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 16:36 16:50 no-undef "'HTMLDivElement' is not defined."
-18:21 18:34 no-unused-vars "'open' is defined but never used."
 28:7 28:15 no-undef "'document' is not defined."
 38:5 38:98 svelte/no-inline-styles "Found disallowed style attribute."
 38:5 38:98 svelte/sort-attributes "Attribute 'style' should go before 'data-slot'."
@@ -3746,9 +3740,8 @@
 12:3 12:27 svelte/sort-attributes "Attribute 'data-sidebar' should go before 'bind:ref'."
 13:3 13:45 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 
-=== 601 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
+=== 541 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-14:16 14:29 no-unused-vars "'e' is defined but never used."
 14:19 14:29 no-undef "'MouseEvent' is not defined."
 24:3 24:14 svelte/sort-attributes "Attribute 'size' should go before 'variant'."
 25:3 25:34 svelte/sort-attributes "Attribute 'class' should go before 'data-sidebar'."
@@ -8522,9 +8515,9 @@
 150:42 150:99 svelte/max-attributes-per-line "'disabled' should be on a new line."
 150:42 150:99 svelte/sort-attributes "Attribute 'disabled' should go before 'onclick'."
 
-=== 5889 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-api.svelte	lint.txt
+=== 5883 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-api.svelte	lint.txt
 1:1 41:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-16:3 16:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+16:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 43:1 43:24 svelte/no-unused-class-name "Unused class \"space-y-4\"."
 44:3 44:39 svelte/no-unused-class-name "Unused class \"grid\"."
 44:3 44:39 svelte/no-unused-class-name "Unused class \"grid-cols-4\"."
@@ -8602,9 +8595,9 @@
 144:5 144:51 svelte/no-unused-class-name "Unused class \"mt-1\"."
 144:5 144:51 svelte/no-unused-class-name "Unused class \"text-xs\"."
 
-=== 6171 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-dns.svelte	lint.txt
+=== 6165 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-dns.svelte	lint.txt
 1:1 36:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-12:3 12:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+12:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 38:1 38:24 svelte/no-unused-class-name "Unused class \"space-y-4\"."
 39:3 39:39 svelte/no-unused-class-name "Unused class \"grid\"."
 39:3 39:39 svelte/no-unused-class-name "Unused class \"grid-cols-2\"."
@@ -8687,10 +8680,10 @@
 174:7 174:48 svelte/no-unused-class-name "Unused class \"text-muted-foreground\"."
 174:7 174:48 svelte/no-unused-class-name "Unused class \"text-sm\"."
 
-=== 4429 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-gamedig.svelte	lint.txt
+=== 4423 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-gamedig.svelte	lint.txt
 1:1 37:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 4:12 4:20 no-unused-vars "'Textarea' is defined but never used."
-15:3 15:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+15:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 39:1 39:24 svelte/no-unused-class-name "Unused class \"space-y-4\"."
 40:3 40:36 svelte/no-unused-class-name "Unused class \"flex\"."
 40:3 40:36 svelte/no-unused-class-name "Unused class \"flex-col\"."
@@ -8883,9 +8876,9 @@
 313:15 313:40 svelte/sort-attributes "Attribute 'title' should go before 'variant'."
 314:15 314:51 svelte/sort-attributes "Attribute 'onclick' should go before 'variant'."
 
-=== 3027 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-grpc.svelte	lint.txt
+=== 3022 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-grpc.svelte	lint.txt
 1:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-6:3 6:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+6:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 22:1 22:24 svelte/no-unused-class-name "Unused class \"space-y-4\"."
 23:3 23:39 svelte/no-unused-class-name "Unused class \"grid\"."
 23:3 23:39 svelte/no-unused-class-name "Unused class \"grid-cols-3\"."
@@ -9098,9 +9091,9 @@
 123:5 123:51 svelte/no-unused-class-name "Unused class \"mt-1\"."
 123:5 123:51 svelte/no-unused-class-name "Unused class \"text-xs\"."
 
-=== 2835 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-ssl.svelte	lint.txt
+=== 2830 src/routes/(manage)/manage/app/monitors/[tag]/types/monitor-ssl.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-6:3 6:65 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+6:3 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 16:1 16:24 svelte/no-unused-class-name "Unused class \"space-y-4\"."
 17:3 17:39 svelte/no-unused-class-name "Unused class \"grid\"."
 17:3 17:39 svelte/no-unused-class-name "Unused class \"grid-cols-2\"."

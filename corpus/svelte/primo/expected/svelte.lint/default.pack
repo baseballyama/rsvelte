@@ -1,7 +1,6 @@
 # rsvelte pack 1
-=== 280 src/lib/Content.svelte.ts	lint.txt
+=== 220 src/lib/Content.svelte.ts	lint.txt
 9:43 9:55 no-unused-vars "'site_context' is defined but never used."
-88:21 88:22 no-unused-vars "'K' is defined but never used."
 143:9 143:51 no-useless-assignment "The value assigned to 'data' is not used in subsequent statements."
 366:10 366:13 no-undef "'URL' is not defined."
 
@@ -13,7 +12,7 @@
 41:26 41:30 no-undef "'File' is not defined."
 50:18 50:28 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Date class. Use SvelteDate instead."
 
-=== 599 src/lib/UserActivity.svelte.ts	lint.txt
+=== 530 src/lib/UserActivity.svelte.ts	lint.txt
 19:15 19:18 no-undef "'URL' is not defined."
 21:17 21:20 no-undef "'URL' is not defined."
 23:12 23:15 no-undef "'URL' is not defined."
@@ -22,7 +21,6 @@
 101:10 101:20 no-undef "'setTimeout' is not defined."
 106:10 106:20 no-undef "'setTimeout' is not defined."
 110:3 110:15 no-undef "'clearTimeout' is not defined."
-147:57 147:83 no-unused-vars "'activity' is defined but never used."
 158:50 158:53 no-undef "'URL' is not defined."
 160:43 160:46 no-undef "'URL' is not defined."
 
@@ -1537,7 +1535,7 @@
 764:3 764:16 svelte/consistent-selector-style "Selector should select by ID instead of class"
 775:2 775:17 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 4328 src/lib/builder/components/Content.svelte	lint.txt
+=== 4261 src/lib/builder/components/Content.svelte	lint.txt
 1:1 37:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1557,7 +1555,6 @@
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-20:14 20:30 no-unused-vars "'entry_id' is defined but never used."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 23:1 23:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 24:1 24:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -1674,7 +1671,7 @@
 79:2 79:12 svelte/consistent-selector-style "Selector should select by ID instead of class"
 85:2 85:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 10875 src/lib/builder/components/Fields/EntryContent.svelte	lint.txt
+=== 10741 src/lib/builder/components/Fields/EntryContent.svelte	lint.txt
 1:1 95:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1708,7 +1705,6 @@
 32:1 32:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 33:1 33:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 34:1 34:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-34:14 34:30 no-unused-vars "'entry_id' is defined but never used."
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 38:1 38:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1722,7 +1718,6 @@
 46:1 46:6 svelte/indent "Expected indentation of 8 spaces but found 5 whitespaces."
 47:1 47:6 svelte/indent "Expected indentation of 8 spaces but found 5 whitespaces."
 48:1 48:6 svelte/indent "Expected indentation of 8 spaces but found 5 whitespaces."
-48:17 48:33 no-unused-vars "'entry_id' is defined but never used."
 49:1 49:6 svelte/indent "Expected indentation of 8 spaces but found 5 whitespaces."
 50:1 50:6 svelte/indent "Expected indentation of 6 spaces but found 5 whitespaces."
 51:1 51:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -1803,7 +1798,7 @@
 139:2 139:17 svelte/consistent-selector-style "Selector should select by ID instead of class"
 148:2 148:15 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 57963 src/lib/builder/components/Fields/FieldItem.svelte	lint.txt
+=== 57580 src/lib/builder/components/Fields/FieldItem.svelte	lint.txt
 1:1 237:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1840,16 +1835,10 @@
 35:1 35:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 36:1 36:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 37:1 37:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-37:19 37:40 no-unused-vars "'data' is defined but never used."
 38:1 38:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-38:14 38:59 no-unused-vars "'details' is defined but never used."
 39:1 39:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-39:17 39:27 no-unused-vars "'id' is defined but never used."
 40:1 40:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-40:14 40:26 no-unused-vars "'field' is defined but never used."
 41:1 41:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-41:12 41:22 no-unused-vars "'id' is defined but never used."
-41:24 41:48 no-unused-vars "'direction' is defined but never used."
 42:1 42:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 44:1 44:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 45:1 45:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2470,22 +2459,18 @@
 765:2 765:18 svelte/consistent-selector-style "Selector should select by ID instead of class"
 771:3 771:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 25684 src/lib/builder/components/Fields/FieldsContent.svelte	lint.txt
+=== 25172 src/lib/builder/components/Fields/FieldsContent.svelte	lint.txt
 1:1 41:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:25 svelte/max-attributes-per-line "'module' should be on a new line."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-10:35 10:56 no-unused-vars "'values' is defined but never used."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-15:17 15:27 no-unused-vars "'id' is defined but never used."
-15:29 15:49 no-unused-vars "'data' is defined but never used."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-16:17 16:40 no-unused-vars "'data' is defined but never used."
 17:1 17:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2534,14 +2519,10 @@
 67:1 67:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 68:1 68:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 69:1 69:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-69:18 69:39 no-unused-vars "'data' is defined but never used."
 70:1 70:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 71:1 71:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-71:14 71:59 no-unused-vars "'details' is defined but never used."
 72:1 72:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-72:14 72:26 no-unused-vars "'field' is defined but never used."
 73:1 73:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-73:20 73:36 no-unused-vars "'entry_id' is defined but never used."
 74:1 74:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 76:1 76:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 77:1 77:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -4941,7 +4922,7 @@
 31:121 31:132 svelte/sort-attributes "Attribute 'type' should go before 'value'."
 34:1 38:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 6397 src/lib/builder/field-types/GroupField.svelte	lint.txt
+=== 6330 src/lib/builder/field-types/GroupField.svelte	lint.txt
 1:1 36:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:19 2:24 no-unused-vars "'_find' is defined but never used."
@@ -4974,7 +4955,6 @@
 26:1 26:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 27:1 27:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 28:1 28:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-28:14 28:30 no-unused-vars "'entry_id' is defined but never used."
 29:1 29:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5681,7 +5661,7 @@
 30:2 30:7 svelte/consistent-selector-style "Selector should select by ID instead of class"
 40:2 40:8 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 12825 src/lib/builder/field-types/RepeaterField.svelte	lint.txt
+=== 12758 src/lib/builder/field-types/RepeaterField.svelte	lint.txt
 1:1 83:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5710,7 +5690,6 @@
 27:1 27:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 28:1 28:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 29:1 29:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-29:15 29:31 no-unused-vars "'entry_id' is defined but never used."
 30:1 30:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 32:1 32:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5832,7 +5811,7 @@
 142:1 142:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 145:1 209:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 16303 src/lib/builder/field-types/RepeaterFieldItem.svelte	lint.txt
+=== 16236 src/lib/builder/field-types/RepeaterFieldItem.svelte	lint.txt
 1:1 133:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -5887,7 +5866,6 @@
 47:1 47:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 48:1 48:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 49:1 49:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-49:14 49:30 no-unused-vars "'entry_id' is defined but never used."
 50:1 50:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 52:1 52:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 53:1 53:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -7873,7 +7851,7 @@
 235:2 235:6 svelte/consistent-selector-style "Selector should select by ID instead of class"
 243:2 243:9 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 125897 src/lib/builder/views/editor/Layout/ComponentNode.svelte	lint.txt
+=== 125833 src/lib/builder/views/editor/Layout/ComponentNode.svelte	lint.txt
 1:1 840:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7955,7 +7933,6 @@
 83:6 83:21 svelte/prefer-const "'event_listeners' is never reassigned. Use 'const' instead."
 83:24 83:53 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
 84:1 84:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-84:32 84:51 no-unused-vars "'event' is defined but never used."
 84:39 84:51 no-undef "'MessageEvent' is not defined."
 85:1 85:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 85:6 85:25 svelte/prefer-const "'doc_event_listeners' is never reassigned. Use 'const' instead."
@@ -12133,7 +12110,7 @@
 233:1 233:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 236:1 247:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
-=== 3808 src/lib/builder/views/modal/BlockPicker.svelte	lint.txt
+=== 3742 src/lib/builder/views/modal/BlockPicker.svelte	lint.txt
 1:1 40:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -12148,7 +12125,6 @@
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-16:29 16:54 no-unused-vars "'symbols' is defined but never used."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -13727,7 +13703,7 @@
 194:1 245:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 195:2 195:13 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 47485 src/lib/builder/views/modal/SitePages/Item.svelte	lint.txt
+=== 47418 src/lib/builder/views/modal/SitePages/Item.svelte	lint.txt
 1:1 243:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -13769,7 +13745,6 @@
 38:1 38:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 39:1 39:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 40:1 40:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-40:14 40:50 no-unused-vars "'new_page' is defined but never used."
 41:1 41:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 42:1 42:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 43:1 43:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -14286,7 +14261,7 @@
 701:15 701:21 svelte/consistent-selector-style "Selector should select by element type instead of class"
 735:2 735:21 svelte/consistent-selector-style "Selector should select by ID instead of class"
 
-=== 5810 src/lib/builder/views/modal/SitePages/PageForm.svelte	lint.txt
+=== 5742 src/lib/builder/views/modal/SitePages/PageForm.svelte	lint.txt
 1:1 39:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14301,7 +14276,6 @@
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-12:74 12:130 no-unused-vars "'new_page' is defined but never used."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -15431,7 +15405,7 @@
 397:1 397:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 398:1 398:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 82083 src/lib/components/CreateSite.svelte	lint.txt
+=== 82017 src/lib/components/CreateSite.svelte	lint.txt
 1:1 324:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -15451,7 +15425,6 @@
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 19:1 19:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-26:48 26:85 no-unused-vars "'created' is defined but never used."
 28:1 28:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 29:1 29:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 30:1 30:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -16899,7 +16872,7 @@
 83:1 83:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 84:1 84:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 5278 src/lib/components/Masonry.svelte	lint.txt
+=== 5215 src/lib/components/Masonry.svelte	lint.txt
 1:1 35:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:31 svelte/max-attributes-per-line "'generics=\"T\"' should be on a new line."
 1:19 1:31 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
@@ -16912,7 +16885,6 @@
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-11:13 11:20 no-unused-vars "'item' is defined but never used."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -18324,8 +18296,7 @@
 8:32 8:94 svelte/max-attributes-per-line "'class' should be on a new line."
 8:32 8:94 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 
-=== 393 src/lib/components/ui/sidebar/context.svelte.ts	lint.txt
-20:12 20:25 no-unused-vars "'open' is defined but never used."
+=== 330 src/lib/components/ui/sidebar/context.svelte.ts	lint.txt
 25:9 25:45 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 29:10 29:67 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
 44:30 44:43 no-undef "'KeyboardEvent' is not defined."
@@ -18734,7 +18705,7 @@
 9:41 9:100 svelte/sort-attributes "Attribute 'class' should go before 'data-sidebar'."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3580 src/lib/components/ui/sidebar/sidebar-provider.svelte	lint.txt
+=== 3517 src/lib/components/ui/sidebar/sidebar-provider.svelte	lint.txt
 1:1 32:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -18754,7 +18725,6 @@
 17:35 17:49 no-undef "'HTMLDivElement' is not defined."
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-19:19 19:32 no-unused-vars "'open' is defined but never used."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -18821,7 +18791,7 @@
 9:21 9:45 svelte/sort-attributes "Attribute 'data-sidebar' should go before 'bind:ref'."
 9:46 9:100 svelte/sort-attributes "Attribute 'class' should go before 'bind:ref'."
 
-=== 2743 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
+=== 2683 src/lib/components/ui/sidebar/sidebar-trigger.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -18835,7 +18805,6 @@
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-14:14 14:27 no-unused-vars "'e' is defined but never used."
 14:17 14:27 no-undef "'MouseEvent' is not defined."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -19024,22 +18993,8 @@
 13:22 13:28 no-undef "'window' is not defined."
 15:5 15:45 svelte/no-add-event-listener "Do not use `addEventListener`. Use the `on` function from `svelte/events` instead."
 
-=== 1302 src/lib/pocketbase/CollectionMapping.svelte.ts	lint.txt
+=== 374 src/lib/pocketbase/CollectionMapping.svelte.ts	lint.txt
 1:26 1:36 no-unused-vars "'PocketBase' is defined but never used."
-21:26 21:62 no-unused-vars "'this' is defined but never used."
-32:8 32:18 no-unused-vars "'id' is defined but never used."
-33:9 33:30 no-unused-vars "'options' is defined but never used."
-34:11 34:50 no-unused-vars "'values' is defined but never used."
-35:11 35:21 no-unused-vars "'id' is defined but never used."
-35:23 35:41 no-unused-vars "'values' is defined but never used."
-36:11 36:21 no-unused-vars "'id' is defined but never used."
-37:21 37:44 no-unused-vars "'usernameOrEmail' is defined but never used."
-37:46 37:62 no-unused-vars "'password' is defined but never used."
-38:25 38:38 no-unused-vars "'email' is defined but never used."
-39:25 39:51 no-unused-vars "'passwordResetToken' is defined but never used."
-39:53 39:69 no-unused-vars "'password' is defined but never used."
-39:71 39:94 no-unused-vars "'passwordConfirm' is defined but never used."
-40:9 40:35 no-unused-vars "'manager' is defined but never used."
 86:14 86:23 svelte/no-ignored-unsubscribe "Ignoring returned value of the subscribe method is forbidden."
 123:4 123:11 no-undef "'console' is not defined."
 160:9 160:16 no-undef "'console' is not defined."
@@ -19096,11 +19051,7 @@
 298:4 298:11 no-undef "'console' is not defined."
 308:4 308:11 no-undef "'console' is not defined."
 
-=== 254 src/lib/workers/Worker.svelte.ts	lint.txt
-3:32 3:46 no-unused-vars "'error' is defined but never used."
-3:48 3:57 no-unused-vars "'value' is defined but never used."
-7:11 7:17 no-unused-vars "'params' is defined but never used."
-10:128 10:134 no-unused-vars "'params' is defined but never used."
+=== 0 src/lib/workers/Worker.svelte.ts	lint.txt
 
 === 270 src/routes/+error.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

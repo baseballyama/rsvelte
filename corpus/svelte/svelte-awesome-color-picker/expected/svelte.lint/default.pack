@@ -1,5 +1,5 @@
 # rsvelte pack 1
-=== 37636 src/lib/components/ColorPicker.svelte	lint.txt
+=== 37572 src/lib/components/ColorPicker.svelte	lint.txt
 1:1 352:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -62,7 +62,6 @@
 61:1 61:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 62:1 62:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 63:1 63:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
-63:8 63:105 no-unused-vars "'color' is defined but never used."
 64:1 64:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 65:1 65:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 66:1 66:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -447,7 +446,7 @@
 440:1 440:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 443:5 443:6 svelte/no-trailing-spaces "Trailing spaces not allowed."
 
-=== 10824 src/lib/components/Picker.svelte	lint.txt
+=== 10760 src/lib/components/Picker.svelte	lint.txt
 1:1 84:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -468,7 +467,6 @@
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-21:13 21:44 no-unused-vars "'color' is defined but never used."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -827,7 +825,7 @@
 10:53 10:74 svelte/no-inline-styles "Found disallowed style directive."
 10:53 10:74 svelte/sort-attributes "Attribute 'style:--pos-y' should go before 'class'."
 
-=== 2755 src/lib/components/variant/default/Swatches.svelte	lint.txt
+=== 2693 src/lib/components/variant/default/Swatches.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -835,7 +833,6 @@
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-8:18 8:31 no-unused-vars "'color' is defined but never used."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -862,7 +859,7 @@
 40:2 40:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
 50:2 50:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 12482 src/lib/components/variant/default/TextInput.svelte	lint.txt
+=== 12418 src/lib/components/variant/default/TextInput.svelte	lint.txt
 1:1 68:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -881,7 +878,6 @@
 17:1 17:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-19:13 19:70 no-unused-vars "'color' is defined but never used."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."

@@ -187,10 +187,10 @@
 195:1 195:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 197:1 197:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 120 docs/src/components/preview-ctx.svelte.ts	lint.txt
-44:6 44:68 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+=== 114 docs/src/components/preview-ctx.svelte.ts	lint.txt
+44:6 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 
-=== 17439 docs/src/components/preview.svelte	lint.txt
+=== 17377 docs/src/components/preview.svelte	lint.txt
 1:1 57:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -208,7 +208,6 @@
 17:40 17:50 no-undef "'SVGElement' is not defined."
 18:1 18:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-19:8 19:16 no-unused-vars "'node' is defined but never used."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 21:1 21:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -3461,28 +3460,20 @@
 190:1 190:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 191:1 191:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 184 packages/melt/src/lib/Synced.svelte.ts	lint.txt
-5:37 5:44 no-unused-vars "'prev' is defined but never used."
-5:46 5:53 no-unused-vars "'next' is defined but never used."
-8:14 8:22 no-unused-vars "'value' is defined but never used."
+=== 0 packages/melt/src/lib/Synced.svelte.ts	lint.txt
 
 === 164 packages/melt/src/lib/builders/Accordion.svelte.ts	lint.txt
 211:19 211:32 no-undef "'KeyboardEvent' is not defined."
 226:20 226:28 no-undef "'document' is not defined."
 231:57 231:68 no-undef "'HTMLElement' is not defined."
 
-=== 160 packages/melt/src/lib/builders/Avatar.svelte.ts	lint.txt
-30:27 30:52 no-unused-vars "'value' is defined but never used."
+=== 96 packages/melt/src/lib/builders/Avatar.svelte.ts	lint.txt
 72:21 72:27 no-undef "'window' is not defined."
 75:18 75:24 no-undef "'window' is not defined."
 
-=== 64 packages/melt/src/lib/builders/Collapsible.svelte.ts	lint.txt
-24:18 24:32 no-unused-vars "'value' is defined but never used."
+=== 0 packages/melt/src/lib/builders/Collapsible.svelte.ts	lint.txt
 
-=== 1040 packages/melt/src/lib/builders/Combobox.svelte.ts	lint.txt
-81:23 81:44 no-unused-vars "'highlighted' is defined but never used."
-91:16 91:33 no-unused-vars "'current' is defined but never used."
-91:35 91:61 no-unused-vars "'direction' is defined but never used."
+=== 836 packages/melt/src/lib/builders/Combobox.svelte.ts	lint.txt
 121:16 121:40 svelte/prefer-svelte-reactivity "Found a mutable instance of the built-in Map class. Use SvelteMap instead."
 129:23 129:31 no-undef "'document' is not defined."
 236:5 236:13 no-undef "'document' is not defined."
@@ -3497,8 +3488,7 @@
 429:19 429:30 no-undef "'HTMLElement' is not defined."
 430:21 430:29 no-undef "'document' is not defined."
 
-=== 443 packages/melt/src/lib/builders/Dialog.svelte.ts	lint.txt
-34:18 34:32 no-unused-vars "'value' is defined but never used."
+=== 379 packages/melt/src/lib/builders/Dialog.svelte.ts	lint.txt
 88:23 88:40 no-undef "'HTMLDialogElement' is not defined."
 92:18 92:34 no-undef "'getComputedStyle' is not defined."
 130:33 130:50 no-undef "'HTMLDialogElement' is not defined."
@@ -3507,16 +3497,12 @@
 151:7 151:15 no-undef "'document' is not defined."
 154:21 154:27 no-undef "'window' is not defined."
 
-=== 1626 packages/melt/src/lib/builders/FileUpload.svelte.ts	lint.txt
+=== 1372 packages/melt/src/lib/builders/FileUpload.svelte.ts	lint.txt
 13:8 13:12 no-undef "'File' is not defined."
 21:27 21:31 no-undef "'File' is not defined."
-26:22 26:81 no-unused-vars "'files' is defined but never used."
 26:57 26:61 no-undef "'File' is not defined."
 26:65 26:69 no-undef "'File' is not defined."
-59:14 59:24 no-unused-vars "'file' is defined but never used."
 59:20 59:24 no-undef "'File' is not defined."
-64:13 64:35 no-unused-vars "'error' is defined but never used."
-69:14 69:24 no-unused-vars "'file' is defined but never used."
 69:20 69:24 no-undef "'File' is not defined."
 92:28 92:32 no-undef "'File' is not defined."
 96:39 96:43 no-undef "'File' is not defined."
@@ -3540,11 +3526,7 @@
 303:19 303:27 no-undef "'document' is not defined."
 303:62 303:78 no-undef "'HTMLInputElement' is not defined."
 
-=== 844 packages/melt/src/lib/builders/PinInput.svelte.ts	lint.txt
-35:19 35:32 no-unused-vars "'value' is defined but never used."
-40:16 40:29 no-unused-vars "'value' is defined but never used."
-58:13 58:26 no-unused-vars "'value' is defined but never used."
-63:13 63:33 no-unused-vars "'error' is defined but never used."
+=== 588 packages/melt/src/lib/builders/PinInput.svelte.ts	lint.txt
 118:40 118:56 no-undef "'HTMLInputElement' is not defined."
 119:2 119:12 no-undef "'setTimeout' is not defined."
 153:18 153:34 no-undef "'HTMLInputElement' is not defined."
@@ -3557,15 +3539,13 @@
 311:17 311:22 no-undef "'Event' is not defined."
 336:6 336:16 no-undef "'setTimeout' is not defined."
 
-=== 2204 packages/melt/src/lib/builders/Popover.svelte.ts	lint.txt
-28:41 28:72 no-unused-vars "'el' is defined but never used."
+=== 2079 packages/melt/src/lib/builders/Popover.svelte.ts	lint.txt
 28:45 28:52 no-undef "'Element' is not defined."
 28:55 28:61 no-undef "'Window' is not defined."
 28:64 28:72 no-undef "'Document' is not defined."
 35:38 35:49 no-undef "'HTMLElement' is not defined."
 35:52 35:63 no-undef "'HTMLElement' is not defined."
 36:39 36:47 no-undef "'document' is not defined."
-58:18 58:32 no-unused-vars "'value' is defined but never used."
 103:24 103:35 no-undef "'HTMLElement' is not defined."
 112:25 112:36 no-undef "'HTMLElement' is not defined."
 164:10 168:5 svelte/prefer-derived-over-derived-by "Unnecessary use of `$derived.by()`. Use `$derived()` directly for simple expressions."
@@ -3599,11 +3579,9 @@
 389:39 389:50 no-undef "'HTMLElement' is not defined."
 398:39 398:50 no-undef "'HTMLElement' is not defined."
 
-=== 64 packages/melt/src/lib/builders/Progress.svelte.ts	lint.txt
-27:19 27:32 no-unused-vars "'value' is defined but never used."
+=== 0 packages/melt/src/lib/builders/Progress.svelte.ts	lint.txt
 
-=== 439 packages/melt/src/lib/builders/RadioGroup.svelte.ts	lint.txt
-57:19 57:33 no-unused-vars "'active' is defined but never used."
+=== 374 packages/melt/src/lib/builders/RadioGroup.svelte.ts	lint.txt
 108:39 108:50 no-undef "'HTMLElement' is not defined."
 159:40 159:51 no-undef "'HTMLElement' is not defined."
 173:13 173:18 no-undef "'Event' is not defined."
@@ -3612,10 +3590,7 @@
 215:22 215:33 no-undef "'HTMLElement' is not defined."
 257:39 257:50 no-undef "'HTMLElement' is not defined."
 
-=== 1083 packages/melt/src/lib/builders/Select.svelte.ts	lint.txt
-62:23 62:44 no-unused-vars "'highlighted' is defined but never used."
-72:16 72:33 no-unused-vars "'current' is defined but never used."
-72:35 72:61 no-unused-vars "'direction' is defined but never used."
+=== 879 packages/melt/src/lib/builders/Select.svelte.ts	lint.txt
 148:21 148:29 no-undef "'document' is not defined."
 226:4 226:12 no-undef "'document' is not defined."
 235:5 235:13 no-undef "'document' is not defined."
@@ -3632,8 +3607,7 @@
 395:16 395:24 no-undef "'document' is not defined."
 417:16 417:24 no-undef "'document' is not defined."
 
-=== 488 packages/melt/src/lib/builders/Slider.svelte.ts	lint.txt
-53:19 53:33 no-unused-vars "'active' is defined but never used."
+=== 423 packages/melt/src/lib/builders/Slider.svelte.ts	lint.txt
 94:13 94:25 no-undef "'PointerEvent' is not defined."
 96:14 96:22 no-undef "'document' is not defined."
 126:10 126:16 no-undef "'window' is not defined."
@@ -3643,9 +3617,7 @@
 161:5 161:13 no-undef "'document' is not defined."
 163:19 163:32 no-undef "'KeyboardEvent' is not defined."
 
-=== 957 packages/melt/src/lib/builders/SpatialMenu.svelte.ts	lint.txt
-23:23 23:44 no-unused-vars "'highlighted' is defined but never used."
-25:14 25:22 no-unused-vars "'value' is defined but never used."
+=== 823 packages/melt/src/lib/builders/SpatialMenu.svelte.ts	lint.txt
 84:10 84:21 no-undef "'HTMLElement' is not defined."
 85:11 85:27 no-undef "'HTMLInputElement' is not defined."
 120:32 120:39 no-undef "'DOMRect' is not defined."
@@ -3660,8 +3632,7 @@
 535:39 535:50 no-undef "'HTMLElement' is not defined."
 544:19 544:26 getter-return "Expected to return a value in getter 'extendedRect'."
 
-=== 173 packages/melt/src/lib/builders/Tabs.svelte.ts	lint.txt
-42:19 42:28 no-unused-vars "'active' is defined but never used."
+=== 108 packages/melt/src/lib/builders/Tabs.svelte.ts	lint.txt
 100:19 100:32 no-undef "'KeyboardEvent' is not defined."
 113:22 113:29 no-undef "'Element' is not defined."
 
@@ -3674,11 +3645,9 @@
 333:24 333:36 no-undef "'PointerEvent' is not defined."
 370:39 370:56 no-undef "'HTMLButtonElement' is not defined."
 
-=== 64 packages/melt/src/lib/builders/Toggle.svelte.ts	lint.txt
-25:19 25:33 no-unused-vars "'value' is defined but never used."
+=== 0 packages/melt/src/lib/builders/Toggle.svelte.ts	lint.txt
 
-=== 1674 packages/melt/src/lib/builders/Tooltip.svelte.ts	lint.txt
-46:18 46:32 no-unused-vars "'value' is defined but never used."
+=== 1610 packages/melt/src/lib/builders/Tooltip.svelte.ts	lint.txt
 136:21 136:29 no-undef "'document' is not defined."
 137:21 137:29 no-undef "'document' is not defined."
 186:14 186:22 no-undef "'document' is not defined."
@@ -3711,9 +3680,7 @@
 459:59 459:67 no-undef "'Document' is not defined."
 461:21 461:29 no-undef "'document' is not defined."
 
-=== 528 packages/melt/src/lib/builders/Tree.svelte.ts	lint.txt
-49:22 49:85 no-unused-vars "'value' is defined but never used."
-60:22 60:40 no-unused-vars "'value' is defined but never used."
+=== 400 packages/melt/src/lib/builders/Tree.svelte.ts	lint.txt
 103:22 103:30 no-undef "'document' is not defined."
 295:25 295:36 no-undef "'HTMLElement' is not defined."
 296:10 296:18 no-undef "'document' is not defined."
@@ -4140,7 +4107,7 @@
 19:19 19:23 svelte/valid-compile "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1615 packages/melt/src/lib/components/Avatar.svelte	lint.txt
+=== 1551 packages/melt/src/lib/components/Avatar.svelte	lint.txt
 1:1 19:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -4153,7 +4120,6 @@
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-13:28 13:53 no-unused-vars "'value' is defined but never used."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 16:18 16:39 no-unused-vars "'onLoadingStatusChange' is assigned a value but never used."
@@ -4177,7 +4143,7 @@
 16:14 16:18 svelte/valid-compile "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3240 packages/melt/src/lib/components/Combobox.svelte	lint.txt
+=== 3106 packages/melt/src/lib/components/Combobox.svelte	lint.txt
 1:1 31:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:57 svelte/max-attributes-per-line "'generics=\"T, Multiple extends boolean\"' should be on a new line."
 1:19 1:57 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
@@ -4189,8 +4155,6 @@
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-10:17 10:34 no-unused-vars "'current' is defined but never used."
-10:36 10:62 no-unused-vars "'direction' is defined but never used."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -4308,7 +4272,7 @@
 16:14 16:18 svelte/valid-compile "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 3241 packages/melt/src/lib/components/Select.svelte	lint.txt
+=== 3107 packages/melt/src/lib/components/Select.svelte	lint.txt
 1:1 31:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:19 1:58 svelte/max-attributes-per-line "'generics=\"T , Multiple extends boolean\"' should be on a new line."
 1:19 1:58 svelte/sort-attributes "Attribute 'generics' should go before 'lang'."
@@ -4320,8 +4284,6 @@
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-10:17 10:34 no-unused-vars "'current' is defined but never used."
-10:36 10:62 no-unused-vars "'direction' is defined but never used."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -4425,11 +4387,9 @@
 16:14 16:18 svelte/valid-compile "This reference only captures the initial value of `rest`. Did you mean to reference it inside a closure instead?\nhttps://svelte.dev/e/state_referenced_locally(state_referenced_locally)"
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 460 packages/melt/src/lib/utils/animation-frames.svelte.ts	lint.txt
+=== 330 packages/melt/src/lib/utils/animation-frames.svelte.ts	lint.txt
 1:10 1:17 no-unused-vars "'untrack' is defined but never used."
 10:13 10:32 no-undef "'DOMHighResTimeStamp' is not defined."
-18:14 18:39 no-unused-vars "'params' is defined but never used."
-24:25 24:50 no-unused-vars "'params' is defined but never used."
 34:19 34:38 no-undef "'DOMHighResTimeStamp' is not defined."
 47:16 47:22 no-undef "'window' is not defined."
 54:16 54:22 no-undef "'window' is not defined."
@@ -4444,16 +4404,12 @@
 
 === 0 packages/melt/src/lib/utils/getters.svelte.ts	lint.txt
 
-=== 650 packages/melt/src/lib/utils/merge-attrs.svelte.ts	lint.txt
-11:49 11:53 no-unused-vars "'k' is defined but never used."
-11:81 11:91 no-unused-vars "'k' is defined but never used."
+=== 410 packages/melt/src/lib/utils/merge-attrs.svelte.ts	lint.txt
 24:36 24:41 no-undef "'Event' is not defined."
 24:44 24:49 no-undef "'Event' is not defined."
 24:61 24:68 no-undef "'Element' is not defined."
 24:71 24:78 no-undef "'Element' is not defined."
 25:21 25:34 no-undef "'EventListener' is not defined."
-26:5 26:9 no-unused-vars "'e' is defined but never used."
-42:8 42:12 no-unused-vars "'args' is defined but never used."
 60:53 60:64 no-undef "'HTMLElement' is not defined."
 74:27 74:40 no-undef "'EventListener' is not defined."
 75:27 75:40 no-undef "'EventListener' is not defined."
@@ -4481,9 +4437,7 @@
 186:16 186:24 no-undef "'document' is not defined."
 187:25 187:31 no-undef "'window' is not defined."
 
-=== 127 packages/melt/src/lib/utils/selection-state.svelte.ts	lint.txt
-45:2 45:41 no-unused-vars "'value' is defined but never used."
-178:18 178:35 no-unused-vars "'set' is defined but never used."
+=== 0 packages/melt/src/lib/utils/selection-state.svelte.ts	lint.txt
 
 === 104 packages/melt/src/lib/utils/selection-state.test.svelte.ts	lint.txt
 62:30 62:40 no-undef "'setTimeout' is not defined."
@@ -4495,12 +4449,9 @@
 
 === 0 packages/melt/src/lib/utils/typeahead.svelte.ts	lint.txt
 
-=== 397 packages/melt/src/lib/utils/use-floating.svelte.ts	lint.txt
-30:30 30:46 no-unused-vars "'el' is defined but never used."
+=== 212 packages/melt/src/lib/utils/use-floating.svelte.ts	lint.txt
 30:35 30:46 no-undef "'HTMLElement' is not defined."
-31:27 31:43 no-unused-vars "'el' is defined but never used."
 31:32 31:43 no-undef "'HTMLElement' is not defined."
-36:26 36:45 no-unused-vars "'args' is defined but never used."
 64:20 64:31 no-undef "'HTMLElement' is not defined."
 65:24 65:35 no-undef "'HTMLElement' is not defined."
 

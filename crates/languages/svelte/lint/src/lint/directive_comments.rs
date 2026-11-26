@@ -126,6 +126,15 @@ pub(crate) fn justification_start(value: &str) -> Option<usize> {
     })
 }
 
+/// The rule a directive's rule name turns off: typescript-eslint's `no-unused-vars` is the rule
+/// this crate names `no-unused-vars`, as oxlint takes either name for it.
+pub(crate) fn rule_named(name: &str) -> &str {
+    match name {
+        "@typescript-eslint/no-unused-vars" => "no-unused-vars",
+        _ => name,
+    }
+}
+
 pub(crate) mod javascript;
 pub(crate) mod processor;
 

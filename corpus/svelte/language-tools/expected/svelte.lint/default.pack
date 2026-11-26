@@ -21,7 +21,7 @@
 3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-5:11 5:15 no-unused-vars "'a' is assigned a value but never used."
+5:11 5:12 no-unused-vars "'a' is assigned a value but never used."
 8:1 8:6 svelte/valid-compile "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
 8:5 8:6 svelte/html-self-closing "Require self-closing on HTML void elements."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -1118,12 +1118,12 @@
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
-3:7 3:25 no-unused-vars "'_node' is defined but never used."
+3:7 3:12 no-unused-vars "'_node' is defined but never used."
 3:14 3:25 no-undef "'HTMLElement' is not defined."
 4:1 4:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
-4:7 4:33 no-unused-vars "'_params' is defined but never used."
+4:7 4:14 no-unused-vars "'_params' is defined but never used."
 5:1 5:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
-5:7 5:53 no-unused-vars "'_context' is defined but never used."
+5:7 5:15 no-unused-vars "'_context' is defined but never used."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -1297,14 +1297,14 @@
 4:9 4:78 no-unassigned-vars "'Component' is always 'undefined' because it's never assigned."
 4:61 4:71 no-undef "'MouseEvent' is not defined."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-6:18 6:30 no-unused-vars "'message' is defined but never used."
+6:18 6:25 no-unused-vars "'message' is defined but never used."
 9:20 9:33 svelte/html-self-closing "Require self-closing on Svelte custom components."
 10:34 10:47 svelte/html-self-closing "Require self-closing on Svelte custom components."
 
 === 544 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/disable-argument-name-match/input.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-2:18 2:33 no-unused-vars "'message' is defined but never used."
+2:18 2:25 no-unused-vars "'message' is defined but never used."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:9 5:24 svelte/prefer-const "'message' is never reassigned. Use 'const' instead."
@@ -1325,7 +1325,7 @@
 === 1260 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/element-handler/input.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-2:18 2:30 no-unused-vars "'message' is defined but never used."
+2:18 2:25 no-unused-vars "'message' is defined but never used."
 5:1 5:18 svelte/button-has-type "Missing an explicit type attribute for button."
 5:1 5:27 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
 5:9 5:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
@@ -1339,7 +1339,7 @@
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:9 4:47 no-unassigned-vars "'Component' is always 'undefined' because it's never assigned."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-5:17 5:29 no-unused-vars "'name' is defined but never used."
+5:17 5:21 no-unused-vars "'name' is defined but never used."
 8:25 8:38 svelte/html-self-closing "Require self-closing on Svelte custom components."
 
 === 378 packages/language-server/test/plugins/typescript/features/inlayHints/fixtures/property-declaration/input.svelte	lint.txt
@@ -1381,7 +1381,7 @@
 5:1 5:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-8:18 8:29 no-unused-vars "'msg' is defined but never used."
+8:18 8:21 no-unused-vars "'msg' is defined but never used."
 
 === 107 packages/language-server/test/plugins/typescript/testfiles/code-actions/check-js/codeaction-custom-fix-all-component3.svelte	lint.txt
 1:2 1:16 no-undef "'FixAllImported' is not defined."
@@ -1524,7 +1524,7 @@
 3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-6:9 6:17 no-unused-vars "'foo' is assigned a value but never used."
+6:9 6:12 no-unused-vars "'foo' is assigned a value but never used."
 6:9 6:17 svelte/prefer-const "'foo' is never reassigned. Use 'const' instead."
 
 === 0 packages/language-server/test/plugins/typescript/testfiles/completions/ScndImport.svelte	lint.txt
@@ -1669,14 +1669,13 @@
 14:53 14:55 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
 14:54 14:93 svelte/html-self-closing "Require self-closing on Svelte custom components."
 
-=== 1241 packages/language-server/test/plugins/typescript/testfiles/completions/object-member.svelte	lint.txt
+=== 1180 packages/language-server/test/plugins/typescript/testfiles/completions/object-member.svelte	lint.txt
 1:1 16:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
-3:12 3:24 no-unused-vars "'name' is defined but never used."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-6:11 6:19 no-unused-vars "'a' is assigned a value but never used."
+6:11 6:12 no-unused-vars "'a' is assigned a value but never used."
 7:1 7:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 7:9 7:10 no-undef "'h' is not defined."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -1685,14 +1684,14 @@
 11:1 11:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-14:26 14:65 no-unused-vars "'options' is defined but never used."
+14:26 14:33 no-unused-vars "'options' is defined but never used."
 15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
 === 303 packages/language-server/test/plugins/typescript/testfiles/completions/string-completion.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-4:18 4:43 no-unused-vars "'str' is defined but never used."
+4:18 4:21 no-unused-vars "'str' is defined but never used."
 
 === 178 packages/language-server/test/plugins/typescript/testfiles/completions/ts-directive-comment.svelte	lint.txt
 1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
@@ -1902,7 +1901,7 @@
 8:1 8:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-11:26 11:34 no-unused-vars "'e' is defined but never used."
+11:26 11:27 no-unused-vars "'e' is defined but never used."
 11:29 11:34 no-undef "'Event' is not defined."
 12:1 12:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
@@ -2003,8 +2002,8 @@
 
 === 518 packages/language-server/test/plugins/typescript/testfiles/rename/rename6.svelte	lint.txt
 1:1 6:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
-2:19 2:25 no-unused-vars "'_' is defined but never used."
-2:27 2:47 no-unused-vars "'props' is defined but never used."
+2:19 2:20 no-unused-vars "'_' is defined but never used."
+2:27 2:32 no-unused-vars "'props' is defined but never used."
 8:1 8:27 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 8:25 8:27 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
@@ -2021,21 +2020,17 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:5 2:12 no-undef "'console' is not defined."
 
-=== 1375 packages/language-server/test/plugins/typescript/testfiles/signature-help/signature-help.svelte	lint.txt
+=== 1139 packages/language-server/test/plugins/typescript/testfiles/signature-help/signature-help.svelte	lint.txt
 1:1 17:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-7:18 7:27 no-unused-vars "'a' is defined but never used."
-7:29 7:38 no-unused-vars "'b' is defined but never used."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-11:18 11:27 no-unused-vars "'a' is defined but never used."
-11:29 11:38 no-unused-vars "'b' is defined but never used."
 12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-12:18 12:27 no-unused-vars "'a' is defined but never used."
-12:29 12:47 no-unused-vars "'b' is defined but never used."
+12:18 12:19 no-unused-vars "'a' is defined but never used."
+12:29 12:30 no-unused-vars "'b' is defined but never used."
 14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 16:9 16:24 svelte/prefer-const "'items' is never reassigned. Use 'const' instead."
@@ -4639,7 +4634,7 @@
 39:1 39:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 39:11 39:17 no-undef "'global' is not defined."
 42:11 42:21 no-unused-vars "'hoistable9' is defined but never used."
-42:22 42:59 no-unused-vars "'props' is defined but never used."
+42:22 42:27 no-unused-vars "'props' is defined but never used."
 42:29 42:43 no-undef "'HTMLAttributes' is not defined."
 42:44 42:58 no-undef "'HTMLDivElement' is not defined."
 43:1 43:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4878,8 +4873,9 @@
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:9 4:10 no-unused-vars "'y' is assigned a value but never used."
 
-=== 1326 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-1.v5/input.svelte	lint.txt
+=== 1405 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-1.v5/input.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:9 2:14 no-unused-vars "'value' is assigned a value but only used as a type."
 2:9 2:14 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
 5:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4897,8 +4893,9 @@
 19:11 19:12 no-unused-vars "'a' is assigned a value but never used."
 19:14 19:15 no-unused-vars "'b' is assigned a value but never used."
 
-=== 773 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-2.v5/input.svelte	lint.txt
+=== 852 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-2.v5/input.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:9 2:14 no-unused-vars "'value' is assigned a value but only used as a type."
 2:9 2:14 svelte/prefer-const "'value' is never reassigned. Use 'const' instead."
 5:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4962,30 +4959,33 @@
 9:1 9:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 9:6 9:9 no-unused-vars "'Abc' is assigned a value but never used."
 
-=== 686 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-1.v5/input.svelte	lint.txt
+=== 762 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-1.v5/input.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:11 6:12 no-unused-vars "'a' is assigned a value but only used as a type."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 9:11 9:14 no-unused-vars "'foo' is assigned a value but never used."
 
-=== 586 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-10.v5/input.svelte	lint.txt
+=== 664 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-10.v5/input.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+5:7 5:11 no-unused-vars "'data' is assigned a value but only used as a type."
 7:1 7:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 7:6 7:7 no-unused-vars "'A' is defined but never used."
 8:1 8:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 8:6 8:7 no-unused-vars "'B' is defined but never used."
 
-=== 619 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-11.v5/input.svelte	lint.txt
+=== 695 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-11.v5/input.svelte	lint.txt
 1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:11 2:12 no-unused-vars "'a' is assigned a value but only used as a type."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 8:1 8:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -4993,9 +4993,10 @@
 12:1 12:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 12:5 12:12 no-empty-pattern "Unexpected empty object pattern."
 
-=== 619 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-12.v5/input.svelte	lint.txt
+=== 693 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-12.v5/input.svelte	lint.txt
 1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:7 2:8 no-unused-vars "'a' is assigned a value but only used as a type."
 4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 8:1 8:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -5021,9 +5022,10 @@
 10:1 10:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 10:6 10:9 no-unused-vars "'Abc' is assigned a value but never used."
 
-=== 543 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-2.v5/input.svelte	lint.txt
+=== 619 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-2.v5/input.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:11 2:12 no-unused-vars "'a' is assigned a value but only used as a type."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:1 5:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -5050,16 +5052,18 @@
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:11 7:19 no-unused-vars "'someProp' is assigned a value but never used."
 
-=== 398 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-6.v5/input.svelte	lint.txt
+=== 477 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-6.v5/input.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:9 2:14 no-unused-vars "'store' is assigned a value but only used as a type."
 2:9 2:14 svelte/prefer-const "'store' is never reassigned. Use 'const' instead."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:11 3:19 no-unused-vars "'someProp' is assigned a value but never used."
 
-=== 652 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-7.v5/input.svelte	lint.txt
+=== 738 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-7.v5/input.svelte	lint.txt
 1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:8 2:20 no-unused-vars "'destructured' is assigned a value but only used as a type."
 2:8 2:20 svelte/prefer-const "'destructured' is never reassigned. Use 'const' instead."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -5120,10 +5124,11 @@
 3:11 3:15 no-unused-vars "'form' is assigned a value but never used."
 3:17 3:21 no-unused-vars "'data' is assigned a value but never used."
 
-=== 391 packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	lint.txt
+=== 468 packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:8 3:11 no-unused-vars "'foo' is assigned a value but only used as a type."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:7 4:10 no-unused-vars "'Foo' is defined but never used."
 

@@ -2205,7 +2205,7 @@
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 20:1 20:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4421 src/lib/components/ui/sidebar/sidebar-provider.svelte	lint.txt
+=== 4358 src/lib/components/ui/sidebar/sidebar-provider.svelte	lint.txt
 1:1 36:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2229,7 +2229,6 @@
 21:35 21:49 no-undef "'HTMLDivElement' is not defined."
 22:1 22:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 23:1 23:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-23:19 23:32 no-unused-vars "'open' is defined but never used."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 26:1 26:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 27:1 27:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -3678,7 +3677,7 @@
 364:1 364:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 365:1 365:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 10542 src/lib/edra/headless/components/SlashCommand.svelte	lint.txt
+=== 10479 src/lib/edra/headless/components/SlashCommand.svelte	lint.txt
 1:1 108:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3692,7 +3691,6 @@
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-15:13 15:30 no-unused-vars "'item' is defined but never used."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:31 18:42 no-undef "'HTMLElement' is not defined."
@@ -6065,14 +6063,13 @@
 51:1 51:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 52:1 52:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2709 src/lib/edra/headless/primitives/dropdown/DropdownItem.svelte	lint.txt
+=== 2651 src/lib/edra/headless/primitives/dropdown/DropdownItem.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-7:14 7:27 no-unused-vars "'e' is defined but never used."
 7:17 7:27 no-undef "'MouseEvent' is not defined."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6119,14 +6116,13 @@
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 5163 src/lib/edra/headless/primitives/dropdown/DropdownRoot.svelte	lint.txt
+=== 5102 src/lib/edra/headless/primitives/dropdown/DropdownRoot.svelte	lint.txt
 1:1 62:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-7:19 7:32 no-unused-vars "'open' is defined but never used."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -6442,14 +6438,13 @@
 12:36 12:50 svelte/max-attributes-per-line "'role' should be on a new line."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 1807 src/lib/edra/headless/primitives/tabs/TabsRoot.svelte	lint.txt
+=== 1747 src/lib/edra/headless/primitives/tabs/TabsRoot.svelte	lint.txt
 1:1 25:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 7:1 7:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-7:20 7:31 no-unused-vars "'val' is defined but never used."
 8:1 8:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7787,7 +7782,7 @@
 377:1 377:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 378:1 378:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 13357 src/lib/edra/shadcn/components/SlashCommand.svelte	lint.txt
+=== 13294 src/lib/edra/shadcn/components/SlashCommand.svelte	lint.txt
 1:1 108:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -7801,7 +7796,6 @@
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 14:1 14:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-15:13 15:30 no-unused-vars "'item' is defined but never used."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 18:31 18:42 no-undef "'HTMLElement' is not defined."
@@ -10700,7 +10694,7 @@
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:2 11:20 svelte/html-self-closing "Require self-closing on Svelte special elements."
 
-=== 1361 src/lib/edra/tiptap/components/NodeViewFrame.svelte	lint.txt
+=== 1297 src/lib/edra/tiptap/components/NodeViewFrame.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10711,7 +10705,6 @@
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-11:17 11:33 no-unused-vars "'event' is defined but never used."
 11:24 11:33 no-undef "'DragEvent' is not defined."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
@@ -10719,7 +10712,7 @@
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 2904 src/lib/edra/tiptap/components/NodeViewWrapper.svelte	lint.txt
+=== 2840 src/lib/edra/tiptap/components/NodeViewWrapper.svelte	lint.txt
 1:1 23:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -10731,7 +10724,6 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 12:6 12:20 svelte/prefer-const "'onDragStartCtx' is never reassigned. Use 'const' instead."
-12:41 12:57 no-unused-vars "'event' is defined but never used."
 12:48 12:57 no-undef "'DragEvent' is not defined."
 13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 13:6 13:26 svelte/prefer-const "'decorationClassesCtx' is never reassigned. Use 'const' instead."
@@ -10857,16 +10849,15 @@
 === 53 src/lib/edra/tiptap/hooks/useEditor.svelte.ts	lint.txt
 17:45 17:56 no-undef "'HTMLElement' is not defined."
 
-=== 62 src/lib/edra/tiptap/hooks/useEditorState.svelte.ts	lint.txt
-30:13 30:37 no-unused-vars "'ctx' is defined but never used."
+=== 0 src/lib/edra/tiptap/hooks/useEditorState.svelte.ts	lint.txt
 
 === 0 src/lib/edra/tiptap/hooks/useEditorTransaction.svelte.ts	lint.txt
 
-=== 483 src/lib/edra/tiptap/renderers/SvelteRenderer.svelte.ts	lint.txt
+=== 471 src/lib/edra/tiptap/renderers/SvelteRenderer.svelte.ts	lint.txt
 8:21 8:28 no-undef "'Element' is not defined."
-12:2 12:64 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+12:2 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 19:6 19:13 no-undef "'Element' is not defined."
-21:2 21:64 @typescript-eslint/no-explicit-any "Definition for rule '@typescript-eslint/no-explicit-any' was not found."
+21:2 - - "Unused eslint-disable directive (no problems were reported from '@typescript-eslint/no-explicit-any')."
 24:20 24:28 no-undef "'document' is not defined."
 29:17 29:24 no-undef "'Element' is not defined."
 51:49 51:56 no-undef "'Element' is not defined."
@@ -13467,7 +13458,7 @@
 91:1 91:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 92:1 92:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 4989 src/routes/headless/+page.svelte	lint.txt
+=== 4861 src/routes/headless/+page.svelte	lint.txt
 1:1 43:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -13479,9 +13470,7 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-12:13 12:26 no-unused-vars "'chunk' is defined but never used."
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-13:13 13:25 no-unused-vars "'error' is defined but never used."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:1 16:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -13530,7 +13519,7 @@
 64:2 64:14 svelte/consistent-selector-style "Selector should select by element type instead of class"
 72:2 72:17 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
-=== 63842 src/routes/realtime/+page.svelte	lint.txt
+=== 63654 src/routes/realtime/+page.svelte	lint.txt
 1:1 230:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -13586,9 +13575,7 @@
 57:1 57:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 58:1 58:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 59:1 59:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-59:13 59:26 no-unused-vars "'chunk' is defined but never used."
 60:1 60:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-60:13 60:25 no-unused-vars "'error' is defined but never used."
 61:1 61:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 62:1 62:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 63:1 63:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -13620,7 +13607,6 @@
 91:1 91:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 92:1 92:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 93:1 93:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-93:25 93:56 no-unused-vars "'e' is defined but never used."
 94:1 94:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 95:1 95:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 97:1 97:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14311,7 +14297,7 @@
 524:1 524:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 525:1 525:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 10963 src/routes/templates/ai/+page.svelte	lint.txt
+=== 10835 src/routes/templates/ai/+page.svelte	lint.txt
 1:1 45:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14323,9 +14309,7 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 12:1 12:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-12:13 12:26 no-unused-vars "'chunk' is defined but never used."
 13:1 13:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-13:13 13:25 no-unused-vars "'error' is defined but never used."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:1 16:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
@@ -14455,7 +14439,7 @@
 86:1 86:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 87:1 87:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
-=== 15087 src/routes/templates/notion/+page.svelte	lint.txt
+=== 14959 src/routes/templates/notion/+page.svelte	lint.txt
 1:1 59:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -14485,9 +14469,7 @@
 29:1 29:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 30:1 30:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 31:1 31:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-31:13 31:26 no-unused-vars "'chunk' is defined but never used."
 32:1 32:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-32:13 32:25 no-unused-vars "'error' is defined but never used."
 33:1 33:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 34:1 34:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 35:1 35:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
