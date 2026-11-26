@@ -185,3 +185,30 @@ test("a preprocessor's map is merged under the compiler's, as the official one m
 		assert.equal(ours.at.line, 3);
 	}
 });
+
+test('parse returns the modern AST, with the values JSON cannot hold', () => {
+	const source = `<script lang="ts">\n\t// a comment\n\tlet big = 10n, re = /a/g;\n</script>\n\n<p class:on={big}>{re}</p>\n`;
+	// A copy drops acorn's classes, which the AST's shape does not depend on.
+	assert.deepEqual(
+		structuredClone(rsvelte.parse(source, { modern: true })),
+		structuredClone(official.parse(source, { modern: true })),
+	);
+});
+
+test('parse throws the official error, and refuses what it does not support', () => {
+	const official_error = (() => {
+		try {
+			official.parse('<p>{</p>', { modern: true });
+		} catch (error) {
+			return error as { code: string; position: number[] };
+		}
+	})();
+	assert.throws(
+		() => rsvelte.parse('<p>{</p>', { modern: true }),
+		(error: any) =>
+			error.code === official_error?.code &&
+			String(error.position) === String(official_error?.position),
+	);
+	assert.throws(() => rsvelte.parse('<p></p>'), /modern AST only/);
+	assert.throws(() => rsvelte.parse('<p></p>', { modern: true, loose: true }), /loose/);
+});

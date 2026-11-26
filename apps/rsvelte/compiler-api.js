@@ -10,10 +10,12 @@ import { sourceMap } from './source-map.js';
  * @typedef {{ code: string, map?: string }} Output
  * @typedef {{ compiled?: { js: Output, css?: Output | null, warnings: Report[] }, error?: Report }} Outcome
  * @typedef {{ filename?: unknown, generate?: unknown, preserveWhitespace?: unknown }} Options
+ * @typedef {{ ast?: string | null, error?: Report | null }} Parsed
  * @typedef {{
  *   VERSION: string,
  *   compile(source: string, options: Options): Outcome,
  *   compileModule(source: string, options: Options): Outcome,
+ *   parse(source: string): Parsed,
  * }} Compiler
  */
 
@@ -45,7 +47,7 @@ const COMPONENT = new Set([
 const MODULE = new Set(['filename', 'generate', 'rootDir', 'warningFilter']);
 
 /**
- * `compile` and `compileModule` over `binding`.
+ * `compile`, `compileModule` and `parse` over `binding`.
  * @param {Compiler} binding
  */
 export function compiler(binding) {
@@ -64,7 +66,40 @@ export function compiler(binding) {
 		compileModule(source, options = {}) {
 			return result(source, options, binding.compileModule(source, taken(options, MODULE)));
 		},
+		/**
+		 * The modern AST: the legacy one is not supported, and the loose parser not yet.
+		 * @param {string} source
+		 * @param {{ modern?: boolean, loose?: boolean }} [options]
+		 */
+		parse(source, { modern, loose } = {}) {
+			if (modern !== true) {
+				throw new Error('rsvelte/compiler parses to the modern AST only: pass `modern: true`');
+			}
+			if (loose) throw new Error('rsvelte/compiler does not take `loose: true` yet');
+			const { ast, error } = binding.parse(source);
+			if (error) throw compileError(diagnostic(source, undefined, error));
+			return JSON.parse(/** @type {string} */ (ast), revive);
+		},
 	};
+}
+
+/**
+ * Gives a literal the value JSON cannot hold, a bigint or a regular expression, from the field that
+ * holds it, as acorn does.
+ * @param {string} _key
+ * @param {any} value
+ */
+function revive(_key, value) {
+	if (value?.type !== 'Literal' || value.value !== null) return value;
+	if (typeof value.bigint === 'string') value.value = BigInt(value.bigint);
+	else if (value.regex) {
+		try {
+			value.value = new RegExp(value.regex.pattern, value.regex.flags);
+		} catch {
+			// A flag this engine does not know leaves the value null, as acorn does.
+		}
+	}
+	return value;
 }
 
 /**

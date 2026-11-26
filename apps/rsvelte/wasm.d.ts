@@ -6,4 +6,5 @@ declare module '#wasm' {
 	export const version: Module['version'];
 	export const compile: Module['compile'];
 	export const compileModule: Module['compileModule'];
+	export const parse: Module['parse'];
 }

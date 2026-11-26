@@ -11,6 +11,7 @@ mod configuration;
 mod extension;
 mod identity;
 mod module;
+mod parse;
 mod task;
 mod warnings;
 
@@ -24,6 +25,7 @@ pub use extension::EXTENSION;
 pub use identity::OutputIdentity;
 pub use input::{CompileInput, Renderer, Target};
 pub use module::CompileModule;
+pub use parse::parse;
 pub use render_plan::RenderPlan;
 pub use task::{
     Compile, PLUGIN, compile_to_javascript, lower_document, register, register_with_configuration,
