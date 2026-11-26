@@ -15,6 +15,7 @@ use super::{Acorn, Unreserved};
 
 mod arguments;
 mod declarations;
+mod escape;
 mod lexer;
 mod number;
 mod pattern;

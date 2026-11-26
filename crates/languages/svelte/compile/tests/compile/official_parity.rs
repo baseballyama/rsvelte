@@ -12,6 +12,7 @@ mod const_tags;
 mod derived;
 mod enums;
 mod errors;
+mod escapes;
 mod exports;
 mod import_aliases;
 mod import_equals;
