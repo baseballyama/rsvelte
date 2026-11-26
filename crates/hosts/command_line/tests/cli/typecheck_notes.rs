@@ -1,5 +1,6 @@
 //! What `rsvelte typecheck` appends to TypeScript's message, as svelte-check does.
 
+use crate::typecheck::Native;
 use crate::typecheck_events::check;
 
 /// svelte-check appends "Possible causes" to a TS2345 that names
@@ -49,5 +50,5 @@ fn typecheck_notes_a_component_constructor_argument() {
             .to_owned(),
     ]
     .concat();
-    assert!(report.contains(&expected), "{report}");
+    assert!(report.contains(&expected.native()), "{report}");
 }
