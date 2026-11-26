@@ -1,6 +1,8 @@
 //! `rsvelte typecheck` where TypeScript reads JavaScript as untyped: which JavaScript components
 //! it checks, and the TS7016 of each import of one.
 
+use rsvelte_test_harness::NodePackages;
+
 use crate::typecheck::{Native, Project, link, text, typecheck_config, typescript};
 
 /// A JavaScript component is untyped where TypeScript reads JavaScript as untyped: each import of
@@ -253,5 +255,58 @@ fn typecheck_reads_a_package_component_it_does_not_check_as_untyped() {
              \nFound 1 error in 1 file.\n",
             dep.display()
         )
+    );
+}
+
+/// A named or namespace import of a JavaScript component keeps the types of its generated text,
+/// where svelte-check 4.7.8 reports only the two TS7016 lines: TypeScript 7 types every file
+/// a content mapper maps (`DIVERGENCES.md`, "A named import of a JavaScript component without
+/// `allowJs`").
+#[test]
+fn typecheck_types_a_named_import_of_a_javascript_component() {
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let project = Project::new(&[
+        ("rsvelte.config.json", &config),
+        (
+            "tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"target":"esnext","types":[],"skipLibCheck":true},"include":["src"]}"#,
+        ),
+        (
+            "src/X.svelte",
+            "<script module>\n\texport const y = 1;\n</script>\n\n<p>{y}</p>\n",
+        ),
+        (
+            "src/use.ts",
+            "import X, { y, q } from \"./X.svelte\";\nimport * as ns from \"./X.svelte\";\n\
+             export const values: [string, string, unknown, unknown] = [y, ns.y, ns.q, X];\n\
+             export const missing = q;\n",
+        ),
+    ]);
+    std::fs::create_dir_all(project.0.join("node_modules")).expect("node_modules");
+    link(
+        NodePackages::locate().package("svelte"),
+        project.0.join("node_modules/svelte"),
+    );
+    let output = project.rsvelte(&["typecheck"]);
+    let component = typescript(&project.0.join("src/X.svelte"));
+    let untyped = format!(
+        "error TS7016: Could not find a declaration file for module './X.svelte'. '{component}' \
+         implicitly has an 'any' type."
+    );
+    assert_eq!(
+        format!("{}{}", text(&output.stdout), text(&output.stderr)),
+        format!(
+            "src/use.ts(1,16): error TS2614: Module '\"./X.svelte\"' has no exported member 'q'. \
+             Did you mean to use 'import q from \"./X.svelte\"' instead?\n\
+             src/use.ts(1,25): {untyped}\n\
+             src/use.ts(2,21): {untyped}\n\
+             src/use.ts(3,60): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+             src/use.ts(3,63): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+             src/use.ts(3,72): error TS2339: Property 'q' does not exist on type \
+             'typeof import(\"{component}\")'.\n\
+             \nFound 6 errors in 1 file.\n"
+        )
+        .native()
     );
 }
