@@ -334,6 +334,17 @@ impl<'t> LineCursor<'t> {
         (self.line, self.column)
     }
 
+    /// Moves past `bytes` of text the caller has read: a line's rest of `Some(units)` UTF-16
+    /// units, or `None` for the rest of the line with its `\n`.
+    pub const fn step_over(&mut self, bytes: u32, units: Option<u32>) {
+        self.byte += bytes;
+        if let Some(units) = units {
+            self.column += units;
+        } else {
+            (self.line, self.column) = (self.line + 1, 0);
+        }
+    }
+
     fn read_to(&mut self, target: u32) {
         let stretch = &self.text[self.byte as usize..target as usize];
         let bytes = stretch.as_bytes();

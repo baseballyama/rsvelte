@@ -81,10 +81,11 @@ pub fn print_expanding<'a>(program: &Program<'a>, expand: StatementExpansion<'a>
     printed(codegen, program, &[]).code
 }
 
-/// Upstream's printer keeps a template literal's text as written, `</script` too.
+/// Upstream's printer keeps a template literal's text as written, `</script` too, and a number's.
 fn options() -> CodegenOptions {
     CodegenOptions {
         escape_script_close_tag: false,
+        numbers_as_written: true,
         ..CodegenOptions::default()
     }
 }

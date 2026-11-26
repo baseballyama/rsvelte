@@ -277,7 +277,23 @@ impl Emitter {
         // The points come in generated order, so the output is read once and never indexed.
         let mut generated_cursor = LineCursor::new(&self.out, None);
         let mut source_cursor = LineCursor::new(source_text, Some(source));
-        let mut json = String::from("{\"version\":3,\"sources\":[");
+        // Five bytes per copied character and about eight per other point, measured over the
+        // corpus: small maps reserve less than doubling leaves spare.
+        let copied: usize = (self.mappings.iter())
+            .filter(|m| m.len > 0)
+            .map(|m| {
+                let text =
+                    &self.out.as_bytes()[m.generated as usize..(m.generated + m.len) as usize];
+                if text.is_ascii() {
+                    return text.len();
+                }
+                // A character starts at each byte that is not a UTF-8 continuation byte.
+                text.iter().filter(|&&b| b & 0xC0 != 0x80).count()
+            })
+            .sum();
+        let points = self.mappings.len() + self.atoms.len();
+        let mut json = String::with_capacity(64 + source_name.len() + 5 * copied + 8 * points);
+        json.push_str("{\"version\":3,\"sources\":[");
         crate::output::structured_data::write_string(&mut json, source_name);
         // The mappings are base64 digits, commas and semicolons, which JSON writes unescaped.
         json.push_str("],\"names\":[],\"mappings\":\"");
@@ -310,8 +326,15 @@ impl Emitter {
             prev_source_text_column = i64::from(s_column);
             // Each later character of the line moves both columns alike.
             let units = line_segments(&mut json, line);
-            prev_gen_column += units;
-            prev_source_text_column += units;
+            prev_gen_column += i64::from(units);
+            prev_source_text_column += i64::from(units);
+            // A copied line is the same text on both sides, so both cursors step over it alike.
+            if let Some(last) = line.chars().next_back() {
+                let units =
+                    (last != '\n').then(|| units + if u32::from(last) > 0xFFFF { 2 } else { 1 });
+                generated_cursor.step_over(line.len() as u32, units);
+                source_cursor.step_over(line.len() as u32, units);
+            }
         });
         json.push_str("\"}");
         json
@@ -320,7 +343,7 @@ impl Emitter {
 
 /// Writes a segment for each character of `line` after its first, one step of the UTF-16 units
 /// of the character before, and returns the units: `,CAAC` for one unit and `,EAAE` for two.
-fn line_segments(json: &mut String, line: &str) -> i64 {
+fn line_segments(json: &mut String, line: &str) -> u32 {
     const ASCII: &str =
         ",CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC,CAAC";
     // A line is part of the output, whose offsets are u32.
@@ -333,7 +356,7 @@ fn line_segments(json: &mut String, line: &str) -> i64 {
             json.push_str(&ASCII[..n * 5]);
             left -= n;
         }
-        return i64::from(steps);
+        return steps;
     }
     let mut units = 0;
     let mut chars = line.chars().peekable();

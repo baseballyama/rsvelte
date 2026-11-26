@@ -49,17 +49,52 @@ difference and not the projection:
     }
     for (let [p, q] of [[1, 2]]) {
     }
+    for (let { a: renamed } of [{ a: 1 }]) {
+    }
   }
   ```
 
   Under `noUnusedLocals`, TypeScript 6.0.3 reports TS6133 for `x` at 2:12, the `{`, and TS6133
   for `p` and `q` at 4:13 and 4:16. TypeScript 7.1 reports TS6133 for `x` at 2:14, and one TS6198
-  `All destructured elements are unused.` at 4:12. An `{#each}` item `{ x }`, `{ x = 2 }` or
-  `[p, q]` gives the same pair, because svelte2tsx writes the item as the binding of a `for…of`.
+  `All destructured elements are unused.` at 4:12. For `renamed`, TypeScript 6.0.3 reports
+  TS6133 at 6:12, the `{`, and TypeScript 7.1 at 6:17, the name. An `{#each}` item `{ x }`,
+  `{ x = 2 }`, `{ a: renamed }` or `[p, q]` gives the same pair, because svelte2tsx writes the
+  item as the binding of a `for…of`. An index does not change it: with `[p, q], i` and `i` used,
+  svelte-check reports TS6133 at `p` and at `q`, and we report one TS6198 at the `[`.
 
-- Test: `typecheck_prints_what_typescript_7_prints` in the command line crate's
-  `tests/cli/typecheck_checker.rs`.
-- The report is [#5254](https://github.com/baseballyama/rsvelte/issues/5254).
+- A union prints its members in another order. A component tag whose value is `5` gets TS2345
+  against svelte2tsx's constraint, which TypeScript 6.0.3 prints as
+  `'ConstructorOfATypedSvelteComponent | Component<any, any, any> | null | undefined'` and
+  TypeScript 7.1 as `'Component<any, any, any> | ConstructorOfATypedSvelteComponent | null |
+  undefined'`. A plain `.ts` file with the same constraint gives the same pair.
+
+- The parameters of an untyped JavaScript function are not optional. Take this plain `.js` file,
+  with `checkJs` and `strict`:
+
+  ```js
+  /** @type {(p: { foo?: () => void }) => void} */
+  const call = (p) => {};
+  call({ foo: (q) => {} });
+  ```
+
+  TypeScript 6.0.3 reports only TS7006 for `q` at 3:14. TypeScript 7.1 also reports TS2322
+  `Type '(q: any) => void' is not assignable to type '() => void'.` at 3:8, with `Target signature
+  provides too few arguments.` When the object also lacks a required property, TypeScript 6.0.3
+  reports that property as missing, and TypeScript 7.1 reports the TS2322 in its place. The
+  TypeScript 7 changelog names the change:
+  ``And because Corsa uses the same rule for optional parameters, it fixes subtle Strada bugs with `"strict": true` in JavaScript.``
+  ([`tsc/CHANGES.md:8`](https://github.com/microsoft/typescript-go/blob/6161772c1370bdd4a82f808e6823bd755eb1870d/tsc/CHANGES.md?plain=1#L8)
+  at the commit `7.1.0-dev.20261102.1` names as its `gitHead`). In a JavaScript component, a
+  snippet `{#snippet foo(q)}` passed for `foo?: Snippet` gives the same pair, and so does a
+  callback with one parameter more than its type: `onpick={(n, x) => {}}` for
+  `(n: number) => void`, and `onclick={(e, x) => {}}` or `on:click={(e, x) => {}}` on a
+  `<button>`. In a TypeScript component, both checkers report the TS2322.
+
+- Test: `typecheck_prints_what_typescript_7_prints` and
+  `typecheck_checks_a_javascript_snippet_s_parameters_as_typescript_7_does` in the command line
+  crate's `tests/cli/typecheck_checker.rs`.
+- The reports are [#5254](https://github.com/baseballyama/rsvelte/issues/5254) and
+  [#5319](https://github.com/baseballyama/rsvelte/issues/5319).
 
 ## A component with a lone carriage return
 
@@ -137,3 +172,23 @@ declares no `$tns`, and neither does rsvelte. TypeScript 6.0.3, TypeScript 7.1 a
 itself give TS2552 for the same read in a `.ts` file. That holds at the top level, and inside an
 `async` arrow in a function, as the projection has it. svelte2tsx writes the same projection with
 svelte-check's options. The cause is not found.
+
+## A component whose value has no component shape
+
+svelte2tsx constructs a component with `new $$_P0C({ target, props })`. rsvelte calls it with
+`__rsvelte_component(P)(internals, props)`, so that a generic component infers its generics from the
+props (`component_call` in the projection crate's
+[`call.rs`](../typescript_projection/src/lower/call.rs)). For `null` or `undefined`, both give
+`never`. Then svelte-check 4.7.8 reports TS2351 `This expression is not constructable.` at the tag's
+name. rsvelte reports TS2349 `This expression is not callable.` there. For
+`<svelte:component this={P}>`, svelte-check reports it one column after the start of `P`, and
+rsvelte at the start.
+
+A function that returns no object, such as `() => 1`, is `never` in svelte2tsx too, and svelte-check
+reports the same TS2351. rsvelte calls the function itself: `() => 1` gets TS2554 `Expected 0
+arguments, but got 2.` and `(a, b) => {}` gets nothing. Upstream's test reads the props, the exports
+and the bindings off `Component<…>`. That test also turns some generic components of the projection
+into `never`, such as one with `generics="T, Key = T extends Map<infer K, unknown> ? K : keyof T"`.
+
+- Test: `typecheck_reports_a_value_that_is_no_component_at_its_tag` in the command line crate's
+  `tests/cli/typecheck_component_values.rs`.

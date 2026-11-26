@@ -282,7 +282,7 @@ const $$transition_keyed = (getKey, render) => {
 	let key;
 	return $$v_createKeyedFragment(() => key = getKey(), $$transition_branch(render, () => key));
 };
-const $$transition_frame_ms = 1e3 / 60;
+const $$transition_frame_ms = 1000 / 60;
 const $$transition_keyframe = (css) => {
 	const style = document.createElement("div").style;
 	style.cssText = css;

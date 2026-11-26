@@ -1,5 +1,27 @@
 # @rsvelte/cli
 
+## 0.7.5
+
+### Patch Changes
+
+- 7d8094f: Report the error acorn raises while it reads a token before the place the parser fails. Such tokens include a legacy octal number or escape in strict code, an `@`, and a `#` with no name after it.
+- efb3991: In a component's TypeScript script, `compile` refuses a reserved word as a name in an ambient context, such as `declare let static: number`, as Svelte does. It also refuses a class named by a TypeScript keyword, such as `class type {}`. A class field's value in an ambient context, or on an abstract field, is now reported at its `=`. The error for an abstract field names its key as Svelte does. A bundler erases the types of a `.svelte.ts` module before Svelte reads it, so these rules no longer apply there, and neither do the rules for `override` and `export declare global`.
+- c230874: `rsvelte typecheck` checks a component's value against svelte2tsx's constraint. A value that is no component now gives one finding at its tag, as svelte-check does, where it gave a second one about `never`.
+- d418d89: A directive with an escape, such as `"it\'s"`, keeps its value in a compiled module and in a
+  component's module script. A `.svelte.ts` script that spells `"use strict"` with an escape no
+  longer gets a second one, as in TypeScript's emit.
+- 5c129ba: `rsvelte typecheck` writes an `{#each}` block as svelte2tsx does, with the index declared in the loop's body. Under `noUnusedLocals`, an unused item or index is now TS6133 at its name, as in svelte-check, instead of TS6198 at the block.
+- 45b6705: `rsvelte typecheck` reads `$store` in a JavaScript component as svelte-check does. It reports a value that is no store at each read, and types an untyped custom store's value as `any`.
+- 569f9e4: `compile` now drops an ambient `enum` declaration, such as `declare enum E { A }`, from a `.svelte.ts` module before it analyzes the module, as TypeScript's emit does. A name the module declares again beside it no longer fails as declared twice.
+- c8b1e52: `compileModule` no longer fails on a syntax error in the types of a `.svelte.ts` module, such as `declare class C { x = 1 }`. TypeScript's emit drops that code before Svelte reads it.
+- 6c28995: `rsvelte typecheck` no longer reads `$ns` of a namespace import `ns` as a store, as svelte-check does. It reports that it cannot find `$ns`, where it reported TS2769 or nothing.
+- a2c7a86: `compile` prints a number from the source in its source spelling, such as `0x10` or `1_000`, as Svelte does. For a number the compiler makes itself, it prints what `String(value)` gives.
+- e31102d: `rsvelte typecheck` adds svelte-check's "Possible causes" note to an argument that is not assignable to `ConstructorOfATypedSvelteComponent`.
+- 9212e8f: Report a binary, octal or hex number such as `0b12` after an expression where acorn's parser fails, at the start of the number. acorn reads it as `0b1` and then `2`.
+- 2e4e9f1: Writing a source map reads each copied line fewer times.
+- 96c2f81: `rsvelte typecheck` drops a finding in the code it generates to declare `$store` and a component's snippets, as svelte-check does. A type-only store no longer gives an error at its import, and a store that refers to itself no longer refuses the component.
+- 514f7d8: `rsvelte typecheck` counts the columns of a file's first line from after a byte order mark, as svelte-check does. A finding there was one column to the right.
+
 ## 0.7.4
 
 ### Patch Changes

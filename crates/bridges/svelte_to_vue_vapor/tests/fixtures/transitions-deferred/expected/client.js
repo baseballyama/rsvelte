@@ -206,7 +206,7 @@ const $$transition_keyed = (getKey, render) => {
 	let key;
 	return $$v_createKeyedFragment(() => key = getKey(), $$transition_branch(render, () => key));
 };
-const $$transition_frame_ms = 1e3 / 60;
+const $$transition_frame_ms = 1000 / 60;
 const $$transition_keyframe = (css) => {
 	const style = document.createElement("div").style;
 	style.cssText = css;
@@ -602,7 +602,7 @@ export default $$v_defineVaporComponent({
 			return ({ direction }) => {
 				events.value.push(`resolve:${direction}:${element.isConnected}`);
 				return {
-					duration: 1e3,
+					duration: 1000,
 					css: (t) => `opacity: ${t}`
 				};
 			};

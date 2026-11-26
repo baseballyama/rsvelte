@@ -80,9 +80,11 @@ pub(crate) fn compiled(
     let (javascript, program) = rsvelte_svelte_syntax::parse::parse_module(
         &document.text,
         source_type,
-        |allocator, program| {
+        |allocator, program, record| {
             if source_type.is_typescript() {
-                erase::erase(allocator, program);
+                erase::erase(allocator, program, record)
+            } else {
+                Vec::new()
             }
         },
     )?;

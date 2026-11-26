@@ -4,6 +4,7 @@ use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_syntax::syntax_tree::{
     Attribute, AttributeKind, AttributeValue, Part, Range, TemplateNode,
 };
+use rsvelte_typescript_tree::{ExpressionIdentifier, node_span};
 
 use super::directive::Directives;
 use super::{Builder, Node, NodeIdentifier, Result, refuse};
@@ -14,13 +15,25 @@ impl Builder<'_> {
     /// `constructs` makes the instance, of the generics its props infer.
     pub(super) fn component_call(
         &mut self,
-        component: NodeIdentifier,
+        (component, name): (Option<ExpressionIdentifier>, Span),
         properties: NodeIdentifier,
         snippets: Range,
         name_it: bool,
         constructs: bool,
     ) -> (NodeIdentifier, Option<NodeIdentifier>) {
-        let callee = self.tree.push(Node::Identifier("__rsvelte_component"));
+        // svelte-check reports a finding on the call itself, such as that the value is no
+        // component, at the component's expression.
+        let at = component.map_or(name.start_offset, |component| {
+            node_span(self.expression(component)).start_offset
+        });
+        let component = match component {
+            Some(component) => self.expression_source(component, None),
+            None => self.tree.push(Node::AnyComponent),
+        };
+        let callee = self.tree.push(Node::IdentifierAt {
+            name: "__rsvelte_component",
+            at,
+        });
         let arguments = self.tree.list(&[component]);
         let mut callee = self.tree.push(Node::Call { callee, arguments });
         let named = (snippets.len != 0 || name_it).then(|| {
