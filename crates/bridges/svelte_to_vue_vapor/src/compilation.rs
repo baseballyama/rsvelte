@@ -88,9 +88,11 @@ pub(crate) fn check(
 ) -> R<CheckedComponent> {
     for script in c.instance.iter().chain(&c.module) {
         if script.typescript
-            && let Some((_, span)) = rsvelte_typescript_compile::features::first_runtime_feature(
-                c.javascript.get_program(script.program),
-            )
+            && let Some((_, span)) =
+                rsvelte_typescript_compile::features::first_svelte_runtime_feature_where(
+                    c.javascript.get_program(script.program),
+                    |_| true,
+                )
         {
             return Err(unsupported(
                 "TypeScript with runtime semantics",

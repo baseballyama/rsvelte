@@ -273,7 +273,7 @@ pub(crate) fn emit<'t>(
     let (plan, custom_element) = (&checked.script, checked.options.custom_element.is_some());
     let mut body = Vec::new();
     head(rw, plan, custom_element, helpers, &mut body);
-    for s in instance.iter().flat_map(|p| &p.body) {
+    for s in instance.into_iter().flat_map(super::statements) {
         let s = match s {
             Statement::ExportDeclaration(e) => match &e.declaration {
                 Declaration::VariableDeclaration(d) => {
@@ -329,7 +329,7 @@ pub(crate) fn module<'t>(
 ) -> Vec<Statement<'t>> {
     let b = rw.b;
     let mut output = Vec::new();
-    for statement in &program.body {
+    for statement in super::statements(program) {
         let Statement::ExportDeclaration(e) = statement else {
             output.extend(rw.statement(statement));
             continue;

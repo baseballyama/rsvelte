@@ -209,6 +209,39 @@ jobs:
             exit 1
           fi
 
+  package:
+    # rsvelte/compiler over the WebAssembly module: in Node.js, where no addon is installed here, in
+    # the browser entry, and bundled by Vite and esbuild. rsvelte_node's test covers the addon.
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: apps/rsvelte
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          sparse-checkout: *no-corpus
+          sparse-checkout-cone-mode: false
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: 26.13.1
+          package-manager-cache: false
+      - uses: pnpm/action-setup@73e46992e05b19abd31f2f3c20e0e7370d762115 # v6.1.1
+      - uses: ./.github/actions/rust
+        with:
+          targets: wasm32-unknown-unknown
+          key: package
+      - run: cargo install wasm-pack --version 0.15.1 --locked
+      - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/.wasm-pack
+          key: wasm-pack-${{ runner.os }}-0.15.1-${{ hashFiles('Cargo.lock') }}
+      - run: pnpm install --frozen-lockfile --filter @rsvelte-experimental/rsvelte...
+      - run: node --run generate -- --dev
+      - run: node --run test:wasm
+      - run: node --run test:browser
+
   performance:
     # The two ratchets build different programs, and on one runner the two builds share its four
     # CPUs. The instruction baseline is recorded on arm64 Linux (`performance.ts ratchet-linux` runs

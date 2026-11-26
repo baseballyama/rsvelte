@@ -306,3 +306,78 @@ fn refusals_where_svelte_reads_the_source_differently() {
         assert!(got.contains(want), "{source_text}: {got}");
     }
 }
+
+/// Each script, instance and module, holding `body` before a value the template reads.
+fn scripts(body: &str) -> [String; 2] {
+    [
+        format!("<script lang=\"ts\">\n{body}\nlet x = 1;\n</script>\n<p>{{x}}</p>\n"),
+        format!(
+            "<script module lang=\"ts\">\n{body}\nexport const m = 1;\n</script>\n<p>{{m}}</p>\n"
+        ),
+    ]
+}
+
+/// Svelte's output for each of these equals its output without it, at the top level as in a
+/// nested list.
+#[test]
+fn a_top_level_typescript_declaration_is_erased() {
+    let shapes = [
+        "type T = 1;",
+        "interface I { a: 1 }",
+        "declare const d: number;",
+        "declare let JSON: number;",
+        "declare function f(): void;",
+        "declare class C {}",
+        "namespace N { type T = 1; }",
+        "namespace N { }",
+        "namespace N { namespace M { export type T = 1; } }",
+        "declare module \"m\" { }",
+        "declare global { interface Window { a: 1 } }",
+        "import type { X } from \"x\";",
+        "import { type X } from \"x\";",
+        "import type { X } from \"svelte\";",
+        "export interface I { a: 1 }",
+        "export type T = 1;",
+        "export declare const d: number;",
+        "export declare enum E { A }",
+        "export declare const enum E { A }",
+        "export namespace N { export type T = 1; }",
+        "namespace N { export declare enum E { A } }",
+        "namespace N { namespace M { export declare const enum E { A } } }",
+        "type T = 1;\nexport type { T };",
+        "type T = 1;\nexport { type T };",
+    ];
+    for shape in shapes {
+        for (with, without) in scripts(shape).into_iter().zip(scripts("")) {
+            for server in [false, true] {
+                let got = run(&with, server).unwrap_or_else(|e| panic!("{shape}: {e}"));
+                assert_eq!(
+                    got,
+                    run(&without, server).expect("the control compiles"),
+                    "{shape}, server: {server}"
+                );
+            }
+        }
+    }
+}
+
+/// What Svelte refuses as `typescript_invalid_feature`.
+#[test]
+fn typescript_that_svelte_refuses_is_refused() {
+    let shapes = [
+        "declare namespace N { const x: 1; }",
+        "declare namespace N { enum E { A } }",
+        "declare module \"m\" { enum E { A } }",
+        "declare global { enum E { A } }",
+        "namespace N { declare namespace M { enum E { A } } }",
+    ];
+    for shape in shapes {
+        for source_text in scripts(shape) {
+            let got = run(&source_text, false).expect_err(shape);
+            assert!(
+                got.contains("TypeScript with runtime semantics"),
+                "{shape}: {got}"
+            );
+        }
+    }
+}
