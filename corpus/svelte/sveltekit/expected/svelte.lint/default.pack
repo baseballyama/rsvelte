@@ -4161,6 +4161,9 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 86 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	lint.txt
+1:4 - - "Parsing error: Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof"
+
 === 0 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	lint.txt
 
 === 0 packages/kit/test/prerendering/basics/src/routes/content-type-charset/+page.svelte	lint.txt
