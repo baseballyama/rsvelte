@@ -1,7 +1,7 @@
 {
 	"population": {
-		"documents": 39591,
-		"source_bytes": 38117685,
+		"documents": 48277,
+		"source_bytes": 61900279,
 		"tasks": [
 			"ts.compile/default",
 			"ts.format/default",
@@ -23,14 +23,14 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 25316082,
-	"alloc_bytes": 3883506103,
-	"peak_live_growth_bytes": 3010587,
+	"allocs": 26126522,
+	"alloc_bytes": 4522487973,
+	"peak_live_growth_bytes": 3405367,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
-			"calls": 2612,
-			"allocs": 9205,
-			"alloc_bytes": 1276032
+			"calls": 11296,
+			"allocs": 30517,
+			"alloc_bytes": 5372412
 		},
 		"js.print": {
 			"calls": 69359,
@@ -338,24 +338,24 @@
 			"alloc_bytes": 3374
 		},
 		"ts.compile/default": {
-			"calls": 2691,
-			"allocs": 17414,
-			"alloc_bytes": 74557816
+			"calls": 11377,
+			"allocs": 80394,
+			"alloc_bytes": 443680542
 		},
 		"ts.format/default": {
-			"calls": 2691,
-			"allocs": 111875,
-			"alloc_bytes": 17823743
+			"calls": 11377,
+			"allocs": 645308,
+			"alloc_bytes": 126110194
 		},
 		"ts.lint/default": {
-			"calls": 2691,
-			"allocs": 59485,
-			"alloc_bytes": 29475575
+			"calls": 11377,
+			"allocs": 197466,
+			"alloc_bytes": 173283979
 		},
 		"ts.tree": {
-			"calls": 2691,
-			"allocs": 13686,
-			"alloc_bytes": 3257566
+			"calls": 11377,
+			"allocs": 59734,
+			"alloc_bytes": 13868003
 		},
 		"vuelte.check": {
 			"calls": 71640,
@@ -384,14 +384,14 @@
 		}
 	},
 	"instructions": {
-		"arm64-linux": 2044996012
+		"arm64-linux": 2331091807
 	},
 	"load_instructions": {
-		"arm64-linux": 145960659
+		"arm64-linux": 183587800
 	},
 	"instruction_sample": {
 		"every": 20,
-		"documents": 1979,
-		"source_bytes": 1717190
+		"documents": 2407,
+		"source_bytes": 2779148
 	}
 }
