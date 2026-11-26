@@ -1,4 +1,4 @@
-# svelte.check/default: 34694 match
+# svelte.check/default: 34689 match
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/template_expressions_reject_it_too/52e418cc04b4e2a4.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/template_expressions_reject_it_too/56cd453e3b23962e.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/const_tag_parse_error_3691/an_unparseable_initializer_is_rejected/5be5d4786e84cdc5.svelte	js-equivalent
