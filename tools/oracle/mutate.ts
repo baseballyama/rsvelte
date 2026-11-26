@@ -77,14 +77,21 @@ export const MUTATIONS: Record<string, Mutation> = {
 	'rune-in-template': (src, node) => {
 		const expression = node.expression as Node | undefined;
 		if (node.type !== 'ExpressionTag' || !expression) return undefined;
-		return splice(src, expression.start, expression.end, `$state(${src.slice(expression.start, expression.end)})`);
+		return splice(
+			src,
+			expression.start,
+			expression.end,
+			`$state(${src.slice(expression.start, expression.end)})`,
+		);
 	},
 	'const-at-root': (src, node) =>
 		node.type === 'ConstTag'
 			? src.slice(node.start, node.end) + '\n' + splice(src, node.start, node.end)
 			: undefined,
 	'script-twice': (src, node) =>
-		node.type === 'Script' ? splice(src, node.end, node.end, '\n' + src.slice(node.start, node.end)) : undefined,
+		node.type === 'Script'
+			? splice(src, node.end, node.end, '\n' + src.slice(node.start, node.end))
+			: undefined,
 };
 
 /** Every node of the tree, in source order. */
@@ -94,7 +101,8 @@ export function* nodes(value: unknown): Generator<Node> {
 	} else if (value && typeof value === 'object') {
 		const node = value as Node;
 		if (typeof node.type === 'string' && typeof node.start === 'number') yield node;
-		for (const [key, v] of Object.entries(node)) if (key !== 'metadata' && key !== 'loc') yield* nodes(v);
+		for (const [key, v] of Object.entries(node))
+			if (key !== 'metadata' && key !== 'loc') yield* nodes(v);
 	}
 }
 
@@ -109,7 +117,7 @@ function rejection(src: string, filename: string): string | undefined {
 }
 
 /** The mutants of the compiled components of `sources`, by their path under `OUT`. */
-export function mutants(sources: string[]): Map<string, string> {
+function mutants(sources: string[]): Map<string, string> {
 	const kept = new Map<string, number>();
 	const out = new Map<string, string>();
 	for (const source of sources) {
