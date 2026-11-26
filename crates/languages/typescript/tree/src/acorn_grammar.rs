@@ -361,10 +361,6 @@ fn whitespace(text: &str, irregular: &[oxc_span::Span], shift: u32) -> Option<St
     })
 }
 
-/// Where acorn first stops in a part oxc read of `text`, before its parser looks at the tokens
-/// that start at `starts`: at whitespace in `irregular` that ECMAScript does not allow, or at a
-/// token its lexer rejects as it reads it, which orders the rejection by where the token starts.
-/// `shift` moves it into the document.
 /// Whether acorn's lexer can reject `token` where oxc read it: a number, a string with an escape,
 /// an `@`, or a `#`.
 fn may_reject(token: &Token) -> bool {
@@ -377,6 +373,10 @@ fn may_reject(token: &Token) -> bool {
         )
 }
 
+/// Where acorn first stops in a part oxc read of `text`, before its parser looks at the tokens
+/// that start at `starts`: at whitespace in `irregular` that ECMAScript does not allow, or at a
+/// token its lexer rejects as it reads it, which orders the rejection by where the token starts.
+/// `shift` moves it into the document.
 pub(crate) fn lexed(
     text: &str,
     starts: impl IntoIterator<Item = u32>,
@@ -393,8 +393,6 @@ pub(crate) fn lexed(
         .min_by_key(|stop| stop.at)
 }
 
-/// The starts of `tokens` that oxc read before it stopped, and of the token it stopped at, which
-/// `diagnostics` label first: acorn has read that token when its parser fails there.
 /// Where the tokens acorn may reject start, of a part and of the token its parser read to end it.
 pub(crate) fn read(tokens: &[Token], next: Option<Token>) -> impl Iterator<Item = u32> {
     let part = tokens
@@ -404,6 +402,8 @@ pub(crate) fn read(tokens: &[Token], next: Option<Token>) -> impl Iterator<Item 
     part.chain(next.filter(may_reject).map(|token| token.start()))
 }
 
+/// The starts of `tokens` that oxc read before it stopped, and of the token it stopped at, which
+/// `diagnostics` label first: acorn has read that token when its parser fails there.
 pub(crate) fn read_before_stopping(
     text: &str,
     tokens: &[Token],
@@ -415,7 +415,9 @@ pub(crate) fn read_before_stopping(
             let rest = text.get(label.offset() as usize..)?;
             let blank = rest.len() - rest.trim_start_matches([' ', '\t']).len();
             Some(label.offset() + u32::try_from(blank).ok()?)
-        });
+        })
+        // A label inside a token oxc read is not where a token starts.
+        .filter(|&at| tokens.last().is_none_or(|token| token.end() <= at));
     tokens
         .iter()
         .filter(|token| may_reject(token))

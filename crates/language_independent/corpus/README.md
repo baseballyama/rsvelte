@@ -47,9 +47,9 @@ leaves out `@__PURE__` marks and the line that upstream writes above a module. E
 comments ledger does not compare still gets a line. The line says `official-rejected` when the
 official compiler rejected the unit and `skipped` when `units.toml` skips it. It says `refused`,
 `panicked` or `unparseable` for rsvelte's side. The test compares lint findings only for the rules rsvelte ran. JSON counts as values and everything else as bytes. When both tools reject a
-unit, the compile errors must agree, except that a JavaScript syntax error (`js_parse_error`) is
-oxc's to word and place: if only that differs, in an error, a warning list or a lint finding, the
-verdict is `js-equivalent`.
+unit, the compile errors must agree. A JavaScript syntax error (`js_parse_error`) is the exception,
+since oxc words and places it. When only its words or its position differ, the verdict is
+`js-equivalent`.
 
 ## The ledger
 

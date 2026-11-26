@@ -57,6 +57,7 @@ fn an_optional_rest_acorn_reads_as_a_binding_a_name_or_an_expression_is_rejected
         "namespace N { function h(...p?: string[]) {} }",
         "const g = async (a, ...p?: string[]) => {};",
         "const g = ([...a?]) => {};",
+        "const g = ([...a ?]) => {};",
         "const g = ({...a?}) => {};",
         "function f({...a?}) {}",
         "declare function f({...a?}: T): void;",
