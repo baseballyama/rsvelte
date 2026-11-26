@@ -5,14 +5,12 @@ use std::path::Path;
 
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{ImportOrExportKind, Program, Statement};
-use oxc_ast_visit::VisitMut;
 use oxc_semantic::SemanticBuilder;
 use oxc_span::{SPAN, SourceType};
 use oxc_transformer::{TransformOptions, Transformer};
 use rsvelte_kernel::diagnostics::Diagnostic;
 use rsvelte_kernel::source::positions::Span;
 use rsvelte_svelte_semantic::resolve::Resolution;
-use rsvelte_typescript_compile::original_text::OriginalText;
 use rsvelte_typescript_tree::document_span;
 
 use super::validation::check_runes;
@@ -109,7 +107,6 @@ fn typescript_emit<'o>(
             span,
         ));
     }
-    OriginalText::new(allocator).visit_program(out);
     // TypeScript keeps a script strict, and a module that its emit leaves without an import or an
     // export a module.
     let module = source.body.iter().any(Statement::is_module_declaration);
