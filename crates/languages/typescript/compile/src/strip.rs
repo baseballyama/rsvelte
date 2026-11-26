@@ -8,8 +8,8 @@ use oxc_ast::ast::{
     ClassElement, CommentPosition, Declaration, ExportDeclaration, ExportDefaultDeclarationKind,
     ExportNamedDeclaration, ExportSpecifier, Expression, FormalParameter, FormalParameterRest,
     Function, FunctionBody, FunctionType, ImportDeclaration, ImportDeclarationSpecifier,
-    MethodDefinition, MethodDefinitionKind, MethodDefinitionType, NewExpression, NumericLiteral,
-    Program, PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget, Statement,
+    MethodDefinition, MethodDefinitionKind, MethodDefinitionType, NewExpression, Program,
+    PropertyDefinition, PropertyDefinitionType, SimpleAssignmentTarget, Statement,
     TSModuleReference, TaggedTemplateExpression, VariableDeclarator,
 };
 use oxc_ast::builder::AstBuilder;
@@ -129,8 +129,7 @@ pub fn is_erased_module_syntax(statement: &Statement<'_>) -> bool {
 ///
 /// That is declarations and class members without a runtime meaning, `import A = require("a")` and
 /// `export =`. An expression keeps its types, and an enum, a namespace and a parameter property are
-/// left to be lowered. A number with a leading zero loses its text, as TypeScript writes its value
-/// and acorn would refuse the text in a module.
+/// left to be lowered.
 pub struct ModuleErasure<'a> {
     allocator: &'a Allocator,
     /// The spans of the statements and the class members it removed, when it records them.
@@ -179,13 +178,6 @@ impl<'a> VisitMut<'a> for ModuleErasure<'a> {
             kept
         });
         walk_mut::walk_statements(self, it);
-    }
-
-    fn visit_numeric_literal(&mut self, it: &mut NumericLiteral<'a>) {
-        let raw = it.raw.as_ref().map(|raw| raw.as_str().as_bytes());
-        if let Some([b'0', b'0'..=b'9' | b'_', ..]) = raw {
-            it.raw = None;
-        }
     }
 
     /// An import of types only is still an import.
