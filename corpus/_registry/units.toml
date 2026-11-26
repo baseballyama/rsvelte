@@ -3025,7 +3025,6 @@
 "svelte.check" = "checker: TS 7 prints a union's literal members in its own order where TS 6 keeps the written order, so the message lists them differently"
 
 ["svelte/svelte-inspect-value/packages/svelte/src/lib/components/HTMLViewSimple.svelte".skip]
-"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
 "svelte.check" = "checker: TS 7 reports only the last overload of a call that no overload matches where TS 6 reports each overload"
 
 ["svelte/svelte/packages/svelte/tests/manual/each-stress-test/main.svelte".skip]
@@ -4621,9 +4620,6 @@
 "svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
 
 ["svelte/rsvelte/lint/no-unused-svelte-ignore/12-no-trailing-space-codes.svelte".skip]
-"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
-
-["svelte/svelte-inspect-value/packages/svelte/src/lib/components/Preview.svelte".skip]
 "svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore drops the last of several codes when no separator follows it."
 
 ["svelte/rsvelte-tests-core-3/svelte_ignore_comment_attachment_2256/comma_separated_codes_suppress/c91de8241b3a0217.svelte".skip]
@@ -6683,3 +6679,12 @@
 
 ["svelte/svelte-spa-router/examples/dynamic-imports/src/routes/Wild.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
+
+["svelte/rsvelte/lint/no-unused-svelte-ignore/23-plugin-rule-id.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore reports the words after the last code that no comma follows as unused codes, where Svelte's runes mode reads them as prose"
+
+["svelte/svelte/packages/svelte/tests/migrate/samples/svelte-ignore/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore reports the words after the last code that no comma follows as unused codes, where Svelte's runes mode reads them as prose"
+
+["svelte/svelte/packages/svelte/tests/validator/samples/unknown-code/input.svelte".skip]
+"svelte.lint" = "upstream bug: svelte/no-unused-svelte-ignore reports the words after the last code that no comma follows as unused codes, where Svelte's runes mode reads them as prose"

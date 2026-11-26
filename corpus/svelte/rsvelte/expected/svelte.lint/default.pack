@@ -9582,15 +9582,6 @@ Rule: "svelte/valid-compile"
 === 89 lint/no-unused-svelte-ignore/22-trailing-comment-only.svelte	lint.txt
 2:20 2:42 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 
-=== 550 lint/no-unused-svelte-ignore/23-plugin-rule-id.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:6 2:7 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
-5:20 5:42 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-6:1 6:10 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
-8:20 8:42 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-8:43 8:66 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-9:1 9:11 svelte/no-at-debug-tags "Unexpected `{@debug}`."
-
 === 410 lint/no-useless-children-snippet/01-component-basic.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

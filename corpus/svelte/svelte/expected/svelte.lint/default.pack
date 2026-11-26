@@ -4137,19 +4137,6 @@
 === 228 packages/svelte/tests/migrate/samples/svelte-element/output.svelte	lint.txt
 6:17 6:28 svelte/valid-compile "`this` should be an `{expression}`. Using a string attribute value will cause an error in future versions of Svelte\nhttps://svelte.dev/e/svelte_element_invalid_this(svelte_element_invalid_this)"
 
-=== 844 packages/svelte/tests/migrate/samples/svelte-ignore/input.svelte	lint.txt
-2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-2:11 2:14 no-unused-vars "'foo' is defined but never used."
-3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-3:20 3:54 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
-4:3 4:4 no-unused-labels "'$:' is defined but never used."
-4:6 4:7 no-undef "'x' is not defined."
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-8:20 8:44 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-11:20 11:44 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-11:45 11:70 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-
 === 844 packages/svelte/tests/migrate/samples/svelte-ignore/output.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:11 2:14 no-unused-vars "'foo' is defined but never used."
@@ -27585,21 +27572,6 @@
 === 0 packages/svelte/tests/validator/samples/tag-emoji/input.svelte	lint.txt
 
 === 0 packages/svelte/tests/validator/samples/tag-hyphen/input.svelte	lint.txt
-
-=== 1202 packages/svelte/tests/validator/samples/unknown-code/input.svelte	lint.txt
-5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-5:29 5:30 svelte/html-self-closing "Require self-closing on HTML void elements."
-8:20 8:42 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
-10:2 10:30 svelte/valid-compile "`<img>` element should have an alt attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
-10:29 10:30 svelte/html-self-closing "Require self-closing on HTML void elements."
-16:41 16:45 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-16:46 16:48 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-16:49 16:53 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-16:54 16:59 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-19:41 19:48 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-19:49 19:63 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
-19:64 19:69 svelte/no-unused-svelte-ignore "svelte-ignore comment is used, but not warned"
 
 === 364 packages/svelte/tests/validator/samples/use-the-platform/input.svelte	lint.txt
 1:6 1:21 svelte/valid-compile "'className' is not a valid HTML attribute. Did you mean 'class'?\nhttps://svelte.dev/e/attribute_invalid_property_name(attribute_invalid_property_name)"

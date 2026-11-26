@@ -16,6 +16,8 @@
   "no-unused-class-name/valid/space-after-expression-input.svelte": "upstream reports `Unused class \"\"` for the space after the expression (upstream_issues.md)",
   "no-unused-class-name/valid/space-before-expression-input.svelte": "upstream reports `Unused class \"\"` for the space before the expression (upstream_issues.md)",
   "no-unused-svelte-ignore/invalid/last-code-without-separator-input.svelte": "upstream never reads the last of two or more codes without a separator after it (upstream_issues.md)",
+  "no-unused-svelte-ignore/invalid/prose-after-unused-codes-input.svelte": "upstream reads the words after the last code that no comma follows as codes, which Svelte's runes mode reads as prose (upstream_issues.md)",
+  "no-unused-svelte-ignore/valid/prose-after-codes-input.svelte": "upstream reads the words after the last code that no comma follows as codes, which Svelte's runes mode reads as prose (upstream_issues.md)",
   "no-useless-mustaches/invalid/entity-completed-by-mustache-input.svelte": "upstream fixes `&am{'p;'}` to `&amp;`, which the compiler decodes to `&` (upstream_issues.md)",
   "no-useless-mustaches/invalid/entity-in-attribute-input.svelte": "upstream fixes `{'&amp;'}` to `\"&amp;\"`, which the compiler decodes to `&` (upstream_issues.md)",
   "no-useless-mustaches/invalid/entity-in-quoted-attribute-input.svelte": "upstream fixes `{'&lt;'}` to `&lt;`, which the compiler decodes to `<` (upstream_issues.md)",
