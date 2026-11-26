@@ -123,8 +123,232 @@
 	}
 ]
 
+=== 1770 src/lib/components/furniture/BurgerMenu.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 27,
+			"character": 23
+		},
+		"end": {
+			"line": 27,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/nav' or its corresponding type declarations.",
+		"start": {
+			"line": 28,
+			"character": 26
+		},
+		"end": {
+			"line": 28,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 29,
+			"character": 19
+		},
+		"end": {
+			"line": 29,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/nav' or its corresponding type declarations.",
+		"start": {
+			"line": 30,
+			"character": 59
+		},
+		"end": {
+			"line": 30,
+			"character": 79
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/site' or its corresponding type declarations.",
+		"start": {
+			"line": 31,
+			"character": 40
+		},
+		"end": {
+			"line": 31,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip' or its corresponding type declarations.",
+		"start": {
+			"line": 32,
+			"character": 26
+		},
+		"end": {
+			"line": 32,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 33,
+			"character": 26
+		},
+		"end": {
+			"line": 33,
+			"character": 44
+		}
+	},
+	{
+		"code": 2345,
+		"message": "Argument of type 'unknown' is not assignable to parameter of type 'any[]'.",
+		"start": {
+			"line": 229,
+			"character": 38
+		},
+		"end": {
+			"line": 229,
+			"character": 50
+		}
+	}
+]
+
 === 3 src/lib/components/furniture/Footer.svelte	json
 []
+
+=== 2347 src/lib/components/furniture/Header.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/site' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/config/customizable-settings' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 64
+		},
+		"end": {
+			"line": 2,
+			"character": 99
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/GlobalSearch.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/furniture/BurgerMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 25
+		},
+		"end": {
+			"line": 5,
+			"character": 70
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/furniture/TopNav.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 21
+		},
+		"end": {
+			"line": 6,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/furniture/SettingsMenu.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 27
+		},
+		"end": {
+			"line": 7,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/furniture/ShortcutsDialog.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 30
+		},
+		"end": {
+			"line": 8,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 26
+		},
+		"end": {
+			"line": 9,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/keyboard' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 33
+		},
+		"end": {
+			"line": 10,
+			"character": 54
+		}
+	}
+]
 
 === 906 src/lib/components/furniture/QuickTips.svelte	json
 [
@@ -758,6 +982,518 @@
 	}
 ]
 
+=== 3063 src/lib/components/furniture/TopNav.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/stores' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 36
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/nav' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 64
+		},
+		"end": {
+			"line": 2,
+			"character": 84
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/nav-helpers' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 80
+		},
+		"end": {
+			"line": 3,
+			"character": 104
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/navbarDisplay' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 32
+		},
+		"end": {
+			"line": 5,
+			"character": 59
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/bookmarks' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 28
+		},
+		"end": {
+			"line": 6,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/toolUsage' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 49
+		},
+		"end": {
+			"line": 7,
+			"character": 72
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 81,
+			"character": 23
+		},
+		"end": {
+			"line": 81,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 81,
+			"character": 26
+		},
+		"end": {
+			"line": 81,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'bookmark' implicitly has an 'any' type.",
+		"start": {
+			"line": 104,
+			"character": 19
+		},
+		"end": {
+			"line": 104,
+			"character": 27
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'bookmark' implicitly has an 'any' type.",
+		"start": {
+			"line": 105,
+			"character": 16
+		},
+		"end": {
+			"line": 105,
+			"character": 24
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'tool' implicitly has an 'any' type.",
+		"start": {
+			"line": 116,
+			"character": 19
+		},
+		"end": {
+			"line": 116,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'tool' implicitly has an 'any' type.",
+		"start": {
+			"line": 118,
+			"character": 16
+		},
+		"end": {
+			"line": 118,
+			"character": 20
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'item' implicitly has an 'any' type.",
+		"start": {
+			"line": 133,
+			"character": 31
+		},
+		"end": {
+			"line": 133,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'i' implicitly has an 'any' type.",
+		"start": {
+			"line": 257,
+			"character": 47
+		},
+		"end": {
+			"line": 257,
+			"character": 48
+		}
+	}
+]
+
+=== 5337 src/lib/components/global/GlobalSearch.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/navigation' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 40
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 26
+		},
+		"end": {
+			"line": 3,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/nav' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 46
+		},
+		"end": {
+			"line": 5,
+			"character": 66
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/nav' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 31
+		},
+		"end": {
+			"line": 6,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/site' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 23
+		},
+		"end": {
+			"line": 7,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/bookmarks' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 28
+		},
+		"end": {
+			"line": 8,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/toolUsage' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 49
+		},
+		"end": {
+			"line": 9,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 26
+		},
+		"end": {
+			"line": 10,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/keyboard' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 33
+		},
+		"end": {
+			"line": 11,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 21,
+			"character": 27
+		},
+		"end": {
+			"line": 21,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'p' implicitly has an 'any' type.",
+		"start": {
+			"line": 70,
+			"character": 37
+		},
+		"end": {
+			"line": 70,
+			"character": 38
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 84,
+			"character": 52
+		},
+		"end": {
+			"line": 84,
+			"character": 53
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 't' implicitly has an 'any' type.",
+		"start": {
+			"line": 85,
+			"character": 60
+		},
+		"end": {
+			"line": 85,
+			"character": 61
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'page' implicitly has an 'any' type.",
+		"start": {
+			"line": 87,
+			"character": 35
+		},
+		"end": {
+			"line": 87,
+			"character": 39
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'kw' implicitly has an 'any' type.",
+		"start": {
+			"line": 107,
+			"character": 35
+		},
+		"end": {
+			"line": 107,
+			"character": 37
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'page' implicitly has an 'any' type.",
+		"start": {
+			"line": 122,
+			"character": 15
+		},
+		"end": {
+			"line": 122,
+			"character": 19
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 123,
+			"character": 13
+		},
+		"end": {
+			"line": 123,
+			"character": 14
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 123,
+			"character": 16
+		},
+		"end": {
+			"line": 123,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'page' implicitly has an 'any' type.",
+		"start": {
+			"line": 127,
+			"character": 42
+		},
+		"end": {
+			"line": 127,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'r' implicitly has an 'any' type.",
+		"start": {
+			"line": 128,
+			"character": 34
+		},
+		"end": {
+			"line": 128,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'w' implicitly has an 'any' type.",
+		"start": {
+			"line": 134,
+			"character": 35
+		},
+		"end": {
+			"line": 134,
+			"character": 36
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'word' implicitly has an 'any' type.",
+		"start": {
+			"line": 156,
+			"character": 25
+		},
+		"end": {
+			"line": 156,
+			"character": 29
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'keyword' implicitly has an 'any' type.",
+		"start": {
+			"line": 167,
+			"character": 34
+		},
+		"end": {
+			"line": 167,
+			"character": 41
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'word' implicitly has an 'any' type.",
+		"start": {
+			"line": 180,
+			"character": 27
+		},
+		"end": {
+			"line": 180,
+			"character": 31
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'page' implicitly has an 'any' type.",
+		"start": {
+			"line": 195,
+			"character": 17
+		},
+		"end": {
+			"line": 195,
+			"character": 21
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 196,
+			"character": 15
+		},
+		"end": {
+			"line": 196,
+			"character": 16
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 196,
+			"character": 18
+		},
+		"end": {
+			"line": 196,
+			"character": 19
+		}
+	}
+]
+
 === 512 src/lib/components/global/Icon.svelte	json
 [
 	{
@@ -1108,6 +1844,214 @@
 		"end": {
 			"line": 3,
 			"character": 44
+		}
+	}
+]
+
+=== 3687 src/lib/components/home/HomepageCategories.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/site' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 44
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/constants/nav' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 49
+		},
+		"end": {
+			"line": 2,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/ToolsGrid.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 24
+		},
+		"end": {
+			"line": 3,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/furniture/SearchFilter.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 74
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/bookmarks' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 28
+		},
+		"end": {
+			"line": 5,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/stores/toolUsage' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 57
+		},
+		"end": {
+			"line": 6,
+			"character": 80
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/nav' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 34
+		},
+		"end": {
+			"line": 8,
+			"character": 50
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/furniture/QuickTips.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/KeyboardShortcutChip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 35
+		},
+		"end": {
+			"line": 10,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/deployment' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 37
+		},
+		"end": {
+			"line": 11,
+			"character": 60
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$app/environment' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 26
+		},
+		"end": {
+			"line": 13,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'nav' implicitly has an 'any' type.",
+		"start": {
+			"line": 50,
+			"character": 33
+		},
+		"end": {
+			"line": 50,
+			"character": 36
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'tool' implicitly has an 'any' type.",
+		"start": {
+			"line": 78,
+			"character": 42
+		},
+		"end": {
+			"line": 78,
+			"character": 46
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'tool' implicitly has an 'any' type.",
+		"start": {
+			"line": 87,
+			"character": 40
+		},
+		"end": {
+			"line": 87,
+			"character": 44
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'keyword' implicitly has an 'any' type.",
+		"start": {
+			"line": 111,
+			"character": 31
+		},
+		"end": {
+			"line": 111,
+			"character": 38
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 214,
+			"character": 33
+		},
+		"end": {
+			"line": 214,
+			"character": 34
 		}
 	}
 ]
@@ -1894,6 +2838,178 @@
 	}
 ]
 
+=== 2817 src/lib/components/tools/CIDRContains.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/cidr-contains.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 83
+		},
+		"end": {
+			"line": 1,
+			"character": 112
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/formatters' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 31
+		},
+		"end": {
+			"line": 6,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'check' implicitly has an 'any' type.",
+		"start": {
+			"line": 66,
+			"character": 36
+		},
+		"end": {
+			"line": 66,
+			"character": 41
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'statusInfo' is possibly 'undefined'.",
+		"start": {
+			"line": 358,
+			"character": 57
+		},
+		"end": {
+			"line": 358,
+			"character": 67
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'statusInfo' is possibly 'undefined'.",
+		"start": {
+			"line": 359,
+			"character": 30
+		},
+		"end": {
+			"line": 359,
+			"character": 40
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'statusInfo' is possibly 'undefined'.",
+		"start": {
+			"line": 360,
+			"character": 19
+		},
+		"end": {
+			"line": 360,
+			"character": 29
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'statusInfo' is possibly 'undefined'.",
+		"start": {
+			"line": 367,
+			"character": 72
+		},
+		"end": {
+			"line": 367,
+			"character": 82
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'statusInfo' is possibly 'undefined'.",
+		"start": {
+			"line": 433,
+			"character": 57
+		},
+		"end": {
+			"line": 433,
+			"character": 67
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'statusInfo' is possibly 'undefined'.",
+		"start": {
+			"line": 434,
+			"character": 32
+		},
+		"end": {
+			"line": 434,
+			"character": 42
+		}
+	},
+	{
+		"code": 18048,
+		"message": "'statusInfo' is possibly 'undefined'.",
+		"start": {
+			"line": 435,
+			"character": 21
+		},
+		"end": {
+			"line": 435,
+			"character": 31
+		}
+	}
+]
+
 === 1373 src/lib/components/tools/CIDRDeaggregate.svelte	json
 [
 	{
@@ -1970,6 +3086,106 @@
 	}
 ]
 
+=== 1762 src/lib/components/tools/CIDRDiff.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/cidr-diff.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 77
+		},
+		"end": {
+			"line": 1,
+			"character": 102
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 22
+		},
+		"end": {
+			"line": 4,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 19
+		},
+		"end": {
+			"line": 5,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/formatters' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 31
+		},
+		"end": {
+			"line": 6,
+			"character": 54
+		}
+	},
+	{
+		"code": 2365,
+		"message": "Operator '+' cannot be applied to types 'number' and '1n'.",
+		"start": {
+			"line": 138,
+			"character": 22
+		},
+		"end": {
+			"line": 138,
+			"character": 102
+		}
+	},
+	{
+		"code": 2365,
+		"message": "Operator '+' cannot be applied to types 'number' and '1n'.",
+		"start": {
+			"line": 146,
+			"character": 22
+		},
+		"end": {
+			"line": 146,
+			"character": 102
+		}
+	}
+]
+
 === 920 src/lib/components/tools/CIDRInput.svelte	json
 [
 	{
@@ -2018,6 +3234,106 @@
 		"end": {
 			"line": 4,
 			"character": 61
+		}
+	}
+]
+
+=== 1764 src/lib/components/tools/CIDROverlap.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/cidr-overlap.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 57
+		},
+		"end": {
+			"line": 1,
+			"character": 85
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/formatters' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 31
+		},
+		"end": {
+			"line": 6,
+			"character": 54
+		}
+	},
+	{
+		"code": 2365,
+		"message": "Operator '+' cannot be applied to types 'number' and '1n'.",
+		"start": {
+			"line": 119,
+			"character": 22
+		},
+		"end": {
+			"line": 119,
+			"character": 102
+		}
+	},
+	{
+		"code": 2365,
+		"message": "Operator '+' cannot be applied to types 'number' and '1n'.",
+		"start": {
+			"line": 127,
+			"character": 22
+		},
+		"end": {
+			"line": 127,
+			"character": 102
 		}
 	}
 ]
@@ -2130,6 +3446,70 @@
 		"end": {
 			"line": 137,
 			"character": 41
+		}
+	}
+]
+
+=== 1165 src/lib/components/tools/CIDRSummarizer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/cidr-summarization-fixed.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 59
+		},
+		"end": {
+			"line": 1,
+			"character": 99
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 22
+		},
+		"end": {
+			"line": 3,
+			"character": 61
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/SvgIcon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 22
+		},
+		"end": {
+			"line": 5,
+			"character": 61
 		}
 	}
 ]
@@ -3858,6 +5238,58 @@
 	}
 ]
 
+=== 901 src/lib/components/tools/DNSLabelNormalizer.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 31
+		},
+		"end": {
+			"line": 2,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/dns-validation' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 53
+		},
+		"end": {
+			"line": 4,
+			"character": 80
+		}
+	}
+]
+
 === 457 src/lib/components/tools/DNSMXPlanner.svelte	json
 [
 	{
@@ -4294,6 +5726,58 @@
 		"end": {
 			"line": 147,
 			"character": 23
+		}
+	}
+]
+
+=== 905 src/lib/components/tools/EDNSSizeEstimator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/dns-validation.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 70
+		},
+		"end": {
+			"line": 3,
+			"character": 100
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 31
+		},
+		"end": {
+			"line": 4,
+			"character": 49
 		}
 	}
 ]
@@ -5118,6 +6602,118 @@
 		"end": {
 			"line": 3,
 			"character": 61
+		}
+	}
+]
+
+=== 1893 src/lib/components/tools/IPRegexGenerator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/ip-regex-gen.js' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 9
+		},
+		"end": {
+			"line": 16,
+			"character": 37
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/ip-regex-validator.js' or its corresponding type declarations.",
+		"start": {
+			"line": 17,
+			"character": 59
+		},
+		"end": {
+			"line": 17,
+			"character": 93
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'text' implicitly has an 'any' type.",
+		"start": {
+			"line": 262,
+			"character": 31
+		},
+		"end": {
+			"line": 262,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'text' implicitly has an 'any' type.",
+		"start": {
+			"line": 270,
+			"character": 35
+		},
+		"end": {
+			"line": 270,
+			"character": 39
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'text' implicitly has an 'any' type.",
+		"start": {
+			"line": 285,
+			"character": 31
+		},
+		"end": {
+			"line": 285,
+			"character": 35
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'text' implicitly has an 'any' type.",
+		"start": {
+			"line": 286,
+			"character": 35
+		},
+		"end": {
+			"line": 286,
+			"character": 39
 		}
 	}
 ]
@@ -6218,6 +7814,130 @@
 	}
 ]
 
+=== 2149 src/lib/components/tools/NextAvailable.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/next-available.js' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 9
+		},
+		"end": {
+			"line": 6,
+			"character": 39
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 23
+		},
+		"end": {
+			"line": 8,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 19
+		},
+		"end": {
+			"line": 9,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 10,
+			"character": 31
+		},
+		"end": {
+			"line": 10,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/formatters' or its corresponding type declarations.",
+		"start": {
+			"line": 11,
+			"character": 31
+		},
+		"end": {
+			"line": 11,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'candidate' implicitly has an 'any' type.",
+		"start": {
+			"line": 107,
+			"character": 42
+		},
+		"end": {
+			"line": 107,
+			"character": 51
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'i' implicitly has an 'any' type.",
+		"start": {
+			"line": 107,
+			"character": 53
+		},
+		"end": {
+			"line": 107,
+			"character": 54
+		}
+	},
+	{
+		"code": 2365,
+		"message": "Operator '+' cannot be applied to types 'number' and '1n'.",
+		"start": {
+			"line": 154,
+			"character": 22
+		},
+		"end": {
+			"line": 154,
+			"character": 102
+		}
+	},
+	{
+		"code": 2365,
+		"message": "Operator '+' cannot be applied to types 'number' and '1n'.",
+		"start": {
+			"line": 162,
+			"character": 22
+		},
+		"end": {
+			"line": 162,
+			"character": 102
+		}
+	}
+]
+
 === 1327 src/lib/components/tools/NthIP.svelte	json
 [
 	{
@@ -6290,6 +8010,46 @@
 		"end": {
 			"line": 91,
 			"character": 13
+		}
+	}
+]
+
+=== 676 src/lib/components/tools/PTRGenerator.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 49
 		}
 	}
 ]
@@ -7266,6 +9026,130 @@
 		"end": {
 			"line": 12,
 			"character": 52
+		}
+	}
+]
+
+=== 2208 src/lib/components/tools/SubnetPlanner.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/subnet-planner.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 70
+		},
+		"end": {
+			"line": 1,
+			"character": 100
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Tooltip.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 23
+		},
+		"end": {
+			"line": 3,
+			"character": 62
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 19
+		},
+		"end": {
+			"line": 4,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/ToolContentContainer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 35
+		},
+		"end": {
+			"line": 5,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 31
+		},
+		"end": {
+			"line": 6,
+			"character": 49
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/formatters' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 31
+		},
+		"end": {
+			"line": 7,
+			"character": 54
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'subnet' implicitly has an 'any' type.",
+		"start": {
+			"line": 106,
+			"character": 41
+		},
+		"end": {
+			"line": 106,
+			"character": 47
+		}
+	},
+	{
+		"code": 2365,
+		"message": "Operator '+' cannot be applied to types 'number' and '1n'.",
+		"start": {
+			"line": 178,
+			"character": 22
+		},
+		"end": {
+			"line": 178,
+			"character": 102
+		}
+	},
+	{
+		"code": 2365,
+		"message": "Operator '+' cannot be applied to types 'number' and '1n'.",
+		"start": {
+			"line": 186,
+			"character": 22
+		},
+		"end": {
+			"line": 186,
+			"character": 102
 		}
 	}
 ]
@@ -9213,6 +11097,94 @@
 	}
 ]
 
+=== 1491 src/routes/cidr/range-to-cidr/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/range-to-cidr.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 65
+		},
+		"end": {
+			"line": 1,
+			"character": 94
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 26
+		},
+		"end": {
+			"line": 2,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 19
+		},
+		"end": {
+			"line": 3,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/ToolContentContainer.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 35
+		},
+		"end": {
+			"line": 4,
+			"character": 87
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 40,
+			"character": 39
+		},
+		"end": {
+			"line": 40,
+			"character": 40
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'cidr' implicitly has an 'any' type.",
+		"start": {
+			"line": 65,
+			"character": 9
+		},
+		"end": {
+			"line": 65,
+			"character": 13
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 74,
+			"character": 34
+		},
+		"end": {
+			"line": 74,
+			"character": 35
+		}
+	}
+]
+
 === 469 src/routes/cidr/set-operations/+layout.svelte	json
 [
 	{
@@ -10193,7 +12165,191 @@
 	}
 ]
 
+=== 923 src/routes/diagnostics/dns/blacklist-checker/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 48
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/content/dnsbl' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 51
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 4,
+			"character": 9
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	}
+]
+
+=== 936 src/routes/diagnostics/dns/caa-effective/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/dns-validation.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 52
+		},
+		"end": {
+			"line": 3,
+			"character": 82
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 4,
+			"character": 9
+		},
+		"end": {
+			"line": 4,
+			"character": 52
+		}
+	}
+]
+
+=== 708 src/routes/diagnostics/dns/dmarc-check/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 3,
+			"character": 9
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	}
+]
+
 === 708 src/routes/diagnostics/dns/dnssec-adflag/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 3,
+			"character": 9
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	}
+]
+
+=== 708 src/routes/diagnostics/dns/dnssec-validation-chain/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -10273,6 +12429,330 @@
 	}
 ]
 
+=== 2921 src/routes/diagnostics/dns/lookup/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/dns-validation.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 57
+		},
+		"end": {
+			"line": 3,
+			"character": 87
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 85
+		},
+		"end": {
+			"line": 4,
+			"character": 103
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ExamplesCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ActionButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ResultsCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ErrorCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 65
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/WarningCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 26
+		},
+		"end": {
+			"line": 9,
+			"character": 69
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 167,
+			"character": 15
+		},
+		"end": {
+			"line": 167,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 168,
+			"character": 21
+		},
+		"end": {
+			"line": 168,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 169,
+			"character": 17
+		},
+		"end": {
+			"line": 169,
+			"character": 19
+		}
+	}
+]
+
+=== 708 src/routes/diagnostics/dns/ns-soa-check/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 3,
+			"character": 9
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	}
+]
+
+=== 2208 src/routes/diagnostics/dns/propagation/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 64
+		},
+		"end": {
+			"line": 3,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ExamplesCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 27
+		},
+		"end": {
+			"line": 4,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ActionButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ErrorCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 65
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 156,
+			"character": 15
+		},
+		"end": {
+			"line": 156,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 157,
+			"character": 21
+		},
+		"end": {
+			"line": 157,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 158,
+			"character": 17
+		},
+		"end": {
+			"line": 158,
+			"character": 19
+		}
+	}
+]
+
 === 929 src/routes/diagnostics/dns/query-performance/+page.svelte	json
 [
 	{
@@ -10325,7 +12805,87 @@
 	}
 ]
 
+=== 708 src/routes/diagnostics/dns/reverse-lookup/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 3,
+			"character": 9
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	}
+]
+
 === 708 src/routes/diagnostics/dns/soa-serial/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 3,
+			"character": 9
+		},
+		"end": {
+			"line": 3,
+			"character": 52
+		}
+	}
+]
+
+=== 708 src/routes/diagnostics/dns/spf-evaluator/+page.svelte	json
 [
 	{
 		"code": 2307,
@@ -10541,6 +13101,82 @@
 		"end": {
 			"line": 146,
 			"character": 19
+		}
+	}
+]
+
+=== 1347 src/routes/diagnostics/email/greylist-tester/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 19
+		},
+		"end": {
+			"line": 1,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/content/greylist' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 45
+		},
+		"end": {
+			"line": 2,
+			"character": 68
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 37
+		},
+		"end": {
+			"line": 3,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ErrorCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 24
+		},
+		"end": {
+			"line": 4,
+			"character": 65
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 103,
+			"character": 76
+		},
+		"end": {
+			"line": 103,
+			"character": 77
 		}
 	}
 ]
@@ -10992,6 +13628,686 @@
 		},
 		"end": {
 			"line": 134,
+			"character": 19
+		}
+	}
+]
+
+=== 2677 src/routes/diagnostics/http/cors-check/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/dns-validation.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 64
+		},
+		"end": {
+			"line": 4,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ExamplesCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ActionButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ResultsCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 26
+		},
+		"end": {
+			"line": 7,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ErrorCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 24
+		},
+		"end": {
+			"line": 8,
+			"character": 65
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 9,
+			"character": 9
+		},
+		"end": {
+			"line": 9,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 193,
+			"character": 15
+		},
+		"end": {
+			"line": 193,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 194,
+			"character": 21
+		},
+		"end": {
+			"line": 194,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 195,
+			"character": 17
+		},
+		"end": {
+			"line": 195,
+			"character": 19
+		}
+	}
+]
+
+=== 2904 src/routes/diagnostics/http/headers/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/dns-validation.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/formatters.js' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 46
+		},
+		"end": {
+			"line": 4,
+			"character": 72
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 85
+		},
+		"end": {
+			"line": 5,
+			"character": 103
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ExamplesCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 27
+		},
+		"end": {
+			"line": 6,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ActionButton.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 7,
+			"character": 27
+		},
+		"end": {
+			"line": 7,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ResultsCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 8,
+			"character": 26
+		},
+		"end": {
+			"line": 8,
+			"character": 69
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ErrorCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 9,
+			"character": 24
+		},
+		"end": {
+			"line": 9,
+			"character": 65
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 10,
+			"character": 9
+		},
+		"end": {
+			"line": 10,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 156,
+			"character": 15
+		},
+		"end": {
+			"line": 156,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 157,
+			"character": 21
+		},
+		"end": {
+			"line": 157,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 158,
+			"character": 17
+		},
+		"end": {
+			"line": 158,
+			"character": 19
+		}
+	}
+]
+
+=== 2194 src/routes/diagnostics/http/perf/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/dns-validation.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 64
+		},
+		"end": {
+			"line": 4,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ExamplesCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ErrorCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 65
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 164,
+			"character": 15
+		},
+		"end": {
+			"line": 164,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 165,
+			"character": 21
+		},
+		"end": {
+			"line": 165,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 166,
+			"character": 17
+		},
+		"end": {
+			"line": 166,
+			"character": 19
+		}
+	}
+]
+
+=== 2194 src/routes/diagnostics/http/redirect-trace/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/dns-validation.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 64
+		},
+		"end": {
+			"line": 4,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ExamplesCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ErrorCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 65
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 165,
+			"character": 15
+		},
+		"end": {
+			"line": 165,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 166,
+			"character": 21
+		},
+		"end": {
+			"line": 166,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 167,
+			"character": 17
+		},
+		"end": {
+			"line": 167,
+			"character": 19
+		}
+	}
+]
+
+=== 2194 src/routes/diagnostics/http/security/+page.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/actions/tooltip.js' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 26
+		},
+		"end": {
+			"line": 1,
+			"character": 51
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/global/Icon.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 19
+		},
+		"end": {
+			"line": 2,
+			"character": 55
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/utils/dns-validation.js' or its corresponding type declarations.",
+		"start": {
+			"line": 3,
+			"character": 33
+		},
+		"end": {
+			"line": 3,
+			"character": 63
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/composables' or its corresponding type declarations.",
+		"start": {
+			"line": 4,
+			"character": 64
+		},
+		"end": {
+			"line": 4,
+			"character": 82
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ExamplesCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 5,
+			"character": 27
+		},
+		"end": {
+			"line": 5,
+			"character": 71
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/components/common/ErrorCard.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 24
+		},
+		"end": {
+			"line": 6,
+			"character": 65
+		}
+	},
+	{
+		"code": 2882,
+		"message": "Cannot find module or type declarations for side-effect import of '../../../../styles/diagnostics-pages.scss'.",
+		"start": {
+			"line": 7,
+			"character": 9
+		},
+		"end": {
+			"line": 7,
+			"character": 52
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 193,
+			"character": 15
+		},
+		"end": {
+			"line": 193,
+			"character": 17
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 194,
+			"character": 21
+		},
+		"end": {
+			"line": 194,
+			"character": 23
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'ex' implicitly has an 'any' type.",
+		"start": {
+			"line": 195,
+			"character": 17
+		},
+		"end": {
+			"line": 195,
 			"character": 19
 		}
 	}

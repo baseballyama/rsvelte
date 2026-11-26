@@ -1,4 +1,6 @@
-# svelte.lint/default: 37047 match
+# svelte.lint/default: 37486 match
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/suggestions.svelte	mismatch
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte	unexpected
 svelte/rsvelte-tests-core-1/acorn_unchecked_ts_grammar_hosts_4084/a_real_syntax_error_is_still_a_syntax_error/2504ed6a23607760.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/await_in_a_parameter_default_is_rejected_in_every_function_form/0c704bb7f1602a97.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/await_in_a_parameter_default_is_rejected_in_every_function_form/1b66601a2e945c58.svelte	js-equivalent
@@ -513,6 +515,7 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/stores/tests/props_id_
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_type_dollar_events_throws/1b161dfe8e55cab0.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_type_dollar_props_throws/eaa03a9c78c87a89.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_type_dollar_slots_throws/fa4fcf48fd739f6d.svelte	js-equivalent
+svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/a_typed_dispatchers_own_dispatch_calls_are_not_scanned/2d878381cb5c90fb.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/an_event_declared_by_two_typed_dispatchers_also_becomes_a_custom_event/b01fa1aa066f852e.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/every_typed_dispatcher_contributes_its_own_event_typings/8d81e5b3fe2e0e7c.svelte	js-equivalent
@@ -545,3 +548,39 @@ svelte/rsvelte/pattern/script-top-level-return.svelte	js-equivalent
 svelte/svelte-material-ui/packages/data-table/src/Pagination.svelte	unexpected
 svelte/svelte-material-ui/packages/layout-grid/src/LayoutGrid.svelte	mismatch
 svelte/svelte-material-ui/packages/menu/src/SelectionGroup.svelte	unexpected
+svelte/svelte-virtuallists/src/lib/VirtualListNew.svelte	unexpected
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/declaration-tag-trailing-slash/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/dollar-binding-global/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/runes-export-let/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte.js	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/store-autosub-context-module/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/unbalanced-curly-component/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/unbalanced-curly-element/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/migrate/samples/css-ignore/output.svelte	mismatch
+svelte/svelte/packages/svelte/tests/preprocess/samples/comments/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/preprocess/samples/comments/output.svelte	mismatch
+svelte/svelte/packages/svelte/tests/preprocess/samples/script-multiple/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/preprocess/samples/script-multiple/output.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-2/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-3/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-4/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-5/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/bind-group-snippet-parameter/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/declaration-tag-already-declared/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/default-export-indirect/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/dollar-global-in-markup/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/dollar-global-in-script/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/let-directive/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	mismatch

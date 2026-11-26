@@ -1,4 +1,4 @@
-# svelte.compile/server: 34603 match
+# svelte.compile/server: 34951 match
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_in_a_statement_that_already_parsed_is_not_the_stopping_point/293aa2c2a9e79787.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_in_a_statement_that_already_parsed_is_not_the_stopping_point/43f538da0f7ac99c.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_in_a_statement_that_already_parsed_is_not_the_stopping_point/cd1566f213221b8c.svelte	js-equivalent
@@ -544,6 +544,7 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx/script/tests/module_script_ty
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/an_unrepairable_script_still_converts/b434122470689786.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/every_unterminated_statement_in_one_script_is_recovered/147d312bc327f7bb.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/export_is_blanked_when_the_instance_script_does_not_parse/59e03ffbb50128a1.svelte	js-equivalent
+svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/a_typed_dispatchers_own_dispatch_calls_are_not_scanned/2d878381cb5c90fb.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/an_event_declared_by_two_typed_dispatchers_also_becomes_a_custom_event/b01fa1aa066f852e.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/every_typed_dispatcher_contributes_its_own_event_typings/8d81e5b3fe2e0e7c.svelte	js-equivalent
@@ -584,3 +585,26 @@ svelte/rsvelte/pattern/javascript-accessor-optional-field.svelte	js-equivalent
 svelte/rsvelte/pattern/javascript-name-escape-of-a-space.svelte	js-equivalent
 svelte/rsvelte/pattern/script-top-level-return-ts.svelte	js-equivalent
 svelte/rsvelte/pattern/script-top-level-return.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/declaration-tag-trailing-slash/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/unbalanced-curly-component/main.svelte	unexpected
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/unbalanced-curly-element/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/parser-modern/samples/loose-declaration-tag/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-2/input.svelte	unexpected
+svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-3/input.svelte	unexpected
+svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-4/input.svelte	unexpected
+svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-5/input.svelte	unexpected
+svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name/input.svelte	unexpected
+svelte/svelte/packages/svelte/tests/validator/samples/bind-group-snippet-parameter/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/let-directive/input.svelte	unexpected
+svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	unexpected

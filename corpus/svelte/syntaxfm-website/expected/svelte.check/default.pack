@@ -61,6 +61,9 @@
 	}
 ]
 
+=== 3 src/lib/ComponentWindow.svelte	json
+[]
+
 === 218 src/lib/DropdownMenu.svelte	json
 [
 	{

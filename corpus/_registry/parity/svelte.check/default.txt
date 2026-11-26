@@ -1,4 +1,24 @@
-# svelte.check/default: 34689 match
+# svelte.check/default: 35021 match
+svelte/appwrite-console/src/lib/commandCenter/panels/buckets.svelte	mismatch
+svelte/appwrite-console/src/lib/commandCenter/panels/databases.svelte	mismatch
+svelte/appwrite-console/src/lib/commandCenter/panels/files.svelte	mismatch
+svelte/appwrite-console/src/lib/commandCenter/panels/functions.svelte	mismatch
+svelte/appwrite-console/src/lib/commandCenter/panels/organizations.svelte	mismatch
+svelte/appwrite-console/src/lib/commandCenter/panels/projects.svelte	mismatch
+svelte/appwrite-console/src/lib/commandCenter/panels/tables.svelte	mismatch
+svelte/appwrite-console/src/lib/commandCenter/panels/teams.svelte	mismatch
+svelte/appwrite-console/src/lib/commandCenter/panels/users.svelte	mismatch
+svelte/appwrite-console/src/lib/components/git/repositories.svelte	mismatch
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/providers/create.svelte	mismatch
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/providers/createProviderDropdown.svelte	mismatch
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/updateName.svelte	mismatch
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/providers/provider-[provider]/updateStatus.svelte	mismatch
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/messaging/providers/table.svelte	mismatch
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/onboard.svelte	mismatch
+svelte/date-picker-svelte/src/routes/+page.svelte	mismatch
+svelte/date-picker-svelte/src/routes/DemoDateInput.svelte	mismatch
+svelte/date-picker-svelte/src/routes/DemoDatePicker.svelte	mismatch
+svelte/networking-toolbox/src/lib/components/global/GlobalSearch.svelte	mismatch
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/template_expressions_reject_it_too/52e418cc04b4e2a4.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/template_expressions_reject_it_too/56cd453e3b23962e.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/const_tag_parse_error_3691/an_unparseable_initializer_is_rejected/5be5d4786e84cdc5.svelte	js-equivalent
@@ -368,6 +388,7 @@ svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/783aa2047eafb367.s
 svelte/rsvelte-tests/rsvelte_language_server/rsvelte_analysis/81cd6b670d392100.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/every_unterminated_statement_in_one_script_is_recovered/147d312bc327f7bb.svelte	mismatch
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/export_is_blanked_when_the_instance_script_does_not_parse/59e03ffbb50128a1.svelte	mismatch
+svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	mismatch
 svelte/rsvelte/pattern/issues/3200-asi-reactive-block.svelte	mismatch
 svelte/rsvelte/pattern/issues/3201-template-fast-path-escape.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/3201-template-fast-path-reserved.svelte	js-equivalent
@@ -376,3 +397,22 @@ svelte/rsvelte/pattern/issues/3201-template-strict-proto.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/3201-template-strict-with.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/3220-assign-rvalue-member.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/3220-assign-rvalue-target.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/declaration-tag-trailing-slash/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/parser-modern/samples/loose-declaration-tag/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/preprocess/samples/comments/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/preprocess/samples/comments/output.svelte	mismatch
+svelte/svelte/packages/svelte/tests/preprocess/samples/script-multiple/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/preprocess/samples/script-multiple/output.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/action-on-component/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/ts-unsupported-decorator/input.svelte	mismatch

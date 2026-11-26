@@ -1,1 +1,22 @@
-# svelte.format/default: 34800 match
+# svelte.format/default: 35151 match
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/empty.svelte	mismatch
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/view.svelte	mismatch
+svelte/headscale-ui/src/routes/devices.html/+page.svelte	mismatch
+svelte/headscale-ui/src/routes/users.html/+page.svelte	mismatch
+svelte/networking-toolbox/src/lib/components/tools/EDNSSizeEstimator.svelte	mismatch
+svelte/networking-toolbox/src/lib/components/tools/PTRGenerator.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/dns/blacklist-checker/+page.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/dns/caa-effective/+page.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/dns/dmarc-check/+page.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/dns/ns-soa-check/+page.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/dns/propagation/+page.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/dns/reverse-lookup/+page.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/dns/spf-evaluator/+page.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/email/greylist-tester/+page.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/http/cors-check/+page.svelte	mismatch
+svelte/networking-toolbox/src/routes/diagnostics/http/security/+page.svelte	mismatch
+svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	unexpected
+svelte/svelte-put/sites/docs/src/packages/dragscroll/docs.md.svelte	mismatch
+svelte/svelte-put/sites/docs/src/packages/intersect/docs.md.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	unexpected
+svelte/svelte/packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	unexpected
