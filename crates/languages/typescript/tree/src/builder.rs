@@ -14,6 +14,7 @@ use rsvelte_kernel::source::positions::Span;
 
 mod check;
 mod number;
+use number::Reading;
 mod parentheses;
 mod program;
 mod recorded;
@@ -196,7 +197,10 @@ impl<'a> TreeBuilder<'a> {
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_expression_at(start)
-            .map_err(|error| self.fatal(error, (text, start, 0), source_type))?;
+            .map_err(|error| {
+                let reading = (Reading::Expression(start), source_type);
+                self.fatal(error, (text, start, 0), reading)
+            })?;
         let part = Part::Expression(&parsed.expression);
         self.check(
             &parsed.diagnostics,
@@ -252,7 +256,10 @@ impl<'a> TreeBuilder<'a> {
             .with_options(parentheses::options(false))
             .with_config(TokensParserConfig)
             .parse_statement_at(start)
-            .map_err(|error| self.fatal(error, (self.source_text, start, 0), source_type))?;
+            .map_err(|error| {
+                let reading = (Reading::Statement(start), source_type);
+                self.fatal(error, (self.source_text, start, 0), reading)
+            })?;
         let part = Part::Statement(&parsed.statement);
         self.check(
             &parsed.diagnostics,
@@ -433,7 +440,10 @@ impl<'a> TreeBuilder<'a> {
             .with_options(parentheses::options(parenthesized))
             .with_config(TokensParserConfig)
             .parse_expression_at(0)
-            .map_err(|error| self.fatal(error, (text, 0, shift), source_type))?;
+            .map_err(|error| {
+                let reading = (Reading::Expression(0), source_type);
+                self.fatal(error, (text, 0, shift), reading)
+            })?;
         if parenthesized {
             let recorded = &mut self.parentheses;
             parentheses::strip(self.allocator, &mut parsed.expression, shift, recorded);

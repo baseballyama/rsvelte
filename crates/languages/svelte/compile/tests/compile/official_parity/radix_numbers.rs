@@ -6,6 +6,8 @@ use rsvelte_svelte_compile::{ModuleCompileOptions, compile_module};
 
 use super::outcomes::{Outcome, assert_component_outcomes};
 
+mod parentheses;
+
 /// A component, and what svelte 5.59.1 raises in runes mode, in bytes of the source.
 const COMPONENTS: &[(&str, Outcome<'_>)] = &[
     (

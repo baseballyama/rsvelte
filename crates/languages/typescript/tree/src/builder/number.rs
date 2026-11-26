@@ -19,8 +19,8 @@ pub(super) enum Reading {
 
 /// Sets where acorn stops for `error`, from the first of a part's `diagnostics` the host reports,
 /// when acorn reads the number oxc rejects there as a shorter one that its parser takes nowhere
-/// there: on the text with the rest of oxc's number blanked, oxc's parser fails anew before that
-/// number, or ends the part before it.
+/// there: on the text up to that shorter number, oxc's parser fails anew before it, or ends the
+/// part before it.
 #[cold]
 pub(super) fn at_shorter_number(
     error: &mut SyntaxError,
@@ -31,17 +31,13 @@ pub(super) fn at_shorter_number(
     let Some((number, end)) = shorter_number(&diagnostics[first], text, tokens) else {
         return;
     };
-    let rest = text[end as usize..]
-        .bytes()
-        .take_while(|byte| byte.is_ascii_alphanumeric() || matches!(byte, b'_' | b'$' | b'.'))
-        .count();
-    let blank = " ".repeat(rest);
-    let blanked = [&text[..end as usize], &blank, &text[end as usize + rest..]].concat();
     let anew = |error: &OxcDiagnostic| {
         (error.labels.first()).is_some_and(|label| label.offset() <= number)
             && !diagnostics.contains(error)
     };
-    if stops_before(&blanked, number, (reading, source_type), anew) {
+    // Past the shorter number a reread meets what the first read never reached, such as the
+    // `as` of `{#each (0b12) as v}`.
+    if stops_before(&text[..end as usize], number, (reading, source_type), anew) {
         error.acorn = Some(Acorn::Stops(number + shift));
     }
 }

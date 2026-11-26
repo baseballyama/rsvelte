@@ -76,14 +76,14 @@ impl<'a> TreeBuilder<'a> {
         Ok(())
     }
 
-    /// The error of a part oxc cannot read, or where acorn stops before it at whitespace
-    /// ECMAScript does not allow.
+    /// The error of a part oxc cannot read as `reading` reads it, or where acorn stops before it
+    /// at whitespace ECMAScript does not allow.
     #[cold]
     pub(super) fn fatal(
         &self,
         error: PartError<'_>,
         (text, fallback, shift): (&str, u32, u32),
-        source_type: SourceType,
+        (reading, source_type): (Reading, SourceType),
     ) -> SyntaxError {
         let stop = (self.as_acorn.is_some())
             .then(|| {
@@ -97,7 +97,18 @@ impl<'a> TreeBuilder<'a> {
                 )
             })
             .flatten();
-        let syntax_error = syntax_error(error.diagnostics, text, &error.tokens, fallback, shift);
+        let diagnostics = error.diagnostics.into_vec();
+        let errors = diagnostics.iter().cloned();
+        let mut syntax_error = syntax_error(errors, text, &error.tokens, fallback, shift);
+        if !diagnostics.is_empty() {
+            let reported = (diagnostics.as_slice(), 0, error.tokens.as_slice());
+            at_shorter_number(
+                &mut syntax_error,
+                reported,
+                (text, shift),
+                (reading, source_type),
+            );
+        }
         match stop {
             Some(stop) if stop.raised <= syntax_error.acorn_raised_at() => rejection(stop),
             _ => syntax_error,
