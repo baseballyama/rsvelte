@@ -217,6 +217,6 @@ component then reports TS2306 where svelte-check does not, or the other way roun
 ever read as a global script.
 
 - Tests: `a_thrown_stand_in_is_a_module_where_the_script_imports_or_exports` in the projection
-  crate's `src/tests.rs`, and `typecheck_reads_a_rejected_component_as_its_script` and
+  crate's `src/tests/stand_in.rs`, and `typecheck_reads_a_rejected_component_as_its_script` and
   `typecheck_declares_no_global_for_a_rejected_component_s_script` in the command line crate's
   `tests/cli/typecheck_rejected.rs`.

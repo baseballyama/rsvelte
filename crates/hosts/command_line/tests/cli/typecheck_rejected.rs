@@ -82,7 +82,7 @@ fn typecheck_declares_no_global_for_a_rejected_component_s_script() {
     ]);
     let not_a_module = report
         .lines()
-        .find(|line| line.starts_with("src/P.svelte(2,21): error TS2306: File '"))
+        .find(|line| line.starts_with(&"src/P.svelte(2,21): error TS2306: File '".native()))
         .unwrap_or_else(|| panic!("{report}"));
     assert!(
         not_a_module.ends_with("src/R.svelte' is not a module."),
