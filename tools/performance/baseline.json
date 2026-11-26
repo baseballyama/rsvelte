@@ -23,8 +23,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 25316082,
-	"alloc_bytes": 3883506103,
+	"allocs": 25367834,
+	"alloc_bytes": 3890475846,
 	"peak_live_growth_bytes": 3010587,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -359,32 +359,32 @@
 		},
 		"vuelte.check": {
 			"calls": 71640,
-			"allocs": 99124,
-			"alloc_bytes": 15040207
+			"allocs": 99139,
+			"alloc_bytes": 15034506
 		},
 		"vuelte.compile/client": {
 			"calls": 36900,
-			"allocs": 74925,
-			"alloc_bytes": 8522652
+			"allocs": 74948,
+			"alloc_bytes": 8503091
 		},
 		"vuelte.compile/server": {
 			"calls": 36900,
-			"allocs": 74925,
-			"alloc_bytes": 8522652
+			"allocs": 74948,
+			"alloc_bytes": 8503091
 		},
 		"vuelte.translate": {
-			"calls": 53382,
-			"allocs": 4112825,
-			"alloc_bytes": 516176542
+			"calls": 53718,
+			"allocs": 4138189,
+			"alloc_bytes": 519342189
 		},
 		"vuelte.vapor": {
-			"calls": 50738,
-			"allocs": 4064039,
-			"alloc_bytes": 875173265
+			"calls": 51070,
+			"allocs": 4090366,
+			"alloc_bytes": 879022184
 		}
 	},
 	"instructions": {
-		"arm64-linux": 2044996012
+		"arm64-linux": 2050365959
 	},
 	"load_instructions": {
 		"arm64-linux": 145960659
