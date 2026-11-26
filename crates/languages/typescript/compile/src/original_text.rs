@@ -11,7 +11,7 @@ use oxc_ast_visit::{VisitMut, walk_mut};
 /// Where it does not allow a literal's source text, the emit prints the text the scanner keeps.
 /// A bigint never keeps its text; a number keeps it unless `TokenFlags.IsInvalid` holds. The
 /// separators an ES2021 target allows stay. A number a property access follows gets the dot the
-/// emit writes after it, as [`with_dot`] says.
+/// emit writes after it, as `with_dot` says.
 pub struct OriginalText<'o> {
     allocator: &'o Allocator,
 }
