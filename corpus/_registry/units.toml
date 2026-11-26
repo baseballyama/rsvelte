@@ -3364,6 +3364,12 @@
 ["svelte/rsvelte-tests-formatter/wrapper_only_parse_error_fmt_4083/the_shapes_the_paren_wrapper_already_parsed_are_unmoved/ec823872202ae4e8.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx writes a template expression as a bare statement, so a valid expression that starts with a contextual keyword (type, module, namespace, accessor, using) reports syntax errors"
 
+["svelte/rsvelte-tests-core-2/parse_ast_ts_type_fields/a_new_expression_keeps_its_type_arguments/bdbb5ee754db8d67.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
+["svelte/rsvelte-tests-core-2/parse_class_implements_4133/implements_sits_between_super_class_and_body/8f7e3b48aa11f01f.svelte".skip]
+"svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
+
 ["svelte/rsvelte-tests-core-2/parse_class_implements_4133/an_export_default_class_keeps_the_clause/3e51411dfe54fa13.svelte".skip]
 "svelte.check" = "upstream bug: svelte2tsx moves the instance script into a function, so a statement allowed only at the top level (`export default`, `export import`) reports TS's error for its new place"
 
