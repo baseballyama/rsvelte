@@ -209,7 +209,9 @@ fn merge(into: &mut Value, from: Value) {
 }
 
 pub(crate) fn uri(path: &Path) -> String {
-    format!("file://{}", path.display())
+    // A Windows path needs its drive after a slash and its separators turned.
+    let uri = oxc_language_server::uri_utils::file_path_to_uri(path).expect("an absolute path");
+    uri.as_str().to_owned()
 }
 
 /// `text` with LSP `edits` applied, lines and columns read as the protocol reads them.
