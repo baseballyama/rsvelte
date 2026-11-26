@@ -1,0 +1,2215 @@
+# rsvelte pack 1
+=== 65 apps/docs/scripts/example-template/App.svelte	ast.sha256
+d62e87a9c7c880950134372774cf1ca7e7b8d0834a9aeb3fd9f492d6b25f2fec
+
+=== 65 apps/docs/scripts/example-template/Scene.svelte	ast.sha256
+01ac00d7587ac305a1827adca38b98a574c1a5f4cb55d3a4779e24cbb9d759af
+
+=== 65 apps/docs/src/components/Button/Button.svelte	ast.sha256
+028b7d81820699cfe39235f142659468bba42c828839af64a8575eaec9b203fb
+
+=== 65 apps/docs/src/components/Code/CopyCodeButton.svelte	ast.sha256
+8a93c0fb563ff0b610c7fccec919531662c9aa4e16a39497b773803f2502cc4b
+
+=== 65 apps/docs/src/components/ContactForm/ContactForm.svelte	ast.sha256
+5f2636ff46fcfc2c148268b2eba0ca074cf5a117f4f39a6c4e849560919849ac
+
+=== 65 apps/docs/src/components/ContactForm/Form.svelte	ast.sha256
+be8a1b07a8f7b277e3f7e3b20977ef51b5a5d166272504ad29599d595cc0c76d
+
+=== 65 apps/docs/src/components/ContactForm/fields/EmailField.svelte	ast.sha256
+e1f908e36c04399974bfdc4a1b332944440bf9bf33ab4d6ac5ddcfc7991a8aeb
+
+=== 65 apps/docs/src/components/ContactForm/fields/Field.svelte	ast.sha256
+f84e06732afa88a5d4928ddbb91cd347e1b033c545412264f9993bf8dfbb8ed2
+
+=== 65 apps/docs/src/components/ContactForm/fields/Fieldset.svelte	ast.sha256
+5cff6a4160f6a49ee9295460418d56b1a6e01a0bd5ea63e04be3ee52f0e5832a
+
+=== 65 apps/docs/src/components/ContactForm/fields/NumberField.svelte	ast.sha256
+cfd216177343307648e9f660794f8843182e340632bbf55aa1e48dff83314cfa
+
+=== 65 apps/docs/src/components/ContactForm/fields/TextAreaField.svelte	ast.sha256
+94be2f74ceb50b7e5211dad5358da96027a967a49526688b8ffb646315beaea1
+
+=== 65 apps/docs/src/components/ContactForm/fields/TextField.svelte	ast.sha256
+bfe8f17cc1700dc01019935e4dbc2d0813b9bb6b586a556a9b4ed3007c788f79
+
+=== 65 apps/docs/src/components/ContactForm/toast/Toast.svelte	ast.sha256
+7cfc36171dc458f13f7fa6787a398f1e2be8a9358115572e5ef48a99cc7b6df0
+
+=== 65 apps/docs/src/components/ContactForm/toast/icons/Checkmark.svelte	ast.sha256
+b9e7593816c49556da49143edb462f5c2f144c1795d9e3295217ef1ead83500a
+
+=== 65 apps/docs/src/components/ContactForm/toast/icons/Close.svelte	ast.sha256
+e26557d409d1a0ef5dffe05ca1c44a96b22979106c5a6ee0977340b1c5ffae8a
+
+=== 65 apps/docs/src/components/ContactForm/toast/icons/Error.svelte	ast.sha256
+2b11b41f0e2deaebb37c61bfbbf1786964fb647229de8891b403da60611fde52
+
+=== 65 apps/docs/src/components/ContactForm/toast/icons/Warning.svelte	ast.sha256
+08603cac92dfa30790adcc461808e4ac92166febf5fe73a3bf8924faec9c1113
+
+=== 65 apps/docs/src/components/Example/CodeExplorer.svelte	ast.sha256
+eea7de41d1e3d49fb57f9c4c323c485e897ecd2b209cc4a6b7b4eed544768833
+
+=== 65 apps/docs/src/components/Example/CodeWrapper.svelte	ast.sha256
+66e10772b96a69af8b039fe0b2ba60b913e4fa9f627dab8d07d5482a0eb1535f
+
+=== 65 apps/docs/src/components/Example/Directory.svelte	ast.sha256
+8f0df31e446b6d14c3856ef972671610992bf1541bac054fa8cc1a51fd5b937b
+
+=== 65 apps/docs/src/components/Example/File.svelte	ast.sha256
+bdc4545390458975f0171b3fdcaf6dbb97aa6a67ac9080367c73c2d4d34e37d4
+
+=== 65 apps/docs/src/components/Example/OpenInStackblitz.svelte	ast.sha256
+0734da0a711c8578c33d18f3a4cea2f99cbdb0d94505918931561879d8fdf7c4
+
+=== 65 apps/docs/src/components/Example/SvelteWrapper.svelte	ast.sha256
+2164aef69f2649bde1460b4a0265c22c28a4194b62235b31e0081ca0a6e654f7
+
+=== 65 apps/docs/src/components/Example/stackblitz-files/src/Layout.svelte	ast.sha256
+b36cb512505e38ab89a7cf4da70fe1b5c24a4ed5da244ee53b89979eddf6e88b
+
+=== 65 apps/docs/src/components/Hero/AnimatableCube.svelte	ast.sha256
+bb23eca4a7b55baea1b71e39bd0b070b26aa90d67ce0338888b46bd0ddad4369
+
+=== 65 apps/docs/src/components/Hero/AnimatableStarField.svelte	ast.sha256
+b21bce109638737093baf3528f344d924830522a09ab596bd56546343ef7db13
+
+=== 65 apps/docs/src/components/Hero/App.svelte	ast.sha256
+7f1466b9a52597bc869e0aeb13b78d5cebf589c21974cffc4187904d5cc96001
+
+=== 65 apps/docs/src/components/Hero/FadeOut.svelte	ast.sha256
+a7b07ce72d59069ad9654880224afdf401a5b490781073c152ab2a5ec48cce3f
+
+=== 65 apps/docs/src/components/Hero/HeroWrapper.svelte	ast.sha256
+4c0da4c72ae9b3f75923ce54e2415317d7b2ee8c066f51248a332740d984a582
+
+=== 65 apps/docs/src/components/Hero/Intro/Intro.svelte	ast.sha256
+d1a6db337de1523b208b6fce4d0221cdbecc6c7aedc0cf6334e7bdcc975f4f06
+
+=== 65 apps/docs/src/components/Hero/Intro/TheatreTextBox.svelte	ast.sha256
+a89b74f38ac37bc25fdabf2a7cf71ae5dd02ba34c8bbcdc4ef19ccc15c17f63b
+
+=== 65 apps/docs/src/components/Hero/KeyboardControls.svelte	ast.sha256
+b269cc2004ead0a5395326dee0bf62b65a4cfc7662d30c7c9c5550d10284059e
+
+=== 65 apps/docs/src/components/Hero/PostProcessing.svelte	ast.sha256
+671905a72c9cc9854a448096d9dbd209a1417f8263c1bbb9c6a0b51e7bcddae8
+
+=== 65 apps/docs/src/components/Hero/Reveal.svelte	ast.sha256
+faa0ac2ecaa99655112a1f599c4e92dffe9696322ae17e8c86b88f391c7d6eae
+
+=== 65 apps/docs/src/components/Hero/Scene.svelte	ast.sha256
+b29adb645d21b52a8109df24c7c815747938641ad351e9d94ca3a8a8a99792dd
+
+=== 65 apps/docs/src/components/Hero/ScrollSheet.svelte	ast.sha256
+843d4485402ca8e18fead9f6e4fc0f0b3852f39dfa42793141abed34f69151dc
+
+=== 65 apps/docs/src/components/Hero/StarField/StarField.svelte	ast.sha256
+1b2be3fd3eb0dcc0424683d2b7c02172ba1fb5af148fbf4c0c82c1c74920adcc
+
+=== 65 apps/docs/src/components/Hero/TextEffect.svelte	ast.sha256
+f9e6bb3fe3ca173de068c7471153a2b371419b74435e579fa60b022d74c85eda
+
+=== 65 apps/docs/src/components/Hero/Trigger.svelte	ast.sha256
+34baad485982a7ca35e50ed19ebe22d434e073a402c4535ab84de75bb4592b1c
+
+=== 65 apps/docs/src/components/Hero/materials/DissolveMaterial.svelte	ast.sha256
+03bddeed485c7cb131cea6d6be729be5d40f4f709803439c6146bd3849787386
+
+=== 65 apps/docs/src/components/Icons/inline/Discord.svelte	ast.sha256
+bd5bde4b305e67dad2a6eeafd11b6e25fe4966437b60a9c835e89e34ef3a9a8a
+
+=== 65 apps/docs/src/components/Icons/inline/Github.svelte	ast.sha256
+b34d0827befc3ed2be6b12fdb763b83fe7bfeb5774c5c77dcce0720262409a55
+
+=== 65 apps/docs/src/components/Intro/IntroExample.svelte	ast.sha256
+4a9f557a4e578280cb929725f3c8ca68e25f263e87d1fe026a67753b9faa9d5b
+
+=== 65 apps/docs/src/components/ManualInstallGuide/InstallButton.svelte	ast.sha256
+e08ad6efe62c165135333a856e500a6dee5de3416eb19d30d64f53b7b6ceb8db
+
+=== 65 apps/docs/src/components/ManualInstallGuide/ManualInstallGuide.svelte	ast.sha256
+1fe2d74c838583e163d7eb34c1c578687e01ccb3354eb0858a6e28b4a9df00b6
+
+=== 65 apps/docs/src/components/Menu/BurgerIcon.svelte	ast.sha256
+3e05dcbd7090ff17d1a109529e0c4951a6c0b7aa98d7cf8361beb5ffac1ce7a3
+
+=== 65 apps/docs/src/components/Menu/Details.svelte	ast.sha256
+ea6651f444103f5dbc57b904f002bdfcb71d186f3f7919ebf5a82dd1a1331b70
+
+=== 65 apps/docs/src/components/Menu/LeftSidebar/LeftSidebar.svelte	ast.sha256
+71123fba33f79b931f2bcbc69e6baa60ee655c66ffff744953ccfd6feccd7df2
+
+=== 65 apps/docs/src/components/Menu/LeftSidebar/LeftSidebarCategory.svelte	ast.sha256
+21aa1c5ddfe3812c95a8b71a650cf2f107a91f776613652ea0b694d41012dac3
+
+=== 65 apps/docs/src/components/Menu/MobileDocsNav.svelte	ast.sha256
+014cf0c47a3eac0f770e926edef3b759c3d3e9642126b186f04bab86616e5119
+
+=== 65 apps/docs/src/components/Menu/MobileMainNav.svelte	ast.sha256
+7cf448a729da9a09483ade5c940a3f243b4622fcd9dca0bd472587ed90cde286
+
+=== 65 apps/docs/src/components/Menu/MobileNav.svelte	ast.sha256
+3e4942e108794d0bcb7debcfb270e54c5a9353670bc77d751e381b8372aceb31
+
+=== 65 apps/docs/src/components/Menu/RightSidebar/RightSidebar.svelte	ast.sha256
+fec89696fc41d2c13b8c8f087cbc2f8f6640e201a0f4e5491fecf9d1e9236600
+
+=== 65 apps/docs/src/components/Search/Search.svelte	ast.sha256
+cf44bcf6554e0ad60fc819ee4ba1e64668705df0640e632e258a009671669285
+
+=== 65 apps/docs/src/examples/animating-with-theatre/step-1/App.svelte	ast.sha256
+b3b94513b576f907813e693e3a2d3a076ca8d25d12aed107b90a733986bdf028
+
+=== 65 apps/docs/src/examples/animating-with-theatre/step-1/Scene.svelte	ast.sha256
+2d1fece0cba84f450e31462129926c58ed03a99b5b934204fd16804789c94205
+
+=== 65 apps/docs/src/examples/animating-with-theatre/step-2/App.svelte	ast.sha256
+8a1366796f7a49742e078060fb744d1634f1ae42c216bb31a6cfa4c01fcf4b49
+
+=== 65 apps/docs/src/examples/animating-with-theatre/step-2/Scene.svelte	ast.sha256
+3681e390bf4dc92b3f1a88a49a589f45be496bd0caafbd3a58ec56858cad9bc6
+
+=== 65 apps/docs/src/examples/animating-with-theatre/step-3/Scene.svelte	ast.sha256
+2ce9ed2686245b50463f6d6f82fba1a651cbf320da3d9bea445e9833086c8a8e
+
+=== 65 apps/docs/src/examples/animating-with-theatre/step-4/App.svelte	ast.sha256
+12b9f5d85a348583b83f20370a52238f75a9b3e603a3ca961fc7926b2ffe5668
+
+=== 65 apps/docs/src/examples/animating-with-theatre/step-5/App.svelte	ast.sha256
+40887839eb181601ac9d8387de6a453f1109a987647c377381ecf0c5e0ee534a
+
+=== 65 apps/docs/src/examples/animation/transitions/App.svelte	ast.sha256
+fe6f79824b1518c7b689ff967f514bc117c0f40f5b6de022b76aea8782e0064a
+
+=== 65 apps/docs/src/examples/animation/transitions/Character.svelte	ast.sha256
+0541901b01aeb86128809a86f7b606fe11201913ee5753e79c85623dddacbd9d
+
+=== 65 apps/docs/src/examples/animation/transitions/Scene.svelte	ast.sha256
+774fec715b9efe88ca954bfdaca46330f0f153d09b186f3839b75def46ebe2f1
+
+=== 65 apps/docs/src/examples/blog/gltf/App.svelte	ast.sha256
+c1bf21da6f3cb2fcac91e6645ac487d4e7b5e6325dba5ee03b209ca2cd8393dc
+
+=== 65 apps/docs/src/examples/blog/gltf/Mesh.svelte	ast.sha256
+969936949cbf5f3b3686225aa2d69f637f2c1918438b3422b777f7825d9da4b7
+
+=== 65 apps/docs/src/examples/blog/gltf/Scene.svelte	ast.sha256
+027037fe60832cb7a594f33b887af3d12f59722a0409e8c983178aa57f3c7fc0
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/App.svelte	ast.sha256
+c1bfb7fe78dda9b6e19b0340a74d0b6f2e3fdb175c30b4a28a1ea8cdef23600a
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/Renderer.svelte	ast.sha256
+785524e564a46b63458b388afa03b2380ac4f1ff9ba591b03c08cdacbe573771
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/Scene.svelte	ast.sha256
+059d6c05ba698c926f6b57c025275a1c09cc2aba91b3f948447853f38ff1a65a
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/arcade/Lights.svelte	ast.sha256
+d2136334ac2aab02d5d266bffde55b00700c1464ef4cce4d298d600aef9792f4
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/arcade/Machine.svelte	ast.sha256
+4fd81795a7fad3b946c257729d5821a4dee8d6bc7df67c2e75399f1a49a08606
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/arcade/Scene.svelte	ast.sha256
+5499b4c84d7db7a49181580c6563b018d293e14180a2e89d8d17734354134b42
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/GUI.svelte	ast.sha256
+977ea83900b9b22582b44895c376d1d8f6f66ea8b75c1043495827d7dd9938c6
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/Renderer.svelte	ast.sha256
+189c0fd0227f91570e24c16e89624ed9892728e53dfd1aeddd74de8c81f34141
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/Scene.svelte	ast.sha256
+2cc471c28c339097f8fa3bba57604696f8779ed018b7d83bfb3dc27a0ff551db
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/objects/Arena.svelte	ast.sha256
+9e097af1bf7b0a5bf5b6d5c5ed53d487948346b1b0ac8c7cc05cd9e97d209553
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/Ball.svelte	ast.sha256
+0739eea3a99ea37cbaa94cdc116b0b1b37ed5527f046ab87d3713c861b765abc
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/BallOut.svelte	ast.sha256
+a64623426ca1f37b9c52e87ddd9e4606b6bcdf16c75bdeb3f304a73dafee3b3e
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/DynamicBall.svelte	ast.sha256
+19c4738572f94a0aa6ad7ad6e0213d2b795f1049cc4eb609c7569f8cee19b872
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/objects/Ball/StaticBall.svelte	ast.sha256
+38b14b05a02734500051c5ebddc9989b328b44ccb082d6e1ffb4b7ceddc64822
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/objects/Block.svelte	ast.sha256
+3de3250903c56d3dffbfa07cb9234defabb381f6f85dd43a1bba038d543f5f32
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/objects/Player.svelte	ast.sha256
+57e2e351cd3b99a2000111f1f69f7459625cbf0a4cb23d54810701178139be29
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/objects/ThrelteLogo.svelte	ast.sha256
+92b37123ef800792a5c5ebc014ba1a285d5d5b2d15ec8dcbfdda0943359a84e8
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/scenes/Intro.svelte	ast.sha256
+a0656098bf6429b2d28510b889951ae7ffb536ade0474088a7a988b26f9c9bd6
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/scenes/Level.svelte	ast.sha256
+b7b47d4306f0a5be4120604fe59ca4f772acda56e27280641aaabe64fb615dce
+
+=== 65 apps/docs/src/examples/core/three-arcade-game/game/scenes/Outro.svelte	ast.sha256
+4f9a053ae91cb6f7b8d5303d138f0b7b48b606af9694806e7dfd5e8553e45511
+
+=== 65 apps/docs/src/examples/extras/align/App.svelte	ast.sha256
+f96027f252721be445c499b719b24dbcff7ba372eba2684593771da8a25277d1
+
+=== 65 apps/docs/src/examples/extras/align/Scene.svelte	ast.sha256
+fe2945cdf9ac414acfd3b602909952bfa922f2dc82701ca8b613050c157a2c30
+
+=== 65 apps/docs/src/examples/extras/animated-sprite-material/App.svelte	ast.sha256
+f74034f34cda2f1b186db8ba1b11e193e1d6cb44202dc0a0b57f3fa1adf9cb40
+
+=== 65 apps/docs/src/examples/extras/animated-sprite-material/Fire.svelte	ast.sha256
+47efaa21b51471029838c2e72d9209056a6fadb392d9bcff4751d31c73437e48
+
+=== 65 apps/docs/src/examples/extras/animated-sprite-material/Player.svelte	ast.sha256
+a66df7c82603e54f1d48d1d47a1f6cc5890f6cd77d1dcec7f775228212b592ce
+
+=== 65 apps/docs/src/examples/extras/animated-sprite-material/Scene.svelte	ast.sha256
+23d75f9d01354b73e36fd663f2b3cfb14de5fb2ce1fa9fe17e0569476051d0d6
+
+=== 65 apps/docs/src/examples/extras/animated-sprite-material/ThrelteLogo.svelte	ast.sha256
+6605dd64c64249b844b5cca090f54470d57b18239374501cc866a2fd0998770b
+
+=== 65 apps/docs/src/examples/extras/animated-sprite-mesh/App.svelte	ast.sha256
+476400225fa92dbc01bdb9eaf04a6aa322c88b3e18d6e95498ec562e351803a3
+
+=== 65 apps/docs/src/examples/extras/animated-sprite-mesh/Scene.svelte	ast.sha256
+1dd4cc96f3a6d02ccf12e107b133413bfa4b13303969c401aa0383098c9b4b48
+
+=== 65 apps/docs/src/examples/extras/ascii-renderer/basic/App.svelte	ast.sha256
+f5b1d5c06734b107778e80b7e205b698be42af656bc59bc2518fe4df249adb45
+
+=== 65 apps/docs/src/examples/extras/ascii-renderer/basic/Scene.svelte	ast.sha256
+c1e15d74eab0ee294d8b2d7edcde0303403bcaeb85dcf839db421cf686e1c8f0
+
+=== 65 apps/docs/src/examples/extras/ascii-renderer/only-effect/App.svelte	ast.sha256
+14fd4ad2911b112796324212837dd3354b92ccdc2119732dfedecf2e05b57854
+
+=== 65 apps/docs/src/examples/extras/ascii-renderer/only-effect/Scene.svelte	ast.sha256
+728c718d9539c868859117bbaf18c47f87e624ec9d1480b67604095c3ec67dcc
+
+=== 65 apps/docs/src/examples/extras/backdrop/App.svelte	ast.sha256
+2e8f82707bffcbd95fca623d6e0b10398f57672cae659e680463bed1dcfee3d6
+
+=== 65 apps/docs/src/examples/extras/backdrop/Scene.svelte	ast.sha256
+48bf43848a6ccbf9db46fc4a5e867633e705faad0857ec5201793d391b70a40e
+
+=== 65 apps/docs/src/examples/extras/bake-shadows/basic/App.svelte	ast.sha256
+03d6060db0f01ab49413c4beb635461645a1905c64b26c4de6b342c9db0e7da3
+
+=== 65 apps/docs/src/examples/extras/bake-shadows/basic/Scene.svelte	ast.sha256
+e30d2687c6596a326b0b3a3c04f03b7d8feeddb3ced7c351cdaeec1f531f3187
+
+=== 65 apps/docs/src/examples/extras/bake-shadows/spaceships/App.svelte	ast.sha256
+c1bf5af1250cbf8cf4dba840cf3300fa4e82775f541d61dd61cf3e3022bfd3f4
+
+=== 65 apps/docs/src/examples/extras/bake-shadows/spaceships/Scene.svelte	ast.sha256
+5bdd3d72d62281f1d6afcd166b058d59a1a91555c98a08ae2762eea860fb84c6
+
+=== 65 apps/docs/src/examples/extras/bake-shadows/spaceships/Spaceship.svelte	ast.sha256
+47473c6a6c3799d660f0fc8790cc01d5ead645886793d4385e2309c16bed33ee
+
+=== 65 apps/docs/src/examples/extras/billboard/App.svelte	ast.sha256
+cc06f0a9c9377da382605d947d550d6874bb2211574da6c02f3afc4c2a2606f6
+
+=== 65 apps/docs/src/examples/extras/billboard/Scene.svelte	ast.sha256
+17a1f48195492dfd6c8ebb147aa741fb166e22251177a9e1afe6e10995e83659
+
+=== 65 apps/docs/src/examples/extras/bounds/App.svelte	ast.sha256
+51745c9b80ce0083a69fe8e94af3a435fc9da7ca2e8681c78063928718cf78a9
+
+=== 65 apps/docs/src/examples/extras/bounds/Scene.svelte	ast.sha256
+9823297bb76c6f7f29a874b477d918805245d17e8d3f4e30ba4e402c29d08abb
+
+=== 65 apps/docs/src/examples/extras/bvh/points/App.svelte	ast.sha256
+f925489f1ee0f423e63877ce6c6c185d3dcfad000a5428e72d5aa592f2bc1c2b
+
+=== 65 apps/docs/src/examples/extras/bvh/points/Scene.svelte	ast.sha256
+d471b00374886061302ebc53d66244359d2aa07891011e8bd566508f9e4b91f6
+
+=== 65 apps/docs/src/examples/extras/bvh/simple/App.svelte	ast.sha256
+1c55836197348d5120a123aa0ff94b8b4c9ada1ae5e919d0cdf8387797bf3a5b
+
+=== 65 apps/docs/src/examples/extras/bvh/simple/Scene.svelte	ast.sha256
+0b247b0011b821150804d93e46828cf8153583252b9da1390442f1ed677c7043
+
+=== 65 apps/docs/src/examples/extras/camera-controls/App.svelte	ast.sha256
+738a6d55f253d931a9eeda1f95adc0e47c35bd8fb8fe753c3184984d821c2b0c
+
+=== 65 apps/docs/src/examples/extras/camera-controls/Scene.svelte	ast.sha256
+7fc3e645e8a9eed82b45e5c8ab009c83c8bc77bb6f3d8e3b155b800cda47d0d4
+
+=== 65 apps/docs/src/examples/extras/contact-shadows/App.svelte	ast.sha256
+e3ff993219039a8345e8f9a1cf3ff9ec80a14aa57fd79c074fd825451e4261a6
+
+=== 65 apps/docs/src/examples/extras/contact-shadows/Scene.svelte	ast.sha256
+7f567a48d92a2b9b5c70b560592012839208827affe3c60974003c47dfacd685
+
+=== 65 apps/docs/src/examples/extras/csm/App.svelte	ast.sha256
+50688bbcd2bdd1c3c77dc79dae82b2be2ff6444d4f99fcd11a4bfe78914d0ef9
+
+=== 65 apps/docs/src/examples/extras/csm/Scene.svelte	ast.sha256
+a5a8fecc5d69e03e2a7bd9fc1828236d3942528f4eef9f5822ef546c17d80637
+
+=== 65 apps/docs/src/examples/extras/cube-camera/App.svelte	ast.sha256
+ae11ea3df3acd008a5bf6982408e51ed7e34f10545c0bfb2334a482c2e9103aa
+
+=== 65 apps/docs/src/examples/extras/cube-camera/Scene.svelte	ast.sha256
+75b458ccbd37dcf4f440450ff8304240dde653fcfd1a1e985c6551d58ebd879d
+
+=== 65 apps/docs/src/examples/extras/cube-environment/basic/App.svelte	ast.sha256
+d10b019472eff3c09bfc9ea402a7d5d579f274786c264c6c1ed577689674793f
+
+=== 65 apps/docs/src/examples/extras/cube-environment/basic/Scene.svelte	ast.sha256
+6f397becb035eb66e79367584da5da210b1f7cb22b28ef90bc280499388583ab
+
+=== 65 apps/docs/src/examples/extras/decal/App.svelte	ast.sha256
+af0cd814bba30955fdc167dfea680c9ac72e7aaa257b58c0aff5c9aa73175b7c
+
+=== 65 apps/docs/src/examples/extras/decal/Scene.svelte	ast.sha256
+5002fb7933f018d2c02be931a61a4553d23798f36db914804a90372416631c5b
+
+=== 65 apps/docs/src/examples/extras/detailed/App.svelte	ast.sha256
+1a286c294252db4c398656b4f257caea01a09deb1d0609bf1493834a690b984e
+
+=== 65 apps/docs/src/examples/extras/detailed/Scene.svelte	ast.sha256
+6a019ae9f5039275c91a074f81b91ebeae1b8dfb295a4f4c2ad933ed884e51a0
+
+=== 65 apps/docs/src/examples/extras/edges/Scene.svelte	ast.sha256
+26efa35f5be47d431606de10bb372fb14abf51ac07488f01993fa47a420dfc83
+
+=== 65 apps/docs/src/examples/extras/environment/basic/App.svelte	ast.sha256
+893abb2e31b3d74b2a9159e1b87eede4d4fb2c010b85854476b4050981d66846
+
+=== 65 apps/docs/src/examples/extras/environment/basic/Scene.svelte	ast.sha256
+2b1fa48466643437c244fdbfb465a69f5ea81f85982b64f1b1d0d234b20cb10c
+
+=== 65 apps/docs/src/examples/extras/environment/bring-your-own-texture/Scene.svelte	ast.sha256
+babb61a25bafb451162152d52f30812fa2664cf85688fd1e44c6f1c42bd05039
+
+=== 65 apps/docs/src/examples/extras/environment/ground-projection/App.svelte	ast.sha256
+e70f01b2776bd0de5f8cab5426bde6d96c4bb6ea1aec55e9f8705ff6f09311ed
+
+=== 65 apps/docs/src/examples/extras/environment/ground-projection/Scene.svelte	ast.sha256
+cdc565ddc1150570a109217fdc473bf2aa671314ceff180da58f5442c79c34bd
+
+=== 65 apps/docs/src/examples/extras/environment/swapping-scenes/App.svelte	ast.sha256
+e0c03c4891afbd09762ec3faeac973644847993f0aa7e50158cb79727b3de630
+
+=== 65 apps/docs/src/examples/extras/environment/swapping-scenes/Scene.svelte	ast.sha256
+085f9d686fe9c207f47eb19106e57ad1c5f2423e1a492b0415275b33ce752bca
+
+=== 65 apps/docs/src/examples/extras/fake-glow-material/Scene.svelte	ast.sha256
+d2b567884fc43999c7e5dea2129d2e0e1f5c9bc6d889fcf3fb6758b45146a0da
+
+=== 65 apps/docs/src/examples/extras/float/Blob.svelte	ast.sha256
+c06c68e2ca75c5eb41c7e0dfe0918fb4e04dcebc2019b450719e857bbbc89da0
+
+=== 65 apps/docs/src/examples/extras/float/Scene.svelte	ast.sha256
+fa17135d1234e4bcaf5a7b5e052b56159a53cac5c5d15130eade5d44f51839dd
+
+=== 65 apps/docs/src/examples/extras/gizmo/App.svelte	ast.sha256
+23d73e6ece0bb5e1314a4417a6a5a750403b95bd5a0fc66b00a9a4a58a0e690a
+
+=== 65 apps/docs/src/examples/extras/gizmo/Scene.svelte	ast.sha256
+0b9440c04e9f703e5c54e4bc42475220f346d42bb92bfef38911ba4bf4edfe91
+
+=== 65 apps/docs/src/examples/extras/gltf/Scene.svelte	ast.sha256
+1a7dae977fa2ce7ad1b68cdd1203bef6260c3dbe9fd7d7c499e9ea8227937f7c
+
+=== 65 apps/docs/src/examples/extras/gradient-texture/linear/App.svelte	ast.sha256
+89e2a3c904d31dcf5215beefce37cb092dd24ea87aa5aa9dcf7e9a2acab6805b
+
+=== 65 apps/docs/src/examples/extras/gradient-texture/linear/Scene.svelte	ast.sha256
+341cd12e100d137fb2749b8479547113fb2d46747c83ba96f0b2d121ef16746f
+
+=== 65 apps/docs/src/examples/extras/gradient-texture/radial/App.svelte	ast.sha256
+e9fb81074257e07306026f74780d8aed51a3551c0b43a0c52ded2264a8cde919
+
+=== 65 apps/docs/src/examples/extras/gradient-texture/radial/Scene.svelte	ast.sha256
+763ec36180502f2d2a9e965f60da447fa4ba0e8886cd0ae8271c62a7dc9fdae2
+
+=== 65 apps/docs/src/examples/extras/grid/App.svelte	ast.sha256
+a0e68809ff7b1c0ec75efd0062f04a6081253e680abdf9b8010525c6a739bedf
+
+=== 65 apps/docs/src/examples/extras/grid/Scene.svelte	ast.sha256
+89345f9b68eda83dbe594ae45b9638268686bb3c34518c5b236b464085b32904
+
+=== 65 apps/docs/src/examples/extras/html/basic/App.svelte	ast.sha256
+c58e24b011f9a945e166bf862d5250083e36f6160cfb3967b3aa7cefa8a113d8
+
+=== 65 apps/docs/src/examples/extras/html/basic/Scene.svelte	ast.sha256
+5cbb9826d0c9bfe7e7f8a20f1f0cb286ec615894b63391900289ea93a87bbd4d
+
+=== 65 apps/docs/src/examples/extras/html/phone/Geometries.svelte	ast.sha256
+3ac78b76239b796d956609fa438df4d1460b1c9b3d2c2720bf4ef983fbbc31b1
+
+=== 65 apps/docs/src/examples/extras/html/phone/Scene.svelte	ast.sha256
+a21bc28fbcfd4e2ee50b8164388a1fbc32a981e57982e584527a847a0cec1aba
+
+=== 65 apps/docs/src/examples/extras/hud/simple/HudScene.svelte	ast.sha256
+95c1dfc4414465a75b75974475ee3ab1eaf408767b81142c1959276db4d87479
+
+=== 65 apps/docs/src/examples/extras/hud/simple/Scene.svelte	ast.sha256
+ea0fc13cdf7e0e21fffeefed94c76e239aa0cae095a0bc5c0f6abda7e0bd1e9f
+
+=== 65 apps/docs/src/examples/extras/image-material/App.svelte	ast.sha256
+6e7f63d32f999530ede62109bad1d85f04c5545984688f84152c7aac6e8368af
+
+=== 65 apps/docs/src/examples/extras/image-material/Scene.svelte	ast.sha256
+c992c2b7d01a697f3877589c34a02f520ed6587d1957a8256b51ab8126c0ffb7
+
+=== 65 apps/docs/src/examples/extras/instanced-mesh/colors/App.svelte	ast.sha256
+95819684017e70897a77f1003a476e11a092fe496adfa7e6448856911403fe7d
+
+=== 65 apps/docs/src/examples/extras/instanced-mesh/colors/Scene.svelte	ast.sha256
+df50925dde08f0313a4003d4b26f14289882fdad2aed98a789958f73981ffcf7
+
+=== 65 apps/docs/src/examples/extras/instanced-mesh/merged/Flower.svelte	ast.sha256
+7374ccc40c11466dfce40b7cd4c43bdff3f706cb3f7c96e8bb3f87c5d0782c5f
+
+=== 65 apps/docs/src/examples/extras/instanced-mesh/merged/Scene.svelte	ast.sha256
+1961cefe3286ca0bb0d72d0a0006a7dd78473261ce62e695e3c1e5d97571336b
+
+=== 65 apps/docs/src/examples/extras/instanced-mesh/simple/Scene.svelte	ast.sha256
+9f5f08d68920bc93a32e4a470573b3545ddd868d88bb76d4cbd645834eaff585
+
+=== 65 apps/docs/src/examples/extras/instanced-sprite/App.svelte	ast.sha256
+083b6509dd863f7d8eb0f2a9800b2edcb8ef6b4008b9f202668767e2c690bc9e
+
+=== 65 apps/docs/src/examples/extras/instanced-sprite/DudeSprites.svelte	ast.sha256
+7a27d1d8eabc0842c24c0a7c593f3ca8f4c5a0be648982780f45afc0783a909f
+
+=== 65 apps/docs/src/examples/extras/instanced-sprite/Scene.svelte	ast.sha256
+f59112440871a5552fd81ee572636c8b7f9d38eb020a416e3af5d1b66956ad8f
+
+=== 65 apps/docs/src/examples/extras/instanced-sprite/Settings.svelte	ast.sha256
+4e90ca0f648c16a9225f18112572a40c9c6f713558d3ef7fdbf2150c07e7d103
+
+=== 65 apps/docs/src/examples/extras/instanced-sprite/TreeSpriteAtlas.svelte	ast.sha256
+6e8e19d7616a0fc54b269e830dc30b2d437f4cbdeb6841cae5758048f90de24b
+
+=== 65 apps/docs/src/examples/extras/instanced-sprite/WalkingBehaviour.svelte	ast.sha256
+e1acc0ba3220be7e169c63047b30fe20dfe75a93d51da5e98bbf8ce4a69d52bc
+
+=== 65 apps/docs/src/examples/extras/interactivity/Scene.svelte	ast.sha256
+a912771a59efb0e9cee0d6e30ff4a042d6a9b37ea7ac9152f80c9e5bc5df26f1
+
+=== 65 apps/docs/src/examples/extras/mask/App.svelte	ast.sha256
+48b820ff3f4487e41323712d0cbe1a6761ba768a9ed235a34bccb3bcf9a531b0
+
+=== 65 apps/docs/src/examples/extras/mask/Scene.svelte	ast.sha256
+3dc21564f22b16599d6479ff16f4e20d04e15fa42933d43bd7713dfcd74bafff
+
+=== 65 apps/docs/src/examples/extras/mesh-bounds/App.svelte	ast.sha256
+d95e33540f5f055dbb89a2053a9a17a8ccc1d103ff7beb189cae963672ccc0d1
+
+=== 65 apps/docs/src/examples/extras/mesh-bounds/Scene.svelte	ast.sha256
+255bbdf583e294afb55ca0bfa21d4c96b5e1dacf773a84d4ceac4a8db97526b9
+
+=== 65 apps/docs/src/examples/extras/mesh-discard-material/Scene.svelte	ast.sha256
+6ca905d3545162a14853beec6129f52d348dd4fda989607811c0a6277563ba6d
+
+=== 65 apps/docs/src/examples/extras/mesh-refraction-material/Diamond.svelte	ast.sha256
+f0eb977ac0d941b39876d1eef05b98bdcb8018b4b8b3c8ea7e823a940c079675
+
+=== 65 apps/docs/src/examples/extras/mesh-refraction-material/Scene.svelte	ast.sha256
+561547d505532c6c971810bf2ca12b3b1d7510244382e23cdcbf8345bc03c980
+
+=== 65 apps/docs/src/examples/extras/meshline-geometry/App.svelte	ast.sha256
+94ca6bbc7cf5d8c8edc37427fde9b1c5fb3582c87acbc9cd5a6942a8dc1fd656
+
+=== 65 apps/docs/src/examples/extras/meshline-geometry/Scene.svelte	ast.sha256
+9571593eaa9257b6d4432904abe34987531e880667ce098a5b3f7e0188d01da4
+
+=== 65 apps/docs/src/examples/extras/meshline-material/alpha-map/Scene.svelte	ast.sha256
+0aef734bea028eaf514ed5b46efdc569ff98eed1d88d7def9d674b91439de925
+
+=== 65 apps/docs/src/examples/extras/meshline-material/animated/App.svelte	ast.sha256
+20841ad97818a0211401a0eb7b7fe8deca097b5ba1cc75b2e3b55b63c6577641
+
+=== 65 apps/docs/src/examples/extras/meshline-material/animated/Scene.svelte	ast.sha256
+ba44c2263b289cb9c1d1fd54d0de96cb5646beb965f3e4ff4219860f3c47b910
+
+=== 65 apps/docs/src/examples/extras/orbit-controls/App.svelte	ast.sha256
+5fe0dffbcd031017f4dceb589b75399b49a7abbb01670a1be540dc75e411e58f
+
+=== 65 apps/docs/src/examples/extras/orbit-controls/Scene.svelte	ast.sha256
+654f5adb1cef6d38a236194d5beb302712f3357a0ac045efac5d3464c39c661d
+
+=== 65 apps/docs/src/examples/extras/orbit-controls/Settings.svelte	ast.sha256
+793b1e91fcbe675fdb72ab57aeb00fd98c84c7dbec83705071cac256c86009cd
+
+=== 65 apps/docs/src/examples/extras/outlines/Scene.svelte	ast.sha256
+bfc221411afbb227de522ad166b49a2185a213f0db613441810cde1c376d0976
+
+=== 65 apps/docs/src/examples/extras/perf-monitor/App.svelte	ast.sha256
+8f3c940a174dc15875a64cace8d6042a5aaaa62a053df8333c6503a6dd19b521
+
+=== 65 apps/docs/src/examples/extras/perf-monitor/Scene.svelte	ast.sha256
+5985bbeb6bddf3d12d597dd6797089bc1a2cc4db308ef3c701cf52d4a8cbc87b
+
+=== 65 apps/docs/src/examples/extras/points-material/Scene.svelte	ast.sha256
+d86addf9e1dd4af2f006d12fabb8e23b196fb60ff10828fe39d7ebee2fa47488
+
+=== 65 apps/docs/src/examples/extras/portals/basic/App.svelte	ast.sha256
+f54a15b1ad39493814323a55a704f025bc5d1e1f17af64e5a73ddcdc288b5501
+
+=== 65 apps/docs/src/examples/extras/portals/basic/Scene.svelte	ast.sha256
+01a68142f018ee999cbb50250614d1b4d8f8355d79d90a484e3c2a3e66732081
+
+=== 65 apps/docs/src/examples/extras/portals/helper/Scene.svelte	ast.sha256
+c79388e7ee7aae40c0e2ec16242bf83cd955c52cf50865713c30a71d46369cd2
+
+=== 65 apps/docs/src/examples/extras/positional-audio/Button.svelte	ast.sha256
+e128a0412f7b5c3e4893bf3f47ff8ee60291b78efa218412f32e5e4b926f47c9
+
+=== 65 apps/docs/src/examples/extras/positional-audio/Disc.svelte	ast.sha256
+8c9dff782b1f92297b36604a2692d281ccf7ef5da46934d202b2c93942e4cd36
+
+=== 65 apps/docs/src/examples/extras/positional-audio/Scene.svelte	ast.sha256
+f94164b0709671df9dff3b0dd532c17e4d2f37ee4e3b9b6520d712f11fc3bb9a
+
+=== 65 apps/docs/src/examples/extras/positional-audio/Speaker.svelte	ast.sha256
+d7df0f284fe2633244280085c739ea90867c639d7795b45bbef8d527d4523f98
+
+=== 65 apps/docs/src/examples/extras/positional-audio/Turntable.svelte	ast.sha256
+1afcb52cc2aa3c29ee8edbc45b7262f90b9dcab4fc9a0b0d734d9991991e97b1
+
+=== 65 apps/docs/src/examples/extras/resize/multiple-objects/App.svelte	ast.sha256
+d71aa4cba8d9e3c0ae2b2778179bd6e53ba10b35f10d99803c54745128c42f59
+
+=== 65 apps/docs/src/examples/extras/resize/multiple-objects/Scene.svelte	ast.sha256
+329471d1e2ae2638dfb52ac159f3e81c84ffe1490ff575fbbd11ad81bddcac07
+
+=== 65 apps/docs/src/examples/extras/resize/plugin/App.svelte	ast.sha256
+daefbf764e2de3644ee8b947b1fc20f34430f190975cc709bc4a899fc6a06d18
+
+=== 65 apps/docs/src/examples/extras/resize/plugin/Scene.svelte	ast.sha256
+7572be854739ea433138f42d2a41918bc8e708e7dc6dac44ab53a9ba87091334
+
+=== 65 apps/docs/src/examples/extras/shadow-alpha/App.svelte	ast.sha256
+95109405255f98a1f38381f8aab09e26171019af8e2c3e16d5936e50a4e2b07e
+
+=== 65 apps/docs/src/examples/extras/shadow-alpha/Scene.svelte	ast.sha256
+6e7ed4ff9a979712fccb2a14d9bde21941285e66f5dd3f0fb186cff1a56e3b96
+
+=== 65 apps/docs/src/examples/extras/shadow-material/App.svelte	ast.sha256
+251e81ec690f68dad9c4bf8bc274ec0e0671da7d3eaaf45ba748232932cf21d7
+
+=== 65 apps/docs/src/examples/extras/shadow-material/Scene.svelte	ast.sha256
+66ad4c980db2ff1f7dd9e5a8994bc3ef3d3bd5e22daa54acc53dd0a48a19f835
+
+=== 65 apps/docs/src/examples/extras/sky/App.svelte	ast.sha256
+cf5d16f500f793e16ec286fdf60f73f7caf0ff2e7ce082fb5813c42200b1149c
+
+=== 65 apps/docs/src/examples/extras/sky/Scene.svelte	ast.sha256
+13810e9a4329756901e454b983ffffe8089c2fa3a3e3473b92f5c1b8dae8a05a
+
+=== 65 apps/docs/src/examples/extras/soft-shadows/App.svelte	ast.sha256
+d2bcc6c5eb3705c10a3f28eb9f542cbc4ae333f3303294c737cf16878c31ba8b
+
+=== 65 apps/docs/src/examples/extras/soft-shadows/Scene.svelte	ast.sha256
+9671864ca26c652ebd8fc0c4d419be268f3d4a93c4637f983d4444dd2557e265
+
+=== 65 apps/docs/src/examples/extras/soft-shadows/Suzanne.svelte	ast.sha256
+5d72b972013f7fa966803ae86ac40bcccc92b0e38859c83ee578657faf65d0be
+
+=== 65 apps/docs/src/examples/extras/sparkles/Scene.svelte	ast.sha256
+cef5d4f42c3a197a4f25b68b185fb08f8ade6099bed614d988107a5690a7b25b
+
+=== 65 apps/docs/src/examples/extras/sparkles/Sphere.svelte	ast.sha256
+a34db86fb42db1f045d396ba9b291c38c5b65d4f3a7b237aa9eb083bee9c2500
+
+=== 65 apps/docs/src/examples/extras/stars/App.svelte	ast.sha256
+594d7231e77c4e233bb2d9f6e67b0b30fe43092c945f901ac34382cee7fa1bb8
+
+=== 65 apps/docs/src/examples/extras/stars/Scene.svelte	ast.sha256
+67aee8bdac7006c6692eccfb4ed79f11d3cefc83f43bc3b53333c0dcd836d5b9
+
+=== 65 apps/docs/src/examples/extras/suspense/App.svelte	ast.sha256
+6de790a658c2ce64436793925fe7e60fdc43c46c8fbd0784d294ca5beebef813
+
+=== 65 apps/docs/src/examples/extras/suspense/Scene.svelte	ast.sha256
+75b0695e7294c62da043e1350330f9df8deaa10016833d41d3ec24a76199c371
+
+=== 65 apps/docs/src/examples/extras/suspense/Spaceship.svelte	ast.sha256
+ba9f012f133d706160fd62a3abf814c48079432bc56259e4554849445f189474
+
+=== 65 apps/docs/src/examples/extras/suspense/Star.svelte	ast.sha256
+b77a0bbdfd40efaaad04f19c4a23deebee15df6365f0e3bdae7c26cf47f95b7f
+
+=== 65 apps/docs/src/examples/extras/suspense/StarsEmitter.svelte	ast.sha256
+890a2e8f240c0d2d8636aa4e3691dfe9d6397f4490e9c8a9896613853a255890
+
+=== 65 apps/docs/src/examples/extras/svg/App.svelte	ast.sha256
+dc0f52174bb5cb101be68850200d3d4c18012ce56920cea7a7252eb83238e49a
+
+=== 65 apps/docs/src/examples/extras/svg/Scene.svelte	ast.sha256
+b1f432af2496004845ab6fb0658a1ffb07d034cda6a42bbd8cb15f5e2a2d7105
+
+=== 65 apps/docs/src/examples/extras/text-3d-geometry/App.svelte	ast.sha256
+cd75ac6dc0201ffb701850f06dab64502608c9eab2fde351fb10e8475fc686e1
+
+=== 65 apps/docs/src/examples/extras/text-3d-geometry/Scene.svelte	ast.sha256
+6482d342b0f0963ce4047f5a8fa740f28a897c26adfeee2255995758dc7144a1
+
+=== 65 apps/docs/src/examples/extras/text/App.svelte	ast.sha256
+fe8d4595e67fb1192b16e0217088d93315e65533880252274bdb9978b6af8031
+
+=== 65 apps/docs/src/examples/extras/text/Scene.svelte	ast.sha256
+a26805fea6fa61d0c516eec863f14464bc61a98617b40bcdfbcc239e036bfe0e
+
+=== 65 apps/docs/src/examples/extras/trackball-controls/App.svelte	ast.sha256
+e1bee12f9ed939756ed54e1d3c30892b675766225439c074ae3c456da052471f
+
+=== 65 apps/docs/src/examples/extras/trackball-controls/Scene.svelte	ast.sha256
+ed2c15dea659e051a3e08e78c348311cf2f8e8d97c0cb9c537ba5bb0bc01263b
+
+=== 65 apps/docs/src/examples/extras/trackball-controls/Settings.svelte	ast.sha256
+dd68080ce74702c2e8ea550484a49fcc17a77354aadbb4deed323234f18d52ad
+
+=== 65 apps/docs/src/examples/extras/transform-controls/App.svelte	ast.sha256
+77147455f7cde448050b3779ab7907c76ce5abeb56318e09cc898d8a2792d5a8
+
+=== 65 apps/docs/src/examples/extras/transform-controls/Scene.svelte	ast.sha256
+7d2e93f6403b6d7f8577eb3c2a95e58ef9da3cf4ead94dcd7c4a129ba55e4b9f
+
+=== 65 apps/docs/src/examples/extras/transform-controls/Settings.svelte	ast.sha256
+d0a7c1d8a4cd6e808236ffe8ab204e95c4747b14918388081af239ece4c92674
+
+=== 65 apps/docs/src/examples/extras/transitions/App.svelte	ast.sha256
+789fd26e368728b141b51504202c8c8796fe6dde8dd2cdef13dd2e5c344b34eb
+
+=== 65 apps/docs/src/examples/extras/transitions/Scene.svelte	ast.sha256
+b9545ebbabdc7f546ce0cd93f5113cd48c723d00cae6bb03bd7e1e564a0a4264
+
+=== 65 apps/docs/src/examples/extras/use-cursor/Scene.svelte	ast.sha256
+22effa7c7073e72a0e3ad66c2a19b81761fb68af9a20021188ec22ade2b1b4d8
+
+=== 65 apps/docs/src/examples/extras/use-fbo/Scene.svelte	ast.sha256
+c6102b88ac84a1e4811b7caf74acddc5e81cce44c3db8a4e1865807556451174
+
+=== 65 apps/docs/src/examples/extras/use-follow/App.svelte	ast.sha256
+c68583d4cebdc1a2e086ad5fdddb3c51a13883d7a7708ada823ce8a7dd099a00
+
+=== 65 apps/docs/src/examples/extras/use-follow/Character.svelte	ast.sha256
+09c757770d711e64e245778bb5da903d37b9936f66b9618d33d9326e67e746a9
+
+=== 65 apps/docs/src/examples/extras/use-follow/Scene.svelte	ast.sha256
+cae6924ae7d97ca4f6575ce79ddd0e3ca49e40c5aac5f1e620097df7d9ede874
+
+=== 65 apps/docs/src/examples/extras/use-gamepad/App.svelte	ast.sha256
+60d488f2a2d7338a76bd21c0d45af02d8aab64934c686fa931197e12ae44c1fa
+
+=== 65 apps/docs/src/examples/extras/use-gamepad/Scene.svelte	ast.sha256
+b1817bb75bbc3b9cbbbcc1ae63e87ed120bfe23d4e28db58def80b21b17cde10
+
+=== 65 apps/docs/src/examples/extras/use-gltf-animations/App.svelte	ast.sha256
+dff6a90acc2e23f56920224fe8414386185c515a924609b75c1350f1a3494525
+
+=== 65 apps/docs/src/examples/extras/use-gltf-animations/Scene.svelte	ast.sha256
+0672d7d7c9a81e56c104baff835057a007d51b4c1d8a16a88ca1ec830cab309f
+
+=== 65 apps/docs/src/examples/extras/use-gltf/Scene.svelte	ast.sha256
+deede72292eb08872125c383de57c651848194ab3f0d242864b78e67c9b5a507
+
+=== 65 apps/docs/src/examples/extras/use-input-map/App.svelte	ast.sha256
+892f6889cbcc937e645a001a927910601da90ead22c09e2cb7a96d45cdfd6a69
+
+=== 65 apps/docs/src/examples/extras/use-input-map/Character.svelte	ast.sha256
+1cd1afa8d59c80749116fc72925c27cdcc0d59e0ac2948b6fe2d778e34312076
+
+=== 65 apps/docs/src/examples/extras/use-input-map/Scene.svelte	ast.sha256
+e843378dd2e479f6295fada9363e7fb10839af5e1f163fd818bb87e8e0602ac3
+
+=== 65 apps/docs/src/examples/extras/use-keyboard/Scene.svelte	ast.sha256
+11d3a9fa8261ba150b065506709bb4c69ae6b23011c14cf397f018dafd25bd30
+
+=== 65 apps/docs/src/examples/extras/use-progress/App.svelte	ast.sha256
+731b026a28e1efbcf6baf7978f3f3ac6f61b69e52454c976c08db3cb1e608fc1
+
+=== 65 apps/docs/src/examples/extras/use-progress/Scene.svelte	ast.sha256
+b3da38bb369eb40fa19da757e5dae4624af216fc7cdff3daa6ce7b71678e6ba9
+
+=== 65 apps/docs/src/examples/extras/use-trail-texture/App.svelte	ast.sha256
+94647e8a056c873e794540f53b0d52ec5d4011ba527c5ff6e91b0894b511925a
+
+=== 65 apps/docs/src/examples/extras/use-trail-texture/Scene.svelte	ast.sha256
+f30346f3a6056632e704c1e0a3bdea50981b77c480a769463757efb12c858661
+
+=== 65 apps/docs/src/examples/extras/use-trail-texture/programmatic/App.svelte	ast.sha256
+5a1955ed9ae9f307379c261e7ff21e6e90fb3db67470483cf22bffc117fa3bb3
+
+=== 65 apps/docs/src/examples/extras/use-trail-texture/programmatic/Scene.svelte	ast.sha256
+6fe8b98682aa3056881dd54a7294d8134a4b3c25ccadaaddb4f62d3fbdb2cfa8
+
+=== 65 apps/docs/src/examples/extras/use-viewport/Scene.svelte	ast.sha256
+48c8250d1e44e22db8d83158c04893f15954658d592e46ffb6347bd96cf2e3f5
+
+=== 65 apps/docs/src/examples/extras/uv-material/App.svelte	ast.sha256
+d8376949db0689078301523f6d71d495cdeedb368bcf39f7d1dbcfc087eb57bf
+
+=== 65 apps/docs/src/examples/extras/uv-material/Scene.svelte	ast.sha256
+c68130c76e3029e4ab452d4216cd40c41befd0d43127e6f9ce3ac917d2b26b4f
+
+=== 65 apps/docs/src/examples/extras/view/multiple-scenes/App.svelte	ast.sha256
+a3045045d7f3427db74f02aec8f433e8a58b71ac7a61753b7bdf6042e652c2c8
+
+=== 65 apps/docs/src/examples/extras/view/multiple-scenes/Scene.svelte	ast.sha256
+d8d6225b06b930c22d9612b6acf3d81cdd22e48c17b76a302e3d1f17d9628bec
+
+=== 65 apps/docs/src/examples/extras/view/shared-scene/App.svelte	ast.sha256
+34acf4b7a05f8b3ead5c083be04475e09a6c68c43ff1bcd2841b6fb5324da1cd
+
+=== 65 apps/docs/src/examples/extras/view/shared-scene/Scene.svelte	ast.sha256
+0552392982f065f4a262a0bea908155a3f58ab0d7583ae18d6308c6a41083097
+
+=== 65 apps/docs/src/examples/extras/virtual-environment/basic/App.svelte	ast.sha256
+94479f3a9b71a23bc49d99fd6eecc930320848f8db62ce4697ed000afc73d4bf
+
+=== 65 apps/docs/src/examples/extras/virtual-environment/basic/Scene.svelte	ast.sha256
+bb2a36c97c80255b0e1d4650be16c1b5dace52b7d80b07c5e64543e8708f3085
+
+=== 65 apps/docs/src/examples/extras/virtual-environment/manual-updates/App.svelte	ast.sha256
+4fb26d3646e1b23c55361094d69fefbd53ea6c4f0d41db4f6dad0e6cfba387ad
+
+=== 65 apps/docs/src/examples/extras/virtual-environment/manual-updates/RenderIndicator.svelte	ast.sha256
+66d03b2c672779007ddf0ce06732983c5d3efad1d6ca7a0dfdd4eff006bf684c
+
+=== 65 apps/docs/src/examples/extras/virtual-environment/manual-updates/Scene.svelte	ast.sha256
+744ab3f52ac73a1f00a9cc23a1d36d612364ca28ded92b70927c06ccacb4f941
+
+=== 65 apps/docs/src/examples/extras/virtual-environment/mix/App.svelte	ast.sha256
+0af30eda383c7043cea250d3e571cb8040a133eae0dc88a257c6d8a28560ee52
+
+=== 65 apps/docs/src/examples/extras/virtual-environment/mix/Scene.svelte	ast.sha256
+e91c2f78d646032e31fd2c824d7027ae5058f82e7fb3c750531155cfc78e66fa
+
+=== 65 apps/docs/src/examples/extras/wireframe/App.svelte	ast.sha256
+4a54daefaa043d88d0015037ef124e528ca65748752a81d0fb0cfcd700cc33e8
+
+=== 65 apps/docs/src/examples/extras/wireframe/Character.svelte	ast.sha256
+ec939af2e4da548d5b8f90b65b89a5f4fbf63bef935cca6328c9699e13d45a39
+
+=== 65 apps/docs/src/examples/extras/wireframe/Scene.svelte	ast.sha256
+bbe987278d38f3c8126473d7a2df2595d8b977b0317d8d459280b981335ac2e9
+
+=== 65 apps/docs/src/examples/extras/wobble/App.svelte	ast.sha256
+180fde91c7c39a139b1470c4b1f79d87b44140213ee9acd9e451bccbecc6139f
+
+=== 65 apps/docs/src/examples/extras/wobble/Scene.svelte	ast.sha256
+860cf51901fb295edabcbe9117af3e260f3493f3bdf1c3a70877e74a7c499384
+
+=== 65 apps/docs/src/examples/first-scene/step-1/Scene.svelte	ast.sha256
+08229bed383356ec6ca9cdd848bf4ae01af2cc77edb3c4976e25969d4a294b96
+
+=== 65 apps/docs/src/examples/first-scene/step-2/Scene.svelte	ast.sha256
+ad9a71b0349b897e5f709122f3b9089624fce8b827c56d2f6a45b9ef1d70c25e
+
+=== 65 apps/docs/src/examples/first-scene/step-3/Scene.svelte	ast.sha256
+1cfc5c4091cdd84bb4b42b17bba9c6c3f2d6add8a8eab72ceb8ea239faf5e456
+
+=== 65 apps/docs/src/examples/first-scene/step-4/Scene.svelte	ast.sha256
+d018d46c525a7551be9dd246332b6a93ede2f3efaa318d50be035d82e237131f
+
+=== 65 apps/docs/src/examples/first-scene/step-5/Scene.svelte	ast.sha256
+9e18713ff6a73748376a47fe99711992832922b19422f94e0a6d3315c98b0b1c
+
+=== 65 apps/docs/src/examples/first-scene/step-6/Scene.svelte	ast.sha256
+dac559685ab84186651b84647bc8db242dbfe3622875750c7c775b9c38cf7e1d
+
+=== 65 apps/docs/src/examples/first-scene/step-7/Scene.svelte	ast.sha256
+0abe9cb064d10f061e791a2e33434d5b7cf61fbdb907f13f2dfbfd7a6c71ded8
+
+=== 65 apps/docs/src/examples/flex/create-class-parser/App.svelte	ast.sha256
+bed96bf3e13ebb5d83849a17ac54fbcd7f386f71038da973e21d5815a0e3dd1a
+
+=== 65 apps/docs/src/examples/flex/create-class-parser/RoundedPlane.svelte	ast.sha256
+cddf4594a0be4821ccfc2d06f79b44f6a7a3474361855890a8a583c609771ccb
+
+=== 65 apps/docs/src/examples/flex/create-class-parser/Scene.svelte	ast.sha256
+e8d950b66aad9accbee0b9e682a23b8264d2e82cfc38a5bde86aac462954f768
+
+=== 65 apps/docs/src/examples/flex/examples/App.svelte	ast.sha256
+713f97cc3b83e53b71649a1107d1c0ea4924988865ab3295465aecc360a71111
+
+=== 65 apps/docs/src/examples/flex/examples/Gizmo.svelte	ast.sha256
+6fc88fbf298cca3eadbad1a2200c3679d14f51af967e513387e391941dab80da
+
+=== 65 apps/docs/src/examples/flex/examples/Plane.svelte	ast.sha256
+608be6821b5a818b068236844e764c1dd65f1971b385ec7aab25359593e42d88
+
+=== 65 apps/docs/src/examples/flex/examples/examples/01 - basic/Dom.svelte	ast.sha256
+3c94fa588882159b370802c9d4cd08c93512be6b2d009aa408bced7376237c2d
+
+=== 65 apps/docs/src/examples/flex/examples/examples/01 - basic/Threlte.svelte	ast.sha256
+91f76ff732455f229b842286d1d7087e05a35f2224a933758d5d1ff0e50a5e79
+
+=== 65 apps/docs/src/examples/flex/examples/examples/02 - flex/Dom.svelte	ast.sha256
+e70ab44eb36bf88083a3aec206e317b69c68ca404a73d8628a7dde1a37b1766e
+
+=== 65 apps/docs/src/examples/flex/examples/examples/02 - flex/Threlte.svelte	ast.sha256
+6ed76277323eb0ae2ff877013e6abcdf7696bdd73d68a2d49d693f30753379ea
+
+=== 65 apps/docs/src/examples/flex/examples/examples/03 - justifyContent/Dom.svelte	ast.sha256
+32d864cbcb290e92f48dc119ed507cd4ebda3a05dfe93526388e1ffac55789f5
+
+=== 65 apps/docs/src/examples/flex/examples/examples/03 - justifyContent/Threlte.svelte	ast.sha256
+2155102a0a6628a7d2498ccb0a8c10fc2775c65aba1cdbfb19b9591fac2bd35e
+
+=== 65 apps/docs/src/examples/flex/examples/examples/04 - alignItems/Dom.svelte	ast.sha256
+061ec37ab0af571a879f443afce179bd8788797ad187a1baa6772e540560cfe5
+
+=== 65 apps/docs/src/examples/flex/examples/examples/04 - alignItems/Threlte.svelte	ast.sha256
+be0950916cc708f5ad10290a6a35171045449cb71e668551abd04b07f6225744
+
+=== 65 apps/docs/src/examples/flex/examples/examples/05 - gap/Dom.svelte	ast.sha256
+96f7c63b33f89baa816b437611fc81ee71011550ce8fc9e8ae52017f92e44ae1
+
+=== 65 apps/docs/src/examples/flex/examples/examples/05 - gap/Threlte.svelte	ast.sha256
+b82afc080b928f7a84758aa3c96c26cd162f8d5114ffa69b3c2cbb7a5803fbd2
+
+=== 65 apps/docs/src/examples/flex/examples/examples/06 - height-auto/Dom.svelte	ast.sha256
+010d6d673db6428ec7035149f9ad56533ab9540682ef4f0e7e091d7aa6a9e04e
+
+=== 65 apps/docs/src/examples/flex/examples/examples/06 - height-auto/Threlte.svelte	ast.sha256
+3dfabca9ff24e69cb814bf8735e66f66d2601eeecf3b41fbc32ccbfc6ec695d8
+
+=== 65 apps/docs/src/examples/flex/examples/examples/07 - auto/Dom.svelte	ast.sha256
+997e6a29353d5c1e57cc58cf1de410acdcc0d0a1696fd540cb1693b08b219646
+
+=== 65 apps/docs/src/examples/flex/examples/examples/07 - auto/Threlte.svelte	ast.sha256
+fc45833b2c779e276204b0fd25c9f19f515d6451d58c87c3ff63ac50535c0c6f
+
+=== 65 apps/docs/src/examples/flex/examples/examples/08 - tailwind/Dom.svelte	ast.sha256
+68b22b0ffbb770d36722ef37f6168570691212fe334f363a499581256713e611
+
+=== 65 apps/docs/src/examples/flex/examples/examples/08 - tailwind/Threlte.svelte	ast.sha256
+898aa393dc8e2802941104f348481ce2ccabce8a545f1ccea14548d2ff15e43e
+
+=== 65 apps/docs/src/examples/flex/examples/examples/09 - nested/Dom.svelte	ast.sha256
+7d7b02bade0738571b9e3e26e887b3d3103ddf53a1a70c4ebfacd9f9f83d1695
+
+=== 65 apps/docs/src/examples/flex/examples/examples/09 - nested/Threlte.svelte	ast.sha256
+90b4d03d1686d9a9d78040624da6170133b3c7fce734160871172a660f17c33c
+
+=== 65 apps/docs/src/examples/flex/examples/examples/10 - deeply-nested/Dom.svelte	ast.sha256
+bb7f8e7afd37611cc3dd41e718b1401435e2ea2f61daa42b39e333703180ef36
+
+=== 65 apps/docs/src/examples/flex/examples/examples/10 - deeply-nested/Threlte.svelte	ast.sha256
+8a76b51e13abf362f0f3f59776470b3e877d84af5fe6f2d05f233ec5facd759e
+
+=== 65 apps/docs/src/examples/flex/examples/examples/Common.svelte	ast.sha256
+4c37532f331cd735064122d639910deaf935149d67aa915ca0582c18d6ed9905
+
+=== 65 apps/docs/src/examples/flex/intro/App.svelte	ast.sha256
+7bcdf0a51bd20b5e4516b94b6e4569dda947878f120c151992da770c3d00c2c8
+
+=== 65 apps/docs/src/examples/flex/intro/Button.svelte	ast.sha256
+2056b1431d6ddf0cd4a3a0ecf780b99888ae4e2b46b4b121ca24bad2b896dc0f
+
+=== 65 apps/docs/src/examples/flex/intro/Circle.svelte	ast.sha256
+e492b69ba2493edd7a818fbd448111e8a0d71469f74dd6926073695880cfab91
+
+=== 65 apps/docs/src/examples/flex/intro/Label.svelte	ast.sha256
+2591f39870fca7c65553473717139664e0a82b69e9203388175b55ed6f01a94f
+
+=== 65 apps/docs/src/examples/flex/intro/Matcap.svelte	ast.sha256
+d3c9abb7ae9555c98b98c93ccdf91da0433447fd4e31fde56aa44cdb6f8e8562
+
+=== 65 apps/docs/src/examples/flex/intro/Plane.svelte	ast.sha256
+d65999c2f22a123bb80797faf242cc0369d98b4642dd8c49e6386de3a83563f6
+
+=== 65 apps/docs/src/examples/flex/intro/Scene.svelte	ast.sha256
+c72cc04330a35948ea8dbda528edeac4b5bcbbb5aacc4816bea8995e1fb109da
+
+=== 65 apps/docs/src/examples/flex/intro/Window.svelte	ast.sha256
+d2f92c4db8d8ea1abe33f3900a9cf62cb2ed8dddd22470b5dcb3dd1bdd692680
+
+=== 65 apps/docs/src/examples/geometry/physics-terrain/App.svelte	ast.sha256
+02aa46d4c2a08034c1d1c5281094ef7c7312a1e19b8d9e0fb1295b7d8bf0fc78
+
+=== 65 apps/docs/src/examples/geometry/physics-terrain/FallingShapes.svelte	ast.sha256
+66daf9b0693230df131883e19516cd27d447ee3398ab0fc26b472cec8c23c25b
+
+=== 65 apps/docs/src/examples/geometry/physics-terrain/Scene.svelte	ast.sha256
+7f226fb5cb928649f4f6d9092c1319f67cd2375e35376dea9e5cd59febd5a58b
+
+=== 65 apps/docs/src/examples/geometry/points/Scene.svelte	ast.sha256
+52940ee696f20256a2338d7a3c628901d8bd0821fb162342be716f5b548c793d
+
+=== 65 apps/docs/src/examples/geometry/points/SceneAlternative.svelte	ast.sha256
+3532441666596e04afacad0c7814d3acffaddcabd51bbe964f806b34e4f34bdb
+
+=== 65 apps/docs/src/examples/geometry/random-placement/basic-random/App.svelte	ast.sha256
+10953b8b2b92abf03b346d7b28763c81758d44107a03b4c581613283479ec876
+
+=== 65 apps/docs/src/examples/geometry/random-placement/basic-random/Random.svelte	ast.sha256
+ae3498e5faeb1f81bc556349a3bc8eb96d1d3b925100c36660719a65ec6afa0c
+
+=== 65 apps/docs/src/examples/geometry/random-placement/basic-random/Scene.svelte	ast.sha256
+32156e0791e6deff521e6bad594abffc99d6e86b93e788fc30f277ba7cab5e91
+
+=== 65 apps/docs/src/examples/geometry/random-placement/basic-random/assets/birch.svelte	ast.sha256
+78a1af70b729234b295d8ba781fe67e2c2bb9b1771c36c2bf1b83b473251b49e
+
+=== 65 apps/docs/src/examples/geometry/random-placement/basic-random/assets/bush.svelte	ast.sha256
+5336fd85d7971ba0cc9a85b4ba4480d328270e47b649dd16d78d5226efc7668a
+
+=== 65 apps/docs/src/examples/geometry/random-placement/basic-random/assets/rock.svelte	ast.sha256
+8a2dc95503d663776d60b9d7965eafe9b3d54bce2b8c63a3953efd7356688f3d
+
+=== 65 apps/docs/src/examples/geometry/random-placement/basic-random/assets/tree.svelte	ast.sha256
+3ea5cc0397455d186708799ca8af1e696fb5ba1e028ef883c95e1da59294a50a
+
+=== 65 apps/docs/src/examples/geometry/random-placement/poisson-random/App.svelte	ast.sha256
+cdcef8f8e16a6f68ba2c49f87b2a4e9bbb851c994aed41e99e8d237a962ad7da
+
+=== 65 apps/docs/src/examples/geometry/random-placement/poisson-random/Random.svelte	ast.sha256
+4053af8406bc2e3fab1e789ae9645143b0899939393b039b85347744a6a5d508
+
+=== 65 apps/docs/src/examples/geometry/random-placement/poisson-random/Scene.svelte	ast.sha256
+b4973e3d598d23be6994c43292552506520bc48211d74d9d9d34a3f18b3cbe59
+
+=== 65 apps/docs/src/examples/geometry/random-placement/poisson-random/assets/bush.svelte	ast.sha256
+864c9dadf79a8f7f2e70822d2e57c01ed18ead57deb1e3584f13c87b82e89040
+
+=== 65 apps/docs/src/examples/geometry/random-placement/variable-poisson-random/App.svelte	ast.sha256
+867612348ccad3f3f64f767f1cece1734f6e94a624b3043d6405f6626e5dfcb1
+
+=== 65 apps/docs/src/examples/geometry/random-placement/variable-poisson-random/Random.svelte	ast.sha256
+1abc35dcc74e6c56e4c65954ae25a4c58cdb9f710a28e742808a8d9f93cae5fa
+
+=== 65 apps/docs/src/examples/geometry/random-placement/variable-poisson-random/Scene.svelte	ast.sha256
+7e7dce5a89fe9da7b844c69e8449e18f269364e8ca1c4dc8189bbaf3d1c1a7bf
+
+=== 65 apps/docs/src/examples/geometry/random-placement/variable-poisson-random/assets/bush.svelte	ast.sha256
+a6f8f4b36ee1c00818dc6233fc626c8339dddb9c3c9034c79d3661f8f82ab1cd
+
+=== 65 apps/docs/src/examples/geometry/random-placement/variable-poisson-random/assets/rock.svelte	ast.sha256
+bda62361d5663b025d5de9b0064255824917fd33ca31b28fbcad5a0e26ff6cf0
+
+=== 65 apps/docs/src/examples/geometry/random-placement/variable-poisson-random/assets/tree.svelte	ast.sha256
+8be98477347afb783e299feefccc9e4d028e46d209dfc67d70d0766b446da28c
+
+=== 65 apps/docs/src/examples/geometry/terrain/App.svelte	ast.sha256
+b544a2e4f5ee9602ae03ade0da27b5a9ec31f492002ec3220ee03310cc0c4234
+
+=== 65 apps/docs/src/examples/geometry/terrain/Scene.svelte	ast.sha256
+83c45ded1aa23772f97e62d436d53470a40352068376c480288d74453cda02aa
+
+=== 65 apps/docs/src/examples/gltf/skinned-meshes/Robot.svelte	ast.sha256
+4fc979d3ebf57b5636818dc0c81574843da6e050e6acb66f7dff54c1a2b29524
+
+=== 65 apps/docs/src/examples/gltf/skinned-meshes/Scene.svelte	ast.sha256
+0c56e665204e35c5878a41a22e0dc19db2c71060e3067032674b2f57caa5888b
+
+=== 65 apps/docs/src/examples/instancing/instanced-sprite-mania/App.svelte	ast.sha256
+e790790de8a219276b120261e621d41e9118cda02964c5bdbc1c4e6e664cd0a9
+
+=== 65 apps/docs/src/examples/instancing/instanced-sprite-mania/Scene.svelte	ast.sha256
+2b54f513391537d2e08dbec386b68bd641cf7f98fc4d86fd896fae31e21d78bb
+
+=== 65 apps/docs/src/examples/instancing/instanced-sprite-mania/behaviours/FlyingBehaviour.svelte	ast.sha256
+e593cc7e929ad909ba127dd03f211399b4b85a442ae232ebe77731a0386f8617
+
+=== 65 apps/docs/src/examples/instancing/instanced-sprite-mania/behaviours/FlyingBehaviourHook.svelte	ast.sha256
+3b87576ca8ddbacbecc0fc17f12be7de9fab8aaf9426353ca00f5eac3d970359
+
+=== 65 apps/docs/src/examples/instancing/instanced-sprite-mania/behaviours/WalkingBehaviour.svelte	ast.sha256
+28bc6ce1d92831101e9ff10d8cf9a75e309227ad7025ab51f70f9068b9878676
+
+=== 65 apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/DudeSprites.svelte	ast.sha256
+5778c3fb16fca0bb979f82994b22a4ae69afa6598f7127ff8eeb4d38430c58fe
+
+=== 65 apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/FlyerSprites.svelte	ast.sha256
+30c6f03e43604af7fd261ee34a7cab3a2ddb4a3fdee42ecafdf9df1de360f61e
+
+=== 65 apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/FlyerSpritesTyped.svelte	ast.sha256
+e5e9602f0a85cb7ed21f0052c39211ddf890f978916630e98de692cfc0cbd5b8
+
+=== 65 apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/GoblinSprites.svelte	ast.sha256
+519b671bad2c10fd2d366bcfb3c59f6596504f21ae9eef76f27ef0cdf68ee12a
+
+=== 65 apps/docs/src/examples/instancing/instanced-sprite-mania/sprites/TreeSpriteAtlas.svelte	ast.sha256
+7c3cc439349cb8363f3706ee3aa49daf8b5e1a59c0287d898d434bcec690af14
+
+=== 65 apps/docs/src/examples/marching-cubes/lava-lamp/App.svelte	ast.sha256
+a28ec3bbc4e71eda57f02f6451a1fe8a56c9532eccc44f004fd1ef6809a66372
+
+=== 65 apps/docs/src/examples/marching-cubes/lava-lamp/MarchingCubes.svelte	ast.sha256
+8e7956223f980962f9772cd6d599eb033a57f2238a64c173f9559da36214a2cd
+
+=== 65 apps/docs/src/examples/marching-cubes/lava-lamp/MarchingPlane.svelte	ast.sha256
+407670a85f08ab0e21dec459568a1618e78e0fb31b41b5bf0a926fcb74a067e1
+
+=== 65 apps/docs/src/examples/marching-cubes/lava-lamp/Scene.svelte	ast.sha256
+4ce1e8992a3d41e9bbcb7d17fb052b72e692eae1e5d9d5018db86afd18230886
+
+=== 65 apps/docs/src/examples/meshline/cursor-lines/App.svelte	ast.sha256
+c4081ec09a35dee4da0edd3e98653c8a0f860f86a039f7946f40fecf41809546
+
+=== 65 apps/docs/src/examples/meshline/cursor-lines/CursorLine.svelte	ast.sha256
+2fed1380fe2271b501cf1002389fd3fe1e623a6d88a5e861f015e78a977e9cab
+
+=== 65 apps/docs/src/examples/meshline/cursor-lines/Scene.svelte	ast.sha256
+8b35c1b5615a1387122ce48c3bb07cbd56813e4b99ffecf7edc104d08b4677cd
+
+=== 65 apps/docs/src/examples/misc/gaussian-splatting/LumaSplatsThree/LumaSplatsThree.svelte	ast.sha256
+f9fc843eb48268e196368ff950bc418324a0a66735f44650b96e57e61e089c66
+
+=== 65 apps/docs/src/examples/misc/gaussian-splatting/RenderIndicator.svelte	ast.sha256
+8e4cbc0741c278bf1b315166546e5c9388c22f1f64c0662722c061cc202808c5
+
+=== 65 apps/docs/src/examples/misc/gaussian-splatting/Scene.svelte	ast.sha256
+f8e0932f01626873839dd34f55bb3a47817b2ea9c296ad9da173f02982204967
+
+=== 65 apps/docs/src/examples/misc/gaussian-splatting/Splat/Splat.svelte	ast.sha256
+f05fc66ce82fc8604af8cede4233b5d9f995754bb5acf410c8823b03b4c94ede
+
+=== 65 apps/docs/src/examples/plugins/lookAt/Scene.svelte	ast.sha256
+d66efb6c5f69505d99da0bc7e3080dedc9276a9706c0c97fefdd8f505e1511c1
+
+=== 65 apps/docs/src/examples/postprocessing/outline/App.svelte	ast.sha256
+b76f83bda8e1a71b34d914403ea6577a79570977bbe480f49cb8fb27d405107f
+
+=== 65 apps/docs/src/examples/postprocessing/outline/CustomRenderer.svelte	ast.sha256
+6797fbd8de3b4fcce771e89346ad8988232ce231a76755e3e5c0df19c3663812
+
+=== 65 apps/docs/src/examples/postprocessing/outline/Scene.svelte	ast.sha256
+1eccced10604534b2587a7e3dc572d3ac5d50c2eedcfe66e9c1bca7a2fd0c4aa
+
+=== 65 apps/docs/src/examples/postprocessing/screen-quad/App.svelte	ast.sha256
+f4834596794d0c9300bc3b22f8b6f196029747c09c6487cde3765271c44cc01f
+
+=== 65 apps/docs/src/examples/postprocessing/screen-quad/Scene.svelte	ast.sha256
+f7199fbd83c24e4dd2bc76d4d4fc115aa104aa19ff1d8e7cc1c51ab6cf4763cd
+
+=== 65 apps/docs/src/examples/rapier/attractor/AdvancedScene.svelte	ast.sha256
+5aab0f2244d4211bec54791a21c790da03da6423e4c8dc91dc088b7462bc1692
+
+=== 65 apps/docs/src/examples/rapier/attractor/App.svelte	ast.sha256
+9f16c3e4ccaadcfa8ab39697df5065c98d1ef61acdb0aab9addaece2ac0d78d3
+
+=== 65 apps/docs/src/examples/rapier/attractor/BasicScene.svelte	ast.sha256
+f862a1037e2fefd35df2e8817e7bcde5a4bfb6907454bc1ea1450f9b047dc4de
+
+=== 65 apps/docs/src/examples/rapier/attractor/RandomMeshes.svelte	ast.sha256
+d877362a45e0a5c965ba5bcba1817f09ea62ad220109153ffca2d9bc7f681afd
+
+=== 65 apps/docs/src/examples/rapier/auto-colliders/App.svelte	ast.sha256
+75dbb727c2c93843c937b995d145d765f0e6ce2d6937c7f50908ca9dda93373c
+
+=== 65 apps/docs/src/examples/rapier/auto-colliders/Ground.svelte	ast.sha256
+9b0d75fd165c1b21247b950d163a21d2130ed75bbb723920202a213447ddb0c7
+
+=== 65 apps/docs/src/examples/rapier/auto-colliders/Scene.svelte	ast.sha256
+8553e05e1a6660a690360152e01277fe7c81d8811b9706ceec781e30ba83bf22
+
+=== 65 apps/docs/src/examples/rapier/collider/App.svelte	ast.sha256
+7abb36a68709b0e246400db3b8f96149cf873d7b9a64408840a6c83d173840de
+
+=== 65 apps/docs/src/examples/rapier/collider/AttachedCollider.svelte	ast.sha256
+1f9363a5b16fc5bba179176f4faa6f03781f8e291546d57e8525ce543d1fb6fb
+
+=== 65 apps/docs/src/examples/rapier/collider/Emitter.svelte	ast.sha256
+e3e3266193fc68c4e54e01e04c189f55e69a2e584c950941c2dd58ffd1e88534
+
+=== 65 apps/docs/src/examples/rapier/collider/Particle.svelte	ast.sha256
+65408d6fd147f90bd76c252f5de20530ef6301fbd59d47bc84af1911e4908402
+
+=== 65 apps/docs/src/examples/rapier/collider/Scene.svelte	ast.sha256
+b641a7f97f18d735b6be3849aa6c61a817fc18016800c9282c9e8968fda54e39
+
+=== 65 apps/docs/src/examples/rapier/collider/Sensor.svelte	ast.sha256
+8e4ab1e6358b3ca98f262fe5bed73b0c6791417a2698cbb02c73692f70d8b5ae
+
+=== 65 apps/docs/src/examples/rapier/collider/StandaloneCollider.svelte	ast.sha256
+5eb706634e76afe4fd42e724e71ede76d0a9fcd5e3cc8b3f02bedb7f0ef2a588
+
+=== 65 apps/docs/src/examples/rapier/collider/TestBed.svelte	ast.sha256
+d4f576cb24e745e4367ddf176b6bfe69a29681ca6ea56d34cbbee78560577a79
+
+=== 65 apps/docs/src/examples/rapier/collision-groups/App.svelte	ast.sha256
+fdfa54ad2a492618c7c976aadb2dab139fdb67f7924b214f4839c44935b48030
+
+=== 65 apps/docs/src/examples/rapier/collision-groups/Ground.svelte	ast.sha256
+cda707d2dd38b1be4fc81dce46ad59ad19139a7b31f453f9092edb710c960ad7
+
+=== 65 apps/docs/src/examples/rapier/collision-groups/Scene.svelte	ast.sha256
+90d0071af6e9089748f91552f67b66b8a48cf5b1bef7c6314bcc48a4feaf67ca
+
+=== 65 apps/docs/src/examples/rapier/debug/App.svelte	ast.sha256
+f751e95e9ec44080d66876ba6523a2e9fd7f87cd3cd3c17d37b1c30bce22b4e6
+
+=== 65 apps/docs/src/examples/rapier/debug/Scene.svelte	ast.sha256
+622bd158a2de14cf4f599ffe8365bd28fa981926e464172d0162e72d15c5e073
+
+=== 65 apps/docs/src/examples/rapier/framerate-debug/App.svelte	ast.sha256
+0054dd453e601dc1763842ba3f5e946913e88a86fb55232cee8b50da002b0eea
+
+=== 65 apps/docs/src/examples/rapier/framerate-debug/Scene.svelte	ast.sha256
+757e08c367754ed317da12fde1d8952069feb2359ff374252dc3c702cb7cb461
+
+=== 65 apps/docs/src/examples/rapier/framerate/App.svelte	ast.sha256
+e7b5d47e505b048724baf00fa420cc8a18132e856b2479bdf647d9311eb84044
+
+=== 65 apps/docs/src/examples/rapier/framerate/Scene.svelte	ast.sha256
+794cd90c4adc686f7bdd5ba34e0a9c323e72b980facb0adedbd9357d72ec3b6d
+
+=== 65 apps/docs/src/examples/rapier/joints/fixed/basic/App.svelte	ast.sha256
+4dc74f3b1e4c5ae221f921dc970f184d3fe7fa7d70fcfd747e8ffc8141d8587d
+
+=== 65 apps/docs/src/examples/rapier/joints/fixed/basic/FixedJoint.svelte	ast.sha256
+3d7d1d13bca595d6253b13a620ca3521d101c09a38d14ab008a644fb286dd102
+
+=== 65 apps/docs/src/examples/rapier/joints/fixed/basic/Hammer.svelte	ast.sha256
+c957c36e577050b718553168357168b5cac611d52fd911cb454c7d0deaded1dd
+
+=== 65 apps/docs/src/examples/rapier/joints/fixed/basic/Scene.svelte	ast.sha256
+2d0651e7c83b4973c38db32ddb5f5521e4b00c68fe12709643122c42891a8aa2
+
+=== 65 apps/docs/src/examples/rapier/joints/fixed/basic/Tower.svelte	ast.sha256
+b5430d2b428ae58c3e890994fa657987a48d57f64a94fb6b353721ed0c66abab
+
+=== 65 apps/docs/src/examples/rapier/joints/prismatic/basic/App.svelte	ast.sha256
+527e0157abf2db36800b1292c17c3753f41ccb63f2eb34d749090a7601c74ebe
+
+=== 65 apps/docs/src/examples/rapier/joints/prismatic/basic/Press.svelte	ast.sha256
+62be1ee414d38adac89484df38d6a418d919c16703285ec9d34c91a257b6bc8b
+
+=== 65 apps/docs/src/examples/rapier/joints/prismatic/basic/Scene.svelte	ast.sha256
+b5b16bf396d7e843c0b6fbaa708d356b69a14f63a1cbad02e430361a32257b74
+
+=== 65 apps/docs/src/examples/rapier/joints/revolute/basic/App.svelte	ast.sha256
+c56fdf9d8024094c803390e9d063ee9a98aa259549c4c9b24300183b0b6f852c
+
+=== 65 apps/docs/src/examples/rapier/joints/revolute/basic/Pendulum.svelte	ast.sha256
+9491959a5aa9e3f27f143a5352f811950766252076c52eaabd7924b7bb0cb2df
+
+=== 65 apps/docs/src/examples/rapier/joints/revolute/basic/Scene.svelte	ast.sha256
+72aedf192646617560d2c7192ab3c579878d912d1f2e6c9298cfa1b20467645c
+
+=== 65 apps/docs/src/examples/rapier/joints/rope/basic/App.svelte	ast.sha256
+d05ee7eee88e8255241070c422ac8d40b1ed626a36e4d44dd2ad89eb23cca037
+
+=== 65 apps/docs/src/examples/rapier/joints/rope/basic/Rope.svelte	ast.sha256
+48d148de937ffa7cd3a40a1818f8df654c33d6239ab01e17e055d0c0377450e0
+
+=== 65 apps/docs/src/examples/rapier/joints/rope/basic/Scene.svelte	ast.sha256
+c67c99203ed9448b77ab1609039856d48588f9c1fe82efa014ac0aa6b40ada03
+
+=== 65 apps/docs/src/examples/rapier/joints/spherical/basic/App.svelte	ast.sha256
+2e86715d2e9c15516ea013ee69a3a3d3fbded03b04b041057cbe0fe5369cc515
+
+=== 65 apps/docs/src/examples/rapier/joints/spherical/basic/Chain.svelte	ast.sha256
+535e95d30f515c3692b4b62cad22d3ff1c0a49c33e29bdac6a55241fd47f55a8
+
+=== 65 apps/docs/src/examples/rapier/joints/spherical/basic/Scene.svelte	ast.sha256
+64f14ecc83c27b4283b3682aa517c4740d09205940b884b0ae16e4177eda8dc8
+
+=== 65 apps/docs/src/examples/rapier/pachinko/App.svelte	ast.sha256
+a751e12d4ecfc475c84397ab91e3835e6a8071e3be8b940fed40e4c0f4bbeaf5
+
+=== 65 apps/docs/src/examples/rapier/pachinko/Ball.svelte	ast.sha256
+21c1f2801a9ed204efd4d10984f302f3e5822866a957d00e8f98b86f9edde267
+
+=== 65 apps/docs/src/examples/rapier/pachinko/Balls.svelte	ast.sha256
+fd2eaa687a83ae0a18b7adc5c6532f57d256b5cf3a699e7c1cfe993df1b49187
+
+=== 65 apps/docs/src/examples/rapier/pachinko/Cabinet.svelte	ast.sha256
+4b5b6ace7fc54abe376670b0ee33a9e963325b2a0e4ada5545630399a6e8a779
+
+=== 65 apps/docs/src/examples/rapier/pachinko/ControlPanelHUD.svelte	ast.sha256
+5c23f2e9b278b208773a4dcc4aac860a0dd23ab40c7bbf1069cab2e402145729
+
+=== 65 apps/docs/src/examples/rapier/pachinko/Frame.svelte	ast.sha256
+55e2e8a0d54df7359c3ca280f91e623f5fcb723f89e8c62440a516555f780c03
+
+=== 65 apps/docs/src/examples/rapier/pachinko/Launcher.svelte	ast.sha256
+91c43acb69062bf03784cabf40a8f23c82beab702a7f8f46b8cfcde8cb6cf2d5
+
+=== 65 apps/docs/src/examples/rapier/pachinko/Pegs.svelte	ast.sha256
+5bc5eca0fe28e65ea1e4306ad4ac072c124fdacb0402974915267eef212e8f4e
+
+=== 65 apps/docs/src/examples/rapier/pachinko/Pockets.svelte	ast.sha256
+73dd999986062bd25180cddd9713b1a48acedae93b19091fdd37a336ecf4aa7d
+
+=== 65 apps/docs/src/examples/rapier/pachinko/Scene.svelte	ast.sha256
+3830f688afae0449958044d9afdd2503437e3779ffd47535edfd75fbd08e6e54
+
+=== 65 apps/docs/src/examples/rapier/pachinko/Windmill.svelte	ast.sha256
+867fdbcecb8f28857c3488ce8421946a38a470ec55b91c01527e9cd0ddc9d6d9
+
+=== 65 apps/docs/src/examples/rapier/pachinko/Windmills.svelte	ast.sha256
+e867b7b4d9e518f0525fae0d02941f8bdaa1c9ac4429ce166c6866cc1be7ba52
+
+=== 65 apps/docs/src/examples/rapier/rigid-body/App.svelte	ast.sha256
+38ffb13ca353593684423ddd6842ba4908d264785e862eed8c70aef6fc203ed6
+
+=== 65 apps/docs/src/examples/rapier/rigid-body/Emitter.svelte	ast.sha256
+367a69988a6e21cc4648662d8f9919e810835a16e35d8301b2f4dba36ca6330e
+
+=== 65 apps/docs/src/examples/rapier/rigid-body/Ground.svelte	ast.sha256
+fc71535d8fbd4c37537a05383b8643369f7a3d1c90d14bbe20aea2f9d157bfe6
+
+=== 65 apps/docs/src/examples/rapier/rigid-body/Particle.svelte	ast.sha256
+9590988a3277101c3f9b7f1e3b3cc1d55c4cede2b53e7515221879c528c10040
+
+=== 65 apps/docs/src/examples/rapier/rigid-body/Scene.svelte	ast.sha256
+3200e76afedc7c0ba31326e9d173fefc107230f518a7b5eb8de8e1e890cb9733
+
+=== 65 apps/docs/src/examples/rapier/rocketry/App.svelte	ast.sha256
+6dbb12dc3a90215424bac061f41573a4318bc198200fdca23b8d458f5c987cc0
+
+=== 65 apps/docs/src/examples/rapier/rocketry/FollowCamera.svelte	ast.sha256
+3bbe7c0aaa6bc8fa882df95d1f96cbe8e70789ba0a9add792964ab8990703b43
+
+=== 65 apps/docs/src/examples/rapier/rocketry/Goal.svelte	ast.sha256
+62dcd3aaacfeaeeef2803a12f01e9d6c9d6b36153ff7356fe554a0eefba646c3
+
+=== 65 apps/docs/src/examples/rapier/rocketry/Impulse.svelte	ast.sha256
+695219ec7d7be1a00ed491e4ae49f7c4e548181ebb102cd7b6713603c11cdd0b
+
+=== 65 apps/docs/src/examples/rapier/rocketry/IsStatic.svelte	ast.sha256
+05600ac0c835d4272c9172ecbaa349f3f2402bfc47c391ad75171fc115ab300d
+
+=== 65 apps/docs/src/examples/rapier/rocketry/Level.svelte	ast.sha256
+fa5801f9ac331bf58291a818d50e072ea878da37491436720ef73c45f0ff7e8f
+
+=== 65 apps/docs/src/examples/rapier/rocketry/Player.svelte	ast.sha256
+9f3d48edb39a74066eaed1276473b418d44b9c2d8cd5840002dfbc56447fd822
+
+=== 65 apps/docs/src/examples/rapier/rocketry/Rocket.svelte	ast.sha256
+4324da5127a7a45e674a69f29def7039b29a5aaa758fa53181bae303406ff9c7
+
+=== 65 apps/docs/src/examples/rapier/rocketry/Scene.svelte	ast.sha256
+b7a67f0bfdb7212cd5033bea5d5a06b6fa9f0a013759c97fc3768cd298f606cd
+
+=== 65 apps/docs/src/examples/rapier/rocketry/Start.svelte	ast.sha256
+2c7ac63159166121ec2c7b4603269357cd2374209ce339ef243ded44012fb857
+
+=== 65 apps/docs/src/examples/rapier/rocketry/Thruster.svelte	ast.sha256
+50c4a0b4bf58c525b1c906790bbc08106762d314f4aac9be62e1cf1a02cb37be
+
+=== 65 apps/docs/src/examples/rapier/rocketry/ThrusterController.svelte	ast.sha256
+17099b6fd5ee2d6f418701f3cd34197631b275bbe1881b9734fa5ea02d4ebe25
+
+=== 65 apps/docs/src/examples/rapier/rocketry/quarks/BatchedRenderer.svelte	ast.sha256
+18f420fd0c955f8dc271abdfe673920a187e40fa33cdef1c4f8255f783cb2ee2
+
+=== 65 apps/docs/src/examples/rapier/rocketry/quarks/ParticleSystem.svelte	ast.sha256
+52ed3a4a3dc77463e7269d237c1815adc6efb2e51ad478d992b7a414ec7247c7
+
+=== 65 apps/docs/src/examples/renderers/CSS2DRenderer/App.svelte	ast.sha256
+babcfa3eadd4dce095432b2e9188978c80cb19c48ae99fd86b0c2f25edf92cd3
+
+=== 65 apps/docs/src/examples/renderers/CSS2DRenderer/CounterLabel.svelte	ast.sha256
+17be58c52fd67ddd992d3de4fabc51cc10df219b7b00d6210d32555bfd03193e
+
+=== 65 apps/docs/src/examples/renderers/CSS2DRenderer/CssObject.svelte	ast.sha256
+4b4d5647ba2941727b8d476d80561b2dc7883d3ba30383c0f55b33370d382fbe
+
+=== 65 apps/docs/src/examples/renderers/CSS2DRenderer/Scene.svelte	ast.sha256
+21c8a4316519e082d0909a8a69b968a7044f3228d34844e6236adbfab877fc58
+
+=== 65 apps/docs/src/examples/renderers/WebGPU/App.svelte	ast.sha256
+4daf59e0f0f4cb31245a6b63ec4570fc84081c270c57495c3b6192b40070c894
+
+=== 65 apps/docs/src/examples/renderers/WebGPU/Scene.svelte	ast.sha256
+4f7a89e0e82c23bca7fb4aeb4b28ab28f46530084718f0fb7cde2c36cb0168eb
+
+=== 65 apps/docs/src/examples/renderers/on-demand-rendering/App.svelte	ast.sha256
+a13733bcd5e9771be65bef44f83643627a85e2beeafafb54fa45886e6de49d40
+
+=== 65 apps/docs/src/examples/renderers/on-demand-rendering/RenderIndicator.svelte	ast.sha256
+d7c8b9024326d08826f0105390e55a77f983250ada1b498edb5a0cf92d1567a6
+
+=== 65 apps/docs/src/examples/renderers/on-demand-rendering/Scene.svelte	ast.sha256
+072bf532bb9ce90c74a154a6a954b6592f642c9221d26cca98a19c94dbc4bbfa
+
+=== 65 apps/docs/src/examples/shaders/interactiveShader/App.svelte	ast.sha256
+5fdcc435ead0f8345d97f5c587724c34fe5dc0f98ae8070d18a7fa52cdbaf563
+
+=== 65 apps/docs/src/examples/shaders/interactiveShader/Scene.svelte	ast.sha256
+0b5e4d9b5455ccd4a12b37597ed193068d4dd76d7edd95de61b55cd1756ff9e4
+
+=== 65 apps/docs/src/examples/shaders/useFboScope/App.svelte	ast.sha256
+66a68580bcc8bbfa630e5298db4269048da7c085308f684e0ef4003512d8d61c
+
+=== 65 apps/docs/src/examples/shaders/useFboScope/Controls.svelte	ast.sha256
+2cf6100d4072f163c7f070a456fc70d3be06de1ae079df344b6f572cf2f8c593
+
+=== 65 apps/docs/src/examples/shaders/useFboScope/Scene.svelte	ast.sha256
+a72fef5ac61d1ff4f80fd980b0c5cd634546e0b007ce13b9b15b37ac73db26a7
+
+=== 65 apps/docs/src/examples/shaders/useFboScope/scope/LensView.svelte	ast.sha256
+889aea61c79ea889b43e62fd7d212fc40b418c12edfe4b52c60ee640185fcaad
+
+=== 65 apps/docs/src/examples/shaders/useFboScope/scope/Scope.svelte	ast.sha256
+266297e22d6b00b818f800f357f5b01668fa2b7bd6b7c01bb4ad20e9206b7f05
+
+=== 65 apps/docs/src/examples/shaders/useFboScope/world/Ducks.svelte	ast.sha256
+89ecf1e1ffcc37069db7288f1d07afd7f0b416c4954365df1ee6cbd4e7ab77ab
+
+=== 65 apps/docs/src/examples/shaders/useFboScope/world/Water.svelte	ast.sha256
+d6fc0ac54b8b3645572701af411ea5f17c23555de010c684836a5e2eb55b9830
+
+=== 65 apps/docs/src/examples/shaders/webgpu/slice/App.svelte	ast.sha256
+ac95585849343520093f67e1a5759647d002ea9f73957dac85aca59f54e0b120
+
+=== 65 apps/docs/src/examples/shaders/webgpu/slice/Scene.svelte	ast.sha256
+bd21c94066eb87244d7145627ef4e8f30568ec8d6d2b078a44b04aeb73e5a3de
+
+=== 65 apps/docs/src/examples/shaders/webgpu/slice/SliceMaterial.svelte	ast.sha256
+504daed72ac5edee3db9a52570d66dc5788c8ba61e15ccd2a2e840af800aff51
+
+=== 65 apps/docs/src/examples/shadows/shadow-mesh/App.svelte	ast.sha256
+2ff37f86ced846c5eabe0604a8fc635edbcf786f8d79b2dc6f84a32d5916e256
+
+=== 65 apps/docs/src/examples/shadows/shadow-mesh/Scene.svelte	ast.sha256
+a290b08b9e760632596285a0b41731e00e668d3f7bd675083871e88b80f8f575
+
+=== 65 apps/docs/src/examples/studio/getting-started/App.svelte	ast.sha256
+b8960bd990d86d2e07904b687a9441f28b2a92018318373f7a4461438ae5ffff
+
+=== 65 apps/docs/src/examples/studio/getting-started/Scene.svelte	ast.sha256
+1df9b62732236255fae9cba46c2ab850195e1bec59db9fb17cc29484530c2c30
+
+=== 65 apps/docs/src/examples/studio/getting-started/Tour/Tour.svelte	ast.sha256
+2be090e14e6c187350bc26db9db0f968c16a4c86dcb1676f9cfe40af6e81388d
+
+=== 65 apps/docs/src/examples/studio/getting-started/Tour/Tour/TourStop/stops/SyncTourStop/SyncInstructions.svelte	ast.sha256
+616b3e9aec27d3146b2bd81502e8abf348725647bc4b4acbad8716c016ed03f8
+
+=== 65 apps/docs/src/examples/studio/getting-started/Tour/Tour/instructions/instructions-types/basic/InstructionsBasic.svelte	ast.sha256
+8d4477f43461d5394bf68cf97c830aa6f4be7ff8f6d925d4105c84300a620ef5
+
+=== 65 apps/docs/src/examples/studio/static-state-gap/App.svelte	ast.sha256
+22976d7ec57af2b82da2fef88c80a99c9c6d3d002ad383c14b6ab8954a9cc66c
+
+=== 65 apps/docs/src/examples/studio/static-state-gap/Box.svelte	ast.sha256
+a5fe5c1ac2da25d2d33cbd430832a21ae55039367070556d9832bd80bbe0e421
+
+=== 65 apps/docs/src/examples/studio/static-state-gap/Icosahedron.svelte	ast.sha256
+591a7bef673085e3456fb03416285847180d5eee38f00f4b3e91f321c39404cf
+
+=== 65 apps/docs/src/examples/studio/static-state-gap/Scene.svelte	ast.sha256
+61b71eb0b39fceee3e98ab2df2e7ebf94654dbd7b06479255fc8a9c5298874d0
+
+=== 65 apps/docs/src/examples/studio/static-state-gap/Sphere.svelte	ast.sha256
+0f724bfe6ff21da5f5df497b1bf3e98d53549255fb41f5c6fdb7e18ccab175e6
+
+=== 65 apps/docs/src/examples/studio/static-state/Box.svelte	ast.sha256
+bf6a19c2ab5e15fa9cb818f2015eb2d9ef07ab1808a3ab6abd8621fadc158dcd
+
+=== 65 apps/docs/src/examples/studio/static-state/Icosahedron.svelte	ast.sha256
+cef19ad4c2b6f9c9d99883a70fd3aace5aeeb59e5bc7ab9275013e08615b56b8
+
+=== 65 apps/docs/src/examples/studio/static-state/Scene.svelte	ast.sha256
+7584df968ebb2bdedbea4da53bd6137ab79c8993c81c2de627442bc9a4308738
+
+=== 65 apps/docs/src/examples/studio/static-state/Sphere.svelte	ast.sha256
+02e091b0a12d5e5c17e632bf2b1c12a20304d995c2a340afeef393dbafedae0d
+
+=== 65 apps/docs/src/examples/template/App.svelte	ast.sha256
+dbf61102455eb281367248ccfda68eee510336afd3b9d38948cb42fe42b7fa91
+
+=== 65 apps/docs/src/examples/template/Scene.svelte	ast.sha256
+af30362d8669eeab8fea1730ff982e4cf98a1132e07f1de958f4fa548d4eefd6
+
+=== 65 apps/docs/src/examples/theatre/action-sheet-object/App.svelte	ast.sha256
+98661e8f0cfcc4225ce371fe6b69abcc377e57ecde7796da47a6fb3e351f26fb
+
+=== 65 apps/docs/src/examples/theatre/action-sheet-object/Scene.svelte	ast.sha256
+b2d4e05bc9d00fde4be9f29d2a4ad37be9f0d1a7f5df1a7e6a6ca060752b9438
+
+=== 65 apps/docs/src/examples/theatre/action-sheet-object/icons/PauseIcon.svelte	ast.sha256
+93ec02724ebb7c7aca0179e3ed40620dc500e6d672377e42d110dde81dfcff4f
+
+=== 65 apps/docs/src/examples/theatre/action-sheet-object/icons/PlayIcon.svelte	ast.sha256
+42211c82d2f74cbbacf9422d336e31faaad8996f27d53bc22fe084b3e03cdbbd
+
+=== 65 apps/docs/src/examples/theatre/sequence/App.svelte	ast.sha256
+1e91341acfe1f1ff425cfc7b7bbf5b6495f553dfdc030d620ff7c4c016418121
+
+=== 65 apps/docs/src/examples/theatre/sequence/Controller.svelte	ast.sha256
+32d1fc705316d74ec72dd4ff33eab4e3468c214e41d2c8db2dc82867f068fd09
+
+=== 65 apps/docs/src/examples/theatre/sequence/Scene.svelte	ast.sha256
+da6a2d0e16a0f7ea16f3a7c2bff8f64ad8bf3f313e8cc35fbaf19f1dbcc6dd3d
+
+=== 65 apps/docs/src/examples/theatre/sheet-object/App.svelte	ast.sha256
+5cb9db4cd7ef24acf2585ef37c78cd51f9594394ab054df742badeb6a0171724
+
+=== 65 apps/docs/src/examples/theatre/sheet-object/Scene.svelte	ast.sha256
+63de2e7480c62ed23e79a5f43af32af324da496081cf761a0d31753971aded1e
+
+=== 65 apps/docs/src/examples/theatre/use-sequence/App.svelte	ast.sha256
+68c8f1de294d127898270feeb49780e4ba01ed5d8b37e98b6aaa1977c5cbc2e5
+
+=== 65 apps/docs/src/examples/theatre/use-sequence/Feather.svelte	ast.sha256
+1ed9e4ed6742cf2fab372a2adce9f2a2d05854e69d426bb91c7c3a1ec6ca6011
+
+=== 65 apps/docs/src/examples/theatre/use-sequence/Scene.svelte	ast.sha256
+24ee75747f262a1a7f085c832d2d8afadf253dc62660818a5d4eb0e6a486bf6f
+
+=== 65 apps/docs/src/examples/tutorials/animating-a-spaceship/App.svelte	ast.sha256
+e02ee457a0b738ee7ecb02d6d8c5da6060cb65289782a4c9c17b9800a80413cf
+
+=== 65 apps/docs/src/examples/tutorials/animating-a-spaceship/Scene.svelte	ast.sha256
+182a66317da70af6d2889c9846d17e0cc5d343816d3551a12bda0744a1b7aa92
+
+=== 65 apps/docs/src/examples/tutorials/animating-a-spaceship/Stars.svelte	ast.sha256
+e63da471793528a19446da7a4d093281204cf1a097ebc76d4a06d2aa5dab3eb2
+
+=== 65 apps/docs/src/examples/tutorials/animating-a-spaceship/models/spaceship.svelte	ast.sha256
+8b9ca61738f063cd67a8e3a3abd917d77978b7ebd768b085fc0b876cc8e56587
+
+=== 65 apps/docs/src/examples/xr/ar-button/App.svelte	ast.sha256
+5666f7e725dd7e5d615dbc2e38b6f9ecabf6580480fe274ba3fe11029713822a
+
+=== 65 apps/docs/src/examples/xr/ar-button/Scene.svelte	ast.sha256
+d27f89b492f8521eb7a3e86d8fa0910b72dfebb96dc91acbf30e6ab8c5b3fe87
+
+=== 65 apps/docs/src/examples/xr/ar-button/Stars.svelte	ast.sha256
+51b888e83088a8c5def94a5e0240ae30ae71a93252657a91935f18633ab1f2db
+
+=== 65 apps/docs/src/examples/xr/bonksaber/App.svelte	ast.sha256
+f5740d16c8c7d47f3016aad45f26a2bd359cf5131e276e78a663118762729145
+
+=== 65 apps/docs/src/examples/xr/bonksaber/Blocks.svelte	ast.sha256
+b6b264c8ad983b2773a6dc0eb3c7d6e7bd7f2c10092dfacdb0e5249c580a5f2a
+
+=== 65 apps/docs/src/examples/xr/bonksaber/Menu.svelte	ast.sha256
+d64818a9bd5692a5e9f126b87312ecbcfccc3c4ad6ab231d87738f1703178a04
+
+=== 65 apps/docs/src/examples/xr/bonksaber/Mountains.svelte	ast.sha256
+23db9550f931f8188df54affd2714978104bf1d563d983b9bbb1710a455bd35c
+
+=== 65 apps/docs/src/examples/xr/bonksaber/Sabers.svelte	ast.sha256
+e8c73c0be71ce9e13b1100999a82739f8887345b2ffc694c24adbbea175f2773
+
+=== 65 apps/docs/src/examples/xr/bonksaber/Scene.svelte	ast.sha256
+92c98e53ab26c363a4887847c3b78e8dc7ead9566f9ee31ea04d6fd79a86e208
+
+=== 65 apps/docs/src/examples/xr/controller/App.svelte	ast.sha256
+cc7a9610fd8d67ff14e318edaee8bf47e0296c90972a327f9b9622c584678b53
+
+=== 65 apps/docs/src/examples/xr/controller/Controller.svelte	ast.sha256
+b530c05c8253094b7a54dc880b934d839eefcb422a5c280da8194b2bd5df3d92
+
+=== 65 apps/docs/src/examples/xr/controller/Scene.svelte	ast.sha256
+5eb49f84a16128b9322396258428a11dd42415d48d65e32cb2a7927a3d995c20
+
+=== 65 apps/docs/src/examples/xr/hands/Scene.svelte	ast.sha256
+336a0f7dca4549020c25a3a90b170c44b0513f43e808b7fa16d389414c79246f
+
+=== 65 apps/docs/src/examples/xr/headset/Microphone.svelte	ast.sha256
+20bedecff9f76f579ab99fea73caec5c44ceca2506c33e59c387c7272a695bf8
+
+=== 65 apps/docs/src/examples/xr/headset/Scene.svelte	ast.sha256
+922bc182bea5fe3135067a7bef0b644d86121a3c6c38cec72cb133f42600058e
+
+=== 65 apps/docs/src/examples/xr/pointer-controls/App.svelte	ast.sha256
+3c80861b21b8aedcd7d0912ce27e20d4f7f09c9d3def02d10fd24dff4ae985fa
+
+=== 65 apps/docs/src/examples/xr/pointer-controls/Scene.svelte	ast.sha256
+21f13b82ead45a5e2d2554d77c3b543cbf0fd2938e6379d98b2e6a8a58dee44f
+
+=== 65 apps/docs/src/examples/xr/teleport-controls/App.svelte	ast.sha256
+31ca9b7945c99736aa70c04139139eb068a41e282d2809be881406dec64c2d6a
+
+=== 65 apps/docs/src/examples/xr/teleport-controls/Scene.svelte	ast.sha256
+24e4d7cd311210e43496ab828706885852751703a48e14a42d9436584cea3d85
+
+=== 65 apps/docs/src/examples/xr/teleport-controls/Surfaces.svelte	ast.sha256
+5a02023934d56ac0f100f447f44883e1cb91cf9ab9303010dfcd50b422736b9c
+
+=== 65 apps/docs/src/examples/xr/touch-controls/App.svelte	ast.sha256
+d4f36ae09fe34bcfd0823a96cfa80fd20eb3a7a8cc77a8708fa1a1b96eb4bbe0
+
+=== 65 apps/docs/src/examples/xr/touch-controls/Button.svelte	ast.sha256
+eb93c5387cb9b50376fcc8b0550791b1dc475077a3987f50c41e358ccfef8b44
+
+=== 65 apps/docs/src/examples/xr/touch-controls/Scene.svelte	ast.sha256
+6954b282e385a82e24b7288a3394c4b6ecc5f9cadbed54aa3f494dcdee553036
+
+=== 65 apps/docs/src/examples/xr/touch-controls/TouchDebug.svelte	ast.sha256
+38b8762642793540964be46c4189389c7a7a7b7fccff41dc53ef6d2619fc307d
+
+=== 65 apps/docs/src/examples/xr/use-hand-joint/Cube.svelte	ast.sha256
+28fd2c6ab6b3d941a791ec1f568a6a2274ae417469b2bd07e3678dffa4db4066
+
+=== 65 apps/docs/src/examples/xr/use-hand-joint/JointBody.svelte	ast.sha256
+7d79a98bddd899b7db7bc4faf5e7d570f3790dfa702ea9595149ba2c84cbf592
+
+=== 65 apps/docs/src/examples/xr/use-hand-joint/Scene.svelte	ast.sha256
+e1a2bcbecc6c864ec6dce937f91634d8c969fc151d16c7b493c7ff7344cfe6ba
+
+=== 65 apps/docs/src/examples/xr/use-hit-test/Scene.svelte	ast.sha256
+323d01a0470b5c75680b01894d0f5eb740d3a591473b3dffc73f7bc4b0cdf31e
+
+=== 65 apps/docs/src/examples/xr/vr-button/Random.svelte	ast.sha256
+d8832711fca04bce49e660f87ea43ea153aacb73fce2ff80ed57afc54dd992b1
+
+=== 65 apps/docs/src/examples/xr/vr-button/Scene.svelte	ast.sha256
+4799bece805cc45814b25c7020541ea553c067fea36906d1306fc3a99e643e6a
+
+=== 65 apps/docs/src/examples/xr/vr-button/assets/birch.svelte	ast.sha256
+4c2b0150da98d33e2568f75740319aacb9e9c67433e63bc7fd68e0d9b7f9b504
+
+=== 65 apps/docs/src/examples/xr/xr-factory/Scene.svelte	ast.sha256
+545a6635775a33e3a855fcd56e0413cd6b7be65d4d43a3906dd54764d11ae1fd
+
+=== 65 apps/docs/src/examples/xr/xr-origin/App.svelte	ast.sha256
+f1cdee37465f8b0866a753964907a7616165ff4cb4bcfe3c4356bfdebc56f06f
+
+=== 65 apps/docs/src/examples/xr/xr-origin/Pad.svelte	ast.sha256
+7e03cd2f6da184f2aded053b8d690599e4e321b957f1292c1fc781f3aeaa4b80
+
+=== 65 apps/docs/src/examples/xr/xr-origin/Scene.svelte	ast.sha256
+2206773a7150c0e27c74ec7f25b6dcc94c93e248c8714fc61954dd0c77e3b0f8
+
+=== 65 apps/docs/src/pages/examples/[...slug]/_Loader.svelte	ast.sha256
+009342796e1f314a19ff504d6d3e052a42498b619dad8e1d13ffef6b07e8d19d
+
+=== 65 packages/core/src/lib/Canvas.svelte	ast.sha256
+e7cd7a8076d29890cc5d7738e1dbe4af3550ccd00a7ca57124cf9c6e4783be4e
+
+=== 65 packages/core/src/lib/__tests__/__fixtures__/CanvasContext.svelte	ast.sha256
+e5208664d4e3ed06a32fa919f072adb99ffcb1dc0bbf5812e497b1c57df82d92
+
+=== 65 packages/core/src/lib/components/Context/Context.svelte	ast.sha256
+5124c7a951772bb173676bd21e54933a44aaddb92019f3fcc41846b8946dc448
+
+=== 65 packages/core/src/lib/components/T/Camera.svelte	ast.sha256
+95a1b726619a5029f01bbeb15477787ef50aaf248befc7935c3fa5a2a9e008a9
+
+=== 65 packages/core/src/lib/components/T/T.svelte	ast.sha256
+ae113330e86dff7d01aafa0970c7d1f557c1caf7b4293f9956fec53164cd1e4e
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/Attach.svelte	ast.sha256
+480c2e69657e972ab0f9dcddc704eca385e428198422a512a8cbda0033f45457
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/AttachChild.svelte	ast.sha256
+774860417c2c5b27320487ecf9764604acd7eaa31cb063939bb3cfc3ed428e52
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/AttachDotNotation.svelte	ast.sha256
+e97a1224d8470c867ac490540add99b8a36bedd6a3f41d8b97f5a6e3388c7da3
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/Bindable.svelte	ast.sha256
+557b3343db03a91a4300eee3cefd7af654740aa34972f7f6e026d6e717644480
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/BoundRefFeedback.svelte	ast.sha256
+150d9354d80557275c2cd368a9f881da82e0a22591ad74213a633fdb07516e55
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/Camera.svelte	ast.sha256
+fedefefd1084a3dabedbf69a24f74596b76e73fdaf86b331b91a85b119a3e56d
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/Dispose.svelte	ast.sha256
+f39bd80426e4f4d042196d7493ede98e207e3fcd3ee8e17fb9ccd7b33a7c2a55
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/DisposeMany.svelte	ast.sha256
+1206eef22f4bd0641431bebb0c25d1b45bb39c8527bebd205c0492f02aee5971
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/DisposeN.svelte	ast.sha256
+f660b57f6115981d489930400714288fe2340c76dc8fd8e4e07f2ee2984ead0d
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/DisposeSubtree.svelte	ast.sha256
+d33b13bdddb6f52cb7f77eaec206b79a0bca26a85fde9daa31fd4a3532e54309
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/ManualCameraState.svelte	ast.sha256
+ee310a982682dfd2b3daa7e561899ac7969d300da665118d7b25bab9389f118a
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/NestedAttach.svelte	ast.sha256
+a23680f8e166fa966fa4a4c2c647a78f4ef96149cabff19904f1cb842190d4a7
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/Scene.svelte	ast.sha256
+4b35a4f2ea82de416b6dfd062564de2411a8a2ce68de53503a8f0338e71c398e
+
+=== 65 packages/core/src/lib/components/T/__tests__/__fixtures__/TwoCameras.svelte	ast.sha256
+7ddfc31cdb81807e724e00aa7f2fe9c66549b48be7d9e899529ffac290874550
+
+=== 65 packages/core/src/routes/+page.svelte	ast.sha256
+871a33f9cb1d528551278860420e95743cb58d040404917e7395a62e244023da
+
+=== 65 packages/core/src/routes/scene.svelte	ast.sha256
+1fd524d88dcee66585498a867852d9653ecfbd97cf844c2a7d4b07263e39682e
+
+=== 65 packages/extras/src/lib/audio/Audio/Audio.svelte	ast.sha256
+2f31a1cf2612ef05bdd390884bc621f845c5e25cb39d2d7b0c6fb23c8246b39f
+
+=== 65 packages/extras/src/lib/audio/AudioListener/AudioListener.svelte	ast.sha256
+ecac665cff081bef4cc65c5e2b4f9a6019d972451b4e6d596b73bb3b856976d6
+
+=== 65 packages/extras/src/lib/audio/PositionalAudio/PositionalAudio.svelte	ast.sha256
+1f070c506c34322d79ab436771884c46b65d4b03908826b52e9e7035e2d6452e
+
+=== 65 packages/extras/src/lib/components/Align/Align.svelte	ast.sha256
+c537fbf34fd52c53289c103a6649534d71377eede1337c54836bc53038f452b2
+
+=== 65 packages/extras/src/lib/components/AnimatedSpriteMaterial/AnimatedSpriteMaterial.svelte	ast.sha256
+958b4d5b37845a21f6c6b988d8faf6d9cbbcbb09ce6bf0a6613486043ea86a18
+
+=== 65 packages/extras/src/lib/components/AsciiRenderer/AsciiRenderer.svelte	ast.sha256
+4879ce3d2a6e23f7479c38cc39370496aa3a28807a15b6954a631a6757afc0a6
+
+=== 65 packages/extras/src/lib/components/BackdropGeometry/BackdropGeometry.svelte	ast.sha256
+8467c8c086e5e24d802b5b8c2ebad2b97d906d68c21063abdc89bb8be3459426
+
+=== 65 packages/extras/src/lib/components/BakeShadows/BakeShadows.svelte	ast.sha256
+5034195c9898801aeea93834205a042f3557f3af120f014e8424b772cd77fc6c
+
+=== 65 packages/extras/src/lib/components/Billboard/Billboard.svelte	ast.sha256
+9b48aeda4e55dc1c987ce4b4b900f02022e8b2156870a944c227609696bc3e83
+
+=== 65 packages/extras/src/lib/components/Bounds/Bounds.svelte	ast.sha256
+bd81e561ca22626a12bf12f9af3f659ff136da3871f245e136952dcc8a1c4ad5
+
+=== 65 packages/extras/src/lib/components/CSM/CSM.svelte	ast.sha256
+2e82db9dfa56bff853fdc52241a65116b0e96bb7dbec23c4e05397d4e40813c5
+
+=== 65 packages/extras/src/lib/components/CameraControls/CameraControls.svelte	ast.sha256
+46fb96a89dd95670cfc260c607bcf6dee9f8979f0f3e7963e4faa3fd40f2b7a3
+
+=== 65 packages/extras/src/lib/components/ContactShadows/ContactShadows.svelte	ast.sha256
+aa109ef133f42c883d0e095d17e1b3ed490e70f66e146230a09ad0321b90dd1b
+
+=== 65 packages/extras/src/lib/components/CubeCamera/CubeCamera.svelte	ast.sha256
+5e7a52c413f4fad0afb6e458d1df13199c412b25ab1b0b8abcc088f3ace30d81
+
+=== 65 packages/extras/src/lib/components/Decal/Decal.svelte	ast.sha256
+a43949b653e77f39367ffc790bf340569a83b759f454f6602ef876f261fad393
+
+=== 65 packages/extras/src/lib/components/Detailed/Detailed.svelte	ast.sha256
+9defd49448612b83bf9678705c868d0d2a8f07ea5511b0b163e2ca168c32936b
+
+=== 65 packages/extras/src/lib/components/Edges/Edges.svelte	ast.sha256
+a065006b0410e23f838819c5a22deee6759e3aa28dd1a14efbd9b4d5606c73da
+
+=== 65 packages/extras/src/lib/components/FakeGlowMaterial/FakeGlowMaterial.svelte	ast.sha256
+3a6ea16baa0c3132ea394ad9ef6f4ef8a3ea6357d54cd621ef6c807dc95eba23
+
+=== 65 packages/extras/src/lib/components/Float/Float.svelte	ast.sha256
+9f3eaf4484d526f111d77cc98c418e71297cb767497d3988c75098c8be59394d
+
+=== 65 packages/extras/src/lib/components/GLTF/GLTF.svelte	ast.sha256
+49468bd9f7abdd145a1426e7b86d001421577cf61a3f6eacb5269028b5f320cf
+
+=== 65 packages/extras/src/lib/components/Gizmo/Gizmo.svelte	ast.sha256
+c11bc64b6c6c414f91c532bdd19bee7e61334d2326ef4f3a3b4a7f2147440793
+
+=== 65 packages/extras/src/lib/components/GradientTexture/linear/LinearGradientTexture.svelte	ast.sha256
+d093bdc3eff962eb25b2b1807692b7c14374c0d60695343d8a8bbe8abcd346e8
+
+=== 65 packages/extras/src/lib/components/GradientTexture/radial/RadialGradientTexture.svelte	ast.sha256
+80e57d9df4bc130c7424ad3331a7f3385e1ba820a69c6eb2e5032491ce2d10d7
+
+=== 65 packages/extras/src/lib/components/Grid/Grid.svelte	ast.sha256
+bc92beb69a074a6233b5da7220888d0f531288cabfc6497383f7e708c06dc6d2
+
+=== 65 packages/extras/src/lib/components/HTML/HTML.svelte	ast.sha256
+ebe387468aa9558024fa200d0eeb61539374ee262cb251e84c80a3284ee88a78
+
+=== 65 packages/extras/src/lib/components/HUD/HUD.svelte	ast.sha256
+2833fcdf33c634302b2e50471f3257cb56cae99b573188e17731eaa7cdc925ca
+
+=== 65 packages/extras/src/lib/components/ImageMaterial/ImageMaterial.svelte	ast.sha256
+967fe2e4900d9d2acc2445a7dc02d5f1cd7282c008ceed403ae8dc1606e7af0d
+
+=== 65 packages/extras/src/lib/components/InjectPlugin/InjectPlugin.svelte	ast.sha256
+8362442b595f5c1e9bd1b747f517862629bfccbfc2a636566040de6042851694
+
+=== 65 packages/extras/src/lib/components/InstancedSprite/InstancedSprite.svelte	ast.sha256
+925c4f95e26814e405edc068793407053f9a472256f560707f2f3fbe2bb96a35
+
+=== 65 packages/extras/src/lib/components/InstancedSprite/SpriteInstance.svelte	ast.sha256
+d55d301c6982effb9c82ed6c80562b403f4639a1e588a40587cf028f7852c46a
+
+=== 65 packages/extras/src/lib/components/Instancing/Api.svelte	ast.sha256
+251b3574aa48e47436ad9db4a2253aa428b814f025fd0ff40fa35e097d5cf301
+
+=== 65 packages/extras/src/lib/components/Instancing/Instance.svelte	ast.sha256
+bb88ee7bdd283d02d5fd0346f90aebe5ade94fb467026301fd832b9b29031a4c
+
+=== 65 packages/extras/src/lib/components/Instancing/InstancedMesh.svelte	ast.sha256
+8d9fba25810e7ac8cc4eff16b960c376d4a3818e3128bc20a1dc4b9c1ce3e4ca
+
+=== 65 packages/extras/src/lib/components/Instancing/InstancedMeshes/InnerInstancedMeshes.svelte	ast.sha256
+b79fc402c1e0482a87a68441684ab269f1953e1149da9baf591e73e117c142b8
+
+=== 65 packages/extras/src/lib/components/Instancing/InstancedMeshes/InstancedMeshes.svelte	ast.sha256
+44a58da19271e0d8f6d938b01e84843eaf3bcfb3607418aa4e5f1e577a863c97
+
+=== 65 packages/extras/src/lib/components/Mask/Mask.svelte	ast.sha256
+dc167329b6a8888fbba28e3ae4dafb681a5c2197ed9676ab6061d08e1ba4921c
+
+=== 65 packages/extras/src/lib/components/MeshDiscardMaterial/MeshDiscardMaterial.svelte	ast.sha256
+57d243c8aed7b5468d0d41804d5658c1d2ca36acaf8bd0796aa647d9a3da2392
+
+=== 65 packages/extras/src/lib/components/MeshLine/MeshLineGeometry.svelte	ast.sha256
+daa084c8c4d916d630e5461d73b54ee969dff7ce3fc12cb4bda55a3a94d20b46
+
+=== 65 packages/extras/src/lib/components/MeshLine/MeshLineMaterial.svelte	ast.sha256
+1300acf780a0c47219c15a39593391f92fcc3dd8d0f5eb8cdc87c8be2e32c2c9
+
+=== 65 packages/extras/src/lib/components/MeshRefractionMaterial/MeshRefractionMaterial.svelte	ast.sha256
+351e2d8bad098a38cd4063d9579c29137c424de9f90bd95613f9e1888bf58f64
+
+=== 65 packages/extras/src/lib/components/Outlines/Outlines.svelte	ast.sha256
+9a8ba824a2eaa24afd8f5e79e75b18d2021f2ef2946f849b49b34f700001ab27
+
+=== 65 packages/extras/src/lib/components/PerfMonitor/PerfMonitor.svelte	ast.sha256
+cb0314bf6fdd26b08bbb7f43eb953bf8d1fe10b96622584023ffba26819d8dbc
+
+=== 65 packages/extras/src/lib/components/PointsMaterial/PointsMaterial.svelte	ast.sha256
+b41b5ba6a53773bed23a245a9e7f40683b37b057b029647e89d028aad815bcc7
+
+=== 65 packages/extras/src/lib/components/Resize/Resize.svelte	ast.sha256
+64c95217dbe605f87a3c75a824f893cd32a0f40f000fae0fe64911d8d118170f
+
+=== 65 packages/extras/src/lib/components/RoundedBoxGeometry/RoundedBoxGeometry.svelte	ast.sha256
+f137c83476a4bc516fbdcd726f30c6d58b603f33ab47e06b6520179803a124a6
+
+=== 65 packages/extras/src/lib/components/ShadowAlpha/ShadowAlpha.svelte	ast.sha256
+440d234ad635d5db503a7a50372e54d8e64cdf219ca684e277f3561a5e87fdd0
+
+=== 65 packages/extras/src/lib/components/ShadowMaterial/ShadowMaterial.svelte	ast.sha256
+bd1e37d78587b9a68cdddd5edc9a5e4ddeb53fc0f94211c3f1b0a06e77e77b2e
+
+=== 65 packages/extras/src/lib/components/Sky/Sky.svelte	ast.sha256
+61a9ae98f4699e2c1d69d5ddf5ba9eba270793c10082df8c502c1e78d8c150a4
+
+=== 65 packages/extras/src/lib/components/SoftShadows/SoftShadows.svelte	ast.sha256
+f1a90bd6d39089553f23906f68b8cad38e5095cc0f09d10c1cc5478189de984b
+
+=== 65 packages/extras/src/lib/components/Sparkles/Sparkles.svelte	ast.sha256
+e1b4407249c81f4a27bb582d71f9dabb67cc1bb6f1579b39202ccc7afe61f7aa
+
+=== 65 packages/extras/src/lib/components/Stars/Stars.svelte	ast.sha256
+0af53e10404315860b3ddcac57eb2b6e8040c699ba1a70b0539cbfb2e8eb99e9
+
+=== 65 packages/extras/src/lib/components/Svg/Svg.svelte	ast.sha256
+f7f5501f1f903e36d44bf3da96bf5d36c171e6b1edb0ed49ea52a6c297dbbaa4
+
+=== 65 packages/extras/src/lib/components/Text/Text.svelte	ast.sha256
+ff4e78834a27f46473952a76affbf5e5818f9f81a9dff02fe17a7f89bd4ee54b
+
+=== 65 packages/extras/src/lib/components/Text3DGeometry/Text3DGeometry.svelte	ast.sha256
+fb347dc64fc24e30b3cffc0aef84c1d5a1f27757e8dc3dcaf844d8cd5ad476ed
+
+=== 65 packages/extras/src/lib/components/UvMaterial/UvMaterial.svelte	ast.sha256
+ce418f2594399c055324d9db4869b1d0e143ad0dcf157ac5a345962b109cfce0
+
+=== 65 packages/extras/src/lib/components/View/InnerView.svelte	ast.sha256
+8ac7fcf0290822497fe27c0b59019d6887ec0150a12cee8b370e4bdb1604c4a1
+
+=== 65 packages/extras/src/lib/components/View/View.svelte	ast.sha256
+f567bb60a9205255ac5e34c3569b3e22f1263f1822dc6cf1984d6b0d1bb4e414
+
+=== 65 packages/extras/src/lib/components/Wireframe/Wireframe.svelte	ast.sha256
+ab60d0a6b934b9716d84ecd1577a32cdc44133f72725e1306c47e48f01da77e2
+
+=== 65 packages/extras/src/lib/components/Wobble/Wobble.svelte	ast.sha256
+a15bc20ebdc5ef302790303ac05680812803e36a12b53e842909ca9eb25f8e58
+
+=== 65 packages/extras/src/lib/components/controls/OrbitControls/OrbitControls.svelte	ast.sha256
+c103de81663a466a74f265a1d4bf84ae43b6d8145f8d1a291908d4c19f16820a
+
+=== 65 packages/extras/src/lib/components/controls/TrackballControls/TrackballControls.svelte	ast.sha256
+f17bb9ad6676eab9d33e8df9b9a22576484d0757ada34f47bacf3cbd9b887a55
+
+=== 65 packages/extras/src/lib/components/controls/TransformControls/TransformControls.svelte	ast.sha256
+28156892bf37982cc7dca8a7b5197d1c3e28cd281b7d2e5c211869fac0979744
+
+=== 65 packages/extras/src/lib/components/environment/CubeEnvironment/CubeEnvironment.svelte	ast.sha256
+6ca4f56b0adaec73db4a67a36719a985efab53783a288953eceb2b21b5cb0f23
+
+=== 65 packages/extras/src/lib/components/environment/Environment/Environment.svelte	ast.sha256
+830e04fb892e7c72205f904dd94bf6a57f480cce9b7817259cc5002694bbcaf4
+
+=== 65 packages/extras/src/lib/components/environment/VirtualEnvironment/VirtualEnvironment.svelte	ast.sha256
+cd3acab9d6993f1c75b42bbf5f121c2b4300c7c228dfe203f2774d4a6c4f76a5
+
+=== 65 packages/extras/src/lib/components/portals/Portal.svelte	ast.sha256
+8405478cd707d1984e278128c28b1315593c7fc6ddfc54003b75959c68ef6587
+
+=== 65 packages/extras/src/lib/components/portals/PortalTarget.svelte	ast.sha256
+da9fe3fdb30c87812e6f059e9b56a6ead42ab8fa2e109ff68e63d91d2905e799
+
+=== 65 packages/extras/src/lib/interactivity/__tests__/__fixtures__/OverlappingScene.svelte	ast.sha256
+e5e16e305b2110b9187d1c1b5f9c4e3366aca568a926ccdcb63c2719fae8fe2f
+
+=== 65 packages/extras/src/lib/interactivity/__tests__/__fixtures__/PropagationScene.svelte	ast.sha256
+6cc5a54c9b2f377972a7d6f64d6bfb3807b569f73f708462a1a7742ea2e6081c
+
+=== 65 packages/extras/src/lib/interactivity/__tests__/__fixtures__/Scene.svelte	ast.sha256
+b21ac8957b5c8653d3a737a81fc7b9bf6ab6c803dccbdcd943cf6aca3774a16a
+
+=== 65 packages/extras/src/lib/suspense/Suspense.svelte	ast.sha256
+2db504fee1941117f9ef1f192b9597d40369f9366b00c95165d931f276ab214b
+
+=== 65 packages/extras/src/routes/+page.svelte	ast.sha256
+4425d5498407edb41b2838ad5f2226c108b7c0c8c7293dabf45f408fc2ac32f0
+
+=== 65 packages/extras/src/routes/Gamepad.svelte	ast.sha256
+7d72fc862bbd77fda7af9cd46422d7ee77942cf2361128a88f9a65142b7d4cc1
+
+=== 65 packages/extras/src/routes/MountedGamepad.svelte	ast.sha256
+1e47a031521b62d07e4100f01183f1120a5a3fc7b2ed816a21e5a8583a4fe8b1
+
+=== 65 packages/extras/src/routes/Scene.svelte	ast.sha256
+22000fe22bfe80b040a292c980a22aa8443bc04f7b7bcff88b3aa0e16735cc14
+
+=== 65 packages/flex/src/lib/Box/Box.svelte	ast.sha256
+e47aa300abce99ea161cab4218037b9dbd42925381f15ba18022464f4420f2b4
+
+=== 65 packages/flex/src/lib/Flex/Flex.svelte	ast.sha256
+3f05afb93a2bae290be4fa64eda94762818ae67b25f7fb6d6e2017212f5bf06d
+
+=== 65 packages/flex/src/lib/Flex/InnerFlex.svelte	ast.sha256
+f598c1234dc6e612096eeb183c3793efcc003fd3586beac888e31095052449f1
+
+=== 65 packages/flex/src/routes/Gizmo.svelte	ast.sha256
+8e6c3b44fb3521d4be1f7ea4e2b596c00d5ef12368f2c12607fb41a4c79903de
+
+=== 65 packages/flex/src/routes/examples/01 - basic/Dom.svelte	ast.sha256
+57906cbe50528340bea208ccd16cc6ba184f3f4f59e8f49bb4041f5f744560bd
+
+=== 65 packages/flex/src/routes/examples/01 - basic/Threlte.svelte	ast.sha256
+3484eb6416632001da4508d00127e2deeb10719e57769bcc4dfa4f555a6de8b8
+
+=== 65 packages/flex/src/routes/examples/02 - flex/Dom.svelte	ast.sha256
+88067caf27e94e7134b55fb860398451e849f7795d4d794b01b4b9048b003ea1
+
+=== 65 packages/flex/src/routes/examples/02 - flex/Threlte.svelte	ast.sha256
+0228262fefd9993926da20a832aec34d9accc4ef0863c198db3b364f527c05fc
+
+=== 65 packages/flex/src/routes/examples/03 - justifyContent/Dom.svelte	ast.sha256
+47a72d2e45c91b4833e63d301895affc430bfeac2829d6e2b08ef21b56708e43
+
+=== 65 packages/flex/src/routes/examples/03 - justifyContent/Threlte.svelte	ast.sha256
+28595c202ad1ea2aeb31e85e20a8f4f09998da865e306d4f769b9a6078063412
+
+=== 65 packages/flex/src/routes/examples/04 - alignItems/Dom.svelte	ast.sha256
+a67ed2b27a5c584ca858a85a46c83376154b34e8e40c06fbe7b933bbf5078318
+
+=== 65 packages/flex/src/routes/examples/04 - alignItems/Threlte.svelte	ast.sha256
+6b6c8c4b409d08a2bc208cfa437e4362c2a7cd0fabd43bd8c0085b3ad85ce57c
+
+=== 65 packages/flex/src/routes/examples/05 - gap/Dom.svelte	ast.sha256
+6a1106414a8a1bfde98cacc71deb3e9a3e3bd280508b3a0fee55280a1f21065d
+
+=== 65 packages/flex/src/routes/examples/05 - gap/Threlte.svelte	ast.sha256
+453c357fcbcc699c549cc69d97d946e8041256a844419a9fdab1b1cbd4d9cd3f
+
+=== 65 packages/flex/src/routes/examples/06 - height-auto/Dom.svelte	ast.sha256
+eb140542fae8ab17bb159d679fb63f5843cb9289fabdedbb0964f83db7073ca1
+
+=== 65 packages/flex/src/routes/examples/06 - height-auto/Threlte.svelte	ast.sha256
+a14b6fc6affa41e1c490425be9c3797462684001c27127a70bc779e0cb595b11
+
+=== 65 packages/flex/src/routes/examples/07 - auto/Dom.svelte	ast.sha256
+35fe5c78f403e7d63a2ff2e1bbef3669d5bd024912a2a4f8cd95412e550ab4d7
+
+=== 65 packages/flex/src/routes/examples/07 - auto/Threlte.svelte	ast.sha256
+1b10ae3bfeed72f537fd0d99e901b5fe3f81f36bf29928588c8dcf6a13c8b42f
+
+=== 65 packages/flex/src/routes/examples/08 - tailwind/Dom.svelte	ast.sha256
+c9c4b8075c74e681a572b41b172636502899a7fd49b8eb5d6161362117cdef9c
+
+=== 65 packages/flex/src/routes/examples/08 - tailwind/Threlte.svelte	ast.sha256
+29de94cd95b225cd9b46b83aab49371711ab8a39f73f64fedbc3d18e171eb127
+
+=== 65 packages/flex/src/routes/examples/09 - nested/Dom.svelte	ast.sha256
+de8374f05b7436773cd432afdaead1a500d40b649d7558b5603d63761ac6f67e
+
+=== 65 packages/flex/src/routes/examples/09 - nested/Threlte.svelte	ast.sha256
+d4dd04878096b3fbca85b0f7676e9b450e8d4acc3f76bcb47efe1ec95f50518a
+
+=== 65 packages/flex/src/routes/examples/10 - deeply-nested/Dom.svelte	ast.sha256
+c28b3e89553fd730cd5bc825fdda46cf5bf0c14ea7bd9f9ab05999d2d80e1aed
+
+=== 65 packages/flex/src/routes/examples/10 - deeply-nested/Threlte.svelte	ast.sha256
+43635132d587621d605798d95e4fd90f17ecd5ad11d7848d53e06a6da5bef5ec
+
+=== 65 packages/flex/src/routes/examples/Common.svelte	ast.sha256
+a2633887ca16cda9559418add03162a50973733a41e1e620a3451e2cecab0a2f
+
+=== 65 packages/rapier/src/lib/components/Attractor/Attractor.svelte	ast.sha256
+3393479f3bd41a33e591f5c8cc9ddd527e49febbe7b12dcdcd493b32834617ba
+
+=== 65 packages/rapier/src/lib/components/Colliders/AutoColliders/AutoColliders.svelte	ast.sha256
+266c58a47e39f02a4a0872d7653e9aeea08ff21948a7c7030311fee264873552
+
+=== 65 packages/rapier/src/lib/components/Colliders/Collider/Collider.svelte	ast.sha256
+555aa610d321416b93056c7d98d9e15ae5507aac35efb95b76eeabae5a1c2c23
+
+=== 65 packages/rapier/src/lib/components/CollisionGroups/CollisionGroups.svelte	ast.sha256
+b694bf306389a80480ac21ca0c71299c3ea9e868d7e745624821654ea8ad537b
+
+=== 65 packages/rapier/src/lib/components/Debug/Debug.svelte	ast.sha256
+91eb1a71d12eeb4d730f26aec1a2bede1322ea9cd8a624922e0a1cf64cfc3e64
+
+=== 65 packages/rapier/src/lib/components/RigidBody/RigidBody.svelte	ast.sha256
+f8e1a718fed1ee07a6d08cadefa64420a07152b7d4b47654e5b38fd2fbc7fa5d
+
+=== 65 packages/rapier/src/lib/components/World/InnerWorld.svelte	ast.sha256
+319a56e989f3a7a451cc0fd722e89ad925217cc2198e3dc0bec805b678227054
+
+=== 65 packages/rapier/src/lib/components/World/World.svelte	ast.sha256
+74b3903a25303c3b0ea58b5e63689403b8f18facd7013941fcfc74cf019bfdbe
+
+=== 65 packages/rapier/src/routes/+page.svelte	ast.sha256
+22bda71d69e3d1b43417d15c434dff22095ca48a488a8913b4f40fbe59edb093
+
+=== 65 packages/rapier/src/routes/ReqAnim.svelte	ast.sha256
+063fd2946a42161cc3eeda32710574ec180c5b36b75e512da32523ccf17e94f8
+
+=== 65 packages/rapier/src/routes/Scene.svelte	ast.sha256
+6b3e8270286a501032cada87c7cdeae06d310babfeabbc00498f6cea61482127
+
+=== 65 packages/studio/src/lib/components/DropDownPane.svelte	ast.sha256
+dfc001644c17147398131260c4b9490cb3e4a3bc8b118a9bbc6b2460b6584ff7
+
+=== 65 packages/studio/src/lib/components/HorizontalButtonGroup.svelte	ast.sha256
+1d28aac07f05151de63ada96e8014d62cc98a326462fa56326c5f6e08ccfb79e
+
+=== 65 packages/studio/src/lib/components/Icon.svelte	ast.sha256
+da375f2af6e689bfeb0db33e357c5acd09cb8f4a2057edbb7b87ed7678e85243
+
+=== 65 packages/studio/src/lib/components/IconButton.svelte	ast.sha256
+c7300a352874552a3c5c356a1351bb583049132a73ae2c94a202794f3ebed0a5
+
+=== 65 packages/studio/src/lib/components/NestedComponents.svelte	ast.sha256
+ed54ad66cc24a1d436c6941e5c93f7098d139f56118933e27306b96d14e3597d
+
+=== 65 packages/studio/src/lib/components/Portal.svelte	ast.sha256
+9da179d66f9ec0e433c5be32c6d188cef52bbbca083fbfda8e5df9380347a0dd
+
+=== 65 packages/studio/src/lib/components/Studio.svelte	ast.sha256
+146f046595af2e1a47cccfaeb1031a9818d39b6968d472ff0fef580b6b48e496
+
+=== 65 packages/studio/src/lib/components/Toolbar.svelte	ast.sha256
+bd208493521fb6b887b0120f0e84123954aaa42cacf21f8880770b776b04e556
+
+=== 65 packages/studio/src/lib/components/ToolbarButton.svelte	ast.sha256
+63d514e71ceb7d0a54eb4e48a849fa3a369f1bbff01a971a8aacb6714596a6ad
+
+=== 65 packages/studio/src/lib/components/ToolbarItem.svelte	ast.sha256
+06d65d197fa872eefc0a7cbd0b71342506650e533060aadf3790147e2b7b3102
+
+=== 65 packages/studio/src/lib/components/Tooltip.svelte	ast.sha256
+227e41bfb8b0c58a2834af3c696aa7a3ef01f5dd9d32037ae8cfb578fda6986e
+
+=== 65 packages/studio/src/lib/extensions/editor-camera/CameraControls.svelte	ast.sha256
+05816fe1358d0b7197f4f3943c226a86fe3a81bb9446317e17c0ead7affb88e9
+
+=== 65 packages/studio/src/lib/extensions/editor-camera/DefaultCamera.svelte	ast.sha256
+80312ce4fb51687ec774b918f58d84023b22e6601b8aef5fc90cc8df6bdb983f
+
+=== 65 packages/studio/src/lib/extensions/editor-camera/EditorCamera.svelte	ast.sha256
+82f8a5771bc20b1f1ee5149c27098bfef3306ba075f12fee76929b29b5add9a5
+
+=== 65 packages/studio/src/lib/extensions/grid/Grid.svelte	ast.sha256
+e4ccf00e865f510e8dd4d7b29faefb8529cab13adc63db557a4f0c4bf6bcb0aa
+
+=== 65 packages/studio/src/lib/extensions/helpers/AxesHelper.svelte	ast.sha256
+f8b930f7b7cfbf55a8f2f3621d8cd96882273d1648d96d8d588a7f3c50c787ed
+
+=== 65 packages/studio/src/lib/extensions/helpers/GroupHelper.svelte	ast.sha256
+eb423ca0c3283735b3393b45855b97f9e0692c6491fec5abe90d79162958408d
+
+=== 65 packages/studio/src/lib/extensions/helpers/Helpers.svelte	ast.sha256
+4b347adac19c90efd18e16bb52f63145e167b5d1553f41c4bf9148e6a76529b6
+
+=== 65 packages/studio/src/lib/extensions/helpers/Mounter.svelte	ast.sha256
+b602a3a3b4fe1de39cabedebee7c8dd8edf03ddd53adba0a6e8b8e0bc05922bb
+
+=== 65 packages/studio/src/lib/extensions/inspector/Bindings.svelte	ast.sha256
+0954163579910e5b6f890d461eb2003fe5fef8994483e65c6b69276a88d99bf2
+
+=== 65 packages/studio/src/lib/extensions/inspector/Inspector.svelte	ast.sha256
+41eb19f084b156afbab4203b84949d25f5d8a5579d2f957d66fd7d1532acf815
+
+=== 65 packages/studio/src/lib/extensions/inspector/bindings/Camera.svelte	ast.sha256
+695ce7ec581a2cfb594998bcb17311733cab14669987f6c822608fb3de0ddcff
+
+=== 65 packages/studio/src/lib/extensions/inspector/bindings/Light.svelte	ast.sha256
+30b0f08c23eeb9d57bd2e2f61fa05c966f3e8591638a9d2fa9c68a1e0a450f31
+
+=== 65 packages/studio/src/lib/extensions/inspector/bindings/Material.svelte	ast.sha256
+9bc467dc5ca4bd65029c33fef97567222a2ab14773480b666281623d24f4f9d1
+
+=== 65 packages/studio/src/lib/extensions/inspector/bindings/Object3D.svelte	ast.sha256
+46966fa28677c5c61e49bb27e00ab5681fc2bcb8ce6063cb817d3fc281848e12
+
+=== 65 packages/studio/src/lib/extensions/inspector/bindings/Shadow.svelte	ast.sha256
+b62db9c3953e867fd137f02e848c881ea307d55c5cf9c8e6f8cfa83a5f240b0d
+
+=== 65 packages/studio/src/lib/extensions/inspector/bindings/TransactionalBinding.svelte	ast.sha256
+cf0200ffdb5306d6385dc9af0473e25c07744b91b57861dfd9f79a3cb7e79419
+
+=== 65 packages/studio/src/lib/extensions/inspector/bindings/TransactionalList.svelte	ast.sha256
+e3c09317157cb89c3946841f8b4556fd432c20c069ae71ed5d11d75895abb3b4
+
+=== 65 packages/studio/src/lib/extensions/inspector/bindings/TransactionalTextureImage.svelte	ast.sha256
+256cb6f48b52ec921d55a1bee6752e66deecd1fa7f3334f0566f37302bc6ebe0
+
+=== 65 packages/studio/src/lib/extensions/object-selection/ObjectSelection.svelte	ast.sha256
+c89eac127176b6d45ca72ef371642aedb15b0b29007fa0e63db4653cbd299850
+
+=== 65 packages/studio/src/lib/extensions/object-selection/RenderSelectedObjects.svelte	ast.sha256
+7ad9bbfde6f223608205c463b4c0705605cda0941531888ca8f35f8822d251c9
+
+=== 65 packages/studio/src/lib/extensions/object-selection/SelectRect.svelte	ast.sha256
+1e1d95c78da23d0858cbfa50a54c634a0f80b5aae6d2e29404ad3ab7222d958a
+
+=== 65 packages/studio/src/lib/extensions/object-selection/SelectTweak.svelte	ast.sha256
+a7ce531688ae08c27630b141d318a7f11136ab6ca058f87aa778d6d1d56e2f43
+
+=== 65 packages/studio/src/lib/extensions/render-modes/RenderModes.svelte	ast.sha256
+a7402fa62bca49d4fec3724479d2ce1d42930f62addd294bccaae02256806905
+
+=== 65 packages/studio/src/lib/extensions/scene-hierarchy/SceneHierarchy.svelte	ast.sha256
+decdf0dd1c9ca58852d964090916a3ebd4551f7a58dbb122c088bf48d5b7af25
+
+=== 65 packages/studio/src/lib/extensions/scene-hierarchy/Tree.svelte	ast.sha256
+7f4a6605e78a0e3256cba27063ff4b398a74523e2be3e3548ba6d588e66fe624
+
+=== 65 packages/studio/src/lib/extensions/snapping/Snapping.svelte	ast.sha256
+9c60c370c8800d379caf1b7d2f954e000c14a68e4bcf344591d3a1254fa0f312
+
+=== 65 packages/studio/src/lib/extensions/space/Space.svelte	ast.sha256
+ae0fb5b02947b3771c3509ffb2f30cc33e49cfb05d1015306ee737e0c3e1a629
+
+=== 65 packages/studio/src/lib/extensions/static-state/StaticState.svelte	ast.sha256
+ef322a4a3e39fc6b995323b84cca20c638003b09f08d9f86f63a92bdfe2b140e
+
+=== 65 packages/studio/src/lib/extensions/studio-objects-registry/StudioObjectsRegistry.svelte	ast.sha256
+6b8dbca0728b9beae38f4690a38c0574b5a6af248bcf4376296df02bfcfeeec4
+
+=== 65 packages/studio/src/lib/extensions/transactions/Changes.svelte	ast.sha256
+eb606ce149e8576c32eaed41cb26287cd41633fdf8f89e41c8f149af96d1c78c
+
+=== 65 packages/studio/src/lib/extensions/transactions/Transactions.svelte	ast.sha256
+2b006fc699d17179edaaabff46d4926c371910d2521592f2a5aa622024437989
+
+=== 65 packages/studio/src/lib/extensions/transform-controls/ContainerTransform.svelte	ast.sha256
+038ce135e4232d60a14cdc040597d6ea30977fa0eac582d07062d9847e69bc57
+
+=== 65 packages/studio/src/lib/extensions/transform-controls/SingleTransform.svelte	ast.sha256
+56355114898e9c6b8a43c04b4788b160d14eb12af593e87ecf92da629cd06b77
+
+=== 65 packages/studio/src/lib/extensions/transform-controls/TransformControls.svelte	ast.sha256
+4cc655d2b4f368c0885ad2a971703e57f848cb5aa8de2df57a1d6613dc0b7738
+
+=== 65 packages/studio/src/routes/+page.svelte	ast.sha256
+56bc87f19fd0f685f8283337233aefe2448075ebf87d0408f7c052593376cf3c
+
+=== 65 packages/studio/src/routes/Scene.svelte	ast.sha256
+a1d48e5225650be7e1efd93ff80914e3fd91973b1ef65200bb20ae4c07402507
+
+=== 65 packages/theatre/src/lib/project/Project.svelte	ast.sha256
+ba737eae4bf58689205fe04c6e4c24820a4274b9e3f6edac7086e6aac7cdf586
+
+=== 65 packages/theatre/src/lib/sheet/Sheet.svelte	ast.sha256
+48a4548608a5213481e67c048612589776cf621df3d7b7ebe0cce89334c095e7
+
+=== 65 packages/theatre/src/lib/sheetObject/SheetObject.svelte	ast.sha256
+51d6f4dfa0ae9cd906da743b362640750d391778f7b6731bff35d7934299b5dc
+
+=== 65 packages/theatre/src/lib/sheetObject/declare/Declare.svelte	ast.sha256
+ad2aa2f44aff80dab4c99a654f3d3d86b0035d3e407223180fd75a2a526b01a9
+
+=== 65 packages/theatre/src/lib/sheetObject/sync/Sync.svelte	ast.sha256
+339be6a38592fdee2c34855a173736821ac5a415d0f1804807b44e4acb8bf4cc
+
+=== 65 packages/theatre/src/lib/sheetObject/transform/Transform.svelte	ast.sha256
+4f11e7f29d7b1749828cf38d021fee80d6107f503695592bda5295f41b157880
+
+=== 65 packages/theatre/src/lib/studio/InnerStudio.svelte	ast.sha256
+2b8e46511596cc421f8dfbf4efdc107fd38ec34504be7ac32a3450041f29a929
+
+=== 65 packages/theatre/src/lib/studio/Studio.svelte	ast.sha256
+6b8473006cf588feb8a667111512c1752a895c4f4216616050de7802069aa565
+
+=== 65 packages/theatre/src/lib/theatre/Theatre.svelte	ast.sha256
+6060fa9172cace230a3244be2fda8f051b6a98b8036e3e5d21d27e853f1f4ff0
+
+=== 65 packages/theatre/src/routes/+page.svelte	ast.sha256
+8d694411b851bcaace000c120bdc130cf98c218297c166609876e404d9165336
+
+=== 65 packages/theatre/src/routes/scene.svelte	ast.sha256
+a3872daaa81c0ce93842a549c4850aa507e0f1e114de355fb3fa6ad6314f077f
+
+=== 65 packages/xr/src/lib/components/ARButton.svelte	ast.sha256
+eb4bac52664fbfe35bb198e09a33033bbcaf2d6eb7afcf0430ab5e63c3880139
+
+=== 65 packages/xr/src/lib/components/Controller.svelte	ast.sha256
+8144396ac70a57f11fb7fbd3d23bc5bacb5bcb0974d87d4b0cb32fce9d939528
+
+=== 65 packages/xr/src/lib/components/Hand.svelte	ast.sha256
+f31037301d2fea8722ac3145ec7cd65cc31761fdd762ea183ac7be2f5cd75c1a
+
+=== 65 packages/xr/src/lib/components/Headset.svelte	ast.sha256
+0828787f646cb6763420e10631c3d9a03ce8585f38d98dd19615b3b93e156d69
+
+=== 65 packages/xr/src/lib/components/VRButton.svelte	ast.sha256
+febf2c08d9df2fcf4c3a2a286872a3f705c0340fcc0d011f4082b4eb1a6e133e
+
+=== 65 packages/xr/src/lib/components/XR.svelte	ast.sha256
+19072a4d459d00fd65f7733e846ad1d6afed8251df112fe71e670719606d1dcb
+
+=== 65 packages/xr/src/lib/components/XRButton.svelte	ast.sha256
+20c7e78e4f1034b92af3cb4e7b1c4ec7ef864d3d93f1e1210d11dfd37ed86ce5
+
+=== 65 packages/xr/src/lib/components/XROrigin.svelte	ast.sha256
+953f2265a008db0ef1062ed75f3a88da521ac3e38bb6483a3e2e013f7c8763bc
+
+=== 65 packages/xr/src/lib/components/internal/Cursor.svelte	ast.sha256
+9c2fec635c5be07b31f9802ee5ed20f24fef2ecc64aa0001b2fd0fd8bdf629fc
+
+=== 65 packages/xr/src/lib/components/internal/PointerCursor.svelte	ast.sha256
+cc1fdabce9824ca35770853213a7503cb28191fa83d12e6299a668b6b411fd9e
+
+=== 65 packages/xr/src/lib/components/internal/ShortRay.svelte	ast.sha256
+e93dffa09cc2033bcebfc8b93bc10e235152fad2892d434334c5b2069436ecf5
+
+=== 65 packages/xr/src/lib/components/internal/TeleportCursor.svelte	ast.sha256
+d78079a119e161bd841b911fff40945521353ab71999e290a183708cbbca1c15
+
+=== 65 packages/xr/src/lib/components/internal/TeleportRay.svelte	ast.sha256
+40a9f95fe4f54a94bd9d0afd86a630b80bdcbeb5d045fbc00882f4f6e4c96a6d
+
+=== 65 packages/xr/src/routes/+page.svelte	ast.sha256
+992ef9ed7507608d72c468c8fd5e9badb3dfa2f3fa78dfb58c3bd14f43966257
+
+=== 65 packages/xr/src/routes/Gamepad.svelte	ast.sha256
+40724c87f5e3b42082042184c21ede4dd3f03ac3b120a96e65db22d5622209f8
+
+=== 65 packages/xr/src/routes/Teleport.svelte	ast.sha256
+fd5982aff3f447e7b94f8b163c53b70c879871069049dec93ca7d3e6af6d4de4
+
+=== 65 packages/xr/src/routes/pointer-controls/+page.svelte	ast.sha256
+4e6b72c853ea81ca0a008db906b90918a5fa1856131d43d5d2fdc6ae931e0b11
+
+=== 65 packages/xr/src/routes/pointer-controls/Scene.svelte	ast.sha256
+c4d927f70c57d51ddc689db4b7bcaddb4620e5cb004f0f8609fea484dbb9c47d
+
+=== 65 packages/xr/src/routes/scene.svelte	ast.sha256
+daf24e39cf2a9ad1f2ff267b65fe100e6c4ea913c48c0e9edcd72f4a04ebca72
+

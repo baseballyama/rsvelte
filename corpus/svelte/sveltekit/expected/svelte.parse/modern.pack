@@ -1,0 +1,1597 @@
+# rsvelte pack 1
+=== 65 packages/adapter-netlify/test/apps/basic/src/routes/+page.svelte	ast.sha256
+b1f2f7ba34913e8e56b1db0023d38f9db14d7cc9e49c8177cbc4035bd2fdc4a9
+
+=== 65 packages/adapter-netlify/test/apps/basic/src/routes/greeting/[name]/+page.svelte	ast.sha256
+29699ac11c8e4cf1449511e8defcaa02d768d8f0205bd915c2b9f241c246a3fa
+
+=== 65 packages/adapter-netlify/test/apps/edge/src/routes/treeshake-server/+page.svelte	ast.sha256
+2aab78d5e47fce726fb6d4182d4519d28adb37ce475b0ef0086b7e5074a48d80
+
+=== 65 packages/adapter-netlify/test/apps/split/src/routes/+error.svelte	ast.sha256
+45c2627e115b9ed5c2b8ac0e9af5bda43ee1afad9f1be6f2ec117c1426455188
+
+=== 65 packages/adapter-netlify/test/apps/split/src/routes/dynamic/+page.svelte	ast.sha256
+aa7dee8c81f82f75d6f06dfb514f3cdc0c2956b6842ac4f255cb21385441ed06
+
+=== 65 packages/adapter-node/test/apps/basic/src/routes/+page.svelte	ast.sha256
+2c2b14f2c82566801b7e623f1c2223425f59678a8437c99d9cf116e1cd2eea4a
+
+=== 65 packages/adapter-static/test/apps/prerendered/src/routes/public-env/+page.svelte	ast.sha256
+c67a3bcb22cd8cd3f5461de55c9446d23e9501231fa5ec0ebde4bc0252d78a28
+
+=== 65 packages/adapter-static/test/apps/spa/src/routes/+error.svelte	ast.sha256
+37b4eed57b063db4824c3f6b03a526720322e8e3a53384115ad079251b9754d8
+
+=== 65 packages/adapter-static/test/apps/spa/src/routes/+layout.svelte	ast.sha256
+767ce3bc71293283c8eea0446994e2ccdcccef530b6acd6962bd8e3d25498761
+
+=== 65 packages/adapter-static/test/apps/spa/src/routes/+page.svelte	ast.sha256
+fba96c10aa500fdcd796111a0144a9038d56510b3bc244f265a0288a62d4386e
+
+=== 65 packages/adapter-static/test/apps/spa/src/routes/about/+page.svelte	ast.sha256
+efc322d1bb65cf2409653af3c9e80a223cef672eba2d077aefd294119b7267c8
+
+=== 65 packages/adapter-static/test/apps/spa/src/routes/fallback/[...rest]/+page.svelte	ast.sha256
+1e6bb780e0e1b77a1dc303f0131b29edf804c2bd2ba7c02fc2446f8940393614
+
+=== 65 packages/adapter-vercel/test/apps/basic/src/routes/+page.svelte	ast.sha256
+3692bd7886b1ba581fa5a66bb79e5726aefd624171cbce7c33edfba14fb6311b
+
+=== 65 packages/adapter-vercel/test/apps/basic/src/routes/deep/nested/route/+page.svelte	ast.sha256
+1551ab6c404f6ce7719131461a8635d3545844689e802de274c399a0d037ddf1
+
+=== 65 packages/adapter-vercel/test/apps/basic/src/routes/isr/+page.svelte	ast.sha256
+f5171edbb6797a750e93ee2ff321c8ff9d769ef8c1ac5ac38b6133fb415a00fe
+
+=== 65 packages/adapter-vercel/test/apps/basic/src/routes/isr/[slug]/+page.svelte	ast.sha256
+3b152ffc5e13ade6826bbcc7d484f3da801c0d1d6b1ef6d296e474ca4118e2b1
+
+=== 65 packages/adapter-vercel/test/apps/basic/src/routes/prerendered/+page.svelte	ast.sha256
+e273887718ed40696834459c3f4d6f8df6779e748b86f6680f460cfe7d70fd17
+
+=== 65 packages/adapter-vercel/test/apps/basic/src/routes/server-data/+page.svelte	ast.sha256
+75c165db3b1f9a20ef634e222e1ae3db7daf8c9c548e4aae069d67237c5d0e4e
+
+=== 65 packages/adapter-vercel/test/apps/split/src/routes/+page.svelte	ast.sha256
+ce6826913e7ff0d5dd84e017411d86bf10e4e9649981369b2d42fdbd2ce4a02c
+
+=== 65 packages/adapter-vercel/test/apps/split/src/routes/a/+page.svelte	ast.sha256
+cbe00e1b782fa116862b0a14e9021d4cc312e20b68026b8b7327c93cc5692f9e
+
+=== 65 packages/enhanced-img/test/Input.svelte	ast.sha256
+3ed3295b9ec119f0e60f42411e40973d694e4c123ae4247eaa72c4e8e7b99084
+
+=== 65 packages/enhanced-img/test/Output.svelte	ast.sha256
+ae13436274aa126f334c9ce064cbf42380beb8750885344834764247deaf038d
+
+=== 65 packages/enhanced-img/test/apps/basics/src/routes/+layout.svelte	ast.sha256
+0be7a6e5ff28b2b1232f6cd664e255f732b73cccdefaea5d2cf35a18d89ffc50
+
+=== 65 packages/enhanced-img/test/apps/basics/src/routes/+page.svelte	ast.sha256
+c97453fad0c07ec7a4f77c2d22f75a70d776f7b1afed159425f3be32359b6bdb
+
+=== 65 packages/enhanced-img/test/apps/basics/src/routes/image.svelte	ast.sha256
+8986f138be7193ef72389dfb7802e2db5c7818033d8fe824efd521022f175503
+
+=== 65 packages/kit/src/core/sync/create_manifest_data/test/samples/named-layouts/+layout.svelte	ast.sha256
+6c09af98bae2de9e30865760acd89998317fbf8ebec7a32292ab7eca40ba8589
+
+=== 65 packages/kit/src/core/sync/create_manifest_data/test/samples/prerendered-dual-route/x/+page.svelte	ast.sha256
+e4c5da81ef15867666dcb9dcd2ff1fefffcecfef5b090dca36e50a7a6a65ace9
+
+=== 65 packages/kit/src/core/sync/write_types/test/slugs-layout-not-all-pages-have-load/+layout.svelte	ast.sha256
+f691ddb8d4449b07cf944165bc70e80e2273ded02aa9a810b7e259352c3cf01c
+
+=== 65 packages/kit/src/runtime/components/error.svelte	ast.sha256
+e96276d5e639c9284efffb209b25e0db24e18975bc9bd55cae3339098358737c
+
+=== 65 packages/kit/src/runtime/components/layout.svelte	ast.sha256
+93414914ea6b98ad1fb2faa5d6075c3b40744f746d8e9f900aa02e58de7c19f2
+
+=== 65 packages/kit/src/runtime/components/root.svelte	ast.sha256
+fb20bcce95d44d022f740601d0578692b23670f1f8203d59a896a5afa025c51c
+
+=== 65 packages/kit/test/apps/async/src/routes/+error.svelte	ast.sha256
+2e30a106afa484b5c47ec10aabd5006a4d08a3fdb5ba7f5a3d274bf13586542e
+
+=== 65 packages/kit/test/apps/async/src/routes/+layout.svelte	ast.sha256
+3b06c06ba15a2658a89bed4ccad708c6673663f95955b384c4db51459fb4a9a5
+
+=== 65 packages/kit/test/apps/async/src/routes/+page.svelte	ast.sha256
+2988cdea60e3fa5a62335043781356fbd5ecaa969d6d1572b475bc57c8fb45e6
+
+=== 65 packages/kit/test/apps/async/src/routes/fork/+page.svelte	ast.sha256
+ed08871629c8bb10e7426037be52c05dc700cb53cf57049f29190d1a4ff7524c
+
+=== 65 packages/kit/test/apps/async/src/routes/plain-lib/+page.svelte	ast.sha256
+4bb1b40e2818c1ed660bd075f88d633291e2a5a09c5965b3334f89d57c7456de
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/batch-redirect/+page.svelte	ast.sha256
+39ba6f776d9f2d37390743856846552e5369e8aa003b42363197cb521d4d306b
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/dev/+page.svelte	ast.sha256
+9a367aa0819d08f1f19a5ed8f6d4365e618106d4d8c52e6e88b0e05a7c332a49
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/error-hydration/+page.svelte	ast.sha256
+766a4d582e334cf8bf3f0ca2aeb4c462f08c443bbdc0a5db8d7098c7a3b533f2
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/as-value/Form.svelte	ast.sha256
+50e138478b6472c671b8e1e6eb2678e4389401bf8af0818e3b2ad0bd3fc96f92
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/file-upload/+page.svelte	ast.sha256
+85239591fdc4905eb6d8f0daa29b29f46b503fbb671dce63f428ad2adb56c4de
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/for-duplicate/+page.svelte	ast.sha256
+2a48b160d1d9e7c075dac73528a5db243464fa2f373bd94f172e5fbdbd1c09df
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/imperative/+page.svelte	ast.sha256
+7bedf3f30c5e78d5274eee5d2d17c0d4db85d789c0a9d566f7a1a167e9a89e3d
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/native-result/+page.svelte	ast.sha256
+66626e522a414027e9bf55fa384fc9d543cf3875ccb2306707f526a118bc2be0
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/preflight-for/+page.svelte	ast.sha256
+9b669c6bd9d6361c7ed5d0c3f10bba269d4b3bacf998ca74836878abe964eeda
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/preflight-pending/+page.svelte	ast.sha256
+881548ec2ed1d0ef5d09e5d10115854b939d7af49bd827e51850a62420e5f336
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/+page.svelte	ast.sha256
+08197599465bf60b7010068e1a5e4b941ecbb0d88e32a569f1c230be14b87ffe
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/destination/+page.svelte	ast.sha256
+575c63d2cfbc883f39980c86b86c91b7fae7911c66f6aef05fcd4aa4ff2246cb
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/requested/+page.svelte	ast.sha256
+91d6a95291b82466e31da89df3ba9c7dadfe47daed1c89d02df34603cc3737df
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/reset-id/+page.svelte	ast.sha256
+f2d5f1e40e36a01f0258f7703ef06d1ed8d35812d66104b678ef1468a7fbe1d5
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/reset-on-redirect/+page.svelte	ast.sha256
+721110da5e51dd1b20a6c30020ea20fa3acf7d80e55db86b91d2103394af1d8e
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/select-untouched/+page.svelte	ast.sha256
+699f0ce61344939008f77551f1c7eca74f90d2591845bb4218e6f98ed5d25ee5
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/set-ssr/+page.svelte	ast.sha256
+94737f477201ee6129e45d0b520130a9b1c303931fb89e1f396b9cbe93ae2d74
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/skip-submit/+page.svelte	ast.sha256
+1a58d59a7e229f8721e41035cad461c853b27d9321b4bc0a46ac1aadc34ff3f0
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/snapshot/+page.svelte	ast.sha256
+4319aca872051818ba28d0702c441254e2e026259afb61fb73a893aa211d3fac
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/+page.svelte	ast.sha256
+0e1aed2615b55540491b664bf09009d508acc1a418228064baeb4d10cf407acf
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/page2/+page.svelte	ast.sha256
+8b80795cee98e94380d9b6989ffdc9a317bc70806f5744788e38841fda970499
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/submitter/+page.svelte	ast.sha256
+2fc117ec526d050733d674d29d228de92143d952a883e32f5e020e5aa72fb6f3
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/throwing-error-page/+error.svelte	ast.sha256
+f8624944a3e4e02bdc43bce198eaced445eac19021a11ba795b7e83a35a94ca2
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/throwing-error-page/+page.svelte	ast.sha256
+7581cf9364bbbfa2c63454760d4454710247f3d70f35bb086b75bc868c7a831e
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/touched/+page.svelte	ast.sha256
+a7d12fe5f39cd01c94bca7c4868ebab04a2b86ca34cfbb99e91c4e53f7f1444a
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/underscore/+page.svelte	ast.sha256
+ea08c2ae548e256172d2ae6ae4f51e3922ad2ea1e6c6a7284a9132c4567f46ac
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/validate/+page.svelte	ast.sha256
+de7adbfeadb21ed564e2c9fe639e873f9c8bf0833ae0998d742e2561bd957622
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/form/value/+page.svelte	ast.sha256
+c73c9d989e658327fdabe7be7735ed99d047228a72ec45e53f50453a9acf359c
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/isomorphic-caching/+page.svelte	ast.sha256
+62390d2ec2447bcb2de83c104d331807b35155698242a2cb81ac71402b6218b4
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/live-error-seed/[key]/+page.svelte	ast.sha256
+3c37e0a815dd3eced7038bc155b50087653c39b0ebc6c325bdebf9c376110dee
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/live-ssr-value/+page.svelte	ast.sha256
+f38a8173c9ed6a6f644dd859ea338927705685581c158534eec420f8f196197c
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/live-terminal/+page.svelte	ast.sha256
+ddb1882b75d05de3c2d5751fb93c190d5860482583a95a99d08f862de2fce5e0
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/live-terminal/target/+page.svelte	ast.sha256
+e6a3088deb63372ee311cc84c04824373b1135efddd3e56b8d5d5846d85336c1
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/live/+page.svelte	ast.sha256
+fd00093e9a2c971f18d6da716b5bc683ea6d6cc8c6afecd0e6d3fd3a7eb78feb
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/prerender/+page.svelte	ast.sha256
+ebaf6697359378f6746f019f24a6801d8ded8065ba332e37299a38ca117000d3
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/prerender/functions-only/+page.svelte	ast.sha256
+55fc962afda013fbb390b16d58f9b4e7a6a494831cc149ce93930eba93c379f2
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/private-query/+page.svelte	ast.sha256
+9188698f9b54d03b230c395e9752cf1b3bf38237ffaab72fa00b6c7f5bbf4042
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/query-redirect/+page.svelte	ast.sha256
+76e6808364c4ac902c7e4bbaca4fc2859aae5005e5514905d8439bfb3078c389
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/query-redirect/from-common-layout/+page.svelte	ast.sha256
+ae9bd29717dac76d21b9cc388dbfb2fa404456b44011207b0b19ea2150a63189
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/query-redirect/from-common-layout/redirected/+page.svelte	ast.sha256
+9a7e92cc38ce0065c7deca3f63b4d849d480f447185b17a2bed15ac0257939a8
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/query-runtime-errors/not-tracked/+page.svelte	ast.sha256
+5a312b4cfe5b0deeb32b5774bc5df8e4986df2342f16657cb34d842b11e19ecf
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/redirect-external/+page.svelte	ast.sha256
+52235a5b474afaabb1995876c16ecded63ca934592a499403d3fbebc83885cfc
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/requested-limit/[key]/+page.svelte	ast.sha256
+d67d316b4dacf590c92a5a8dacb9af0c4d0174ecb111ba60432fa6da6b1835bc
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/reserved/+page.svelte	ast.sha256
+e72963c011449b47be969e55dc48bb40730903d6f26ef996610de22e10ef4cfb
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/server-action/+page.svelte	ast.sha256
+60a94effb1a967c49f9bbf94bc1fa7f9c0029130b311930c8a426a997b98ff69
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/server-endpoint/+page.svelte	ast.sha256
+3a57b2a9548fe5b0461c84f06be5dd513464888b5dcdb54e904494063403b0d6
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/server-load-command/+page.svelte	ast.sha256
+288181f1ce527188620f0821ca511a14228d771d1a0661f2629a099bd0ea95e9
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/transport-status/+page.svelte	ast.sha256
+401ca48562bb7cf4c405780eef9d6fcc56225d24c5da92b6a7ab49e25cb67c76
+
+=== 65 packages/kit/test/apps/async/src/routes/remote/validation/+page.svelte	ast.sha256
+47247847cbe3c52f8ad21a95be75b8a40619c254f85a0f3922c9449ae1890628
+
+=== 65 packages/kit/test/apps/async/src/routes/server-error-boundary/+layout.svelte	ast.sha256
+707cf5a22965dc0f7e5dc185d3266eeac4f471af504fe966b6c075c96bfabc85
+
+=== 65 packages/kit/test/apps/async/src/routes/server-error-boundary/+page.svelte	ast.sha256
+08ac42ffb252f1bfda4d9daf5ede8eb4cd6199a1ef4702408c8ea42cca8d54d6
+
+=== 65 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+error.svelte	ast.sha256
+7072542ee68d901939dbe358b828ee9f57cb5e191e0377c29e4c5f783040c584
+
+=== 65 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+layout.svelte	ast.sha256
+756f92ab034454d083a6659275c275e5b944b56c64fbd405b55931f6372a52dd
+
+=== 65 packages/kit/test/apps/async/src/routes/server-error-boundary/layout-throws/+page.svelte	ast.sha256
+f1eadb2fa97fc065bef71f9f9ee5e9489f466e7232ad4c22b3705d84d3baad99
+
+=== 65 packages/kit/test/apps/async/src/routes/server-error-boundary/nested/+error.svelte	ast.sha256
+0805ea38e5be6c278e5f1759bc8935a2a08568567ba6b62ef017b3ea57ab2468
+
+=== 65 packages/kit/test/apps/async/src/routes/server-error-boundary/nested/+page.svelte	ast.sha256
+06cddc56e12ab3b46f0e1ea48b42664bb433540552d1eaba077e9b1ee1b6e1d7
+
+=== 65 packages/kit/test/apps/basics/src/routes/+error.svelte	ast.sha256
+dae2a238bf8c76f4d7693456c98e2f3228abb2c03f6a0a62a080ec68a5e39228
+
+=== 65 packages/kit/test/apps/basics/src/routes/accessibility/+layout.svelte	ast.sha256
+b33e76d6554ebf5bd832654044db0bc91994c2a4477c1abd570acbc2496b6532
+
+=== 65 packages/kit/test/apps/basics/src/routes/accessibility/a/+page.svelte	ast.sha256
+1c87f0713a2f1580ec8cafdb278f0d823d0fd4358a1e53d81f99f341769aa469
+
+=== 65 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/+layout.svelte	ast.sha256
+f7529512bf1a391cdc6931460a5107f0ad105ea5afb834ab194756fcea8615cd
+
+=== 65 packages/kit/test/apps/basics/src/routes/accessibility/autofocus/b/+page.svelte	ast.sha256
+1b5a1d11ca8e841ac3895ebb68b4107ea7f41aab592c99d350c97521c9b996b3
+
+=== 65 packages/kit/test/apps/basics/src/routes/accessibility/b/+page.svelte	ast.sha256
+05e7b8022d0e7f5f7d21af4976db408ce772ce206341d3c8dc0b52a3bd282ef9
+
+=== 65 packages/kit/test/apps/basics/src/routes/accessibility/blur-during-navigation/other/+page.svelte	ast.sha256
+3cdc60660d3284f16d2afbe1ca765c069640ceffe5c053820e46362444e03f55
+
+=== 65 packages/kit/test/apps/basics/src/routes/accessibility/blur-during-navigation/page-with-input/+page.svelte	ast.sha256
+3daa885a99a21f0a1f84bb312ad59dba1df723b71f5300c4735019b7786f3b7a
+
+=== 65 packages/kit/test/apps/basics/src/routes/accessibility/c/+page.svelte	ast.sha256
+56a8520034c786c5d0c30ef804461a0d56fd2d5bd637e8344bb5806dae3f5c89
+
+=== 65 packages/kit/test/apps/basics/src/routes/actions/cross-page/destination/+error.svelte	ast.sha256
+1d1dfc65f33293c7c7433555e9bca11389a45dba7966d9637c26c1125211c61f
+
+=== 65 packages/kit/test/apps/basics/src/routes/actions/cross-page/redirected/+page.svelte	ast.sha256
+06707eff83ec5399a9874ca2200d2e7efc4accd558ef2a86155028d70d744c04
+
+=== 65 packages/kit/test/apps/basics/src/routes/actions/cross-page/refreshall-false/+page.svelte	ast.sha256
+75a0c2175ba9a2ac706109b917e50c92b98d77fa0fa6c31fbacb442586c3d85e
+
+=== 65 packages/kit/test/apps/basics/src/routes/actions/enhance-non-action-response/+error.svelte	ast.sha256
+c7950a50f99012f2ecfa9503a05453db244c9d3dfc190b83cbb32b2a95e7b737
+
+=== 65 packages/kit/test/apps/basics/src/routes/actions/enhance-non-action-response/+page.svelte	ast.sha256
+9a3a5dadeafc0b9fe6660701ac7a2ad9684a9172ac96e0ad5159e1dde425c278
+
+=== 65 packages/kit/test/apps/basics/src/routes/actions/file-without-enctype/+page.svelte	ast.sha256
+e4672efc31547daef93c27885a5c5c92589a4c59792d84ffeb51ac3171f9cc3e
+
+=== 65 packages/kit/test/apps/basics/src/routes/actions/form-errors/adjacent-error-boundary/+error.svelte	ast.sha256
+e612e2fb59143198810b632425a463040a61112293e28d02d29be3e566587f64
+
+=== 65 packages/kit/test/apps/basics/src/routes/actions/form-errors/adjacent-error-boundary/+page.svelte	ast.sha256
+8451e03482a83ee0aab4d8951586a410f3dcbb849355b26a253fd43ec00a6104
+
+=== 65 packages/kit/test/apps/basics/src/routes/actions/redirect-in-handle/+page.svelte	ast.sha256
+006b17af5e342dc3c0c9c9a4d757a337da4a263d558e74e4233d864adbf0b35e
+
+=== 65 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/+page.svelte	ast.sha256
+5f0dc3ee1e4f06254064568c5aa86bc725d6dfae32f0136ecc6c81220aacd338
+
+=== 65 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/anchor-afternavigate/+page.svelte	ast.sha256
+39385e19c4edfbaf3d41d147e8c5efe0d89635c7ea74476fac124e3f97f09ef5
+
+=== 65 packages/kit/test/apps/basics/src/routes/anchor-with-manual-scroll/anchor-onmount/+page.svelte	ast.sha256
+b2c7f92ae7b653300ad03314d098c07bee422e6fd9324e8b22642841822e6f07
+
+=== 65 packages/kit/test/apps/basics/src/routes/anchor/+page.svelte	ast.sha256
+0c9f340363e057af0a7081d1d342b2a7b6c85e3feb97dfab2a75a1eb21f9a522
+
+=== 65 packages/kit/test/apps/basics/src/routes/anchor/anchor/+page.svelte	ast.sha256
+7bc51bf434a9ef69f011aeb9e62db4469d9f03d41b331d7bce4d2077d0f3dd76
+
+=== 65 packages/kit/test/apps/basics/src/routes/app-environment/+page.svelte	ast.sha256
+34570af03dbd9981e470b8c86b6a272a066db2d14b5def5a13f58f5c81ce06fa
+
+=== 65 packages/kit/test/apps/basics/src/routes/app-manifest/+page.svelte	ast.sha256
+cd9ed6dacd9909bbbbe62fff8243c6513c8e7d578766f9a16ca61de4b066dc82
+
+=== 65 packages/kit/test/apps/basics/src/routes/asset-import/+page.svelte	ast.sha256
+0520dfe52694601819c902ff57c307bd22b66e6f78371138e291fc29e3aac5e5
+
+=== 65 packages/kit/test/apps/basics/src/routes/asset-preload/+page.svelte	ast.sha256
+9e70ef853e6e0ce733ba960532e31d574362e1e690d7f62d42ae981fd51c8512
+
+=== 65 packages/kit/test/apps/basics/src/routes/caching/+page.svelte	ast.sha256
+a8f280f99276ec56e970234159e0249daa3399f03f047c042c8b9f0815715fff
+
+=== 65 packages/kit/test/apps/basics/src/routes/caching/server-data/+page.svelte	ast.sha256
+146f1a23d3a4b32d7dd0c253c1334a7ee23b9f8b4bfe423882aa79ebe6d39149
+
+=== 65 packages/kit/test/apps/basics/src/routes/cookies/collect-without-re-escaping/+page.svelte	ast.sha256
+09ccc09191193bf93dfe1c9d95f5d66400d60d89a1be62c4f43c9a221bf8a0ea
+
+=== 65 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag-multiple/+page.svelte	ast.sha256
+51a099670dacc2069e4798f9a7cf30c7ae9886618b464295dedbd53ed8cdb4ec
+
+=== 65 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag/+page.svelte	ast.sha256
+f3da56f31cdccc7266751e1d38d6bf1e219cdd0132b3534ecb60e9ff936ca34e
+
+=== 65 packages/kit/test/apps/basics/src/routes/css/+page.svelte	ast.sha256
+388b9a9a95c10c9d3ca83fd2e59e801fa84064b80487c2f1d8cdf644d89066ee
+
+=== 65 packages/kit/test/apps/basics/src/routes/css/dynamic/+page.svelte	ast.sha256
+116df3f1b14d0e00147d6ae466a85e483801406df0d0d9516f9b247223f3a44d
+
+=== 65 packages/kit/test/apps/basics/src/routes/css/dynamic/Dynamic.svelte	ast.sha256
+b88dfb0dbd10fad5b50c7a52d936b4eb13868b33799bb302418a35beeb66fd59
+
+=== 65 packages/kit/test/apps/basics/src/routes/css/encöded/+page.svelte	ast.sha256
+674fa4de26ddf87cb7507d64290808538a5bb66c4026690bd84fbaf0650399a8
+
+=== 65 packages/kit/test/apps/basics/src/routes/css/other/+page.svelte	ast.sha256
+5d970d4fb98e19e054af24cf5beec6c7da4ccd01a4399b8be676f61e66c49798
+
+=== 65 packages/kit/test/apps/basics/src/routes/cyclical-dynamic-import/+page.svelte	ast.sha256
+74a487594d992582d9258c1bb660f215d864854c3898d568bfaa23bff8512ca3
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-code/+page.svelte	ast.sha256
+e1dc3d03d3d197bb46e54ed731a58e295bc825add456a6da8b32ec22531d0eea
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/+page.svelte	ast.sha256
+448553bdc20ad68e16d4fcb3f8fe093fa348f2e28757b8b7423972f3fedbf7e0
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/+page.svelte	ast.sha256
+dbc9721c35bdc6e48a4b753e7a87a1299c374d0f813a1ab73059b9f25696f065
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/slow-navigation/+page.svelte	ast.sha256
+1702b42b7b0c2044aaaeb81fd39c3e67d2f2f926c6b11f90b2e79894a0042ffd
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/offline/target/+page.svelte	ast.sha256
+669fe223361256defe681df7999e29e5e2b4e2e6752bcf71b68d4fad4f25fcb5
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/+layout.svelte	ast.sha256
+2b7f160fd11015a77b037f12ca3d8cbaade84a9925db4db8f36eac96403ac4fe
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/+page.svelte	ast.sha256
+fca4500f2c12ef1007f9b35208151eef9ec1b1a83dc7d221ae99bb4b83ead3d6
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/repeat/target/+page.svelte	ast.sha256
+79575b5007dd55f4dd1ff54c7c4213b5af445bd474d69bc177df13352c15ab0c
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/preload-data/target/+page.svelte	ast.sha256
+6aff278fd001b94bab0ab9fa9832a29aef13e3b3a93e8725393438713f24d15b
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/+page.svelte	ast.sha256
+a8cc9172feaa6d82e03b9a27327345e7620e733e78c2293e97c35165458cecc2
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/hash/+page.svelte	ast.sha256
+495d68cd42ae9b42c844c67e64ebef8e0c1f6bdb82196ae247c540b9a4171869
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/hash/new/+page.svelte	ast.sha256
+edce8d2efbed3281fec93de271e2d08233abd613d8d69e5d22a8f1b05a3a34ff
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/reload/target/+page.svelte	ast.sha256
+15bd56c3c71d700a3e4b86004c3e8eba81f0fea06ba9b281d7d6480ade5ab315
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/replacestate/+page.svelte	ast.sha256
+899beb22d230ea05fff5a3d8a8fc5f5dd5eded390ba30420b37da1cb4303995d
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/reset/+page.svelte	ast.sha256
+4460e30a2e2f9b80f64591322ace4e7058ee28aed4df94f6a75c9d5ad55fe5e1
+
+=== 65 packages/kit/test/apps/basics/src/routes/data-sveltekit/reset/target/+page.svelte	ast.sha256
+ea90bc176b053d82396d79c2ef83628f8ffb870a0cf45a13cc42873af205d731
+
+=== 65 packages/kit/test/apps/basics/src/routes/delete-route/+page.svelte	ast.sha256
+868c31f63187ea7965c2ff4dea1d7daca1ed9acc6d6775c80b0c7488807a22bc
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/+page.svelte	ast.sha256
+fa2382624aa2399dfb69dc39c19afb15ec9a30aa97b692b72d87a3db6a7ac9bd
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/@[username]/+page.svelte	ast.sha256
+ccbb493f939cff65d67cc6748aa1a63b2b510500a15dd54e9906d110cea302ec
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/+layout.svelte	ast.sha256
+1c3694aa17123af6eeba8534a3b0d367da3f97fa61b7e83c9919ff9f01d299dc
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[u+82d7]/+page.svelte	ast.sha256
+7b4c4cfdb2e2a7a75276120cc4f4485cb54073124ad145442af391ec46e26be1
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[u+d83e][u+dd2a]/+page.svelte	ast.sha256
+8886bae58a3be1ce21d730db9dea9a2af77e1e7264b57d90633c5f47f4ab7fe7
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+23]/+page.svelte	ast.sha256
+4de9c7e5ef111bcbf1250cccfc3a8c7c4709540f530c90a271fdf5454d6d7b83
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+25]/+page.svelte	ast.sha256
+7dfb44db3e6984d6f587d6cf6196abc43b53ccdd3f8b538d52eac4cbb2d0d3d7
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+2f]/+page.svelte	ast.sha256
+b6bbefddccd10aa64ab958f524b4668abc90acfa9de9eb2ef4ccf172a264b6e3
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3a]-[x+29]/+page.svelte	ast.sha256
+e4bd512bbef2e7547f57c42728e297cd6f2fbb8977130e0e0b3aca759d3bd7f7
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3c]/+page.svelte	ast.sha256
+a2a588853ebac6c786a18e7468b6cc3a2f1e4270122058c1b4c32ed0b907c641
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x+3f]/+page.svelte	ast.sha256
+651454c8ca246b30a253cba02dee114578f602ef2279accc02eb4b6ca49d2bf2
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/escape-sequences/[x][x+3c][y]/+page.svelte	ast.sha256
+97123dffdab78fd01be88dc0fe3767ac7b844cb354591cf2e18a7b794f06f366
+
+=== 65 packages/kit/test/apps/basics/src/routes/encoded/苗条/+page.svelte	ast.sha256
+07571c246fe9b8c7f6f7b0a95e5ba4bdb3f66b126de1d62d0cc691b813d1b97b
+
+=== 65 packages/kit/test/apps/basics/src/routes/endpoint-output/actions-with-endpoint/+page.svelte	ast.sha256
+74ff02115e4a200e22e3ac23ce4eaa687555f0cfd3aa093ea14d0b1f816437c8
+
+=== 65 packages/kit/test/apps/basics/src/routes/endpoint-output/fallback-with-page/+page.svelte	ast.sha256
+b68fc0e35a32d96b8222a0eae442750cba3ccd44aab633936c44e4aee7669304
+
+=== 65 packages/kit/test/apps/basics/src/routes/endpoint-output/post-only-with-page/+page.svelte	ast.sha256
+45be3ccf01f8c349dfe5ca0373b744c25d6f604998fa88a9b328f5eef149b2e0
+
+=== 65 packages/kit/test/apps/basics/src/routes/env/+page.svelte	ast.sha256
+3c135dc28b407aa7cfc20669e12d9a4801f0dddfe0f88b9a74d4a9147fc4b64d
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/+layout.svelte	ast.sha256
+8789e1d1eae3d757605943789d1fd0b1d214f96ead630b1e7c025732516bbdf7
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/clientside/+page.svelte	ast.sha256
+4951f7b04913ed79638e30317e41884531c7833c021c3ca87e8f76271de46a35
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/endpoint-shadow-not-ok/+page.svelte	ast.sha256
+c8f9e7b4ed1b7fca70e95e71a1990e221cf13e8c8dbc315928e38f85f351c958
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/error-html/+page.svelte	ast.sha256
+219551403e5dbd9f94223298fb8b9326d3d73db6303ba4710214ce229087b9ce
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/error-in-handle/+page.svelte	ast.sha256
+977006a76bb077ae2507b0121d7d59356b7bda593fa02cf8b5af17f35f771e09
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/invalid-load-response/+page.svelte	ast.sha256
+4fba696b5a0d5ffde25f157acc0d335235775addd25abf8865dbe0655f4d2cf4
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/kind/+page.svelte	ast.sha256
+208fe365227f949e2ded5f0ff93fc48f96832f52f79258060dda66989bd45ee9
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/load-error-page-options/+error.svelte	ast.sha256
+340d764d8afe61a68b61fa5cc5422706f833c1837494a89a9885767f8e0b7a76
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/module-scope-client/+page.svelte	ast.sha256
+e9e8f15a6981916a482e0cf0ae087fe12d697892383064faee08c30e2114c18f
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/module-scope-server/+page.svelte	ast.sha256
+66fad4b3a42404283304c376296e29acadc634428871e72d0b7e73e2a7f5d17a
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/+error.svelte	ast.sha256
+2f522a0a620d4b15f7a58c1edd9bb5a95eedab3d3f12616c196951e4d967f290
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/+page.svelte	ast.sha256
+b40c5b0861d06f45f59d7ab0aacaac38455f1645d439c3d6ac4b32d2deece8d2
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/nested-error-page/nope/+page.svelte	ast.sha256
+0f3f8435c0f35d3770b2d3b8e8ec1807961105df7601a7b970a3d0283ba152eb
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+error.svelte	ast.sha256
+dd43c7d906fc2e95fae6d5be67171cdc7f491a1a374a5f0ce2ab0fca0acb7de1
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/+page.svelte	ast.sha256
+b9ebeffafd3bf35af44be306f59460eb65a470e8839482cca5e770ad671ff9ca
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/page-endpoint/get-explicit/+page.svelte	ast.sha256
+136a75c6028197cc9e17b0a5b01f31ffae760becf33d6ad92a7c1d9e7136748e
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/serverside/+page.svelte	ast.sha256
+7a6ac89538534133589252ede277211f7a6d93710fc5ab2fd4db586cbb2f904d
+
+=== 65 packages/kit/test/apps/basics/src/routes/errors/stack-trace/+page.svelte	ast.sha256
+2ba4c1ca73bfd11f41649337ac715036aa9d9b8b809c86666cca7ae8889c2682
+
+=== 65 packages/kit/test/apps/basics/src/routes/get-request-event/+page.svelte	ast.sha256
+84aaa40a57607fd5180606f6d93ff379d4578350f40561a1389a1bb5900a2935
+
+=== 65 packages/kit/test/apps/basics/src/routes/get-request-event/with-error/+error.svelte	ast.sha256
+415af9fe7141ef76f3226eceb4e8d065d8875c0d128a8e6dcb544550072f9d81
+
+=== 65 packages/kit/test/apps/basics/src/routes/get-request-event/with-message/+page.svelte	ast.sha256
+2431fa28c8afa84edd80ea1a5f922a0f53bc8de0f379ecbafebf2dfe20d15911
+
+=== 65 packages/kit/test/apps/basics/src/routes/goto/+page.svelte	ast.sha256
+2b0af93a5f87cf1f7dd66dfe9da1ca34e7559d1f47de19b6fac9d5d5b02979fa
+
+=== 65 packages/kit/test/apps/basics/src/routes/goto/no-such-route/+page.svelte	ast.sha256
+b82944dec90c758e2e87c0bb930832bf83fb5e528f5707beb8a995894bd62310
+
+=== 65 packages/kit/test/apps/basics/src/routes/goto/testentry/+page.svelte	ast.sha256
+b1a1842802347d3e159b8f51baf3643369310179685a35e85cde0cf42b054481
+
+=== 65 packages/kit/test/apps/basics/src/routes/goto/testfinish/+page.svelte	ast.sha256
+7cbcb48f505044c71afe1b6c1314af3594ffa789251c484e7e52787cb4bb38c9
+
+=== 65 packages/kit/test/apps/basics/src/routes/goto/teststart/+page.svelte	ast.sha256
+7415a4be0fa3b6f7f66e7f93cea0f27cb635765aed52f4bffeb6a52214a19299
+
+=== 65 packages/kit/test/apps/basics/src/routes/headers/+page.svelte	ast.sha256
+317b7ce5fc9e3e550a814bf1f78b4487d8cf61141d5a50ffeb373bf8f721d2f3
+
+=== 65 packages/kit/test/apps/basics/src/routes/iframes/+page.svelte	ast.sha256
+15819f3f7eb06c47a0ea9c4150a295a1a9be1d80b53650d797bb544862934de4
+
+=== 65 packages/kit/test/apps/basics/src/routes/iframes/nested/child/+page.svelte	ast.sha256
+693987fc3b1b6b4ccf7e3907fc3deea6d0bed0dc576714611c3b1d723045a883
+
+=== 65 packages/kit/test/apps/basics/src/routes/iframes/nested/parent/+page.svelte	ast.sha256
+c64154e8b70e13489a28c80bd194bdc078fd3b64f4a0ea2409037121d9290b04
+
+=== 65 packages/kit/test/apps/basics/src/routes/ignored-files/+page.svelte	ast.sha256
+4130126337fceb2b05f2f28938e4db350f2b80edbc9681c06c3ec23b0baa3abd
+
+=== 65 packages/kit/test/apps/basics/src/routes/init-hooks/+page.svelte	ast.sha256
+562ce87067cfd13f6b0765b3be50415ff0994209416d82c1e51ecb923ce9b9a3
+
+=== 65 packages/kit/test/apps/basics/src/routes/init-hooks/navigate/+page.svelte	ast.sha256
+93d9d1f8316df2bc5d0e8b0e2876a1f421398528951eef9ee6436fd3866443b0
+
+=== 65 packages/kit/test/apps/basics/src/routes/interactivity/toggle-element/+page.svelte	ast.sha256
+6bd971dcbfb2a93170d082f6c402715afc22ea81c5cd988e1dbf300f4fd80e24
+
+=== 65 packages/kit/test/apps/basics/src/routes/keepfocus/+page.svelte	ast.sha256
+df406eec0366a7f3d6a39073aba26b1d7572291bd5591faf798f5825a2fb6e0d
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/accumulated/+page.svelte	ast.sha256
+b70cee5bd7010bf590c6d4d98947833e173c97bbc0c7d30332c37b31bac760fa
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/devalue/+page.svelte	ast.sha256
+3ef359c95c432f7552bfadc0072f0801eaed9c7f60bc042d5cb00c3effa07dd4
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/dynamic-import-styles/_/Thing.svelte	ast.sha256
+0434bf099208491515bad7982b02ec715f51bfd5bd453f61965565e18d5304b1
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/fetch-cache-control/+page.svelte	ast.sha256
+623e4abf7f30659d9c9f61b1721c72c22dddfc8d00b17dc9e0e096383871e901
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/fetch-external-non-canonical/+page.svelte	ast.sha256
+78d5d1ee7c6fb581fe048b0457d979cabfaab5abf4016737cf96963297cecd0a
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/fetch-no-body/+page.svelte	ast.sha256
+26ee699dd0b67e17664c455e215c33540f251dd2661fd6df0811cd694285065b
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/invalidation/during-navigation/[slug]/+layout.svelte	ast.sha256
+d76295ae2fb43316eafe910fd248f409f37c67accb58e9a5624a52729af1f7ad
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/invalidation/during-navigation/[slug]/+page.svelte	ast.sha256
+50349ec5de2d868071b4d5cc0506c4f9f87c537f3f9457e36f030f3b750ecf22
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/+layout.svelte	ast.sha256
+5e54cfa3f2c8b11e3f672e18e7de53f00170e38f48dc61f2640e5d652afb8c05
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/invalidation/multiple/redirect/+page.svelte	ast.sha256
+9c06f0dc08394b1be10274bb1de9840d40c375aa0f3bf8de16963e552795c089
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/invalidation/params/[a]/+page.svelte	ast.sha256
+061c0db3cf5d0e9791bbdcf441317e133ab8e10f4ba1be7699c2fe1bc90ce94c
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/invalidation/params/[a]/[b]/+page.svelte	ast.sha256
+2c0e79de352980bce00468688c6fa394f13ef5b397954cbf2cce7eb05fd2b31f
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/invalidation/route/server/a/+page.svelte	ast.sha256
+655db92e71ae7e5a4fdcf56294b0a2e135f0b9fa8c6c7e30d9122c8f7a5987f0
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/invalidation/route/server/b/+page.svelte	ast.sha256
+978ffe6446d90db81f0119730e89fe7c22f96ec915a04bbae7c2b562a8cab144
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/invalidation/route/shared/[x]/+page.svelte	ast.sha256
+9a80228563044ebe34ad8d9610d7581408ad51cdd310f16ffff233593dac1834
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/mutated-url/+page.svelte	ast.sha256
+ef9aee7f7eb1580fd2d2daf20d4443f2ae899c01df8609b274fac1f0c6a5f613
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/no-server-load/+layout.svelte	ast.sha256
+2f2f982e022b1375392c1c91de909b06efa498b219807a9e5d4b40ef5a02144a
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/no-server-load/a/+page.svelte	ast.sha256
+921ce68a4cb779d301d5441326c74fa488596e425543a2d48e141853e5584cb5
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/no-server-load/b/+page.svelte	ast.sha256
+7f4b58f3da9d0f9162c8459d843836ed4905fee5137fd91b70bcdd592af233d7
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/parent/server/[x]/[y]/[z]/+page.svelte	ast.sha256
+0c9ce4f180c39b7fec05a1c5505ec3a9de13a6953780cea470c10d8cb0e5c3d8
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/raw-body/+page.svelte	ast.sha256
+f13c9262f364b722407268869035b6a5cb09a0ec120b17984f9ca3a244f4c354
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/serialization-post-body-collision/+page.svelte	ast.sha256
+f1ea424018379591ecb8951b7c3c272258d09cbb036cd23d715d66d2798c4324
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/serialization-post-body-object/+page.svelte	ast.sha256
+cb6c5e36314731267c0c7c40f93055bf12d1fb7a4fe46c2559a8e0c5dc341556
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/unchanged-parent/+page.svelte	ast.sha256
+c0b1894904fbd9c87324b569311681a762b64bc465c81a8f5853e663d554aa13
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/unchanged/+page.svelte	ast.sha256
+4591d290c8aa9ae14cf9310bbd7d31c2ae4c6e4e0f2b90b37a23dc6fd21ab85a
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/url-query-param/+page.svelte	ast.sha256
+3d7bac2d4f800faa25c30139308483a7355bb1d82619e27e731b296b79aa39f2
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/url-to-string/+page.svelte	ast.sha256
+b737c01773d2c244ac9fceb07c1e51d8ed8b1c15ea14f6dc7ab761161ca7db67
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/window-fetch/outside-load/+page.svelte	ast.sha256
+643f662e87ac2f5bd740be8f18ec065421e4c886c1ee733891f38c7072b5c4fe
+
+=== 65 packages/kit/test/apps/basics/src/routes/load/window-fetch/patching-server-load/+page.svelte	ast.sha256
+04d6ee7d2f85ebe2ee234b1f97b3f218c52474d909b5c0f2b10c002e04be9e7d
+
+=== 65 packages/kit/test/apps/basics/src/routes/match/+page.svelte	ast.sha256
+954a8de0c97ae0318baa554bf1515418ca4082cefb51fc488b8456e18d7e116e
+
+=== 65 packages/kit/test/apps/basics/src/routes/match/load/foo/+page.svelte	ast.sha256
+c905e447f9415d7128d180919cedb9689022ee19f00ce37cfa692a51a09b1d28
+
+=== 65 packages/kit/test/apps/basics/src/routes/match/slug/[slug]/+page.svelte	ast.sha256
+bae30607ce26583958b9d8380ca13c1ee5b671f370cea476d2b62fe33142f8aa
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/+layout.svelte	ast.sha256
+d19e915c619e4223b27547285f361c1efd6b7f5d7d6b9a846d6c364d2e6036da
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/a/+page.svelte	ast.sha256
+37cc1f25f588fa94f4d364921cd08156440927e4b875fe381ada0a3819c1e5d6
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate-properly-removed/b/+page.svelte	ast.sha256
+276d3e5b4a441ed303824bb690bb5191dd2d510600def77bf3875005693a005f
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/a/+page.svelte	ast.sha256
+a16d743b4f795971218dd1d2ee711eabaf281f8193f460dc384f330ca6e8852e
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/after-navigate/b/+page.svelte	ast.sha256
+4d60827021efdc7019e9f8f1652d955684bdda3bc2468be64fafae6c84ec3d27
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/complete/+page.svelte	ast.sha256
+27b88e94e27f8352c4e97893cd26a0cfa61992dedcca6a0f700606479c143ff2
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/event/+layout.svelte	ast.sha256
+f0549d4f810cc7370162af1624458879db995221c2b0f333c008202a89584cfd
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/hash-links/+page.svelte	ast.sha256
+a984e1973a78b2d1c33a9105913c1ababf945ca2f34e860b23d8992eb4edc88b
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/before-navigate/prevent-navigation/+page.svelte	ast.sha256
+eed3778ae609ed5f411c5f132fa90d72348ad6e85d8e9427aac41cc55f525bcb
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/on-navigate/[x]/+page.svelte	ast.sha256
+6e8d93be7a0a39a10d66faee67d20536dc54f24c3e1ee1c3ab16f38e2667b0c5
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/scroll-state/a/+page.svelte	ast.sha256
+e35ba5d27b456f2fd87b001d4949f71df8547dcf532ff3758d73118496accdb3
+
+=== 65 packages/kit/test/apps/basics/src/routes/navigation-lifecycle/scroll-state/b/+page.svelte	ast.sha256
+874378977e4f712ed443c90be7f692270ad04de09d2e7233c6a5c274536f1665
+
+=== 65 packages/kit/test/apps/basics/src/routes/nested-layout/+layout.svelte	ast.sha256
+1c286220c93a9eef2b97db7e8353101bad97b25e2f60d0b0a2a5827bac72c2c3
+
+=== 65 packages/kit/test/apps/basics/src/routes/nested-layout/+page.svelte	ast.sha256
+34784f78fd0915c3382a66f069736947c20c654b9a54a737f39bfa01ac7e04bc
+
+=== 65 packages/kit/test/apps/basics/src/routes/nested-layout/error/+page.svelte	ast.sha256
+e11e8078510e98e0f19faaf701cb78a62a92aa75c634e0d6b06cceef2847b031
+
+=== 65 packages/kit/test/apps/basics/src/routes/nested-layout/foo/+layout.svelte	ast.sha256
+5521a067eb6d6c2d556e13bb4a3991d1c463171ebfb587986c3851c26269b67e
+
+=== 65 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+error.svelte	ast.sha256
+660c6b5e2d7c16a4414f1091db761b9000b9f05ffc8e31ea6c7019234061b980
+
+=== 65 packages/kit/test/apps/basics/src/routes/nested-layout/foo/bar/+layout.svelte	ast.sha256
+d15997f356edf11e5b3707d5c487936038f3dc2956a062047356818a488dd755
+
+=== 65 packages/kit/test/apps/basics/src/routes/nested-layout/foo/baz/+page.svelte	ast.sha256
+5e9f30e7550c01c158d90aff6ee4e07938a673a3ff8e57cdf3f7c47da17ef6fb
+
+=== 65 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+layout@.svelte	ast.sha256
+80108c7a41e73c27a9602a9c5cc0919f0e271b8e4e072ebd82e12ba2e6ba8d30
+
+=== 65 packages/kit/test/apps/basics/src/routes/nested-layout/reset/+page.svelte	ast.sha256
+76827dce08dd117b6de120cfb13f8a83f0f57a18d1df9ec0b4ea1aac9b9e0a84
+
+=== 65 packages/kit/test/apps/basics/src/routes/no-ssr/+page.svelte	ast.sha256
+974d7321fe08fb7732f7e7e08bff2cc3c7a220366577dfabae208b5d747c6816
+
+=== 65 packages/kit/test/apps/basics/src/routes/no-ssr/after-navigate/+page.svelte	ast.sha256
+53eeac2851f957f6995ff3aa6a6ef938032b5f8abe4d7f2d001d855d9dcff987
+
+=== 65 packages/kit/test/apps/basics/src/routes/no-ssr/browser-only-global/+page.svelte	ast.sha256
+f65666cc7353e944b49ec4322e9cce29f37f673512615fef5b3a623ecda1a085
+
+=== 65 packages/kit/test/apps/basics/src/routes/no-ssr/margin/+page.svelte	ast.sha256
+bfd7f87c4d4f92208b49cc379d9375a56e8db8cb4f381cbe864e4c72da0302fc
+
+=== 65 packages/kit/test/apps/basics/src/routes/no-ssr/ssr-page-config/layout/overwrite/+page.svelte	ast.sha256
+c7953d10eeec72e84a7cb42c64582ef790a9690a131d6b659fb97ac26f4058a2
+
+=== 65 packages/kit/test/apps/basics/src/routes/origin/+page.svelte	ast.sha256
+ef399a75cea197d91ee6d4a9de0d48c8f9403aea006ed75c7271b237ad57ed68
+
+=== 65 packages/kit/test/apps/basics/src/routes/params-prop/+layout.svelte	ast.sha256
+910a150ca8fede723f7f3515253774ff66d5fc588edf31099145702f40568231
+
+=== 65 packages/kit/test/apps/basics/src/routes/params-prop/[x]/+page.svelte	ast.sha256
+d44ad07ed5a891558f29bfaf322cd70614d60117caf7aa5345ce1e5a6c79b4b8
+
+=== 65 packages/kit/test/apps/basics/src/routes/preload-code-on-load/+page.svelte	ast.sha256
+4388e289b7498306bdc31db7208e8298eb3ff30686f59390c46a3039031c3e75
+
+=== 65 packages/kit/test/apps/basics/src/routes/prerendering/+error.svelte	ast.sha256
+4574982f407391a859a96e082331e42dd5cbbf4ed29e1f8d3ce2f792610951a9
+
+=== 65 packages/kit/test/apps/basics/src/routes/prerendering/env/+layout.svelte	ast.sha256
+8af854caaf20c5e289051539f0c6a456785cc9b17f23fb3a93e99c0bb7a393c1
+
+=== 65 packages/kit/test/apps/basics/src/routes/prerendering/env/dynamic/+page.svelte	ast.sha256
+18adb6c36ace6adb3a337f217d267f64c9eb76e045cb8dc1ab3bb535b7bfa691
+
+=== 65 packages/kit/test/apps/basics/src/routes/prerendering/env/prerendered/+page.svelte	ast.sha256
+7feb712d386b8540524251495c573177db58b42701427f0c16dd8a5c2f3d2ee7
+
+=== 65 packages/kit/test/apps/basics/src/routes/prerendering/log-url/+page.svelte	ast.sha256
+c88f6d4430f19fd01d2be041d31b4557d7adf8abd218093cd12183c9f8550d74
+
+=== 65 packages/kit/test/apps/basics/src/routes/prerendering/mutative-endpoint/+page.svelte	ast.sha256
+af191125543a0eb8665386e74ad069afd657adc3619c4e8381d46e279b5a1395
+
+=== 65 packages/kit/test/apps/basics/src/routes/prerendering/no-ssr/+page.svelte	ast.sha256
+7694832042a7b444740ee6b8c0bfe341e6133e95c7f3feaa701c2d815a6c95ba
+
+=== 65 packages/kit/test/apps/basics/src/routes/prerendering/prerendered-endpoint/+page.svelte	ast.sha256
+e9382b6937764658b1c3b54640fa294b7aa695cbf8ffa00b13531c52119d8988
+
+=== 65 packages/kit/test/apps/basics/src/routes/query/echo/+page.svelte	ast.sha256
+49b4203c1a87e4897538f1ec6ff29e250eee64791bde05f8e38c3a510b58842f
+
+=== 65 packages/kit/test/apps/basics/src/routes/redirect-on-load/+page.svelte	ast.sha256
+2daaabafe556b18331346e2153d5df7cf7b1560492b36e700270bc16e27d43b4
+
+=== 65 packages/kit/test/apps/basics/src/routes/redirect-on-load/redirected/+page.svelte	ast.sha256
+db277fd466366264a5b98a57cd6993e92f9a35d2f9c095fefba72cb157caf019
+
+=== 65 packages/kit/test/apps/basics/src/routes/redirect/+page.svelte	ast.sha256
+44fb0748da76ccb51663da0855b4abb344b2384a23a4c64f4db9cce0b5d70b93
+
+=== 65 packages/kit/test/apps/basics/src/routes/redirect/c/+page.svelte	ast.sha256
+55710bd464ea627a8fe3d501772eef3b483bd4e8cae23a7ab06dc277f34d70bf
+
+=== 65 packages/kit/test/apps/basics/src/routes/redirect/in-handle/+page.svelte	ast.sha256
+c4a2c69b1712e52437f34364c1580ccc8bb5e3bd24d5cbd9ad175f15b20abb3b
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/async/+page.svelte	ast.sha256
+d11207b4c7c5b07526b2001c0c9b0d6454c6e26c586c8580f6c0745ba64226ed
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/async/a/+page.svelte	ast.sha256
+6ed9a00c2651ec57e93513030628d2f4664a11a66d5b0f75115837080bc33df3
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/async/b/+page.svelte	ast.sha256
+59070e873a600bbcd58972a6f40a199aa8a7ca1ca8a1f6698ea3f81495d6d8d0
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/basic/+page.svelte	ast.sha256
+b9d1b73e67d13f05d9db2a68a959759c316dd6644428fabbb0c6842d3cf38e0b
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/basic/a/+page.svelte	ast.sha256
+1285d930f2f1edc114041619d1cf71418145a699df7836c22cd8fa882ce3cf0c
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/+page.svelte	ast.sha256
+cb76849cb2ad4852b814c857d49d2db0f5c414d9ee89d74f6d68cc962c21acb6
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/a/+page.svelte	ast.sha256
+7c84b9f4ccd1978b2accffcc2cd25cb66cb657aad304e97845014a4e70e5fbba
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/client-only-redirect/b/+page.svelte	ast.sha256
+bfda14c203e5925a58aa0332d1656a49c066117947131f4f6cecfa33b344ba3e
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/error-handling/+page.svelte	ast.sha256
+b7df216e36a253298920c8bef00d794dbdd646547b02d4f5ce42e56e8f1c009e
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/error-handling/client-error-rewritten/+page.svelte	ast.sha256
+2eebaa5effee935ee6f5b17c0a8f162395129edfd827000d25ec820568664ef9
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/error-handling/client-error/+page.svelte	ast.sha256
+6e70e3e563b2248bc2505694b197802cb8321e3b5edaac11f0c1619ca7f95820
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/error-handling/server-error/+page.svelte	ast.sha256
+a69bea410a0146dde71f8cd474466011a8bc206030d19119effce6664d5f544f
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/external/+page.svelte	ast.sha256
+63d109ad51d4bc0555640677dfb9a159f22cf55d007121bec27917904e9394cc
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/preload-data/+page.svelte	ast.sha256
+eaa24177459d8159ef2154b6876f04be19a4c77dde6710746c084af724f13c15
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/prerendered/+page.svelte	ast.sha256
+3bc88337e6b351a8abd7c214e15440dd83283f3aeb613d6c9e5d77df2853c759
+
+=== 65 packages/kit/test/apps/basics/src/routes/reroute/prerendered/destination/+page.svelte	ast.sha256
+7d0839a7247d3e9c2f7659f7f14a20bf57d68cfe43aeca6a320ce607d8a6226d
+
+=== 65 packages/kit/test/apps/basics/src/routes/reset-focus/+page.svelte	ast.sha256
+7d708e36afa6ac05812379162d86072bbf0346d6431bd3acbd4b90b25cb8c8e8
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/+page.svelte	ast.sha256
+134d0a7c5e012562017c9220198c7de92b3f5f3adeea00093f60216af34ed80e
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/[slug]/+page.svelte	ast.sha256
+732c8a2004061fd7c468039b0c48876de4ba3befe70bdf84573c98b414d1940b
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/cancellation/+layout.svelte	ast.sha256
+cb7777ab3d66cc05fa5cac496749cb12e1035a1ff9ee2a94292cec90537f3936
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/cancellation/+page.svelte	ast.sha256
+4ff7e290e59d552ec935666f51d3cb9e74d90b2afb52f9fae99649f39ea459fa
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/cancellation/a/+page.svelte	ast.sha256
+e24f6a5a2377d19af8c66d0e1e9d4ed04992ee01c2518b8d049f945d0dcd1128
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/client/bar/+page.svelte	ast.sha256
+047687e1a2f06d8dd415c58cb020be9db762646197882e121bc21103c0c85995
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/clobbered-node-name/+page.svelte	ast.sha256
+8003999ee520422390e02664b81d4190ab214e61b624784e38195052182601bb
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/const/+page.svelte	ast.sha256
+3deffdc181e27dcf0c652ea1da31724652205a761abd8e3195e18911376f2506
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/dirs/bar/+page.svelte	ast.sha256
+6ff1082a795cedee3843cc81f8cdb075be9babdded3fc212a70f6da967c9fa45
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/dirs/bar/[a]/+page.svelte	ast.sha256
+758d33345a11388b08f87de84fcddeb2d6051b76828e6be5a9369855e2d4788f
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/dirs/foo/+page.svelte	ast.sha256
+1aa757b89a0310391e52c12cb54c3a6433cf6a870a672f2aa1155d66d389b3ac
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/dirs/foo/[b]/+page.svelte	ast.sha256
+d1f38168b3c11694bc2fd9dc28df9d8ae36d217fd5e439178c0fb0bd11f22f22
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/external-popstate/+page.svelte	ast.sha256
+4e26905dfa8a493db4ad1d3a8c4ca36f2d999428aa85c62d1806d8280f97f31e
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/focus/+page.svelte	ast.sha256
+972064ab63019b034b2d9d0e4236004a4d65fbd018c3ed95c970268e7c493ff8
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/focus/a/+page.svelte	ast.sha256
+1c728030e2093e05efff8d5613bd883c77deeed9e257af488717ab8729c38b24
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/form-get/+page.svelte	ast.sha256
+63ab5e0f67b7223d0a3610cb49f2feb48a254f0b5167be21a9bf1259c8e27aa9
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/form-target-blank/+page.svelte	ast.sha256
+86d0486772e13fba8e676f6a674c3088b578994c604b28d947475698eb6c54cc
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/hashes/a/+page.svelte	ast.sha256
+95030d6d2b5db0a0d706c74c1b10f4d220c9a438a2d848fd359f7d20ba7dbfa4
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/hashes/b/+page.svelte	ast.sha256
+7005a8b79a2138063590ef024ad51bf4a72cccdfd4c6a31b4e958fb8f5352f99
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+layout.svelte	ast.sha256
+bf74b3bc73476b5d1ab72dc7ad31292f7dbffee7b5d3af06c3fd562585ea57ae
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/hashes/base/+page.svelte	ast.sha256
+49cd7a21dcde5edf487ef4afa1f348a566ae6de531a6f1982bc7b9d6c7b2bd42
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/hashes/base/a/+page.svelte	ast.sha256
+5712890df3d971dc0209ef14c9ea298378332b2caaf4fa8ecf550558573808e3
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/hashes/focus/+page.svelte	ast.sha256
+6f3c7e70c7a67d5242f0355a05e661c592cc3dac2a869bf4202df6d008fd66ca
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/hashes/pagestate/+page.svelte	ast.sha256
+f40e787597ca92381c03d940f161bed60525547635b271a8b509281cd975c080
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/hashes/target/+page.svelte	ast.sha256
+c4986af49f7d71d9783ec0aaa29551b865a4a37f8764bfe059daafc601624698
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/link-outside-app-target/source/+page.svelte	ast.sha256
+1eea61465f1e5c09964fbd56ff3f860d48d3eb3ff6c349e4bb2cfb00b4073cfc
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/link-outside-app-target/target/+page.svelte	ast.sha256
+65cd8fac261feb048309786e6de9c3f3234d6c62c474637bdbe87ae75fee92a2
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/long-navigation/+page.svelte	ast.sha256
+55615870499afe3a698e87e80817c8321798cc0c4cb3ca33ac38f602da70f133
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/matched/+layout.svelte	ast.sha256
+30a9106027ea79751ab612b2d7fb0bf6eb6be7a14556b642d03cbe9eacfc7310
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/matched/+page.svelte	ast.sha256
+495db7bb872b90a75d56e3fafb3a3d1597ebfd6cc434a55a3d1332e54103fe26
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/matched/[fallback]/+page.svelte	ast.sha256
+b76101d4852d9a4a35c9693a0c51e1b3de9ac283496bb37bb8667dee51bdcd8a
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/matched/[letter=lowercase]/+page.svelte	ast.sha256
+795232ed24542ccf6c919dfee3e4303652544b2bc508e5ac474dc8a6a19c649a
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/matched/[letter=uppercase]/+page.svelte	ast.sha256
+e3da3d6843d29cf5283f334e333e8b080e0aa0c9406f804423c8af93df55c95c
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/matched/[number=numeric]/+page.svelte	ast.sha256
+788b8d0c3b87b662ba45d7f2c03c2b167df8f5e69a4ce4ce37864d0bd2bcc9e1
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/missing-href/+page.svelte	ast.sha256
+129f0a21b9fde06add9c75396cfbf838dc2c22ed92bcbeb2589ee8d56e40a0a0
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/next-paint/+page.svelte	ast.sha256
+e4b60f07d695da019a5f42df3c3f98950f744dfc7b8fc5230597e7949ae19042
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/preloading/error/+page.svelte	ast.sha256
+c5582c4194475ea1c37f10d1b8ab2514dca3fd5e4ab4ea2581d1351e441fd07d
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/preloading/hash-route/+page.svelte	ast.sha256
+1458dec77523378669257618bd24964b57e202fa4e6520511cea6102e7fdcf9a
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/rest/[...rest]/+page.svelte	ast.sha256
+da222cb8088f47370c553217d97ab2d0b8e26c72465c46b3d10f726f9d175fe9
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/rest/[...rest]/deep/+page.svelte	ast.sha256
+c48c2a1f8f39b0caa1d545b54c5ec645077485d13500b79225e265b9d392a010
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/+layout.svelte	ast.sha256
+8ce3ad8f5805b826146509c5d1d19d36750e2fd583aecbdab78f84711a7c1984
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/rest/non-greedy/[dynamic]-bar/[...rest]/+page.svelte	ast.sha256
+528989ce07daadfb256530106a5f16be76cc0ce977d5b25458e9197440b5ee1c
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/rest/path/+layout.svelte	ast.sha256
+6335666ead68f8b97606ce71a039ba1760fb829c9d9047c500d2476b26ccb336
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/route-id/+page.svelte	ast.sha256
+1a56fa9b140fdd48d0a62c9210cb053ce579a5312f9965664d4e06c492721152
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/route-id/[x]/+page.svelte	ast.sha256
+9820e8e5cacd9b084cefcfdc255a3199d7a0847dbc19d50b2966b4366eee9041
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/shadow-dom/+page.svelte	ast.sha256
+51ea8754cf681eeafb27298a07b258af3baabbec49d68da69f115ca51051d17c
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/slashes/+page.svelte	ast.sha256
+9d284d2970c0f89af7b3865ad36fa1a1951165788ffc5d1a0fa0bdeb039efb95
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/split-params/+page.svelte	ast.sha256
+3a8f7c21898c4524d036d83cdf53e614461c5d9ddd26d5d7976195b6bc3795de
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/split-params/[a]-[b]/+page.svelte	ast.sha256
+0b3ffad7672390ff26f8625e73039ebb8149296fcdff6484eab576944235ec6d
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/symlink-to/+page.svelte	ast.sha256
+57e246d1e56efec3ce786c998b4dd8284676a2da0498530c5b46f09d17851c09
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/trailing-slash-server/+layout.svelte	ast.sha256
+05db510b587ffd5e719c6a1f1ffff20f40fcb459fa5e5ee2194f8cd0a58ac110
+
+=== 65 packages/kit/test/apps/basics/src/routes/routing/trailing-slash/+layout.svelte	ast.sha256
+cd6c3b02ba1e6b2ab5ed87cd056387771fde2a0544a10b4fb757e18e32f34f98
+
+=== 65 packages/kit/test/apps/basics/src/routes/scroll/cross-document/a/+page.svelte	ast.sha256
+2a6f985d6695f65c1b0535c8a7a6d6c3c4e12344d9f78b98ef4a54097843d334
+
+=== 65 packages/kit/test/apps/basics/src/routes/scroll/cross-document/b/+page.svelte	ast.sha256
+d1e3c977fa0130279336f11a1c76f2e30c82c585bf747e3598541ed2289388a8
+
+=== 65 packages/kit/test/apps/basics/src/routes/scroll/push-state/+page.svelte	ast.sha256
+bd1f4d1d9a31b155e3d1e75b154df8f5e0b56a64feeb698f16cabca33b6255dd
+
+=== 65 packages/kit/test/apps/basics/src/routes/scroll/push-state/a/+page.svelte	ast.sha256
+486c156f75fb5b3cdf4674bd98fb41bdef08dbc4e9d8df939211798e18440f2b
+
+=== 65 packages/kit/test/apps/basics/src/routes/scroll/top/+page.svelte	ast.sha256
+8212c4c9f19733304d06e3c480e880ed3ecaed6be73085b5250122255c29417d
+
+=== 65 packages/kit/test/apps/basics/src/routes/selection/+layout.svelte	ast.sha256
+e5e7d3ee388fa5e31e05e52ea1741276d9730c799d455767a67adf50bec82305
+
+=== 65 packages/kit/test/apps/basics/src/routes/serialization-basic/+page.svelte	ast.sha256
+854e6c7d71f61729491915a49c1f4a64a6a058188ad2a04ff4edbb77544c68c9
+
+=== 65 packages/kit/test/apps/basics/src/routes/serialization-basic/child/+page.svelte	ast.sha256
+fe72a319dab05c4ad27f9e2b8c0a910b6f3732fa3d4c864affea6d7e1a1e8b58
+
+=== 65 packages/kit/test/apps/basics/src/routes/serialization-form-enhanced/+page.svelte	ast.sha256
+5ae4a2c9bf8451538e24361cee75a5d87af42e180bf086976648dc8c5db9ffee
+
+=== 65 packages/kit/test/apps/basics/src/routes/serialization-form-non-enhanced/+page.svelte	ast.sha256
+0e0033fa4b89b88164122762e787ee55310d8cb9899ad981bfd7fbf763e1cd57
+
+=== 65 packages/kit/test/apps/basics/src/routes/shadowed/+page.svelte	ast.sha256
+8fb08fb2c846641a0f8201302d5ae0c9e84060dac18e6c7da8588a7af58c3b33
+
+=== 65 packages/kit/test/apps/basics/src/routes/shadowed/error-get/+page.svelte	ast.sha256
+55a746b416868d45eb45c9a427aa6f7d009a248f06eaeb02a7abb56defea6565
+
+=== 65 packages/kit/test/apps/basics/src/routes/shadowed/error-post/+page.svelte	ast.sha256
+4091e1f20119df3eb7794c9293c701c4655b81731fe474627e34f9e8760deca6
+
+=== 65 packages/kit/test/apps/basics/src/routes/shadowed/missing-get/+page.svelte	ast.sha256
+25440ad4a6d638baddc1f75489bf4de5a35b31408c49c076ba5127534886329b
+
+=== 65 packages/kit/test/apps/basics/src/routes/shadowed/post-success-redirect/+page.svelte	ast.sha256
+a50377ddffed6fd829ed40180a73fbc4c12fe050474b352348ab3d9793eda0a9
+
+=== 65 packages/kit/test/apps/basics/src/routes/shadowed/post-success-redirect/redirected/+page.svelte	ast.sha256
+99a7b7d7bfa90fd1e97f98d6b58655f7c5da1b384a7fcdceec0554ebab17766b
+
+=== 65 packages/kit/test/apps/basics/src/routes/shadowed/redirect/+page.svelte	ast.sha256
+3706f083e9b312a5ac5dee2074e40007db8bdd6724cb76ff3d8e2d90b2b9afd6
+
+=== 65 packages/kit/test/apps/basics/src/routes/shadowed/redirect/[a]/+page.svelte	ast.sha256
+d06359150b940d92230e2bac92c2ba06846d5b8baf084cb8133e68f10a899549
+
+=== 65 packages/kit/test/apps/basics/src/routes/shadowed/redirect/b/+page.svelte	ast.sha256
+af8ed3943139cb2bd0f610914e5a5a96632f5f76b0a4058a9c606b79db6b74e6
+
+=== 65 packages/kit/test/apps/basics/src/routes/shadowed/same-render-entry/+page.svelte	ast.sha256
+5e30e0b6091880c6a505d0259d97b4f62f47d739dc041762fcc86a9da632c13f
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+layout.svelte	ast.sha256
+1bf1cf5c48ce6a12a16ed41a7975d7e097cc11b582c301de03419f88a469469b
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/+page.svelte	ast.sha256
+184d293ac58aac0b0fc5e05bcb16a423bd15f5e497ee2f145f364bb6a77a071c
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/[param]/+page.svelte	ast.sha256
+caeb205806930d490265ca15deb572288b5cd9ec6bb4e3aad6674dff4b773bf5
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/a/+page.svelte	ast.sha256
+7620da643503ef92a84a211f6b5c3557f9f5169c7aa7173b44441271f2fd6edf
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/b/+page.svelte	ast.sha256
+ca0c2048626b8ab22f67ad847358189145a331b246208e2a2c8de4d5509129e7
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/effect/+page.svelte	ast.sha256
+9004fb33a54ee6a47b3f313518561ba3ac46a99638d243e6bdfb7188d4e13d05
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/push-state/foo/+page.svelte	ast.sha256
+093f9eb360c13c49f2d75437d9ceefc1ca5b9d93bf10a3bcea9b703f537b2933
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/refresh/+page.svelte	ast.sha256
+bd7a540e64ec0cd00ea22bbbcdeb2b82ba7aba0909551272a2f7d88be1592f54
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+layout.svelte	ast.sha256
+f7510e4b425b5a309bf70070a777d2798efd94feec868295b2b18731fce9aa74
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/+page.svelte	ast.sha256
+a33112cf18d7bf43cf73ef11991c6e00e287bae077d696d3cbbbfca75caeee7f
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/a/+page.svelte	ast.sha256
+5f867dd8f2b99606995fcab2ce501bb42844df5bbcbe8eaaa431f2c7f652150d
+
+=== 65 packages/kit/test/apps/basics/src/routes/shallow-routing/replace-state/effect/+page.svelte	ast.sha256
+f04c87b6d934fd4fdab06f506f83aaa3cba3d38b5e660b9a8cc083a4dbcf2640
+
+=== 65 packages/kit/test/apps/basics/src/routes/snapshot/+layout.svelte	ast.sha256
+a6fee0ae27273ac01b10f2237d00f97571c5cbdf8f60065d5c9610bd3ee15763
+
+=== 65 packages/kit/test/apps/basics/src/routes/snapshot/a/+page.svelte	ast.sha256
+7fe93c7b11b72b58fc8d0723e40700fcc970717b94326c36f87cf7eb51d293f5
+
+=== 65 packages/kit/test/apps/basics/src/routes/snapshot/helper/+layout.svelte	ast.sha256
+a4da881c9926f56129011ba9bff01e757b5a739af38da0a35cce88ebb449391c
+
+=== 65 packages/kit/test/apps/basics/src/routes/snapshot/helper/+page.svelte	ast.sha256
+44eea8e1b7b3413230ce70a3d21f2d9effebecfe29df066947e8e2b428d15686
+
+=== 65 packages/kit/test/apps/basics/src/routes/snapshot/helper/b/+page.svelte	ast.sha256
+608c12502a9e0f1e0d08742032f379fdf295d96a77fdec6dd2769928383d12d0
+
+=== 65 packages/kit/test/apps/basics/src/routes/snapshot/order/+page.svelte	ast.sha256
+72fcd3df3a53df9f2f114afea40dabc559c933c08efcebf8932fd849823f85cd
+
+=== 65 packages/kit/test/apps/basics/src/routes/snapshot/stale/Stale.svelte	ast.sha256
+1b07074e0dbacfe94eea5b283d70fbc505e31a643aaa6ccdeb508759b5e031c5
+
+=== 65 packages/kit/test/apps/basics/src/routes/snapshot/stale/a/+page.svelte	ast.sha256
+386a1064c48887fb4767384c3b378a051ba861395db2b279b153aa6c6fb4789c
+
+=== 65 packages/kit/test/apps/basics/src/routes/snapshot/stale/b/+page.svelte	ast.sha256
+e7ca722cc35b037baa93928c79d965f812361b60a5f29a48d137837f6c041233
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/client-access/+page.svelte	ast.sha256
+5cb25d03c9f23b8d2e5b0e45092e8e6401ee3bcbd64a3f1f70dfa3f135e304a8
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/data/+error.svelte	ast.sha256
+cabe1be5cb90c68e31d1b8fa5f2253ca875a94577cabe244c2689bae3921a8b5
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/data/+layout.svelte	ast.sha256
+4b5e3c4459ca8d7a9193c684eed81b7ad9beb108e5a8516bb01f59fb16925e8d
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/data/state-update/+layout.svelte	ast.sha256
+d2b1d96c21d75ad4deb2dafd087d97dad900edad513c86cf71d013376a138fbf
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/data/state-update/a/+page.svelte	ast.sha256
+dbbd9edd20340c8f909a97471b4f6b4ae8c60ac7400777dddc5766f12242a26f
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/data/state-update/b/+page.svelte	ast.sha256
+4fe500684fde08b8b3d2464fe4c08c81cc29d260b3e0644ba17e21ae814ccc50
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/navigating/+layout.svelte	ast.sha256
+87974fca9dfff5e3239a6033fcae47a475d77f23e0207554289167a06c69335e
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/navigating/a/+page.svelte	ast.sha256
+194c8bcbb2afd6b8b7df930c65f663483f3d6a6b30e481ac47aecf94c95c7a88
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/navigating/b/+page.svelte	ast.sha256
+f39532c7ae904a08614fc202b3651fe1837cf4c005c9db6612ae268e01100aae
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/navigating/c/+page.svelte	ast.sha256
+1829bac77fc6a47f339719507073275c0253cdd5b61bd48ca24e21e193ff7144
+
+=== 65 packages/kit/test/apps/basics/src/routes/state/url/+page.svelte	ast.sha256
+36827283093169888ea2c71fc2bd70cf4caa50c8679814c9a8699fe1d9ebdceb
+
+=== 65 packages/kit/test/apps/basics/src/routes/streaming/+page.svelte	ast.sha256
+c799154068308fdb6b2af269de9e36a9d977a7820f98816e33707837140441f4
+
+=== 65 packages/kit/test/apps/basics/src/routes/tracing/http-error/+page.svelte	ast.sha256
+3aeabbf9c54236ad5850ac0f807fd23ef7e13f377906fd55f35297c039bf1426
+
+=== 65 packages/kit/test/apps/basics/src/routes/tracing/one/two/three/[...four]/+page.svelte	ast.sha256
+b3b44e50bdc20a940c945f7299dc2bae95853839510a08d733ed51d343467403
+
+=== 65 packages/kit/test/apps/basics/src/routes/treeshaking/browser/+page.svelte	ast.sha256
+20190b57575b5d192121632f5a4002f1f008dda6150348a93119798d6573caf4
+
+=== 65 packages/kit/test/apps/basics/src/routes/treeshaking/dev/+page.svelte	ast.sha256
+d2aeaddd0a2a33b88b7e931ab43619149f7c322c8036527062c3a8549ec96a7e
+
+=== 65 packages/kit/test/apps/basics/src/routes/use-action/+page.svelte	ast.sha256
+33e67d593405ec60f849f6b09607a77ef317f207a3562999b150a889e4ec69df
+
+=== 65 packages/kit/test/apps/basics/src/routes/use-action/focus-and-scroll/+page.svelte	ast.sha256
+cc9815a3b6a9284e1e57fa2ae8c5de1b83920d2166d14351b69e413f78fac196
+
+=== 65 packages/kit/test/apps/basics/src/routes/xss/[path]/+page.svelte	ast.sha256
+2911edf2b9688c3fefa8ae8af007bea232ac12746eb56bdbaae3918f189234fb
+
+=== 65 packages/kit/test/apps/basics/src/routes/xss/query-tracking/+page.svelte	ast.sha256
+acd511c1b954d6822af97a41518eeca84f10f2751c87aab0416b2cf7a8b77e95
+
+=== 65 packages/kit/test/apps/basics/src/routes/xss/query/+page.svelte	ast.sha256
+aa2b0ec3987d23fb6f94ba156e446fb41af150fb62085810683697748cfaaa01
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/+error.svelte	ast.sha256
+f1ca09efb4555493fff59ec1123aed7f150056f896cd71a8631af2a9e4985510
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/+layout.svelte	ast.sha256
+3b4814f81a9a474fa44cd605ee457767a67c6164883a086b2589ef6f8bcf0e61
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/+page.svelte	ast.sha256
+82598a36cb1c1c75e435ff4fdebfbb52024cab3edef0d5070f01a6dc10ffe548
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/illegal-imports/app-server/+page.svelte	ast.sha256
+ff8a1e7d1b7f4987e62f8a5cdb752c5b970ed460df3f0bb2ee5a95020d311bff
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/illegal-imports/env/private/+page.svelte	ast.sha256
+53e02c7526279ae3bb684d2a5b89370aa654a91566ff2b94271da7b580415e03
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-folder/path-top-level/+page.svelte	ast.sha256
+7c255e0ac734c40d4c4997481b4c4ad7ce9331457709a4bacd3542b094f986e2
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-folder/relative-nested/+page.svelte	ast.sha256
+ce1619da3991eb5aaf85533b15eac7cab3425ab83b664e6335e163685a624d34
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/illegal-imports/server-only-modules/static-import/+page.svelte	ast.sha256
+3f27192b79e1f7eae22f62d7a5e54882a8ae41e04e17d53d505399f5b7f054b1
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+error.svelte	ast.sha256
+51dac1cacb1e79749161329244ec0c90d7997159f529cfd3d39a3b343a1b2dae
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+layout.svelte	ast.sha256
+33c0a673a648c69b4407fff330f825a4987d34ddfca837797e6b8857eff628c5
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/optimize-deps/+page.svelte	ast.sha256
+ecb24faa5d0b65f3a415aedec8d23eaddb9e8aa00b3c0af4850df02fba2aeeb1
+
+=== 65 packages/kit/test/apps/dev-only/src/routes/request-abort/+page.svelte	ast.sha256
+d9d0ec6ce212d5ba793cf055f17cf4aa697ef0cb2a832fe7571d873e59536c87
+
+=== 65 packages/kit/test/apps/embed/src/routes/embed/a/+page.svelte	ast.sha256
+0dddac5f191946b4218ede50e4ec76c279b17adca5495e58f972c82b207e12f6
+
+=== 65 packages/kit/test/apps/embed/src/routes/embed/b/+page.svelte	ast.sha256
+ad56ee01d3fc1ed0c92f8ef4c5ab109baad27f091c51f4ec1e29efe9c79654fd
+
+=== 65 packages/kit/test/apps/hash-based-routing/src/routes/+layout.svelte	ast.sha256
+893eeb0967597f81c62ac3c5d6dd706ad827f2641138675041427518d566a4ba
+
+=== 65 packages/kit/test/apps/hash-based-routing/src/routes/a/+page.svelte	ast.sha256
+7b4887c2fa8ddf5f3f5ee8822505c27b71846e36511b63a3fa0db1be7818b9bf
+
+=== 65 packages/kit/test/apps/hash-based-routing/src/routes/anchor/+page.svelte	ast.sha256
+343b00f9cdf571e6dcc1885ae7170fa2369f2d835a3b8c9400193f6bae072207
+
+=== 65 packages/kit/test/apps/hash-based-routing/src/routes/b/[slug]/+page.svelte	ast.sha256
+4d34c1a4922f0e1df4c4c07b52b1e06a05d0dd9a232e88ef15a76d9e72f159b0
+
+=== 65 packages/kit/test/apps/hash-based-routing/src/routes/focus/+page.svelte	ast.sha256
+0ebc1b4e7a4b023e926e31a2475af7a8d7dce35b8140023b0a906cc5c11afa26
+
+=== 65 packages/kit/test/apps/hash-based-routing/src/routes/rerouted/+page.svelte	ast.sha256
+4067026902744214eba2fbd9b83f42abe1d79300d3bb3a7e136bbfeca840e1fc
+
+=== 65 packages/kit/test/apps/hash-based-routing/src/routes/resolve/+page.svelte	ast.sha256
+78cece37624daba91e698dcbc14ba644fc49f762f4d9dd3bfb04bf81bf7ef4aa
+
+=== 65 packages/kit/test/apps/no-csr/src/routes/+layout.svelte	ast.sha256
+b0a9741a130da67bea88c1018ce7fa1594a564c8d4847a7fd4bea834ef7a942c
+
+=== 65 packages/kit/test/apps/no-csr/src/routes/assets/+page.svelte	ast.sha256
+320f301eec53c694a737c298b56f1546768ae5365d84f4752dd21500e6d3f6f5
+
+=== 65 packages/kit/test/apps/no-ssr/src/routes/+page.svelte	ast.sha256
+5793c2f0e1e1357264ca23ddc4c5aac58a98566799195c1ff50e85d15628b1f1
+
+=== 65 packages/kit/test/apps/no-ssr/src/routes/root-layout-error/+page.svelte	ast.sha256
+51e9c3c5a3457d3b4fb93002301abf3d8eb19153b1a833b3f0bfba5aa19088cf
+
+=== 65 packages/kit/test/apps/no-ssr/src/routes/styles/+page.svelte	ast.sha256
+d5d224443e2912f2856e7b10eb60cc8ca2d51b2dfa38c562cc2d433d63bb957f
+
+=== 65 packages/kit/test/apps/no-ssr/src/routes/styles/prerendered/+page.svelte	ast.sha256
+c56a4a9aadd467d536b81b6d88160d0490393e791d900272f15629d63ee0653e
+
+=== 65 packages/kit/test/apps/options-2/src/routes/+error.svelte	ast.sha256
+9d5fd77bb458ccd0320488692fbf9d8338cdd2f32d92844c5524d240e9c9b29b
+
+=== 65 packages/kit/test/apps/options-2/src/routes/+page.svelte	ast.sha256
+936ac0acbc8ba926af87976c91d10b6b53590bece5ccc8ba9a668c6a4caf8fda
+
+=== 65 packages/kit/test/apps/options-2/src/routes/asset-preload/prerendered/+page.svelte	ast.sha256
+82d2f7766207ed841a7c1b46f1c14f18ea24c6dce747ccf99d632c2ee3a7e781
+
+=== 65 packages/kit/test/apps/options-2/src/routes/csp-trusted-types/+page.svelte	ast.sha256
+0b30d9280acfff0ecc11ea546fdde8b3c46d0740b60986e7555f9ac6ee5aaa2c
+
+=== 65 packages/kit/test/apps/options-2/src/routes/deeply/nested/page/+page.svelte	ast.sha256
+20db2d241dd1872d9f6b37706312a40f78727377d1164c443b216f69f2322cc3
+
+=== 65 packages/kit/test/apps/options-2/src/routes/env/+page.svelte	ast.sha256
+a238cded1e4539a2c538d7395feab597a4214cb9e7fdf2ca8620f3477db788b6
+
+=== 65 packages/kit/test/apps/options-2/src/routes/env/import-all/+page.svelte	ast.sha256
+15c41f5ca298ac40f754088182869cb25c651e4c51af33cb052050eb3f86c5f4
+
+=== 65 packages/kit/test/apps/options-2/src/routes/env/prerendered/+page.svelte	ast.sha256
+d96ae48211048a1d0a4ad6bab335aef2aac152a62d0b8af0d55ef93e081edbb8
+
+=== 65 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/+page.svelte	ast.sha256
+02ce12fa8e0fd472d0f8bc1a1d2efbbfe12b9618d5bfc4f6216c1383b2605286
+
+=== 65 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/shadowed/[...rest]/+page.svelte	ast.sha256
+a4e11c52984b1486fbb1f6b4bdd8b46668eef35066078e13d2c306c0ddbee71d
+
+=== 65 packages/kit/test/apps/options-2/src/routes/fetch-prerendered/shadowed/static/+page.svelte	ast.sha256
+7460d1f40c5698a0981396bae45ac60dbf3cc50bb2b38e8613c9853e262f4c83
+
+=== 65 packages/kit/test/apps/options-2/src/routes/hello/+page.svelte	ast.sha256
+a4028d2f992be53db73f8c8cdba4977a5183433c13ec8066e211bd33df038975
+
+=== 65 packages/kit/test/apps/options-2/src/routes/remote/+page.svelte	ast.sha256
+d75b0f4becb8511344d1803d28343f0e9ae89f04856575742de0bdf7cccf9fad
+
+=== 65 packages/kit/test/apps/options-2/src/routes/trailing-slash-server/+page.svelte	ast.sha256
+93de6d093853113f150fad57fd84e2ef7f43a68006ac064e616f39dd548a8e55
+
+=== 65 packages/kit/test/apps/options-2/src/routes/trailing-slash-server/prerender/+page.svelte	ast.sha256
+674228901b831747a3e350ede74e0d487bad5e678c7c90a65e016a209fe774ec
+
+=== 65 packages/kit/test/apps/options-3/src/routes/+layout.svelte	ast.sha256
+bbcfa2a2071575492f918ea1992b5cb01bbe39887b9f9ac4984ab3fba11f81aa
+
+=== 65 packages/kit/test/apps/options-3/src/routes/app-manifest/+page.svelte	ast.sha256
+0cb38aaf8e086141dbeb86c82c67d84a7eacbffdba340d9c6c36335c0d9999e9
+
+=== 65 packages/kit/test/apps/options/source/components/Message.svelte	ast.sha256
+dbfdc28788b5182b07f6c9355c4abd6c1801ebc6e68dd9c01288f1f006607e8d
+
+=== 65 packages/kit/test/apps/options/source/components/SharedCSS.svelte	ast.sha256
+9f097ea9008f25f25283e6e3e5dcc9aeefc317d8a1dbd5e0aca4df83328d9874
+
+=== 65 packages/kit/test/apps/options/source/components/SvelteLogo.svelte	ast.sha256
+d3d7c526043007ce48107459216cbe3145297e3d5a187ebf3e1219cae7f6324b
+
+=== 65 packages/kit/test/apps/options/source/pages/+page.svelte	ast.sha256
+cd24715c2462d70aa5bb24a35f03b6376cd26f93fe17dd8370b26eb05f00ffdb
+
+=== 65 packages/kit/test/apps/options/source/pages/base/[slug]/+page.svelte	ast.sha256
+ea09307b24ee5e30df8cc84224a66886bffed54a3f3147f84b0b79f92bf6277d
+
+=== 65 packages/kit/test/apps/options/source/pages/csp-trusted-types/+page.svelte	ast.sha256
+953581f704eecc1443d144baf2ed63a46d6041ae56ed66919ab740a9950baf06
+
+=== 65 packages/kit/test/apps/options/source/pages/csp/+page.svelte	ast.sha256
+6cf63e96b91b88287f6ae648890aa83315ae19f33ba6553e7091195de2c23d9d
+
+=== 65 packages/kit/test/apps/options/source/pages/custom-extensions/+layout.svelte	ast.sha256
+c33c831ee7fcbd001bdc5193b22398fa310f192da3717b5d5f27984a11b85d32
+
+=== 65 packages/kit/test/apps/options/source/pages/custom-extensions/unsafe-replacement/+page.svelte	ast.sha256
+33521f06755d93fa3ffc01367f17a127908321575d82a07e528552e3faa1146d
+
+=== 65 packages/kit/test/apps/options/source/pages/error/+page.svelte	ast.sha256
+d1a64dc60ef5f978ba4aee58cfde9ea2fe03017a75e2fd223d027fdfad12666a
+
+=== 65 packages/kit/test/apps/options/source/pages/fetch/link-outside-base/+page.svelte	ast.sha256
+9c457c2d0809da41aecf78a8aff82a4e1b9d2dba7c659059763d0aebcdb2b9a3
+
+=== 65 packages/kit/test/apps/options/source/pages/fetch/link-root/+page.svelte	ast.sha256
+4a945300cf801f5a6458c3a4f0870c90c13c8e3843a7e368cbcb75d25a41e206
+
+=== 65 packages/kit/test/apps/options/source/pages/inline-style/+page.svelte	ast.sha256
+1fbb291c78b6f421b3d411aa3db81d3ba6b96cb04d173b7b1f845c24d8c39ea3
+
+=== 65 packages/kit/test/apps/options/source/pages/inline-style/conditional-rendering/+page.svelte	ast.sha256
+b5535cb4c577160a6f9d935d98c0229f446f9a92f87c3b63dad87a31aa33f0e5
+
+=== 65 packages/kit/test/apps/options/source/pages/inline-style/conditional-rendering/Component.svelte	ast.sha256
+3fa03624d1939536fc5550a50a1da82bb93ac46cb5b811f15794ed33b79e0cbf
+
+=== 65 packages/kit/test/apps/options/source/pages/inline-style/dynamic-import/Thing.svelte	ast.sha256
+1d44f38e20e6e07178ec6a18cb665813f7a41f7c9b1e6c0cd1fa9e028a5f2cdc
+
+=== 65 packages/kit/test/apps/options/source/pages/inline-style/import-meta/+page.svelte	ast.sha256
+f7b82f38e476419cafe27c30e14f16ee70ea5a584e94e5a2caf14b3dc84c4d1b
+
+=== 65 packages/kit/test/apps/options/source/pages/inline-style/static-dir/+page.svelte	ast.sha256
+3e0f6dc30a9c50b08afeff8c4820b24ded88b16c6f9d4a4369e462cda6de7fb2
+
+=== 65 packages/kit/test/apps/options/source/pages/inline-style/url-encoded/+page.svelte	ast.sha256
+a5e784c51799d3751e342fd6559796ff00684d3a8ab9483c43dc17a13c593a12
+
+=== 65 packages/kit/test/apps/options/source/pages/on-navigate/+layout.svelte	ast.sha256
+343204a6c369d60082d22994556331f5b57c6ed62ab7081ed876c39b02a4f3ca
+
+=== 65 packages/kit/test/apps/options/source/pages/on-navigate/a/+page.svelte	ast.sha256
+74bf4d9e57623b6b22a3f07e29ce9b98b4492631e8f7829568e495b8a7bc891f
+
+=== 65 packages/kit/test/apps/options/source/pages/performance/+page.svelte	ast.sha256
+b6740c440b0b31038fd73339cd5c5804915c4a6e0a9eba656b8ec9657bfda094
+
+=== 65 packages/kit/test/apps/options/source/pages/preloading/+page.svelte	ast.sha256
+098db3137fa060c48a02d7b29dbe685df3779ab38d3e260e69054cda66f732a2
+
+=== 65 packages/kit/test/apps/options/source/pages/preloading/code/+page.svelte	ast.sha256
+7ee6e2866eb75148bb2c86f338f62020f5cb9a2bb843cca1ce5dd19c8a257487
+
+=== 65 packages/kit/test/apps/options/source/pages/routing/link-outside-app-target/source/+page.svelte	ast.sha256
+52270121c27ca988ac278529967c69230a2141047ed8ceaae10a2d568948e3e4
+
+=== 65 packages/kit/test/apps/options/source/pages/routing/link-outside-app-target/target/+page.svelte	ast.sha256
+5f2d275c3262cf794c088475360ba30361704ac81835d60d40a087af0ff702b4
+
+=== 65 packages/kit/test/apps/options/source/pages/slash/+page.svelte	ast.sha256
+a3c5f1133ba98a7dacc6178bddf770bd6de24faec34f569f13b4562f2e4b44c1
+
+=== 65 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+error.svelte	ast.sha256
+2a5b60b9ee7a2ab661ab0f22f43ea4e00e054cccae887f81bcc640ee0aecb9dd
+
+=== 65 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+layout.svelte	ast.sha256
+3d50b7f04759221f02059740987a63f263edce93250c4426853fdb3286da608a
+
+=== 65 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+page.svelte	ast.sha256
+30eb41aa8ff22e2403107f5f8d22a1369019cd5fcd5a266e8e298a530b0f98ba
+
+=== 65 packages/kit/test/apps/writes/src/routes/double-mount/+page.svelte	ast.sha256
+67d832398b924a156813f7c5e1b3fec6ff3e82ef523115ac65c92af148ca38a1
+
+=== 65 packages/kit/test/apps/writes/src/routes/new-route/+page.svelte	ast.sha256
+4443f817084287e7d601f62eead0fe295ce81ddb0dd70801831cc68c00e2a85d
+
+=== 65 packages/kit/test/build-errors/apps/env-private-dynamic/src/routes/+page.svelte	ast.sha256
+6b2d10d80234c19108d57f44caeaa1dd72dc00d2cd597d8ccc2bfdcfadb99290
+
+=== 65 packages/kit/test/build-errors/apps/env-private-service-worker/src/routes/+page.svelte	ast.sha256
+bab2551d3d9e3a562a666c7bc4bdf22ca8e3b9e7cce045b12ae6169e58b1b8ed
+
+=== 65 packages/kit/test/build-errors/apps/prerender-entry-generator-mismatch/src/routes/[slug]/specific/+page.svelte	ast.sha256
+b395520c1e3ce6690041f61b537841c3c7fb487ee15ab9d2ccbb42281364a538
+
+=== 65 packages/kit/test/build-errors/apps/prerender-remote-function-error/src/routes/+page.svelte	ast.sha256
+35f388f969db971a426875f08c813da921a9182d20daeecd69f9eedc0c561b6e
+
+=== 65 packages/kit/test/build-errors/apps/prerenderable-incorrect-fragment/src/routes/+page.svelte	ast.sha256
+c093fbc78f500cc6b6b0a578791b73039ca4d29d535362f46ec6eb15b104a77e
+
+=== 65 packages/kit/test/build-errors/apps/prerenderable-incorrect-fragment/src/routes/foo/+page.svelte	ast.sha256
+2146eec3b744afe3e811ecfbdd0aa6760c1e845e3e8e2f928bf0e0ebcce987b9
+
+=== 65 packages/kit/test/build-errors/apps/prerenderable-not-prerendered/src/routes/+page.svelte	ast.sha256
+062db0f0056336e80646c082dcb4079c5033a21105b32f05dd151dccc32592a8
+
+=== 65 packages/kit/test/build-errors/apps/remote-function-without-flag/src/routes/+page.svelte	ast.sha256
+1ac9ec9cadc07563f0e52ae5be9e5cb3b856a872f617aae57039146d248432e6
+
+=== 65 packages/kit/test/build-errors/apps/removed-lib-import/src/routes/+page.svelte	ast.sha256
+de0712e5b2075f30999fc035d7224120c12e3408ede087076cb9b867ec1bfe41
+
+=== 65 packages/kit/test/build-errors/apps/removed-service-worker-import/src/routes/+page.svelte	ast.sha256
+14b0a3ee91f2331c3069b356b63cb1044c0f3eec4e634c3e7066d5530d2442c1
+
+=== 65 packages/kit/test/build-errors/apps/server-only-folder-dynamic-import/src/routes/+page.svelte	ast.sha256
+32792d207b97e8b9fb7e4641deb9edfa31087c5e19374b4db51ed40e14ee4537
+
+=== 65 packages/kit/test/build-errors/apps/server-only-folder/src/routes/+page.svelte	ast.sha256
+39f1af09cb41ce98de93f2fd39e4fa4e5e2d5e1111ccdd63ff337af21194687c
+
+=== 65 packages/kit/test/build-errors/apps/server-only-module-dynamic-import/src/routes/+page.svelte	ast.sha256
+db4d900417b9d7f08d0153f1bffe8d1315362df725510cc48943d151f445f552
+
+=== 65 packages/kit/test/build-errors/apps/server-only-module/src/routes/+page.svelte	ast.sha256
+8ad08ea7b6e7ecf1886e21e8507cb6cf9aa834ee3cb391482beb290dc7d0d8d0
+
+=== 65 packages/kit/test/build-errors/apps/server-only-shared/src/routes/+page.svelte	ast.sha256
+babc201e534bd5bf4c8bfec8c57d6cffa3004015a79f679ed8206499bb59f0f3
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	ast.sha256
+53c964d8be437ad9c5a369d7827636fd433fcc86f92d1997c4c181817e37ad2a
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/content-type-charset/+page.svelte	ast.sha256
+fafc686b1846ed0ca70f150072e1abed7a5d4bec941db408058e15699bd311d2
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/content-type-charset/[dynamic]/+page.svelte	ast.sha256
+3eefdd6c4e6af838b508377243ff84a0033e052c01c40329db072f0bac25ed9a
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/encoding/[path]/+page.svelte	ast.sha256
+022b85b62260c383ac696713a6b84468ec7944ce437d503adcc7dc8efdd7f716
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/encöded-hash-link/+page.svelte	ast.sha256
+c9f612a8d5abcbb749e6d510771ba883c935845ab111eb3e8307fa486137bace
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/fetch-image/+page.svelte	ast.sha256
+b8fa6087eb86277b12a4d005e4de11372d91fc3bc00a11432bdb046c144dfd0f
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/max-age/+page.svelte	ast.sha256
+b4f4f52b1bea0c062b3d1b8fadea7666041223887fc12f8e7d418ef25f49ec9f
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/missing-id/+page.svelte	ast.sha256
+05c6e177c3f0b08c9c44c063fe673a1a5a113ba719111fb5bf70999db5ff069e
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/optional-params/[[optional]]/+page.svelte	ast.sha256
+05b56cb9be2645dcbb66ffe9b763d7927eb3b27fc17cd809359d1e29486e6318
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/origin/+page.svelte	ast.sha256
+fa7dedeb9f7d5038b4b3702da07d7d3187f28d061a8a25b21ee7b396a323c270
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/prerender-origin/+page.svelte	ast.sha256
+19c52aa5d74d0b1f17311020b96461bf57930e01ea2752d9a52ab802ed5fc506
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/prerender-origin/[dynamic]/+page.svelte	ast.sha256
+acebddfcf115a926c15322ab3c1e8c6b53aa0940dde68d2fb9e87e2d4c267e51
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/prerendering-true/+page.svelte	ast.sha256
+eaeeb7463e1afb23f4eaaad7a0477feb5f62fb322d6235c164197bf2be1222c4
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/resolve-relative/lv1/+page.svelte	ast.sha256
+896303524ac5361037c3da44320a8fbbb926c584cefee35c6f21826cab176bf7
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/resolve-relative/lv1/lv2/+page.svelte	ast.sha256
+ce9e1a4f8a8814a95929f7ab36bbe2eba0a3b3717bf31d853ce4af4c18da26c2
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/spa-shell/+page.svelte	ast.sha256
+e08f5f513c91c16d9fb8bee2863c4e38daf36b8953dcea9d33bbea31aa400ae6
+
+=== 65 packages/kit/test/prerendering/basics/src/routes/初めまして/+page.svelte	ast.sha256
+5aaa3358c92d74e59dcede802983f3e54edecb01db56fbf38c5e7fdfa5bc3821
+
+=== 65 packages/kit/test/prerendering/options/src/routes/(group)/+page.svelte	ast.sha256
+49782039620959f3fddded338c1cab257e975756a17b16fce5b7bc39934bcadc
+
+=== 65 packages/kit/test/prerendering/options/src/routes/+layout.svelte	ast.sha256
+b00b4c151965e342267cee09694bad2b9ec4abf3d75dc9ba1335dd78b09e31d1
+
+=== 65 packages/kit/test/prerendering/options/src/routes/nested/+page.svelte	ast.sha256
+70096af4309a85fa527602b0d9f441d6e7d38cabd917cd32a517c2cfa07694d2
+
+=== 65 packages/kit/test/prerendering/options/src/routes/non-prerendered-page-and-endpoint/+page.svelte	ast.sha256
+32afd1304022e078714e484b63c8ccc4976a5258af4422d7e9aba6e37ce2bd12
+
+=== 65 packages/kit/test/prerendering/paths-base/src/routes/+page.svelte	ast.sha256
+f54147273d88e95abaffe9f82ff92e66ef69bca1beaf17a8a5c9c8864c354daa
+
+=== 65 packages/kit/test/prerendering/paths-base/src/routes/a/b/c/+page.svelte	ast.sha256
+1e2da73e8048aa096ecb81ad3c537e73b225a6be3e993c4fe89555f6e6846cac
+
+=== 65 packages/kit/test/prerendering/paths-base/src/routes/a/b/d/+page.svelte	ast.sha256
+7f72e6502f7aa8250b1dd5dcc2cd9cab36d618ff621a2f79d2bdfde49f0483e5
+
+=== 65 packages/kit/test/prerendering/paths-base/src/routes/assets/+page.svelte	ast.sha256
+2adacce5aadb0546b9ce7d3df78b402a72abca48edbfbf0f0be13d66b444e466
+
+=== 65 packages/kit/test/prerendering/paths-base/src/routes/assets/emitted/+page.svelte	ast.sha256
+d2e56a808e98c41ab157ee7766c8d6dce81060b50abe79c59b02493d018dba3a
+
+=== 65 packages/package/test/fixtures/emitTypes-false/expected/Test.svelte	ast.sha256
+cc4f038328974b2bc3b27bb4c7c5158cb751df8af41246a633eaf9e21e89ea1c
+
+=== 65 packages/package/test/fixtures/svelte-3-types/expected/Test.svelte	ast.sha256
+242be802ab8ceb858a211485e2f5a2942d671dac69ece5c44cc21bfd77772ef1
+
+=== 65 packages/package/test/fixtures/svelte-3-types/src/lib/Test.svelte	ast.sha256
+4e375342587151dcd5ca7780e9c59701ad4d3d34fa6c8a54216bb8864fc5ff54
+
+=== 65 packages/package/test/fixtures/typescript-declaration-map/expected/Test.svelte	ast.sha256
+e6af331f86c456f322b1d79d4fc0902a13b096fe97c373fb35e5df4acdfc5273
+
+=== 65 packages/package/test/fixtures/typescript-declaration-map/src/lib/Test.svelte	ast.sha256
+98946a0ee7e0910ec45c69dbdbe4f800688106ba8fa78ce65f2b07c724f210c0
+
+=== 65 packages/package/test/fixtures/typescript-ts-extension-rewrites/expected/Demo.svelte	ast.sha256
+4cbe5da2c2722acfe34f106998314de752700fd5adeac62114ef255b860169c2
+
+=== 65 packages/package/test/fixtures/typescript-ts-extension-rewrites/src/lib/Demo.svelte	ast.sha256
+27209ceec1492520c339ca631d4f9c22c75531d882f27cdafb0577f22a83d861
+
+=== 65 packages/package/test/watch/expected/post-error.svelte	ast.sha256
+9fe01dd62fc142e0315e95efde705ade04d1431b5b95149550326ea971f53083
+
+=== 65 playgrounds/basic/src/routes/+page.svelte	ast.sha256
+410854e667a7f0b9cf168fa04ea4482c18d8f8b56199dd7789c0c00aff336554
+

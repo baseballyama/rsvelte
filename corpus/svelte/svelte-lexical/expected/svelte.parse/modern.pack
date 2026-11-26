@@ -1,0 +1,502 @@
+# rsvelte pack 1
+=== 65 demos/plaintext-editor/src/App.svelte	ast.sha256
+be875afb4da722cfb8e5c232310ee8736c05aa70c2f01f6b0cf72ea7662a4e92
+
+=== 65 demos/plaintext-editor/src/PlainTextComposer.svelte	ast.sha256
+48bc09dbd5803a617cf7915df665ccaa5dc3cb2bca15122fe7f8ad528247be3c
+
+=== 65 demos/playground-lite/src/App.svelte	ast.sha256
+033da120daf7c54c049f0c2c3cc5eddc874f6eb2b15255427fea345d155bbe1a
+
+=== 65 demos/playground-lite/src/InsertImageDialog.svelte	ast.sha256
+5b4e568cdb378b7be6862adbffee5b66a44ca5023b8a2728fffa6fb1c20a47ed
+
+=== 65 demos/playground-lite/src/RichTextComposer.svelte	ast.sha256
+2252c04de674880b0813eff45762f20314ff2b070922cc2eb82785c19d13f6db
+
+=== 65 demos/playground-lite/src/ToolbarPlayground.svelte	ast.sha256
+275996e102c1a35cb94c762b893cf5f000a1d0317f32f74639c531dbe7b22df3
+
+=== 65 demos/playground-lite/src/settings/Settings.svelte	ast.sha256
+07674e87b97d91b0fa15f4659d8c521d01f76c3b977c12cb5cf4e9b1da47664c
+
+=== 65 demos/playground-lite/src/ui/Switch.svelte	ast.sha256
+840ee9bbb7043074a57d9857771c3ee64c7251613781b304b10f7155892f5381
+
+=== 65 demos/playground/src/App.svelte	ast.sha256
+2ca1a2e1a2d8e5f5d3996f7eb2f2efbaeef4b34ff790bcff3b779120f3ac8448
+
+=== 65 demos/playground/src/RichTextComposer.svelte	ast.sha256
+d08d11d5b9a14eee3d44c1316da16be1354d816bbaa81a9fe22b3f26ff1fe941
+
+=== 65 demos/playground/src/ToolbarPlayground.svelte	ast.sha256
+e4b29cd1d0ddaffa17bb50314508e80a4680229e27c81a8430aae9cdd554dbd2
+
+=== 65 demos/playground/src/settings/Settings.svelte	ast.sha256
+c697d30744875beef4c0e018a702631cb188133b33b07f9e9ad2d23ee88f8eb1
+
+=== 65 demos/qalam/src/App.svelte	ast.sha256
+7d49415ea99fdf16648fa28a4d563a9415ee8a12f2ef454c3d5b691e2ce5472c
+
+=== 65 demos/qalam/src/lib/Editor.svelte	ast.sha256
+349db21fc8713dd0bacdd1b69bae5602b0c0eb84070a202966261f8bc2ea7cd5
+
+=== 65 demos/qalam/src/lib/InsertImageDialog.svelte	ast.sha256
+c8dec546cceec4d64a77b247bf4381dd2722d56a88db8ecf3eea4e62e899db2a
+
+=== 65 demos/qalam/src/lib/Settings.svelte	ast.sha256
+6916033f91c23e4a57bda98702a2ecd497304128d5174243793cf9e43bd73178
+
+=== 65 demos/qalam/src/lib/Sidebar.svelte	ast.sha256
+0eebced5f94d41c64512290b954d6bcd71b4a0ceb045a61393d1b5cc0825e698
+
+=== 65 demos/qalam/src/lib/Toolbar.svelte	ast.sha256
+d05b38c83a6780a7d88a754422717669c75d1ab433c15218bd63e74c5c8c112d
+
+=== 65 demos/richtext-editor/src/App.svelte	ast.sha256
+1bf293e766140d90bfe5a858bcc9d3c5f25fabf1cdd9e9500cfb4883f1cc025b
+
+=== 65 demos/sveltekit/src/RichTextComposer.svelte	ast.sha256
+317a412c03c7f500ddd203547420b7754d5da79cdb6cf075dc5ce781ce56daa0
+
+=== 65 demos/sveltekit/src/routes/+page.svelte	ast.sha256
+03dd0d21f92f18ac90b905186c3abe59e915cab63abd8c5b927711362c14a125
+
+=== 65 packages/svelte-lexical/src/lib/components/actionbar/ActionBar.svelte	ast.sha256
+f6b837ef8022fea1974b7eaee77b57d064cf7703161c443b1b3b44acfbabf99b
+
+=== 65 packages/svelte-lexical/src/lib/components/actionbar/ExportButton.svelte	ast.sha256
+8e2e74cd1b2b2ae89e707cc58ee6acd746624e91f4dd888f0df22522253fa04b
+
+=== 65 packages/svelte-lexical/src/lib/components/actionbar/ImportButton.svelte	ast.sha256
+aabbbd9f234017031c270d367ee28623060e6e6c7a0e2ecf08b6247a8a9a6deb
+
+=== 65 packages/svelte-lexical/src/lib/components/actionbar/ReadonlyButton.svelte	ast.sha256
+461567e4e6d34a838d8c0284e3e46137716bc6d2adcc940f59bdc6948d813fe6
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/button/CloseCircleButton.svelte	ast.sha256
+642fb18c925ff2b41db672eb8aac8f674047ba0ccc485c9cc62a2acc6fc65faf
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPicker.svelte	ast.sha256
+3f6b020e190012e9ba2fac90c3bde865e81bfd5b115e6d25158d795e89686053
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDialog.svelte	ast.sha256
+22c61efdcbd2c11155191eb55dab94ec62b1a9898abc5ffcccf67979e7ba0f38
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/colorpicker/ColorPickerDropDown.svelte	ast.sha256
+53bdcdd3252bcea2f180e209121c6e2afcaad0e7ddf59e96a5e292d49be3a253
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/colorpicker/MoveWrapper.svelte	ast.sha256
+ba6d56310ab3ffbe14f0fa51a1ab117019073f37fa119d9b219c7b7451c796cb
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/contextmenu/ContextMenu.svelte	ast.sha256
+c9e30417e3b6e8b6fe3bdd35fdc1a1def605270593a2bbe2cf39992e7c255e6d
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/contextmenu/TypeAheadMenu.svelte	ast.sha256
+76956a8b1279b56378c10aaf337b52f1add7abd8aff52f978784b67e8920936d
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/dialog/ModalDialog.svelte	ast.sha256
+7fbdbe7705eae0901c1a99ca63d58fa82602ccb1392886dba11cc0ae0690c503
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDown.svelte	ast.sha256
+e4c6d54c0b89494f56067ebc850b46fef79ab0e2b14540998d4200971ada39b9
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDownItem.svelte	ast.sha256
+65e17b380e1661091b2123395b6f0213ce83fce378571916b606784e6de06f6b
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/dropdown/DropDownItems.svelte	ast.sha256
+f31580250312966f27cf574809df6c93ba0331343efcbfc9a4a0112af7e44b02
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/input/FileInput.svelte	ast.sha256
+3c37d9c95320ab971d0186966d3aa2240c7d3d218ffec7c9eb412551f982247c
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/input/NumberInput.svelte	ast.sha256
+c0a58f6067fd731e411afe42699dc7c85f309cf5cf9fd37004e2ccc60050ee57
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/input/TextInput.svelte	ast.sha256
+9c4753b1250dd6b1c02b6a813f1e833585b298abe86d826ce31d6772290a343c
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/portal/Portal.svelte	ast.sha256
+c414e4faa8d8a8a27ca7b11651a4b92c5b12c8848a0f3c94e58632e9a6da29ff
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/theme/ThemeImage.svelte	ast.sha256
+79619988e22851bae4e0a6718eabab7c28f990c68fd6d81825834313e65b5c1b
+
+=== 65 packages/svelte-lexical/src/lib/components/generic/theme/ThemeSelector.svelte	ast.sha256
+f83f81cf9e60b4c9f7bd7cadb1153fba5b9ffd9ad7713029e2d3ba38a0a77fa7
+
+=== 65 packages/svelte-lexical/src/lib/components/richtext/RichTextComposer.svelte	ast.sha256
+98d003415daa0acf09c32ce89fec4bd7bea76a85b92ee3be5ec3970cd78aeaea
+
+=== 65 packages/svelte-lexical/src/lib/components/richtext/ToolbarRichText.svelte	ast.sha256
+10ce17a403469c1b35dae1275694029083bce45b54e1c0d8a169ea29178ce70c
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/BlockFormatDropDown.svelte	ast.sha256
+52e4bb97ef49914e75c2960702396b11de75182c83a59f7c1c20a3d6f5e18c2b
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/BulletDropDrownItem.svelte	ast.sha256
+5601f8faedfc06f724127c7fc517a8f222cabc5074bd456b720e898e8b863177
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/CheckDropDrownItem.svelte	ast.sha256
+16cfa46d68aba7270be7385252456616b3f0ce893972ec1d28902b1f1e6a7de5
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/CodeDropDrownItem.svelte	ast.sha256
+a49491093e7c415c5b13496387c919557c88e1eff944ba717955231eba2d30ea
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/HeadingDropDownItem.svelte	ast.sha256
+ff4b924e61e994eb15f37af19fa4e6592081a5b8b14bd86bc9dce6e79f317db4
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/NumberDropDrownItem.svelte	ast.sha256
+f77e1c355887effde2811c0704a0b2f6f40cdf63aa790761cd2159c20685e19a
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/ParagraphDropDownItem.svelte	ast.sha256
+b702790cf4c030942245cf489ebaa5652aa886c9ca1015a9c65e66361a474b1d
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/BlockFormatDropDown/QuoteDropDrownItem.svelte	ast.sha256
+326ad57af765e03d099043cb8017103c2c0eb32e7484b21b2b10877622ebc856
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/BoldButton.svelte	ast.sha256
+3f29eaa962d6bc56c1a6bc99c81bc94483aa2772bfa40a98c348fd2a83aae9c7
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/CodeLanguageDropDown.svelte	ast.sha256
+37d297547b9e02e0279ae6a918db82e7eef6546f85ecbfdc52b8677586df2e98
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/CodeThemeShikiDropDown.svelte	ast.sha256
+05b0ca4ea1ab48852294876383a3094554fcea9d9c437950660feb3e0d095b6d
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/Divider.svelte	ast.sha256
+b2c1f80c80eed8c8b0bc283dd0e47b2640df7acd496ea467a715ccb3b055bdf7
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/DropDownAlign.svelte	ast.sha256
+0ec026dfd43e085f54d64231d7d53d4ff2583d92d2375a7f4be433711cda90b0
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/DropDownBackColorPicker.svelte	ast.sha256
+8bc42593fcb97d6ec0cdf462af8959a990ee2692c01345565b58f56fbc0ac42f
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/DropDownTextColorPicker.svelte	ast.sha256
+49d802865a6b7c0fa3234ae182357cd44ed0989d37ba3b5704b22e55e0949ac1
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/FontFamilyDropDown.svelte	ast.sha256
+82f7e9f7af3f88bff6ad0e4087b5feb3c74b8111743899a2127569ddbee80049
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/FontSizeDropDown.svelte	ast.sha256
+9c1059ac4e9fdc408234c02fcb9c37130ef3344bfbdefa11a44dc4882156d137
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/FontSizeEntry.svelte	ast.sha256
+af3267e32ce091f9fcfeecfa0e93238714ff5a95e6f2a101681c8d5a6670c0c4
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/FormatCodeButton.svelte	ast.sha256
+a6017eb38e091cc1cbf1ce598e9a3cbd1ab9eb4e29c0d4e8253ee42333fb73b8
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertBlueskyDropDownItem.svelte	ast.sha256
+d78894870a6714ff10214bad0f359385b2eb8dcdba43d8843179622f5b2317c0
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertColumnLayoutDropDownItem.svelte	ast.sha256
+4aa67f9daaf5846abdd29d296fb2e564a6abe8632ccfa3a8a31523aac5b7e402
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertDropDown.svelte	ast.sha256
+24f925e78c52188cdea1ccdcc786aee70e736f299dc64426115285fc02f7763b
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertHRDropDownItem.svelte	ast.sha256
+02b8bdf4dd0cd308259466f16c94acfeb43cabed9af7a60374646408b6e25c98
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertImageDropDownItem.svelte	ast.sha256
+4b3597eaf377e8c38b89580b274c48fe8c531dfedbfd840c117d0be45831cf00
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertTableDropDownItem.svelte	ast.sha256
+14c4b7090abca76145221e7517d2a6fbe21d2e06d5ad2fb4720aa8b0a743863b
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertTweetDropDownItem.svelte	ast.sha256
+117752836d5ff0f4eced89beecc70f4e5185648debeb43b3e4587b9be63b0715
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/InsertDropDown/InsertYoutubeDropDownItem.svelte	ast.sha256
+985d95f949822a59c3f1a8f3013d8db799c25df705a1ec362bb50167c000247e
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/InsertLink.svelte	ast.sha256
+10b66d1add55579eca4e30fd0597ba829579349f32f15962cd31708b83cdbb9c
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/ItalicButton.svelte	ast.sha256
+65cc7c01774561f9a7460163c05164953b98751e0d3953b742a537b4a84d38ea
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/ClearFormattingDropDownItem.svelte	ast.sha256
+a5b1077fd6685db1ef913538aa9c1329e282712f22881ac19cc59535cb604852
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/MoreStylesDropDown.svelte	ast.sha256
+94f8342b43f0086bc0dee963a29efcc57a4317213b6127145bd528dc4ff5035e
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/StrikethroughDropDownItem.svelte	ast.sha256
+1e994fa1a8b47d2dcf3e9529983396eab525f8a96d593f668dff290357afbb4e
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/SubscriptDropDownItem.svelte	ast.sha256
+a2b687ae6c51ecc72042c0a9a3125af76fc8f0d9c604f1fd446b23e4567c6d27
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/MoreStylesDropDown/SuperscriptDropDownItem.svelte	ast.sha256
+ce4891d614641fe347be957dfa65a1867f47262d259889e3982be5df2d9a2431
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/RedoButton.svelte	ast.sha256
+254869a1668db3f999c971801309045a8cb229e5079c45d4b54f57d41df4b168
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/ShortcutsPlugin.svelte	ast.sha256
+e05271e32340662b6d66b9e4efadac95ad5e15c710515d947769ebbf6d14dfe3
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/StateStoreRichTextUpdator.svelte	ast.sha256
+9ca52ff4eb97ff5474e8934ff1d7ff40022cd592ad877752750961c6e499bef0
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/StrikethroughButton.svelte	ast.sha256
+95b2528c98134813bc6c93945057275f2fac48562b06cd13019e11199dfcec65
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/Toolbar.svelte	ast.sha256
+a6dc3582667dd3452810e53bb084c4159edca2fe57ca04a597b81a3dddf70237
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/UnderlineButton.svelte	ast.sha256
+052aaf632dfcb9ba2fac3c8ca037e340e68bc14dc489a8b7818981044ca1ee07
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/UndoButton.svelte	ast.sha256
+b89562cac99cdcbda8d95b48ce18fdeae7cb97f95e65b519aa480d498cce28fc
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertBlueskyDialog.svelte	ast.sha256
+6662a4e64e1e593b1832cbdc24cf23cf044b4e5afcc1a7c464e0919644e26966
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertColumnsDialog.svelte	ast.sha256
+257dccf68e4b42cb6f4b7aa87e6dc23aae3e60bb926280f302222a0901baa572
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageDialog.svelte	ast.sha256
+5573a4666e3576cde679678a2377cad49a99edd971b0f0826af29f8e95048165
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageUploadedDialogBody.svelte	ast.sha256
+7bbe9b50b2944d38d1fde37599d6ac00b0d6c0e23d4e0d0555fa7b7aa7f277ba
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertImageUriDialogBody.svelte	ast.sha256
+102dab3f8f30b0ec3db1edcf11e71ca2a3e386d39a097c5a39ecdf44669ad359
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTableDialog.svelte	ast.sha256
+49aeaccad08cc845dbf7847013d4b2487661dd8e9dd3cbd1faf9dcaf27bed04f
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertTweetDialog.svelte	ast.sha256
+700f01b68f15ee8a8922fec69689543e7e642c7653d1c095dffdc9abd8654855
+
+=== 65 packages/svelte-lexical/src/lib/components/toolbar/dialogs/InsertYoutubeDialog.svelte	ast.sha256
+82795b7afbac1877f51bc7ef2acc8a6576378fb3ca1cb2f4054509ffafb58a79
+
+=== 65 packages/svelte-lexical/src/lib/core/Composer.svelte	ast.sha256
+2a235bcab7031b6081ea587cfa4be8d4372a97b3373b4e9cf41e5afc73eb4297
+
+=== 65 packages/svelte-lexical/src/lib/core/ContentEditable.svelte	ast.sha256
+387b1aacfa93d6183134d181e675cc8e1097103e9cc2be084bbb9f543c3377a3
+
+=== 65 packages/svelte-lexical/src/lib/core/Decorator.svelte	ast.sha256
+ff80b2fc68f9a20b1668c2c489c361a764c8aaa4878732e8ae49a127561edbad
+
+=== 65 packages/svelte-lexical/src/lib/core/NestedComposer.svelte	ast.sha256
+7058fd721c691c3807464e59d8c313b6f7f0134f4465abf17efca324ddad863a
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/AutoFocusPlugin.svelte	ast.sha256
+ae2ee9727eb4461bd4b51f081d6559632116e6337beff73c3b887391ab855482
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPlugin.svelte	ast.sha256
+6e79736aad57c55861554ef4adf0fd32e28375d529580a0fb537983e9bc8e2a9
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/AutoLink/AutoLinkPluginCore.svelte	ast.sha256
+e950f9cf38618361bd030e1b6967f457ec5371b1ce21d54965dcabca5baaf3e5
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/BlockWithAlignableContents.svelte	ast.sha256
+93d5e7372070b17d953e758edf0762dde8cba7d238aad9735f6097ce3b19c7a8
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/CheckListPlugin.svelte	ast.sha256
+291f9f57c246c7f8bfab6c263963b1a84c7c55024fd85c421fc8734434b90379
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/CodeActionMenuPlugin.svelte	ast.sha256
+6b669a929cacdcee0ff35db6faebf6e014c378dcb9e08de260ff8c171e24414b
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/CopyButton.svelte	ast.sha256
+f63f88273104e5c87d319e68fa15ecebe6a20d6827b9f99e95f3efcd33882a21
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeActionMenuPlugin/components/PrettierButton.svelte	ast.sha256
+c33fa48ad13bebe598964284963caa51b3eecf1c7d3170f0fff2ad8b3df31d4b
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeHighlightPrismPlugin.svelte	ast.sha256
+2b7db4e919aa6f84df91f1c5e99af85a7d9c4c07e001c308f71bedbbd36d4d1e
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/CodeBlock/CodeHighlightShikiPlugin.svelte	ast.sha256
+b4695f46660591cb3fbbaa18b194225618802ff7b343d9cbb4fd02a7bd83ccaf
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/ColumnsLayout/ColumnLayoutPlugin.svelte	ast.sha256
+a1b7b40b0b40235d26c4345d107241cec000f4b10e0761fce8fd84c06cc4a942
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuItem.svelte	ast.sha256
+0721d1ecbf87c8917a34b54dfd5aaddee975cdbfcd3053fe0a9945bf8d3e10ac
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/ComponentPicker/ComponentPickerMenuPlugin.svelte	ast.sha256
+226f515669a29e3d7f2d073412cd8da9b12492c843d98522509d958792bdaf33
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/HashtagPlugin.svelte	ast.sha256
+d84ad7394be3d020733a7eb2c14ec8c318f2bbcfc9caa30007f2014d1b89ba73
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/HistoryPlugin.svelte	ast.sha256
+23fb3506fdb800ab0cac5b788ffa749a557b8b0fa2a1b7d9012fa541d7579866
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/HorizontalRuleComponent.svelte	ast.sha256
+2d02b25baa5b0c9307dfa032ee1d8997fe18cf520c31bc7fc9e45342e6aa1db6
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/HorizontalRulePlugin.svelte	ast.sha256
+a0ac869bc0d110d07f0ad2eec39986fc835e48e5e24d3b1a2866b577ba281b28
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorCollaborationPlugin.svelte	ast.sha256
+201cc3592ba88a0ddc36284197affb7a2b8df6bb2777a9a3c6b29242aa4e9862
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/Image/CaptionEditorHistoryPlugin.svelte	ast.sha256
+02481e1cd33a0fd673f359fd8ef32433a2569dc3ba70d40930bb60e71b8ab5ef
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/Image/ImageComponent.svelte	ast.sha256
+06f07498701a1d105cadf5f388be6dc1d3326a7d0f3a5175f019266f05debd5b
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/Image/ImagePlugin.svelte	ast.sha256
+2c7db40a4cff812b6d17f6ba83ad8675e9d74b9837208e5e4a5b38fedcd4fd90
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/Image/ImageResizer.svelte	ast.sha256
+eeead98925c279128abd202c3105ca5e78c9f4b833b1404342a1148ae0fd6a7a
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/KeywordPlugin.svelte	ast.sha256
+0f41e07af9dc25d6ced00eeb915cb40e714d62192036192c9cb0220bfcd45738
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/ListPlugin.svelte	ast.sha256
+ad44598a7ba154b63dff649312c28fe57d19b1337a72ffed8fb89e3c6e117476
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/MarkdownShortcut/MarkdownShortcutPlugin.svelte	ast.sha256
+5c7f210c3fd43901fb6f78aa113eb7a9be887d90aff07e83dce885c6e7120ef4
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/OnChangePlugin.svelte	ast.sha256
+cc45e8fa417010133150844361fc1fd682a479fbd95580aec49f67689572ba39
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/PlaceHolder.svelte	ast.sha256
+d00dde67f210171a81ba36c10f2b8d64dcf0467a024c666bcbecf2da603304b1
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/PlainTextPlugin.svelte	ast.sha256
+05249b3b57985097b11a19cb49d131f1f1debe5ad5ceef4d6c35d138627aed9d
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/RichTextPlugin.svelte	ast.sha256
+2d53683ad11a763b1028b83e04d9ec54f7f2ff3bd81a720eb385448f6f349e2a
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/SharedHistoryPlugin.svelte	ast.sha256
+84ff315c046c66eb62f93cd69604a3193f870f168748f2493e90b40f46030d76
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/TabIndentationPlugin.svelte	ast.sha256
+ee4b976871b9165cb903a7b8fe7dc2d1faec62b0a78d1be49c73d07577430dcd
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenu.svelte	ast.sha256
+cc12cb51cdf26e2a3695c80adc383eaed58f1a97075c6feb8051c3fcc454ad4a
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/Table/TableActionMenuPlugin.svelte	ast.sha256
+482bf4ebe025e45f2b14e08eb0293147a4cf5eace552a407ef227ea5442b25b7
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/Table/TableCellResizerPlugin.svelte	ast.sha256
+fcf6437745305665be2b72ee582df5b9685844325b6b41201de8983fc1db0e91
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/Table/TableHoverActionPlugin.svelte	ast.sha256
+bf85b81e5f10382383ba7ee6722a870c47c4959cee2de59b23af421ac91fa6f8
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/Table/TablePlugin.svelte	ast.sha256
+8610a8e0e5c2713ba2513a162ab25c6e204e6bb819d6463ddaf0230401dc18a0
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/TreeView/CommandsLog.svelte	ast.sha256
+2f41dda4f02fd2ba1eefd034b9fbc0358af3e4a50a49cd9d3e39c21298a688fd
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeView.svelte	ast.sha256
+b2d200985c2808c4d7381011591e2e12b12d902654695abdd1d712502ad5c933
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/TreeView/TreeViewPlugin.svelte	ast.sha256
+54cc20d9cb32ff07644e846feaf4fab8c7fb870cbe741fbee4691800468dce62
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPlugin.svelte	ast.sha256
+e49f689bacf4353f7193b24accb459854571fab709982723582569ba0e2d6d92
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/bluesky/BlueskyPostComponent.svelte	ast.sha256
+4a48ad3a4a9bfc4d43823ae70137c4ce9e39558519f3775255d3f5d00752b03b
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/collaboration/CollaborationPlugin.svelte	ast.sha256
+7bb80fcd8eecb69c0dc11d8b279cb330458ddd16f6dbfd84216961fa00a53f54
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsCollaboration.svelte	ast.sha256
+18aa2e78fc192bda227eb0f7ce3053c871d350d5d10a6c370ccebedeec14f25b
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsFocusTracking.svelte	ast.sha256
+6e2e85fa6b5c0db57bbac9739d1c1446b748786765e96fab523f2c36fc47e6f5
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/collaboration/YjsHistory.svelte	ast.sha256
+0cdc447eae2cb0e2e0550437b4948f536b3bfc86c36ff6382d151ab8fe56a7cc
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditor.svelte	ast.sha256
+dc3ffa3560be74c12ea2851edf69fdacb45111e03818c589466b51b4fd6662f1
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/link/FloatingLinkEditorPlugin.svelte	ast.sha256
+bc70bd75db4c62f63227fb959eb1c243c01772469a486608cfb0df6fa2446215
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/link/LinkPlugin.svelte	ast.sha256
+ab41801831b1839d5d56c4cc025234241b9bcc27bf2f6fa98c4a4d417465e1dd
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/twitter/TweetComponent.svelte	ast.sha256
+41d1287ed53ecca7ea58db990ebc945c04dc33fbccd8b4eb65a27b195f4491aa
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/twitter/TwitterPlugin.svelte	ast.sha256
+d4b38ac1693f21259b1327e6e798b011a1fc28c88cba1af17f00c13bd20bff5b
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/youtube/YouTubeComponent.svelte	ast.sha256
+14f196f39dc6d6b8d3976e28b3810f22103b89bc3f48906c9c0fde1539686438
+
+=== 65 packages/svelte-lexical/src/lib/core/plugins/youtube/YoutubePlugin.svelte	ast.sha256
+b6c2ef0358781c2f368ec708d850e88f52003d5d4443935dd18bdbc62e3f8fa7
+
+=== 65 packages/svelte-lexical/src/routes/+page.svelte	ast.sha256
+280e424b9c4c167d4c959e3ad6c4264bb6aef377b62681ae1708dd8ce5956a36
+
+=== 65 packages/svelte-lexical/src/routes/GitHubButton.svelte	ast.sha256
+2f8489db0bac557d1597624dbe95237bacc949a2ce176c8c07d10833f9dbf98a
+
+=== 65 packages/svelte-lexical/src/routes/PlaygroundButton.svelte	ast.sha256
+1a9782b6d9c5592d16614cd039312cbf74a037ccb5d46224f9948bed4470f691
+
+=== 65 packages/svelte-lexical/src/routes/RichTextComposer.svelte	ast.sha256
+ffaf657383dc195ca9b9e9ed9959cbd9e96102ba3af05776bf36df4c723bc47a
+
+=== 65 packages/svelte-lexical/src/routes/RichTextToolbar.svelte	ast.sha256
+91ba0772dc72ac0e4936c1bca6140fd2bc1519f6e293f64f803935759282fbf5
+
+=== 65 packages/svelte-lexical/src/routes/examples/+page.svelte	ast.sha256
+c075a906a5ee2bdf23ad35eadf4bbc4dafa6db2c37ca83e1645981be51fef19b
+
+=== 65 packages/svelte-lexical/src/routes/examples/Composer1PlainText.svelte	ast.sha256
+32e76671dbb511410251042c2403e3f01464e54216e49a9dc6048529a1dcb727
+
+=== 65 packages/svelte-lexical/src/routes/examples/Composer1Toolbar.svelte	ast.sha256
+16c7823565b8146bdf759e555a882f96d03125da8c3c7320b1b1136e73f1ad2c
+
+=== 65 packages/svelte-lexical/src/routes/examples/Composer2RichTextBasic.svelte	ast.sha256
+d3814468c8963ec52fed381e3a8b248a86d77961da855ad6847a50aebea711ae
+
+=== 65 packages/svelte-lexical/src/routes/examples/Composer2Toolbar.svelte	ast.sha256
+d8e9a899ffaeabc065c4ffe4b62f3005222ff1bfa10bf04e9b3c290efa70b214
+
+=== 65 packages/svelte-lexical/src/routes/examples/Composer3RichTextAdv.svelte	ast.sha256
+24853fea00490c2ad9fe5fced4abfff0549a11bb775fc86251ff7a9efa687184
+
+=== 65 packages/svelte-lexical/src/routes/examples/Composer3Toolbar.svelte	ast.sha256
+dd86c7d7bdb0d813efe56646c60d94b4cd2f90ba32c63da871025ba0d30b0dcf
+
+=== 65 packages/svelte-lexical/src/routes/examples/Composer4RTLinks.svelte	ast.sha256
+aac125db41442342e1b2eb5aab02568d11abd9ca315c0fa88548103ca38ba927
+
+=== 65 packages/svelte-lexical/src/routes/examples/Composer4Toolbar.svelte	ast.sha256
+f59a94ddc07ce818ebd205058024f4aa8a5a7fc7f5ac725ebe08c422406d1a6b
+
+=== 65 packages/svelte-lexical/src/routes/examples/Composer5Code.svelte	ast.sha256
+c485494ae28baf9b4839b7bfbcaac14405dbce1e6dbb00d2262b441f5512a35c
+
+=== 65 packages/svelte-lexical/src/routes/examples/Composer5Toolbar.svelte	ast.sha256
+3648a7eaf2fea477b3e6d658a3c6356348c7e3edf1bb3710b1d44bb2df06a944
+
+=== 65 packages/svelte-lexical/src/routes/examples/html/+page.svelte	ast.sha256
+aef6dde4cc43354dbb97bb058391b2165ae674142690eae742583118f2651aab
+
+=== 65 packages/svelte-lexical/src/routes/examples/html/RichTextComposer.svelte	ast.sha256
+2ffe96ab80a3b5d7bc873eee321dfb5ec481d1f0a0205be085b480b85ae503e2
+
