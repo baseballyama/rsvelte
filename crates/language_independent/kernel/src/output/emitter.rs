@@ -284,6 +284,9 @@ impl Emitter {
             .map(|m| {
                 let text =
                     &self.out.as_bytes()[m.generated as usize..(m.generated + m.len) as usize];
+                if text.is_ascii() {
+                    return text.len();
+                }
                 // A character starts at each byte that is not a UTF-8 continuation byte.
                 text.iter().filter(|&&b| b & 0xC0 != 0x80).count()
             })
