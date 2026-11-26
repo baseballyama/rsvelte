@@ -453,9 +453,9 @@ export default $$v_defineVaporComponent({
 		const observed = $$ref("");
 		function dispatch() {
 			video.value.currentTime = 8;
-			video.value.volume = .25;
+			video.value.volume = 0.25;
 			video.value.muted = false;
-			video.value.playbackRate = .5;
+			video.value.playbackRate = 0.5;
 			for (const event of [
 				"timeupdate",
 				"volumechange",
@@ -498,7 +498,7 @@ export default $$v_defineVaporComponent({
 		$$v_insert([$$v_n10], $$v_n7);
 		$$v_on($$v_n7, "click", () => {
 			time.value = 5;
-			volume.value = .5;
+			volume.value = 0.5;
 			muted.value = true;
 			rate.value = 2;
 		});

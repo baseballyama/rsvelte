@@ -4,6 +4,7 @@ use rsvelte_kernel::computation::registry::Registry;
 use super::*;
 use crate::compiler::VERSION;
 
+mod numbers;
 mod prologue;
 
 /// What the task writes for `path` after the banner, or its diagnostics when it writes nothing.
@@ -315,7 +316,7 @@ fn a_typescript_module_drops_an_import_that_reads_require() {
 }
 
 /// The module after its runtime import, without whitespace.
-fn body(source: &str, target: Target) -> String {
+pub(super) fn body(source: &str, target: Target) -> String {
     let compiled = compile("a.svelte.ts", source, target);
     let (_, body) = compiled.split_once('\n').unwrap_or_default();
     body.chars().filter(|c| !c.is_whitespace()).collect()
@@ -566,3 +567,4 @@ fn a_typescript_module_is_analyzed_with_what_its_emit_lowers() {
 
 mod acorn_typescript;
 mod ambient_enums;
+mod erased_errors;

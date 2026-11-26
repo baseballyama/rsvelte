@@ -18,21 +18,7 @@ pub(super) fn number(
     start: u32,
     tokens: impl Iterator<Item = Token>,
 ) -> Option<Acorn> {
-    let before = tokens.take_while(|token| token.start() < start).last();
-    let from = match before {
-        Some(token) if token.end() >= start => token.start(),
-        before => {
-            // No whitespace and no comment ends in a character of a number.
-            let gap = text.get(before.map_or(0, |token| token.end()) as usize..start as usize)?;
-            let read = gap.trim_end_matches(|character: char| {
-                character.is_ascii_alphanumeric() || matches!(character, '_' | '.' | '+' | '-')
-            });
-            let number = &gap[read.len()..];
-            // The host reads the `...` of a spread attribute, so it is not a token.
-            let number = number.strip_prefix("...").unwrap_or(number);
-            start - u32::try_from(number.len()).ok()?
-        }
-    };
+    let from = number_start(text, start, tokens)?;
     let mut reader = Reader {
         text,
         at: from as usize,
@@ -63,6 +49,45 @@ pub(crate) fn read_at(text: &str, at: usize) -> Result<(), Failure> {
     } else {
         Ok(())
     }
+}
+
+/// Where the number oxc's lexer rejects as `error` starts and where acorn's reading of it ends,
+/// when acorn reads it as a shorter number that is the token acorn's parser meets there.
+pub(crate) fn shorter_number(
+    error: &OxcDiagnostic,
+    text: &str,
+    tokens: &[Token],
+) -> Option<(u32, u32)> {
+    if error.message != AFTER_NUMBER {
+        return None;
+    }
+    let from = number_start(text, error.labels.first()?.offset(), tokens.iter().copied())?;
+    let mut reader = Reader {
+        text,
+        at: from as usize,
+    };
+    (reader.at_number() && reader.read().is_ok())
+        .then(|| Some((from, u32::try_from(reader.at).ok()?)))
+        .flatten()
+}
+
+/// Where the number that holds `start` starts, after `tokens`.
+fn number_start(text: &str, start: u32, tokens: impl Iterator<Item = Token>) -> Option<u32> {
+    let before = tokens.take_while(|token| token.start() < start).last();
+    Some(match before {
+        Some(token) if token.end() >= start => token.start(),
+        before => {
+            // No whitespace and no comment ends in a character of a number.
+            let gap = text.get(before.map_or(0, |token| token.end()) as usize..start as usize)?;
+            let read = gap.trim_end_matches(|character: char| {
+                character.is_ascii_alphanumeric() || matches!(character, '_' | '.' | '+' | '-')
+            });
+            let number = &gap[read.len()..];
+            // The host reads the `...` of a spread attribute, so it is not a token.
+            let number = number.strip_prefix("...").unwrap_or(number);
+            start - u32::try_from(number.len()).ok()?
+        }
+    })
 }
 
 /// What acorn throws, and where.

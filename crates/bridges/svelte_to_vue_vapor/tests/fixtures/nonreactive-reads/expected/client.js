@@ -761,7 +761,7 @@ export default $$v_defineVaporComponent({
 		const $$v_n84 = $$v_n83.firstChild;
 		$$v_insert([$$v_n84], $$v_n81);
 		const $$v_n85 = $$v_computed(() => read());
-		const $$v_n86 = $$v_computed(() => read() > 0 ? 1 : .5);
+		const $$v_n86 = $$v_computed(() => read() > 0 ? 1 : 0.5);
 		const $$v_n87 = $$v_computed(() => read() > 0);
 		const $$v_n88 = ($$el) => {
 			if ($$el !== null) {

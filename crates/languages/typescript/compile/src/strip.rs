@@ -134,6 +134,8 @@ pub struct ModuleErasure<'a> {
     allocator: &'a Allocator,
     /// How many namespaces that no `declare` makes ambient hold what it visits.
     namespaces: u32,
+    /// The spans of the statements and the class members it removed, when it records them.
+    erased: Option<Vec<Span>>,
 }
 
 impl std::fmt::Debug for ModuleErasure<'_> {
@@ -148,7 +150,24 @@ impl<'a> ModuleErasure<'a> {
         Self {
             allocator,
             namespaces: 0,
+            erased: None,
         }
+    }
+
+    /// An erasure that records the spans of what it removes.
+    #[must_use]
+    pub const fn recording(allocator: &'a Allocator) -> Self {
+        Self {
+            allocator,
+            namespaces: 0,
+            erased: Some(Vec::new()),
+        }
+    }
+
+    /// The spans of what it removed, in the order it removed them, if it recorded them.
+    #[must_use]
+    pub fn erased(self) -> Vec<Span> {
+        self.erased.unwrap_or_default()
     }
 }
 
@@ -156,8 +175,14 @@ impl<'a> VisitMut<'a> for ModuleErasure<'a> {
     /// An ambient enum in a namespace stays for the lowering, which emits the namespace for it.
     fn visit_statements(&mut self, it: &mut ArenaVec<'a, Statement<'a>>) {
         let in_namespace = self.namespaces > 0;
+        let erased = &mut self.erased;
         it.retain(|s| {
-            !is_erased_statement(s) || is_namespace(s) || in_namespace && is_ambient_enum(s)
+            let kept =
+                !is_erased_statement(s) || is_namespace(s) || in_namespace && is_ambient_enum(s);
+            if let (false, Some(erased)) = (kept, erased.as_mut()) {
+                erased.push(s.span());
+            }
+            kept
         });
         walk_mut::walk_statements(self, it);
     }
@@ -182,9 +207,14 @@ impl<'a> VisitMut<'a> for ModuleErasure<'a> {
 
     /// A member without a runtime meaning goes, and an accessor without a body gets an empty one.
     fn visit_class_body(&mut self, it: &mut ClassBody<'a>) {
+        let erased = &mut self.erased;
         it.body.retain(|element| {
-            !is_type_only_element(element)
-                || matches!(element, ClassElement::MethodDefinition(m) if is_bodiless_accessor(m))
+            let kept = !is_type_only_element(element)
+                || matches!(element, ClassElement::MethodDefinition(m) if is_bodiless_accessor(m));
+            if let (false, Some(erased)) = (kept, erased.as_mut()) {
+                erased.push(element.span());
+            }
+            kept
         });
         walk_mut::walk_class_body(self, it);
     }
