@@ -39,3 +39,40 @@ fn typecheck_prints_what_typescript_7_prints() {
             .native()
     );
 }
+
+/// TypeScript 7.1 checks the parameters of an untyped JavaScript function as TypeScript does, so a
+/// snippet with a parameter its `Snippet` type does not pass is TS2322. TypeScript 6.0.3 treats the
+/// parameter as optional and reports only TS7006.
+#[test]
+fn typecheck_checks_a_javascript_snippet_s_parameters_as_typescript_7_does() {
+    let config = typecheck_config(&rsvelte_test_harness::svelte_content_mapper());
+    let project = Project::new(&[
+        ("app/rsvelte.config.json", &config),
+        (
+            "app/tsconfig.json",
+            r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"target":"esnext","types":[],"skipLibCheck":true,"allowJs":true,"checkJs":true},
+"include":["src"]}"#,
+        ),
+        (
+            "app/src/O.svelte",
+            "<script lang=\"ts\">\n\timport type { Snippet } from \"svelte\";\n\
+             \tlet { foo }: { foo?: Snippet } = $props();\n</script>\n\n<p>x</p>\n",
+        ),
+        (
+            "app/src/App.svelte",
+            "<script>\n\timport O from \"./O.svelte\";\n</script>\n\n\
+             <O>{#snippet foo(q)}{q}{/snippet}</O>\n",
+        ),
+    ]);
+    let output = project.rsvelte_in("app", &["typecheck"]);
+    assert_eq!(
+        format!("{}{}", text(&output.stdout), text(&output.stderr)),
+        "src/App.svelte(5,14): error TS2322: Type '(q: any) => any' is not assignable to type \
+         'Snippet<[]>'.\n  Target signature provides too few arguments. Expected 1 or more, but \
+         got 0.\n\
+         src/App.svelte(5,18): error TS7006: Parameter 'q' implicitly has an 'any' type.\n\
+         \nFound 2 errors in 1 file.\n"
+            .native()
+    );
+}

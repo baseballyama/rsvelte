@@ -925,7 +925,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_kernel"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "memchr",
  "rayon",
@@ -936,7 +936,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_lint_runner"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -945,18 +945,18 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_markup_lint"
-version = "0.7.4"
+version = "0.7.5"
 
 [[package]]
 name = "rsvelte_markup_syntax"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "memchr",
 ]
 
 [[package]]
 name = "rsvelte_plugin_interface"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "rsvelte_kernel",
  "serde",
@@ -965,7 +965,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_compile"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_stylesheet_semantic",
@@ -975,7 +975,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_semantic"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "rsvelte_kernel",
  "rsvelte_stylesheet_syntax",
@@ -983,7 +983,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_stylesheet_syntax"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "rsvelte_kernel",
  "rustc-hash",
@@ -991,7 +991,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_compile"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1016,7 +1016,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_lint"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1044,7 +1044,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_semantic"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "num-bigint",
  "num-traits",
@@ -1066,7 +1066,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_svelte_syntax"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "memchr",
  "oxc_allocator",
@@ -1084,7 +1084,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_compile"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1099,7 +1099,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_lint"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "oxc_ast",
  "oxc_ast_visit",
@@ -1116,7 +1116,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_semantic"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
@@ -1131,7 +1131,7 @@ dependencies = [
 
 [[package]]
 name = "rsvelte_typescript_tree"
-version = "0.7.4"
+version = "0.7.5"
 dependencies = [
  "oxc_allocator",
  "oxc_ast",
