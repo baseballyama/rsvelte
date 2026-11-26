@@ -310,7 +310,8 @@ fn a_sveltekit_route_file_is_typed_as_svelte_check_types_it() {
         ),
     ]);
     // svelte-check 4.7.6 reports only the route without generated types, at the type it inserts.
-    let found = project.findings(None);
+    // One process, so the one that listed the files checks each: no helper hides the insertion.
+    let found = project.findings(Some(1));
     assert_eq!(found.len(), 1, "{found:?}");
     let (file, code, message) = &found[0];
     assert_eq!(

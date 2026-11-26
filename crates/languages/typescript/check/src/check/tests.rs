@@ -11,6 +11,7 @@ fn empty(env: &TypeScriptEnv) -> CheckRequest<'_> {
         env,
         stand_ins: Vec::new(),
         imports: Vec::new(),
+        on_disk: Vec::new(),
     }
 }
 
