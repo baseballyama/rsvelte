@@ -39,12 +39,19 @@ fn a_typescript_module_prints_numbers_as_typescripts_emit_does() {
         assert_eq!(class, "exportclassC{8=1;}", "{target:?}");
         let object = body("export const o = { 010: 1 };\n", target);
         assert_eq!(object, "exportconsto={8:1};", "{target:?}");
-        // svelte prints `(8.).toString()`, TypeScript's `8.` read back: the same tree.
-        let member = compile("a.svelte.ts", "export const a = 010 .toString();\n", target);
-        assert!(
-            member.ends_with("export const a = 8 .toString();\n"),
-            "{member}"
-        );
+        // svelte prints `(8.).toString()`, the `8.` TypeScript writes read back, in the
+        // parentheses esrap writes around a literal whose property is read.
+        for (written, printed) in [("010 .toString()", "8..toString()"), ("1_0 .x", "1_0..x")] {
+            let member = compile(
+                "a.svelte.ts",
+                &format!("export const a = {written};\n"),
+                target,
+            );
+            assert!(
+                member.ends_with(&format!("export const a = {printed};\n")),
+                "{member}"
+            );
+        }
     }
     // A constant enum member is its value, printed as `String(value)` prints it.
     let members = "export enum E { A = 0x10, B = 1 << 10, C = 1e21, D = .5, F = 1_000 }\n";

@@ -3,14 +3,15 @@
 use std::borrow::Cow;
 
 use oxc_allocator::Allocator;
-use oxc_ast::ast::{BigIntLiteral, NumericLiteral};
-use oxc_ast_visit::VisitMut;
+use oxc_ast::ast::{BigIntLiteral, Expression, NumericLiteral, StaticMemberExpression};
+use oxc_ast_visit::{VisitMut, walk_mut};
 
 /// TypeScript's `canUseOriginalText` (6.0.3 at 050880ce59, `src/compiler/utilities.ts:2036`).
 ///
 /// Where it does not allow a literal's source text, the emit prints the text the scanner keeps.
 /// A bigint never keeps its text; a number keeps it unless `TokenFlags.IsInvalid` holds. The
-/// separators an ES2021 target allows stay.
+/// separators an ES2021 target allows stay. A number a property access follows gets the dot the
+/// emit writes after it, as [`with_dot`] says.
 pub struct OriginalText<'o> {
     allocator: &'o Allocator,
 }
@@ -34,6 +35,16 @@ impl<'o> VisitMut<'o> for OriginalText<'o> {
         // without a raw.
         if it.raw.is_some_and(|raw| is_invalid(&raw)) {
             it.raw = None;
+        }
+    }
+
+    fn visit_static_member_expression(&mut self, it: &mut StaticMemberExpression<'o>) {
+        walk_mut::walk_static_member_expression(self, it);
+        if !it.optional
+            && let Expression::NumericLiteral(number) = &mut it.object
+            && let Some(text) = with_dot(number)
+        {
+            number.raw = Some(self.allocator.alloc_str(&text).into());
         }
     }
 
@@ -69,4 +80,22 @@ fn scanned_hexadecimal(raw: &str) -> Option<Cow<'_, str>> {
             .map(|c| c.to_ascii_lowercase()),
     );
     Some(Cow::Owned(text))
+}
+
+/// TypeScript's `mayNeedDotDotForPropertyAccess` (6.0.3 at 050880ce59,
+/// `src/compiler/emitter.ts:2668`): the text of `number`, which a property access follows, with a
+/// dot after it, where the text has no radix prefix, no dot and no exponent. The text is the raw,
+/// or for a number without one `"" + value`, which has a dot or an exponent unless it is an
+/// integer below 1e21.
+fn with_dot(number: &NumericLiteral<'_>) -> Option<String> {
+    let Some(raw) = number.raw else {
+        let integer = number.value.fract() == 0.0 && number.value.abs() < 1e21;
+        return integer.then(|| format!("{}.", number.value));
+    };
+    let prefixed = matches!(
+        raw.as_bytes(),
+        [b'0', b'x' | b'X' | b'b' | b'B' | b'o' | b'O', ..]
+    );
+    let dotted = raw.bytes().any(|b| matches!(b, b'.' | b'e' | b'E'));
+    (!prefixed && !dotted).then(|| format!("{raw}."))
 }

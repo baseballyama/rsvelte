@@ -203,3 +203,42 @@ fn numbers_print_as_typescripts_emit_prints_them() {
         }
     }
 }
+
+#[test]
+fn a_number_a_property_access_follows_prints_as_typescripts_emit_prints_it() {
+    // TypeScript 6.0.3's `transpileModule`, which writes `mayNeedDotDotForPropertyAccess`'s dot.
+    for (written, printed) in [
+        ("1 .toString()", "1..toString()"),
+        ("1_0 .x", "1_0..x"),
+        ("10 .x", "10..x"),
+        ("0 .x", "0..x"),
+        ("1..toString()", "1..toString()"),
+        ("1.0.toString()", "1.0.toString()"),
+        ("1.5.x", "1.5.x"),
+        (".5.x", ".5.x"),
+        ("5..x", "5..x"),
+        ("1e3.x", "1e3.x"),
+        ("1E3.x", "1E3.x"),
+        ("0x10.x", "0x10.x"),
+        ("0X10.x", "0X10.x"),
+        ("0b1.x", "0b1.x"),
+        ("0o7.x", "0o7.x"),
+        ("1n.x", "1n.x"),
+        ("08 .x", "8..x"),
+        ("010 .x", "8..x"),
+        ("1 ?.x", "1?.x"),
+        ("1 [\"x\"]", "1[\"x\"]"),
+        ("1 .x()", "1..x()"),
+        ("-1 .x", "-1..x"),
+        ("1 .x.y", "1..x.y"),
+    ] {
+        for declaration in ["export const a", "const a"] {
+            let allocator = Allocator::default();
+            let source_text = format!("{declaration} = {written};\n");
+            let parsed = Parser::new(&allocator, &source_text, SourceType::ts()).parse();
+            assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+            let expected = format!("{declaration} = {printed};\n");
+            assert_eq!(emit(&parsed.program), expected, "{source_text}");
+        }
+    }
+}
