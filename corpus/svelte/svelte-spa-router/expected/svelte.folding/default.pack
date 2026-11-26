@@ -1,0 +1,41 @@
+# rsvelte pack 1
+=== 59 examples/basic-routing/src/App.svelte	folding.json
+[{"startLine":4,"endLine":8},{"startLine":14,"endLine":19}]
+=== 29 examples/basic-routing/src/routes/Home.svelte	folding.json
+[{"startLine":2,"endLine":5}]
+=== 59 examples/basic-routing/src/routes/Name.svelte	folding.json
+[{"startLine":2,"endLine":5},{"startLine":10,"endLine":11}]
+=== 2 examples/basic-routing/src/routes/NotFound.svelte	folding.json
+[]
+=== 29 examples/basic-routing/src/routes/Wild.svelte	folding.json
+[{"startLine":6,"endLine":7}]
+=== 59 examples/dynamic-imports/src/App.svelte	folding.json
+[{"startLine":4,"endLine":8},{"startLine":14,"endLine":19}]
+=== 29 examples/dynamic-imports/src/routes/Home.svelte	folding.json
+[{"startLine":2,"endLine":4}]
+=== 29 examples/dynamic-imports/src/routes/Loading.svelte	folding.json
+[{"startLine":5,"endLine":6}]
+=== 29 examples/dynamic-imports/src/routes/Wild.svelte	folding.json
+[{"startLine":8,"endLine":9}]
+=== 127 src/Router.svelte	folding.json
+[{"startLine":0,"endLine":297},{"startLine":300,"endLine":600},{"startLine":606,"endLine":609},{"startLine":612,"endLine":614}]
+=== 29 test/app/src/routes/Catalog.svelte	folding.json
+[{"startLine":5,"endLine":9}]
+=== 58 test/app/src/routes/Foo.svelte	folding.json
+[{"startLine":2,"endLine":3},{"startLine":9,"endLine":10}]
+=== 88 test/app/src/routes/Home.svelte	folding.json
+[{"startLine":5,"endLine":7},{"startLine":10,"endLine":12},{"startLine":4,"endLine":15}]
+=== 29 test/app/src/routes/Loading.svelte	folding.json
+[{"startLine":7,"endLine":8}]
+=== 29 test/app/src/routes/Lucky.svelte	folding.json
+[{"startLine":2,"endLine":4}]
+=== 87 test/app/src/routes/Name.svelte	folding.json
+[{"startLine":4,"endLine":5},{"startLine":2,"endLine":6},{"startLine":10,"endLine":11}]
+=== 30 test/app/src/routes/Nested.svelte	folding.json
+[{"startLine":5,"endLine":21}]
+=== 2 test/app/src/routes/NotFound.svelte	folding.json
+[]
+=== 29 test/app/src/routes/Regex.svelte	folding.json
+[{"startLine":4,"endLine":5}]
+=== 29 test/app/src/routes/Wild.svelte	folding.json
+[{"startLine":4,"endLine":5}]

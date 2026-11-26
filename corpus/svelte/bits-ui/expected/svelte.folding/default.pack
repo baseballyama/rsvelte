@@ -1,0 +1,1223 @@
+# rsvelte pack 1
+=== 299 docs/src/lib/components/api-ref/css-vars/css-vars-details-mobile.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":12,"endLine":17},{"startLine":31,"endLine":32},{"startLine":30,"endLine":33},{"startLine":46,"endLine":47},{"startLine":40,"endLine":48},{"startLine":38,"endLine":49},{"startLine":19,"endLine":50},{"startLine":52,"endLine":53},{"startLine":11,"endLine":54}]
+=== 359 docs/src/lib/components/api-ref/css-vars/css-vars-table.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":15,"endLine":16},{"startLine":13,"endLine":18},{"startLine":12,"endLine":19},{"startLine":25,"endLine":27},{"startLine":24,"endLine":28},{"startLine":32,"endLine":33},{"startLine":30,"endLine":35},{"startLine":37,"endLine":38},{"startLine":23,"endLine":39},{"startLine":21,"endLine":41},{"startLine":11,"endLine":42}]
+=== 389 docs/src/lib/components/api-ref/data-attrs/data-attrs-table.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":18,"endLine":19},{"startLine":14,"endLine":21},{"startLine":13,"endLine":22},{"startLine":28,"endLine":30},{"startLine":27,"endLine":31},{"startLine":33,"endLine":34},{"startLine":37,"endLine":38},{"startLine":36,"endLine":39},{"startLine":41,"endLine":42},{"startLine":26,"endLine":43},{"startLine":24,"endLine":45},{"startLine":12,"endLine":46}]
+=== 359 docs/src/lib/components/api-ref/data-attrs/data-attrs-value-content-mobile.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":13,"endLine":18},{"startLine":32,"endLine":33},{"startLine":31,"endLine":34},{"startLine":38,"endLine":39},{"startLine":48,"endLine":51},{"startLine":42,"endLine":52},{"startLine":65,"endLine":66},{"startLine":59,"endLine":67},{"startLine":57,"endLine":68},{"startLine":20,"endLine":69},{"startLine":12,"endLine":70}]
+=== 239 docs/src/lib/components/api-ref/data-attrs/data-attrs-value-content.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":14,"endLine":19},{"startLine":28,"endLine":31},{"startLine":27,"endLine":32},{"startLine":21,"endLine":33},{"startLine":35,"endLine":36},{"startLine":13,"endLine":37},{"startLine":10,"endLine":39}]
+=== 146 docs/src/lib/components/api-ref/prop-copy.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":9,"endLine":12},{"startLine":14,"endLine":19},{"startLine":8,"endLine":20},{"startLine":7,"endLine":21}]
+=== 58 docs/src/lib/components/api-ref/props/props-bindable-badge.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":15}]
+=== 58 docs/src/lib/components/api-ref/props/props-required-badge.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":12}]
+=== 480 docs/src/lib/components/api-ref/props/props-table.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":28,"endLine":29},{"startLine":31,"endLine":32},{"startLine":26,"endLine":34},{"startLine":25,"endLine":35},{"startLine":41,"endLine":42},{"startLine":40,"endLine":49},{"startLine":51,"endLine":52},{"startLine":55,"endLine":56},{"startLine":59,"endLine":66},{"startLine":58,"endLine":67},{"startLine":54,"endLine":68},{"startLine":70,"endLine":71},{"startLine":39,"endLine":72},{"startLine":37,"endLine":74},{"startLine":24,"endLine":75}]
+=== 390 docs/src/lib/components/api-ref/props/props-type-content-mobile.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":15,"endLine":20},{"startLine":34,"endLine":35},{"startLine":37,"endLine":43},{"startLine":33,"endLine":44},{"startLine":48,"endLine":49},{"startLine":58,"endLine":61},{"startLine":52,"endLine":62},{"startLine":75,"endLine":76},{"startLine":69,"endLine":77},{"startLine":67,"endLine":78},{"startLine":22,"endLine":79},{"startLine":14,"endLine":80}]
+=== 239 docs/src/lib/components/api-ref/props/props-type-content.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":14,"endLine":19},{"startLine":28,"endLine":31},{"startLine":27,"endLine":32},{"startLine":21,"endLine":33},{"startLine":35,"endLine":36},{"startLine":13,"endLine":37},{"startLine":10,"endLine":39}]
+=== 256 docs/src/lib/components/api-section.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":22,"endLine":23},{"startLine":20,"endLine":24},{"startLine":17,"endLine":25},{"startLine":37,"endLine":44,"kind":"comment"},{"startLine":29,"endLine":44},{"startLine":16,"endLine":45},{"startLine":14,"endLine":47}]
+=== 120 docs/src/lib/components/callout.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":22,"endLine":23},{"startLine":27,"endLine":28},{"startLine":18,"endLine":29}]
+=== 2 docs/src/lib/components/code-renders/app-css.svelte	folding.json
+[]
+=== 90 docs/src/lib/components/component-preview.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":33,"endLine":34},{"startLine":36,"endLine":37}]
+=== 60 docs/src/lib/components/copy-code-button.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":17,"endLine":31}]
+=== 240 docs/src/lib/components/copy-page-dropdown.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":23,"endLine":25},{"startLine":22,"endLine":26},{"startLine":17,"endLine":28},{"startLine":33,"endLine":36},{"startLine":39,"endLine":58},{"startLine":38,"endLine":59},{"startLine":32,"endLine":60}]
+=== 210 docs/src/lib/components/demo-code-container.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":73,"endLine":83},{"startLine":66,"endLine":84},{"startLine":65,"endLine":85},{"startLine":60,"endLine":86},{"startLine":48,"endLine":88},{"startLine":47,"endLine":89}]
+=== 360 docs/src/lib/components/demo-code-tabs.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":40,"endLine":41},{"startLine":36,"endLine":42},{"startLine":34,"endLine":44},{"startLine":51,"endLine":57},{"startLine":60,"endLine":72},{"startLine":46,"endLine":73},{"startLine":33,"endLine":74},{"startLine":76,"endLine":77},{"startLine":80,"endLine":83},{"startLine":85,"endLine":86},{"startLine":31,"endLine":88}]
+=== 90 docs/src/lib/components/demo-container.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":31,"endLine":46},{"startLine":24,"endLine":50}]
+=== 1051 docs/src/lib/components/demos/accordion-demo-checkout-steps.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":16,"endLine":22},{"startLine":24,"endLine":25},{"startLine":27,"endLine":30},{"startLine":13,"endLine":31},{"startLine":12,"endLine":32},{"startLine":48,"endLine":53},{"startLine":46,"endLine":54},{"startLine":68,"endLine":72},{"startLine":65,"endLine":75},{"startLine":78,"endLine":85},{"startLine":77,"endLine":86},{"startLine":64,"endLine":87},{"startLine":61,"endLine":88},{"startLine":59,"endLine":89},{"startLine":98,"endLine":102},{"startLine":97,"endLine":106},{"startLine":109,"endLine":116},{"startLine":108,"endLine":117},{"startLine":96,"endLine":118},{"startLine":93,"endLine":119},{"startLine":91,"endLine":120},{"startLine":131,"endLine":133},{"startLine":135,"endLine":137},{"startLine":139,"endLine":141},{"startLine":143,"endLine":145},{"startLine":130,"endLine":146},{"startLine":128,"endLine":147},{"startLine":150,"endLine":157},{"startLine":149,"endLine":158},{"startLine":127,"endLine":159},{"startLine":124,"endLine":160},{"startLine":122,"endLine":161},{"startLine":58,"endLine":162}]
+=== 210 docs/src/lib/components/demos/accordion-demo-custom-item.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":19,"endLine":22},{"startLine":15,"endLine":23},{"startLine":14,"endLine":24},{"startLine":29,"endLine":30},{"startLine":26,"endLine":31},{"startLine":13,"endLine":32}]
+=== 90 docs/src/lib/components/demos/accordion-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":33},{"startLine":38,"endLine":41},{"startLine":36,"endLine":42}]
+=== 270 docs/src/lib/components/demos/accordion-demo-horizontal-cards.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":49,"endLine":52},{"startLine":48,"endLine":53},{"startLine":55,"endLine":59},{"startLine":61,"endLine":62},{"startLine":45,"endLine":63},{"startLine":42,"endLine":64},{"startLine":36,"endLine":65},{"startLine":29,"endLine":67}]
+=== 30 docs/src/lib/components/demos/accordion-demo-multiple.svelte	folding.json
+[{"startLine":0,"endLine":19}]
+=== 30 docs/src/lib/components/demos/accordion-demo-single.svelte	folding.json
+[{"startLine":0,"endLine":19}]
+=== 270 docs/src/lib/components/demos/accordion-demo-transitions.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":33,"endLine":36},{"startLine":29,"endLine":37},{"startLine":28,"endLine":38},{"startLine":44,"endLine":45},{"startLine":43,"endLine":46},{"startLine":40,"endLine":49},{"startLine":27,"endLine":50},{"startLine":25,"endLine":52}]
+=== 270 docs/src/lib/components/demos/accordion-demo.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":32,"endLine":33},{"startLine":35,"endLine":38},{"startLine":29,"endLine":39},{"startLine":28,"endLine":40},{"startLine":45,"endLine":46},{"startLine":42,"endLine":47},{"startLine":27,"endLine":48},{"startLine":25,"endLine":50}]
+=== 357 docs/src/lib/components/demos/alert-dialog-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":10},{"startLine":13,"endLine":14},{"startLine":20,"endLine":21},{"startLine":23,"endLine":25},{"startLine":19,"endLine":26},{"startLine":29,"endLine":32},{"startLine":34,"endLine":37},{"startLine":28,"endLine":38},{"startLine":16,"endLine":39},{"startLine":12,"endLine":40},{"startLine":4,"endLine":41}]
+=== 85 docs/src/lib/components/demos/aspect-ratio-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":8},{"startLine":4,"endLine":9}]
+=== 387 docs/src/lib/components/demos/avatar-demo-link-preview.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":16,"endLine":20},{"startLine":13,"endLine":21},{"startLine":7,"endLine":22},{"startLine":32,"endLine":36},{"startLine":29,"endLine":37},{"startLine":43,"endLine":45},{"startLine":47,"endLine":49},{"startLine":42,"endLine":50},{"startLine":39,"endLine":51},{"startLine":28,"endLine":52},{"startLine":24,"endLine":53},{"startLine":6,"endLine":54}]
+=== 87 docs/src/lib/components/demos/avatar-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":8,"endLine":12},{"startLine":4,"endLine":13}]
+=== 57 docs/src/lib/components/demos/button-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":9}]
+=== 448 docs/src/lib/components/demos/calendar-demo-max.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":19,"endLine":22},{"startLine":25,"endLine":28},{"startLine":18,"endLine":29},{"startLine":37,"endLine":40},{"startLine":35,"endLine":42},{"startLine":34,"endLine":43},{"startLine":57,"endLine":58},{"startLine":54,"endLine":60},{"startLine":49,"endLine":61},{"startLine":47,"endLine":63},{"startLine":45,"endLine":65},{"startLine":33,"endLine":66},{"startLine":31,"endLine":68},{"startLine":9,"endLine":70}]
+=== 550 docs/src/lib/components/demos/calendar-demo-presets.svelte	folding.json
+[{"startLine":0,"endLine":47},{"startLine":56,"endLine":59},{"startLine":62,"endLine":65},{"startLine":55,"endLine":66},{"startLine":74,"endLine":77},{"startLine":72,"endLine":79},{"startLine":71,"endLine":80},{"startLine":94,"endLine":95},{"startLine":91,"endLine":97},{"startLine":86,"endLine":98},{"startLine":84,"endLine":100},{"startLine":82,"endLine":102},{"startLine":70,"endLine":103},{"startLine":68,"endLine":105},{"startLine":53,"endLine":107},{"startLine":112,"endLine":117},{"startLine":110,"endLine":119},{"startLine":50,"endLine":120}]
+=== 388 docs/src/lib/components/demos/calendar-demo-selects.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":15,"endLine":17},{"startLine":25,"endLine":28},{"startLine":23,"endLine":30},{"startLine":22,"endLine":31},{"startLine":45,"endLine":46},{"startLine":42,"endLine":48},{"startLine":37,"endLine":49},{"startLine":35,"endLine":51},{"startLine":33,"endLine":53},{"startLine":21,"endLine":54},{"startLine":19,"endLine":56},{"startLine":7,"endLine":58}]
+=== 448 docs/src/lib/components/demos/calendar-demo.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":18,"endLine":21},{"startLine":24,"endLine":27},{"startLine":17,"endLine":28},{"startLine":36,"endLine":39},{"startLine":34,"endLine":41},{"startLine":33,"endLine":42},{"startLine":56,"endLine":57},{"startLine":53,"endLine":59},{"startLine":48,"endLine":60},{"startLine":46,"endLine":62},{"startLine":44,"endLine":64},{"startLine":32,"endLine":65},{"startLine":30,"endLine":67},{"startLine":9,"endLine":69}]
+=== 180 docs/src/lib/components/demos/checkbox-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":29,"endLine":34},{"startLine":19,"endLine":36},{"startLine":38,"endLine":43},{"startLine":18,"endLine":44},{"startLine":17,"endLine":45}]
+=== 238 docs/src/lib/components/demos/checkbox-demo-group.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":14,"endLine":15},{"startLine":17,"endLine":21},{"startLine":8,"endLine":22},{"startLine":36,"endLine":41},{"startLine":28,"endLine":43},{"startLine":45,"endLine":50},{"startLine":27,"endLine":51}]
+=== 147 docs/src/lib/components/demos/checkbox-demo.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":15,"endLine":20},{"startLine":7,"endLine":22},{"startLine":24,"endLine":29},{"startLine":6,"endLine":30}]
+=== 266 docs/src/lib/components/demos/collapsible-demo-transitions.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":9,"endLine":13},{"startLine":7,"endLine":14},{"startLine":21,"endLine":24},{"startLine":26,"endLine":29},{"startLine":31,"endLine":34},{"startLine":20,"endLine":35},{"startLine":17,"endLine":38},{"startLine":6,"endLine":39}]
+=== 236 docs/src/lib/components/demos/collapsible-demo.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":8,"endLine":12},{"startLine":6,"endLine":13},{"startLine":20,"endLine":21},{"startLine":23,"endLine":24},{"startLine":26,"endLine":27},{"startLine":16,"endLine":28},{"startLine":5,"endLine":29}]
+=== 296 docs/src/lib/components/demos/collapsible-hidden-until-found-demo.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":9,"endLine":11},{"startLine":6,"endLine":12},{"startLine":18,"endLine":22},{"startLine":16,"endLine":23},{"startLine":33,"endLine":38},{"startLine":30,"endLine":39},{"startLine":26,"endLine":40},{"startLine":15,"endLine":41},{"startLine":5,"endLine":42}]
+=== 431 docs/src/lib/components/demos/combobox-demo-auto-scroll-delay.svelte	folding.json
+[{"startLine":0,"endLine":56},{"startLine":67,"endLine":68},{"startLine":70,"endLine":74},{"startLine":76,"endLine":77},{"startLine":66,"endLine":78},{"startLine":85,"endLine":89},{"startLine":101,"endLine":102},{"startLine":93,"endLine":105},{"startLine":108,"endLine":109},{"startLine":91,"endLine":111},{"startLine":113,"endLine":117},{"startLine":81,"endLine":118},{"startLine":80,"endLine":119},{"startLine":59,"endLine":120}]
+=== 486 docs/src/lib/components/demos/combobox-demo-transition.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":49,"endLine":50},{"startLine":52,"endLine":56},{"startLine":58,"endLine":59},{"startLine":48,"endLine":60},{"startLine":72,"endLine":75},{"startLine":87,"endLine":88},{"startLine":79,"endLine":91},{"startLine":94,"endLine":95},{"startLine":77,"endLine":97},{"startLine":99,"endLine":102},{"startLine":71,"endLine":103},{"startLine":70,"endLine":104},{"startLine":63,"endLine":107},{"startLine":62,"endLine":108},{"startLine":41,"endLine":109}]
+=== 420 docs/src/lib/components/demos/combobox-demo.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":48,"endLine":49},{"startLine":51,"endLine":55},{"startLine":57,"endLine":58},{"startLine":47,"endLine":59},{"startLine":66,"endLine":67},{"startLine":79,"endLine":80},{"startLine":71,"endLine":83},{"startLine":86,"endLine":87},{"startLine":69,"endLine":89},{"startLine":91,"endLine":92},{"startLine":62,"endLine":93},{"startLine":61,"endLine":94},{"startLine":40,"endLine":95}]
+=== 732 docs/src/lib/components/demos/command-demo-dialog.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":22,"endLine":27},{"startLine":30,"endLine":31},{"startLine":37,"endLine":39},{"startLine":44,"endLine":46},{"startLine":50,"endLine":53},{"startLine":56,"endLine":59},{"startLine":62,"endLine":67},{"startLine":69,"endLine":74},{"startLine":76,"endLine":81},{"startLine":61,"endLine":82},{"startLine":55,"endLine":83},{"startLine":87,"endLine":90},{"startLine":93,"endLine":98},{"startLine":100,"endLine":105},{"startLine":107,"endLine":112},{"startLine":92,"endLine":113},{"startLine":86,"endLine":114},{"startLine":49,"endLine":115},{"startLine":48,"endLine":116},{"startLine":41,"endLine":117},{"startLine":33,"endLine":118},{"startLine":29,"endLine":119},{"startLine":21,"endLine":120}]
+=== 539 docs/src/lib/components/demos/command-demo.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":13,"endLine":15},{"startLine":19,"endLine":22},{"startLine":25,"endLine":26},{"startLine":29,"endLine":34},{"startLine":36,"endLine":41},{"startLine":43,"endLine":48},{"startLine":28,"endLine":49},{"startLine":24,"endLine":50},{"startLine":54,"endLine":55},{"startLine":58,"endLine":63},{"startLine":65,"endLine":70},{"startLine":72,"endLine":77},{"startLine":57,"endLine":78},{"startLine":53,"endLine":79},{"startLine":18,"endLine":80},{"startLine":17,"endLine":81},{"startLine":10,"endLine":82}]
+=== 607 docs/src/lib/components/demos/command-grid-demo.svelte	folding.json
+[{"startLine":0,"endLine":140},{"startLine":150,"endLine":151},{"startLine":154,"endLine":167},{"startLine":148,"endLine":168},{"startLine":173,"endLine":176},{"startLine":180,"endLine":181},{"startLine":185,"endLine":194},{"startLine":183,"endLine":196},{"startLine":179,"endLine":197},{"startLine":172,"endLine":199},{"startLine":171,"endLine":200},{"startLine":205,"endLine":208},{"startLine":212,"endLine":213},{"startLine":217,"endLine":226},{"startLine":215,"endLine":228},{"startLine":211,"endLine":229},{"startLine":204,"endLine":231},{"startLine":203,"endLine":232},{"startLine":143,"endLine":234}]
+=== 1515 docs/src/lib/components/demos/context-menu-demo-nested.svelte	folding.json
+[{"startLine":0,"endLine":55},{"startLine":60,"endLine":65},{"startLine":74,"endLine":76},{"startLine":71,"endLine":77},{"startLine":84,"endLine":86},{"startLine":92,"endLine":96},{"startLine":90,"endLine":98},{"startLine":89,"endLine":99},{"startLine":88,"endLine":100},{"startLine":83,"endLine":101},{"startLine":105,"endLine":107},{"startLine":112,"endLine":114},{"startLine":120,"endLine":127},{"startLine":118,"endLine":129},{"startLine":117,"endLine":130},{"startLine":116,"endLine":131},{"startLine":111,"endLine":132},{"startLine":136,"endLine":138},{"startLine":144,"endLine":151},{"startLine":142,"endLine":153},{"startLine":141,"endLine":154},{"startLine":140,"endLine":155},{"startLine":135,"endLine":156},{"startLine":162,"endLine":165},{"startLine":172,"endLine":173},{"startLine":168,"endLine":176},{"startLine":161,"endLine":178},{"startLine":182,"endLine":184},{"startLine":190,"endLine":197},{"startLine":188,"endLine":199},{"startLine":205,"endLine":206},{"startLine":203,"endLine":207},{"startLine":214,"endLine":215},{"startLine":217,"endLine":218},{"startLine":220,"endLine":221},{"startLine":223,"endLine":224},{"startLine":210,"endLine":225},{"startLine":209,"endLine":226},{"startLine":202,"endLine":227},{"startLine":187,"endLine":228},{"startLine":186,"endLine":229},{"startLine":181,"endLine":230},{"startLine":110,"endLine":231},{"startLine":109,"endLine":232},{"startLine":104,"endLine":233},{"startLine":80,"endLine":234},{"startLine":79,"endLine":235},{"startLine":70,"endLine":236}]
+=== 978 docs/src/lib/components/demos/context-menu-demo-transition.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":14,"endLine":16},{"startLine":11,"endLine":17},{"startLine":31,"endLine":33},{"startLine":36,"endLine":39},{"startLine":41,"endLine":44},{"startLine":35,"endLine":45},{"startLine":28,"endLine":46},{"startLine":52,"endLine":54},{"startLine":57,"endLine":60},{"startLine":62,"endLine":65},{"startLine":56,"endLine":66},{"startLine":49,"endLine":67},{"startLine":73,"endLine":76},{"startLine":78,"endLine":81},{"startLine":83,"endLine":86},{"startLine":88,"endLine":91},{"startLine":93,"endLine":96},{"startLine":69,"endLine":97},{"startLine":48,"endLine":98},{"startLine":103,"endLine":105},{"startLine":108,"endLine":111},{"startLine":113,"endLine":116},{"startLine":107,"endLine":117},{"startLine":100,"endLine":118},{"startLine":124,"endLine":126},{"startLine":121,"endLine":127},{"startLine":27,"endLine":128},{"startLine":26,"endLine":129},{"startLine":20,"endLine":132},{"startLine":19,"endLine":133},{"startLine":10,"endLine":134}]
+=== 912 docs/src/lib/components/demos/context-menu-demo.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":13,"endLine":15},{"startLine":10,"endLine":16},{"startLine":25,"endLine":27},{"startLine":30,"endLine":33},{"startLine":35,"endLine":38},{"startLine":29,"endLine":39},{"startLine":22,"endLine":40},{"startLine":46,"endLine":48},{"startLine":51,"endLine":54},{"startLine":56,"endLine":59},{"startLine":50,"endLine":60},{"startLine":43,"endLine":61},{"startLine":67,"endLine":70},{"startLine":72,"endLine":75},{"startLine":77,"endLine":80},{"startLine":82,"endLine":85},{"startLine":87,"endLine":90},{"startLine":63,"endLine":91},{"startLine":42,"endLine":92},{"startLine":97,"endLine":99},{"startLine":102,"endLine":105},{"startLine":107,"endLine":110},{"startLine":101,"endLine":111},{"startLine":94,"endLine":112},{"startLine":118,"endLine":120},{"startLine":115,"endLine":121},{"startLine":19,"endLine":122},{"startLine":18,"endLine":123},{"startLine":9,"endLine":124}]
+=== 209 docs/src/lib/components/demos/date-field-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":23,"endLine":24},{"startLine":27,"endLine":31},{"startLine":21,"endLine":33},{"startLine":15,"endLine":36},{"startLine":13,"endLine":37},{"startLine":12,"endLine":38}]
+=== 206 docs/src/lib/components/demos/date-field-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":14,"endLine":15},{"startLine":18,"endLine":22},{"startLine":12,"endLine":24},{"startLine":7,"endLine":27},{"startLine":5,"endLine":28},{"startLine":4,"endLine":29}]
+=== 687 docs/src/lib/components/demos/date-picker-demo.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":17,"endLine":18},{"startLine":21,"endLine":25},{"startLine":15,"endLine":27},{"startLine":30,"endLine":33},{"startLine":10,"endLine":35},{"startLine":43,"endLine":46},{"startLine":49,"endLine":52},{"startLine":42,"endLine":53},{"startLine":61,"endLine":64},{"startLine":59,"endLine":66},{"startLine":58,"endLine":67},{"startLine":81,"endLine":82},{"startLine":78,"endLine":84},{"startLine":73,"endLine":85},{"startLine":71,"endLine":87},{"startLine":69,"endLine":89},{"startLine":57,"endLine":90},{"startLine":55,"endLine":92},{"startLine":38,"endLine":94},{"startLine":37,"endLine":95},{"startLine":8,"endLine":96},{"startLine":7,"endLine":97}]
+=== 235 docs/src/lib/components/demos/date-range-field-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":6},{"startLine":17,"endLine":18},{"startLine":21,"endLine":25},{"startLine":15,"endLine":27},{"startLine":12,"endLine":30},{"startLine":8,"endLine":35},{"startLine":4,"endLine":36}]
+=== 725 docs/src/lib/components/demos/date-range-picker-demo.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":12,"endLine":13},{"startLine":24,"endLine":25},{"startLine":28,"endLine":32},{"startLine":22,"endLine":34},{"startLine":19,"endLine":37},{"startLine":44,"endLine":47},{"startLine":15,"endLine":48},{"startLine":56,"endLine":59},{"startLine":62,"endLine":65},{"startLine":55,"endLine":66},{"startLine":74,"endLine":77},{"startLine":72,"endLine":79},{"startLine":71,"endLine":80},{"startLine":94,"endLine":95},{"startLine":91,"endLine":97},{"startLine":86,"endLine":98},{"startLine":84,"endLine":100},{"startLine":82,"endLine":102},{"startLine":70,"endLine":103},{"startLine":68,"endLine":105},{"startLine":51,"endLine":107},{"startLine":50,"endLine":108},{"startLine":7,"endLine":109}]
+=== 330 docs/src/lib/components/demos/dialog-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":25,"endLine":30},{"startLine":33,"endLine":34},{"startLine":41,"endLine":42},{"startLine":44,"endLine":45},{"startLine":47,"endLine":48},{"startLine":53,"endLine":55},{"startLine":50,"endLine":56},{"startLine":36,"endLine":57},{"startLine":32,"endLine":58},{"startLine":24,"endLine":59}]
+=== 537 docs/src/lib/components/demos/dialog-demo-nested.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":9,"endLine":14},{"startLine":17,"endLine":18},{"startLine":24,"endLine":25},{"startLine":27,"endLine":28},{"startLine":31,"endLine":36},{"startLine":39,"endLine":40},{"startLine":46,"endLine":47},{"startLine":49,"endLine":50},{"startLine":52,"endLine":57},{"startLine":42,"endLine":58},{"startLine":38,"endLine":59},{"startLine":30,"endLine":60},{"startLine":65,"endLine":67},{"startLine":62,"endLine":68},{"startLine":20,"endLine":69},{"startLine":16,"endLine":70},{"startLine":8,"endLine":71}]
+=== 447 docs/src/lib/components/demos/dialog-demo.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":7,"endLine":12},{"startLine":15,"endLine":16},{"startLine":21,"endLine":24},{"startLine":27,"endLine":29},{"startLine":34,"endLine":38},{"startLine":33,"endLine":40},{"startLine":31,"endLine":41},{"startLine":44,"endLine":47},{"startLine":43,"endLine":48},{"startLine":53,"endLine":55},{"startLine":50,"endLine":56},{"startLine":18,"endLine":57},{"startLine":14,"endLine":58},{"startLine":6,"endLine":59}]
+=== 1483 docs/src/lib/components/demos/dropdown-menu-demo-nested.svelte	folding.json
+[{"startLine":0,"endLine":55},{"startLine":60,"endLine":65},{"startLine":71,"endLine":75},{"startLine":82,"endLine":84},{"startLine":90,"endLine":94},{"startLine":88,"endLine":96},{"startLine":87,"endLine":97},{"startLine":86,"endLine":98},{"startLine":81,"endLine":99},{"startLine":103,"endLine":105},{"startLine":110,"endLine":112},{"startLine":118,"endLine":125},{"startLine":116,"endLine":127},{"startLine":115,"endLine":128},{"startLine":114,"endLine":129},{"startLine":109,"endLine":130},{"startLine":134,"endLine":136},{"startLine":142,"endLine":149},{"startLine":140,"endLine":151},{"startLine":139,"endLine":152},{"startLine":138,"endLine":153},{"startLine":133,"endLine":154},{"startLine":160,"endLine":163},{"startLine":170,"endLine":171},{"startLine":166,"endLine":174},{"startLine":159,"endLine":176},{"startLine":180,"endLine":182},{"startLine":188,"endLine":195},{"startLine":186,"endLine":197},{"startLine":203,"endLine":204},{"startLine":201,"endLine":205},{"startLine":212,"endLine":213},{"startLine":215,"endLine":216},{"startLine":218,"endLine":219},{"startLine":221,"endLine":222},{"startLine":208,"endLine":223},{"startLine":207,"endLine":224},{"startLine":200,"endLine":225},{"startLine":185,"endLine":226},{"startLine":184,"endLine":227},{"startLine":179,"endLine":228},{"startLine":108,"endLine":229},{"startLine":107,"endLine":230},{"startLine":102,"endLine":231},{"startLine":78,"endLine":232},{"startLine":77,"endLine":233},{"startLine":70,"endLine":234}]
+=== 1463 docs/src/lib/components/demos/dropdown-menu-demo-transition.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":18,"endLine":21},{"startLine":36,"endLine":38},{"startLine":41,"endLine":44},{"startLine":46,"endLine":49},{"startLine":40,"endLine":50},{"startLine":33,"endLine":51},{"startLine":56,"endLine":58},{"startLine":61,"endLine":64},{"startLine":66,"endLine":69},{"startLine":60,"endLine":70},{"startLine":53,"endLine":71},{"startLine":76,"endLine":78},{"startLine":81,"endLine":84},{"startLine":86,"endLine":89},{"startLine":80,"endLine":90},{"startLine":73,"endLine":91},{"startLine":98,"endLine":100},{"startLine":102,"endLine":105},{"startLine":93,"endLine":107},{"startLine":113,"endLine":115},{"startLine":117,"endLine":118},{"startLine":110,"endLine":119},{"startLine":134,"endLine":137},{"startLine":139,"endLine":141},{"startLine":131,"endLine":142},{"startLine":126,"endLine":148},{"startLine":158,"endLine":161},{"startLine":163,"endLine":165},{"startLine":155,"endLine":166},{"startLine":150,"endLine":172},{"startLine":182,"endLine":185},{"startLine":187,"endLine":189},{"startLine":179,"endLine":190},{"startLine":174,"endLine":196},{"startLine":206,"endLine":209},{"startLine":211,"endLine":214},{"startLine":203,"endLine":215},{"startLine":198,"endLine":221},{"startLine":125,"endLine":222},{"startLine":121,"endLine":223},{"startLine":109,"endLine":224},{"startLine":32,"endLine":225},{"startLine":31,"endLine":226},{"startLine":24,"endLine":229},{"startLine":23,"endLine":230},{"startLine":17,"endLine":231}]
+=== 1430 docs/src/lib/components/demos/dropdown-menu-demo.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":17,"endLine":20},{"startLine":30,"endLine":32},{"startLine":35,"endLine":38},{"startLine":40,"endLine":43},{"startLine":34,"endLine":44},{"startLine":27,"endLine":45},{"startLine":50,"endLine":52},{"startLine":55,"endLine":58},{"startLine":60,"endLine":63},{"startLine":54,"endLine":64},{"startLine":47,"endLine":65},{"startLine":70,"endLine":72},{"startLine":75,"endLine":78},{"startLine":80,"endLine":83},{"startLine":74,"endLine":84},{"startLine":67,"endLine":85},{"startLine":92,"endLine":94},{"startLine":96,"endLine":99},{"startLine":87,"endLine":101},{"startLine":107,"endLine":109},{"startLine":111,"endLine":112},{"startLine":104,"endLine":113},{"startLine":129,"endLine":132},{"startLine":134,"endLine":136},{"startLine":126,"endLine":137},{"startLine":121,"endLine":143},{"startLine":153,"endLine":156},{"startLine":158,"endLine":160},{"startLine":150,"endLine":161},{"startLine":145,"endLine":167},{"startLine":177,"endLine":180},{"startLine":182,"endLine":184},{"startLine":174,"endLine":185},{"startLine":169,"endLine":191},{"startLine":201,"endLine":204},{"startLine":206,"endLine":209},{"startLine":198,"endLine":210},{"startLine":193,"endLine":216},{"startLine":120,"endLine":217},{"startLine":116,"endLine":218},{"startLine":115,"endLine":219},{"startLine":103,"endLine":220},{"startLine":23,"endLine":221},{"startLine":22,"endLine":222},{"startLine":16,"endLine":223}]
+=== 147 docs/src/lib/components/demos/label-demo.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":14,"endLine":19},{"startLine":7,"endLine":21},{"startLine":23,"endLine":28},{"startLine":6,"endLine":29}]
+=== 449 docs/src/lib/components/demos/link-preview-demo-transition.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":23,"endLine":27},{"startLine":17,"endLine":28},{"startLine":11,"endLine":29},{"startLine":48,"endLine":53},{"startLine":41,"endLine":54},{"startLine":62,"endLine":64},{"startLine":66,"endLine":68},{"startLine":59,"endLine":69},{"startLine":56,"endLine":70},{"startLine":40,"endLine":71},{"startLine":39,"endLine":72},{"startLine":38,"endLine":73},{"startLine":31,"endLine":76},{"startLine":10,"endLine":77}]
+=== 1649 docs/src/lib/components/demos/menubar-demo.svelte	folding.json
+[{"startLine":0,"endLine":59},{"startLine":65,"endLine":66},{"startLine":69,"endLine":72},{"startLine":87,"endLine":92},{"startLine":81,"endLine":94},{"startLine":106,"endLine":109},{"startLine":100,"endLine":111},{"startLine":98,"endLine":113},{"startLine":75,"endLine":114},{"startLine":74,"endLine":115},{"startLine":68,"endLine":116},{"startLine":120,"endLine":123},{"startLine":131,"endLine":134},{"startLine":136,"endLine":139},{"startLine":147,"endLine":148},{"startLine":143,"endLine":149},{"startLine":154,"endLine":157},{"startLine":160,"endLine":163},{"startLine":165,"endLine":168},{"startLine":170,"endLine":173},{"startLine":151,"endLine":174},{"startLine":142,"endLine":175},{"startLine":178,"endLine":181},{"startLine":183,"endLine":186},{"startLine":188,"endLine":191},{"startLine":126,"endLine":192},{"startLine":125,"endLine":193},{"startLine":119,"endLine":194},{"startLine":197,"endLine":200},{"startLine":215,"endLine":220},{"startLine":209,"endLine":222},{"startLine":226,"endLine":229},{"startLine":231,"endLine":234},{"startLine":237,"endLine":240},{"startLine":243,"endLine":246},{"startLine":203,"endLine":247},{"startLine":202,"endLine":248},{"startLine":196,"endLine":249},{"startLine":252,"endLine":255},{"startLine":271,"endLine":274},{"startLine":265,"endLine":276},{"startLine":263,"endLine":278},{"startLine":281,"endLine":283},{"startLine":286,"endLine":288},{"startLine":258,"endLine":289},{"startLine":257,"endLine":290},{"startLine":251,"endLine":291},{"startLine":62,"endLine":292},{"startLine":299,"endLine":300},{"startLine":296,"endLine":301},{"startLine":309,"endLine":310},{"startLine":306,"endLine":311}]
+=== 180 docs/src/lib/components/demos/meter-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":30,"endLine":32},{"startLine":42,"endLine":44},{"startLine":34,"endLine":45},{"startLine":29,"endLine":46},{"startLine":28,"endLine":47}]
+=== 150 docs/src/lib/components/demos/meter-demo.svelte	folding.json
+[{"startLine":0,"endLine":17},{"startLine":21,"endLine":23},{"startLine":33,"endLine":35},{"startLine":25,"endLine":36},{"startLine":20,"endLine":37}]
+=== 777 docs/src/lib/components/demos/navigation-menu-demo-force-mount.svelte	folding.json
+[{"startLine":0,"endLine":47},{"startLine":60,"endLine":61},{"startLine":52,"endLine":62},{"startLine":51,"endLine":63},{"startLine":74,"endLine":76},{"startLine":70,"endLine":77},{"startLine":93,"endLine":94},{"startLine":87,"endLine":95},{"startLine":86,"endLine":96},{"startLine":83,"endLine":113},{"startLine":79,"endLine":114},{"startLine":69,"endLine":115},{"startLine":122,"endLine":124},{"startLine":118,"endLine":125},{"startLine":131,"endLine":140},{"startLine":127,"endLine":141},{"startLine":117,"endLine":142},{"startLine":145,"endLine":150},{"startLine":144,"endLine":151},{"startLine":156,"endLine":157},{"startLine":153,"endLine":158},{"startLine":68,"endLine":159},{"startLine":162,"endLine":164},{"startLine":161,"endLine":165},{"startLine":67,"endLine":166}]
+=== 777 docs/src/lib/components/demos/navigation-menu-demo.svelte	folding.json
+[{"startLine":0,"endLine":47},{"startLine":60,"endLine":61},{"startLine":52,"endLine":62},{"startLine":51,"endLine":63},{"startLine":74,"endLine":76},{"startLine":70,"endLine":77},{"startLine":92,"endLine":93},{"startLine":86,"endLine":94},{"startLine":85,"endLine":95},{"startLine":82,"endLine":112},{"startLine":79,"endLine":113},{"startLine":69,"endLine":114},{"startLine":121,"endLine":123},{"startLine":117,"endLine":124},{"startLine":129,"endLine":138},{"startLine":126,"endLine":139},{"startLine":116,"endLine":140},{"startLine":143,"endLine":148},{"startLine":142,"endLine":149},{"startLine":154,"endLine":155},{"startLine":151,"endLine":156},{"startLine":68,"endLine":157},{"startLine":160,"endLine":161},{"startLine":159,"endLine":162},{"startLine":67,"endLine":163}]
+=== 777 docs/src/lib/components/demos/navigation-menu-no-hover-demo.svelte	folding.json
+[{"startLine":0,"endLine":47},{"startLine":60,"endLine":61},{"startLine":52,"endLine":62},{"startLine":51,"endLine":63},{"startLine":74,"endLine":76},{"startLine":70,"endLine":77},{"startLine":92,"endLine":93},{"startLine":86,"endLine":94},{"startLine":85,"endLine":95},{"startLine":82,"endLine":112},{"startLine":79,"endLine":113},{"startLine":69,"endLine":114},{"startLine":121,"endLine":123},{"startLine":117,"endLine":124},{"startLine":129,"endLine":138},{"startLine":126,"endLine":139},{"startLine":116,"endLine":140},{"startLine":143,"endLine":148},{"startLine":142,"endLine":149},{"startLine":154,"endLine":155},{"startLine":151,"endLine":156},{"startLine":68,"endLine":157},{"startLine":160,"endLine":161},{"startLine":159,"endLine":162},{"startLine":67,"endLine":163}]
+=== 649 docs/src/lib/components/demos/navigation-menu-no-viewport-demo.svelte	folding.json
+[{"startLine":0,"endLine":47},{"startLine":60,"endLine":61},{"startLine":52,"endLine":62},{"startLine":51,"endLine":63},{"startLine":74,"endLine":76},{"startLine":70,"endLine":77},{"startLine":92,"endLine":93},{"startLine":86,"endLine":94},{"startLine":85,"endLine":95},{"startLine":82,"endLine":112},{"startLine":79,"endLine":113},{"startLine":69,"endLine":114},{"startLine":121,"endLine":123},{"startLine":117,"endLine":124},{"startLine":129,"endLine":138},{"startLine":126,"endLine":139},{"startLine":116,"endLine":140},{"startLine":143,"endLine":148},{"startLine":142,"endLine":149},{"startLine":68,"endLine":150},{"startLine":67,"endLine":151}]
+=== 984 docs/src/lib/components/demos/navigation-menu-submenu-demo.svelte	folding.json
+[{"startLine":0,"endLine":73},{"startLine":85,"endLine":86},{"startLine":77,"endLine":87},{"startLine":100,"endLine":102},{"startLine":93,"endLine":103},{"startLine":108,"endLine":115},{"startLine":105,"endLine":116},{"startLine":92,"endLine":117},{"startLine":128,"endLine":130},{"startLine":124,"endLine":131},{"startLine":146,"endLine":147},{"startLine":140,"endLine":148},{"startLine":139,"endLine":149},{"startLine":136,"endLine":166},{"startLine":133,"endLine":167},{"startLine":123,"endLine":168},{"startLine":175,"endLine":177},{"startLine":171,"endLine":178},{"startLine":187,"endLine":188},{"startLine":186,"endLine":189},{"startLine":193,"endLine":198},{"startLine":201,"endLine":212},{"startLine":185,"endLine":213},{"startLine":184,"endLine":214},{"startLine":183,"endLine":215},{"startLine":180,"endLine":216},{"startLine":170,"endLine":217},{"startLine":220,"endLine":225},{"startLine":219,"endLine":226},{"startLine":122,"endLine":227},{"startLine":121,"endLine":228}]
+=== 1121 docs/src/lib/components/demos/navigation-menu-submenu-viewport-demo.svelte	folding.json
+[{"startLine":0,"endLine":53},{"startLine":65,"endLine":66},{"startLine":57,"endLine":67},{"startLine":80,"endLine":82},{"startLine":73,"endLine":83},{"startLine":88,"endLine":95},{"startLine":85,"endLine":96},{"startLine":72,"endLine":97},{"startLine":108,"endLine":110},{"startLine":104,"endLine":111},{"startLine":126,"endLine":127},{"startLine":120,"endLine":128},{"startLine":119,"endLine":129},{"startLine":116,"endLine":146},{"startLine":113,"endLine":147},{"startLine":103,"endLine":148},{"startLine":155,"endLine":157},{"startLine":151,"endLine":158},{"startLine":166,"endLine":180,"kind":"comment"},{"startLine":181,"endLine":192},{"startLine":165,"endLine":193},{"startLine":198,"endLine":199},{"startLine":195,"endLine":200},{"startLine":164,"endLine":201},{"startLine":163,"endLine":202},{"startLine":160,"endLine":203},{"startLine":150,"endLine":204},{"startLine":207,"endLine":212},{"startLine":206,"endLine":213},{"startLine":218,"endLine":219},{"startLine":215,"endLine":220},{"startLine":102,"endLine":221},{"startLine":224,"endLine":225},{"startLine":223,"endLine":226},{"startLine":101,"endLine":227}]
+=== 266 docs/src/lib/components/demos/pagination-demo.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":9,"endLine":12},{"startLine":17,"endLine":18},{"startLine":21,"endLine":25},{"startLine":14,"endLine":28},{"startLine":30,"endLine":33},{"startLine":8,"endLine":34},{"startLine":36,"endLine":37},{"startLine":6,"endLine":39}]
+=== 240 docs/src/lib/components/demos/pin-input-demo.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":23,"endLine":26},{"startLine":29,"endLine":30},{"startLine":33,"endLine":36},{"startLine":15,"endLine":38},{"startLine":57,"endLine":58},{"startLine":62,"endLine":65},{"startLine":42,"endLine":67}]
+=== 477 docs/src/lib/components/demos/popover-demo-hover.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":13,"endLine":16},{"startLine":7,"endLine":18},{"startLine":30,"endLine":33},{"startLine":27,"endLine":34},{"startLine":36,"endLine":38},{"startLine":26,"endLine":39},{"startLine":41,"endLine":46},{"startLine":25,"endLine":47},{"startLine":49,"endLine":50},{"startLine":54,"endLine":56},{"startLine":58,"endLine":60},{"startLine":53,"endLine":61},{"startLine":21,"endLine":62},{"startLine":20,"endLine":63},{"startLine":6,"endLine":64}]
+=== 598 docs/src/lib/components/demos/popover-demo-overlay.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":10,"endLine":14},{"startLine":17,"endLine":18},{"startLine":25,"endLine":26},{"startLine":29,"endLine":30},{"startLine":32,"endLine":33},{"startLine":28,"endLine":34},{"startLine":24,"endLine":35},{"startLine":42,"endLine":44},{"startLine":46,"endLine":49},{"startLine":40,"endLine":50},{"startLine":54,"endLine":56},{"startLine":58,"endLine":61},{"startLine":52,"endLine":62},{"startLine":39,"endLine":63},{"startLine":65,"endLine":69},{"startLine":38,"endLine":70},{"startLine":20,"endLine":71},{"startLine":16,"endLine":72},{"startLine":9,"endLine":73}]
+=== 629 docs/src/lib/components/demos/popover-demo-transition.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":11,"endLine":15},{"startLine":28,"endLine":31},{"startLine":34,"endLine":37},{"startLine":39,"endLine":40},{"startLine":33,"endLine":41},{"startLine":27,"endLine":42},{"startLine":49,"endLine":52},{"startLine":54,"endLine":57},{"startLine":47,"endLine":58},{"startLine":62,"endLine":65},{"startLine":67,"endLine":70},{"startLine":60,"endLine":71},{"startLine":46,"endLine":72},{"startLine":74,"endLine":78},{"startLine":45,"endLine":79},{"startLine":26,"endLine":80},{"startLine":25,"endLine":81},{"startLine":18,"endLine":84},{"startLine":17,"endLine":85},{"startLine":10,"endLine":86}]
+=== 568 docs/src/lib/components/demos/popover-demo.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":10,"endLine":14},{"startLine":22,"endLine":23},{"startLine":26,"endLine":27},{"startLine":29,"endLine":30},{"startLine":25,"endLine":31},{"startLine":21,"endLine":32},{"startLine":39,"endLine":41},{"startLine":43,"endLine":46},{"startLine":37,"endLine":47},{"startLine":51,"endLine":53},{"startLine":55,"endLine":58},{"startLine":49,"endLine":59},{"startLine":36,"endLine":60},{"startLine":62,"endLine":66},{"startLine":35,"endLine":67},{"startLine":17,"endLine":68},{"startLine":16,"endLine":69},{"startLine":9,"endLine":70}]
+=== 146 docs/src/lib/components/demos/portal-demo.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":10,"endLine":12},{"startLine":8,"endLine":13},{"startLine":7,"endLine":14},{"startLine":6,"endLine":15}]
+=== 180 docs/src/lib/components/demos/progress-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":21,"endLine":23},{"startLine":33,"endLine":35},{"startLine":25,"endLine":36},{"startLine":20,"endLine":37},{"startLine":19,"endLine":38}]
+=== 150 docs/src/lib/components/demos/progress-demo.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":18,"endLine":20},{"startLine":28,"endLine":30},{"startLine":22,"endLine":31},{"startLine":17,"endLine":32}]
+=== 237 docs/src/lib/components/demos/radio-group-demo-disabled.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":10,"endLine":13},{"startLine":9,"endLine":15},{"startLine":18,"endLine":21},{"startLine":17,"endLine":23},{"startLine":26,"endLine":29},{"startLine":25,"endLine":31},{"startLine":4,"endLine":32}]
+=== 237 docs/src/lib/components/demos/radio-group-demo-readonly.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":10,"endLine":13},{"startLine":9,"endLine":15},{"startLine":18,"endLine":21},{"startLine":17,"endLine":23},{"startLine":26,"endLine":29},{"startLine":25,"endLine":31},{"startLine":4,"endLine":32}]
+=== 235 docs/src/lib/components/demos/radio-group-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":6,"endLine":9},{"startLine":5,"endLine":11},{"startLine":14,"endLine":17},{"startLine":13,"endLine":19},{"startLine":22,"endLine":25},{"startLine":21,"endLine":27},{"startLine":4,"endLine":28}]
+=== 449 docs/src/lib/components/demos/range-calendar-demo-exclude-disabled.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":21,"endLine":24},{"startLine":27,"endLine":30},{"startLine":20,"endLine":31},{"startLine":39,"endLine":42},{"startLine":37,"endLine":44},{"startLine":36,"endLine":45},{"startLine":61,"endLine":62},{"startLine":56,"endLine":64},{"startLine":51,"endLine":65},{"startLine":49,"endLine":67},{"startLine":47,"endLine":69},{"startLine":35,"endLine":70},{"startLine":33,"endLine":72},{"startLine":11,"endLine":74}]
+=== 449 docs/src/lib/components/demos/range-calendar-demo-max.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":19,"endLine":22},{"startLine":25,"endLine":28},{"startLine":18,"endLine":29},{"startLine":37,"endLine":40},{"startLine":35,"endLine":42},{"startLine":34,"endLine":43},{"startLine":59,"endLine":60},{"startLine":54,"endLine":62},{"startLine":49,"endLine":63},{"startLine":47,"endLine":65},{"startLine":45,"endLine":67},{"startLine":33,"endLine":68},{"startLine":31,"endLine":70},{"startLine":10,"endLine":72}]
+=== 449 docs/src/lib/components/demos/range-calendar-demo-min-max.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":20,"endLine":23},{"startLine":26,"endLine":29},{"startLine":19,"endLine":30},{"startLine":38,"endLine":41},{"startLine":36,"endLine":43},{"startLine":35,"endLine":44},{"startLine":60,"endLine":61},{"startLine":55,"endLine":63},{"startLine":50,"endLine":64},{"startLine":48,"endLine":66},{"startLine":46,"endLine":68},{"startLine":34,"endLine":69},{"startLine":32,"endLine":71},{"startLine":10,"endLine":73}]
+=== 449 docs/src/lib/components/demos/range-calendar-demo-min.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":19,"endLine":22},{"startLine":25,"endLine":28},{"startLine":18,"endLine":29},{"startLine":37,"endLine":40},{"startLine":35,"endLine":42},{"startLine":34,"endLine":43},{"startLine":59,"endLine":60},{"startLine":54,"endLine":62},{"startLine":49,"endLine":63},{"startLine":47,"endLine":65},{"startLine":45,"endLine":67},{"startLine":33,"endLine":68},{"startLine":31,"endLine":70},{"startLine":10,"endLine":72}]
+=== 449 docs/src/lib/components/demos/range-calendar-demo.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":18,"endLine":21},{"startLine":24,"endLine":27},{"startLine":17,"endLine":28},{"startLine":36,"endLine":39},{"startLine":34,"endLine":41},{"startLine":33,"endLine":42},{"startLine":58,"endLine":59},{"startLine":53,"endLine":61},{"startLine":48,"endLine":62},{"startLine":46,"endLine":64},{"startLine":44,"endLine":66},{"startLine":32,"endLine":67},{"startLine":30,"endLine":69},{"startLine":10,"endLine":71}]
+=== 118 docs/src/lib/components/demos/rating-group-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":15,"endLine":16},{"startLine":11,"endLine":17},{"startLine":8,"endLine":20}]
+=== 88 docs/src/lib/components/demos/rating-group-demo-half-stars.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":10,"endLine":20},{"startLine":7,"endLine":23}]
+=== 207 docs/src/lib/components/demos/rating-group-demo-no-hover.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":10,"endLine":11},{"startLine":8,"endLine":12},{"startLine":18,"endLine":22},{"startLine":15,"endLine":25},{"startLine":28,"endLine":29},{"startLine":7,"endLine":30}]
+=== 177 docs/src/lib/components/demos/rating-group-demo-rtl.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":8,"endLine":10},{"startLine":16,"endLine":26},{"startLine":13,"endLine":29},{"startLine":32,"endLine":33},{"startLine":7,"endLine":34}]
+=== 87 docs/src/lib/components/demos/rating-group-demo.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":9,"endLine":13},{"startLine":6,"endLine":16}]
+=== 240 docs/src/lib/components/demos/scroll-area-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":21,"endLine":25},{"startLine":28,"endLine":32},{"startLine":49,"endLine":52},{"startLine":54,"endLine":60},{"startLine":43,"endLine":62},{"startLine":38,"endLine":70},{"startLine":37,"endLine":71}]
+=== 205 docs/src/lib/components/demos/scroll-area-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":8,"endLine":9},{"startLine":11,"endLine":17},{"startLine":7,"endLine":18},{"startLine":20,"endLine":24},{"startLine":26,"endLine":30},{"startLine":4,"endLine":32}]
+=== 300 docs/src/lib/components/demos/select-demo-auto-scroll-delay.svelte	folding.json
+[{"startLine":0,"endLine":49},{"startLine":53,"endLine":59},{"startLine":66,"endLine":70},{"startLine":83,"endLine":84},{"startLine":74,"endLine":87},{"startLine":72,"endLine":89},{"startLine":91,"endLine":95},{"startLine":62,"endLine":96},{"startLine":61,"endLine":97},{"startLine":52,"endLine":98}]
+=== 117 docs/src/lib/components/demos/select-demo-custom-anchor.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":10,"endLine":13},{"startLine":8,"endLine":14},{"startLine":7,"endLine":15}]
+=== 430 docs/src/lib/components/demos/select-demo-custom-value.svelte	folding.json
+[{"startLine":0,"endLine":31},{"startLine":52,"endLine":78},{"startLine":48,"endLine":79},{"startLine":42,"endLine":84},{"startLine":40,"endLine":86},{"startLine":35,"endLine":88},{"startLine":95,"endLine":96},{"startLine":109,"endLine":110},{"startLine":100,"endLine":113},{"startLine":98,"endLine":115},{"startLine":117,"endLine":118},{"startLine":91,"endLine":119},{"startLine":90,"endLine":120},{"startLine":34,"endLine":121}]
+=== 300 docs/src/lib/components/demos/select-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":39,"endLine":45},{"startLine":53,"endLine":54},{"startLine":66,"endLine":67},{"startLine":58,"endLine":70},{"startLine":56,"endLine":72},{"startLine":74,"endLine":75},{"startLine":48,"endLine":76},{"startLine":47,"endLine":77},{"startLine":38,"endLine":78}]
+=== 330 docs/src/lib/components/demos/select-demo-multiple.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":38,"endLine":40},{"startLine":33,"endLine":42},{"startLine":49,"endLine":50},{"startLine":62,"endLine":63},{"startLine":54,"endLine":66},{"startLine":52,"endLine":68},{"startLine":70,"endLine":71},{"startLine":45,"endLine":72},{"startLine":44,"endLine":73},{"startLine":32,"endLine":74}]
+=== 360 docs/src/lib/components/demos/select-demo-transition.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":34,"endLine":40},{"startLine":52,"endLine":53},{"startLine":65,"endLine":66},{"startLine":57,"endLine":69},{"startLine":55,"endLine":71},{"startLine":73,"endLine":76},{"startLine":51,"endLine":77},{"startLine":50,"endLine":78},{"startLine":43,"endLine":81},{"startLine":42,"endLine":82},{"startLine":33,"endLine":83}]
+=== 300 docs/src/lib/components/demos/select-demo.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":34,"endLine":40},{"startLine":47,"endLine":48},{"startLine":61,"endLine":62},{"startLine":52,"endLine":65},{"startLine":50,"endLine":67},{"startLine":69,"endLine":70},{"startLine":43,"endLine":71},{"startLine":42,"endLine":72},{"startLine":33,"endLine":73}]
+=== 205 docs/src/lib/components/demos/separator-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":7},{"startLine":9,"endLine":10},{"startLine":14,"endLine":16},{"startLine":19,"endLine":21},{"startLine":12,"endLine":23},{"startLine":4,"endLine":24}]
+=== 327 docs/src/lib/components/demos/slider-demo-custom-steps.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":16,"endLine":19},{"startLine":21,"endLine":23},{"startLine":27,"endLine":31},{"startLine":8,"endLine":34},{"startLine":7,"endLine":35},{"startLine":48,"endLine":51},{"startLine":53,"endLine":55},{"startLine":59,"endLine":63},{"startLine":39,"endLine":66},{"startLine":38,"endLine":67}]
+=== 147 docs/src/lib/components/demos/slider-demo-multiple.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":14,"endLine":17},{"startLine":20,"endLine":24},{"startLine":8,"endLine":27},{"startLine":7,"endLine":28}]
+=== 327 docs/src/lib/components/demos/slider-demo-thumb-labels.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":18,"endLine":21},{"startLine":23,"endLine":25},{"startLine":27,"endLine":31},{"startLine":33,"endLine":35},{"startLine":37,"endLine":41},{"startLine":43,"endLine":45},{"startLine":47,"endLine":51},{"startLine":55,"endLine":60},{"startLine":7,"endLine":63},{"startLine":6,"endLine":64}]
+=== 177 docs/src/lib/components/demos/slider-demo-tick-labels.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":17,"endLine":20},{"startLine":23,"endLine":25},{"startLine":30,"endLine":35},{"startLine":7,"endLine":38},{"startLine":6,"endLine":39}]
+=== 147 docs/src/lib/components/demos/slider-demo-ticks.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":16,"endLine":19},{"startLine":22,"endLine":24},{"startLine":7,"endLine":30},{"startLine":6,"endLine":31}]
+=== 147 docs/src/lib/components/demos/slider-demo-vertical.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":15,"endLine":16},{"startLine":18,"endLine":20},{"startLine":7,"endLine":21},{"startLine":6,"endLine":22}]
+=== 147 docs/src/lib/components/demos/slider-demo.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":13,"endLine":16},{"startLine":18,"endLine":22},{"startLine":8,"endLine":23},{"startLine":7,"endLine":24}]
+=== 180 docs/src/lib/components/demos/switch-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":22,"endLine":23},{"startLine":17,"endLine":24},{"startLine":26,"endLine":27},{"startLine":16,"endLine":28},{"startLine":15,"endLine":29}]
+=== 117 docs/src/lib/components/demos/switch-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":10,"endLine":11},{"startLine":5,"endLine":12},{"startLine":4,"endLine":14}]
+=== 717 docs/src/lib/components/demos/tabs-demo.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":13,"endLine":16},{"startLine":18,"endLine":21},{"startLine":10,"endLine":22},{"startLine":27,"endLine":28},{"startLine":26,"endLine":30},{"startLine":32,"endLine":33},{"startLine":36,"endLine":37},{"startLine":35,"endLine":39},{"startLine":44,"endLine":45},{"startLine":41,"endLine":46},{"startLine":25,"endLine":47},{"startLine":24,"endLine":48},{"startLine":53,"endLine":54},{"startLine":52,"endLine":56},{"startLine":58,"endLine":59},{"startLine":62,"endLine":63},{"startLine":61,"endLine":65},{"startLine":70,"endLine":71},{"startLine":67,"endLine":72},{"startLine":51,"endLine":73},{"startLine":50,"endLine":74},{"startLine":6,"endLine":75},{"startLine":5,"endLine":76}]
+=== 238 docs/src/lib/components/demos/time-field-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":16},{"startLine":30,"endLine":31},{"startLine":34,"endLine":38},{"startLine":28,"endLine":40},{"startLine":22,"endLine":43},{"startLine":20,"endLine":44},{"startLine":19,"endLine":45}]
+=== 234 docs/src/lib/components/demos/time-field-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":6,"endLine":7},{"startLine":17,"endLine":18},{"startLine":21,"endLine":25},{"startLine":15,"endLine":27},{"startLine":9,"endLine":30},{"startLine":5,"endLine":31},{"startLine":4,"endLine":32}]
+=== 235 docs/src/lib/components/demos/time-range-field-demo.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":6},{"startLine":17,"endLine":18},{"startLine":21,"endLine":25},{"startLine":15,"endLine":27},{"startLine":12,"endLine":30},{"startLine":8,"endLine":35},{"startLine":4,"endLine":36}]
+=== 118 docs/src/lib/components/demos/toggle-demo.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":11,"endLine":16},{"startLine":18,"endLine":23},{"startLine":8,"endLine":24}]
+=== 148 docs/src/lib/components/demos/toggle-group-demo.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":14,"endLine":19},{"startLine":21,"endLine":26},{"startLine":28,"endLine":33},{"startLine":9,"endLine":34}]
+=== 360 docs/src/lib/components/demos/toolbar-demo.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":18,"endLine":23},{"startLine":25,"endLine":30},{"startLine":32,"endLine":37},{"startLine":17,"endLine":38},{"startLine":44,"endLine":49},{"startLine":51,"endLine":56},{"startLine":58,"endLine":63},{"startLine":43,"endLine":64},{"startLine":70,"endLine":74},{"startLine":69,"endLine":75},{"startLine":14,"endLine":76}]
+=== 639 docs/src/lib/components/demos/tooltip-demo-controlled-trigger-id.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":24,"endLine":34},{"startLine":36,"endLine":45},{"startLine":47,"endLine":57},{"startLine":21,"endLine":58},{"startLine":63,"endLine":64},{"startLine":61,"endLine":66},{"startLine":75,"endLine":76},{"startLine":78,"endLine":79},{"startLine":70,"endLine":80},{"startLine":87,"endLine":88},{"startLine":90,"endLine":91},{"startLine":82,"endLine":92},{"startLine":69,"endLine":93},{"startLine":20,"endLine":94},{"startLine":108,"endLine":110},{"startLine":104,"endLine":111},{"startLine":100,"endLine":112},{"startLine":99,"endLine":113},{"startLine":97,"endLine":115},{"startLine":19,"endLine":116}]
+=== 207 docs/src/lib/components/demos/tooltip-demo-custom-anchor.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":11,"endLine":15},{"startLine":22,"endLine":25},{"startLine":17,"endLine":26},{"startLine":10,"endLine":27},{"startLine":9,"endLine":28},{"startLine":7,"endLine":29}]
+=== 180 docs/src/lib/components/demos/tooltip-demo-custom.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":15,"endLine":19},{"startLine":25,"endLine":28},{"startLine":21,"endLine":29},{"startLine":14,"endLine":30},{"startLine":13,"endLine":31}]
+=== 117 docs/src/lib/components/demos/tooltip-demo-delay-duration.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":10,"endLine":12},{"startLine":8,"endLine":14},{"startLine":7,"endLine":15}]
+=== 608 docs/src/lib/components/demos/tooltip-demo-group.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":15,"endLine":19},{"startLine":32,"endLine":38},{"startLine":29,"endLine":40},{"startLine":28,"endLine":42},{"startLine":49,"endLine":55},{"startLine":46,"endLine":57},{"startLine":45,"endLine":59},{"startLine":66,"endLine":72},{"startLine":63,"endLine":74},{"startLine":62,"endLine":76},{"startLine":27,"endLine":77},{"startLine":83,"endLine":88},{"startLine":90,"endLine":95},{"startLine":97,"endLine":102},{"startLine":82,"endLine":103},{"startLine":109,"endLine":113},{"startLine":108,"endLine":114},{"startLine":24,"endLine":115},{"startLine":23,"endLine":116}]
+=== 360 docs/src/lib/components/demos/tooltip-demo-singleton-force-mount.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":46,"endLine":51},{"startLine":42,"endLine":53},{"startLine":65,"endLine":66},{"startLine":68,"endLine":70},{"startLine":62,"endLine":71},{"startLine":61,"endLine":72},{"startLine":60,"endLine":73},{"startLine":57,"endLine":76},{"startLine":56,"endLine":77},{"startLine":40,"endLine":79},{"startLine":39,"endLine":80}]
+=== 270 docs/src/lib/components/demos/tooltip-demo-singleton.svelte	folding.json
+[{"startLine":0,"endLine":43},{"startLine":53,"endLine":58},{"startLine":49,"endLine":60},{"startLine":72,"endLine":74},{"startLine":68,"endLine":75},{"startLine":64,"endLine":76},{"startLine":63,"endLine":77},{"startLine":47,"endLine":79},{"startLine":46,"endLine":80}]
+=== 270 docs/src/lib/components/demos/tooltip-demo-skip-delay.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":32,"endLine":35},{"startLine":46,"endLine":49},{"startLine":42,"endLine":50},{"startLine":38,"endLine":51},{"startLine":37,"endLine":52},{"startLine":31,"endLine":53},{"startLine":24,"endLine":55},{"startLine":23,"endLine":56}]
+=== 701 docs/src/lib/components/demos/tooltip-demo-tether.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":19,"endLine":20},{"startLine":17,"endLine":21},{"startLine":23,"endLine":32},{"startLine":14,"endLine":33},{"startLine":39,"endLine":41},{"startLine":43,"endLine":52},{"startLine":36,"endLine":53},{"startLine":61,"endLine":62},{"startLine":59,"endLine":63},{"startLine":66,"endLine":76},{"startLine":78,"endLine":88},{"startLine":65,"endLine":89},{"startLine":56,"endLine":90},{"startLine":13,"endLine":91},{"startLine":106,"endLine":109},{"startLine":104,"endLine":110},{"startLine":112,"endLine":114},{"startLine":101,"endLine":115},{"startLine":97,"endLine":116},{"startLine":96,"endLine":117},{"startLine":94,"endLine":119},{"startLine":12,"endLine":120}]
+=== 236 docs/src/lib/components/demos/tooltip-demo-transition.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":8,"endLine":12},{"startLine":19,"endLine":22},{"startLine":18,"endLine":23},{"startLine":17,"endLine":24},{"startLine":14,"endLine":27},{"startLine":7,"endLine":28},{"startLine":6,"endLine":29}]
+=== 176 docs/src/lib/components/demos/tooltip-demo.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":7,"endLine":11},{"startLine":17,"endLine":20},{"startLine":13,"endLine":21},{"startLine":6,"endLine":22},{"startLine":5,"endLine":23}]
+=== 240 docs/src/lib/components/doc-page-header.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":40,"endLine":42},{"startLine":44,"endLine":45},{"startLine":48,"endLine":52},{"startLine":55,"endLine":66},{"startLine":54,"endLine":68},{"startLine":72,"endLine":73},{"startLine":39,"endLine":74}]
+=== 180 docs/src/lib/components/doc-page.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":51,"endLine":57},{"startLine":50,"endLine":58},{"startLine":62,"endLine":65},{"startLine":61,"endLine":66},{"startLine":43,"endLine":67}]
+=== 210 docs/src/lib/components/docs-pager.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":24,"endLine":25},{"startLine":18,"endLine":27},{"startLine":37,"endLine":40},{"startLine":31,"endLine":42},{"startLine":16,"endLine":44},{"startLine":15,"endLine":45}]
+=== 87 docs/src/lib/components/examples/command/command-wrapper.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":7,"endLine":14},{"startLine":6,"endLine":15}]
+=== 520 docs/src/lib/components/examples/command/framer/framer-command.svelte	folding.json
+[{"startLine":0,"endLine":59},{"startLine":64,"endLine":66},{"startLine":78,"endLine":79},{"startLine":83,"endLine":84},{"startLine":81,"endLine":85},{"startLine":77,"endLine":86},{"startLine":74,"endLine":88},{"startLine":72,"endLine":89},{"startLine":71,"endLine":90},{"startLine":101,"endLine":103},{"startLine":108,"endLine":109},{"startLine":93,"endLine":113},{"startLine":70,"endLine":114},{"startLine":69,"endLine":115},{"startLine":68,"endLine":116},{"startLine":63,"endLine":117},{"startLine":62,"endLine":118}]
+=== 57 docs/src/lib/components/examples/command/framer/icons/avatar.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 57 docs/src/lib/components/examples/command/framer/icons/badge.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 57 docs/src/lib/components/examples/command/framer/icons/button.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 57 docs/src/lib/components/examples/command/framer/icons/container.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 57 docs/src/lib/components/examples/command/framer/icons/input.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 57 docs/src/lib/components/examples/command/framer/icons/radio.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 59 docs/src/lib/components/examples/command/framer/icons/search.svelte	folding.json
+[{"startLine":8,"endLine":11},{"startLine":0,"endLine":12}]
+=== 57 docs/src/lib/components/examples/command/framer/icons/slider.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 59 docs/src/lib/components/examples/command/icons/copied.svelte	folding.json
+[{"startLine":8,"endLine":12},{"startLine":0,"endLine":13}]
+=== 87 docs/src/lib/components/examples/command/icons/copy.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":7,"endLine":11},{"startLine":0,"endLine":12}]
+=== 57 docs/src/lib/components/examples/command/icons/figma.svelte	folding.json
+[{"startLine":3,"endLine":5},{"startLine":0,"endLine":8}]
+=== 57 docs/src/lib/components/examples/command/icons/framer.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":0,"endLine":4}]
+=== 57 docs/src/lib/components/examples/command/icons/github.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":0,"endLine":4}]
+=== 175 docs/src/lib/components/examples/command/icons/linear.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":7},{"startLine":9,"endLine":11},{"startLine":13,"endLine":15},{"startLine":17,"endLine":19},{"startLine":4,"endLine":20}]
+=== 57 docs/src/lib/components/examples/command/icons/raycast.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 265 docs/src/lib/components/examples/command/icons/slack.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":5,"endLine":7},{"startLine":9,"endLine":11},{"startLine":13,"endLine":15},{"startLine":17,"endLine":19},{"startLine":21,"endLine":23},{"startLine":25,"endLine":27},{"startLine":29,"endLine":31},{"startLine":0,"endLine":32}]
+=== 29 docs/src/lib/components/examples/command/icons/vercel.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 docs/src/lib/components/examples/command/icons/youtube.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":0,"endLine":5}]
+=== 115 docs/src/lib/components/examples/command/linear/icons/assign-to-me.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":4,"endLine":7},{"startLine":9,"endLine":10},{"startLine":0,"endLine":11}]
+=== 57 docs/src/lib/components/examples/command/linear/icons/assign-to.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":0,"endLine":3}]
+=== 57 docs/src/lib/components/examples/command/linear/icons/change-labels.svelte	folding.json
+[{"startLine":1,"endLine":4},{"startLine":0,"endLine":5}]
+=== 29 docs/src/lib/components/examples/command/linear/icons/change-priority.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 85 docs/src/lib/components/examples/command/linear/icons/change-status.svelte	folding.json
+[{"startLine":1,"endLine":2},{"startLine":4,"endLine":7},{"startLine":0,"endLine":8}]
+=== 57 docs/src/lib/components/examples/command/linear/icons/set-due-date.svelte	folding.json
+[{"startLine":1,"endLine":4},{"startLine":0,"endLine":5}]
+=== 210 docs/src/lib/components/examples/command/linear/linear-command.svelte	folding.json
+[{"startLine":0,"endLine":56},{"startLine":71,"endLine":74},{"startLine":68,"endLine":75},{"startLine":64,"endLine":77},{"startLine":63,"endLine":78},{"startLine":60,"endLine":79},{"startLine":59,"endLine":80}]
+=== 115 docs/src/lib/components/examples/command/logo.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":6,"endLine":7},{"startLine":9,"endLine":10},{"startLine":5,"endLine":11}]
+=== 85 docs/src/lib/components/examples/command/raycast/icons/clipboard.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":1,"endLine":8},{"startLine":0,"endLine":9}]
+=== 57 docs/src/lib/components/examples/command/raycast/icons/finder.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":0,"endLine":7}]
+=== 85 docs/src/lib/components/examples/command/raycast/icons/hammer.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":1,"endLine":8},{"startLine":0,"endLine":9}]
+=== 59 docs/src/lib/components/examples/command/raycast/icons/raycast-dark.svelte	folding.json
+[{"startLine":7,"endLine":11},{"startLine":0,"endLine":12}]
+=== 59 docs/src/lib/components/examples/command/raycast/icons/raycast-light.svelte	folding.json
+[{"startLine":7,"endLine":11},{"startLine":0,"endLine":12}]
+=== 57 docs/src/lib/components/examples/command/raycast/icons/star.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":0,"endLine":7}]
+=== 57 docs/src/lib/components/examples/command/raycast/icons/window.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":0,"endLine":7}]
+=== 90 docs/src/lib/components/examples/command/raycast/item.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":21,"endLine":26},{"startLine":19,"endLine":27}]
+=== 814 docs/src/lib/components/examples/command/raycast/raycast-command.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":27,"endLine":28},{"startLine":26,"endLine":30},{"startLine":33,"endLine":34},{"startLine":32,"endLine":36},{"startLine":39,"endLine":40},{"startLine":38,"endLine":42},{"startLine":45,"endLine":46},{"startLine":44,"endLine":48},{"startLine":51,"endLine":52},{"startLine":50,"endLine":54},{"startLine":25,"endLine":55},{"startLine":23,"endLine":56},{"startLine":66,"endLine":67},{"startLine":61,"endLine":69},{"startLine":72,"endLine":73},{"startLine":71,"endLine":75},{"startLine":82,"endLine":83},{"startLine":77,"endLine":85},{"startLine":60,"endLine":86},{"startLine":58,"endLine":87},{"startLine":21,"endLine":88},{"startLine":20,"endLine":89},{"startLine":98,"endLine":100},{"startLine":92,"endLine":105},{"startLine":16,"endLine":106},{"startLine":15,"endLine":107}]
+=== 390 docs/src/lib/components/examples/command/raycast/sub-command.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":37,"endLine":40},{"startLine":35,"endLine":42},{"startLine":59,"endLine":61},{"startLine":63,"endLine":65},{"startLine":67,"endLine":69},{"startLine":71,"endLine":73},{"startLine":57,"endLine":74},{"startLine":56,"endLine":75},{"startLine":55,"endLine":77},{"startLine":45,"endLine":78},{"startLine":44,"endLine":79},{"startLine":34,"endLine":80}]
+=== 87 docs/src/lib/components/examples/command/raycast/sub-item.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":9,"endLine":12},{"startLine":7,"endLine":13}]
+=== 182 docs/src/lib/components/examples/command/theme-switcher.svelte	folding.json
+[{"startLine":0,"endLine":75},{"startLine":81,"endLine":82},{"startLine":91,"endLine":94},{"startLine":87,"endLine":96},{"startLine":99,"endLine":100},{"startLine":80,"endLine":101}]
+=== 420 docs/src/lib/components/examples/command/vercel/home.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":18,"endLine":20},{"startLine":22,"endLine":24},{"startLine":17,"endLine":25},{"startLine":15,"endLine":26},{"startLine":31,"endLine":33},{"startLine":35,"endLine":37},{"startLine":30,"endLine":38},{"startLine":28,"endLine":39},{"startLine":44,"endLine":46},{"startLine":48,"endLine":50},{"startLine":52,"endLine":54},{"startLine":43,"endLine":55},{"startLine":41,"endLine":56}]
+=== 30 docs/src/lib/components/examples/command/vercel/icons/contact.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 30 docs/src/lib/components/examples/command/vercel/icons/docs.svelte	folding.json
+[{"startLine":0,"endLine":15}]
+=== 60 docs/src/lib/components/examples/command/vercel/icons/feedback.svelte	folding.json
+[{"startLine":11,"endLine":12},{"startLine":0,"endLine":13}]
+=== 30 docs/src/lib/components/examples/command/vercel/icons/plus.svelte	folding.json
+[{"startLine":0,"endLine":12}]
+=== 30 docs/src/lib/components/examples/command/vercel/icons/projects.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 30 docs/src/lib/components/examples/command/vercel/icons/teams.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 90 docs/src/lib/components/examples/command/vercel/item.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":20,"endLine":23},{"startLine":17,"endLine":25}]
+=== 57 docs/src/lib/components/examples/command/vercel/projects.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":6}]
+=== 240 docs/src/lib/components/examples/command/vercel/vercel-command.svelte	folding.json
+[{"startLine":0,"endLine":45},{"startLine":52,"endLine":53},{"startLine":50,"endLine":55},{"startLine":63,"endLine":66},{"startLine":59,"endLine":72},{"startLine":58,"endLine":73},{"startLine":49,"endLine":74},{"startLine":48,"endLine":75}]
+=== 720 docs/src/lib/components/homepage/card-air.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":11,"endLine":12},{"startLine":20,"endLine":21},{"startLine":19,"endLine":22},{"startLine":25,"endLine":26},{"startLine":24,"endLine":27},{"startLine":30,"endLine":33},{"startLine":35,"endLine":38},{"startLine":29,"endLine":39},{"startLine":18,"endLine":40},{"startLine":44,"endLine":48},{"startLine":50,"endLine":51},{"startLine":43,"endLine":52},{"startLine":17,"endLine":53},{"startLine":62,"endLine":64},{"startLine":59,"endLine":65},{"startLine":77,"endLine":80},{"startLine":71,"endLine":81},{"startLine":68,"endLine":82},{"startLine":57,"endLine":83},{"startLine":56,"endLine":86},{"startLine":14,"endLine":87},{"startLine":10,"endLine":88},{"startLine":91,"endLine":112}]
+=== 414 docs/src/lib/components/homepage/card-sound.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":6},{"startLine":8,"endLine":9},{"startLine":11,"endLine":12},{"startLine":19,"endLine":23},{"startLine":18,"endLine":25},{"startLine":31,"endLine":32},{"startLine":37,"endLine":40},{"startLine":42,"endLine":45},{"startLine":34,"endLine":46},{"startLine":28,"endLine":47},{"startLine":15,"endLine":48},{"startLine":4,"endLine":49},{"startLine":52,"endLine":77}]
+=== 578 docs/src/lib/components/homepage/card-timer.svelte	folding.json
+[{"startLine":0,"endLine":45},{"startLine":49,"endLine":50},{"startLine":52,"endLine":53},{"startLine":61,"endLine":62},{"startLine":69,"endLine":72},{"startLine":74,"endLine":75},{"startLine":66,"endLine":76},{"startLine":64,"endLine":78},{"startLine":60,"endLine":79},{"startLine":88,"endLine":91},{"startLine":83,"endLine":92},{"startLine":81,"endLine":94},{"startLine":59,"endLine":95},{"startLine":100,"endLine":108},{"startLine":98,"endLine":109},{"startLine":56,"endLine":110},{"startLine":55,"endLine":111},{"startLine":48,"endLine":112},{"startLine":115,"endLine":142}]
+=== 1119 docs/src/lib/components/homepage/card-toggle.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":12,"endLine":13},{"startLine":15,"endLine":16},{"startLine":18,"endLine":19},{"startLine":21,"endLine":22},{"startLine":24,"endLine":25},{"startLine":27,"endLine":28},{"startLine":38,"endLine":41},{"startLine":43,"endLine":46},{"startLine":35,"endLine":47},{"startLine":50,"endLine":64},{"startLine":66,"endLine":80},{"startLine":34,"endLine":81},{"startLine":31,"endLine":82},{"startLine":9,"endLine":83},{"startLine":107,"endLine":111},{"startLine":101,"endLine":112},{"startLine":115,"endLine":116},{"startLine":118,"endLine":121},{"startLine":114,"endLine":122},{"startLine":100,"endLine":123},{"startLine":126,"endLine":130},{"startLine":140,"endLine":142},{"startLine":145,"endLine":148},{"startLine":150,"endLine":153},{"startLine":144,"endLine":154},{"startLine":137,"endLine":155},{"startLine":161,"endLine":163},{"startLine":166,"endLine":169},{"startLine":171,"endLine":174},{"startLine":165,"endLine":175},{"startLine":158,"endLine":176},{"startLine":133,"endLine":177},{"startLine":132,"endLine":178},{"startLine":125,"endLine":179},{"startLine":99,"endLine":180}]
+=== 330 docs/src/lib/components/homepage/home-select.svelte	folding.json
+[{"startLine":0,"endLine":17},{"startLine":26,"endLine":27},{"startLine":21,"endLine":28},{"startLine":35,"endLine":36},{"startLine":48,"endLine":49},{"startLine":40,"endLine":52},{"startLine":38,"endLine":54},{"startLine":56,"endLine":57},{"startLine":31,"endLine":58},{"startLine":30,"endLine":59},{"startLine":20,"endLine":60}]
+=== 147 docs/src/lib/components/homepage/home-slider.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":15,"endLine":18},{"startLine":21,"endLine":26},{"startLine":8,"endLine":29},{"startLine":7,"endLine":30}]
+=== 180 docs/src/lib/components/homepage/home-switch.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":26,"endLine":29},{"startLine":31,"endLine":34},{"startLine":23,"endLine":35},{"startLine":14,"endLine":36},{"startLine":13,"endLine":37}]
+=== 178 docs/src/lib/components/homepage/home-toolbar.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":13,"endLine":18},{"startLine":20,"endLine":25},{"startLine":27,"endLine":32},{"startLine":12,"endLine":33},{"startLine":9,"endLine":34}]
+=== 2405 docs/src/lib/components/homepage/svg-accessible-dark.svelte	folding.json
+[{"startLine":6,"endLine":9},{"startLine":11,"endLine":13},{"startLine":15,"endLine":18},{"startLine":20,"endLine":23},{"startLine":25,"endLine":27},{"startLine":29,"endLine":31},{"startLine":35,"endLine":42},{"startLine":46,"endLine":53},{"startLine":57,"endLine":64},{"startLine":68,"endLine":75},{"startLine":79,"endLine":86},{"startLine":90,"endLine":97},{"startLine":101,"endLine":108},{"startLine":112,"endLine":119},{"startLine":123,"endLine":130},{"startLine":134,"endLine":141},{"startLine":145,"endLine":152},{"startLine":156,"endLine":163},{"startLine":167,"endLine":174},{"startLine":178,"endLine":185},{"startLine":189,"endLine":196},{"startLine":200,"endLine":207},{"startLine":211,"endLine":218},{"startLine":222,"endLine":229},{"startLine":233,"endLine":240},{"startLine":244,"endLine":251},{"startLine":255,"endLine":262},{"startLine":266,"endLine":273},{"startLine":277,"endLine":284},{"startLine":288,"endLine":295},{"startLine":299,"endLine":306},{"startLine":310,"endLine":317},{"startLine":321,"endLine":328},{"startLine":332,"endLine":339},{"startLine":343,"endLine":350},{"startLine":354,"endLine":361},{"startLine":363,"endLine":365},{"startLine":368,"endLine":370},{"startLine":372,"endLine":374},{"startLine":376,"endLine":378},{"startLine":380,"endLine":382},{"startLine":384,"endLine":386},{"startLine":388,"endLine":390},{"startLine":393,"endLine":395},{"startLine":397,"endLine":399},{"startLine":401,"endLine":403},{"startLine":405,"endLine":407},{"startLine":409,"endLine":411},{"startLine":413,"endLine":415},{"startLine":417,"endLine":419},{"startLine":421,"endLine":423},{"startLine":425,"endLine":427},{"startLine":429,"endLine":431},{"startLine":433,"endLine":435},{"startLine":437,"endLine":439},{"startLine":441,"endLine":443},{"startLine":446,"endLine":448},{"startLine":445,"endLine":449},{"startLine":451,"endLine":453},{"startLine":455,"endLine":457},{"startLine":459,"endLine":461},{"startLine":463,"endLine":465},{"startLine":467,"endLine":469},{"startLine":471,"endLine":474},{"startLine":477,"endLine":479},{"startLine":476,"endLine":480},{"startLine":483,"endLine":485},{"startLine":482,"endLine":486},{"startLine":488,"endLine":492},{"startLine":496,"endLine":503},{"startLine":507,"endLine":514},{"startLine":518,"endLine":525},{"startLine":528,"endLine":537},{"startLine":539,"endLine":540},{"startLine":527,"endLine":541},{"startLine":0,"endLine":542}]
+=== 2597 docs/src/lib/components/homepage/svg-accessible.svelte	folding.json
+[{"startLine":6,"endLine":9},{"startLine":11,"endLine":13},{"startLine":15,"endLine":18},{"startLine":20,"endLine":23},{"startLine":25,"endLine":27},{"startLine":29,"endLine":31},{"startLine":35,"endLine":42},{"startLine":46,"endLine":53},{"startLine":57,"endLine":64},{"startLine":68,"endLine":75},{"startLine":79,"endLine":86},{"startLine":90,"endLine":97},{"startLine":101,"endLine":108},{"startLine":112,"endLine":119},{"startLine":123,"endLine":130},{"startLine":134,"endLine":141},{"startLine":145,"endLine":152},{"startLine":156,"endLine":163},{"startLine":167,"endLine":174},{"startLine":178,"endLine":185},{"startLine":189,"endLine":196},{"startLine":200,"endLine":207},{"startLine":211,"endLine":218},{"startLine":222,"endLine":229},{"startLine":233,"endLine":240},{"startLine":244,"endLine":251},{"startLine":255,"endLine":262},{"startLine":266,"endLine":273},{"startLine":277,"endLine":284},{"startLine":288,"endLine":295},{"startLine":299,"endLine":306},{"startLine":310,"endLine":317},{"startLine":321,"endLine":328},{"startLine":332,"endLine":339},{"startLine":343,"endLine":350},{"startLine":354,"endLine":361},{"startLine":363,"endLine":365},{"startLine":368,"endLine":370},{"startLine":372,"endLine":374},{"startLine":376,"endLine":378},{"startLine":380,"endLine":382},{"startLine":384,"endLine":386},{"startLine":388,"endLine":390},{"startLine":393,"endLine":395},{"startLine":397,"endLine":399},{"startLine":401,"endLine":403},{"startLine":405,"endLine":407},{"startLine":409,"endLine":411},{"startLine":413,"endLine":415},{"startLine":417,"endLine":419},{"startLine":421,"endLine":423},{"startLine":425,"endLine":427},{"startLine":429,"endLine":431},{"startLine":434,"endLine":436},{"startLine":438,"endLine":440},{"startLine":442,"endLine":444},{"startLine":446,"endLine":448},{"startLine":450,"endLine":452},{"startLine":454,"endLine":456},{"startLine":458,"endLine":460},{"startLine":462,"endLine":464},{"startLine":466,"endLine":468},{"startLine":471,"endLine":473},{"startLine":470,"endLine":474},{"startLine":476,"endLine":478},{"startLine":480,"endLine":482},{"startLine":484,"endLine":486},{"startLine":488,"endLine":490},{"startLine":492,"endLine":494},{"startLine":496,"endLine":499},{"startLine":502,"endLine":504},{"startLine":501,"endLine":505},{"startLine":508,"endLine":510},{"startLine":507,"endLine":511},{"startLine":513,"endLine":517},{"startLine":521,"endLine":528},{"startLine":532,"endLine":539},{"startLine":543,"endLine":550},{"startLine":553,"endLine":562},{"startLine":564,"endLine":565},{"startLine":552,"endLine":566},{"startLine":0,"endLine":567}]
+=== 4524 docs/src/lib/components/homepage/svg-consistent.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":5,"endLine":7},{"startLine":9,"endLine":13},{"startLine":15,"endLine":17},{"startLine":19,"endLine":23},{"startLine":25,"endLine":27},{"startLine":29,"endLine":33},{"startLine":35,"endLine":37},{"startLine":39,"endLine":43},{"startLine":45,"endLine":47},{"startLine":49,"endLine":51},{"startLine":53,"endLine":55},{"startLine":57,"endLine":59},{"startLine":61,"endLine":63},{"startLine":65,"endLine":67},{"startLine":69,"endLine":71},{"startLine":73,"endLine":75},{"startLine":77,"endLine":79},{"startLine":81,"endLine":83},{"startLine":85,"endLine":87},{"startLine":89,"endLine":91},{"startLine":93,"endLine":95},{"startLine":97,"endLine":99},{"startLine":101,"endLine":103},{"startLine":105,"endLine":107},{"startLine":109,"endLine":111},{"startLine":113,"endLine":115},{"startLine":117,"endLine":119},{"startLine":121,"endLine":123},{"startLine":125,"endLine":127},{"startLine":129,"endLine":131},{"startLine":133,"endLine":135},{"startLine":137,"endLine":139},{"startLine":141,"endLine":143},{"startLine":145,"endLine":147},{"startLine":149,"endLine":151},{"startLine":153,"endLine":155},{"startLine":157,"endLine":159},{"startLine":161,"endLine":163},{"startLine":165,"endLine":167},{"startLine":169,"endLine":171},{"startLine":173,"endLine":175},{"startLine":177,"endLine":179},{"startLine":181,"endLine":183},{"startLine":185,"endLine":187},{"startLine":189,"endLine":191},{"startLine":193,"endLine":195},{"startLine":197,"endLine":199},{"startLine":201,"endLine":203},{"startLine":205,"endLine":207},{"startLine":209,"endLine":211},{"startLine":213,"endLine":215},{"startLine":218,"endLine":220},{"startLine":222,"endLine":225},{"startLine":227,"endLine":230},{"startLine":232,"endLine":234},{"startLine":236,"endLine":240},{"startLine":242,"endLine":244},{"startLine":246,"endLine":248},{"startLine":250,"endLine":252},{"startLine":254,"endLine":256},{"startLine":258,"endLine":260},{"startLine":262,"endLine":264},{"startLine":266,"endLine":268},{"startLine":270,"endLine":272},{"startLine":274,"endLine":276},{"startLine":278,"endLine":280},{"startLine":283,"endLine":291},{"startLine":295,"endLine":297},{"startLine":299,"endLine":301},{"startLine":303,"endLine":305},{"startLine":307,"endLine":309},{"startLine":311,"endLine":313},{"startLine":316,"endLine":318},{"startLine":320,"endLine":322},{"startLine":324,"endLine":326},{"startLine":330,"endLine":332},{"startLine":334,"endLine":336},{"startLine":338,"endLine":340},{"startLine":342,"endLine":344},{"startLine":347,"endLine":349},{"startLine":351,"endLine":353},{"startLine":355,"endLine":357},{"startLine":359,"endLine":361},{"startLine":363,"endLine":365},{"startLine":367,"endLine":369},{"startLine":371,"endLine":373},{"startLine":375,"endLine":377},{"startLine":346,"endLine":378},{"startLine":381,"endLine":383},{"startLine":385,"endLine":387},{"startLine":389,"endLine":391},{"startLine":393,"endLine":395},{"startLine":397,"endLine":399},{"startLine":401,"endLine":403},{"startLine":405,"endLine":407},{"startLine":409,"endLine":411},{"startLine":413,"endLine":415},{"startLine":417,"endLine":419},{"startLine":421,"endLine":428},{"startLine":431,"endLine":439},{"startLine":442,"endLine":450},{"startLine":452,"endLine":455},{"startLine":457,"endLine":460},{"startLine":463,"endLine":471},{"startLine":474,"endLine":482},{"startLine":484,"endLine":487},{"startLine":489,"endLine":492},{"startLine":496,"endLine":504},{"startLine":507,"endLine":513},{"startLine":515,"endLine":523},{"startLine":506,"endLine":524},{"startLine":526,"endLine":529},{"startLine":531,"endLine":534},{"startLine":494,"endLine":535},{"startLine":537,"endLine":544},{"startLine":547,"endLine":555},{"startLine":557,"endLine":559},{"startLine":561,"endLine":564},{"startLine":566,"endLine":569},{"startLine":573,"endLine":576},{"startLine":572,"endLine":577},{"startLine":571,"endLine":578},{"startLine":580,"endLine":583},{"startLine":585,"endLine":587},{"startLine":589,"endLine":591},{"startLine":593,"endLine":595},{"startLine":597,"endLine":601},{"startLine":603,"endLine":605},{"startLine":607,"endLine":609},{"startLine":611,"endLine":613},{"startLine":615,"endLine":617},{"startLine":619,"endLine":621},{"startLine":623,"endLine":625},{"startLine":638,"endLine":642},{"startLine":648,"endLine":652},{"startLine":628,"endLine":653},{"startLine":655,"endLine":664},{"startLine":666,"endLine":675},{"startLine":678,"endLine":682},{"startLine":677,"endLine":683},{"startLine":627,"endLine":684},{"startLine":0,"endLine":685}]
+=== 2924 docs/src/lib/components/homepage/svg-customizable.svelte	folding.json
+[{"startLine":2,"endLine":4},{"startLine":6,"endLine":8},{"startLine":1,"endLine":9},{"startLine":11,"endLine":13},{"startLine":15,"endLine":17},{"startLine":19,"endLine":23},{"startLine":25,"endLine":27},{"startLine":29,"endLine":33},{"startLine":35,"endLine":37},{"startLine":39,"endLine":43},{"startLine":45,"endLine":47},{"startLine":49,"endLine":53},{"startLine":55,"endLine":57},{"startLine":59,"endLine":63},{"startLine":65,"endLine":67},{"startLine":69,"endLine":73},{"startLine":75,"endLine":77},{"startLine":79,"endLine":81},{"startLine":83,"endLine":85},{"startLine":87,"endLine":89},{"startLine":91,"endLine":93},{"startLine":95,"endLine":97},{"startLine":99,"endLine":101},{"startLine":103,"endLine":105},{"startLine":107,"endLine":109},{"startLine":111,"endLine":113},{"startLine":115,"endLine":117},{"startLine":119,"endLine":121},{"startLine":123,"endLine":125},{"startLine":127,"endLine":129},{"startLine":131,"endLine":133},{"startLine":135,"endLine":137},{"startLine":139,"endLine":141},{"startLine":143,"endLine":145},{"startLine":148,"endLine":150},{"startLine":152,"endLine":154},{"startLine":156,"endLine":158},{"startLine":160,"endLine":162},{"startLine":164,"endLine":166},{"startLine":168,"endLine":170},{"startLine":172,"endLine":174},{"startLine":176,"endLine":178},{"startLine":180,"endLine":182},{"startLine":185,"endLine":187},{"startLine":190,"endLine":192},{"startLine":194,"endLine":196},{"startLine":198,"endLine":200},{"startLine":202,"endLine":204},{"startLine":206,"endLine":208},{"startLine":210,"endLine":212},{"startLine":214,"endLine":216},{"startLine":218,"endLine":220},{"startLine":222,"endLine":224},{"startLine":226,"endLine":228},{"startLine":230,"endLine":232},{"startLine":234,"endLine":236},{"startLine":238,"endLine":240},{"startLine":242,"endLine":244},{"startLine":246,"endLine":248},{"startLine":250,"endLine":252},{"startLine":254,"endLine":256},{"startLine":258,"endLine":260},{"startLine":262,"endLine":264},{"startLine":266,"endLine":268},{"startLine":270,"endLine":272},{"startLine":274,"endLine":276},{"startLine":278,"endLine":280},{"startLine":282,"endLine":284},{"startLine":286,"endLine":288},{"startLine":290,"endLine":292},{"startLine":294,"endLine":296},{"startLine":298,"endLine":300},{"startLine":302,"endLine":304},{"startLine":306,"endLine":308},{"startLine":310,"endLine":312},{"startLine":314,"endLine":316},{"startLine":318,"endLine":322},{"startLine":324,"endLine":326},{"startLine":328,"endLine":333},{"startLine":340,"endLine":342},{"startLine":344,"endLine":348},{"startLine":350,"endLine":352},{"startLine":354,"endLine":356},{"startLine":358,"endLine":362},{"startLine":364,"endLine":366},{"startLine":368,"endLine":370},{"startLine":372,"endLine":374},{"startLine":376,"endLine":378},{"startLine":380,"endLine":382},{"startLine":396,"endLine":400},{"startLine":385,"endLine":405},{"startLine":384,"endLine":406},{"startLine":0,"endLine":407}]
+=== 86 docs/src/lib/components/icons/claude.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":7,"endLine":9},{"startLine":6,"endLine":10}]
+=== 86 docs/src/lib/components/icons/github.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":7,"endLine":9},{"startLine":6,"endLine":10}]
+=== 86 docs/src/lib/components/icons/stackblitz.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":7,"endLine":9},{"startLine":6,"endLine":10}]
+=== 57 docs/src/lib/components/icons/switch-off.svelte	folding.json
+[{"startLine":3,"endLine":4},{"startLine":0,"endLine":5}]
+=== 57 docs/src/lib/components/icons/switch-on.svelte	folding.json
+[{"startLine":3,"endLine":4},{"startLine":0,"endLine":5}]
+=== 85 docs/src/lib/components/icons/x-com.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":7,"endLine":8},{"startLine":6,"endLine":9}]
+=== 118 docs/src/lib/components/light-switch.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":18,"endLine":27},{"startLine":30,"endLine":39},{"startLine":9,"endLine":41}]
+=== 59 docs/src/lib/components/markdown/a.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":12}]
+=== 57 docs/src/lib/components/markdown/blockquote.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8}]
+=== 60 docs/src/lib/components/markdown/blueprint.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":24,"endLine":25}]
+=== 58 docs/src/lib/components/markdown/code.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":14}]
+=== 57 docs/src/lib/components/markdown/h1.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8}]
+=== 58 docs/src/lib/components/markdown/h2.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":14}]
+=== 58 docs/src/lib/components/markdown/h3.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":11}]
+=== 57 docs/src/lib/components/markdown/h4.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8}]
+=== 57 docs/src/lib/components/markdown/h5.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8}]
+=== 57 docs/src/lib/components/markdown/h6.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8}]
+=== 29 docs/src/lib/components/markdown/hr.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 29 docs/src/lib/components/markdown/img.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 57 docs/src/lib/components/markdown/li.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7}]
+=== 57 docs/src/lib/components/markdown/ol.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8}]
+=== 59 docs/src/lib/components/markdown/p.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":12}]
+=== 58 docs/src/lib/components/markdown/pre.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":13}]
+=== 86 docs/src/lib/components/markdown/table.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":8,"endLine":9},{"startLine":7,"endLine":10}]
+=== 59 docs/src/lib/components/markdown/td.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 59 docs/src/lib/components/markdown/th.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 59 docs/src/lib/components/markdown/tr.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":12}]
+=== 57 docs/src/lib/components/markdown/ul.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8}]
+=== 60 docs/src/lib/components/metadata.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":25,"endLine":46}]
+=== 60 docs/src/lib/components/navigation/mobile-link.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":13,"endLine":14}]
+=== 178 docs/src/lib/components/navigation/mobile-menu-icon.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":12,"endLine":18},{"startLine":20,"endLine":26},{"startLine":28,"endLine":34},{"startLine":36,"endLine":42},{"startLine":4,"endLine":43}]
+=== 389 docs/src/lib/components/navigation/mobile-nav.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":15,"endLine":21},{"startLine":13,"endLine":23},{"startLine":41,"endLine":44},{"startLine":48,"endLine":54},{"startLine":60,"endLine":66},{"startLine":46,"endLine":70},{"startLine":40,"endLine":71},{"startLine":38,"endLine":73},{"startLine":35,"endLine":74},{"startLine":26,"endLine":75},{"startLine":25,"endLine":76},{"startLine":12,"endLine":77}]
+=== 148 docs/src/lib/components/navigation/sidebar-nav-items.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":24,"endLine":27},{"startLine":12,"endLine":29},{"startLine":32,"endLine":35},{"startLine":9,"endLine":38}]
+=== 118 docs/src/lib/components/navigation/sidebar-nav-main-items.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":27,"endLine":30},{"startLine":13,"endLine":32},{"startLine":9,"endLine":35}]
+=== 299 docs/src/lib/components/navigation/sidebar-nav.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":25,"endLine":28},{"startLine":24,"endLine":32},{"startLine":19,"endLine":35},{"startLine":18,"endLine":36},{"startLine":17,"endLine":37},{"startLine":14,"endLine":38},{"startLine":40,"endLine":44},{"startLine":13,"endLine":46},{"startLine":10,"endLine":47}]
+=== 208 docs/src/lib/components/open-in-stackblitz.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":12,"endLine":16},{"startLine":19,"endLine":22},{"startLine":18,"endLine":23},{"startLine":11,"endLine":24},{"startLine":10,"endLine":25},{"startLine":9,"endLine":26}]
+=== 59 docs/src/lib/components/page-header/page-header-description.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 58 docs/src/lib/components/page-header/page-header-heading.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":11}]
+=== 57 docs/src/lib/components/page-header/page-header.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7}]
+=== 88 docs/src/lib/components/preview-switch.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":15,"endLine":18},{"startLine":7,"endLine":19}]
+=== 652 docs/src/lib/components/search.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":57,"endLine":62},{"startLine":67,"endLine":68},{"startLine":71,"endLine":74},{"startLine":76,"endLine":79},{"startLine":70,"endLine":80},{"startLine":64,"endLine":81},{"startLine":85,"endLine":86},{"startLine":100,"endLine":107},{"startLine":110,"endLine":113},{"startLine":138,"endLine":139},{"startLine":135,"endLine":141},{"startLine":144,"endLine":147},{"startLine":127,"endLine":149},{"startLine":121,"endLine":151},{"startLine":120,"endLine":152},{"startLine":118,"endLine":154},{"startLine":96,"endLine":156},{"startLine":88,"endLine":157},{"startLine":84,"endLine":158},{"startLine":49,"endLine":159}]
+=== 206 docs/src/lib/components/sidebar-sponsor-mobile.svelte	folding.json
+[{"startLine":4,"endLine":5},{"startLine":7,"endLine":8},{"startLine":14,"endLine":16},{"startLine":11,"endLine":17},{"startLine":20,"endLine":22},{"startLine":25,"endLine":27},{"startLine":0,"endLine":28}]
+=== 266 docs/src/lib/components/sidebar-sponsor.svelte	folding.json
+[{"startLine":4,"endLine":5},{"startLine":7,"endLine":8},{"startLine":13,"endLine":14},{"startLine":17,"endLine":19},{"startLine":16,"endLine":20},{"startLine":12,"endLine":21},{"startLine":23,"endLine":25},{"startLine":11,"endLine":26},{"startLine":0,"endLine":27}]
+=== 239 docs/src/lib/components/site-header.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":18,"endLine":22},{"startLine":15,"endLine":25},{"startLine":28,"endLine":35},{"startLine":27,"endLine":37},{"startLine":14,"endLine":38},{"startLine":13,"endLine":39},{"startLine":10,"endLine":40}]
+=== 647 docs/src/lib/components/stackblitz-demo-layout.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":28,"endLine":30},{"startLine":37,"endLine":40},{"startLine":34,"endLine":42},{"startLine":33,"endLine":43},{"startLine":27,"endLine":44},{"startLine":26,"endLine":45},{"startLine":58,"endLine":67},{"startLine":70,"endLine":79},{"startLine":49,"endLine":81},{"startLine":94,"endLine":96},{"startLine":98,"endLine":100},{"startLine":102,"endLine":104},{"startLine":106,"endLine":108},{"startLine":110,"endLine":115},{"startLine":118,"endLine":121},{"startLine":117,"endLine":122},{"startLine":125,"endLine":129},{"startLine":124,"endLine":130},{"startLine":87,"endLine":131},{"startLine":86,"endLine":132}]
+=== 57 docs/src/lib/components/steps.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7}]
+=== 29 docs/src/lib/components/tailwind-indicator.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 120 docs/src/lib/components/toc/toc-tree.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":26,"endLine":37},{"startLine":25,"endLine":41},{"startLine":17,"endLine":43}]
+=== 210 docs/src/lib/components/toc/toc.svelte	folding.json
+[{"startLine":0,"endLine":51},{"startLine":58,"endLine":60},{"startLine":62,"endLine":63},{"startLine":57,"endLine":64},{"startLine":55,"endLine":66},{"startLine":68,"endLine":72},{"startLine":54,"endLine":74}]
+=== 59 docs/src/lib/components/ui/alert/alert-description.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":12}]
+=== 59 docs/src/lib/components/ui/alert/alert-title.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":13}]
+=== 60 docs/src/lib/components/ui/alert/alert.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":16}]
+=== 59 docs/src/lib/components/ui/badge.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 60 docs/src/lib/components/ui/button/button.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":14,"endLine":15}]
+=== 58 docs/src/lib/components/ui/popover/popover-content.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":13}]
+=== 150 docs/src/lib/components/ui/scroll-area.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":20,"endLine":21},{"startLine":24,"endLine":32},{"startLine":36,"endLine":44},{"startLine":19,"endLine":49}]
+=== 59 docs/src/lib/components/ui/table/table-body.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":12}]
+=== 57 docs/src/lib/components/ui/table/table-caption.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8}]
+=== 59 docs/src/lib/components/ui/table/table-cell.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 59 docs/src/lib/components/ui/table/table-footer.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":12}]
+=== 59 docs/src/lib/components/ui/table/table-head.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":18}]
+=== 59 docs/src/lib/components/ui/table/table-header.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":12}]
+=== 59 docs/src/lib/components/ui/table/table-row.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":12}]
+=== 86 docs/src/lib/components/ui/table/table.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":8,"endLine":9},{"startLine":7,"endLine":10}]
+=== 86 docs/src/routes/(docs)/+error.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":8,"endLine":9},{"startLine":7,"endLine":12}]
+=== 90 docs/src/routes/(docs)/+layout.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":24,"endLine":28},{"startLine":23,"endLine":29}]
+=== 29 docs/src/routes/(docs)/docs/[...slug]/+page.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 3151 docs/src/routes/(docs)/sandbox/+page.svelte	folding.json
+[{"startLine":0,"endLine":63},{"startLine":71,"endLine":72},{"startLine":69,"endLine":73},{"startLine":75,"endLine":78},{"startLine":68,"endLine":79},{"startLine":83,"endLine":89},{"startLine":96,"endLine":102},{"startLine":104,"endLine":105},{"startLine":92,"endLine":106},{"startLine":113,"endLine":119},{"startLine":121,"endLine":122},{"startLine":111,"endLine":123},{"startLine":127,"endLine":133},{"startLine":135,"endLine":136},{"startLine":125,"endLine":137},{"startLine":109,"endLine":138},{"startLine":145,"endLine":151},{"startLine":153,"endLine":154},{"startLine":143,"endLine":155},{"startLine":159,"endLine":165},{"startLine":167,"endLine":168},{"startLine":157,"endLine":169},{"startLine":141,"endLine":170},{"startLine":82,"endLine":171},{"startLine":67,"endLine":172},{"startLine":177,"endLine":179},{"startLine":183,"endLine":185},{"startLine":193,"endLine":194},{"startLine":198,"endLine":200},{"startLine":210,"endLine":220},{"startLine":208,"endLine":222},{"startLine":203,"endLine":223},{"startLine":202,"endLine":224},{"startLine":197,"endLine":225},{"startLine":229,"endLine":231},{"startLine":239,"endLine":240},{"startLine":242,"endLine":243},{"startLine":252,"endLine":253},{"startLine":247,"endLine":254},{"startLine":273,"endLine":274},{"startLine":266,"endLine":277},{"startLine":262,"endLine":279},{"startLine":257,"endLine":280},{"startLine":256,"endLine":281},{"startLine":246,"endLine":282},{"startLine":291,"endLine":292},{"startLine":286,"endLine":293},{"startLine":310,"endLine":311},{"startLine":303,"endLine":314},{"startLine":301,"endLine":316},{"startLine":325,"endLine":326},{"startLine":320,"endLine":327},{"startLine":335,"endLine":336},{"startLine":338,"endLine":339},{"startLine":341,"endLine":342},{"startLine":344,"endLine":345},{"startLine":330,"endLine":346},{"startLine":329,"endLine":347},{"startLine":319,"endLine":348},{"startLine":296,"endLine":349},{"startLine":295,"endLine":350},{"startLine":285,"endLine":351},{"startLine":360,"endLine":361},{"startLine":355,"endLine":362},{"startLine":379,"endLine":380},{"startLine":372,"endLine":383},{"startLine":370,"endLine":385},{"startLine":365,"endLine":386},{"startLine":364,"endLine":387},{"startLine":354,"endLine":388},{"startLine":234,"endLine":389},{"startLine":233,"endLine":390},{"startLine":228,"endLine":391},{"startLine":188,"endLine":392},{"startLine":187,"endLine":393},{"startLine":182,"endLine":394},{"startLine":176,"endLine":395},{"startLine":399,"endLine":401},{"startLine":405,"endLine":408},{"startLine":419,"endLine":421},{"startLine":430,"endLine":431},{"startLine":437,"endLine":438},{"startLine":435,"endLine":439},{"startLine":447,"endLine":448},{"startLine":450,"endLine":451},{"startLine":453,"endLine":454},{"startLine":456,"endLine":457},{"startLine":442,"endLine":458},{"startLine":441,"endLine":459},{"startLine":434,"endLine":460},{"startLine":424,"endLine":461},{"startLine":423,"endLine":462},{"startLine":418,"endLine":463},{"startLine":411,"endLine":464},{"startLine":410,"endLine":465},{"startLine":404,"endLine":466},{"startLine":398,"endLine":467},{"startLine":175,"endLine":468},{"startLine":66,"endLine":469}]
+=== 296 docs/src/routes/(docs)/sink/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":8,"endLine":12},{"startLine":15,"endLine":18},{"startLine":14,"endLine":19},{"startLine":7,"endLine":20},{"startLine":29,"endLine":31},{"startLine":25,"endLine":33},{"startLine":24,"endLine":34},{"startLine":23,"endLine":35},{"startLine":6,"endLine":36}]
+=== 210 docs/src/routes/(docs)/sink/alert-dialog.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":35,"endLine":36},{"startLine":43,"endLine":45},{"startLine":34,"endLine":46},{"startLine":26,"endLine":47},{"startLine":24,"endLine":48},{"startLine":23,"endLine":49}]
+=== 300 docs/src/routes/(docs)/sink/combobox.svelte	folding.json
+[{"startLine":0,"endLine":34},{"startLine":46,"endLine":48},{"startLine":50,"endLine":51},{"startLine":45,"endLine":52},{"startLine":67,"endLine":68},{"startLine":66,"endLine":69},{"startLine":60,"endLine":71},{"startLine":55,"endLine":75},{"startLine":54,"endLine":76},{"startLine":37,"endLine":77}]
+=== 177 docs/src/routes/(docs)/sink/date-field.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":12,"endLine":13},{"startLine":16,"endLine":20},{"startLine":10,"endLine":22},{"startLine":5,"endLine":25},{"startLine":4,"endLine":26}]
+=== 449 docs/src/routes/(docs)/sink/range-cal.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":19,"endLine":22},{"startLine":25,"endLine":28},{"startLine":18,"endLine":29},{"startLine":37,"endLine":40},{"startLine":35,"endLine":42},{"startLine":34,"endLine":43},{"startLine":59,"endLine":60},{"startLine":54,"endLine":62},{"startLine":49,"endLine":63},{"startLine":47,"endLine":65},{"startLine":45,"endLine":67},{"startLine":33,"endLine":68},{"startLine":31,"endLine":70},{"startLine":10,"endLine":72}]
+=== 29 docs/src/routes/(examples)/examples/command/+layout.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 239 docs/src/routes/(examples)/examples/command/+page.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":15,"endLine":16},{"startLine":19,"endLine":20},{"startLine":23,"endLine":24},{"startLine":27,"endLine":28},{"startLine":13,"endLine":30},{"startLine":12,"endLine":34},{"startLine":11,"endLine":35}]
+=== 150 docs/src/routes/(examples)/examples/command/sink/+page.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":26,"endLine":27},{"startLine":32,"endLine":39},{"startLine":30,"endLine":40},{"startLine":29,"endLine":41}]
+=== 30 docs/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 2042 docs/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":21,"endLine":27},{"startLine":32,"endLine":34},{"startLine":30,"endLine":35},{"startLine":40,"endLine":45},{"startLine":52,"endLine":56},{"startLine":51,"endLine":57},{"startLine":60,"endLine":63},{"startLine":59,"endLine":64},{"startLine":67,"endLine":71},{"startLine":66,"endLine":72},{"startLine":50,"endLine":73},{"startLine":75,"endLine":76},{"startLine":49,"endLine":77},{"startLine":83,"endLine":89},{"startLine":80,"endLine":90},{"startLine":39,"endLine":91},{"startLine":104,"endLine":106},{"startLine":98,"endLine":107},{"startLine":109,"endLine":112},{"startLine":114,"endLine":118},{"startLine":126,"endLine":129},{"startLine":131,"endLine":133},{"startLine":120,"endLine":134},{"startLine":97,"endLine":135},{"startLine":143,"endLine":144},{"startLine":141,"endLine":145},{"startLine":155,"endLine":156},{"startLine":153,"endLine":157},{"startLine":138,"endLine":158},{"startLine":94,"endLine":159},{"startLine":38,"endLine":160},{"startLine":167,"endLine":170},{"startLine":172,"endLine":174},{"startLine":166,"endLine":175},{"startLine":184,"endLine":187},{"startLine":191,"endLine":194},{"startLine":190,"endLine":195},{"startLine":198,"endLine":201},{"startLine":181,"endLine":202},{"startLine":178,"endLine":203},{"startLine":210,"endLine":213},{"startLine":217,"endLine":221},{"startLine":216,"endLine":222},{"startLine":225,"endLine":228},{"startLine":209,"endLine":229},{"startLine":206,"endLine":230},{"startLine":237,"endLine":240},{"startLine":244,"endLine":247},{"startLine":243,"endLine":248},{"startLine":251,"endLine":254},{"startLine":236,"endLine":255},{"startLine":233,"endLine":256},{"startLine":177,"endLine":257},{"startLine":163,"endLine":258},{"startLine":264,"endLine":266},{"startLine":270,"endLine":275},{"startLine":269,"endLine":276},{"startLine":279,"endLine":282},{"startLine":278,"endLine":283},{"startLine":286,"endLine":289},{"startLine":285,"endLine":290},{"startLine":268,"endLine":291},{"startLine":261,"endLine":292},{"startLine":295,"endLine":409}]
+=== 57 docs/src/routes/stackblitz/+page.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":6}]
+=== 60 packages/bits-ui/src/lib/bits/accordion/components/accordion-content.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":37,"endLine":38}]
+=== 60 packages/bits-ui/src/lib/bits/accordion/components/accordion-header.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":33}]
+=== 60 packages/bits-ui/src/lib/bits/accordion/components/accordion-item.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":35,"endLine":36}]
+=== 60 packages/bits-ui/src/lib/bits/accordion/components/accordion-trigger.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":34,"endLine":35}]
+=== 60 packages/bits-ui/src/lib/bits/accordion/components/accordion.svelte	folding.json
+[{"startLine":0,"endLine":59},{"startLine":65,"endLine":66}]
+=== 60 packages/bits-ui/src/lib/bits/alert-dialog/components/alert-dialog-action.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/alert-dialog/components/alert-dialog-cancel.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":33}]
+=== 181 packages/bits-ui/src/lib/bits/alert-dialog/components/alert-dialog-content.svelte	folding.json
+[{"startLine":0,"endLine":39},{"startLine":93,"endLine":94},{"startLine":78,"endLine":96},{"startLine":67,"endLine":97},{"startLine":57,"endLine":98},{"startLine":43,"endLine":100}]
+=== 30 packages/bits-ui/src/lib/bits/alert-dialog/components/alert-dialog.svelte	folding.json
+[{"startLine":0,"endLine":23}]
+=== 90 packages/bits-ui/src/lib/bits/aspect-ratio/components/aspect-ratio.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":33,"endLine":34},{"startLine":29,"endLine":36}]
+=== 60 packages/bits-ui/src/lib/bits/avatar/components/avatar-fallback.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 30 packages/bits-ui/src/lib/bits/avatar/components/avatar-image.svelte	folding.json
+[{"startLine":0,"endLine":29}]
+=== 60 packages/bits-ui/src/lib/bits/avatar/components/avatar.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":43,"endLine":44}]
+=== 60 packages/bits-ui/src/lib/bits/button/components/button.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":13,"endLine":25}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-cell.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":37,"endLine":38}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-day.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":33,"endLine":38}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-grid-body.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-grid-head.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-grid-row.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-grid.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-head-cell.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-header.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-heading.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":35}]
+=== 90 packages/bits-ui/src/lib/bits/calendar/components/calendar-month-select.svelte	folding.json
+[{"startLine":0,"endLine":33},{"startLine":44,"endLine":48},{"startLine":39,"endLine":51}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-next-button.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":33}]
+=== 60 packages/bits-ui/src/lib/bits/calendar/components/calendar-prev-button.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":33}]
+=== 90 packages/bits-ui/src/lib/bits/calendar/components/calendar-year-select.svelte	folding.json
+[{"startLine":0,"endLine":33},{"startLine":44,"endLine":45},{"startLine":39,"endLine":48}]
+=== 63 packages/bits-ui/src/lib/bits/calendar/components/calendar.svelte	folding.json
+[{"startLine":0,"endLine":123},{"startLine":129,"endLine":130}]
+=== 60 packages/bits-ui/src/lib/bits/checkbox/components/checkbox-group-label.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/checkbox/components/checkbox-group.svelte	folding.json
+[{"startLine":0,"endLine":45},{"startLine":51,"endLine":52}]
+=== 29 packages/bits-ui/src/lib/bits/checkbox/components/checkbox-input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 60 packages/bits-ui/src/lib/bits/checkbox/components/checkbox.svelte	folding.json
+[{"startLine":0,"endLine":84},{"startLine":93,"endLine":94}]
+=== 60 packages/bits-ui/src/lib/bits/collapsible/components/collapsible-content.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":37,"endLine":38}]
+=== 60 packages/bits-ui/src/lib/bits/collapsible/components/collapsible-trigger.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":33}]
+=== 60 packages/bits-ui/src/lib/bits/collapsible/components/collapsible.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":44,"endLine":45}]
+=== 60 packages/bits-ui/src/lib/bits/combobox/components/combobox-input.svelte	folding.json
+[{"startLine":0,"endLine":31},{"startLine":34,"endLine":39}]
+=== 60 packages/bits-ui/src/lib/bits/combobox/components/combobox-trigger.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":29,"endLine":30}]
+=== 60 packages/bits-ui/src/lib/bits/combobox/components/combobox.svelte	folding.json
+[{"startLine":0,"endLine":70},{"startLine":73,"endLine":74}]
+=== 60 packages/bits-ui/src/lib/bits/command/components/_command-label.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":28,"endLine":29}]
+=== 60 packages/bits-ui/src/lib/bits/command/components/command-empty.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":33,"endLine":34}]
+=== 60 packages/bits-ui/src/lib/bits/command/components/command-group-heading.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 90 packages/bits-ui/src/lib/bits/command/components/command-group-items.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":31,"endLine":32},{"startLine":27,"endLine":34}]
+=== 60 packages/bits-ui/src/lib/bits/command/components/command-group.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":34,"endLine":35}]
+=== 30 packages/bits-ui/src/lib/bits/command/components/command-input.svelte	folding.json
+[{"startLine":0,"endLine":32}]
+=== 90 packages/bits-ui/src/lib/bits/command/components/command-item.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":44,"endLine":45},{"startLine":39,"endLine":48}]
+=== 90 packages/bits-ui/src/lib/bits/command/components/command-link-item.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":44,"endLine":45},{"startLine":39,"endLine":48}]
+=== 60 packages/bits-ui/src/lib/bits/command/components/command-list.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":33,"endLine":34}]
+=== 60 packages/bits-ui/src/lib/bits/command/components/command-loading.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":33}]
+=== 60 packages/bits-ui/src/lib/bits/command/components/command-separator.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":33,"endLine":34}]
+=== 60 packages/bits-ui/src/lib/bits/command/components/command-viewport.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 95 packages/bits-ui/src/lib/bits/command/components/command.svelte	folding.json
+[{"startLine":0,"endLine":119},{"startLine":123,"endLine":124},{"startLine":132,"endLine":134}]
+=== 154 packages/bits-ui/src/lib/bits/context-menu/components/context-menu-content-static.svelte	folding.json
+[{"startLine":0,"endLine":61},{"startLine":93,"endLine":94},{"startLine":65,"endLine":97},{"startLine":128,"endLine":129},{"startLine":100,"endLine":132}]
+=== 221 packages/bits-ui/src/lib/bits/context-menu/components/context-menu-content.svelte	folding.json
+[{"startLine":0,"endLine":88},{"startLine":107,"endLine":108},{"startLine":106,"endLine":109},{"startLine":92,"endLine":112},{"startLine":130,"endLine":131},{"startLine":129,"endLine":132},{"startLine":115,"endLine":135}]
+=== 90 packages/bits-ui/src/lib/bits/context-menu/components/context-menu-trigger.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":42,"endLine":43},{"startLine":38,"endLine":45}]
+=== 60 packages/bits-ui/src/lib/bits/context-menu/components/context-menu.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":41,"endLine":42}]
+=== 29 packages/bits-ui/src/lib/bits/date-field/components/date-field-hidden-input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 60 packages/bits-ui/src/lib/bits/date-field/components/date-field-input.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":33,"endLine":34}]
+=== 60 packages/bits-ui/src/lib/bits/date-field/components/date-field-label.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/date-field/components/date-field-segment.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":33,"endLine":34}]
+=== 30 packages/bits-ui/src/lib/bits/date-field/components/date-field.svelte	folding.json
+[{"startLine":0,"endLine":95}]
+=== 60 packages/bits-ui/src/lib/bits/date-picker/components/date-picker-calendar.svelte	folding.json
+[{"startLine":0,"endLine":51},{"startLine":57,"endLine":58}]
+=== 30 packages/bits-ui/src/lib/bits/date-picker/components/date-picker-content-static.svelte	folding.json
+[{"startLine":0,"endLine":14}]
+=== 30 packages/bits-ui/src/lib/bits/date-picker/components/date-picker-content.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 30 packages/bits-ui/src/lib/bits/date-picker/components/date-picker-trigger.svelte	folding.json
+[{"startLine":0,"endLine":23}]
+=== 63 packages/bits-ui/src/lib/bits/date-picker/components/date-picker.svelte	folding.json
+[{"startLine":0,"endLine":156},{"startLine":159,"endLine":160}]
+=== 60 packages/bits-ui/src/lib/bits/date-range-field/components/date-range-field-input.svelte	folding.json
+[{"startLine":0,"endLine":31},{"startLine":37,"endLine":38}]
+=== 60 packages/bits-ui/src/lib/bits/date-range-field/components/date-range-field-label.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 63 packages/bits-ui/src/lib/bits/date-range-field/components/date-range-field.svelte	folding.json
+[{"startLine":0,"endLine":135},{"startLine":141,"endLine":142}]
+=== 60 packages/bits-ui/src/lib/bits/date-range-picker/components/date-range-picker-calendar.svelte	folding.json
+[{"startLine":0,"endLine":53},{"startLine":59,"endLine":60}]
+=== 30 packages/bits-ui/src/lib/bits/date-range-picker/components/date-range-picker-trigger.svelte	folding.json
+[{"startLine":0,"endLine":23}]
+=== 95 packages/bits-ui/src/lib/bits/date-range-picker/components/date-range-picker.svelte	folding.json
+[{"startLine":0,"endLine":212},{"startLine":219,"endLine":220},{"startLine":215,"endLine":222}]
+=== 60 packages/bits-ui/src/lib/bits/dialog/components/dialog-close.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":33,"endLine":34}]
+=== 180 packages/bits-ui/src/lib/bits/dialog/components/dialog-content.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":85,"endLine":86},{"startLine":70,"endLine":88},{"startLine":60,"endLine":89},{"startLine":50,"endLine":90},{"startLine":41,"endLine":92}]
+=== 60 packages/bits-ui/src/lib/bits/dialog/components/dialog-description.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/dialog/components/dialog-overlay.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":32,"endLine":33}]
+=== 60 packages/bits-ui/src/lib/bits/dialog/components/dialog-title.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":33}]
+=== 60 packages/bits-ui/src/lib/bits/dialog/components/dialog-trigger.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":33}]
+=== 30 packages/bits-ui/src/lib/bits/dialog/components/dialog.svelte	folding.json
+[{"startLine":0,"endLine":23}]
+=== 153 packages/bits-ui/src/lib/bits/dropdown-menu/components/dropdown-menu-content-static.svelte	folding.json
+[{"startLine":0,"endLine":49},{"startLine":76,"endLine":77},{"startLine":53,"endLine":80},{"startLine":106,"endLine":107},{"startLine":83,"endLine":110}]
+=== 215 packages/bits-ui/src/lib/bits/dropdown-menu/components/dropdown-menu-content.svelte	folding.json
+[{"startLine":0,"endLine":56},{"startLine":83,"endLine":84},{"startLine":82,"endLine":85},{"startLine":60,"endLine":88},{"startLine":114,"endLine":115},{"startLine":113,"endLine":116},{"startLine":91,"endLine":119}]
+=== 60 packages/bits-ui/src/lib/bits/label/components/label.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 150 packages/bits-ui/src/lib/bits/link-preview/components/link-preview-content-static.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":61,"endLine":62},{"startLine":39,"endLine":66},{"startLine":91,"endLine":92},{"startLine":69,"endLine":95}]
+=== 215 packages/bits-ui/src/lib/bits/link-preview/components/link-preview-content.svelte	folding.json
+[{"startLine":0,"endLine":54},{"startLine":80,"endLine":81},{"startLine":79,"endLine":82},{"startLine":58,"endLine":86},{"startLine":111,"endLine":112},{"startLine":110,"endLine":113},{"startLine":89,"endLine":117}]
+=== 90 packages/bits-ui/src/lib/bits/link-preview/components/link-preview-trigger.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":32,"endLine":33},{"startLine":28,"endLine":35}]
+=== 60 packages/bits-ui/src/lib/bits/link-preview/components/link-preview.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":32,"endLine":33}]
+=== 30 packages/bits-ui/src/lib/bits/menu/components/menu-arrow.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 60 packages/bits-ui/src/lib/bits/menu/components/menu-checkbox-group.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":41,"endLine":42}]
+=== 60 packages/bits-ui/src/lib/bits/menu/components/menu-checkbox-item.svelte	folding.json
+[{"startLine":0,"endLine":88},{"startLine":94,"endLine":95}]
+=== 153 packages/bits-ui/src/lib/bits/menu/components/menu-content-static.svelte	folding.json
+[{"startLine":0,"endLine":52},{"startLine":79,"endLine":80},{"startLine":56,"endLine":83},{"startLine":109,"endLine":110},{"startLine":86,"endLine":113}]
+=== 215 packages/bits-ui/src/lib/bits/menu/components/menu-content.svelte	folding.json
+[{"startLine":0,"endLine":57},{"startLine":84,"endLine":85},{"startLine":83,"endLine":86},{"startLine":61,"endLine":89},{"startLine":115,"endLine":116},{"startLine":114,"endLine":117},{"startLine":92,"endLine":120}]
+=== 60 packages/bits-ui/src/lib/bits/menu/components/menu-group-heading.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":29,"endLine":30}]
+=== 60 packages/bits-ui/src/lib/bits/menu/components/menu-group.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":29,"endLine":30}]
+=== 60 packages/bits-ui/src/lib/bits/menu/components/menu-item.svelte	folding.json
+[{"startLine":0,"endLine":31},{"startLine":37,"endLine":38}]
+=== 60 packages/bits-ui/src/lib/bits/menu/components/menu-radio-group.svelte	folding.json
+[{"startLine":0,"endLine":34},{"startLine":40,"endLine":41}]
+=== 60 packages/bits-ui/src/lib/bits/menu/components/menu-radio-item.svelte	folding.json
+[{"startLine":0,"endLine":39},{"startLine":45,"endLine":46}]
+=== 60 packages/bits-ui/src/lib/bits/menu/components/menu-separator.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 159 packages/bits-ui/src/lib/bits/menu/components/menu-sub-content-static.svelte	folding.json
+[{"startLine":0,"endLine":114},{"startLine":144,"endLine":145},{"startLine":118,"endLine":148},{"startLine":178,"endLine":179},{"startLine":151,"endLine":182}]
+=== 223 packages/bits-ui/src/lib/bits/menu/components/menu-sub-content.svelte	folding.json
+[{"startLine":0,"endLine":116},{"startLine":150,"endLine":151},{"startLine":149,"endLine":152},{"startLine":120,"endLine":155},{"startLine":189,"endLine":190},{"startLine":188,"endLine":191},{"startLine":158,"endLine":194}]
+=== 90 packages/bits-ui/src/lib/bits/menu/components/menu-sub-trigger.svelte	folding.json
+[{"startLine":0,"endLine":32},{"startLine":39,"endLine":40},{"startLine":35,"endLine":42}]
+=== 60 packages/bits-ui/src/lib/bits/menu/components/menu-sub.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":26,"endLine":27}]
+=== 90 packages/bits-ui/src/lib/bits/menu/components/menu-trigger.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":35,"endLine":36},{"startLine":31,"endLine":38}]
+=== 60 packages/bits-ui/src/lib/bits/menu/components/menu.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":47,"endLine":48}]
+=== 30 packages/bits-ui/src/lib/bits/menubar/components/menubar-content-static.svelte	folding.json
+[{"startLine":0,"endLine":34}]
+=== 30 packages/bits-ui/src/lib/bits/menubar/components/menubar-content.svelte	folding.json
+[{"startLine":0,"endLine":34}]
+=== 60 packages/bits-ui/src/lib/bits/menubar/components/menubar-menu.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":18,"endLine":27}]
+=== 90 packages/bits-ui/src/lib/bits/menubar/components/menubar-trigger.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":44,"endLine":45},{"startLine":40,"endLine":47}]
+=== 60 packages/bits-ui/src/lib/bits/menubar/components/menubar.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":44,"endLine":45}]
+=== 60 packages/bits-ui/src/lib/bits/meter/components/meter.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":36,"endLine":37}]
+=== 120 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-content-impl.svelte	folding.json
+[{"startLine":0,"endLine":53},{"startLine":87,"endLine":88},{"startLine":73,"endLine":90},{"startLine":56,"endLine":92}]
+=== 120 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-content.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":42,"endLine":45},{"startLine":37,"endLine":48},{"startLine":33,"endLine":49}]
+=== 60 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-indicator-impl.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 120 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-indicator.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":29,"endLine":34},{"startLine":27,"endLine":36},{"startLine":26,"endLine":37}]
+=== 60 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-item.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":35,"endLine":36}]
+=== 60 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-link.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":36,"endLine":37}]
+=== 90 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-list.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":34,"endLine":35},{"startLine":33,"endLine":36}]
+=== 60 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-sub.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":42,"endLine":43}]
+=== 60 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-trigger.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":35,"endLine":36}]
+=== 90 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu-viewport.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":37,"endLine":38},{"startLine":31,"endLine":42}]
+=== 60 packages/bits-ui/src/lib/bits/navigation-menu/components/navigation-menu.svelte	folding.json
+[{"startLine":0,"endLine":42},{"startLine":48,"endLine":49}]
+=== 60 packages/bits-ui/src/lib/bits/pagination/components/pagination-next-button.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":34,"endLine":35}]
+=== 60 packages/bits-ui/src/lib/bits/pagination/components/pagination-page.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":35,"endLine":40}]
+=== 60 packages/bits-ui/src/lib/bits/pagination/components/pagination-prev-button.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":34,"endLine":35}]
+=== 60 packages/bits-ui/src/lib/bits/pagination/components/pagination.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":50,"endLine":51}]
+=== 60 packages/bits-ui/src/lib/bits/pin-input/components/pin-input-cell.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":33}]
+=== 90 packages/bits-ui/src/lib/bits/pin-input/components/pin-input.svelte	folding.json
+[{"startLine":0,"endLine":61},{"startLine":67,"endLine":68},{"startLine":64,"endLine":69}]
+=== 29 packages/bits-ui/src/lib/bits/popover/components/popover-arrow.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 60 packages/bits-ui/src/lib/bits/popover/components/popover-close.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":29,"endLine":30}]
+=== 151 packages/bits-ui/src/lib/bits/popover/components/popover-content-static.svelte	folding.json
+[{"startLine":0,"endLine":38},{"startLine":67,"endLine":68},{"startLine":42,"endLine":71},{"startLine":97,"endLine":98},{"startLine":74,"endLine":101}]
+=== 215 packages/bits-ui/src/lib/bits/popover/components/popover-content.svelte	folding.json
+[{"startLine":0,"endLine":51},{"startLine":80,"endLine":81},{"startLine":79,"endLine":82},{"startLine":55,"endLine":85},{"startLine":113,"endLine":114},{"startLine":112,"endLine":115},{"startLine":88,"endLine":118}]
+=== 60 packages/bits-ui/src/lib/bits/popover/components/popover-overlay.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":32,"endLine":33}]
+=== 90 packages/bits-ui/src/lib/bits/popover/components/popover-trigger.svelte	folding.json
+[{"startLine":0,"endLine":34},{"startLine":41,"endLine":42},{"startLine":37,"endLine":44}]
+=== 60 packages/bits-ui/src/lib/bits/popover/components/popover.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":26,"endLine":27}]
+=== 60 packages/bits-ui/src/lib/bits/progress/components/progress.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":36,"endLine":37}]
+=== 29 packages/bits-ui/src/lib/bits/radio-group/components/radio-group-input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 60 packages/bits-ui/src/lib/bits/radio-group/components/radio-group-item.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":34,"endLine":35}]
+=== 60 packages/bits-ui/src/lib/bits/radio-group/components/radio-group.svelte	folding.json
+[{"startLine":0,"endLine":48},{"startLine":54,"endLine":55}]
+=== 60 packages/bits-ui/src/lib/bits/range-calendar/components/range-calendar-cell.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":34,"endLine":35}]
+=== 60 packages/bits-ui/src/lib/bits/range-calendar/components/range-calendar-day.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":35}]
+=== 63 packages/bits-ui/src/lib/bits/range-calendar/components/range-calendar.svelte	folding.json
+[{"startLine":0,"endLine":143},{"startLine":149,"endLine":150}]
+=== 29 packages/bits-ui/src/lib/bits/rating-group/components/rating-group-input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 60 packages/bits-ui/src/lib/bits/rating-group/components/rating-group-item.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":34,"endLine":35}]
+=== 60 packages/bits-ui/src/lib/bits/rating-group/components/rating-group.svelte	folding.json
+[{"startLine":0,"endLine":68},{"startLine":74,"endLine":75}]
+=== 60 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-corner-impl.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":29,"endLine":30}]
+=== 30 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-corner.svelte	folding.json
+[{"startLine":0,"endLine":21}]
+=== 60 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-scrollbar-auto.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":13,"endLine":19}]
+=== 60 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-scrollbar-hover.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":25,"endLine":28}]
+=== 60 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-scrollbar-scroll.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":14,"endLine":21}]
+=== 59 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-scrollbar-shared.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":15,"endLine":16}]
+=== 29 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-scrollbar-visible.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 30 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-scrollbar-x.svelte	folding.json
+[{"startLine":0,"endLine":15}]
+=== 30 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-scrollbar-y.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 30 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-scrollbar.svelte	folding.json
+[{"startLine":0,"endLine":28}]
+=== 60 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-thumb-impl.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":41,"endLine":42}]
+=== 60 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-thumb.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":19,"endLine":22}]
+=== 120 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area-viewport.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":28,"endLine":29},{"startLine":27,"endLine":30},{"startLine":33,"endLine":51}]
+=== 60 packages/bits-ui/src/lib/bits/scroll-area/components/scroll-area.svelte	folding.json
+[{"startLine":0,"endLine":30},{"startLine":36,"endLine":37}]
+=== 150 packages/bits-ui/src/lib/bits/select/components/select-content-static.svelte	folding.json
+[{"startLine":0,"endLine":34},{"startLine":54,"endLine":55},{"startLine":38,"endLine":58},{"startLine":77,"endLine":78},{"startLine":61,"endLine":81}]
+=== 210 packages/bits-ui/src/lib/bits/select/components/select-content.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":56,"endLine":57},{"startLine":55,"endLine":58},{"startLine":39,"endLine":61},{"startLine":81,"endLine":82},{"startLine":80,"endLine":83},{"startLine":64,"endLine":86}]
+=== 60 packages/bits-ui/src/lib/bits/select/components/select-group-heading.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":29,"endLine":30}]
+=== 60 packages/bits-ui/src/lib/bits/select/components/select-group.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 30 packages/bits-ui/src/lib/bits/select/components/select-hidden-input.svelte	folding.json
+[{"startLine":0,"endLine":13}]
+=== 60 packages/bits-ui/src/lib/bits/select/components/select-item.svelte	folding.json
+[{"startLine":0,"endLine":36},{"startLine":42,"endLine":43}]
+=== 60 packages/bits-ui/src/lib/bits/select/components/select-scroll-down-button.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":35,"endLine":36}]
+=== 60 packages/bits-ui/src/lib/bits/select/components/select-scroll-up-button.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":35,"endLine":36}]
+=== 90 packages/bits-ui/src/lib/bits/select/components/select-trigger.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":33,"endLine":34},{"startLine":29,"endLine":36}]
+=== 60 packages/bits-ui/src/lib/bits/select/components/select-value.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":45}]
+=== 90 packages/bits-ui/src/lib/bits/select/components/select-viewport.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31},{"startLine":35,"endLine":54}]
+=== 60 packages/bits-ui/src/lib/bits/select/components/select.svelte	folding.json
+[{"startLine":0,"endLine":74},{"startLine":77,"endLine":78}]
+=== 60 packages/bits-ui/src/lib/bits/separator/components/separator.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":34,"endLine":35}]
+=== 60 packages/bits-ui/src/lib/bits/slider/components/slider-range.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":29,"endLine":30}]
+=== 30 packages/bits-ui/src/lib/bits/slider/components/slider-thumb-label.svelte	folding.json
+[{"startLine":0,"endLine":42}]
+=== 60 packages/bits-ui/src/lib/bits/slider/components/slider-thumb.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":37,"endLine":40}]
+=== 30 packages/bits-ui/src/lib/bits/slider/components/slider-tick-label.svelte	folding.json
+[{"startLine":0,"endLine":42}]
+=== 30 packages/bits-ui/src/lib/bits/slider/components/slider-tick.svelte	folding.json
+[{"startLine":0,"endLine":26}]
+=== 60 packages/bits-ui/src/lib/bits/slider/components/slider.svelte	folding.json
+[{"startLine":0,"endLine":89},{"startLine":95,"endLine":96}]
+=== 29 packages/bits-ui/src/lib/bits/switch/components/switch-input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 60 packages/bits-ui/src/lib/bits/switch/components/switch-thumb.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/switch/components/switch.svelte	folding.json
+[{"startLine":0,"endLine":44},{"startLine":50,"endLine":51}]
+=== 60 packages/bits-ui/src/lib/bits/tabs/components/tabs-content.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":32,"endLine":33}]
+=== 60 packages/bits-ui/src/lib/bits/tabs/components/tabs-list.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/tabs/components/tabs-trigger.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":35,"endLine":36}]
+=== 60 packages/bits-ui/src/lib/bits/tabs/components/tabs.svelte	folding.json
+[{"startLine":0,"endLine":42},{"startLine":48,"endLine":49}]
+=== 29 packages/bits-ui/src/lib/bits/time-field/components/time-field-hidden-input.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 60 packages/bits-ui/src/lib/bits/time-field/components/time-field-input.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":33,"endLine":34}]
+=== 60 packages/bits-ui/src/lib/bits/time-field/components/time-field-label.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 60 packages/bits-ui/src/lib/bits/time-field/components/time-field-segment.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":33,"endLine":34}]
+=== 58 packages/bits-ui/src/lib/bits/time-field/components/time-field.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":91}]
+=== 60 packages/bits-ui/src/lib/bits/time-range-field/components/time-range-field-input.svelte	folding.json
+[{"startLine":0,"endLine":31},{"startLine":37,"endLine":38}]
+=== 60 packages/bits-ui/src/lib/bits/time-range-field/components/time-range-field-label.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":30,"endLine":31}]
+=== 91 packages/bits-ui/src/lib/bits/time-range-field/components/time-range-field.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":135},{"startLine":141,"endLine":142}]
+=== 60 packages/bits-ui/src/lib/bits/toggle-group/components/toggle-group-item.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":35,"endLine":36}]
+=== 60 packages/bits-ui/src/lib/bits/toggle-group/components/toggle-group.svelte	folding.json
+[{"startLine":0,"endLine":62},{"startLine":68,"endLine":69}]
+=== 60 packages/bits-ui/src/lib/bits/toggle/components/toggle.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":43,"endLine":44}]
+=== 60 packages/bits-ui/src/lib/bits/toolbar/components/toolbar-button.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":33,"endLine":34}]
+=== 60 packages/bits-ui/src/lib/bits/toolbar/components/toolbar-group-item.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":35,"endLine":36}]
+=== 60 packages/bits-ui/src/lib/bits/toolbar/components/toolbar-group.svelte	folding.json
+[{"startLine":0,"endLine":56},{"startLine":62,"endLine":63}]
+=== 60 packages/bits-ui/src/lib/bits/toolbar/components/toolbar-link.svelte	folding.json
+[{"startLine":0,"endLine":25},{"startLine":31,"endLine":32}]
+=== 60 packages/bits-ui/src/lib/bits/toolbar/components/toolbar.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":34,"endLine":35}]
+=== 29 packages/bits-ui/src/lib/bits/tooltip/components/tooltip-arrow.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 150 packages/bits-ui/src/lib/bits/tooltip/components/tooltip-content-static.svelte	folding.json
+[{"startLine":0,"endLine":34},{"startLine":61,"endLine":62},{"startLine":38,"endLine":65},{"startLine":91,"endLine":92},{"startLine":68,"endLine":95}]
+=== 215 packages/bits-ui/src/lib/bits/tooltip/components/tooltip-content.svelte	folding.json
+[{"startLine":0,"endLine":57},{"startLine":90,"endLine":91},{"startLine":89,"endLine":92},{"startLine":61,"endLine":95},{"startLine":127,"endLine":128},{"startLine":126,"endLine":129},{"startLine":98,"endLine":132}]
+=== 30 packages/bits-ui/src/lib/bits/tooltip/components/tooltip-provider.svelte	folding.json
+[{"startLine":0,"endLine":22}]
+=== 88 packages/bits-ui/src/lib/bits/tooltip/components/tooltip-trigger.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":37},{"startLine":43,"endLine":44}]
+=== 88 packages/bits-ui/src/lib/bits/tooltip/components/tooltip.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":46},{"startLine":49,"endLine":54}]
+=== 90 packages/bits-ui/src/lib/bits/utilities/arrow/arrow.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":24,"endLine":25},{"startLine":20,"endLine":27}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/config/components/bits-config.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/dismissible-layer/dismissible-layer.svelte	folding.json
+[{"startLine":0,"endLine":25}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/escape-layer/escape-layer.svelte	folding.json
+[{"startLine":0,"endLine":19}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/floating-layer/components/floating-layer-anchor.svelte	folding.json
+[{"startLine":0,"endLine":15}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/floating-layer/components/floating-layer-arrow.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/floating-layer/components/floating-layer-content-static.svelte	folding.json
+[{"startLine":0,"endLine":15}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/floating-layer/components/floating-layer-content.svelte	folding.json
+[{"startLine":0,"endLine":61}]
+=== 29 packages/bits-ui/src/lib/bits/utilities/floating-layer/components/floating-layer.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/focus-scope/focus-scope.svelte	folding.json
+[{"startLine":0,"endLine":23}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/hidden-input.svelte	folding.json
+[{"startLine":0,"endLine":17}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/mounted.svelte	folding.json
+[{"startLine":0,"endLine":16}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/popper-layer/popper-content.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 60 packages/bits-ui/src/lib/bits/utilities/popper-layer/popper-layer-force-mount.svelte	folding.json
+[{"startLine":0,"endLine":43},{"startLine":46,"endLine":83}]
+=== 186 packages/bits-ui/src/lib/bits/utilities/popper-layer/popper-layer-inner.svelte	folding.json
+[{"startLine":0,"endLine":56},{"startLine":109,"endLine":130},{"startLine":99,"endLine":132},{"startLine":98,"endLine":133},{"startLine":88,"endLine":135},{"startLine":59,"endLine":137}]
+=== 60 packages/bits-ui/src/lib/bits/utilities/popper-layer/popper-layer.svelte	folding.json
+[{"startLine":0,"endLine":43},{"startLine":47,"endLine":85}]
+=== 29 packages/bits-ui/src/lib/bits/utilities/portal/portal-consumer.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/portal/portal.svelte	folding.json
+[{"startLine":0,"endLine":64}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/presence-layer/presence-layer.svelte	folding.json
+[{"startLine":0,"endLine":10}]
+=== 29 packages/bits-ui/src/lib/bits/utilities/scroll-lock/scroll-lock.svelte	folding.json
+[{"startLine":0,"endLine":8}]
+=== 30 packages/bits-ui/src/lib/bits/utilities/text-selection-layer/text-selection-layer.svelte	folding.json
+[{"startLine":0,"endLine":22}]
+=== 60 packages/bits-ui/src/lib/bits/utilities/visually-hidden/visually-hidden.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":27,"endLine":28}]
+=== 29 tests/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 57 tests/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":8}]
+=== 300 tests/src/tests/accordion/accordion-hidden-until-found-test.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":30,"endLine":31},{"startLine":29,"endLine":32},{"startLine":38,"endLine":39},{"startLine":35,"endLine":40},{"startLine":34,"endLine":41},{"startLine":28,"endLine":42},{"startLine":26,"endLine":44},{"startLine":46,"endLine":49},{"startLine":24,"endLine":50}]
+=== 300 tests/src/tests/accordion/accordion-multi-hidden-until-found-test.svelte	folding.json
+[{"startLine":0,"endLine":21},{"startLine":30,"endLine":31},{"startLine":29,"endLine":32},{"startLine":38,"endLine":39},{"startLine":35,"endLine":40},{"startLine":34,"endLine":41},{"startLine":28,"endLine":42},{"startLine":26,"endLine":44},{"startLine":46,"endLine":48},{"startLine":24,"endLine":49}]
+=== 180 tests/src/tests/accordion/accordion-multi-test-controlled.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":23,"endLine":24},{"startLine":39,"endLine":40},{"startLine":38,"endLine":41},{"startLine":37,"endLine":43},{"startLine":29,"endLine":45}]
+=== 150 tests/src/tests/accordion/accordion-multi-test.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":25,"endLine":26},{"startLine":24,"endLine":27},{"startLine":23,"endLine":29},{"startLine":21,"endLine":31}]
+=== 270 tests/src/tests/accordion/accordion-single-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":26,"endLine":27},{"startLine":25,"endLine":28},{"startLine":34,"endLine":35},{"startLine":31,"endLine":38},{"startLine":43,"endLine":44},{"startLine":41,"endLine":46},{"startLine":24,"endLine":48},{"startLine":22,"endLine":50}]
+=== 180 tests/src/tests/accordion/accordion-single-test-controlled.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":22,"endLine":23},{"startLine":32,"endLine":33},{"startLine":31,"endLine":34},{"startLine":30,"endLine":36},{"startLine":28,"endLine":38}]
+=== 150 tests/src/tests/accordion/accordion-single-test.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":25,"endLine":26},{"startLine":24,"endLine":27},{"startLine":23,"endLine":29},{"startLine":21,"endLine":31}]
+=== 147 tests/src/tests/accordion/accordion-test-isolated.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":9},{"startLine":14,"endLine":15},{"startLine":13,"endLine":17},{"startLine":12,"endLine":18}]
+=== 513 tests/src/tests/alert-dialog/alert-dialog-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":20,"endLine":29},{"startLine":32,"endLine":39},{"startLine":52,"endLine":53},{"startLine":55,"endLine":59},{"startLine":63,"endLine":64},{"startLine":51,"endLine":65},{"startLine":43,"endLine":68},{"startLine":79,"endLine":80},{"startLine":82,"endLine":86},{"startLine":90,"endLine":91},{"startLine":78,"endLine":92},{"startLine":71,"endLine":94},{"startLine":18,"endLine":96},{"startLine":16,"endLine":97},{"startLine":101,"endLine":102},{"startLine":15,"endLine":104}]
+=== 299 tests/src/tests/alert-dialog/alert-dialog-test.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":19},{"startLine":26,"endLine":30},{"startLine":38,"endLine":39},{"startLine":43,"endLine":44},{"startLine":32,"endLine":45},{"startLine":25,"endLine":46},{"startLine":23,"endLine":47},{"startLine":51,"endLine":52},{"startLine":22,"endLine":55}]
+=== 86 tests/src/tests/avatar/avatar-test.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":6,"endLine":8},{"startLine":5,"endLine":11}]
+=== 418 tests/src/tests/calendar/calendar-multi-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":12},{"startLine":25,"endLine":28},{"startLine":37,"endLine":38},{"startLine":35,"endLine":40},{"startLine":34,"endLine":41},{"startLine":52,"endLine":55},{"startLine":47,"endLine":56},{"startLine":45,"endLine":58},{"startLine":43,"endLine":60},{"startLine":33,"endLine":61},{"startLine":30,"endLine":63},{"startLine":17,"endLine":65},{"startLine":15,"endLine":66}]
+=== 330 tests/src/tests/calendar/calendar-selects-test.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":37,"endLine":39},{"startLine":45,"endLine":46},{"startLine":44,"endLine":47},{"startLine":54,"endLine":55},{"startLine":53,"endLine":56},{"startLine":51,"endLine":58},{"startLine":49,"endLine":60},{"startLine":43,"endLine":61},{"startLine":41,"endLine":63},{"startLine":27,"endLine":65}]
+=== 448 tests/src/tests/calendar/calendar-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":20},{"startLine":28,"endLine":31},{"startLine":40,"endLine":41},{"startLine":38,"endLine":43},{"startLine":37,"endLine":44},{"startLine":55,"endLine":58},{"startLine":50,"endLine":59},{"startLine":48,"endLine":61},{"startLine":46,"endLine":63},{"startLine":36,"endLine":64},{"startLine":33,"endLine":66},{"startLine":26,"endLine":68},{"startLine":73,"endLine":81},{"startLine":23,"endLine":82}]
+=== 210 tests/src/tests/checkbox/checkbox-group-test.svelte	folding.json
+[{"startLine":0,"endLine":26},{"startLine":38,"endLine":43},{"startLine":30,"endLine":45},{"startLine":59,"endLine":76},{"startLine":50,"endLine":78},{"startLine":80,"endLine":81},{"startLine":49,"endLine":82}]
+=== 149 tests/src/tests/checkbox/checkbox-test.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":24,"endLine":29},{"startLine":22,"endLine":31},{"startLine":13,"endLine":33},{"startLine":12,"endLine":34}]
+=== 149 tests/src/tests/collapsible/collapsible-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":17,"endLine":22},{"startLine":25,"endLine":28},{"startLine":14,"endLine":30},{"startLine":12,"endLine":32}]
+=== 149 tests/src/tests/collapsible/collapsible-hidden-until-found-test.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":17,"endLine":20},{"startLine":16,"endLine":21},{"startLine":14,"endLine":22},{"startLine":12,"endLine":24}]
+=== 88 tests/src/tests/collapsible/collapsible-test.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":11,"endLine":13},{"startLine":9,"endLine":15}]
+=== 461 tests/src/tests/combobox/combobox-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":23},{"startLine":26,"endLine":44},{"startLine":59,"endLine":65},{"startLine":56,"endLine":67},{"startLine":55,"endLine":68},{"startLine":54,"endLine":69},{"startLine":85,"endLine":89},{"startLine":93,"endLine":98},{"startLine":101,"endLine":104},{"startLine":91,"endLine":106},{"startLine":74,"endLine":107},{"startLine":110,"endLine":115},{"startLine":117,"endLine":118},{"startLine":120,"endLine":125},{"startLine":73,"endLine":126}]
+=== 457 tests/src/tests/combobox/combobox-multi-test.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":27,"endLine":45},{"startLine":69,"endLine":73},{"startLine":78,"endLine":79},{"startLine":82,"endLine":88},{"startLine":77,"endLine":90},{"startLine":76,"endLine":91},{"startLine":75,"endLine":92},{"startLine":58,"endLine":93},{"startLine":95,"endLine":96},{"startLine":98,"endLine":103},{"startLine":105,"endLine":106},{"startLine":108,"endLine":113},{"startLine":49,"endLine":115},{"startLine":48,"endLine":116}]
+=== 363 tests/src/tests/combobox/combobox-test.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":22,"endLine":44},{"startLine":60,"endLine":64},{"startLine":71,"endLine":83},{"startLine":68,"endLine":85},{"startLine":67,"endLine":86},{"startLine":66,"endLine":87},{"startLine":48,"endLine":88},{"startLine":91,"endLine":96},{"startLine":98,"endLine":99},{"startLine":101,"endLine":106},{"startLine":47,"endLine":108}]
+=== 449 tests/src/tests/command/command-grid-test.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":18,"endLine":19},{"startLine":22,"endLine":26},{"startLine":28,"endLine":32},{"startLine":34,"endLine":38},{"startLine":21,"endLine":39},{"startLine":17,"endLine":40},{"startLine":47,"endLine":48},{"startLine":50,"endLine":51},{"startLine":53,"endLine":57},{"startLine":46,"endLine":58},{"startLine":43,"endLine":59},{"startLine":15,"endLine":60},{"startLine":14,"endLine":61},{"startLine":12,"endLine":62}]
+=== 539 tests/src/tests/command/command-scroll-test.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":18,"endLine":19},{"startLine":22,"endLine":27},{"startLine":29,"endLine":34},{"startLine":36,"endLine":41},{"startLine":21,"endLine":42},{"startLine":17,"endLine":43},{"startLine":50,"endLine":55},{"startLine":57,"endLine":62},{"startLine":64,"endLine":69},{"startLine":71,"endLine":76},{"startLine":78,"endLine":83},{"startLine":85,"endLine":90},{"startLine":49,"endLine":91},{"startLine":46,"endLine":92},{"startLine":15,"endLine":93},{"startLine":14,"endLine":94},{"startLine":12,"endLine":95}]
+=== 449 tests/src/tests/command/command-test.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":18,"endLine":19},{"startLine":22,"endLine":26},{"startLine":28,"endLine":32},{"startLine":34,"endLine":38},{"startLine":21,"endLine":39},{"startLine":17,"endLine":40},{"startLine":47,"endLine":48},{"startLine":50,"endLine":51},{"startLine":53,"endLine":57},{"startLine":46,"endLine":58},{"startLine":43,"endLine":59},{"startLine":15,"endLine":60},{"startLine":14,"endLine":61},{"startLine":12,"endLine":62}]
+=== 950 tests/src/tests/context-menu/context-menu-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":14,"endLine":25},{"startLine":39,"endLine":40},{"startLine":42,"endLine":43},{"startLine":38,"endLine":44},{"startLine":48,"endLine":49},{"startLine":52,"endLine":53},{"startLine":60,"endLine":61},{"startLine":55,"endLine":64},{"startLine":51,"endLine":65},{"startLine":47,"endLine":66},{"startLine":69,"endLine":70},{"startLine":74,"endLine":75},{"startLine":72,"endLine":78},{"startLine":84,"endLine":85},{"startLine":82,"endLine":88},{"startLine":92,"endLine":93},{"startLine":90,"endLine":96},{"startLine":81,"endLine":97},{"startLine":36,"endLine":98},{"startLine":35,"endLine":99},{"startLine":107,"endLine":113},{"startLine":117,"endLine":122},{"startLine":125,"endLine":128},{"startLine":115,"endLine":130},{"startLine":106,"endLine":131},{"startLine":105,"endLine":132},{"startLine":138,"endLine":139},{"startLine":141,"endLine":142},{"startLine":144,"endLine":145},{"startLine":103,"endLine":148}]
+=== 876 tests/src/tests/context-menu/context-menu-integration-test.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":19,"endLine":25},{"startLine":29,"endLine":30},{"startLine":28,"endLine":31},{"startLine":27,"endLine":32},{"startLine":18,"endLine":33},{"startLine":42,"endLine":43},{"startLine":41,"endLine":44},{"startLine":39,"endLine":45},{"startLine":52,"endLine":54},{"startLine":51,"endLine":55},{"startLine":49,"endLine":56},{"startLine":62,"endLine":63},{"startLine":61,"endLine":64},{"startLine":59,"endLine":65},{"startLine":77,"endLine":78},{"startLine":75,"endLine":79},{"startLine":84,"endLine":85},{"startLine":83,"endLine":86},{"startLine":81,"endLine":87},{"startLine":92,"endLine":93},{"startLine":91,"endLine":94},{"startLine":89,"endLine":95},{"startLine":69,"endLine":96},{"startLine":100,"endLine":101},{"startLine":99,"endLine":102},{"startLine":98,"endLine":103},{"startLine":68,"endLine":104},{"startLine":37,"endLine":105}]
+=== 265 tests/src/tests/context-menu/context-menu-nested-submenu-test.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":12,"endLine":13},{"startLine":15,"endLine":16},{"startLine":11,"endLine":17},{"startLine":10,"endLine":18},{"startLine":8,"endLine":19},{"startLine":7,"endLine":20},{"startLine":6,"endLine":21},{"startLine":4,"endLine":22}]
+=== 234 tests/src/tests/context-menu/context-menu-nested-test.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":13,"endLine":14},{"startLine":12,"endLine":15},{"startLine":9,"endLine":17},{"startLine":8,"endLine":18},{"startLine":7,"endLine":19},{"startLine":6,"endLine":20},{"startLine":4,"endLine":21}]
+=== 1049 tests/src/tests/context-menu/context-menu-test.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":18,"endLine":33},{"startLine":40,"endLine":47},{"startLine":53,"endLine":54},{"startLine":56,"endLine":57},{"startLine":52,"endLine":58},{"startLine":62,"endLine":63},{"startLine":66,"endLine":67},{"startLine":74,"endLine":75},{"startLine":69,"endLine":78},{"startLine":65,"endLine":79},{"startLine":61,"endLine":80},{"startLine":82,"endLine":83},{"startLine":85,"endLine":86},{"startLine":90,"endLine":91},{"startLine":88,"endLine":94},{"startLine":100,"endLine":101},{"startLine":98,"endLine":104},{"startLine":106,"endLine":110},{"startLine":97,"endLine":111},{"startLine":118,"endLine":122},{"startLine":124,"endLine":128},{"startLine":113,"endLine":129},{"startLine":132,"endLine":133},{"startLine":50,"endLine":135},{"startLine":49,"endLine":136},{"startLine":39,"endLine":137},{"startLine":38,"endLine":138},{"startLine":145,"endLine":146},{"startLine":148,"endLine":149},{"startLine":151,"endLine":152},{"startLine":154,"endLine":155},{"startLine":157,"endLine":160},{"startLine":36,"endLine":163}]
+=== 233 tests/src/tests/context-menu/context-menu-tooltip-test.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":8,"endLine":9},{"startLine":12,"endLine":14},{"startLine":11,"endLine":15},{"startLine":7,"endLine":16},{"startLine":6,"endLine":17},{"startLine":5,"endLine":19},{"startLine":4,"endLine":20}]
+=== 207 tests/src/tests/date-field/date-field-test.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":8},{"startLine":20,"endLine":24},{"startLine":17,"endLine":27},{"startLine":15,"endLine":28},{"startLine":14,"endLine":29},{"startLine":11,"endLine":30}]
+=== 538 tests/src/tests/date-picker/date-picker-test.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":10},{"startLine":23,"endLine":24},{"startLine":20,"endLine":27},{"startLine":34,"endLine":39},{"startLine":48,"endLine":49},{"startLine":46,"endLine":51},{"startLine":45,"endLine":52},{"startLine":67,"endLine":71},{"startLine":61,"endLine":72},{"startLine":56,"endLine":74},{"startLine":54,"endLine":76},{"startLine":44,"endLine":77},{"startLine":41,"endLine":79},{"startLine":32,"endLine":81},{"startLine":31,"endLine":82},{"startLine":18,"endLine":83},{"startLine":13,"endLine":84}]
+=== 180 tests/src/tests/date-range-field/date-range-field-test.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":13,"endLine":15},{"startLine":29,"endLine":33},{"startLine":26,"endLine":36},{"startLine":22,"endLine":38},{"startLine":18,"endLine":39}]
+=== 607 tests/src/tests/date-range-picker/date-range-picker-test.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":27},{"startLine":44,"endLine":48},{"startLine":41,"endLine":51},{"startLine":60,"endLine":61},{"startLine":64,"endLine":65},{"startLine":59,"endLine":66},{"startLine":75,"endLine":76},{"startLine":73,"endLine":78},{"startLine":72,"endLine":79},{"startLine":94,"endLine":98},{"startLine":88,"endLine":99},{"startLine":83,"endLine":101},{"startLine":81,"endLine":103},{"startLine":71,"endLine":104},{"startLine":68,"endLine":106},{"startLine":57,"endLine":108},{"startLine":56,"endLine":109},{"startLine":37,"endLine":110},{"startLine":30,"endLine":111}]
+=== 866 tests/src/tests/dialog/dialog-alert-dialog-nested-test.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":17,"endLine":18},{"startLine":20,"endLine":21},{"startLine":23,"endLine":24},{"startLine":26,"endLine":27},{"startLine":30,"endLine":31},{"startLine":36,"endLine":37},{"startLine":35,"endLine":38},{"startLine":33,"endLine":39},{"startLine":29,"endLine":40},{"startLine":16,"endLine":41},{"startLine":14,"endLine":42},{"startLine":12,"endLine":43},{"startLine":10,"endLine":44},{"startLine":8,"endLine":45},{"startLine":6,"endLine":46},{"startLine":55,"endLine":56},{"startLine":58,"endLine":59},{"startLine":61,"endLine":62},{"startLine":64,"endLine":65},{"startLine":68,"endLine":69},{"startLine":74,"endLine":75},{"startLine":73,"endLine":76},{"startLine":71,"endLine":77},{"startLine":67,"endLine":78},{"startLine":54,"endLine":79},{"startLine":52,"endLine":80},{"startLine":50,"endLine":81},{"startLine":4,"endLine":84}]
+=== 480 tests/src/tests/dialog/dialog-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":20,"endLine":29},{"startLine":32,"endLine":39},{"startLine":52,"endLine":53},{"startLine":55,"endLine":56},{"startLine":59,"endLine":60},{"startLine":51,"endLine":61},{"startLine":43,"endLine":64},{"startLine":76,"endLine":77},{"startLine":80,"endLine":81},{"startLine":74,"endLine":82},{"startLine":67,"endLine":84},{"startLine":18,"endLine":86},{"startLine":16,"endLine":87},{"startLine":91,"endLine":92},{"startLine":15,"endLine":94}]
+=== 296 tests/src/tests/dialog/dialog-integration-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":14,"endLine":15},{"startLine":13,"endLine":16},{"startLine":11,"endLine":17},{"startLine":21,"endLine":22},{"startLine":19,"endLine":23},{"startLine":10,"endLine":25},{"startLine":9,"endLine":26},{"startLine":7,"endLine":27},{"startLine":6,"endLine":28}]
+=== 355 tests/src/tests/dialog/dialog-nested-test.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":22,"endLine":23},{"startLine":21,"endLine":24},{"startLine":19,"endLine":25},{"startLine":17,"endLine":26},{"startLine":15,"endLine":27},{"startLine":13,"endLine":28},{"startLine":11,"endLine":29},{"startLine":9,"endLine":30},{"startLine":7,"endLine":31},{"startLine":5,"endLine":32},{"startLine":4,"endLine":34}]
+=== 237 tests/src/tests/dialog/dialog-scrollbar-gutter-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":7,"endLine":10},{"startLine":6,"endLine":11},{"startLine":20,"endLine":22},{"startLine":18,"endLine":23},{"startLine":16,"endLine":24},{"startLine":15,"endLine":25},{"startLine":14,"endLine":26}]
+=== 176 tests/src/tests/dialog/dialog-single-focusable-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":10,"endLine":14},{"startLine":16,"endLine":22},{"startLine":9,"endLine":23},{"startLine":7,"endLine":24},{"startLine":6,"endLine":25}]
+=== 329 tests/src/tests/dialog/dialog-test.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":23},{"startLine":30,"endLine":34},{"startLine":42,"endLine":47},{"startLine":50,"endLine":51},{"startLine":53,"endLine":54},{"startLine":36,"endLine":55},{"startLine":29,"endLine":56},{"startLine":27,"endLine":57},{"startLine":61,"endLine":62},{"startLine":26,"endLine":65}]
+=== 265 tests/src/tests/dialog/dialog-tooltip-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":8,"endLine":9},{"startLine":11,"endLine":12},{"startLine":7,"endLine":13},{"startLine":20,"endLine":22},{"startLine":18,"endLine":24},{"startLine":17,"endLine":25},{"startLine":16,"endLine":26},{"startLine":6,"endLine":27}]
+=== 951 tests/src/tests/dropdown-menu/dropdown-menu-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":14,"endLine":25},{"startLine":39,"endLine":40},{"startLine":42,"endLine":43},{"startLine":38,"endLine":44},{"startLine":48,"endLine":49},{"startLine":52,"endLine":53},{"startLine":60,"endLine":61},{"startLine":55,"endLine":64},{"startLine":51,"endLine":65},{"startLine":47,"endLine":66},{"startLine":70,"endLine":71},{"startLine":75,"endLine":76},{"startLine":73,"endLine":79},{"startLine":85,"endLine":86},{"startLine":83,"endLine":89},{"startLine":93,"endLine":94},{"startLine":91,"endLine":97},{"startLine":82,"endLine":98},{"startLine":36,"endLine":99},{"startLine":35,"endLine":100},{"startLine":110,"endLine":116},{"startLine":120,"endLine":125},{"startLine":128,"endLine":131},{"startLine":118,"endLine":133},{"startLine":109,"endLine":134},{"startLine":108,"endLine":135},{"startLine":141,"endLine":142},{"startLine":144,"endLine":145},{"startLine":147,"endLine":148},{"startLine":104,"endLine":150}]
+=== 329 tests/src/tests/dropdown-menu/dropdown-menu-multiple-test.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":19,"endLine":21},{"startLine":17,"endLine":22},{"startLine":16,"endLine":24},{"startLine":30,"endLine":32},{"startLine":28,"endLine":33},{"startLine":27,"endLine":35},{"startLine":41,"endLine":43},{"startLine":39,"endLine":44},{"startLine":38,"endLine":46},{"startLine":10,"endLine":49}]
+=== 237 tests/src/tests/dropdown-menu/dropdown-menu-scroll-padding-test.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":9},{"startLine":13,"endLine":16},{"startLine":12,"endLine":17},{"startLine":28,"endLine":31},{"startLine":27,"endLine":32},{"startLine":25,"endLine":33},{"startLine":20,"endLine":38}]
+=== 1120 tests/src/tests/dropdown-menu/dropdown-menu-test.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":18,"endLine":33},{"startLine":41,"endLine":47},{"startLine":57,"endLine":58},{"startLine":60,"endLine":64},{"startLine":56,"endLine":65},{"startLine":69,"endLine":70},{"startLine":74,"endLine":79},{"startLine":87,"endLine":88},{"startLine":81,"endLine":91},{"startLine":73,"endLine":92},{"startLine":72,"endLine":93},{"startLine":68,"endLine":94},{"startLine":96,"endLine":100},{"startLine":102,"endLine":106},{"startLine":114,"endLine":115},{"startLine":108,"endLine":118},{"startLine":120,"endLine":123},{"startLine":132,"endLine":133},{"startLine":126,"endLine":136},{"startLine":138,"endLine":146},{"startLine":125,"endLine":147},{"startLine":154,"endLine":162},{"startLine":164,"endLine":172},{"startLine":149,"endLine":173},{"startLine":176,"endLine":177},{"startLine":50,"endLine":179},{"startLine":49,"endLine":180},{"startLine":40,"endLine":181},{"startLine":39,"endLine":182},{"startLine":189,"endLine":190},{"startLine":192,"endLine":193},{"startLine":195,"endLine":196},{"startLine":198,"endLine":199},{"startLine":201,"endLine":204},{"startLine":36,"endLine":206}]
+=== 57 tests/src/tests/label/label-test.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":6}]
+=== 268 tests/src/tests/link-preview/link-preview-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":9,"endLine":16},{"startLine":26,"endLine":27},{"startLine":33,"endLine":39},{"startLine":43,"endLine":53},{"startLine":56,"endLine":64},{"startLine":41,"endLine":66},{"startLine":32,"endLine":67},{"startLine":31,"endLine":70}]
+=== 207 tests/src/tests/link-preview/link-preview-test.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":9},{"startLine":14,"endLine":20},{"startLine":23,"endLine":24},{"startLine":22,"endLine":25},{"startLine":13,"endLine":26},{"startLine":12,"endLine":29}]
+=== 450 tests/src/tests/menubar/menubar-menu-test.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":13,"endLine":14},{"startLine":23,"endLine":24},{"startLine":21,"endLine":25},{"startLine":29,"endLine":30},{"startLine":33,"endLine":34},{"startLine":36,"endLine":42},{"startLine":32,"endLine":43},{"startLine":28,"endLine":44},{"startLine":48,"endLine":54},{"startLine":58,"endLine":64},{"startLine":66,"endLine":72},{"startLine":57,"endLine":73},{"startLine":19,"endLine":74},{"startLine":17,"endLine":75}]
+=== 118 tests/src/tests/menubar/menubar-test.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":9,"endLine":13},{"startLine":18,"endLine":22},{"startLine":16,"endLine":24}]
+=== 57 tests/src/tests/meter/meter-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":8}]
+=== 702 tests/src/tests/navigation-menu/navigation-menu-test.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":14,"endLine":30},{"startLine":38,"endLine":39},{"startLine":41,"endLine":46},{"startLine":37,"endLine":47},{"startLine":55,"endLine":56},{"startLine":69,"endLine":72},{"startLine":78,"endLine":79},{"startLine":74,"endLine":80},{"startLine":64,"endLine":81},{"startLine":88,"endLine":91},{"startLine":97,"endLine":98},{"startLine":93,"endLine":99},{"startLine":83,"endLine":100},{"startLine":63,"endLine":101},{"startLine":62,"endLine":106},{"startLine":58,"endLine":107},{"startLine":50,"endLine":108},{"startLine":112,"endLine":113},{"startLine":111,"endLine":114},{"startLine":36,"endLine":118},{"startLine":35,"endLine":124},{"startLine":33,"endLine":126}]
+=== 236 tests/src/tests/pagination/pagination-test.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":6},{"startLine":17,"endLine":18},{"startLine":24,"endLine":25},{"startLine":29,"endLine":30},{"startLine":16,"endLine":31},{"startLine":10,"endLine":33},{"startLine":9,"endLine":34}]
+=== 330 tests/src/tests/pin-input/pin-input-test.svelte	folding.json
+[{"startLine":0,"endLine":15},{"startLine":19,"endLine":20},{"startLine":23,"endLine":24},{"startLine":39,"endLine":42},{"startLine":45,"endLine":46},{"startLine":49,"endLine":52},{"startLine":27,"endLine":54},{"startLine":56,"endLine":57},{"startLine":18,"endLine":58},{"startLine":67,"endLine":71},{"startLine":62,"endLine":73}]
+=== 299 tests/src/tests/popover/popover-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":18},{"startLine":29,"endLine":34},{"startLine":28,"endLine":35},{"startLine":45,"endLine":50},{"startLine":53,"endLine":56},{"startLine":43,"endLine":58},{"startLine":41,"endLine":59},{"startLine":40,"endLine":62},{"startLine":39,"endLine":65}]
+=== 298 tests/src/tests/popover/popover-hidden-trigger-tabs-test.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":14,"endLine":21},{"startLine":23,"endLine":30},{"startLine":13,"endLine":31},{"startLine":44,"endLine":47},{"startLine":43,"endLine":48},{"startLine":41,"endLine":49},{"startLine":34,"endLine":50},{"startLine":53,"endLine":54},{"startLine":9,"endLine":57}]
+=== 208 tests/src/tests/popover/popover-hover-test.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":14},{"startLine":22,"endLine":26},{"startLine":21,"endLine":27},{"startLine":19,"endLine":28},{"startLine":18,"endLine":31},{"startLine":17,"endLine":34}]
+=== 86 tests/src/tests/popover/popover-multiple-triggers-test.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":8,"endLine":9},{"startLine":4,"endLine":10}]
+=== 268 tests/src/tests/popover/popover-overlay-test.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":14},{"startLine":24,"endLine":25},{"startLine":22,"endLine":27},{"startLine":30,"endLine":31},{"startLine":34,"endLine":36},{"startLine":20,"endLine":37},{"startLine":18,"endLine":38},{"startLine":17,"endLine":42}]
+=== 177 tests/src/tests/popover/popover-scroll-jitter-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":13,"endLine":21},{"startLine":12,"endLine":22},{"startLine":10,"endLine":23},{"startLine":9,"endLine":24},{"startLine":6,"endLine":28}]
+=== 296 tests/src/tests/popover/popover-siblings-test.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":7,"endLine":10},{"startLine":6,"endLine":11},{"startLine":4,"endLine":12},{"startLine":18,"endLine":21},{"startLine":17,"endLine":22},{"startLine":15,"endLine":23},{"startLine":29,"endLine":32},{"startLine":28,"endLine":33},{"startLine":26,"endLine":34}]
+=== 179 tests/src/tests/popover/popover-test.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":18},{"startLine":28,"endLine":31},{"startLine":24,"endLine":32},{"startLine":22,"endLine":33},{"startLine":21,"endLine":37}]
+=== 120 tests/src/tests/portal/portal-test.svelte	folding.json
+[{"startLine":0,"endLine":18},{"startLine":23,"endLine":24},{"startLine":22,"endLine":25},{"startLine":21,"endLine":35}]
+=== 57 tests/src/tests/progress/progress-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":8}]
+=== 270 tests/src/tests/radio-group/radio-group-popover-test.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":18},{"startLine":27,"endLine":31},{"startLine":33,"endLine":34},{"startLine":25,"endLine":36},{"startLine":24,"endLine":37},{"startLine":22,"endLine":38},{"startLine":40,"endLine":41},{"startLine":21,"endLine":42}]
+=== 208 tests/src/tests/radio-group/radio-group-scroll-layout-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":13},{"startLine":18,"endLine":24},{"startLine":30,"endLine":32},{"startLine":26,"endLine":36},{"startLine":17,"endLine":37},{"startLine":16,"endLine":38}]
+=== 210 tests/src/tests/radio-group/radio-group-test.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":16},{"startLine":22,"endLine":26},{"startLine":28,"endLine":29},{"startLine":20,"endLine":31},{"startLine":33,"endLine":39},{"startLine":19,"endLine":40}]
+=== 330 tests/src/tests/range-calendar/range-calendar-selects-test.svelte	folding.json
+[{"startLine":0,"endLine":27},{"startLine":40,"endLine":42},{"startLine":48,"endLine":49},{"startLine":47,"endLine":50},{"startLine":57,"endLine":60},{"startLine":56,"endLine":61},{"startLine":54,"endLine":63},{"startLine":52,"endLine":65},{"startLine":46,"endLine":66},{"startLine":44,"endLine":68},{"startLine":30,"endLine":70}]
+=== 418 tests/src/tests/range-calendar/range-calendar-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":14},{"startLine":23,"endLine":26},{"startLine":35,"endLine":36},{"startLine":33,"endLine":38},{"startLine":32,"endLine":39},{"startLine":50,"endLine":53},{"startLine":45,"endLine":54},{"startLine":43,"endLine":56},{"startLine":41,"endLine":58},{"startLine":31,"endLine":59},{"startLine":28,"endLine":61},{"startLine":21,"endLine":63},{"startLine":17,"endLine":65}]
+=== 147 tests/src/tests/rating-group/rating-group-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7},{"startLine":14,"endLine":20},{"startLine":11,"endLine":23},{"startLine":10,"endLine":28}]
+=== 269 tests/src/tests/scroll-area/scroll-area-test.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":19},{"startLine":23,"endLine":27},{"startLine":22,"endLine":32},{"startLine":47,"endLine":53},{"startLine":41,"endLine":55},{"startLine":57,"endLine":62},{"startLine":64,"endLine":69},{"startLine":35,"endLine":71}]
+=== 424 tests/src/tests/select/select-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":23,"endLine":41},{"startLine":57,"endLine":63},{"startLine":53,"endLine":65},{"startLine":52,"endLine":66},{"startLine":51,"endLine":67},{"startLine":73,"endLine":78},{"startLine":82,"endLine":87},{"startLine":90,"endLine":93},{"startLine":80,"endLine":95},{"startLine":72,"endLine":96},{"startLine":99,"endLine":100},{"startLine":102,"endLine":107},{"startLine":71,"endLine":108}]
+=== 393 tests/src/tests/select/select-multi-test.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":25,"endLine":54},{"startLine":68,"endLine":69},{"startLine":78,"endLine":84},{"startLine":74,"endLine":86},{"startLine":73,"endLine":87},{"startLine":72,"endLine":88},{"startLine":67,"endLine":89},{"startLine":91,"endLine":92},{"startLine":94,"endLine":95},{"startLine":97,"endLine":102},{"startLine":58,"endLine":104},{"startLine":57,"endLine":105}]
+=== 240 tests/src/tests/select/select-scroll-jump-test.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":33,"endLine":38},{"startLine":31,"endLine":40},{"startLine":24,"endLine":41},{"startLine":23,"endLine":42},{"startLine":21,"endLine":43},{"startLine":20,"endLine":44},{"startLine":17,"endLine":48}]
+=== 330 tests/src/tests/select/select-test.svelte	folding.json
+[{"startLine":0,"endLine":19},{"startLine":22,"endLine":42},{"startLine":47,"endLine":48},{"startLine":56,"endLine":62},{"startLine":52,"endLine":64},{"startLine":51,"endLine":65},{"startLine":50,"endLine":66},{"startLine":46,"endLine":67},{"startLine":70,"endLine":71},{"startLine":73,"endLine":78},{"startLine":45,"endLine":79}]
+=== 420 tests/src/tests/select/select-value-child-test.svelte	folding.json
+[{"startLine":0,"endLine":13},{"startLine":16,"endLine":25},{"startLine":35,"endLine":38},{"startLine":40,"endLine":43},{"startLine":33,"endLine":45},{"startLine":47,"endLine":57},{"startLine":31,"endLine":59},{"startLine":30,"endLine":60},{"startLine":67,"endLine":73},{"startLine":65,"endLine":75},{"startLine":64,"endLine":76},{"startLine":63,"endLine":77},{"startLine":29,"endLine":78},{"startLine":28,"endLine":79}]
+=== 390 tests/src/tests/select/select-value-children-multi-test.svelte	folding.json
+[{"startLine":0,"endLine":16},{"startLine":19,"endLine":28},{"startLine":37,"endLine":40},{"startLine":42,"endLine":45},{"startLine":48,"endLine":58},{"startLine":34,"endLine":60},{"startLine":33,"endLine":61},{"startLine":68,"endLine":74},{"startLine":66,"endLine":76},{"startLine":65,"endLine":77},{"startLine":64,"endLine":78},{"startLine":32,"endLine":79},{"startLine":31,"endLine":80}]
+=== 210 tests/src/tests/select/select-viewport-test.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":23},{"startLine":33,"endLine":34},{"startLine":30,"endLine":36},{"startLine":29,"endLine":37},{"startLine":28,"endLine":38},{"startLine":26,"endLine":39}]
+=== 57 tests/src/tests/separator/separator-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7}]
+=== 266 tests/src/tests/slider/slider-in-accordion-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":9,"endLine":10},{"startLine":16,"endLine":19},{"startLine":22,"endLine":25},{"startLine":14,"endLine":28},{"startLine":13,"endLine":29},{"startLine":12,"endLine":30},{"startLine":8,"endLine":31},{"startLine":6,"endLine":33}]
+=== 177 tests/src/tests/slider/slider-range-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":7},{"startLine":13,"endLine":14},{"startLine":17,"endLine":21},{"startLine":11,"endLine":28},{"startLine":10,"endLine":29}]
+=== 179 tests/src/tests/slider/slider-test-multi.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":36},{"startLine":42,"endLine":43},{"startLine":46,"endLine":50},{"startLine":40,"endLine":57},{"startLine":39,"endLine":58}]
+=== 209 tests/src/tests/slider/slider-test-with-labels.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":24},{"startLine":39,"endLine":40},{"startLine":46,"endLine":51},{"startLine":59,"endLine":64},{"startLine":28,"endLine":68},{"startLine":27,"endLine":69}]
+=== 86 tests/src/tests/switch/switch-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":8,"endLine":9},{"startLine":6,"endLine":10}]
+=== 209 tests/src/tests/tabs/tabs-test.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":13},{"startLine":20,"endLine":21},{"startLine":18,"endLine":23},{"startLine":26,"endLine":27},{"startLine":17,"endLine":29},{"startLine":16,"endLine":31}]
+=== 210 tests/src/tests/time-field/time-field-test.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":16},{"startLine":28,"endLine":32},{"startLine":25,"endLine":35},{"startLine":23,"endLine":36},{"startLine":22,"endLine":37},{"startLine":19,"endLine":38}]
+=== 180 tests/src/tests/time-range-field/time-range-field-test.svelte	folding.json
+[{"startLine":0,"endLine":17},{"startLine":20,"endLine":22},{"startLine":36,"endLine":40},{"startLine":33,"endLine":43},{"startLine":29,"endLine":45},{"startLine":25,"endLine":46}]
+=== 180 tests/src/tests/toggle-group/toggle-group-multi-test.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":14,"endLine":15},{"startLine":19,"endLine":20},{"startLine":24,"endLine":25},{"startLine":22,"endLine":27},{"startLine":18,"endLine":28}]
+=== 180 tests/src/tests/toggle-group/toggle-group-test.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":13,"endLine":14},{"startLine":18,"endLine":19},{"startLine":23,"endLine":24},{"startLine":21,"endLine":26},{"startLine":17,"endLine":27}]
+=== 57 tests/src/tests/toggle/toggle-test.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":8}]
+=== 508 tests/src/tests/toolbar/toolbar-test.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":14},{"startLine":18,"endLine":19},{"startLine":22,"endLine":23},{"startLine":26,"endLine":27},{"startLine":37,"endLine":42},{"startLine":44,"endLine":49},{"startLine":51,"endLine":56},{"startLine":31,"endLine":57},{"startLine":61,"endLine":62},{"startLine":64,"endLine":69},{"startLine":71,"endLine":76},{"startLine":60,"endLine":77},{"startLine":80,"endLine":81},{"startLine":84,"endLine":85},{"startLine":30,"endLine":86},{"startLine":17,"endLine":87}]
+=== 269 tests/src/tests/tooltip/tooltip-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":17},{"startLine":27,"endLine":28},{"startLine":38,"endLine":48},{"startLine":51,"endLine":59},{"startLine":36,"endLine":61},{"startLine":34,"endLine":62},{"startLine":33,"endLine":63},{"startLine":32,"endLine":67}]
+=== 120 tests/src/tests/tooltip/tooltip-many-test.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":21,"endLine":22},{"startLine":19,"endLine":23},{"startLine":17,"endLine":25}]
+=== 205 tests/src/tests/tooltip/tooltip-popover-test.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":7,"endLine":10},{"startLine":12,"endLine":13},{"startLine":6,"endLine":14},{"startLine":16,"endLine":17},{"startLine":5,"endLine":18},{"startLine":4,"endLine":19}]
+=== 235 tests/src/tests/tooltip/tooltip-safe-polygon-intermediate-target-test.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":7,"endLine":11},{"startLine":14,"endLine":15},{"startLine":13,"endLine":16},{"startLine":6,"endLine":17},{"startLine":5,"endLine":18},{"startLine":21,"endLine":25},{"startLine":4,"endLine":26}]
+=== 357 tests/src/tests/tooltip/tooltip-singleton-controlled-test.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":12,"endLine":18},{"startLine":20,"endLine":26},{"startLine":29,"endLine":30},{"startLine":28,"endLine":31},{"startLine":10,"endLine":33},{"startLine":9,"endLine":34},{"startLine":37,"endLine":44},{"startLine":46,"endLine":53},{"startLine":55,"endLine":61},{"startLine":63,"endLine":69},{"startLine":8,"endLine":73}]
+=== 419 tests/src/tests/tooltip/tooltip-singleton-edge-test.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":18,"endLine":24},{"startLine":28,"endLine":35},{"startLine":38,"endLine":45},{"startLine":16,"endLine":46},{"startLine":50,"endLine":54},{"startLine":49,"endLine":55},{"startLine":14,"endLine":57},{"startLine":13,"endLine":58},{"startLine":61,"endLine":62},{"startLine":64,"endLine":68},{"startLine":70,"endLine":71},{"startLine":75,"endLine":80},{"startLine":12,"endLine":82}]
+=== 419 tests/src/tests/tooltip/tooltip-singleton-force-mount-test.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":10,"endLine":17},{"startLine":24,"endLine":30},{"startLine":32,"endLine":38},{"startLine":47,"endLine":48},{"startLine":46,"endLine":49},{"startLine":45,"endLine":50},{"startLine":55,"endLine":57},{"startLine":54,"endLine":58},{"startLine":41,"endLine":61},{"startLine":40,"endLine":62},{"startLine":22,"endLine":64},{"startLine":21,"endLine":65},{"startLine":20,"endLine":69}]
+=== 298 tests/src/tests/tooltip/tooltip-singleton-test.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":14},{"startLine":22,"endLine":28},{"startLine":30,"endLine":36},{"startLine":21,"endLine":37},{"startLine":40,"endLine":41},{"startLine":39,"endLine":42},{"startLine":19,"endLine":44},{"startLine":18,"endLine":45},{"startLine":17,"endLine":49}]
+=== 209 tests/src/tests/tooltip/tooltip-test.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":23},{"startLine":31,"endLine":36},{"startLine":30,"endLine":37},{"startLine":28,"endLine":38},{"startLine":27,"endLine":39},{"startLine":26,"endLine":44}]
+=== 269 tests/src/tests/tooltip/tooltip-tether-gap-test.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":14,"endLine":20},{"startLine":22,"endLine":28},{"startLine":13,"endLine":29},{"startLine":35,"endLine":36},{"startLine":34,"endLine":37},{"startLine":32,"endLine":39},{"startLine":12,"endLine":40},{"startLine":11,"endLine":43}]
+=== 387 tests/src/tests/tooltip/tooltip-tether-test.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":11,"endLine":17},{"startLine":10,"endLine":18},{"startLine":24,"endLine":25},{"startLine":23,"endLine":26},{"startLine":21,"endLine":28},{"startLine":32,"endLine":38},{"startLine":40,"endLine":41},{"startLine":31,"endLine":42},{"startLine":9,"endLine":43},{"startLine":45,"endLine":46},{"startLine":48,"endLine":49},{"startLine":8,"endLine":54}]
+=== 540 tests/src/tests/utilities/bits-config/bits-config-test.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":18,"endLine":20},{"startLine":26,"endLine":28},{"startLine":24,"endLine":29},{"startLine":36,"endLine":38},{"startLine":34,"endLine":39},{"startLine":33,"endLine":40},{"startLine":47,"endLine":49},{"startLine":45,"endLine":50},{"startLine":44,"endLine":51},{"startLine":59,"endLine":61},{"startLine":57,"endLine":62},{"startLine":56,"endLine":63},{"startLine":55,"endLine":64},{"startLine":72,"endLine":74},{"startLine":70,"endLine":75},{"startLine":69,"endLine":76},{"startLine":68,"endLine":77}]
+=== 29 tests/src/tests/utilities/is-using-keyboard/is-using-keyboard-test.svelte	folding.json
+[{"startLine":0,"endLine":5}]

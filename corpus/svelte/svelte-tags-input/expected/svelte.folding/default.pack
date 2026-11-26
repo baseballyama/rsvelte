@@ -1,0 +1,5 @@
+# rsvelte pack 1
+=== 287 src/Tags.svelte	folding.json
+[{"startLine":0,"endLine":360},{"startLine":380,"endLine":389},{"startLine":373,"endLine":391},{"startLine":395,"endLine":410},{"startLine":363,"endLine":411},{"startLine":418,"endLine":426},{"startLine":416,"endLine":428},{"startLine":415,"endLine":429},{"startLine":433,"endLine":580}]
+=== 60 tests/TagsWrapper.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":23,"endLine":39}]

@@ -1,0 +1,113 @@
+# rsvelte pack 1
+=== 29 src/lib/components/common/DragRegion.svelte	folding.json
+[{"startLine":2,"endLine":8}]
+=== 181 src/lib/components/dashboard/Banner.svelte	folding.json
+[{"startLine":0,"endLine":73},{"startLine":79,"endLine":81},{"startLine":83,"endLine":84},{"startLine":78,"endLine":85},{"startLine":77,"endLine":86},{"startLine":90,"endLine":135}]
+=== 116 src/lib/components/dashboard/LoadingScreen.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":7,"endLine":9},{"startLine":5,"endLine":11},{"startLine":14,"endLine":59}]
+=== 148 src/lib/components/settings/accounts/Accounts.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":10,"endLine":11},{"startLine":13,"endLine":14},{"startLine":9,"endLine":15},{"startLine":18,"endLine":23}]
+=== 208 src/lib/components/settings/gitlab-settings/GitlabSettings.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":8,"endLine":10},{"startLine":15,"endLine":16},{"startLine":14,"endLine":17},{"startLine":20,"endLine":22},{"startLine":19,"endLine":23},{"startLine":29,"endLine":42}]
+=== 87 src/lib/icons/AnsweredDiscussionIcon.svelte	folding.json
+[{"startLine":1,"endLine":4},{"startLine":6,"endLine":10},{"startLine":0,"endLine":11}]
+=== 57 src/lib/icons/ArrowRightIcon.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":0,"endLine":8}]
+=== 57 src/lib/icons/ArrowUpIcon.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":0,"endLine":8}]
+=== 57 src/lib/icons/CheckIcon.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":0,"endLine":7}]
+=== 29 src/lib/icons/ClosedIssueIcon.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 87 src/lib/icons/ClosedPullRequestIcon.svelte	folding.json
+[{"startLine":3,"endLine":7},{"startLine":9,"endLine":14},{"startLine":0,"endLine":15}]
+=== 29 src/lib/icons/CommitIcon.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 57 src/lib/icons/CompletedIssueIcon.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":0,"endLine":8}]
+=== 29 src/lib/icons/CrossIcon.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 87 src/lib/icons/DiscussionIcon.svelte	folding.json
+[{"startLine":1,"endLine":4},{"startLine":6,"endLine":10},{"startLine":0,"endLine":11}]
+=== 57 src/lib/icons/DoubleArrowIcon.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":0,"endLine":7}]
+=== 87 src/lib/icons/DoubleCheckIcon.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":8,"endLine":10},{"startLine":0,"endLine":11}]
+=== 57 src/lib/icons/DraftPullRequestIcon.svelte	folding.json
+[{"startLine":2,"endLine":5},{"startLine":0,"endLine":8}]
+=== 57 src/lib/icons/ExclamationMarkIcon.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":0,"endLine":9}]
+=== 87 src/lib/icons/ExternalLinkIcon.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":8,"endLine":12},{"startLine":0,"endLine":13}]
+=== 57 src/lib/icons/GearIcon.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":0,"endLine":5}]
+=== 57 src/lib/icons/GithubIcon.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":0,"endLine":4}]
+=== 57 src/lib/icons/GitlabIcon.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 57 src/lib/icons/HeartIcon.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 57 src/lib/icons/LightningIcon.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":6}]
+=== 57 src/lib/icons/LinuxIcon.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":0,"endLine":4}]
+=== 57 src/lib/icons/MacosIcon.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":0,"endLine":4}]
+=== 57 src/lib/icons/MergedPullRequestIcon.svelte	folding.json
+[{"startLine":2,"endLine":5},{"startLine":0,"endLine":7}]
+=== 57 src/lib/icons/MuteIcon.svelte	folding.json
+[{"startLine":3,"endLine":7},{"startLine":0,"endLine":8}]
+=== 57 src/lib/icons/MutedIcon.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":7}]
+=== 29 src/lib/icons/OpenIssueIcon.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 87 src/lib/icons/OpenPullRequestIcon.svelte	folding.json
+[{"startLine":2,"endLine":5},{"startLine":7,"endLine":12},{"startLine":0,"endLine":13}]
+=== 29 src/lib/icons/PersonIcon.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 87 src/lib/icons/PinIcon.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":8,"endLine":12},{"startLine":0,"endLine":13}]
+=== 29 src/lib/icons/PlusIcon.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 src/lib/icons/PriorityDownIcon.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":0,"endLine":8}]
+=== 57 src/lib/icons/PriorityIcon.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":0,"endLine":8}]
+=== 57 src/lib/icons/PriorityUpIcon.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":0,"endLine":8}]
+=== 87 src/lib/icons/RefreshIcon.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":8,"endLine":12},{"startLine":0,"endLine":13}]
+=== 57 src/lib/icons/ReleaseIcon.svelte	folding.json
+[{"startLine":1,"endLine":4},{"startLine":0,"endLine":6}]
+=== 86 src/lib/icons/RepositoryIcon.svelte	folding.json
+[{"startLine":1,"endLine":4},{"startLine":6,"endLine":8},{"startLine":0,"endLine":10}]
+=== 87 src/lib/icons/RestoreIcon.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":8,"endLine":12},{"startLine":0,"endLine":13}]
+=== 57 src/lib/icons/SearchIcon.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":0,"endLine":8}]
+=== 57 src/lib/icons/SmallArrowIcon.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":0,"endLine":4}]
+=== 87 src/lib/icons/SparklesIcon.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":7,"endLine":11},{"startLine":0,"endLine":12}]
+=== 29 src/lib/icons/ThreeDotsIcon.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 87 src/lib/icons/TrashIcon.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":8,"endLine":12},{"startLine":0,"endLine":14}]
+=== 57 src/lib/icons/UnpinIcon.svelte	folding.json
+[{"startLine":1,"endLine":5},{"startLine":0,"endLine":7}]
+=== 57 src/lib/icons/UnreadIcon.svelte	folding.json
+[{"startLine":2,"endLine":7},{"startLine":0,"endLine":8}]
+=== 57 src/lib/icons/WindowsIcon.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":0,"endLine":4}]
+=== 29 src/lib/icons/WorkflowFailIcon.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 57 src/lib/icons/WorkflowSuccessIcon.svelte	folding.json
+[{"startLine":1,"endLine":6},{"startLine":0,"endLine":7}]
+=== 57 src/lib/icons/XIcon.svelte	folding.json
+[{"startLine":1,"endLine":3},{"startLine":0,"endLine":4}]
+=== 150 src/routes/(app)/deeplink/+page.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":31,"endLine":32},{"startLine":37,"endLine":39},{"startLine":35,"endLine":40},{"startLine":43,"endLine":68}]
+=== 120 src/routes/(tray)/tray/+page.svelte	folding.json
+[{"startLine":0,"endLine":57},{"startLine":61,"endLine":62},{"startLine":60,"endLine":63},{"startLine":66,"endLine":73}]
+=== 728 src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":24},{"startLine":29,"endLine":31},{"startLine":27,"endLine":32},{"startLine":37,"endLine":39},{"startLine":42,"endLine":49},{"startLine":51,"endLine":58},{"startLine":41,"endLine":59},{"startLine":36,"endLine":60},{"startLine":64,"endLine":65},{"startLine":67,"endLine":68},{"startLine":63,"endLine":69},{"startLine":73,"endLine":75},{"startLine":72,"endLine":76},{"startLine":71,"endLine":78},{"startLine":82,"endLine":85},{"startLine":87,"endLine":90},{"startLine":92,"endLine":95},{"startLine":81,"endLine":96},{"startLine":100,"endLine":105},{"startLine":99,"endLine":107},{"startLine":98,"endLine":108},{"startLine":62,"endLine":109},{"startLine":35,"endLine":110},{"startLine":113,"endLine":341}]

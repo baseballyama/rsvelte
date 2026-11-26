@@ -1,0 +1,39 @@
+# rsvelte pack 1
+=== 240 src/lib/components/calendar/Calendar.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":18,"endLine":19},{"startLine":22,"endLine":23},{"startLine":26,"endLine":27},{"startLine":16,"endLine":29},{"startLine":14,"endLine":30},{"startLine":13,"endLine":31},{"startLine":34,"endLine":60}]
+=== 58 src/lib/components/generic/ViewTransitionEffect.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":12}]
+=== 29 src/lib/components/generic/crossfade/CrossfadeBoundary.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 29 src/lib/components/generic/crossfade/CrossfadeProvider.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 211 src/lib/docs/JSONEditorModal.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":23,"endLine":25},{"startLine":27,"endLine":30},{"startLine":15,"endLine":31},{"startLine":14,"endLine":32},{"startLine":13,"endLine":33},{"startLine":36,"endLine":104}]
+=== 149 src/lib/docs/NavBar.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":12,"endLine":13},{"startLine":11,"endLine":15},{"startLine":10,"endLine":16},{"startLine":19,"endLine":57}]
+=== 120 src/lib/docs/SvgThing.svelte	folding.json
+[{"startLine":0,"endLine":39},{"startLine":43,"endLine":46},{"startLine":42,"endLine":47},{"startLine":50,"endLine":61}]
+=== 60 src/lib/docs/examples/CustomTheme.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":18,"endLine":19}]
+=== 117 src/lib/docs/examples/CustomTrigger.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":8,"endLine":13},{"startLine":7,"endLine":14},{"startLine":17,"endLine":26}]
+=== 29 src/lib/docs/examples/DarkTheme.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 89 src/lib/docs/examples/Formatting.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":10,"endLine":11},{"startLine":14,"endLine":20}]
+=== 29 src/lib/docs/examples/InlineCalendar.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 29 src/lib/docs/examples/QuickStart.svelte	folding.json
+[{"startLine":0,"endLine":1}]
+=== 29 src/lib/docs/examples/StartAndEnd.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 120 src/lib/docs/examples/Store.svelte	folding.json
+[{"startLine":0,"endLine":11},{"startLine":20,"endLine":21},{"startLine":16,"endLine":25},{"startLine":31,"endLine":60}]
+=== 403 src/routes/docs/examples.svelte	folding.json
+[{"startLine":0,"endLine":76},{"startLine":86,"endLine":90},{"startLine":84,"endLine":92},{"startLine":82,"endLine":94},{"startLine":80,"endLine":95},{"startLine":110,"endLine":112},{"startLine":114,"endLine":115},{"startLine":109,"endLine":116},{"startLine":107,"endLine":117},{"startLine":99,"endLine":118},{"startLine":98,"endLine":119},{"startLine":79,"endLine":121},{"startLine":124,"endLine":244}]
+=== 179 src/routes/docs/props.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":59},{"startLine":71,"endLine":72},{"startLine":64,"endLine":74},{"startLine":62,"endLine":75},{"startLine":78,"endLine":112}]
+=== 268 src/routes/docs/quick-start.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":11},{"startLine":17,"endLine":19},{"startLine":21,"endLine":23},{"startLine":26,"endLine":28},{"startLine":25,"endLine":29},{"startLine":16,"endLine":30},{"startLine":14,"endLine":31},{"startLine":34,"endLine":51}]
+=== 271 src/routes/index.svelte	folding.json
+[{"startLine":0,"endLine":10},{"startLine":19,"endLine":20},{"startLine":17,"endLine":21},{"startLine":16,"endLine":22},{"startLine":14,"endLine":23},{"startLine":26,"endLine":32},{"startLine":25,"endLine":33},{"startLine":13,"endLine":34},{"startLine":37,"endLine":129}]

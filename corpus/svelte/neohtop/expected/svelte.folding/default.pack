@@ -1,0 +1,7 @@
+# rsvelte pack 1
+=== 430 src/lib/components/AppInfo.svelte	folding.json
+[{"startLine":0,"endLine":56},{"startLine":67,"endLine":68},{"startLine":61,"endLine":69},{"startLine":81,"endLine":87},{"startLine":78,"endLine":89},{"startLine":91,"endLine":94},{"startLine":99,"endLine":105},{"startLine":96,"endLine":106},{"startLine":108,"endLine":111},{"startLine":77,"endLine":112},{"startLine":75,"endLine":113},{"startLine":74,"endLine":114},{"startLine":59,"endLine":116},{"startLine":119,"endLine":249}]
+=== 87 src/lib/components/TitleBar.svelte	folding.json
+[{"startLine":4,"endLine":6},{"startLine":3,"endLine":7},{"startLine":10,"endLine":44}]
+=== 29 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":1}]

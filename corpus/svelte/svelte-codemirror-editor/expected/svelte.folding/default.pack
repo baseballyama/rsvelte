@@ -1,0 +1,15 @@
+# rsvelte pack 1
+=== 157 src/lib/CodeMirror.svelte	folding.json
+[{"startLine":0,"endLine":96},{"startLine":99,"endLine":349},{"startLine":356,"endLine":358},{"startLine":355,"endLine":361},{"startLine":365,"endLine":417}]
+=== 241 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":16},{"startLine":20,"endLine":21},{"startLine":26,"endLine":27},{"startLine":24,"endLine":29},{"startLine":32,"endLine":33},{"startLine":19,"endLine":34},{"startLine":37,"endLine":139}]
+=== 1076 src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":77},{"startLine":86,"endLine":88},{"startLine":90,"endLine":92},{"startLine":94,"endLine":96},{"startLine":98,"endLine":100},{"startLine":102,"endLine":104},{"startLine":85,"endLine":105},{"startLine":108,"endLine":110},{"startLine":112,"endLine":114},{"startLine":116,"endLine":118},{"startLine":120,"endLine":122},{"startLine":124,"endLine":126},{"startLine":107,"endLine":127},{"startLine":130,"endLine":132},{"startLine":134,"endLine":136},{"startLine":138,"endLine":140},{"startLine":142,"endLine":144},{"startLine":146,"endLine":148},{"startLine":129,"endLine":149},{"startLine":152,"endLine":154},{"startLine":156,"endLine":158},{"startLine":151,"endLine":159},{"startLine":164,"endLine":166},{"startLine":168,"endLine":170},{"startLine":163,"endLine":171},{"startLine":178,"endLine":181},{"startLine":176,"endLine":182},{"startLine":175,"endLine":183},{"startLine":190,"endLine":193},{"startLine":188,"endLine":194},{"startLine":187,"endLine":195},{"startLine":83,"endLine":196},{"startLine":80,"endLine":197},{"startLine":200,"endLine":254}]
+=== 29 src/routes/css/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 src/routes/html/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 src/routes/javascript/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]
+=== 29 src/routes/typescript/+page.svelte	folding.json
+[{"startLine":0,"endLine":5}]

@@ -1,0 +1,27 @@
+# rsvelte pack 1
+=== 418 docs/src/lib/components/logos/mode-watcher-dark.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":14,"endLine":16},{"startLine":18,"endLine":20},{"startLine":22,"endLine":24},{"startLine":26,"endLine":28},{"startLine":30,"endLine":32},{"startLine":34,"endLine":36},{"startLine":38,"endLine":40},{"startLine":42,"endLine":44},{"startLine":46,"endLine":48},{"startLine":50,"endLine":52},{"startLine":54,"endLine":56},{"startLine":58,"endLine":62},{"startLine":6,"endLine":63}]
+=== 418 docs/src/lib/components/logos/mode-watcher-light.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":14,"endLine":16},{"startLine":18,"endLine":20},{"startLine":22,"endLine":24},{"startLine":26,"endLine":28},{"startLine":30,"endLine":32},{"startLine":34,"endLine":36},{"startLine":38,"endLine":40},{"startLine":42,"endLine":44},{"startLine":46,"endLine":48},{"startLine":50,"endLine":52},{"startLine":54,"endLine":56},{"startLine":58,"endLine":62},{"startLine":6,"endLine":63}]
+=== 58 docs/src/routes/(docs)/+layout.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":9,"endLine":16}]
+=== 29 docs/src/routes/(docs)/docs/+page.svelte	folding.json
+[{"startLine":0,"endLine":2}]
+=== 2 docs/src/routes/(landing)/+page.svelte	folding.json
+[]
+=== 29 docs/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":7}]
+=== 60 packages/mode-watcher/src/lib/components/mode-watcher-full.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":15,"endLine":27}]
+=== 29 packages/mode-watcher/src/lib/components/mode-watcher-lite.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 30 packages/mode-watcher/src/lib/components/mode-watcher.svelte	folding.json
+[{"startLine":0,"endLine":96}]
+=== 29 packages/mode-watcher/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":4}]
+=== 210 packages/mode-watcher/src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":29},{"startLine":45,"endLine":49},{"startLine":51,"endLine":55},{"startLine":57,"endLine":61},{"startLine":63,"endLine":67},{"startLine":69,"endLine":73},{"startLine":32,"endLine":74}]
+=== 30 packages/mode-watcher/src/tests/Mode.svelte	folding.json
+[{"startLine":2,"endLine":16}]
+=== 29 packages/mode-watcher/src/tests/StealthMode.svelte	folding.json
+[{"startLine":2,"endLine":5}]

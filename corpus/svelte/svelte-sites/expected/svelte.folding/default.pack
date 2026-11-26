@@ -1,0 +1,27 @@
+# rsvelte pack 1
+=== 238 sites/hn.svelte.dev/src/lib/Nav.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":9,"endLine":10},{"startLine":16,"endLine":18},{"startLine":15,"endLine":19},{"startLine":23,"endLine":24},{"startLine":13,"endLine":25},{"startLine":8,"endLine":26},{"startLine":29,"endLine":102}]
+=== 90 sites/hn.svelte.dev/src/lib/PreloadingIndicator.svelte	folding.json
+[{"startLine":0,"endLine":14},{"startLine":18,"endLine":19},{"startLine":27,"endLine":67}]
+=== 60 sites/hn.svelte.dev/src/lib/SubsetHTML.svelte	folding.json
+[{"startLine":0,"endLine":31},{"startLine":55,"endLine":58}]
+=== 180 sites/hn.svelte.dev/src/lib/ThemeToggler.svelte	folding.json
+[{"startLine":0,"endLine":28},{"startLine":42,"endLine":44},{"startLine":46,"endLine":48},{"startLine":41,"endLine":49},{"startLine":31,"endLine":50},{"startLine":53,"endLine":89}]
+=== 88 sites/hn.svelte.dev/src/routes/+error.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":9,"endLine":10},{"startLine":17,"endLine":32}]
+=== 89 sites/hn.svelte.dev/src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":18,"endLine":19},{"startLine":24,"endLine":31}]
+=== 89 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	folding.json
+[{"startLine":0,"endLine":9},{"startLine":12,"endLine":14},{"startLine":27,"endLine":32}]
+=== 237 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":11,"endLine":13},{"startLine":16,"endLine":19},{"startLine":9,"endLine":21},{"startLine":31,"endLine":37},{"startLine":24,"endLine":39},{"startLine":8,"endLine":42},{"startLine":45,"endLine":85}]
+=== 116 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/NullItem.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":5,"endLine":6},{"startLine":4,"endLine":11},{"startLine":14,"endLine":47}]
+=== 175 sites/hn.svelte.dev/src/routes/about/+page.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":7,"endLine":8},{"startLine":6,"endLine":9},{"startLine":12,"endLine":15},{"startLine":19,"endLine":20},{"startLine":18,"endLine":23}]
+=== 239 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	folding.json
+[{"startLine":0,"endLine":8},{"startLine":11,"endLine":12},{"startLine":17,"endLine":19},{"startLine":22,"endLine":26},{"startLine":16,"endLine":38},{"startLine":42,"endLine":45},{"startLine":15,"endLine":47},{"startLine":50,"endLine":83}]
+=== 300 sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	folding.json
+[{"startLine":0,"endLine":7},{"startLine":15,"endLine":17},{"startLine":14,"endLine":18},{"startLine":13,"endLine":19},{"startLine":22,"endLine":23},{"startLine":29,"endLine":30},{"startLine":27,"endLine":32},{"startLine":12,"endLine":34},{"startLine":11,"endLine":35},{"startLine":39,"endLine":100}]
+=== 178 sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":9,"endLine":10},{"startLine":16,"endLine":18},{"startLine":21,"endLine":24},{"startLine":28,"endLine":29},{"startLine":15,"endLine":31}]

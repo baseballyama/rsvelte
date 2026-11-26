@@ -1,0 +1,17 @@
+# rsvelte pack 1
+=== 429 src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":37},{"startLine":40,"endLine":41},{"startLine":51,"endLine":53},{"startLine":47,"endLine":55},{"startLine":61,"endLine":75},{"startLine":81,"endLine":84},{"startLine":86,"endLine":89},{"startLine":91,"endLine":94},{"startLine":96,"endLine":99},{"startLine":101,"endLine":104},{"startLine":106,"endLine":109},{"startLine":111,"endLine":114},{"startLine":80,"endLine":115},{"startLine":118,"endLine":126}]
+=== 29 src/routes/404/+page.svelte	folding.json
+[{"startLine":0,"endLine":6}]
+=== 240 src/routes/DemoDateInput.svelte	folding.json
+[{"startLine":0,"endLine":40},{"startLine":44,"endLine":62},{"startLine":83,"endLine":86},{"startLine":88,"endLine":89},{"startLine":91,"endLine":92},{"startLine":94,"endLine":95},{"startLine":65,"endLine":96},{"startLine":43,"endLine":97}]
+=== 240 src/routes/DemoDatePicker.svelte	folding.json
+[{"startLine":0,"endLine":20},{"startLine":25,"endLine":32},{"startLine":24,"endLine":33},{"startLine":43,"endLine":46},{"startLine":48,"endLine":49},{"startLine":51,"endLine":52},{"startLine":35,"endLine":53},{"startLine":23,"endLine":54}]
+=== 57 src/routes/bug/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":9}]
+=== 88 src/routes/bug/isdisableddate/+page.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":13},{"startLine":15,"endLine":18}]
+=== 57 src/routes/bug/timeprecision/+page.svelte	folding.json
+[{"startLine":0,"endLine":3},{"startLine":6,"endLine":9}]
+=== 57 src/routes/demo/+page.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":5,"endLine":6}]

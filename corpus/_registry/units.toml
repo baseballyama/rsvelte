@@ -1835,38 +1835,47 @@
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_comment_is_a_comment/4af889e4d7e202d4.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_nested_at_rule_is_still_a_value/2fc806a64ddbf495.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/01726ffa6744c30a.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/4a4f09bc123bb7cb.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/5012ab13505d74b5.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/7881f7b8d8d61218.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/8a2c6ab63566f277.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_a_string_is_a_declaration_value/fe62b93807b9d785.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/a_terminator_inside_an_unquoted_url_is_a_declaration_value/88036cc31fc233f5.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
@@ -2024,6 +2033,7 @@
 "svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
 
 ["svelte/rsvelte/crates/rsvelte_core/fixtures_utf8_boundary/svelte_ignore_scan.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a start tag at the `<` of the next tag where Svelte reads it as an attribute"
 "svelte.check" = "order dependent: svelte-check checks the workspace with one TypeScript checker, which adds \"Did you mean\" to at most 10 findings, so whether this unit's finding gets one depends on the units checked before it"
 
 ["svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-import-assertion03-input.svelte".skip]
@@ -2061,6 +2071,7 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
 ["svelte/rsvelte/pattern/css/html-comment-in-a-sheet.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.check" = "upstream bug: svelte2tsx blanks script/style bodies with regexes, so svelte-check reports the parse error of altered text"
 "svelte.lint" = "upstream bug: svelte-eslint-parser ends a style element at the first `</style>` in any case, even inside a string or a comment, so ESLint reports the parse error of the rest of the sheet read as markup"
 
@@ -2755,6 +2766,7 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expression_comment_3112/client_flushes_a_folded_tags_comment_onto_the_next_located_node/4608f068c893d659.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner reads a regular expression or a comment in an expression as markup, so it folds the markup after it differently"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/a_component_with_no_instance_script_drops_the_comment/27a6648756f94a5a.svelte".skip]
@@ -2770,6 +2782,7 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_expression_comments_3112_3214/the_carried_comment_keeps_its_source_line_distance/8f4164f9f70311b4.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner reads a regular expression or a comment in an expression as markup, so it folds the markup after it differently"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a template expression from its first leading comment to its end, so it deletes a comment after it"
 
 ["svelte/rsvelte-tests-core-3/template_scan_lexical_state_3708_3709_3711/a_comment_in_an_await_head_does_not_end_it/85602f44f89a6d2f.svelte".skip]
@@ -4328,6 +4341,7 @@
 "svelte.lint" = "upstream bug: postcss-selector-parser ends a hex escape before a tab or a line break, and after six digits before a space, so `#line\\a` and the name after it are two selectors"
 
 ["svelte/svelte/packages/svelte/tests/parser-legacy/samples/textarea-end-tag/input.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<textarea>` at an end tag split over lines differently from Svelte"
 "svelte.lint" = "upstream bug: svelte-eslint-parser places the end tag of a `<textarea>` at its last `</textarea`, where Svelte ends the content at the first"
 "svelte.check" = "upstream bug: svelte2tsx removes a `<textarea>` end tag from its last `</textarea`, where Svelte starts it at a `</textarea` followed by whitespace, so it leaves the rest in its TSX and svelte-check reports it as JSX"
 
@@ -4561,6 +4575,7 @@
 "svelte.lint" = "upstream bug: svelte-eslint-parser finds the end of a `<style>` block ignoring case, so a `</STYLE>` in the style sheet ends it, which Svelte does not"
 
 ["svelte/rsvelte-tests-core-3/style_terminator_3593/near_misses_are_not_terminators/024c029169d7ee6b.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner ends a `<style>` at a `</style>` inside CSS, where Svelte reads it as CSS"
 "svelte.lint" = "upstream bug: svelte-eslint-parser finds the end of a `<style>` block ignoring case, so a `</STYLE>` in the style sheet ends it, which Svelte does not"
 
 ["svelte/rsvelte/pattern/adversarial/runes/inspect-with-and-snapshot-nesting.svelte".skip]
@@ -4838,6 +4853,7 @@
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a comment in `<svelte:element this={...}>` again after the attribute when another attribute follows, and once more on every pass"
 
 ["svelte/rsvelte/lint/sort-attributes/22-this-controls.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner reads a regular expression or a comment in an expression as markup, so it folds the markup after it differently"
 "svelte.format" = "upstream bug: prettier-plugin-svelte 4.1.1 prints a comment in `<svelte:element this={...}>` again after the attribute when another attribute follows, and once more on every pass"
 
 ["svelte/rsvelte-tests-core-3/ts_grammar_rule_parser_parity/an_optional_rest_parameter_is_accepted_where_official_rejects_it/6feaf383fddfb677.svelte".skip]
@@ -6668,3 +6684,42 @@
 
 ["svelte/svelte-spa-router/examples/dynamic-imports/src/routes/Wild.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
+
+["svelte/flowbite-svelte/src/routes/layouts/ComponentsLayout.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner reads a regular expression or a comment in an expression as markup, so it folds the markup after it differently"
+
+["svelte/kite-public/src/lib/components/settings/ContributeCategoryModal.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner folds a `<!--` inside a script's string as a markup comment"
+
+["svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/auto-closing-tag/input.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner does not close an element that a sibling or its parent's end tag closes implicitly"
+
+["svelte/rsvelte-tests-formatter/implicit_close/implicit_close_with_trailing_whitespace/90436e46bf3a1b81.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner does not close an element that a sibling or its parent's end tag closes implicitly"
+
+["svelte/rsvelte-tests-formatter/markup_open_tag/escaped_regex_slash_does_not_deindent_multiline_attribute_close/45d48cbddf3d54b6.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner reads a regular expression or a comment in an expression as markup, so it folds the markup after it differently"
+
+["svelte/rsvelte/lint/prefer-attribute-interpolation/07-regex-in-interpolation.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner reads a regular expression or a comment in an expression as markup, so it folds the markup after it differently"
+
+["svelte/rsvelte/pattern/adversarial/components/unusual-component-names.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner does not read a non-ASCII component name as a tag name"
+
+["svelte/rsvelte/pattern/adversarial/expressions/regex-literal-shapes.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner reads a regular expression or a comment in an expression as markup, so it folds the markup after it differently"
+
+["svelte/svelte-spa-router/test/app/src/App.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner reads a regular expression or a comment in an expression as markup, so it folds the markup after it differently"
+
+["svelte/svelte/packages/svelte/tests/parser-legacy/samples/implicitly-closed-li/input.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner does not close an element that a sibling or its parent's end tag closes implicitly"
+
+["svelte/svelte/packages/svelte/tests/runtime-xhtml/samples/autoclosed-tags/main.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner does not close an element that a sibling or its parent's end tag closes implicitly"
+
+["svelte/svelte/packages/svelte/tests/runtime-xhtml/samples/void-tags/main.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner does not know `keygen` as a void element, so it folds the elements after it into it"
+
+["svelte/svelte/packages/svelte/tests/validator/samples/implicitly-closed-by-sibling/input.svelte".skip]
+"svelte.folding" = "upstream bug: svelte-language-server 0.18.6's HTML scanner does not close an element that a sibling or its parent's end tag closes implicitly"

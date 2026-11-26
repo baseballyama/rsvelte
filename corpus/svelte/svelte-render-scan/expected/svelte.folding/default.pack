@@ -1,0 +1,11 @@
+# rsvelte pack 1
+=== 90 src/lib/components/Logo.svelte	folding.json
+[{"startLine":0,"endLine":35},{"startLine":47,"endLine":48},{"startLine":38,"endLine":50}]
+=== 121 src/lib/components/RenderScan.svelte	folding.json
+[{"startLine":0,"endLine":39},{"startLine":54,"endLine":55},{"startLine":48,"endLine":56},{"startLine":60,"endLine":100}]
+=== 31 src/lib/components/RenderScanObserver.svelte	folding.json
+[{"startLine":0,"endLine":219}]
+=== 58 src/routes/+layout.svelte	folding.json
+[{"startLine":0,"endLine":4},{"startLine":7,"endLine":26}]
+=== 1595 src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":90},{"startLine":102,"endLine":105},{"startLine":96,"endLine":106},{"startLine":112,"endLine":115},{"startLine":117,"endLine":121},{"startLine":123,"endLine":126},{"startLine":109,"endLine":127},{"startLine":130,"endLine":132},{"startLine":139,"endLine":140},{"startLine":145,"endLine":147},{"startLine":164,"endLine":167},{"startLine":158,"endLine":168},{"startLine":153,"endLine":170},{"startLine":152,"endLine":171},{"startLine":176,"endLine":178},{"startLine":174,"endLine":180},{"startLine":151,"endLine":181},{"startLine":143,"endLine":182},{"startLine":137,"endLine":183},{"startLine":136,"endLine":184},{"startLine":192,"endLine":201},{"startLine":189,"endLine":203},{"startLine":187,"endLine":205},{"startLine":94,"endLine":206},{"startLine":93,"endLine":207},{"startLine":217,"endLine":222},{"startLine":224,"endLine":227},{"startLine":216,"endLine":228},{"startLine":214,"endLine":230},{"startLine":212,"endLine":231},{"startLine":234,"endLine":235},{"startLine":211,"endLine":237},{"startLine":240,"endLine":243},{"startLine":246,"endLine":248},{"startLine":255,"endLine":258},{"startLine":263,"endLine":264},{"startLine":261,"endLine":266},{"startLine":271,"endLine":272},{"startLine":269,"endLine":274},{"startLine":279,"endLine":280},{"startLine":277,"endLine":282},{"startLine":287,"endLine":288},{"startLine":285,"endLine":290},{"startLine":293,"endLine":296},{"startLine":254,"endLine":297},{"startLine":251,"endLine":298},{"startLine":301,"endLine":302},{"startLine":304,"endLine":305},{"startLine":210,"endLine":310},{"startLine":313,"endLine":350}]

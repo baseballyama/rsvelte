@@ -1,0 +1,31 @@
+# rsvelte pack 1
+=== 29 src/lib/PivotTable.svelte	folding.json
+[{"startLine":0,"endLine":3}]
+=== 223 src/lib/PivotTableUI.svelte	folding.json
+[{"startLine":0,"endLine":104},{"startLine":113,"endLine":119},{"startLine":124,"endLine":129},{"startLine":134,"endLine":139},{"startLine":144,"endLine":149},{"startLine":154,"endLine":167},{"startLine":107,"endLine":169}]
+=== 63 src/lib/PlotlyRenderer.svelte	folding.json
+[{"startLine":0,"endLine":121},{"startLine":124,"endLine":128}]
+=== 60 src/lib/ScatterRenderer.svelte	folding.json
+[{"startLine":0,"endLine":49},{"startLine":52,"endLine":56}]
+=== 30 src/lib/TSVExportRenderer.svelte	folding.json
+[{"startLine":0,"endLine":48}]
+=== 639 src/lib/TableRenderer.svelte	folding.json
+[{"startLine":0,"endLine":153},{"startLine":172,"endLine":176},{"startLine":181,"endLine":188},{"startLine":194,"endLine":198},{"startLine":167,"endLine":200},{"startLine":210,"endLine":214},{"startLine":217,"endLine":218},{"startLine":205,"endLine":219},{"startLine":163,"endLine":221},{"startLine":236,"endLine":250},{"startLine":255,"endLine":256},{"startLine":264,"endLine":269},{"startLine":273,"endLine":278},{"startLine":230,"endLine":279},{"startLine":283,"endLine":287},{"startLine":294,"endLine":299},{"startLine":303,"endLine":307},{"startLine":282,"endLine":308},{"startLine":224,"endLine":309},{"startLine":156,"endLine":310}]
+=== 124 src/lib/UI/Aggregators.svelte	folding.json
+[{"startLine":0,"endLine":22},{"startLine":28,"endLine":36,"kind":"comment"},{"startLine":39,"endLine":47,"kind":"comment"}]
+=== 30 src/lib/UI/DnDCell.svelte	folding.json
+[{"startLine":0,"endLine":27}]
+=== 90 src/lib/UI/Draggable.svelte	folding.json
+[{"startLine":0,"endLine":39},{"startLine":42,"endLine":43},{"startLine":48,"endLine":53}]
+=== 150 src/lib/UI/DraggableAttribute.svelte	folding.json
+[{"startLine":0,"endLine":12},{"startLine":18,"endLine":20},{"startLine":16,"endLine":21},{"startLine":25,"endLine":26},{"startLine":15,"endLine":28}]
+=== 148 src/lib/UI/Dropdown.svelte	folding.json
+[{"startLine":0,"endLine":6},{"startLine":10,"endLine":16},{"startLine":23,"endLine":36},{"startLine":20,"endLine":38},{"startLine":9,"endLine":40}]
+=== 238 src/lib/UI/FilterBox.svelte	folding.json
+[{"startLine":0,"endLine":1},{"startLine":4,"endLine":57},{"startLine":69,"endLine":70},{"startLine":72,"endLine":73},{"startLine":66,"endLine":74},{"startLine":81,"endLine":87},{"startLine":77,"endLine":89},{"startLine":60,"endLine":93}]
+=== 296 src/lib/UI/MainTable.svelte	folding.json
+[{"startLine":0,"endLine":2},{"startLine":8,"endLine":10},{"startLine":12,"endLine":14},{"startLine":16,"endLine":18},{"startLine":7,"endLine":19},{"startLine":6,"endLine":20},{"startLine":25,"endLine":28},{"startLine":30,"endLine":33},{"startLine":24,"endLine":34},{"startLine":23,"endLine":35}]
+=== 58 src/lib/UI/Plotly.svelte	folding.json
+[{"startLine":0,"endLine":5},{"startLine":8,"endLine":17}]
+=== 643 src/routes/+page.svelte	folding.json
+[{"startLine":0,"endLine":42},{"startLine":45,"endLine":50},{"startLine":56,"endLine":67},{"startLine":55,"endLine":70},{"startLine":54,"endLine":73},{"startLine":53,"endLine":74},{"startLine":83,"endLine":84},{"startLine":82,"endLine":85},{"startLine":79,"endLine":86},{"startLine":78,"endLine":87},{"startLine":93,"endLine":94},{"startLine":92,"endLine":95},{"startLine":98,"endLine":99},{"startLine":102,"endLine":103},{"startLine":105,"endLine":106},{"startLine":97,"endLine":107},{"startLine":91,"endLine":109},{"startLine":112,"endLine":119},{"startLine":123,"endLine":124},{"startLine":90,"endLine":125},{"startLine":129,"endLine":202}]
