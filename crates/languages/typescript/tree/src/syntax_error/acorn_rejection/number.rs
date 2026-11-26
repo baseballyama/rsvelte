@@ -55,8 +55,18 @@ pub(super) fn number(
     Some(fails(message, u32::try_from(at).ok()?))
 }
 
+/// What acorn throws as it reads the number that starts at `at` in `text`, and where.
+pub(crate) fn read_at(text: &str, at: usize) -> Result<(), Failure> {
+    let mut reader = Reader { text, at };
+    if reader.at_number() {
+        reader.read()
+    } else {
+        Ok(())
+    }
+}
+
 /// What acorn throws, and where.
-type Failure = (&'static str, usize);
+pub(crate) type Failure = (&'static str, usize);
 
 /// acorn's reader of a number in `text`, as far as `at`.
 struct Reader<'t> {

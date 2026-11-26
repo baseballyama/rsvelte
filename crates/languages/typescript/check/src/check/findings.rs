@@ -121,8 +121,10 @@ pub(super) fn write_findings(docs: &[Prepared], outs: Vec<&mut TaskOutput>, repo
                 generated,
                 span,
                 code: f.code,
-                message: match d.env.notes.iter().find(|(code, _)| *code == f.code) {
-                    Some((_, note)) => format!("{message}\n{note}"),
+                message: match (d.env.notes.iter())
+                    .find(|((code, text), _)| *code == f.code && message.contains(text))
+                {
+                    Some((_, note)) => format!("{message}{note}"),
                     None => message,
                 },
             });

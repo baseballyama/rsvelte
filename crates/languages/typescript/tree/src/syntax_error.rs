@@ -144,7 +144,7 @@ impl Acorn {
 }
 
 mod acorn_rejection;
-pub(crate) use acorn_rejection::{acorn, reported};
+pub(crate) use acorn_rejection::{acorn, lexer_failure, reported};
 mod locator;
 mod readers;
 mod static_block;

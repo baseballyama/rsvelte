@@ -124,8 +124,9 @@ pub struct TypeScriptEnv {
     /// Suffixes, such as `.svelte`, that an import of `x<suffix>` also reaches as the script
     /// `x<suffix>.ts` when no such document exists, as the language's own checker resolves it.
     pub script_modules: Vec<&'static str>,
-    /// A line the language's own checker appends to TypeScript's message of each code.
-    pub notes: Vec<(u32, &'static str)>,
+    /// What the language's own checker appends to TypeScript's message of a code that contains a
+    /// text (`""` for any message), by the code and the text.
+    pub notes: Vec<((u32, &'static str), &'static str)>,
 }
 
 impl TypeScriptEnv {
@@ -154,7 +155,7 @@ impl TypeScriptEnv {
         merge_keyed(&mut self.replaced, &other.replaced, |path| {
             format!("two languages replace {}", path.display())
         })?;
-        merge_keyed(&mut self.notes, &other.notes, |code| {
+        merge_keyed(&mut self.notes, &other.notes, |(code, _)| {
             format!("two languages note TS{code} differently")
         })?;
         merge_set(&mut self.include, &other.include);

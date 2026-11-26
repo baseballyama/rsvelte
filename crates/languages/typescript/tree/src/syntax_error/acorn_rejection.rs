@@ -20,6 +20,7 @@ mod number;
 mod pattern;
 use arguments::{ARGUMENTS_IN_STATIC_BLOCK, arguments_misused, in_static_block};
 use declarations::declaration;
+pub(crate) use lexer::lexer_failure;
 use lexer::regular_expression;
 use number::number as rejected_number;
 use pattern::{parenthesized_element, rejected_await, reparsed};
