@@ -109,9 +109,10 @@ directory named `lint` as `./lint`.
 ## Editors
 
 `rsvelte lsp` is a language server on standard input and output. For the text in the editor, it
-reports what `lint` reports, offers its fixes, and formats as `format` does. The
+reports what `lint` reports, offers its fixes, and formats as `format` does. After each change, it
+reports the errors `typecheck` finds in every file of the project, with the unsaved texts. The
 [Visual Studio Code extension](../vscode/README.md) runs the project's `rsvelte lsp`. Another editor can run
-`npx rsvelte lsp` in the project directory. It does not type check.
+`npx rsvelte lsp` in the project directory.
 
 ## Svelte 5 runes mode only
 
