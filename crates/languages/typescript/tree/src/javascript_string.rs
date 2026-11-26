@@ -97,6 +97,16 @@ impl JavaScriptString {
         }
     }
 
+    /// [`Self::to_string_lossy`], keeping the text's buffer.
+    #[must_use]
+    #[inline]
+    pub fn into_string_lossy(self) -> String {
+        match self {
+            Self::Text(text) => text,
+            Self::Lone(_) => self.lossy(),
+        }
+    }
+
     #[cold]
     fn lossy(&self) -> String {
         let mut text = String::new();
@@ -242,9 +252,14 @@ impl JavaScriptString {
     /// The string with `map` applied to each text run; the lone surrogates stay.
     #[must_use]
     pub fn map_text(&self, map: impl Fn(&str) -> Cow<'_, str>) -> Self {
-        let mut string = Self::new();
-        string.push_string_mapped(self, map);
-        string
+        match self {
+            Self::Text(text) => Self::Text(map(text).into_owned()),
+            Self::Lone(_) => {
+                let mut string = Self::new();
+                string.push_runs(self, map);
+                string
+            }
+        }
     }
 
     pub fn encode_utf16(&self) -> impl Iterator<Item = u16> + '_ {

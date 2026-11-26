@@ -26,6 +26,7 @@ fn a_lone_surrogate_keeps_its_place_between_text() {
         [0x61, 0xD800, 0x62]
     );
     assert_eq!(string.to_string_lossy(), "a\u{FFFD}b");
+    assert_eq!(string.clone().into_string_lossy(), "a\u{FFFD}b");
     let upper = string.map_text(|text| text.to_uppercase().into());
     assert_eq!(
         upper.encode_utf16().collect::<Vec<_>>(),
@@ -54,4 +55,12 @@ fn a_trimmed_start_stops_at_a_lone_surrogate() {
         [0xD800, 0x20, 0x61]
     );
     assert_eq!(trimmed.runs().next(), Some(Run::Surrogate(0xD800)));
+}
+
+#[test]
+fn text_converts_without_copying() {
+    let text = String::from("parse me");
+    let at = text.as_ptr();
+    let converted = JavaScriptString::from(text).into_string_lossy();
+    assert_eq!(converted.as_ptr(), at);
 }

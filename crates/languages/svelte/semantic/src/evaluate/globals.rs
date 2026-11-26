@@ -27,7 +27,7 @@ fn math1(a: &[Value], f: fn(f64) -> f64) -> Value {
 fn string_arg(a: &[Value], i: usize) -> String {
     a.get(i).map_or_else(
         || "undefined".to_owned(),
-        |value| value.to_javascript_string().to_string_lossy().into_owned(),
+        |value| value.to_javascript_string().into_string_lossy(),
     )
 }
 
