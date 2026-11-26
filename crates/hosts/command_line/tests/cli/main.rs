@@ -30,6 +30,7 @@ mod typecheck_instantiation;
 mod typecheck_javascript;
 mod typecheck_line_ends;
 mod typecheck_linked_packages;
+mod typecheck_notes;
 mod typecheck_slot_attribute;
 mod typecheck_slot_props;
 mod typecheck_slots;
