@@ -6,7 +6,7 @@ use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicU32, Ordering};
 use std::time::Duration;
 
-use rsvelte_kernel::output::structured_data::StructuredDataWriter;
+use overlay::{overlay_roots, tsconfig_json};
 use rsvelte_kernel::performance::measurement;
 use rsvelte_kernel::source::paths;
 use rsvelte_kernel::source::positions::{LineBreaks, LineIndex, Span};
@@ -322,44 +322,6 @@ struct Left {
     check: Option<Project>,
 }
 
-/// The overlay's roots: the project's own, then each of the documents at `paths` the project
-/// does not reach, the stand-ins of script modules, the declarations and the included files; and
-/// whether any of them is not one of the project's own.
-fn overlay_roots(
-    req: &CheckRequest<'_>,
-    (root, paths): (&Path, &[PathBuf]),
-    own: &mut BaseProject,
-    declarations: Vec<PathBuf>,
-    (overlay, layer): (&Path, &mut Layer),
-) -> (Vec<PathBuf>, bool) {
-    let mut roots = std::mem::take(&mut own.roots);
-    let own_roots = roots.len();
-    own.script_modules = own.node_resolution && script_module::add(layer, &roots, paths, req);
-    if own.untyped == UntypedJavaScript::All {
-        let declaration = untyped::options_declaration(overlay);
-        roots.push(declaration.0.clone());
-        layer.files.insert(declaration.0, declaration.1);
-    }
-    // A document is a root only where the project does not reach it.
-    roots.extend(
-        (paths.iter())
-            .filter(|path| !own.selected.reached.contains(*path))
-            .cloned(),
-    );
-    // Upstream's project holds every component, so one that is not checked still declares its
-    // globals.
-    roots.extend(req.stand_ins(root).map(|(path, _)| path).filter(|path| {
-        (req.env.script_modules.iter())
-            .any(|extension| path.as_os_str().to_string_lossy().ends_with(extension))
-    }));
-    roots.extend(declarations);
-    roots.extend(req.env.include.iter().cloned());
-    let (own_part, added) = roots.split_at(own_roots);
-    let own_part: HashSet<&PathBuf> = own_part.iter().collect();
-    let adds = added.iter().any(|root| !own_part.contains(root));
-    (roots, adds)
-}
-
 /// Whether the checker reads every file of `layer` but `config` as the disk holds it, as it reads
 /// a file the layer does not hold.
 fn as_on_disk(layer: &Layer, config: &Path) -> bool {
@@ -401,58 +363,6 @@ fn in_temporary_directory<T>(
 const FILES_PER_PROCESS: usize = 50;
 /// Each process opens the project again, so more of them cost more than they save.
 const MOST_PROCESSES: usize = 4;
-
-fn tsconfig_json(
-    base: Option<&Path>,
-    req: &CheckRequest<'_>,
-    own: &BaseProject,
-    roots: &[PathBuf],
-    store: Option<&Path>,
-) -> String {
-    let mut w = StructuredDataWriter::new(true);
-    w.begin_object();
-    if let Some(base) = base {
-        w.key("extends").write_string(&paths::typescript(base));
-    }
-    w.key("compilerOptions")
-        .begin_object()
-        .key("noEmit")
-        .write_boolean(true);
-    if own.script_modules {
-        // A script module's declaration has the name of a document, such as `x.d.svelte.ts`.
-        w.key("allowArbitraryExtensions").write_boolean(true);
-    }
-    w.key("paths").begin_object();
-    for (spec, targets) in &own.paths {
-        if req.env.paths.iter().any(|(own, _)| own == spec) {
-            continue;
-        }
-        w.key(spec).begin_array();
-        for target in targets {
-            w.write_string(&paths::typescript(target));
-        }
-        w.end_array();
-    }
-    for (spec, file) in &req.env.paths {
-        w.key(spec)
-            .begin_array()
-            .write_string(&paths::typescript(file))
-            .end_array();
-    }
-    w.end_object().end_object();
-    if let Some(store) = store {
-        req.write_mapper_config(&mut w, MAPPER_PACKAGE, store);
-    }
-    w.key("files").begin_array();
-    let mut listed = HashSet::new();
-    for p in roots {
-        if listed.insert(p) {
-            w.write_string(&paths::typescript(p));
-        }
-    }
-    w.end_array().end_object();
-    w.finish()
-}
 
 /// The files the checker reads over the disk: the documents' texts, the stand-ins, the
 /// declarations and the content mapper's package, which serves the store it returns. It also
@@ -618,6 +528,7 @@ fn unlocated(checker: &TypeChecker, d: &rsvelte_typescript_api::Diagnostic) -> S
 }
 
 mod mapped;
+mod overlay;
 mod project;
 mod script_module;
 mod selection;
