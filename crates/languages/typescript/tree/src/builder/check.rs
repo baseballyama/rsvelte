@@ -28,7 +28,11 @@ impl<'a> TreeBuilder<'a> {
             let mut unsupported = Unsupported::new(self.typescript_reader(source_type), tokens);
             part.walk(&mut unsupported);
             let unsupported = unsupported.first.map(|stop| stop.shifted(shift));
-            let read = read(tokens, next_token);
+            // Without a diagnostic, the walk finds the literals acorn's lexer rejects.
+            let read = read(
+                if diagnostics.is_empty() { &[] } else { tokens },
+                next_token,
+            );
             let typescript = self.typescript_reader(source_type);
             let lexed = lexed(text, read, (irregular, typescript), shift);
             unsupported

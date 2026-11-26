@@ -206,6 +206,29 @@ fn stop(
     }
 }
 
+/// Where acorn's lexer rejects the literal `kind` in strict code, which oxc can read without a
+/// diagnostic: a number with a leading zero, or a string with an escape.
+fn lexed_literal(kind: AstKind<'_>, typescript: Option<TypeScriptReader>) -> Option<Stop> {
+    let (span, raw) = match kind {
+        AstKind::NumericLiteral(number)
+            if matches!(number.raw?.as_bytes(), [b'0', b'0'..=b'9', ..]) =>
+        {
+            (number.span, number.raw?)
+        }
+        // Each escape is longer than what it stands for.
+        AstKind::StringLiteral(string) if string.raw?.len() != string.value.len() + 2 => {
+            (string.span, string.raw?)
+        }
+        _ => return None,
+    };
+    let (at, why) = crate::syntax_error::lexer_failure(&raw, 0, typescript)?;
+    Some(Stop {
+        at: span.start + at,
+        raised: span.start,
+        why,
+    })
+}
+
 /// The statements `kind` holds as its bodies, outside any block.
 pub(crate) const fn bodies(kind: AstKind<'_>) -> [Option<&Statement<'_>>; 2] {
     match kind {
@@ -285,7 +308,8 @@ impl<'a> Visit<'a> for Unsupported<'_> {
         let mut found = (self.awaits.enter(kind))
             .map(|at| (at, Rejection::StaticBlockAwait))
             .or_else(|| stop(kind, self.typescript, self.tokens))
-            .map(|(at, why)| Stop::at(at, why));
+            .map(|(at, why)| Stop::at(at, why))
+            .or_else(|| lexed_literal(kind, self.typescript));
         // oxc's checker reports these names and initializers outside an ambient context itself, and
         // in one only acorn-typescript checks them.
         if self.typescript == Some(TypeScriptReader::AcornTypescript) && self.ambient > 0 {
@@ -393,7 +417,7 @@ pub(crate) fn read(tokens: &[Token], next: Option<Token>) -> impl Iterator<Item 
         .iter()
         .filter(|token| may_reject(token))
         .map(Token::start);
-    part.chain(next.map(|token| token.start()))
+    part.chain(next.filter(may_reject).map(|token| token.start()))
 }
 
 pub(crate) fn read_before_stopping(
