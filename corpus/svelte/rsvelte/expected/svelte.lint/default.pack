@@ -541,6 +541,50 @@
 91:14 91:67 svelte/sort-attributes "Attribute 'class' should go before '<p'."
 91:67 91:67 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
+=== 243 errors/a11y_incorrect_aria_attribute_type_idlist.svelte	lint.txt
+1:6 1:24 svelte/valid-compile "The value of 'aria-labelledby' must be a space-separated list of strings that represent DOM element IDs\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_idlist(a11y_incorrect_aria_attribute_type_idlist)"
+
+=== 532 errors/attribute_contenteditable_dynamic.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:14 svelte/prefer-const "'editable' is never reassigned. Use 'const' instead."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:6 6:32 svelte/valid-compile "'contenteditable' attribute cannot be dynamic if element uses two-way binding\nhttps://svelte.dev/e/attribute_contenteditable_dynamic(attribute_contenteditable_dynamic)"
+6:33 6:54 svelte/max-attributes-per-line "'bind:innerHTML' should be on a new line."
+
+=== 302 errors/attribute_contenteditable_missing.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:27 svelte/valid-compile "'contenteditable' attribute is required for textContent, innerHTML and innerText two-way bindings\nhttps://svelte.dev/e/attribute_contenteditable_missing(attribute_contenteditable_missing)"
+
+=== 97 errors/block_invalid_elseif.svelte	lint.txt
+7:1 - - "Parsing error: 'elseif' should be 'else if'\nhttps://svelte.dev/e/block_invalid_elseif"
+
+=== 615 errors/inspect_trace_generator.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:12 2:17 no-unused-vars "'items' is defined but never used."
+3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+3:3 3:11 svelte/no-inspect "Do not use $inspect directive"
+3:3 3:19 svelte/valid-compile "`$inspect.trace(...)` cannot be used inside a generator function\nhttps://svelte.dev/e/inspect_trace_generator(inspect_trace_generator)"
+4:1 4:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 251 errors/props_invalid_identifier.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:6 2:24 svelte/valid-compile "`$props()` can only be used with an object destructuring pattern\nhttps://svelte.dev/e/props_invalid_identifier(props_invalid_identifier)"
+
+=== 259 errors/render_tag_invalid_spread_argument.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:14 5:21 svelte/valid-compile "cannot use spread arguments in `{@render ...}` tags\nhttps://svelte.dev/e/render_tag_invalid_spread_argument(render_tag_invalid_spread_argument)"
+
+=== 148 errors/script_invalid_attribute_value.svelte	lint.txt
+1:8 - - "Parsing error: If the `module` attribute is supplied, it must be a boolean attribute\nhttps://svelte.dev/e/script_invalid_attribute_value"
+
+=== 127 errors/script_reserved_attribute.svelte	lint.txt
+1:8 - - "Parsing error: The `server` attribute is reserved and cannot be used\nhttps://svelte.dev/e/script_reserved_attribute"
+
+=== 265 errors/svelte_boundary_invalid_attribute_value.svelte	lint.txt
+1:18 1:34 svelte/valid-compile "Attribute value must be a non-string expression\nhttps://svelte.dev/e/svelte_boundary_invalid_attribute_value(svelte_boundary_invalid_attribute_value)"
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
 === 818 lint-env/no-sveltekit/src/nav.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."

@@ -1172,6 +1172,74 @@ $effect(() => {
     {/if}
   </div>
 </div>
+=== 31 errors/a11y_incorrect_aria_attribute_type_idlist.svelte	svelte	runes	neutral
+<div aria-labelledby=""></div>
+
+=== 135 errors/attribute_contenteditable_dynamic.svelte	svelte	runes	rejected
+<script>
+	let editable = $state(true);
+	let html = $state('');
+</script>
+
+<div contenteditable={editable} bind:innerHTML={html}></div>
+
+=== 78 errors/attribute_contenteditable_missing.svelte	svelte	runes	rejected
+<script>
+	let html = $state('');
+</script>
+
+<div bind:innerHTML={html}></div>
+
+=== 78 errors/block_invalid_elseif.svelte	svelte	runes	rejected
+<script>
+	let { a, b } = $props();
+</script>
+
+{#if a}
+	A
+{:elseif b}
+	B
+{/if}
+
+=== 74 errors/inspect_trace_generator.svelte	svelte	runes	rejected
+<script>
+	function* items() {
+		$inspect.trace();
+		yield 1;
+	}
+</script>
+
+=== 53 errors/props_invalid_identifier.svelte	svelte	runes	rejected
+<script>
+	let [value] = $props();
+</script>
+
+{value}
+
+=== 74 errors/render_tag_invalid_spread_argument.svelte	svelte	runes	rejected
+<script>
+	let { row, args } = $props();
+</script>
+
+{@render row(...args)}
+
+=== 56 errors/script_invalid_attribute_value.svelte	svelte	runes	rejected
+<script module="server">
+	export const a = 1;
+</script>
+
+=== 43 errors/script_reserved_attribute.svelte	svelte	runes	rejected
+<script server>
+	let a = 1;
+</script>
+
+{a}
+
+=== 70 errors/svelte_boundary_invalid_attribute_value.svelte	svelte	runes	rejected
+<svelte:boundary onerror="handle">
+	<p>content</p>
+</svelte:boundary>
+
 === 271 lint-env/no-sveltekit/src/nav.svelte	svelte	runes	neutral
 <script>
 	import { goto } from '$app/navigation';
@@ -39987,9 +40055,6 @@ a<b
 </script>
 
 {o.a + 1 = 2}
-
-=== 12 pattern/issues/3220-assign-rvalue-target.svelte	svelte	runes	rejected
-{42 = nope}
 
 === 71 pattern/issues/3228-derived-by-literal.svelte	svelte	runes	runes
 <script>
