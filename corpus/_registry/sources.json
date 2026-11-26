@@ -1060,5 +1060,15 @@
 			"spdx": "BSD-3-Clause",
 			"file": "corpus/_own/test262/LICENSE"
 		}
+	},
+	{
+		"id": "typescript",
+		"url": null,
+		"commit": null,
+		"checkout": "corpus/_own/typescript",
+		"license": {
+			"spdx": "Apache-2.0",
+			"file": "corpus/_own/typescript/LICENSE"
+		}
 	}
 ]

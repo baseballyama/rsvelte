@@ -6692,3 +6692,7 @@
 
 ["svelte/test262/expressions/dynamic-import/eval-export-dflt-cls-named.svelte.js".skip]
 "svelte.compileModule" = "upstream bug: esrap 2.4.2 writes a `;` after `export default class cName {}`, an empty statement the source does not have"
+
+["svelte/typescript/parser/ecmascript6/Iterators/parserForOfStatement24.svelte.ts".skip]
+"svelte.compileModule/client" = "upstream bug: esrap 2.4.2 drops the parentheses of `for ((async) of [1, 2]);`, which no parser reads"
+"svelte.compileModule/server" = "upstream bug: esrap 2.4.2 drops the parentheses of `for ((async) of [1, 2]);`, which no parser reads"
