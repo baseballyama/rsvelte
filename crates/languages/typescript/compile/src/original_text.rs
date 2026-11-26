@@ -1,5 +1,7 @@
 //! The text TypeScript's emit prints a literal with, which is not always its source text.
 
+use std::borrow::Cow;
+
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{BigIntLiteral, NumericLiteral};
 use oxc_ast_visit::VisitMut;
@@ -24,18 +26,6 @@ impl<'o> OriginalText<'o> {
     pub const fn new(allocator: &'o Allocator) -> Self {
         Self { allocator }
     }
-
-    /// The scanner's text for a hexadecimal bigint: its digits lowercased, without separators
-    /// (`scanner.ts:1378`). Any other bigint's is its decimal value plus `n` (`scanner.ts:1869`),
-    /// which the printer gives one without a raw.
-    fn scanned_hexadecimal(&self, raw: &str) -> Option<&'o str> {
-        let digits = raw.strip_prefix("0x").or_else(|| raw.strip_prefix("0X"))?;
-        let digits: String = digits.chars().filter(|c| *c != '_').collect();
-        Some(
-            self.allocator
-                .alloc_str(&format!("0x{}", digits.to_ascii_lowercase())),
-        )
-    }
 }
 
 impl<'o> VisitMut<'o> for OriginalText<'o> {
@@ -48,9 +38,10 @@ impl<'o> VisitMut<'o> for OriginalText<'o> {
     }
 
     fn visit_big_int_literal(&mut self, it: &mut BigIntLiteral<'o>) {
-        it.raw = (it.raw)
-            .and_then(|raw| self.scanned_hexadecimal(&raw))
-            .map(Into::into);
+        it.raw = it.raw.and_then(|raw| match scanned_hexadecimal(&raw)? {
+            Cow::Borrowed(_) => Some(raw),
+            Cow::Owned(text) => Some(self.allocator.alloc_str(&text).into()),
+        });
     }
 }
 
@@ -59,4 +50,23 @@ impl<'o> VisitMut<'o> for OriginalText<'o> {
 /// `ContainsInvalidSeparator` and `ContainsInvalidEscape` are parse errors here.
 const fn is_invalid(raw: &str) -> bool {
     matches!(raw.as_bytes(), [b'0', b'0'..=b'9', ..])
+}
+
+/// The scanner's text for a hexadecimal bigint: its digits lowercased, without separators
+/// (`scanner.ts:1378`). Any other bigint's is its decimal value plus `n` (`scanner.ts:1869`),
+/// which the printer gives one without a raw.
+fn scanned_hexadecimal(raw: &str) -> Option<Cow<'_, str>> {
+    let digits = raw.strip_prefix("0x").or_else(|| raw.strip_prefix("0X"))?;
+    if raw.starts_with("0x") && !digits.bytes().any(|b| b == b'_' || b.is_ascii_uppercase()) {
+        return Some(Cow::Borrowed(raw));
+    }
+    let mut text = String::with_capacity(raw.len());
+    text.push_str("0x");
+    text.extend(
+        digits
+            .chars()
+            .filter(|c| *c != '_')
+            .map(|c| c.to_ascii_lowercase()),
+    );
+    Some(Cow::Owned(text))
 }
