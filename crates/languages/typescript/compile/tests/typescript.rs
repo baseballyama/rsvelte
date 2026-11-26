@@ -5,6 +5,7 @@ use oxc_allocator::{Allocator, CloneIn};
 use oxc_ast_visit::VisitMut;
 use oxc_parser::Parser;
 use oxc_span::SourceType;
+use rsvelte_typescript_compile::emit;
 use rsvelte_typescript_compile::features::{
     Feature, first_runtime_feature, first_svelte_runtime_feature_where,
 };
@@ -174,5 +175,31 @@ fn svelte_refuses_the_namespace_around_an_import_equals_and_an_ambient_one_with_
             "{source_text}"
         );
         assert_eq!(feature(source_text), None, "{source_text}");
+    }
+}
+
+#[test]
+fn numbers_print_as_typescripts_emit_prints_them() {
+    // TypeScript 6.0.3's `transpileModule`: `canUseOriginalText`'s cases, in a module and a script.
+    let kept =
+        "0x10, 0X1F, 0B11, 0O17, 1e3, 1E3, 1.50, .5, 5., 0, 1_000, 0b1_1, 0o1_7, 0x1_0, 1_0.5";
+    for (written, printed) in [
+        ("010, 0777", "8, 511"),
+        ("08, 09.5, 08e1, 00", "8, 9.5, 80, 0"),
+        (
+            "10n, 1_0n, 0b11n, 0o7n, 0x1fn, 0X1_Fn",
+            "10n, 10n, 3n, 7n, 0x1fn, 0x1fn",
+        ),
+        (kept, kept),
+    ] {
+        for declaration in ["export const x", "const x"] {
+            let allocator = Allocator::default();
+            let source_text = format!("{declaration} = [{written}];\n");
+            let parsed = Parser::new(&allocator, &source_text, SourceType::ts()).parse();
+            assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
+            let words = |text: &str| text.split_whitespace().collect::<String>();
+            let expected = words(&format!("{declaration} = [{printed}];"));
+            assert_eq!(words(&emit(&parsed.program)), expected, "{source_text}");
+        }
     }
 }
