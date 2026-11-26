@@ -10,23 +10,44 @@ publish.workspace = true
 doctest = false
 crate-type = ["cdylib", "rlib"]
 
+[features]
+default = ["playground"]
+# The site's playground: every language's tasks, with the trees and facts each task computed. The
+# package builds without it, for `compile` and `compileModule` alone.
+playground = [
+  "rsvelte_kernel/trace-artifacts",
+  "dep:rsvelte_plugin_interface",
+  "dep:rsvelte_typescript_compile",
+  "dep:rsvelte_typescript_format",
+  "dep:rsvelte_typescript_lint",
+  "dep:rsvelte_vue_lint",
+  "dep:rsvelte_vue_format",
+  "dep:rsvelte_vue_compile",
+  "dep:rsvelte_vue_check",
+  "dep:rsvelte_svelte_lint",
+  "dep:rsvelte_svelte_format",
+  "dep:rsvelte_svelte_check",
+  "dep:rsvelte_vue_to_svelte",
+  "dep:rsvelte_svelte_to_vue_vapor",
+]
+
 [dependencies]
-rsvelte_plugin_interface.workspace = true
-rsvelte_typescript_compile.workspace = true
-rsvelte_typescript_format.workspace = true
-rsvelte_typescript_lint.workspace = true
-rsvelte_vue_lint.workspace = true
-rsvelte_vue_format.workspace = true
-rsvelte_vue_compile.workspace = true
-rsvelte_vue_check.workspace = true
-rsvelte_svelte_lint.workspace = true
-rsvelte_svelte_format.workspace = true
+rsvelte_kernel.workspace = true
 rsvelte_svelte_compile.workspace = true
-rsvelte_svelte_check.workspace = true
-rsvelte_kernel = { workspace = true, features = ["trace-artifacts"] }
-rsvelte_vue_to_svelte.workspace = true
-rsvelte_svelte_to_vue_vapor.workspace = true
 wasm-bindgen = "=0.2.130"
+rsvelte_plugin_interface = { workspace = true, optional = true }
+rsvelte_typescript_compile = { workspace = true, optional = true }
+rsvelte_typescript_format = { workspace = true, optional = true }
+rsvelte_typescript_lint = { workspace = true, optional = true }
+rsvelte_vue_lint = { workspace = true, optional = true }
+rsvelte_vue_format = { workspace = true, optional = true }
+rsvelte_vue_compile = { workspace = true, optional = true }
+rsvelte_vue_check = { workspace = true, optional = true }
+rsvelte_svelte_lint = { workspace = true, optional = true }
+rsvelte_svelte_format = { workspace = true, optional = true }
+rsvelte_svelte_check = { workspace = true, optional = true }
+rsvelte_vue_to_svelte = { workspace = true, optional = true }
+rsvelte_svelte_to_vue_vapor = { workspace = true, optional = true }
 
 [lints]
 workspace = true
