@@ -116,9 +116,31 @@ Issue: [eslint-plugin-svelte #1640](https://github.com/sveltejs/eslint-plugin-sv
   pattern `/\s*[\s,]\s*/`. With two or more codes and nothing after the last one, as in
   `<!-- svelte-ignore a b-->` or `// svelte-ignore a b` at the end of a line, upstream never reads
   the last code. It neither ignores its warning nor reports it unused.
-- Correct: read every code. The compiler's own `extract_svelte_ignore` matches each word, the
-  last one included. rsvelte reads the last code too, so in the case above it reports
-  `export_let_unused` and `a11y_accesskey` as unused.
+- More cases: `<!--svelte-ignore a11y_missing_attribute a11y_distracting_elements-->` before an
+  `<img>` without `alt`, and `// svelte-ignore await_reactivity_loss, state_referenced_locally`.
+- Correct: read every code Svelte reads. Outside runes mode the compiler's own
+  `extract_svelte_ignore` reads each word, the last one included, so in the case above this crate
+  reports `export_let_unused` and `a11y_accesskey` as unused. In runes mode it reads the codes up
+  to the first that no comma follows (next section), and a Svelte code after them ignores
+  nothing, so this crate reports `a11y_distracting_elements`.
+- The corpus skips their 3 lint units.
+
+## Words of a note reported as unused codes (`svelte/no-unused-svelte-ignore`)
+
+No issue yet; [rsvelte#5386](https://github.com/baseballyama/rsvelte/issues/5386) found it.
+
+- Case: `<!-- svelte-ignore a11y_click_events_have_key_events, a11y_no_static_element_interactions -- pointer convenience, Escape covers keyboard users -->`
+  before `<div onclick={() => {}}>`. Upstream reports each of the 7 words after the second code
+  as unused. Svelte's own `validator/samples/unknown-code` writes `a11y_misplaced_scope this is
+  some prose`, and upstream reports `this`, `is`, `some` and `prose`.
+- In runes mode Svelte reads the codes up to the first that no comma follows, and the rest as
+  prose. Upstream marks the words there as not read in runes mode (`readInRunesMode`), and its
+  case `runtime-warning-runes-prose` rightly reports a Svelte code there. It reports any other
+  word there too.
+- Correct: a word there that is no Svelte code is prose, not a code. This crate reports only the
+  Svelte codes there.
+- Cases: `tests/cases/no-unused-svelte-ignore/valid/prose-after-codes` and
+  `invalid/prose-after-unused-codes`. The corpus skips their 3 lint units.
 
 ## Suggestions of `svelte/no-reactive-literals` that do not parse
 
@@ -558,20 +580,6 @@ there is no index
   the annotation, and upstream reports `{#each xs as x:`.
 - Correct: the range ends at the `}` of the opening tag. This crate reports it so.
 - The corpus skips its 2 lint units.
-
-## The last of several codes is dropped without a separator after it (`svelte/no-unused-svelte-ignore`)
-
-No issue yet. `extractSvelteIgnore` takes each code up to the separator after it, and keeps the
-text after the last separator only when it found no code before
-([ignore-comment.ts](https://github.com/sveltejs/eslint-plugin-svelte/blob/24201e06a1a8e270c1143d1fb460e6ae635719d8/packages/eslint-plugin-svelte/src/shared/svelte-compile-warns/ignore-comment.ts#L103-L126)).
-
-- Case: `<!--svelte-ignore a11y_missing_attribute a11y_distracting_elements-->` before an
-  `<img>` without `alt`. Upstream never checks `a11y_distracting_elements`, and reports nothing.
-  With a space before `-->`, it reports the code as unused.
-- Case: `// svelte-ignore state_referenced_locally TODO`, where the last word is a note, and
-  `// svelte-ignore await_reactivity_loss, state_referenced_locally`.
-- Correct: Svelte reads every code of the list. This crate checks the last one too.
-- The corpus skips their 5 lint units.
 
 ## Rules that throw (`svelte/indent`, `svelte/consistent-selector-style`)
 

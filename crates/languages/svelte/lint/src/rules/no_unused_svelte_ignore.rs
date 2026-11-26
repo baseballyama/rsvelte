@@ -1,7 +1,8 @@
 use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::{Report, Reporter};
+use rsvelte_svelte_semantic::warnings::CompileWarnings;
 
-use super::shared::compile_warnings::{Postcss, compile, decidable, ignores};
+use super::shared::compile_warnings::{IgnoreItem, Postcss, compile, decidable, ignores};
 use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 pub(super) static RULE: RuleDefinition = RuleDefinition {
@@ -46,7 +47,10 @@ impl SvelteRule for NoUnusedSvelteIgnore {
             return;
         }
         for (item, used) in ignores.items.iter().zip(&applied.used) {
-            if !used && decidable(item, source, applied.runes) {
+            if !used
+                && !is_prose(item, source, applied.runes)
+                && decidable(item, source, applied.runes)
+            {
                 reporter.report(Report::range(
                     "svelte-ignore comment is used, but not warned",
                     item.code,
@@ -54,4 +58,14 @@ impl SvelteRule for NoUnusedSvelteIgnore {
             }
         }
     }
+}
+
+/// In runes mode Svelte reads the text after the first code that no comma follows as prose. A
+/// Svelte code there still ignores nothing and is worth a report; any other word is not a code.
+fn is_prose(item: &IgnoreItem, source: &str, runes: bool) -> bool {
+    let codes = CompileWarnings::SVELTE_CODES;
+    runes
+        && !item.read_in_runes_mode
+        && !codes.contains(&item.code.text(source))
+        && !codes.contains(&item.code_for_v5.as_str())
 }
