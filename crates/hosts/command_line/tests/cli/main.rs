@@ -25,6 +25,7 @@ mod typecheck_ambient_modules;
 mod typecheck_checker;
 mod typecheck_component_values;
 mod typecheck_config_dir;
+mod typecheck_declarations;
 mod typecheck_each;
 mod typecheck_events;
 mod typecheck_instantiation;

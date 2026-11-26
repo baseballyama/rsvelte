@@ -34,6 +34,9 @@ pub struct Project {
     pub errors: Vec<Diagnostic>,
     /// `compilerOptions.skipLibCheck`: TypeScript does not check declaration files.
     pub skip_lib_check: bool,
+    /// `declaration` or `composite`: TypeScript reports what stops it from writing the
+    /// declarations, even under `noEmit`.
+    pub emit_declarations: bool,
 }
 
 /// How requests name a project: TypeScript 7.1 beta and tsrs by its `id`, later 7.1 builds by a
@@ -151,6 +154,8 @@ struct CompilerOptions {
     module_resolution: Option<u32>,
     #[serde(rename = "skipLibCheck")]
     skip_lib_check: Option<bool>,
+    declaration: Option<bool>,
+    composite: Option<bool>,
 }
 
 impl CompilerOptions {
@@ -181,6 +186,9 @@ pub enum DiagnosticKind {
     Program,
     Syntactic,
     Semantic,
+    /// What stops the checker from writing a file's declarations, such as a private member of an
+    /// exported class expression.
+    Declaration,
 }
 
 impl DiagnosticKind {
@@ -189,6 +197,7 @@ impl DiagnosticKind {
             Self::Program => "getProgramDiagnostics",
             Self::Syntactic => "getSyntacticDiagnostics",
             Self::Semantic => "getSemanticDiagnostics",
+            Self::Declaration => "getDeclarationDiagnostics",
         }
     }
 }
@@ -294,28 +303,22 @@ impl Session {
                                 ));
                             }
                         };
-                        let (root_files, paths, node_resolution, errors, skip_lib_check) =
-                            p.parsed.as_ref().map_or_else(
-                                || (Vec::new(), Vec::new(), false, Vec::new(), false),
-                                |c| {
-                                    let options = &c.options;
-                                    (
-                                        c.file_names.clone(),
-                                        options.absolute_paths(),
-                                        options.node_resolution(),
-                                        c.errors.clone(),
-                                        options.skip_lib_check == Some(true),
-                                    )
-                                },
-                            );
+                        let default = CompilerOptions::default();
+                        let options = p.parsed.as_ref().map_or(&default, |c| &c.options);
+                        let (root_files, errors) = p.parsed.as_ref().map_or_else(
+                            || (Vec::new(), Vec::new()),
+                            |c| (c.file_names.clone(), c.errors.clone()),
+                        );
                         Ok(Project {
                             snapshot: snapshot.snapshot,
                             id,
                             root_files,
-                            paths,
-                            node_resolution,
+                            paths: options.absolute_paths(),
+                            node_resolution: options.node_resolution(),
                             errors,
-                            skip_lib_check,
+                            skip_lib_check: options.skip_lib_check == Some(true),
+                            emit_declarations: options.declaration == Some(true)
+                                || options.composite == Some(true),
                         })
                     })
             })
