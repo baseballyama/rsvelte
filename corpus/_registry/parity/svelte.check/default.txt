@@ -1,4 +1,4 @@
-# svelte.check/default: 35004 match
+# svelte.check/default: 35024 match
 svelte/appwrite-console/src/lib/commandCenter/panels/buckets.svelte	mismatch
 svelte/appwrite-console/src/lib/commandCenter/panels/databases.svelte	mismatch
 svelte/appwrite-console/src/lib/commandCenter/panels/files.svelte	mismatch
