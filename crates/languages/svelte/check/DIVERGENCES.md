@@ -49,13 +49,18 @@ difference and not the projection:
     }
     for (let [p, q] of [[1, 2]]) {
     }
+    for (let { a: renamed } of [{ a: 1 }]) {
+    }
   }
   ```
 
   Under `noUnusedLocals`, TypeScript 6.0.3 reports TS6133 for `x` at 2:12, the `{`, and TS6133
   for `p` and `q` at 4:13 and 4:16. TypeScript 7.1 reports TS6133 for `x` at 2:14, and one TS6198
-  `All destructured elements are unused.` at 4:12. An `{#each}` item `{ x }`, `{ x = 2 }` or
-  `[p, q]` gives the same pair, because svelte2tsx writes the item as the binding of a `for…of`.
+  `All destructured elements are unused.` at 4:12. For `renamed`, TypeScript 6.0.3 reports
+  TS6133 at 6:12, the `{`, and TypeScript 7.1 at 6:17, the name. An `{#each}` item `{ x }`,
+  `{ x = 2 }`, `{ a: renamed }` or `[p, q]` gives the same pair, because svelte2tsx writes the
+  item as the binding of a `for…of`. An index does not change it: with `[p, q], i` and `i` used,
+  svelte-check reports TS6133 at `p` and at `q`, and we report one TS6198 at the `[`.
 
 - A union prints its members in another order. A component tag whose value is `5` gets TS2345
   against svelte2tsx's constraint, which TypeScript 6.0.3 prints as
