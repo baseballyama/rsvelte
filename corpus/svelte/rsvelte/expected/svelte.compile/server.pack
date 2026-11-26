@@ -55190,6 +55190,90 @@ export default function _186_props_id_exported($$renderer, $$props) {
 	}
 }
 
+=== 284 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 18,
+		"character": 27
+	}
+}
+
+=== 1583 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	js
+import * as $ from 'svelte/internal/server';
+
+function $s($$renderer, $p) {
+	const $c = $p;
+
+	$$renderer.push(`<b>${$.escape($c)}</b>`);
+}
+
+export default function _187_dollar_prefixed_template_bindings($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let o = 1;
+		const pr = Promise.resolve(2);
+
+		$$renderer.push(`<!--[-->`);
+
+		const each_array = $.ensure_array_like([1, 2]);
+
+		for (let $n = 0, $$length = each_array.length; $n < $$length; $n++) {
+			let $i = each_array[$n];
+
+			$$renderer.push(`<!---->${$.escape($i)}${$.escape($n)}`);
+		}
+
+		$$renderer.push(`<!--]--> <!--[-->`);
+
+		const each_array_1 = $.ensure_array_like([{ a: 1 }]);
+
+		for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+			let { a: $a } = each_array_1[$$index_1];
+
+			$$renderer.push(`<!---->${$.escape($a)}`);
+		}
+
+		$$renderer.push(`<!--]--> `);
+		$s($$renderer, o);
+		$$renderer.push(`<!----> <div><!--[-->`);
+
+		const each_array_2 = $.ensure_array_like([3]);
+
+		for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
+			let $d = each_array_2[$$index_2];
+			const $e = $d;
+
+			$$renderer.push(`<!---->${$.escape($e)}`);
+		}
+
+		$$renderer.push(`<!--]--></div> `);
+
+		if (o) {
+			$$renderer.push('<!--[0-->');
+
+			const $f = o;
+
+			$$renderer.push(`1`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> `);
+
+		$.await($$renderer, pr, () => {}, ($v) => {
+			$$renderer.push(`${$.escape($v)}`);
+		});
+
+		$$renderer.push(`<!--]--> ${$.escape([1].map(($m) => $m).join(''))}`);
+	});
+}
 === 744 pattern/issues/3188-boundary-snippet-params.svelte	js
 import * as $ from 'svelte/internal/server';
 

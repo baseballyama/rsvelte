@@ -230,8 +230,8 @@
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"rsvelte": {
-		"admitted": 2978,
-		"claimed": 3017,
+		"admitted": 2981,
+		"claimed": 3020,
 		"duplicate": 39,
 		"rejected:module-rejected:derived_invalid_export": 1,
 		"rejected:module-rejected:dollar_prefix_invalid": 1,
@@ -271,7 +271,7 @@
 		"rejected:not-runes-compatible:illegal_element_attribute": 1,
 		"rejected:not-runes-compatible:import_svelte_internal_forbidden": 11,
 		"rejected:not-runes-compatible:js_parse_error": 36,
-		"rejected:not-runes-compatible:legacy_export_invalid": 248,
+		"rejected:not-runes-compatible:legacy_export_invalid": 249,
 		"rejected:not-runes-compatible:legacy_props_invalid": 14,
 		"rejected:not-runes-compatible:legacy_reactive_statement_invalid": 70,
 		"rejected:not-runes-compatible:legacy_rest_props_invalid": 9,
@@ -360,6 +360,7 @@
 		"rejected:not-runes-compatible:svelte_options_unknown_attribute": 1,
 		"rejected:not-runes-compatible:svelte_self_invalid_placement": 22,
 		"rejected:not-runes-compatible:tag_invalid_name": 2,
+		"rejected:not-runes-compatible:throw": 1,
 		"rejected:not-runes-compatible:title_illegal_attribute": 1,
 		"rejected:not-runes-compatible:typescript_invalid_feature": 23,
 		"rejected:not-runes-compatible:unexpected_eof": 33
@@ -424,8 +425,8 @@
 		"rejected:not-runes-compatible:unexpected_reserved_word": 1
 	},
 	"rsvelte-tests-core-2": {
-		"admitted": 4647,
-		"claimed": 4647,
+		"admitted": 4666,
+		"claimed": 4666,
 		"duplicate": 0,
 		"rejected:module-rejected:derived_invalid_export": 1,
 		"rejected:module-rejected:experimental_async": 1,
@@ -464,7 +465,7 @@
 		"rejected:not-runes-compatible:expected_identifier": 1,
 		"rejected:not-runes-compatible:expected_pattern": 1,
 		"rejected:not-runes-compatible:expected_tag": 1,
-		"rejected:not-runes-compatible:expected_token": 46,
+		"rejected:not-runes-compatible:expected_token": 47,
 		"rejected:not-runes-compatible:expected_whitespace": 28,
 		"rejected:not-runes-compatible:experimental_async": 40,
 		"rejected:not-runes-compatible:export_undefined": 1,
