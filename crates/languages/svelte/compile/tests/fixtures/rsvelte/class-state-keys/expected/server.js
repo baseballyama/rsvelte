@@ -15,7 +15,7 @@ export default function Class_state_keys($$renderer, $$props) {
 				this[true] = 1;
 				this[null] = 2;
 				this[1n] = 3;
-				this[16] = 4;
+				this[0x10] = 4;
 				this.#e = $.derived(() => this.#d() + 1);
 			}
 			m() {
