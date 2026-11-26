@@ -8,8 +8,8 @@ use oxc_ast_visit::Visit;
 use oxc_parser::{Kind, Parser, Token};
 use oxc_span::{GetSpan, SourceType};
 
-use super::super::StaticBlockAwaits;
 use super::super::word::Home;
+use super::super::{Unreserved, UnreservedWords};
 
 /// Where acorn's check of a destructuring pattern around the target `start..end` fails, in `text`
 /// whose tokens are `tokens` and where acorn reads as `home` says: at the parenthesis it recorded
@@ -39,19 +39,19 @@ pub(super) fn parenthesized_element(
     })
 }
 
-/// Where acorn rejects an `await` it reads in the target `start..end`, or in the outermost pattern
-/// around it that is assigned, before it checks either: in a class static block.
-pub(super) fn rejected_await(
+/// Where and why acorn rejects a word it reads in the target `start..end`, or in the outermost
+/// pattern around it that is assigned, before it checks either: see [`UnreservedWords`].
+pub(super) fn rejected_word(
     text: &str,
     target: (u32, u32),
     tokens: &[Token],
     home: Home,
-) -> Option<u32> {
+) -> Option<(u32, Unreserved)> {
     let read = assigned_patterns(target.0, tokens).next().unwrap_or(target);
     reparsed(text, read, home, |read| {
-        let mut awaits = StaticBlockAwaits::within(read.expression.span(), home);
-        awaits.visit_expression(read.expression);
-        awaits.first.map(|at| read.at(at))
+        let mut words = UnreservedWords::within(read.expression.span(), home);
+        words.visit_expression(read.expression);
+        words.first.map(|(at, why)| (read.at(at), why))
     })
     .flatten()
 }
