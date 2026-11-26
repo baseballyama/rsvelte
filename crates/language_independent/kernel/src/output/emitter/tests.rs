@@ -249,3 +249,16 @@ fn a_copy_s_characters_map_as_each_point_read_from_an_index_maps() {
     let map = e.source_map(source_text, &LineIndex::new(source_text), "App.svelte");
     assert_eq!(decoded(&map), segments_by_index(&e, source_text));
 }
+
+#[test]
+fn a_point_after_a_copy_that_ends_on_an_astral_character_maps_past_its_two_units() {
+    let source_text = "a😀b😀c";
+    let mut e = Emitter::default();
+    e.push("x");
+    e.copy(source_text, Span::new(0, 5));
+    e.copy(source_text, Span::new(5, 10));
+    e.push(" ");
+    e.copy(source_text, Span::new(10, 11));
+    let map = e.source_map(source_text, &LineIndex::new(source_text), "App.svelte");
+    assert_eq!(decoded(&map), segments_by_index(&e, source_text));
+}
