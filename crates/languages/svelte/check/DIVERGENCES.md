@@ -210,13 +210,20 @@ import still reports TS2306, but another file that reads one of the script's nam
 `Cannot find name`. rsvelte reads a script that imports or exports unchanged, with `export {};`
 after it.
 
-The parse of oxc decides whether a script is a module. For a script that does not parse, oxc's
-recovery can disagree with TypeScript's. `let = ;` before an `export`, for example, is a module
-for TypeScript and not for oxc, and a bare trailing `export` is the reverse. An import of such a
-component then reports TS2306 where svelte-check does not, or the other way round. No script is
-ever read as a global script.
+A script is a module where TypeScript's `isExternalModule` says so. That takes a top-level import
+or export declaration other than `export as namespace`, an `import … = require(…)`, or an
+`import.meta` anywhere. A top-level `await` alone does not make one. The statements come from
+oxc's parse. A script oxc cannot parse reads as an empty file, where TypeScript's recovery can
+still find an import or export. `let = ;` before an `export` is such a script: svelte-check
+reports TS1192 for a default import of its component, and rsvelte TS2306. No script is ever read
+as a global script.
 
-- Tests: `a_thrown_stand_in_is_a_module_where_the_script_imports_or_exports` in the projection
-  crate's `src/tests/stand_in.rs`, and `typecheck_reads_a_rejected_component_as_its_script` and
+Before this, every component whose Svelte parse failed read as an empty file. An import of one
+then matched svelte-check where TypeScript reads the script as a global script, only by accident.
+A bare trailing `export` or `import` is such a script, and so is an `import` inside an `if`.
+
+- Tests: `a_thrown_stand_in_is_a_module_where_typescript_reads_the_script_as_one` in the
+  projection crate's `src/tests/stand_in.rs`, and
+  `typecheck_reads_a_rejected_component_as_its_script` and
   `typecheck_declares_no_global_for_a_rejected_component_s_script` in the command line crate's
   `tests/cli/typecheck_rejected.rs`.

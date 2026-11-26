@@ -64,30 +64,46 @@ fn typecheck_reads_a_rejected_component_as_its_script() {
     assert!(report.contains(&expected.native()), "{report}");
 }
 
-/// Such a script that neither imports nor exports is a global script in svelte-check, whose names
-/// every file reads, here an empty file: an import of the component reports TS2306 in both, and a
-/// read of its name TS2304 here where svelte-check 4.7.8 reads it as `number`.
+/// Such a script that neither imports nor exports, top-level `await` or not, is a global script in
+/// svelte-check, whose names every file reads, here an empty file: an import of the component
+/// reports TS2306 in both, and a read of its name TS2304 here where svelte-check 4.7.8 reads it as
+/// `number`.
 #[test]
 fn typecheck_declares_no_global_for_a_rejected_component_s_script() {
+    let tsconfig = (
+        "tsconfig.json",
+        r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"target":"esnext","types":[],"skipLibCheck":true,"allowJs":true},"include":["src"]}"#,
+    );
     let report = check(&[
+        tsconfig,
         (
             "src/R.svelte",
             "<script lang=\"ts\">\n\tlet tsx = 1;\n</script>\n\n<div {\n",
         ),
         (
+            "src/T.svelte",
+            "<script lang=\"ts\">\n\tconst t = await fetch(\"x\");\n</script>\n\n<div {\n",
+        ),
+        (
+            "src/J.svelte",
+            "<script>\n\tconst j = await fetch(\"x\");\n</script>\n\n<div {\n",
+        ),
+        (
             "src/P.svelte",
-            "<script lang=\"ts\">\n\timport * as r from \"./R.svelte\";\n\tconst s: string = \
-             tsx;\n</script>\n\n{r}{s}\n",
+            "<script lang=\"ts\">\n\timport * as r from \"./R.svelte\";\n\timport * as t from \
+             \"./T.svelte\";\n\timport * as j from \"./J.svelte\";\n\tconst s: string = \
+             tsx;\n</script>\n\n{r}{s}{t}{j}\n",
         ),
     ]);
-    let not_a_module = report
-        .lines()
-        .find(|line| line.starts_with(&"src/P.svelte(2,21): error TS2306: File '".native()))
-        .unwrap_or_else(|| panic!("{report}"));
-    assert!(
-        not_a_module.ends_with("src/R.svelte' is not a module."),
-        "{report}"
-    );
-    let unbound = "src/P.svelte(3,20): error TS2304: Cannot find name 'tsx'.\n";
+    for (line, name) in [(2, "R"), (3, "T"), (4, "J")] {
+        let at = format!("src/P.svelte({line},21): error TS2306: File '").native();
+        let not_a_module = (report.lines())
+            .find(|found| found.starts_with(&at))
+            .unwrap_or_else(|| panic!("{report}"));
+        let end = format!("src/{name}.svelte' is not a module.");
+        assert!(not_a_module.ends_with(&end), "{report}");
+    }
+    let unbound = "src/P.svelte(5,20): error TS2304: Cannot find name 'tsx'.\n";
     assert!(report.contains(&unbound.native()), "{report}");
 }

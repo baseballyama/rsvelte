@@ -74,7 +74,7 @@ pub fn unprojected(source: &str, why: Unprojected<'_>) -> String {
             let script =
                 (rsvelte_svelte_syntax::parse::checked_scripts(source).content).unwrap_or_default();
             // The marker keeps the script a module where TypeScript's recovery reads it otherwise.
-            if has_module_syntax(script) {
+            if is_module(script) {
                 format!("{script}\n;\nexport {{}};\n")
             } else {
                 String::new()
@@ -88,11 +88,33 @@ pub fn unprojected(source: &str, why: Unprojected<'_>) -> String {
     }
 }
 
-/// Whether `script` imports or exports, which makes TypeScript read it as a module.
-fn has_module_syntax(script: &str) -> bool {
+/// Whether TypeScript reads `script` as a module (`isExternalModule`): a top-level import or
+/// export declaration other than `export as namespace`, an `import … = require(…)`, or an
+/// `import.meta` anywhere. A top-level `await` alone does not make one. A script oxc cannot
+/// parse is not one here.
+fn is_module(script: &str) -> bool {
+    use oxc_ast::ast::{ModuleDeclaration, Statement, TSModuleReference};
     let allocator = oxc_allocator::Allocator::default();
     let parsed = oxc_parser::Parser::new(&allocator, script, oxc_span::SourceType::ts()).parse();
-    parsed.module_record.has_module_syntax
+    // oxc keeps nothing of a script that does not parse, where TypeScript's recovery reads on.
+    if !parsed.diagnostics.is_empty() && parsed.program.body.is_empty() {
+        return false;
+    }
+    !parsed.module_record.import_metas.is_empty()
+        || parsed.program.body.iter().any(|statement| match statement {
+            Statement::TSImportEqualsDeclaration(declaration) => matches!(
+                declaration.module_reference,
+                TSModuleReference::ExternalModuleReference(_)
+            ),
+            _ => statement
+                .as_module_declaration()
+                .is_some_and(|declaration| {
+                    !matches!(
+                        declaration,
+                        ModuleDeclaration::TSNamespaceExportDeclaration(_)
+                    )
+                }),
+        })
 }
 
 /// Takes no options.
