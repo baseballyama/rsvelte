@@ -548,22 +548,33 @@ fn each_document_runs_only_its_own_tasks_and_a_finish_task_sees_only_its_documen
         .map(|(p, t)| Document::new(p, t).unwrap())
         .collect();
     let own: [&[&str]; 3] = [&["path", "total"], &["path"], &["total"]];
-    let results = run_per_document(&reg, &docs, &options(&["path", "total"]), &|i| own[i]);
-    let got: Vec<Vec<String>> = (results.unwrap().iter())
-        .map(|r| {
-            (r.outputs.iter())
-                .map(|(identifier, o)| format!("{identifier}={}", o.files[0].text))
-                .collect()
-        })
+    let options = options(&["path", "total"]);
+    let collected = run_per_document(&reg, &docs, &options, &|i| own[i]).unwrap();
+    let each = std::sync::Mutex::new((0..docs.len()).map(|_| None).collect::<Vec<_>>());
+    run_each_per_document(&reg, &docs, &options, &|i| own[i], &|i, r| {
+        each.lock().unwrap()[i] = Some(r);
+    })
+    .unwrap();
+    let each: Vec<DocumentResult> = (each.into_inner().unwrap().into_iter())
+        .map(Option::unwrap)
         .collect();
-    assert_eq!(
-        got,
-        [
-            vec!["path=path", "total=2/5"],
-            vec!["path=path"],
-            vec!["total=3/5"]
-        ]
-    );
+    for results in [collected, each] {
+        let got: Vec<Vec<String>> = (results.iter())
+            .map(|r| {
+                (r.outputs.iter())
+                    .map(|(identifier, o)| format!("{identifier}={}", o.files[0].text))
+                    .collect()
+            })
+            .collect();
+        assert_eq!(
+            got,
+            [
+                vec!["path=path", "total=2/5"],
+                vec!["path=path"],
+                vec!["total=3/5"]
+            ]
+        );
+    }
 }
 
 #[test]

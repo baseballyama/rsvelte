@@ -1,0 +1,5134 @@
+# rsvelte pack 1
+=== 1533 provider/src/RestDataProvider.ts	js
+import { Rest } from "@svar-ui/lib-data-provider";
+export default class RestDataProvider extends Rest {
+    _normalize;
+    constructor(url, normalize) {
+        super(url);
+        this._normalize = normalize;
+    }
+    getHandlers() {
+        return {
+            "add-row": {
+                ignoreID: true,
+                handler: (ev) => {
+                    const d = this.send("", "POST", ev);
+                    if (!this._normalize)
+                        return d;
+                    return d.then(obj => {
+                        this._normalize(obj);
+                        return obj;
+                    });
+                },
+            },
+            "delete-row": {
+                handler: (ev) => {
+                    return this.send(`/${ev.id}`, "DELETE");
+                },
+            },
+            "update-row": {
+                handler: (ev) => {
+                    return this.send(`/${ev.id}`, "PUT", ev);
+                },
+            },
+            "update-cell": {
+                handler: (ev) => {
+                    return this.send(`/${ev.id}`, "PATCH", {
+                        key: ev.column,
+                        value: ev.value.toString(),
+                    });
+                },
+            },
+        };
+    }
+    getData() {
+        const d = this.send("", "GET");
+        if (!this._normalize)
+            return d;
+        return d.then(obj => {
+            if (this._normalize)
+                obj.forEach(this._normalize);
+            return obj;
+        });
+    }
+}
+
+=== 83 provider/src/index.ts	js
+import RestDataProvider from "./RestDataProvider.js";
+export { RestDataProvider };
+
+=== 351 provider/test/provider.spec.ts	js
+import { describe, expect, it } from "vitest";
+import { RestDataProvider } from "../src/index";
+function getDataStore() {
+    const provider = new RestDataProvider("");
+    return { provider };
+}
+describe("data provider", function () {
+    it("can be initialized", () => {
+        const t = getDataStore();
+        expect(t).not.eq(null);
+    });
+});
+
+=== 52135 store/src/DataStore.ts	js
+import { Store, EventBus, DataRouter, isSame } from "@svar-ui/lib-state";
+import { getValue, setValue } from "./editors";
+import { download, getRenderValue } from "./export";
+import { getCsvData } from "./export/csv";
+import { normalizePrintConfig } from "./print";
+import { HistoryManager } from "./HistoryManager";
+import { isCommunity } from "./package";
+import { sortByMany } from "./sort";
+import { getHeaderFooterHeights, getColumnWidth, getHeaderColWidth, suggestSkin, } from "./sizes";
+import { createFilter, getFilterHandler } from "./filters";
+export default class DataStore extends Store {
+    in;
+    _router;
+    _branches;
+    _xlsxWorker;
+    _historyManager;
+    constructor(w) {
+        super({ writable: w, async: false });
+        const defaultSizes = {
+            rowHeight: 37,
+            columnWidth: 160,
+            headerHeight: 36,
+            footerHeight: 36,
+        };
+        this._router = new DataRouter(super.setState.bind(this), 
+        // data recalculation dependencies
+        [
+            // normalize columns, headers and footers
+            {
+                in: ["columns", "sizes", "_skin"],
+                out: ["_columns", "_sizes"],
+                exec: (ctx) => {
+                    const { columns, sizes, _skin } = this.getState();
+                    const _columns = this.copyColumns(columns);
+                    const headerRowCount = _columns.reduce((a, b) => Math.max(b.header.length, a), 0);
+                    const footerRowCount = _columns.reduce((a, b) => Math.max(b.footer.length, a), 0);
+                    _columns.forEach(this.setCollapsibleColumns);
+                    const _sizes = this.normalizeSizes(_columns, sizes, headerRowCount, footerRowCount, _skin);
+                    for (let i = 0; i < _columns.length; i++) {
+                        this.normalizeColumns(_columns, i, "header", headerRowCount, _sizes);
+                        this.normalizeColumns(_columns, i, "footer", footerRowCount, _sizes);
+                    }
+                    this.setState({ _columns, _sizes }, ctx);
+                },
+            },
+            {
+                in: ["data", "tree", "_filterIds"],
+                out: ["flatData", "_rowHeightFromData"],
+                exec: (ctx) => {
+                    const { data, tree, dynamic, _filterIds: filterIds, } = this.getState();
+                    const filterSet = filterIds && new Set(filterIds);
+                    const flatData = tree
+                        ? this.flattenRows(data, [], filterIds)
+                        : filterSet
+                            ? data.filter(d => filterSet.has(d.id))
+                            : data;
+                    const hasHeight = !dynamic && flatData.some(d => d.rowHeight);
+                    this.setState({ flatData, _rowHeightFromData: hasHeight }, ctx);
+                },
+            },
+        ], {
+            // data initializers
+            sizes: (v) => ({ ...defaultSizes, ...v }),
+        });
+        const inBus = (this.in = new EventBus());
+        inBus.on("close-editor", ({ ignore }) => {
+            const { editor } = this.getState();
+            if (editor) {
+                if (!ignore) {
+                    inBus.exec("update-cell", editor);
+                }
+                this.setState({ editor: null });
+            }
+        });
+        inBus.on("open-editor", ({ id, column }) => {
+            let editor = this.getState().editor;
+            if (editor)
+                inBus.exec("close-editor", {});
+            const row = this.getRow(id);
+            const col = column
+                ? this.getColumn(column)
+                : this.getNextEditor(row);
+            if (col?.editor) {
+                let columnEditor = col.editor;
+                if (typeof columnEditor === "function")
+                    columnEditor = columnEditor(row, col);
+                if (!columnEditor)
+                    return;
+                editor = {
+                    column: col.id,
+                    id,
+                    value: getValue(row, col) ?? "",
+                    renderedValue: getRenderValue(row, col),
+                    type: columnEditor.type ||
+                        columnEditor,
+                };
+                if (typeof columnEditor === "object" &&
+                    columnEditor.config) {
+                    editor.config = columnEditor.config;
+                    if (columnEditor.config.options)
+                        editor.options = columnEditor.config.options;
+                }
+                if (col.options && !editor.options)
+                    editor.options = col.options;
+                this.setState({ editor });
+            }
+        });
+        inBus.on("editor", ({ value }) => {
+            let editor = this.getState().editor;
+            if (editor) {
+                editor = { ...editor };
+                editor.value = value;
+                const col = this.getColumn(editor.column);
+                const row = { ...this.getRow(editor.id) };
+                setValue(row, col, value);
+                editor.renderedValue = getRenderValue(row, col);
+                this.setState({ editor });
+            }
+        });
+        inBus.on("add-row", (ev) => {
+            const state = this.getState();
+            let { data } = state;
+            const { select, _filterIds: filterIds } = state;
+            const { row, before, after, select: selectForce } = ev;
+            ev.id = row.id = ev.id || row.id || uid();
+            if (before || after) {
+                const id = before || after;
+                const index = data.findIndex(a => a.id === id);
+                data = [...data];
+                data.splice(index + (after ? 1 : 0), 0, ev.row);
+            }
+            else {
+                data = [...data, ev.row];
+            }
+            const update = { data };
+            if (filterIds)
+                update._filterIds = [...filterIds, ev.id];
+            this.setState(update);
+            if (typeof selectForce === "boolean" && !selectForce)
+                return;
+            if (selectForce || select)
+                inBus.exec("select-row", { id: row.id, show: true });
+        });
+        inBus.on("delete-row", (ev) => {
+            const { data, selectedRows, focusCell, editor } = this.getState();
+            const { id } = ev;
+            const update = {
+                data: data.filter(a => a.id !== id),
+            };
+            if (this.isSelected(id)) {
+                update.selectedRows = selectedRows.filter(a => a !== id);
+            }
+            if (editor?.id === id) {
+                update.editor = null;
+            }
+            this.setState(update);
+            if (focusCell?.row === id) {
+                this.in.exec("focus-cell", { eventSource: "delete-row" });
+            }
+        });
+        inBus.on("update-cell", (ev) => {
+            const state = this.getState();
+            let { data } = state;
+            data = [...data];
+            const { tree } = state;
+            const { id, column, value } = ev;
+            const col = this.getColumn(column);
+            if (tree) {
+                const obj = { ...this._branches[id] };
+                setValue(obj, col, value);
+                const update = this.updateTreeRow(obj);
+                if (obj.$parent === 0) {
+                    data = update;
+                }
+            }
+            else {
+                const index = data.findIndex(a => a.id === id);
+                const obj = { ...data[index] };
+                setValue(obj, col, value);
+                data[index] = obj;
+            }
+            this.setState({ data });
+        });
+        inBus.on("update-row", (ev) => {
+            let { data } = this.getState();
+            const { id, row } = ev;
+            const index = data.findIndex(a => a.id === id);
+            data = [...data];
+            data[index] = { ...data[index], ...row };
+            this.setState({ data });
+        });
+        inBus.on("select-row", ({ id, toggle, range, mode, show, column, }) => {
+            const state = this.getState();
+            const { focusCell } = state;
+            let { selectedRows } = state;
+            if (!selectedRows.length)
+                range = toggle = false;
+            if (range) {
+                const { data } = this.getState();
+                let sindex = data.findIndex(a => a.id === selectedRows[selectedRows.length - 1]);
+                let eindex = data.findIndex(a => a.id === id);
+                if (sindex > eindex)
+                    [sindex, eindex] = [eindex, sindex];
+                data.slice(sindex, eindex + 1).forEach(a => {
+                    if (!this.isSelected(a.id))
+                        selectedRows.push(a.id);
+                });
+            }
+            else if (toggle && this.isSelected(id)) {
+                if (mode === true)
+                    return;
+                selectedRows = selectedRows.filter(a => a !== id);
+            }
+            else {
+                if (toggle) {
+                    if (mode === false)
+                        return;
+                    selectedRows.push(id);
+                }
+                else
+                    selectedRows = [id];
+            }
+            this.setState({ selectedRows: [...selectedRows] });
+            if (focusCell?.row !== id) {
+                this.in.exec("focus-cell", { eventSource: "select-row" });
+            }
+            if (show)
+                this.in.exec("scroll", { row: id, column });
+        });
+        this.in.on("focus-cell", (ev) => {
+            const { row, column, eventSource } = ev;
+            const { _columns, split } = this.getState();
+            if (row && column) {
+                this.setState({ focusCell: { row, column } });
+                if (eventSource !== "click") {
+                    if ((!split.left ||
+                        _columns.findIndex(a => a.id === ev.column) >=
+                            split.left) &&
+                        (!split.right ||
+                            _columns.findIndex(a => a.id === ev.column) <
+                                _columns.length - split.right)) {
+                        this.in.exec("scroll", { row, column });
+                    }
+                    else
+                        this.in.exec("scroll", { row });
+                }
+            }
+            else
+                this.setState({ focusCell: null });
+        });
+        inBus.on("resize-column", (ev) => {
+            const { id, auto, maxRows, inProgress, flexgrowFallback } = ev;
+            if (inProgress === false) {
+                // event called with inProgress=false is purely informational (indicates that the resize is over)
+                return;
+            }
+            let width = ev.width || 0;
+            const columns = [...this.getState().columns];
+            const column = this.getColumn(id);
+            if (auto) {
+                if (auto === "data" || auto === true) {
+                    const { flatData, _skin } = this.getState();
+                    let max = flatData.length;
+                    if (maxRows)
+                        max = Math.min(maxRows, max);
+                    const curData = flatData.slice(0, max);
+                    width = getColumnWidth(column, curData, _skin);
+                }
+                if (auto === "header" || auto === true) {
+                    const { _skin } = this.getState();
+                    width = Math.max(getHeaderColWidth(column, _skin), width);
+                }
+            }
+            column.width = Math.max(17, width);
+            if (flexgrowFallback && column.flexgrow) {
+                const fill = columns.find(c => c.id === flexgrowFallback);
+                if (fill && !fill.flexgrow)
+                    fill.flexgrow = 1;
+            }
+            delete column.flexgrow;
+            this.setState({ columns });
+        });
+        inBus.on("hide-column", (ev) => {
+            const { id, mode } = ev;
+            const columns = [...this.getState().columns];
+            const column = this.getColumn(id);
+            const visibleColumns = columns.reduce((p, v) => p + (v.hidden ? 0 : 1), 0);
+            if (!mode || visibleColumns > 1) {
+                column.hidden = !column.hidden;
+                this.setState({ columns });
+            }
+            else
+                ev.skipUndo = true;
+        });
+        inBus.on("sort-rows", (ev) => {
+            const { key, add, sort } = ev;
+            const state = this.getState();
+            const { columns, data, tree } = state;
+            if (sort) {
+                const nextData = [...data];
+                nextData.sort(sort);
+                this.setState({ data: nextData });
+                return;
+            }
+            const { order = "asc" } = ev;
+            let sortMarks = state.sortMarks;
+            const fields = Object.keys(sortMarks);
+            const fLength = fields.length;
+            if (!add || !fLength || (fLength === 1 && sortMarks[key])) {
+                sortMarks = { [key]: { order } };
+            }
+            else {
+                if (fLength === 1) {
+                    // ensure the first sort field has an index for proper ordering
+                    sortMarks[fields[0]] = {
+                        ...sortMarks[fields[0]],
+                        index: 0,
+                    };
+                }
+                sortMarks = {
+                    ...sortMarks,
+                    [key]: {
+                        order,
+                        index: typeof add === "number"
+                            ? add
+                            : (sortMarks[key]?.index ?? fLength),
+                    },
+                };
+            }
+            const sortArr = Object.keys(sortMarks)
+                .sort((a, b) => sortMarks[a].index - sortMarks[b].index)
+                .map(k => ({ key: k, order: sortMarks[k].order }));
+            this.setState({ sortMarks });
+            const sorter = sortByMany(sortArr, columns);
+            if (sorter) {
+                const nextData = [...data];
+                if (tree) {
+                    this.sortTree(nextData, sorter);
+                }
+                else {
+                    nextData.sort(sorter);
+                }
+                this.setState({ data: nextData });
+            }
+        });
+        inBus.on("filter-rows", (ev) => {
+            const { value, key, filter } = ev;
+            // clear all filters
+            if (!Object.keys(ev).length) {
+                this.setState({ filterValues: {}, _filterIds: null });
+                return;
+            }
+            const state = this.getState();
+            const { data, tree, _columns } = state;
+            let filterValues = state.filterValues;
+            const update = {};
+            if (key) {
+                filterValues = {
+                    ...filterValues,
+                    [key]: value,
+                };
+                update.filterValues = filterValues;
+            }
+            const filterFn = filter ?? createFilter(filterValues, _columns);
+            let filterIds = [];
+            if (tree) {
+                filterIds = this.filterTree(data, filterFn, filterIds);
+            }
+            else
+                data.forEach(d => {
+                    if (filterFn(d))
+                        filterIds.push(d.id);
+                });
+            update._filterIds = filterIds;
+            this.setState(update);
+        });
+        inBus.on("collapse-column", (ev) => {
+            const { id, row, mode } = ev;
+            const columns = [...this.getState().columns];
+            const header = this.getColumn(id).header;
+            const cell = Array.isArray(header) ? header[row] : header;
+            if (typeof cell === "object") {
+                cell.collapsed = mode ?? !cell.collapsed;
+                this.setState({ columns });
+            }
+        });
+        inBus.on("move-item", (ev) => {
+            const { id, inProgress } = ev;
+            let { target, mode = "after" } = ev;
+            const { data, flatData, tree } = this.getState();
+            const sourceIndex = flatData.findIndex(a => a.id === id);
+            let targetIndex;
+            if (mode === "up" || mode === "down") {
+                if (mode === "up") {
+                    if (sourceIndex === 0)
+                        return;
+                    targetIndex = sourceIndex - 1;
+                    mode = "before";
+                }
+                else if (mode === "down") {
+                    if (sourceIndex === flatData.length - 1)
+                        return;
+                    targetIndex = sourceIndex + 1;
+                    mode = "after";
+                }
+                target = flatData[targetIndex] && flatData[targetIndex].id;
+            }
+            else {
+                targetIndex = flatData.findIndex(a => a.id === target);
+            }
+            if (sourceIndex === -1 ||
+                targetIndex === -1 ||
+                inProgress === false) {
+                // event called with inProgress=false is purely informational (indicates that the drag is over)
+                return;
+            }
+            let updatedData;
+            if (tree) {
+            }
+            else {
+                updatedData = this.moveItem(id, target, data, mode);
+            }
+            this.setState({
+                data: tree ? this.normalizeTreeRows(updatedData) : updatedData,
+            });
+        });
+        inBus.on("copy-row", (ev) => {
+            const { id, target, mode = "after" } = ev;
+            const state = this.getState();
+            const { flatData, _filterIds: filterIds } = state;
+            let { data } = state;
+            const sourceRow = this.getRow(id);
+            if (!sourceRow)
+                return;
+            const copiedRow = { ...sourceRow, id: uid() };
+            ev.id = copiedRow.id;
+            const targetIndex = flatData.findIndex(a => a.id === target);
+            if (targetIndex === -1)
+                return;
+            data.splice(targetIndex + (mode === "after" ? 1 : 0), 0, copiedRow);
+            data = [...data];
+            const update = { data };
+            if (filterIds)
+                update._filterIds = [...filterIds, copiedRow.id];
+            this.setState(update);
+        });
+        inBus.on("open-row", (ev) => {
+            const { id, nested } = ev;
+            this.toggleBranch(id, true, nested);
+        });
+        inBus.on("close-row", (ev) => {
+            const { id, nested } = ev;
+            this.toggleBranch(id, false, nested);
+        });
+        inBus.on("export-data", (ev) => {
+            return new Promise((resolve, reject) => {
+                const format = ev.format || "csv";
+                const filename = `${ev.fileName || "data"}.${format}`;
+                if (format === "csv") {
+                    const csv = getCsvData(this.getState(), ev.csv || {});
+                    if (ev.download !== false)
+                        download(new Blob(["\uFEFF" + csv], { type: "text/csv" }), filename);
+                    else
+                        ev.result = csv;
+                    resolve(true);
+                }
+                else
+                    reject();
+            });
+        });
+        inBus.on("hotkey", ({ key, event, isInput }) => {
+            switch (key) {
+                case "arrowup": {
+                    const { flatData: data, focusCell, select, } = this.getState();
+                    event.preventDefault();
+                    if (isInput)
+                        return;
+                    const colId = focusCell
+                        ? focusCell.column
+                        : this._getFirstVisibleColumn()?.id;
+                    const rowId = focusCell
+                        ? this.getPrevRow(focusCell.row)?.id
+                        : data[data.length - 1]?.id;
+                    if (colId && rowId) {
+                        this.in.exec("focus-cell", {
+                            row: rowId,
+                            column: colId,
+                            eventSource: "key",
+                        });
+                        if (select)
+                            this.in.exec("select-row", { id: rowId });
+                    }
+                    break;
+                }
+                case "arrowdown": {
+                    const { flatData: data, focusCell, select, } = this.getState();
+                    event.preventDefault();
+                    if (isInput)
+                        return;
+                    const colId = focusCell
+                        ? focusCell.column
+                        : this._getFirstVisibleColumn()?.id;
+                    const rowId = focusCell
+                        ? this.getNextRow(focusCell.row)?.id
+                        : data[0]?.id;
+                    if (colId && rowId) {
+                        this.in.exec("focus-cell", {
+                            row: rowId,
+                            column: colId,
+                            eventSource: "key",
+                        });
+                        if (select)
+                            this.in.exec("select-row", { id: rowId });
+                    }
+                    break;
+                }
+                case "arrowright": {
+                    const { focusCell } = this.getState();
+                    if (isInput)
+                        return;
+                    event.preventDefault();
+                    if (focusCell) {
+                        const colId = this.getNextColumn(focusCell.column, true)?.id;
+                        if (colId) {
+                            this.in.exec("focus-cell", {
+                                row: focusCell.row,
+                                column: colId,
+                                eventSource: "key",
+                            });
+                        }
+                    }
+                    break;
+                }
+                case "arrowleft": {
+                    const { focusCell } = this.getState();
+                    if (isInput)
+                        return;
+                    event.preventDefault();
+                    if (focusCell) {
+                        const colId = this.getPrevColumn(focusCell.column, true)?.id;
+                        if (colId) {
+                            this.in.exec("focus-cell", {
+                                row: focusCell.row,
+                                column: colId,
+                                eventSource: "key",
+                            });
+                        }
+                    }
+                    break;
+                }
+                case "tab": {
+                    const { editor, focusCell, select } = this.getState();
+                    if (editor) {
+                        event.preventDefault();
+                        const column = editor.column;
+                        let id = editor.id;
+                        let col = this.getNextEditor(this.getRow(id), this.getColumn(column));
+                        if (!col) {
+                            const row = this.getNextRow(id);
+                            if (row) {
+                                id = row.id;
+                                col = this.getNextEditor(row);
+                            }
+                        }
+                        if (col) {
+                            this.in.exec("open-editor", {
+                                id,
+                                column: col.id,
+                            });
+                            this.in.exec("focus-cell", {
+                                row: id,
+                                column: col.id,
+                                eventSource: "key",
+                            });
+                            if (select && !this.isSelected(id))
+                                this.in.exec("select-row", { id });
+                        }
+                    }
+                    else if (focusCell) {
+                        this.in.exec("focus-cell", { eventSource: "key" });
+                    }
+                    break;
+                }
+                case "shift+tab": {
+                    const { editor, focusCell, select } = this.getState();
+                    if (editor) {
+                        event.preventDefault();
+                        const column = editor.column;
+                        let id = editor.id;
+                        let col = this.getPrevEditor(this.getRow(id), this.getColumn(column));
+                        if (!col) {
+                            const row = this.getPrevRow(id);
+                            if (row) {
+                                id = row.id;
+                                col = this.getPrevEditor(row);
+                            }
+                        }
+                        if (col) {
+                            this.in.exec("open-editor", {
+                                id,
+                                column: col.id,
+                            });
+                            this.in.exec("focus-cell", {
+                                row: id,
+                                column: col.id,
+                                eventSource: "key",
+                            });
+                            if (select && !this.isSelected(id))
+                                this.in.exec("select-row", { id });
+                        }
+                    }
+                    else if (focusCell) {
+                        this.in.exec("focus-cell", { eventSource: "key" });
+                    }
+                    break;
+                }
+                case "escape": {
+                    const { editor } = this.getState();
+                    if (editor) {
+                        this.in.exec("close-editor", {
+                            ignore: editor.type != "multiselect",
+                        });
+                        this.in.exec("focus-cell", {
+                            row: editor.id,
+                            column: editor.column,
+                            eventSource: "key",
+                        });
+                    }
+                    break;
+                }
+                case "f2": {
+                    const { editor, focusCell } = this.getState();
+                    if (!editor && focusCell) {
+                        this.in.exec("open-editor", {
+                            id: focusCell.row,
+                            column: focusCell.column,
+                        });
+                    }
+                    break;
+                }
+                case "enter": {
+                    const { focusCell, tree } = this.getState();
+                    if (!isInput && tree && focusCell) {
+                        const column = this.getColumn(focusCell.column);
+                        if (column.treetoggle) {
+                            const row = this.getRow(focusCell.row);
+                            if (!row.data)
+                                return;
+                            this.in.exec(row.open ? "close-row" : "open-row", {
+                                id: focusCell.row,
+                                nested: true,
+                            });
+                        }
+                    }
+                    break;
+                }
+                case "home": {
+                    const { editor, focusCell } = this.getState();
+                    if (!editor && focusCell) {
+                        event.preventDefault();
+                        const colId = this._getFirstVisibleColumn()?.id;
+                        this.in.exec("focus-cell", {
+                            row: focusCell.row,
+                            column: colId,
+                            eventSource: "key",
+                        });
+                    }
+                    break;
+                }
+                case "ctrl+home": {
+                    const { editor, focusCell, flatData: data, select, } = this.getState();
+                    if (!editor && focusCell) {
+                        event.preventDefault();
+                        const rowId = data[0]?.id;
+                        const colId = this._getFirstVisibleColumn()?.id;
+                        if (rowId && colId) {
+                            this.in.exec("focus-cell", {
+                                row: rowId,
+                                column: colId,
+                                eventSource: "key",
+                            });
+                            if (select && !this.isSelected(rowId))
+                                this.in.exec("select-row", { id: rowId });
+                        }
+                    }
+                    break;
+                }
+                case "end": {
+                    const { editor, focusCell } = this.getState();
+                    if (!editor && focusCell) {
+                        event.preventDefault();
+                        const colId = this._getLastVisibleColumn()?.id;
+                        const rowId = focusCell.row;
+                        this.in.exec("focus-cell", {
+                            row: rowId,
+                            column: colId,
+                            eventSource: "key",
+                        });
+                    }
+                    break;
+                }
+                case "ctrl+end": {
+                    const { editor, focusCell, flatData: data, select, } = this.getState();
+                    if (!editor && focusCell) {
+                        event.preventDefault();
+                        const rowId = data.at(-1).id;
+                        const colId = this._getLastVisibleColumn()?.id;
+                        if (rowId && colId) {
+                            this.in.exec("focus-cell", {
+                                row: rowId,
+                                column: colId,
+                                eventSource: "key",
+                            });
+                            if (select && !this.isSelected(rowId))
+                                this.in.exec("select-row", { id: rowId });
+                        }
+                    }
+                    break;
+                }
+                case "ctrl+z": {
+                    this.in.exec("undo", {});
+                    break;
+                }
+                case "ctrl+y": {
+                    this.in.exec("redo", {});
+                    break;
+                }
+            }
+        });
+        inBus.on("scroll", (ev) => {
+            const { _columns, split, _sizes, flatData: data, dynamic, _rowHeightFromData, } = this.getState();
+            let left = -1, top = -1, width = 0, height = 0;
+            if (ev.column) {
+                left = 0;
+                const ind = _columns.findIndex(a => a.id === ev.column);
+                width = _columns[ind].width;
+                for (let i = split.left ?? 0; i < ind; i++) {
+                    const col = _columns[i];
+                    if (col.hidden)
+                        continue;
+                    left += col.width;
+                }
+            }
+            if (ev.row && !dynamic) {
+                const index = data.findIndex(a => a.id === ev.row);
+                if (index >= 0) {
+                    if (_rowHeightFromData) {
+                        top = data
+                            .slice(0, index)
+                            .reduce((total, row) => total + (row.rowHeight || _sizes.rowHeight), 0);
+                        height = data[index].rowHeight;
+                    }
+                    else
+                        top = _sizes.rowHeight * index;
+                }
+            }
+            this.setState({
+                scroll: {
+                    top,
+                    left,
+                    width,
+                    height: height || _sizes.rowHeight,
+                },
+            });
+        });
+        inBus.on("scroll-to", (ev) => {
+            const update = {};
+            if (ev.top !== undefined)
+                update.scrollTop = ev.top;
+            if (ev.left !== undefined)
+                update.scrollLeft = ev.left;
+            if (Object.keys(update).length)
+                this.setState(update);
+        });
+        inBus.on("print", (ev) => {
+            const config = normalizePrintConfig(ev);
+            this.setState({ _print: config });
+            this.setStateAsync({ _print: null });
+        });
+        inBus.on("undo", () => {
+            this._historyManager?.handleUndo();
+        });
+        inBus.on("redo", () => {
+            this._historyManager?.handleRedo();
+        });
+        this.initOnce();
+    }
+    getXlsxWorker(path) {
+        if (!this._xlsxWorker) {
+            const url = window.URL.createObjectURL(new Blob([`importScripts('${path}');`], {
+                type: "text/javascript",
+            }));
+            this._xlsxWorker = new Promise(res => {
+                const xlsxWorker = new Worker(url);
+                xlsxWorker.addEventListener("message", e => {
+                    if (e.data.type === "init")
+                        res(xlsxWorker);
+                });
+            });
+        }
+        return this._xlsxWorker;
+    }
+    initOnce() {
+        const state = {
+            sortMarks: {},
+            _filterIds: null,
+            data: [],
+            filterValues: {},
+            scroll: null,
+            scrollLeft: 0,
+            scrollTop: 0,
+            editor: null,
+            focusCell: null,
+            _print: null,
+            history: { undo: 0, redo: 0 },
+            search: null,
+        };
+        this._router.init(state);
+    }
+    init(state) {
+        // eslint-disable-next-line no-prototype-builtins
+        if (state.hasOwnProperty("_skin") && !state._skin) {
+            state._skin = suggestSkin();
+        }
+        if (state.columns)
+            state.columns.forEach(a => {
+                if (a.options) {
+                    a.optionsMap = new Map(a.options.map(x => [x.id, x.label]));
+                }
+            });
+        // perform these changes only if data was reset
+        if (!isSame(this.getState().data, state.data)) {
+            if (state.tree) {
+                state.data = this.normalizeTreeRows(state.data);
+            }
+            else
+                state.data = this.normalizeRows(state.data);
+            this.setState({
+                _filterIds: null,
+                filterValues: {},
+                sortMarks: {},
+                search: null,
+            });
+            if (this._historyManager)
+                this._historyManager.resetHistory();
+        }
+        if (isCommunity()) {
+            if (state.tree) {
+                state.undo = false;
+                state.reorder = false;
+            }
+            if (state.split?.right)
+                state.split.right = 0;
+        }
+        if (state.undo && !this._historyManager) {
+            this._historyManager = new HistoryManager(this.in, this.getState.bind(this), this.setState.bind(this));
+        }
+        this._router.init({
+            ...state,
+        });
+    }
+    setState(state, ctx) {
+        return this._router.setState(state, ctx);
+    }
+    setStateAsync(state) {
+        this._router.setStateAsync(state);
+    }
+    getRow(id) {
+        const { tree } = this.getState();
+        if (tree)
+            return this._branches[id];
+        return this.getState().data.find(a => a.id === id);
+    }
+    getRowIndex(id, data) {
+        if (!data)
+            data = this.getState().flatData;
+        return data.findIndex(a => a.id === id);
+    }
+    getNextRow(id) {
+        const data = this.getState().flatData;
+        const index = this.getRowIndex(id, data);
+        return data[index + 1];
+    }
+    getPrevRow(id) {
+        const data = this.getState().flatData;
+        const index = this.getRowIndex(id, data);
+        return data[index - 1];
+    }
+    getColumn(id) {
+        return this.getState().columns.find(a => a.id === id);
+    }
+    getNextColumn(id, visible) {
+        const columns = this.getState()._columns;
+        const index = columns.findIndex((c) => c.id === id);
+        if (visible) {
+            return this._getFirstVisibleColumn(index + 1);
+        }
+        return columns[index + 1];
+    }
+    getPrevColumn(id, visible) {
+        const columns = this.getState()._columns;
+        const index = columns.findIndex((c) => c.id === id);
+        if (visible) {
+            return this._getLastVisibleColumn(index - 1);
+        }
+        return columns[index - 1];
+    }
+    _getFirstVisibleColumn(index) {
+        const columns = this.getState()._columns;
+        let start = index ?? 0;
+        while (start < columns.length &&
+            (columns[start]?.hidden || columns[start]?.collapsed)) {
+            start++;
+        }
+        return columns[start];
+    }
+    _getLastVisibleColumn(index) {
+        const columns = this.getState()._columns;
+        let start = index ?? columns.length - 1;
+        while (start < columns.length &&
+            (columns[start]?.hidden || columns[start]?.collapsed)) {
+            start--;
+        }
+        return columns[start];
+    }
+    isCellEditable(row, column) {
+        const { editor, hidden } = column;
+        if (!editor || hidden)
+            return false;
+        if (typeof editor === "function")
+            return editor(row, column);
+        return true;
+    }
+    getNextEditor(row, column) {
+        let columns = this.getState().columns;
+        if (column) {
+            const index = columns.findIndex(c => c.id === column.id);
+            columns = columns.slice(index + 1);
+        }
+        return columns.find(c => this.isCellEditable(row, c));
+    }
+    getPrevEditor(row, column) {
+        let columns = this.getState().columns;
+        if (column) {
+            const index = columns.findLastIndex(c => c.id === column.id);
+            columns = columns.slice(0, index);
+        }
+        return columns.findLast(c => this.isCellEditable(row, c));
+    }
+    toggleBranch(id, open, nested) {
+        let item = this._branches[id];
+        let { data } = this.getState();
+        data = [...data];
+        if (id !== 0) {
+            item = { ...item, open };
+            const update = this.updateTreeRow(item);
+            if (item.$parent === 0)
+                data = update;
+        }
+        if (nested && item.data?.length) {
+            item.data.forEach((row) => {
+                const update = this.toggleKids(row, open, nested);
+                if (id === 0)
+                    data = update;
+            });
+        }
+        this.setState({ data });
+    }
+    toggleKids(item, open, nested) {
+        item = { ...item, open };
+        const data = this.updateTreeRow(item);
+        if (nested && item.data?.length) {
+            item.data.forEach((row) => {
+                this.toggleKids(row, open, nested);
+            });
+        }
+        return data;
+    }
+    updateTreeRow(item) {
+        const id = item.id;
+        this._branches[id] = item;
+        const parentRow = this._branches[item.$parent];
+        const parentIndex = parentRow.data.findIndex((a) => a.id === id);
+        parentRow.data = [...parentRow.data];
+        parentRow.data[parentIndex] = item;
+        return parentRow.data;
+    }
+    isSelected(id) {
+        return this.getState().selectedRows.indexOf(id) !== -1;
+    }
+    findAndRemove(items, id) {
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].id === id) {
+                return items.splice(i, 1)[0];
+            }
+            if (items[i].data) {
+                const copy = [...items[i].data];
+                const found = this.findAndRemove(copy, id);
+                if (found) {
+                    items[i] = {
+                        ...items[i],
+                        data: copy,
+                    };
+                    return found;
+                }
+            }
+        }
+        return null;
+    }
+    insertItem(items, targetId, item, mode) {
+        for (let i = 0; i < items.length; i++) {
+            if (items[i].id === targetId) {
+                const targetItem = items[i];
+                const insertIndex = mode === "before" ? i : i + 1;
+                // is a branch
+                if (targetItem.data) {
+                    if (mode === "before") {
+                        const prevItem = i > 0 ? items[i - 1] : null;
+                        // open branch - insert as last child of prev. branch (before)
+                        if (prevItem?.data && prevItem.open) {
+                            items[i - 1] = {
+                                ...prevItem,
+                                data: [...prevItem.data, item],
+                            };
+                        }
+                        else {
+                            items.splice(insertIndex, 0, item);
+                        }
+                        return true;
+                    }
+                    else {
+                        // open branch - insert as first child of target branch (after)
+                        if (targetItem.open) {
+                            items[i] = {
+                                ...targetItem,
+                                data: [item, ...targetItem.data],
+                            };
+                            return true;
+                        }
+                    }
+                }
+                items.splice(insertIndex, 0, item);
+                return true;
+            }
+            if (items[i].data) {
+                items[i] = {
+                    ...items[i],
+                    data: [...items[i].data],
+                };
+                if (this.insertItem(items[i].data, targetId, item, mode)) {
+                    return true;
+                }
+            }
+        }
+        return false;
+    }
+    moveItem(id, target, data, mode) {
+        const items = [...data];
+        const movedItem = this.findAndRemove(items, id);
+        this.insertItem(items, target, movedItem, mode);
+        return items;
+    }
+    copyColumns(columns) {
+        const _columns = [];
+        for (let i = 0; i < columns.length; i++) {
+            const copy = { ...columns[i] };
+            this.copyHeaderFooter(copy, "header");
+            this.copyHeaderFooter(copy, "footer");
+            _columns[i] = copy;
+        }
+        return _columns;
+    }
+    copyHeaderFooter(col, type) {
+        let config = col[type];
+        config = Array.isArray(config) ? [...config] : [config];
+        config.forEach((text, i) => {
+            config[i] = typeof text === "string" ? { text } : { ...text };
+        });
+        col[type] = config;
+    }
+    setCollapsibleColumns(col, index, columns) {
+        let header = col.header;
+        for (let r = 0; r < header.length; r++) {
+            const cell = header[r];
+            if (cell.collapsible && cell.collapsed) {
+                if (cell.collapsible !== "first") {
+                    col.collapsed = true;
+                    col.width = 36;
+                    cell.vertical = true;
+                    const diff = header.length - r;
+                    header = header.slice(0, r + 1);
+                    header[r].rowspan = diff;
+                }
+                const colspan = cell.colspan;
+                if (colspan) {
+                    const nextCell = header[r + 1];
+                    let spanStart = 1;
+                    if (nextCell && nextCell.colspan && !nextCell.collapsed) {
+                        spanStart = nextCell.colspan;
+                    }
+                    for (let span = spanStart; span < colspan; span++) {
+                        const curCol = columns[index + span];
+                        if (curCol) {
+                            curCol.hidden = true;
+                        }
+                    }
+                }
+            }
+        }
+    }
+    normalizeColumns(columns, index, type, rowsCount, sizes) {
+        const col = columns[index];
+        if (!col.width)
+            col.width = col.flexgrow ? 17 : sizes.columnWidth;
+        col._colindex = index + 1;
+        // normalize header and footer config
+        const config = col[type];
+        const rowHeights = sizes[`${type}RowHeights`];
+        for (let i = 0; i < rowsCount; i++) {
+            const row = config[i];
+            row.id = col.id;
+            // stretch cells with no rowspan to fit available space or cut rowspan if it was set incorrectly
+            if (i === config.length - 1) {
+                row.rowspan = row.rowspan
+                    ? Math.min(row.rowspan, rowsCount - i)
+                    : rowsCount - i;
+            }
+            // fill space covered by rowspans with empties so that rows are rendered column by column regardless of upper row overlap
+            for (let r = 1; r < row.rowspan; r++) {
+                config.splice(i + r, 0, { _hidden: true });
+                // fill neighboring columns as well for headers with colspans and rowspans
+                for (let c = 1; c < row.colspan; c++) {
+                    const nextColRows = columns[index + c][type];
+                    nextColRows.splice(i + r, 0, {});
+                }
+            }
+            if (row.rowspan) {
+                const rHeights = row.rowspan === rowsCount
+                    ? rowHeights
+                    : rowHeights.slice(i, row.rowspan + i);
+                const height = rHeights.reduce((a, b) => a + b, 0);
+                row.height = height;
+                if (i + row.rowspan != rowsCount)
+                    row.height--; // -1px because of row border-bottom
+            }
+            if (col.hidden && row.colspan > 1) {
+                const spanEnd = index + row.colspan;
+                let currIndex = index + 1;
+                let nextColumn = columns[currIndex];
+                let colspan = row.colspan;
+                while (currIndex < spanEnd && nextColumn?.hidden) {
+                    currIndex++;
+                    colspan--;
+                    nextColumn = columns[currIndex];
+                }
+                if (nextColumn && !nextColumn.hidden && colspan > 1) {
+                    nextColumn[type][i] = {
+                        ...row,
+                        id: nextColumn.id,
+                        width: nextColumn.width || sizes.columnWidth,
+                        colspan: colspan - 1,
+                    };
+                }
+            }
+            // set widths for header cells
+            if (row.colspan) {
+                let width = col.width;
+                let flexgrow = col.flexgrow || 0;
+                const colspan = row.colspan;
+                for (let span = 1; span < colspan; span++) {
+                    const curCell = columns[index + span];
+                    if (curCell) {
+                        if (curCell.hidden) {
+                            row.colspan -= 1;
+                        }
+                        else if (curCell.flexgrow) {
+                            flexgrow += curCell.flexgrow;
+                        }
+                        else {
+                            width += curCell.width || sizes.columnWidth;
+                        }
+                    }
+                    if (flexgrow) {
+                        row.flexgrow = flexgrow;
+                    }
+                    else {
+                        row.width = width;
+                    }
+                }
+            }
+            else {
+                row.width = col.width;
+                row.flexgrow = col.flexgrow;
+            }
+            if (type === "header" &&
+                row.filter &&
+                typeof row.filter === "string") {
+                row.filter = { type: row.filter };
+            }
+        }
+        if (config.length > rowsCount)
+            config.length = rowsCount;
+        col[type] = config;
+    }
+    normalizeRows(data) {
+        for (let i = 0; i < data.length; i++) {
+            if (!data[i].id)
+                data[i].id = uid();
+        }
+        return data;
+    }
+    normalizeTreeRows(data, level, parent) {
+        if (!level && !parent)
+            this._branches = { 0: { data } };
+        data.forEach(row => {
+            if (!row.id)
+                row.id = uid();
+            row.$level = level || 0;
+            row.$parent = parent || 0;
+            this._branches[row.id] = row;
+            if (row.data) {
+                if (row.data.length) {
+                    row.$count = row.data.length;
+                    this.normalizeTreeRows(row.data, row.$level + 1, row.id);
+                }
+                else {
+                    delete row.data;
+                    delete row.$count;
+                    delete row.open;
+                }
+            }
+        });
+        return data;
+    }
+    sortTree(data, sorter) {
+        data.sort(sorter);
+        data.forEach(item => {
+            if (item.data) {
+                this.sortTree(item.data, sorter);
+            }
+        });
+    }
+    filterTree(data, filter, filterIds) {
+        data.forEach(row => {
+            if (filter(row))
+                filterIds.push(row.id);
+            if (row.data)
+                this.filterTree(row.data, filter, filterIds);
+        });
+        return filterIds;
+    }
+    flattenRows(data, flatData, filterIds) {
+        const res = flatData;
+        data.forEach(row => {
+            if (!filterIds || filterIds.includes(row.id))
+                res.push(row);
+            if (row.data?.length && row.open !== false) {
+                this.flattenRows(row.data, res, filterIds);
+            }
+        });
+        return res;
+    }
+    createFilter(filterValues) {
+        const { _columns: columns } = this.getState();
+        const filters = [];
+        for (const field in filterValues) {
+            const column = columns.find(c => c.id == field); // the non-strict comparison, since field is always a string
+            const { config, type } = column.header.find(h => h.filter).filter;
+            const value = filterValues[field];
+            filters.push((obj) => {
+                const oValue = getValue(obj, column);
+                if (config?.handler) {
+                    return config.handler(oValue, value);
+                }
+                return getFilterHandler(type)(oValue, value);
+            });
+        }
+        return (obj) => {
+            for (let i = 0; i < filters.length; i++) {
+                if (!filters[i](obj)) {
+                    return false;
+                }
+            }
+            return true;
+        };
+    }
+    searchRows(search, columns) {
+        search = search.trim().toLowerCase();
+        const rows = {};
+        if (!search)
+            return rows;
+        const { flatData, columns: allColumns } = this.getState();
+        const columnsToSearch = columns
+            ? allColumns.filter(col => columns[col.id])
+            : allColumns;
+        flatData.forEach(row => {
+            const columnsMatches = {};
+            columnsToSearch.forEach(column => {
+                const cellValue = getRenderValue(row, column);
+                if (String(cellValue).toLowerCase().includes(search)) {
+                    columnsMatches[column.id] = true;
+                }
+            });
+            if (Object.keys(columnsMatches).length) {
+                rows[row.id] = columnsMatches;
+            }
+        });
+        return rows;
+    }
+    normalizeSizes(columns, sizes, headerRowCount, footerRowCount, skin) {
+        const headerRowHeights = getHeaderFooterHeights(columns, "header", headerRowCount, sizes.headerHeight, skin);
+        const footerRowHeights = getHeaderFooterHeights(columns, "footer", footerRowCount, sizes.footerHeight, skin);
+        // need to recalculate header/footer height if header has rows or vertical text
+        const headerHeight = headerRowHeights.reduce((a, b) => a + b, 0);
+        const footerHeight = footerRowHeights.reduce((a, b) => a + b, 0);
+        return {
+            ...sizes,
+            headerRowHeights,
+            footerRowHeights,
+            headerHeight,
+            footerHeight,
+        };
+    }
+}
+let base = new Date().valueOf();
+function uid() {
+    return "temp://" + base++;
+}
+
+=== 10673 store/src/HistoryManager.ts	js
+import { deepCopy, EventBus, TID, isSame } from "@svar-ui/lib-state";
+import { getValue } from "./editors";
+import { IColumn, IData, IRow, TMethodsConfig } from "./types";
+const COLUMNS_ACTIONS = ["resize-column", "hide-column", "update-cell"];
+const DATA_ACTIONS = ["delete-row", "update-row", "update-cell"];
+const FLATDATA_ACTIONS = ["move-item"];
+const PROGRESS_ACTIONS = ["resize-column", "move-item"];
+export class HistoryManager {
+    undo = [];
+    redo = [];
+    progress = {};
+    in;
+    getState;
+    setState;
+    _previousValues = {};
+    constructor(eventBus, stateGetter, stateSetter) {
+        this.in = eventBus;
+        this.getState = stateGetter;
+        this.setState = stateSetter;
+        this.setHandlers();
+        this.resetStateHistory();
+    }
+    getHandlers() {
+        return {
+            "add-row": {
+                handler: (ev) => {
+                    return {
+                        action: "delete-row",
+                        data: { id: ev.id },
+                        source: { action: "add-row", data: ev },
+                    };
+                },
+            },
+            "delete-row": {
+                handler: (ev) => {
+                    const { id } = ev;
+                    const { data } = this.getPrev();
+                    const rowIndex = data.findIndex(a => a.id === id);
+                    return {
+                        action: "add-row",
+                        data: {
+                            id,
+                            row: data[rowIndex],
+                            before: rowIndex < data.length - 1
+                                ? data[rowIndex + 1].id
+                                : undefined,
+                        },
+                        source: { action: "delete-row", data: ev },
+                    };
+                },
+            },
+            "update-cell": {
+                handler: (ev) => {
+                    const { id, column } = ev;
+                    const row = this.getRow(id);
+                    const col = this.getColumn(column);
+                    const prevValue = getValue(row, col);
+                    // isSame is for dates
+                    return !isSame(prevValue, ev.value)
+                        ? {
+                            action: "update-cell",
+                            data: { id, column, value: prevValue },
+                            source: { action: "update-cell", data: ev },
+                        }
+                        : null;
+                },
+            },
+            "update-row": {
+                handler: (ev) => {
+                    const { id, row } = ev;
+                    const rowData = this.getRow(id);
+                    for (const key in row) {
+                        if (!Object.keys(rowData).includes(key)) {
+                            rowData[key] = undefined;
+                        }
+                    }
+                    return {
+                        action: "update-row",
+                        data: { id, row: rowData },
+                        source: { action: "update-row", data: ev },
+                    };
+                },
+            },
+            "copy-row": {
+                handler: (ev) => {
+                    const { id } = ev;
+                    const { data } = this.getState();
+                    const rowIndex = data.findIndex(a => a.id === id);
+                    const rowData = data[rowIndex];
+                    return {
+                        action: "delete-row",
+                        data: { id },
+                        source: {
+                            action: "add-row",
+                            data: {
+                                id,
+                                row: rowData,
+                                before: rowIndex < data.length - 1
+                                    ? data[rowIndex + 1].id
+                                    : undefined,
+                            },
+                        },
+                    };
+                },
+            },
+            "resize-column": {
+                handler: (ev) => {
+                    const { id, width } = ev;
+                    const column = this.getColumn(id);
+                    const { _sizes: sizes } = this.getState();
+                    return {
+                        action: "resize-column",
+                        data: { id, width: column.width ?? sizes.columnWidth },
+                        source: {
+                            action: "resize-column",
+                            data: { id, width },
+                        },
+                    };
+                },
+            },
+            "hide-column": {
+                handler: (ev) => {
+                    const { id } = ev;
+                    const column = this.getColumn(id);
+                    return {
+                        action: "hide-column",
+                        data: { id, mode: column.hidden },
+                        source: {
+                            action: "hide-column",
+                            data: ev,
+                        },
+                    };
+                },
+            },
+            "collapse-column": {
+                handler: (ev) => {
+                    const { id, row, mode } = ev;
+                    return {
+                        action: "collapse-column",
+                        data: {
+                            id,
+                            row,
+                            mode: typeof mode === "boolean" ? !mode : mode,
+                        },
+                        source: { action: "collapse-column", data: ev },
+                    };
+                },
+            },
+            "move-item": {
+                handler: (ev) => {
+                    const { id, target, mode } = ev;
+                    const { flatData } = this.getPrev();
+                    const sourceIndex = flatData.findIndex(a => a.id === id);
+                    return {
+                        action: "move-item",
+                        data: {
+                            id,
+                            target: flatData[sourceIndex + (sourceIndex ? -1 : 1)].id,
+                            mode: sourceIndex ? "after" : "before",
+                        },
+                        source: {
+                            action: "move-item",
+                            data: { id, target, mode },
+                        },
+                    };
+                },
+            },
+            "open-row": {
+                handler: (ev) => {
+                    const { id, nested } = ev;
+                    return {
+                        action: "close-row",
+                        data: { id, nested },
+                        source: { action: "open-row", data: ev },
+                    };
+                },
+            },
+            "close-row": {
+                handler: (ev) => {
+                    const { id, nested } = ev;
+                    return {
+                        action: "open-row",
+                        data: { id, nested },
+                        source: { action: "close-row", data: ev },
+                    };
+                },
+            },
+        };
+    }
+    resetHistory() {
+        this.undo = [];
+        this.redo = [];
+        this.progress = {};
+        this.resetStateHistory();
+    }
+    getPrev() {
+        return this._previousValues;
+    }
+    setHandlers() {
+        const handlers = this.getHandlers();
+        for (const action in handlers) {
+            this.in.intercept(action, (ev) => {
+                if (ev.eventSource === "undo" ||
+                    ev.eventSource === "redo" ||
+                    ev.skipUndo)
+                    return;
+                if (PROGRESS_ACTIONS.includes(action)) {
+                    if ((ev.inProgress &&
+                        !this.progress[action]) ||
+                        typeof ev.inProgress !== "boolean") {
+                        if (FLATDATA_ACTIONS.includes(action))
+                            this.setPrev("flatData");
+                        if (COLUMNS_ACTIONS.includes(action))
+                            this.setPrev("columns");
+                    }
+                    this.progress[action] = ev.inProgress;
+                    return;
+                }
+                if (DATA_ACTIONS.includes(action))
+                    this.setPrev("data");
+                if (COLUMNS_ACTIONS.includes(action))
+                    this.setPrev("columns");
+            });
+            this.in.on(action, (ev) => {
+                if (ev.eventSource === "undo" ||
+                    ev.eventSource === "redo" ||
+                    ev.skipUndo ||
+                    ev.inProgress)
+                    return;
+                const historyEntry = handlers[action].handler(ev);
+                if (historyEntry)
+                    this.addToHistory(historyEntry);
+            });
+        }
+    }
+    setPrev(prop) {
+        this._previousValues[prop] = deepCopy(this.getState()[prop]);
+    }
+    addToHistory(entry) {
+        this.undo.push(entry);
+        this.redo = [];
+        this.setStateHistory();
+    }
+    handleUndo() {
+        if (!this.undo.length)
+            return;
+        const action = this.undo.pop();
+        this.redo.push({ ...action.source, source: action });
+        this.in.exec(action.action, {
+            ...action.data,
+            eventSource: "undo",
+        });
+        this.setStateHistory();
+    }
+    handleRedo() {
+        if (!this.redo.length)
+            return;
+        const action = this.redo.pop();
+        this.undo.push({ ...action.source, source: action });
+        this.in.exec(action.action, {
+            ...action.data,
+            eventSource: "redo",
+        });
+        this.setStateHistory();
+    }
+    resetStateHistory() {
+        this.setState({ history: { undo: 0, redo: 0 } });
+    }
+    setStateHistory() {
+        this.setState({
+            history: {
+                undo: this.undo.length,
+                redo: this.redo.length,
+            },
+        });
+    }
+    getRow(id) {
+        const { data } = this.getPrev();
+        if (this.getState().tree)
+            return this.getTreeRow(data, id);
+        return data.find(a => a.id === id);
+    }
+    getTreeRow(data, id) {
+        for (let i = 0; i < data.length; i++) {
+            if (data[i].id === id)
+                return data[i];
+            if (data[i].data) {
+                const res = this.getTreeRow(data[i].data, id);
+                if (res)
+                    return res;
+            }
+        }
+        return null;
+    }
+    getColumn(id) {
+        const { columns } = this.getPrev();
+        return columns.find(a => a.id === id);
+    }
+}
+
+=== 937 store/src/editors.ts	js
+import { uid } from "@svar-ui/lib-state";
+function rawGetter(key) {
+    return obj => obj[key];
+}
+function rawSetter(key) {
+    return (obj, v) => (obj[key] = v);
+}
+export function getValue(row, col) {
+    return (col.getter || rawGetter(col.id))(row);
+}
+export function setValue(row, col, v) {
+    return (col.setter || rawSetter(col.id))(row, v);
+}
+export function getEditorConfig(columns) {
+    return columns
+        .filter(a => !!a.editor)
+        .map(col => {
+        let obj = {
+            key: col.id || uid(),
+            label: col.header,
+        };
+        if (col.options)
+            obj.options = col.options;
+        let editor = col.editor;
+        if (typeof editor === "function")
+            editor = editor();
+        if (typeof editor === "object") {
+            obj = { ...obj, ...editor };
+            obj.comp = editor.type;
+        }
+        else
+            obj.comp = editor;
+        return obj;
+    });
+}
+
+=== 1422 store/src/export/csv.ts	js
+import { getRenderValue } from "./index";
+export function getCsvData(state, options) {
+    const reg = /\n|"|;|,/;
+    let csv = "";
+    const rowSep = options.rows || "\n";
+    const colSep = options.cols || "\t";
+    const cols = state._columns;
+    const data = state.flatData;
+    if (options.header !== false && cols[0].header)
+        csv = addCsvHeader("header", cols, csv, colSep, rowSep);
+    for (let r = 0; r < data.length; r++) {
+        const row = [];
+        for (let c = 0; c < cols.length; c++) {
+            let value = getRenderValue(data[r], cols[c]);
+            if (reg.test(value))
+                value = '"' + value.replace(/"/g, '""') + '"';
+            row.push(value);
+        }
+        csv += (csv ? rowSep : "") + row.join(colSep);
+    }
+    if (options.footer !== false && cols[0].footer)
+        csv = addCsvHeader("footer", cols, csv, colSep, rowSep);
+    return csv;
+}
+function addCsvHeader(type, cols, csv, colSep, rowSep) {
+    const reg = /\n|"|;|,/;
+    for (let r = 0; r < cols[0][type].length; r++) {
+        const row = [];
+        for (let c = 0; c < cols.length; c++) {
+            const header = cols[c][type][r];
+            let value = (header.text || "") + "";
+            if (reg.test(value))
+                value = '"' + value.replace(/"/g, '""') + '"';
+            row.push(value);
+        }
+        csv += (csv ? rowSep : "") + row.join(colSep);
+    }
+    return csv;
+}
+
+=== 661 store/src/export/index.ts	js
+import { getValue } from "../editors";
+export function download(blob, filename) {
+    const a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+}
+export function getRenderValue(row, col) {
+    let v = getValue(row, col) ?? "";
+    if (col.template) {
+        v = col.template(v, row, col);
+    }
+    else if (col.optionsMap) {
+        if (Array.isArray(v))
+            v = v.map(x => col.optionsMap.get(x)).join(", ");
+        else
+            v = col.optionsMap.get(v);
+    }
+    return typeof v === "undefined" ? "" : v + "";
+}
+
+=== 1800 store/src/filters.ts	js
+import { TFilterHandler, TFilterType, IFilterValues, IFilterColumn, } from "./types";
+import { getValue } from "./editors";
+export const filtersHandlers = {
+    text: (a, b) => {
+        if (a)
+            return a.toString().toLowerCase().indexOf(b.toLowerCase()) !== -1;
+        return !b;
+    },
+    richselect: (a, b) => {
+        if (typeof b !== "number" && !b)
+            return true;
+        return a == b;
+    },
+    datepicker: (a, b) => {
+        if (!b)
+            return true;
+        return a && isSameDate(a, b);
+    },
+    multiselect: (a, b) => {
+        if (!b || b?.length === 0)
+            return true;
+        if (Array.isArray(a))
+            return a?.some(item => b.includes(item));
+        return a && b.includes(a);
+    },
+};
+export function getFilterHandler(type) {
+    return filtersHandlers[type];
+}
+export function createFilter(filterValues, columns) {
+    const filters = [];
+    for (const field in filterValues) {
+        const column = columns.find(c => c.id == field); // the non-strict comparison, since field is always a string
+        const { config, type } = column.header.find(h => h.filter).filter;
+        const value = filterValues[field];
+        filters.push((obj) => {
+            const oValue = getValue(obj, column);
+            if (config?.handler) {
+                return config.handler(oValue, value);
+            }
+            return getFilterHandler(type)(oValue, value);
+        });
+    }
+    return (obj) => {
+        for (let i = 0; i < filters.length; i++) {
+            if (!filters[i](obj)) {
+                return false;
+            }
+        }
+        return true;
+    };
+}
+function isSameDate(a, b) {
+    return (a.getFullYear() === b.getFullYear() &&
+        a.getMonth() === b.getMonth() &&
+        a.getDate() === b.getDate());
+}
+
+=== 3751 store/src/helpers/actionHandlers.ts	js
+import { TID } from "@svar-ui/lib-state";
+export function handleAction(api, action) {
+    const { selectedRows, data, focusCell } = api.getState();
+    if (action !== "paste-row")
+        api._temp = null;
+    switch (action) {
+        case "add-row": {
+            if (selectedRows.length) {
+                selectedRows.forEach(id => api.exec("add-row", { row: {}, after: id }));
+            }
+            else
+                api.exec("add-row", { row: {} });
+            break;
+        }
+        case "add-row:before": {
+            selectedRows.forEach(id => api.exec("add-row", { row: {}, before: id }));
+            break;
+        }
+        case "add-row:after": {
+            selectedRows.forEach(id => api.exec("add-row", { row: {}, after: id }));
+            break;
+        }
+        case "open-editor": {
+            if (focusCell && selectedRows.includes(focusCell.row)) {
+                const column = api.getColumn(focusCell.column);
+                api.exec("open-editor", {
+                    id: focusCell.row,
+                    column: column.editor ? focusCell.column : undefined,
+                });
+            }
+            else {
+                api.exec("open-editor", {
+                    id: selectedRows[0],
+                });
+            }
+            break;
+        }
+        case "copy-row": {
+            selectedRows.forEach(id => {
+                if (!api._temp)
+                    api._temp = [];
+                api._temp.push({ id, cut: false });
+            });
+            break;
+        }
+        case "cut-row": {
+            selectedRows.forEach(id => {
+                if (!api._temp)
+                    api._temp = [];
+                api._temp.push({ id, cut: true });
+            });
+            break;
+        }
+        case "paste-row": {
+            if (api._temp?.length) {
+                const sortedTemp = [...api._temp].sort((a, b) => data.findIndex(d => d.id === b.id) -
+                    data.findIndex(d => d.id === a.id));
+                sortedTemp.forEach((temp, ti) => {
+                    selectedRows.forEach((id, ri) => {
+                        const ev = {
+                            id: temp.id,
+                            target: id,
+                            mode: "after",
+                        };
+                        api.exec(temp.cut ? "move-item" : "copy-row", ev);
+                        if (!temp.cut) {
+                            api.exec("select-row", {
+                                id: ev.id,
+                                toggle: !!ti || !!ri,
+                            });
+                        }
+                    });
+                });
+            }
+            break;
+        }
+        case "delete-row":
+            selectedRows.forEach(r => api.exec("delete-row", { id: r }));
+            break;
+        case "move-item:up": {
+            // sort rows according to their position in data
+            const sortedRows = [...selectedRows].sort((a, b) => data.findIndex(d => d.id === a) -
+                data.findIndex(d => d.id === b));
+            sortedRows.forEach(id => {
+                api.exec("move-item", { id, mode: "up" });
+            });
+            break;
+        }
+        case "move-item:down": {
+            // sort rows in reverse order according to their position in data
+            const sortedRows = [...selectedRows].sort((a, b) => data.findIndex(d => d.id === b) -
+                data.findIndex(d => d.id === a));
+            sortedRows.forEach(id => {
+                api.exec("move-item", { id, mode: "down" });
+            });
+            break;
+        }
+        case "undo":
+            api.exec("undo");
+            break;
+        case "redo":
+            api.exec("redo");
+            break;
+    }
+}
+
+=== 1112 store/src/helpers/assignChecks.ts	js
+export function assignChecks(items) {
+    return items.map(item => {
+        item = { ...item };
+        // handle nested items
+        if (item.data)
+            item.data = assignChecks(item.data);
+        if (item.items)
+            item.data = assignChecks(item.items);
+        switch (item.id) {
+            case "move-item:up":
+                item.isDisabled = (ids, data) => isFirstRow(ids, data);
+                break;
+            case "move-item:down":
+                item.isDisabled = (ids, data) => isLastRow(ids, data);
+                break;
+            case "undo":
+                item.isDisabled = (history) => !history.undo;
+                break;
+            case "redo":
+                item.isDisabled = (history) => !history.redo;
+                break;
+            case "paste-row":
+                item.isDisabled = (api) => !api._temp?.length;
+                break;
+        }
+        return item;
+    });
+}
+function isFirstRow(ids, data) {
+    return ids.some(id => data[0]?.id === id);
+}
+function isLastRow(ids, data) {
+    return ids.some(id => data[data.length - 1]?.id === id);
+}
+
+=== 838 store/src/helpers/menuOptions.ts	js
+export const defaultMenuOptions = [
+    {
+        id: "add-row:before",
+        text: "Add before",
+        icon: "wxi-table-row-plus-before",
+    },
+    {
+        id: "add-row:after",
+        text: "Add after",
+        icon: "wxi-table-row-plus-after",
+    },
+    {
+        id: "copy-row",
+        text: "Copy",
+        icon: "wxi-content-copy",
+    },
+    {
+        id: "cut-row",
+        text: "Cut",
+        icon: "wxi-content-cut",
+    },
+    {
+        id: "paste-row",
+        text: "Paste",
+        icon: "wxi-content-paste",
+    },
+    {
+        id: "move-item:up",
+        text: "Move up",
+        icon: "wxi-angle-up",
+    },
+    {
+        id: "move-item:down",
+        text: "Move down",
+        icon: "wxi-angle-down",
+    },
+    { comp: "separator" },
+    { id: "delete-row", text: "Delete", icon: "wxi-delete-outline" },
+];
+
+=== 1469 store/src/helpers/toolbarButtons.ts	js
+export const defaultToolbarButtons = [
+    {
+        id: "add-row",
+        comp: "button",
+        icon: "wxi-plus",
+        text: "New row",
+        type: "primary",
+    },
+    {
+        id: "open-editor",
+        comp: "icon",
+        icon: "wxi-edit",
+        menuText: "Edit",
+        text: "Edit",
+    },
+    {
+        id: "delete-row",
+        comp: "icon",
+        icon: "wxi-delete",
+        menuText: "Delete",
+        text: "Delete",
+    },
+    {
+        id: "copy-row",
+        comp: "icon",
+        icon: "wxi-content-copy",
+        menuText: "Copy",
+        text: "Copy",
+    },
+    {
+        id: "cut-row",
+        comp: "icon",
+        icon: "wxi-content-cut",
+        menuText: "Cut",
+        text: "Cut",
+    },
+    {
+        id: "paste-row",
+        comp: "icon",
+        icon: "wxi-content-paste",
+        menuText: "Paste",
+        text: "Paste",
+    },
+    {
+        id: "move-item:up",
+        comp: "icon",
+        icon: "wxi-angle-up",
+        menuText: "Move up",
+        text: "Move up",
+    },
+    {
+        id: "move-item:down",
+        comp: "icon",
+        icon: "wxi-angle-down",
+        menuText: "Move down",
+        text: "Move down",
+    },
+    { comp: "separator" },
+    {
+        id: "undo",
+        comp: "icon",
+        icon: "wxi-undo",
+        menuText: "Undo",
+        text: "Ctrl+Z",
+    },
+    {
+        id: "redo",
+        comp: "icon",
+        icon: "wxi-redo",
+        menuText: "Redo",
+        text: "Ctrl+Y",
+    },
+];
+
+=== 1419 store/src/hotkeys.ts	js
+import { locate, hotkeys as libHotkeys } from "@svar-ui/lib-dom";
+export const defaultHotkeys = {
+    tab: true,
+    "shift+tab": true,
+    arrowup: true,
+    arrowdown: true,
+    arrowright: true,
+    arrowleft: true,
+    enter: true,
+    escape: true,
+    f2: true,
+    home: true,
+    end: true,
+    "ctrl+home": true,
+    "ctrl+end": true,
+    "ctrl+z": true,
+    "ctrl+y": true,
+};
+export function hotkeys(node, { keys, exec }) {
+    if (!keys)
+        return;
+    function isTargetInput(event) {
+        const target = event.target;
+        return (target.tagName === "INPUT" ||
+            target.tagName === "TEXTAREA" ||
+            locate(target, "data-header-id")?.classList.contains("wx-filter") ||
+            !!target.closest(".wx-cell.wx-editor"));
+    }
+    const config = {};
+    for (const key in keys) {
+        const handler = keys[key];
+        if (typeof handler !== "undefined") {
+            if (typeof handler === "function") {
+                config[key] = handler;
+            }
+            else if (handler) {
+                config[key] = (event) => {
+                    const isInput = isTargetInput(event);
+                    exec({ key, event, isInput });
+                };
+            }
+        }
+    }
+    const unsubscribe = libHotkeys.subscribe(t => {
+        t.configure(config, node);
+    });
+    return {
+        destroy: () => {
+            unsubscribe();
+        },
+    };
+}
+
+=== 709 store/src/index.ts	js
+export { getRenderValue } from "./export";
+export { default as DataStore } from "./DataStore";
+export { hotkeys, defaultHotkeys } from "./hotkeys";
+export { scrollTo } from "./scroll";
+export { getEditorConfig, getValue } from "./editors";
+export { getStamp, isCommunity } from "./package";
+export { assignChecks } from "./helpers/assignChecks";
+export { defaultToolbarButtons } from "./helpers/toolbarButtons";
+export { defaultMenuOptions } from "./helpers/menuOptions";
+export { handleAction } from "./helpers/actionHandlers";
+export { createFilter } from "./filters";
+export { getPrintColumns, getHeaderFooterPrintColumns, getPrintCellStyle, getPrintFilterValue, } from "./print";
+export * from "./types";
+
+=== 351 store/src/menuOptions.ts	js
+export const defaultMenuOptions = [
+    { id: "add:before", text: "Add before", icon: "wxi-table-row-plus-before" },
+    { id: "add:after", text: "Add after", icon: "wxi-table-row-plus-after" },
+    { id: "copy", text: "Copy", icon: "wxi-content-copy" },
+    { comp: "separator" },
+    { id: "delete", text: "Delete", icon: "wxi-delete-outline" },
+];
+
+=== 136 store/src/package.ts	js
+export function getStamp() {
+    return { gen: 1 };
+}
+export function isCommunity() {
+    let community = true;
+    return community;
+}
+
+=== 5071 store/src/print.ts	js
+// default config and sizes
+const MODE = "portrait";
+const PPI = 100;
+const PAPER = "a4";
+const PAPERS = {
+    a3: { width: 11.7, height: 16.5 },
+    a4: { width: 8.27, height: 11.7 },
+    letter: { width: 8.5, height: 11 },
+};
+export function getPrintColumns(columns, config) {
+    const tables = [];
+    let cols = [];
+    let width = 0;
+    const visibleColumns = columns.filter(col => !col.hidden);
+    const maxWidth = getPaperWidth(config);
+    visibleColumns.forEach((v, index) => {
+        if (width + v.width <= maxWidth) {
+            width += v.width;
+            cols.push(v);
+        }
+        else {
+            if (cols.length)
+                tables.push(cols);
+            cols = [v];
+            width = v.width;
+        }
+        if (index === visibleColumns.length - 1 && cols.length) {
+            tables.push(cols);
+        }
+    });
+    return tables;
+}
+export function getHeaderFooterPrintColumns(columns, type, rowsHeights) {
+    const result = [];
+    columns.forEach((col, c) => {
+        const header = col[type];
+        for (let r = 0; r < rowsHeights.length; r++) {
+            if (!result[r])
+                result[r] = [];
+            const hcell = { ...header[r] };
+            if (result[r][c] !== null) {
+                // for the case when the сolspan was divided into parts in order to fit on the sheet, need to create new cell
+                if (!c && !hcell.rowspan && !hcell.colspan) {
+                    let colspan = 1;
+                    let nextCell = columns[c + colspan][type][r];
+                    let width = hcell.width;
+                    while (!nextCell.rowspan && !nextCell.colspan) {
+                        colspan++;
+                        nextCell = columns[c + colspan][type][r];
+                        width += nextCell.width;
+                    }
+                    hcell.colspan = colspan;
+                    hcell.width = width;
+                    hcell.height = rowsHeights[r];
+                }
+                result[r].push(hcell);
+                if (!hcell.collapsed && hcell.colspan > 1) {
+                    let colstubs = hcell.colspan - 1;
+                    // for the case when the сolspan goes beyond the sheet width
+                    if (hcell.colspan + c > columns.length) {
+                        const colspan = hcell.colspan -
+                            (hcell.colspan + c - columns.length);
+                        hcell.colspan = colspan;
+                        hcell.width = columns
+                            .slice(c, c + colstubs + 1)
+                            .reduce((a, b) => a + b.width, 0);
+                        if (colspan > 1)
+                            colstubs = colspan - 1;
+                    }
+                    for (let y = 0; y < colstubs; y++)
+                        result[r].push(null);
+                }
+                if (hcell.rowspan > 1) {
+                    const rowstubs = hcell.rowspan;
+                    for (let y = 1; y < rowstubs; y++) {
+                        if (!result[r + y])
+                            result[r + y] = [];
+                        result[r + y].push(null);
+                    }
+                }
+            }
+        }
+        if (col.collapsed) {
+            for (let i = 0; i < result.length; i++) {
+                const rRow = result[i];
+                const currentCell = rRow[c];
+                if (currentCell && currentCell.collapsed) {
+                    rRow[c] = null;
+                    if (!i)
+                        break;
+                }
+                else {
+                    const lastCell = currentCell ||
+                        rRow.findLast(cell => cell?.colspan >= 1);
+                    if (lastCell) {
+                        lastCell.colspan = lastCell.colspan - 1;
+                        lastCell.width = lastCell.width - col.width;
+                    }
+                }
+            }
+        }
+    });
+    return result.map(row => row.filter(c => c && c.colspan !== 0));
+}
+function getPaperWidth(config) {
+    const { mode, ppi, paper } = config;
+    const { width, height } = PAPERS[paper];
+    return getPixels(mode === "portrait" ? width : height, ppi);
+}
+function getPixels(inches, ppi) {
+    return inches * ppi;
+}
+export function normalizePrintConfig(config = {}) {
+    const { mode, ppi, paper } = config;
+    return {
+        mode: mode || MODE,
+        ppi: ppi || PPI,
+        paper: paper || PAPER,
+    };
+}
+export function getPrintCellStyle(cell, columnWidth) {
+    if (cell.flexgrow)
+        return `min-width:${columnWidth}px;width:auto`;
+    return `width:${cell.width}px; max-width:${cell.width}px; height:${cell.height}px`;
+}
+export function getPrintFilterValue(filterValues, columns, cell) {
+    let value = filterValues[cell.id];
+    if (cell.filter.type === "richselect" && value) {
+        const options = cell.filter.config?.options ||
+            columns.find(({ id }) => id == cell.id).options;
+        if (options) {
+            value = options.find(({ id }) => id == value).label;
+        }
+    }
+    return value ?? "";
+}
+
+=== 1317 store/src/scroll.ts	js
+export function scrollTo(node, config) {
+    let prev = null;
+    config.scroll.subscribe((v) => {
+        if (!v || v === prev)
+            return;
+        prev = v;
+        const { left, top, height, width } = v;
+        const bHeight = config.getHeight();
+        const bWidth = config.getWidth();
+        const margin = config.getScrollMargin();
+        if (top >= 0) {
+            const now = node.scrollTop;
+            if (top < now) {
+                node.scrollTop = top;
+            }
+            else if (top + height > now + bHeight) {
+                node.scrollTop = top - bHeight + height;
+            }
+        }
+        if (left >= 0) {
+            const now = node.scrollLeft;
+            if (left < now) {
+                node.scrollLeft = left;
+            }
+            else if (left + width > now + bWidth - margin) {
+                node.scrollLeft = left - bWidth + width + margin;
+            }
+        }
+    });
+    config.scrollLeft?.subscribe?.((v) => {
+        requestAnimationFrame(() => {
+            if (Math.abs(node.scrollLeft - v) > 1)
+                node.scrollLeft = v;
+        });
+    });
+    config.scrollTop?.subscribe?.((v) => {
+        requestAnimationFrame(() => {
+            if (Math.abs(node.scrollTop - v) > 1)
+                node.scrollTop = v;
+        });
+    });
+}
+
+=== 4986 store/src/sizes.ts	js
+import { getRenderValue } from "./export";
+const BASE_CELL_OFFSET = 28; // base offset for grid cells
+const SORT_EL_OFFSET = 20; // offset for sort arrows
+export function suggestSkin() {
+    // FIXME :: Svelte-kit
+    if (typeof document === "undefined")
+        return "willow";
+    const skin = document.querySelector('[class^="wx"][class$="theme"]');
+    if (!skin)
+        return "willow";
+    return skin.className.substring(3, skin.className.length - 6);
+}
+function getTextSize(text, css, skin, offsets, basewidth) {
+    const container = document.createElement("div");
+    const content = document.createElement("div");
+    const target = document.body;
+    basewidth = basewidth ? `${basewidth}px` : "auto";
+    let width;
+    let height;
+    content.className = css;
+    container.classList.add(`wx-${skin}-theme`);
+    container.style.cssText = `height:auto;position:absolute;top:0px;left:100px;overflow:hidden;width=${basewidth};white-space:nowrap;`;
+    container.appendChild(content);
+    target.appendChild(container);
+    if (typeof text != "object")
+        text = [text];
+    for (let i = 0; i < text.length; i++) {
+        content.innerText = text[i] + "";
+        const rect = container.getBoundingClientRect();
+        const rectWidth = Math.ceil(rect.width) +
+            (offsets && offsets.length ? offsets[i] : 0);
+        const rectHeight = Math.ceil(rect.height);
+        width = Math.max(width || 0, rectWidth);
+        height = Math.max(height || 0, rectHeight);
+    }
+    container.remove();
+    return { width, height };
+}
+export function getHeaderFooterHeights(columns, condition, rowsCount, defaultHeight, skin) {
+    const headerRowHeights = [];
+    for (let c = 0; c < columns.length; c++) {
+        const column = columns[c][condition];
+        const length = column.length;
+        for (let r = 0; r < length; r++) {
+            const { text, vertical, collapsed, rowspan, css } = column[r];
+            if (!text) {
+                headerRowHeights[r] = Math.max(headerRowHeights[r] || 0, defaultHeight);
+                continue;
+            }
+            let height = 0;
+            if (vertical && !collapsed) {
+                let cellCss = `wx-measure-cell-${condition}`;
+                cellCss += css ? ` ${css}` : "";
+                height = getTextSize(text, cellCss, skin).width;
+                // need to find out if current vertical cell is a rowspan
+                if ((rowspan > 1 || !column[r + 1]) && rowsCount > r + 1) {
+                    // need to calculate previous sum of same rows heights.
+                    // if sum is less then current height than need to add diff btw sum and height to each cell
+                    const count = rowspan || rowsCount - r;
+                    const prevHeight = headerRowHeights
+                        .slice(r, r + count)
+                        .reduce((sum, value) => sum + value, 0);
+                    if (prevHeight < height) {
+                        const diff = Math.ceil((height - prevHeight) / count);
+                        for (let i = r; i < r + count; i++)
+                            headerRowHeights[i] =
+                                (headerRowHeights[i] || defaultHeight) + diff;
+                    }
+                    continue;
+                }
+            }
+            headerRowHeights[r] = Math.max(headerRowHeights[r] || defaultHeight, height);
+        }
+    }
+    return headerRowHeights;
+}
+export function getColumnWidth(col, data, skin) {
+    const text = [];
+    const offsets = [];
+    let css = "wx-measure-cell-body";
+    css += col.css ? ` ${col.css}` : "";
+    for (let i = 0; i < data.length; i++) {
+        const row = data[i];
+        const colText = getRenderValue(row, col);
+        if (colText) {
+            text.push(colText);
+            if (col.treetoggle) {
+                offsets.push(data[i].$level * BASE_CELL_OFFSET +
+                    (data[i].$count ? BASE_CELL_OFFSET : 0) +
+                    (col.draggable ? BASE_CELL_OFFSET : 0));
+            }
+            else if (col.draggable) {
+                offsets.push(BASE_CELL_OFFSET);
+            }
+        }
+    }
+    return getTextSize(text, css, skin, offsets).width;
+}
+export function getHeaderColWidth(column, skin) {
+    const css = "wx-measure-cell-header";
+    const sortElOffset = column.sort ? SORT_EL_OFFSET : 0;
+    let header = column.header;
+    if (typeof header === "string")
+        return getTextSize(header, css, skin).width + sortElOffset;
+    let width;
+    if (!Array.isArray(header))
+        header = [header];
+    for (let i = 0; i < header.length; i++) {
+        const cell = header[i];
+        const text = typeof cell === "string" ? cell : cell.text;
+        const style = css + (typeof cell === "string" ? "" : ` ${cell.css}`);
+        let currWidth = getTextSize(text, style, skin).width;
+        if (i === header.length - 1)
+            currWidth += sortElOffset;
+        width = Math.max(width || 0, currWidth);
+    }
+    return width;
+}
+
+=== 1308 store/src/sort.ts	js
+import { getValue } from "./editors";
+function sortAsc(a, b) {
+    if (typeof a === "undefined" || a === null)
+        return -1;
+    if (typeof b === "undefined" || b === null)
+        return 1;
+    return a === b ? 0 : a > b ? 1 : -1;
+}
+function sortDesc(a, b) {
+    return -sortAsc(a, b);
+}
+function sortBy(order, column) {
+    if (typeof column.sort === "function") {
+        return function (a, b) {
+            const comparisonResult = column.sort(a, b);
+            return order === "asc" ? comparisonResult : -comparisonResult;
+        };
+    }
+    const sortMethod = order === "asc" ? sortAsc : sortDesc;
+    return function (a, b) {
+        return sortMethod(getValue(a, column), getValue(b, column));
+    };
+}
+export function sortByMany(sortArray, columns) {
+    if (!sortArray || !sortArray.length)
+        return;
+    const sorts = sortArray.map(item => {
+        const column = columns.find(c => c.id == item.key); // the non-strict comparison, since field is always a string
+        return sortBy(item.order, column);
+    });
+    if (sortArray.length === 1)
+        return sorts[0];
+    return function (a, b) {
+        for (let i = 0; i < sorts.length; i++) {
+            const res = sorts[i](a, b);
+            if (res !== 0)
+                return res;
+        }
+        return 0;
+    };
+}
+
+=== 11 store/src/types.ts	js
+export {};
+
+=== 76659 store/test/datastore.spec.ts	js
+/* eslint-disable vitest/valid-expect */
+import { describe, expect, vi, beforeEach, afterEach, test } from "vitest";
+import { DataStore, IHeaderCell, ISearchValue, IRow } from "../src/index";
+import { getData, shuffle, sortByWeight } from "./stubs/data";
+import { writable } from "./stubs/writable";
+import { findById, extractPropsAndFlatten, findColumnById, } from "./stubs/helpers";
+import { TID } from "@svar-ui/lib-state";
+let store;
+function resetState(data) {
+    if (!data)
+        data = getData();
+    store = new DataStore(writable);
+    store.init({
+        selectedRows: [],
+        ...data,
+    });
+}
+beforeEach(() => {
+    vi.useFakeTimers({ shouldAdvanceTime: true });
+});
+afterEach(() => {
+    vi.useRealTimers();
+});
+describe("datastore", () => {
+    describe("datastore init", () => {
+        test("initializes correctly", () => {
+            resetState();
+            const { data } = store.getState();
+            // eslint-disable-next-line @typescript-eslint/no-unused-expressions
+            expect(store).to.not.be.undefined;
+            expect(data.length).to.eq(6);
+        });
+    });
+    test("opens and closes branches in tree mode", () => {
+        resetState(getData("tree"));
+        store.in.exec("close-row", { id: 1 });
+        let { data, flatData } = store.getState();
+        expect(findById(data, 1).open).to.eq(false);
+        expect(findById(flatData, 1).open).to.eq(false);
+        store.in.exec("open-row", { id: 1 });
+        let state = store.getState();
+        data = state.data;
+        flatData = state.flatData;
+        expect(findById(data, 1).open).to.eq(true);
+        expect(findById(flatData, 1).open).to.eq(true);
+        store.in.exec("close-row", { id: 4, nested: true });
+        state = store.getState();
+        data = state.data;
+        flatData = state.flatData;
+        expect(flatData.length).to.eq(20);
+        expect(findById(data, 8).open).to.eq(false);
+        store.in.exec("open-row", { id: 4 });
+        state = store.getState();
+        data = state.data;
+        flatData = state.flatData;
+        expect(flatData.length).to.eq(21);
+        expect(findById(data, 8).open).to.eq(false);
+        store.in.exec("open-row", { id: 5, nested: true });
+        state = store.getState();
+        data = state.data;
+        flatData = state.flatData;
+        expect(flatData.length).to.eq(25);
+        expect(findById(data, 8).open).to.eq(true);
+        store.in.exec("close-row", { id: 0, nested: true });
+        state = store.getState();
+        data = state.data;
+        flatData = state.flatData;
+        expect(flatData.length).to.eq(3);
+        expect(findById(data, 1).open).to.eq(false);
+        expect(findById(data, 2).open).to.eq(false);
+        store.in.exec("open-row", { id: 5 });
+        state = store.getState();
+        data = state.data;
+        flatData = state.flatData;
+        expect(flatData.length).to.eq(3);
+        expect(findById(data, 1).open).to.eq(false);
+        expect(findById(data, 2).open).to.eq(false);
+        expect(findById(data, 5).open).to.eq(true);
+        store.in.exec("open-row", { id: 0, nested: true });
+        state = store.getState();
+        data = state.data;
+        flatData = state.flatData;
+        expect(flatData.length).to.eq(25);
+        expect(findById(data, 8).open).to.eq(true);
+    });
+    describe("sort-rows", () => {
+        test("can set sortMarks correctly for single key", () => {
+            resetState(getData());
+            const key = "name";
+            store.in.exec("sort-rows", { key, order: "asc" });
+            let { sortMarks } = store.getState();
+            expect(sortMarks[key]).to.deep.equal({ order: "asc" });
+            store.in.exec("sort-rows", { key });
+            ({ sortMarks } = store.getState());
+            expect(sortMarks[key]).to.deep.equal({ order: "asc" });
+            store.in.exec("sort-rows", { key, order: "desc", add: true });
+            ({ sortMarks } = store.getState());
+            expect(sortMarks[key]).to.deep.equal({ order: "desc" });
+        });
+        test("can set sortMarks correctly for multiple keys", () => {
+            resetState(getData());
+            store.in.exec("sort-rows", { key: "name", order: "asc" });
+            store.in.exec("sort-rows", {
+                key: "type",
+                order: "asc",
+                add: true,
+            });
+            let { sortMarks } = store.getState();
+            expect(sortMarks).to.deep.equal({
+                name: { order: "asc", index: 0 },
+                type: { order: "asc", index: 1 },
+            });
+            store.in.exec("sort-rows", { key: "name", add: true });
+            ({ sortMarks } = store.getState());
+            expect(sortMarks).to.deep.equal({
+                name: { order: "asc", index: 0 },
+                type: { order: "asc", index: 1 },
+            });
+            store.in.exec("sort-rows", { key: "id", add: true, order: "desc" });
+            ({ sortMarks } = store.getState());
+            expect(sortMarks).to.deep.equal({
+                name: { order: "asc", index: 0 },
+                type: { order: "asc", index: 1 },
+                id: { order: "desc", index: 2 },
+            });
+        });
+        test("can sort plain data in ascending order", () => {
+            const d = getData();
+            resetState({ ...d, data: shuffle(d.data) });
+            store.in.exec("sort-rows", { key: "name", order: "asc" });
+            const { data, flatData } = store.getState();
+            expect(data).to.deep.eq(getData().data);
+            expect(data.map(x => x.name)).to.deep.eq([
+                "Item 1",
+                "Item 2",
+                "Item 3",
+                "Item 4",
+                "Item 5",
+                "Item 6",
+            ]);
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Item 1",
+                "Item 2",
+                "Item 3",
+                "Item 4",
+                "Item 5",
+                "Item 6",
+            ]);
+        });
+        test("can sort plain data by multiple keys (ascending initial)", () => {
+            const d = getData();
+            resetState({ ...d, data: shuffle(d.data) });
+            store.in.exec("sort-rows", { key: "type", order: "asc" });
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "asc",
+                add: true,
+            });
+            let { data, flatData } = store.getState();
+            expect(data.map(x => [x.name, x.type])).to.deep.eq([
+                ["Item 1", "Type 1"],
+                ["Item 2", "Type 1"],
+                ["Item 3", "Type 1"],
+                ["Item 4", "Type 2"],
+                ["Item 5", "Type 2"],
+                ["Item 6", "Type 2"],
+            ]);
+            expect(flatData.map(x => [x.name, x.type])).to.deep.eq([
+                ["Item 1", "Type 1"],
+                ["Item 2", "Type 1"],
+                ["Item 3", "Type 1"],
+                ["Item 4", "Type 2"],
+                ["Item 5", "Type 2"],
+                ["Item 6", "Type 2"],
+            ]);
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "desc",
+                add: true,
+            });
+            ({ data, flatData } = store.getState());
+            expect(data.map(x => [x.name, x.type])).to.deep.eq([
+                ["Item 3", "Type 1"],
+                ["Item 2", "Type 1"],
+                ["Item 1", "Type 1"],
+                ["Item 6", "Type 2"],
+                ["Item 5", "Type 2"],
+                ["Item 4", "Type 2"],
+            ]);
+            expect(flatData.map(x => [x.name, x.type])).to.deep.eq([
+                ["Item 3", "Type 1"],
+                ["Item 2", "Type 1"],
+                ["Item 1", "Type 1"],
+                ["Item 6", "Type 2"],
+                ["Item 5", "Type 2"],
+                ["Item 4", "Type 2"],
+            ]);
+        });
+        test("can sort plain data in descending order", () => {
+            resetState();
+            store.in.exec("sort-rows", { key: "name", order: "desc" });
+            const { data, flatData } = store.getState();
+            expect(data.map(x => x.name)).to.deep.eq([
+                "Item 6",
+                "Item 5",
+                "Item 4",
+                "Item 3",
+                "Item 2",
+                "Item 1",
+            ]);
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Item 6",
+                "Item 5",
+                "Item 4",
+                "Item 3",
+                "Item 2",
+                "Item 1",
+            ]);
+        });
+        test("can sort plain data by multiple keys (descending initial)", () => {
+            const d = getData();
+            resetState({ ...d, data: shuffle(d.data) });
+            store.in.exec("sort-rows", { key: "type", order: "desc" });
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "asc",
+                add: true,
+            });
+            let { data, flatData } = store.getState();
+            expect(data.map(x => [x.name, x.type])).to.deep.eq([
+                ["Item 4", "Type 2"],
+                ["Item 5", "Type 2"],
+                ["Item 6", "Type 2"],
+                ["Item 1", "Type 1"],
+                ["Item 2", "Type 1"],
+                ["Item 3", "Type 1"],
+            ]);
+            expect(flatData.map(x => [x.name, x.type])).to.deep.eq([
+                ["Item 4", "Type 2"],
+                ["Item 5", "Type 2"],
+                ["Item 6", "Type 2"],
+                ["Item 1", "Type 1"],
+                ["Item 2", "Type 1"],
+                ["Item 3", "Type 1"],
+            ]);
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "desc",
+                add: true,
+            });
+            ({ data, flatData } = store.getState());
+            expect(data.map(x => [x.name, x.type])).to.deep.eq([
+                ["Item 6", "Type 2"],
+                ["Item 5", "Type 2"],
+                ["Item 4", "Type 2"],
+                ["Item 3", "Type 1"],
+                ["Item 2", "Type 1"],
+                ["Item 1", "Type 1"],
+            ]);
+            expect(flatData.map(x => [x.name, x.type])).to.deep.eq([
+                ["Item 6", "Type 2"],
+                ["Item 5", "Type 2"],
+                ["Item 4", "Type 2"],
+                ["Item 3", "Type 1"],
+                ["Item 2", "Type 1"],
+                ["Item 1", "Type 1"],
+            ]);
+        });
+        test("sorting handles empty/undefined fields", () => {
+            resetState(getData("empty"));
+            store.in.exec("sort-rows", { key: "name", order: "asc" });
+            let { data, flatData } = store.getState();
+            expect(data.map(x => x.name)).to.deep.eq([
+                null,
+                undefined,
+                undefined,
+                "",
+                "Item 1",
+                "Item 2",
+                "Item 3",
+                "Item 4",
+            ]);
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                null,
+                undefined,
+                undefined,
+                "",
+                "Item 1",
+                "Item 2",
+                "Item 3",
+                "Item 4",
+            ]);
+            store.in.exec("sort-rows", { key: "name", order: "desc" });
+            ({ data, flatData } = store.getState());
+            expect(data.map(x => x.name)).to.deep.eq([
+                "Item 4",
+                "Item 3",
+                "Item 2",
+                "Item 1",
+                "",
+                null,
+                undefined,
+                undefined,
+            ]);
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Item 4",
+                "Item 3",
+                "Item 2",
+                "Item 1",
+                "",
+                null,
+                undefined,
+                undefined,
+            ]);
+            store.in.exec("sort-rows", { key: "type", order: "asc" });
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "desc",
+                add: true,
+            });
+            ({ data, flatData } = store.getState());
+            expect(data.map(x => [x.name, x.type])).to.deep.eq([
+                ["Item 1", "Type 1"],
+                ["", "Type 1"],
+                [undefined, "Type 1"],
+                ["Item 3", "Type 2"],
+                ["Item 2", "Type 2"],
+                [undefined, "Type 2"],
+                ["Item 4", "Type 3"],
+                [null, "Type 3"],
+            ]);
+            expect(flatData.map(x => [x.name, x.type])).to.deep.eq([
+                ["Item 1", "Type 1"],
+                ["", "Type 1"],
+                [undefined, "Type 1"],
+                ["Item 3", "Type 2"],
+                ["Item 2", "Type 2"],
+                [undefined, "Type 2"],
+                ["Item 4", "Type 3"],
+                [null, "Type 3"],
+            ]);
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "asc",
+                add: true,
+            });
+            ({ data, flatData } = store.getState());
+            expect(data.map(x => [x.name, x.type])).to.deep.eq([
+                [undefined, "Type 1"],
+                ["", "Type 1"],
+                ["Item 1", "Type 1"],
+                [undefined, "Type 2"],
+                ["Item 2", "Type 2"],
+                ["Item 3", "Type 2"],
+                [null, "Type 3"],
+                ["Item 4", "Type 3"],
+            ]);
+            expect(flatData.map(x => [x.name, x.type])).to.deep.eq([
+                [undefined, "Type 1"],
+                ["", "Type 1"],
+                ["Item 1", "Type 1"],
+                [undefined, "Type 2"],
+                ["Item 2", "Type 2"],
+                ["Item 3", "Type 2"],
+                [null, "Type 3"],
+                ["Item 4", "Type 3"],
+            ]);
+        });
+        test("can sort hierarchical data in ascending order", () => {
+            const d = getData("tree");
+            resetState({ ...d, data: shuffle(d.data) });
+            store.in.exec("sort-rows", { key: "name", order: "asc" });
+            const { data, flatData } = store.getState();
+            expect(extractPropsAndFlatten({ data })).to.deep.eq([
+                "Parent 1",
+                "Kid 1",
+                "Kid 2",
+                "Parent 2",
+                "Kid 3",
+                "Grandkid 1",
+                "Grandkid 2",
+                "Great-grandkid 1",
+                "Great-great-grandkid 1",
+                "Parent 3",
+                "Kid 4",
+                "Kid 5",
+                "Grandkid 3",
+                "Grandkid 4",
+                "Great-grandkid 2",
+                "Great-grandkid 3",
+                "Great-great-grandkid 2",
+                "Great-great-great-grandkid 1",
+                "Great-great-great-grandkid 2",
+                "Grandkid 5",
+                "Grandkid 6",
+                "Kid 6",
+                "Kid 7",
+                "Kid 8",
+                "Kid 9",
+            ]);
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Parent 1",
+                "Kid 1",
+                "Kid 2",
+                "Parent 2",
+                "Kid 3",
+                "Grandkid 1",
+                "Grandkid 2",
+                "Great-grandkid 1",
+                "Great-great-grandkid 1",
+                "Parent 3",
+                "Kid 4",
+                "Kid 5",
+                "Grandkid 3",
+                "Grandkid 4",
+                "Great-grandkid 2",
+                "Great-grandkid 3",
+                "Great-great-grandkid 2",
+                "Great-great-great-grandkid 1",
+                "Great-great-great-grandkid 2",
+                "Grandkid 5",
+                "Grandkid 6",
+                "Kid 6",
+                "Kid 7",
+                "Kid 8",
+                "Kid 9",
+            ]);
+        });
+        test("can sort hierarchical data by multiple keys (ascending initial)", () => {
+            resetState(getData("tree_short"));
+            store.in.exec("sort-rows", { key: "type", order: "asc" });
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "asc",
+                add: true,
+            });
+            let { data, flatData } = store.getState();
+            expect(extractPropsAndFlatten({ data }, ["name", "type"])).to.deep.eq([
+                ["Parent 2", "Type 1"],
+                ["Kid 6", "Type 1"],
+                ["Kid 7", "Type 2"],
+                ["Kid 5", "Type 3"],
+                ["Parent 1", "Type 2"],
+                ["Kid 4", "Type 1"],
+                ["Kid 2", "Type 2"],
+                ["Kid 3", "Type 2"],
+                ["Grandkid 1", "Type 1"],
+                ["Grandkid 2", "Type 2"],
+                ["Grandkid 3", "Type 2"],
+                ["Kid 1", "Type 3"],
+                ["Parent 3", "Type 2"],
+            ]);
+            expect(flatData.map(x => [x.name, x.type])).to.deep.eq([
+                ["Parent 2", "Type 1"],
+                ["Kid 6", "Type 1"],
+                ["Kid 7", "Type 2"],
+                ["Kid 5", "Type 3"],
+                ["Parent 1", "Type 2"],
+                ["Kid 4", "Type 1"],
+                ["Kid 2", "Type 2"],
+                ["Kid 3", "Type 2"],
+                ["Grandkid 1", "Type 1"],
+                ["Grandkid 2", "Type 2"],
+                ["Grandkid 3", "Type 2"],
+                ["Kid 1", "Type 3"],
+                ["Parent 3", "Type 2"],
+            ]);
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "desc",
+                add: true,
+            });
+            ({ data, flatData } = store.getState());
+            expect(extractPropsAndFlatten({ data }, ["name", "type"])).to.deep.eq([
+                ["Parent 2", "Type 1"],
+                ["Kid 6", "Type 1"],
+                ["Kid 7", "Type 2"],
+                ["Kid 5", "Type 3"],
+                ["Parent 3", "Type 2"],
+                ["Parent 1", "Type 2"],
+                ["Kid 4", "Type 1"],
+                ["Kid 3", "Type 2"],
+                ["Grandkid 1", "Type 1"],
+                ["Grandkid 3", "Type 2"],
+                ["Grandkid 2", "Type 2"],
+                ["Kid 2", "Type 2"],
+                ["Kid 1", "Type 3"],
+            ]);
+            expect(flatData.map(x => [x.name, x.type])).to.deep.eq([
+                ["Parent 2", "Type 1"],
+                ["Kid 6", "Type 1"],
+                ["Kid 7", "Type 2"],
+                ["Kid 5", "Type 3"],
+                ["Parent 3", "Type 2"],
+                ["Parent 1", "Type 2"],
+                ["Kid 4", "Type 1"],
+                ["Kid 3", "Type 2"],
+                ["Grandkid 1", "Type 1"],
+                ["Grandkid 3", "Type 2"],
+                ["Grandkid 2", "Type 2"],
+                ["Kid 2", "Type 2"],
+                ["Kid 1", "Type 3"],
+            ]);
+        });
+        test("can sort hierarchical data in descending order", () => {
+            resetState(getData("tree"));
+            store.in.exec("sort-rows", { key: "name", order: "desc" });
+            const { data, flatData } = store.getState();
+            expect(extractPropsAndFlatten({ data })).to.deep.eq([
+                "Parent 3",
+                "Kid 9",
+                "Kid 8",
+                "Kid 7",
+                "Kid 6",
+                "Kid 5",
+                "Grandkid 6",
+                "Grandkid 5",
+                "Grandkid 4",
+                "Great-grandkid 3",
+                "Great-great-grandkid 2",
+                "Great-great-great-grandkid 2",
+                "Great-great-great-grandkid 1",
+                "Great-grandkid 2",
+                "Grandkid 3",
+                "Kid 4",
+                "Parent 2",
+                "Kid 3",
+                "Grandkid 2",
+                "Great-grandkid 1",
+                "Great-great-grandkid 1",
+                "Grandkid 1",
+                "Parent 1",
+                "Kid 2",
+                "Kid 1",
+            ]);
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Parent 3",
+                "Kid 9",
+                "Kid 8",
+                "Kid 7",
+                "Kid 6",
+                "Kid 5",
+                "Grandkid 6",
+                "Grandkid 5",
+                "Grandkid 4",
+                "Great-grandkid 3",
+                "Great-great-grandkid 2",
+                "Great-great-great-grandkid 2",
+                "Great-great-great-grandkid 1",
+                "Great-grandkid 2",
+                "Grandkid 3",
+                "Kid 4",
+                "Parent 2",
+                "Kid 3",
+                "Grandkid 2",
+                "Great-grandkid 1",
+                "Great-great-grandkid 1",
+                "Grandkid 1",
+                "Parent 1",
+                "Kid 2",
+                "Kid 1",
+            ]);
+        });
+        test("can sort hierarchical data by multiple keys (descending initial)", () => {
+            resetState(getData("tree_short"));
+            store.in.exec("sort-rows", { key: "type", order: "desc" });
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "asc",
+                add: true,
+            });
+            let { data, flatData } = store.getState();
+            expect(extractPropsAndFlatten({ data }, ["name", "type"])).to.deep.eq([
+                ["Parent 1", "Type 2"],
+                ["Kid 1", "Type 3"],
+                ["Kid 2", "Type 2"],
+                ["Kid 3", "Type 2"],
+                ["Grandkid 2", "Type 2"],
+                ["Grandkid 3", "Type 2"],
+                ["Grandkid 1", "Type 1"],
+                ["Kid 4", "Type 1"],
+                ["Parent 3", "Type 2"],
+                ["Parent 2", "Type 1"],
+                ["Kid 5", "Type 3"],
+                ["Kid 7", "Type 2"],
+                ["Kid 6", "Type 1"],
+            ]);
+            expect(flatData.map(x => [x.name, x.type])).to.deep.eq([
+                ["Parent 1", "Type 2"],
+                ["Kid 1", "Type 3"],
+                ["Kid 2", "Type 2"],
+                ["Kid 3", "Type 2"],
+                ["Grandkid 2", "Type 2"],
+                ["Grandkid 3", "Type 2"],
+                ["Grandkid 1", "Type 1"],
+                ["Kid 4", "Type 1"],
+                ["Parent 3", "Type 2"],
+                ["Parent 2", "Type 1"],
+                ["Kid 5", "Type 3"],
+                ["Kid 7", "Type 2"],
+                ["Kid 6", "Type 1"],
+            ]);
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "desc",
+                add: true,
+            });
+            ({ data, flatData } = store.getState());
+            expect(extractPropsAndFlatten({ data }, ["name", "type"])).to.deep.eq([
+                ["Parent 3", "Type 2"],
+                ["Parent 1", "Type 2"],
+                ["Kid 1", "Type 3"],
+                ["Kid 3", "Type 2"],
+                ["Grandkid 3", "Type 2"],
+                ["Grandkid 2", "Type 2"],
+                ["Grandkid 1", "Type 1"],
+                ["Kid 2", "Type 2"],
+                ["Kid 4", "Type 1"],
+                ["Parent 2", "Type 1"],
+                ["Kid 5", "Type 3"],
+                ["Kid 7", "Type 2"],
+                ["Kid 6", "Type 1"],
+            ]);
+            expect(flatData.map(x => [x.name, x.type])).to.deep.eq([
+                ["Parent 3", "Type 2"],
+                ["Parent 1", "Type 2"],
+                ["Kid 1", "Type 3"],
+                ["Kid 3", "Type 2"],
+                ["Grandkid 3", "Type 2"],
+                ["Grandkid 2", "Type 2"],
+                ["Grandkid 1", "Type 1"],
+                ["Kid 2", "Type 2"],
+                ["Kid 4", "Type 1"],
+                ["Parent 2", "Type 1"],
+                ["Kid 5", "Type 3"],
+                ["Kid 7", "Type 2"],
+                ["Kid 6", "Type 1"],
+            ]);
+        });
+        test("can sort data with column sort function", () => {
+            const d = getData("with_sort_weight");
+            resetState({
+                ...d,
+                columns: [
+                    ...d.columns,
+                    {
+                        id: "sortWeight",
+                        sort: sortByWeight,
+                    },
+                ],
+                data: shuffle(d.data),
+            });
+            store.in.exec("sort-rows", { key: "sortWeight", order: "asc" });
+            const { data } = store.getState();
+            expect(data).to.deep.eq(getData("with_sort_weight").data);
+        });
+        test("can sort data with function provided by sort api call", () => {
+            const d = getData("with_sort_weight");
+            resetState({
+                ...d,
+                columns: [
+                    ...d.columns,
+                    {
+                        id: "sortWeight",
+                    },
+                ],
+                data: shuffle(d.data),
+            });
+            store.in.exec("sort-rows", {
+                key: "sortWeight",
+                order: "asc",
+                sort: sortByWeight,
+            });
+            const { data } = store.getState();
+            expect(data).to.deep.eq(getData("with_sort_weight").data);
+        });
+        test("can apply sort index via api call 'add' argument", () => {
+            const d = getData("with_subtype");
+            resetState({ ...d, data: shuffle(d.data) });
+            store.in.exec("sort-rows", { key: "type", order: "desc" });
+            store.in.exec("sort-rows", {
+                key: "name",
+                order: "asc",
+            });
+            store.in.exec("sort-rows", {
+                key: "subtype",
+                order: "asc",
+                add: 0,
+            });
+            const { data } = store.getState();
+            expect(data.map(x => [x.name, x.type, x.subtype])).to.deep.eq([
+                ["Item 3", "Type 1", "Subtype 1"],
+                ["Item 6", "Type 2", "Subtype 1"],
+                ["Item 1", "Type 1", "Subtype 2"],
+                ["Item 2", "Type 1", "Subtype 2"],
+                ["Item 4", "Type 2", "Subtype 2"],
+                ["Item 5", "Type 2", "Subtype 2"],
+            ]);
+        });
+    });
+    describe("filter-rows", () => {
+        test("can set filterValues correctly", () => {
+            resetState(getData("filters"));
+            const filters = [
+                { key: "name", value: "i" },
+                { key: "name", value: "it" },
+                { key: "name", value: "ite" },
+                { key: "name", value: "it" },
+            ];
+            let filterValues;
+            filters.forEach(f => {
+                store.in.exec("filter-rows", f);
+                ({ filterValues } = store.getState());
+                expect(filterValues).to.deep.eq({
+                    [f.key]: f.value,
+                });
+            });
+            store.in.exec("filter-rows", { key: "type", value: "t" });
+            store.in.exec("filter-rows", { key: "season", value: 3 });
+            ({ filterValues } = store.getState());
+            expect(filterValues).to.deep.eq({
+                name: "it",
+                type: "t",
+                season: 3,
+            });
+            store.in.exec("filter-rows", { key: "type", value: "" });
+            ({ filterValues } = store.getState());
+            expect(filterValues).to.deep.eq({
+                name: "it",
+                type: "",
+                season: 3,
+            });
+        });
+        test("can reset filterValues correctly", () => {
+            resetState(getData("filters"));
+            const filters = [
+                { key: "name", value: "it" },
+                { key: "type", value: "y" },
+                { key: "season", value: 2 },
+            ];
+            filters.forEach(f => {
+                store.in.exec("filter-rows", f);
+            });
+            store.in.exec("filter-rows", {});
+            const { filterValues } = store.getState();
+            expect(filterValues).to.deep.eq({});
+        });
+        test("can filter data correctly", () => {
+            resetState(getData("filters"));
+            store.in.exec("filter-rows", { key: "name", value: "a" });
+            let { flatData } = store.getState();
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Alex",
+                "Mary",
+                "Kate",
+            ]);
+            store.in.exec("filter-rows", { key: "type", value: "2" });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq(["Mary", "Kate"]);
+            store.in.exec("filter-rows", { key: "season", value: 4 });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq(["Mary"]);
+            store.in.exec("filter-rows", { key: "name", value: "" });
+            store.in.exec("filter-rows", { key: "season", value: "" });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq(["Mary", "Kate", ""]);
+            store.in.exec("filter-rows", { key: "type", value: "3" });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq([]);
+        });
+        test("can set custom filter correctly", () => {
+            resetState(getData("filters"));
+            const filterFunction = (obj) => obj.name.toLowerCase().indexOf("a") !== -1;
+            store.in.exec("filter-rows", { filter: filterFunction });
+            const { filterValues, flatData } = store.getState();
+            expect(filterValues).to.deep.eq({});
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Alex",
+                "Mary",
+                "Kate",
+            ]);
+        });
+        test("can add row to filtered data", () => {
+            resetState(getData("filters"));
+            store.in.exec("filter-rows", { key: "name", value: "Al" });
+            store.in.exec("add-row", {
+                row: { name: "Sofia", type: "Type 2" },
+            });
+            let { flatData } = store.getState();
+            expect(flatData.map(x => x.name)).to.deep.eq(["Alex", "Sofia"]);
+            store.in.exec("filter-rows", {});
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Alex",
+                "John",
+                "Bob",
+                "Mary",
+                "Kate",
+                "",
+                "Sofia",
+            ]);
+            store.in.exec("filter-rows", { key: "type", value: "2" });
+            store.in.exec("add-row", { row: { name: "Smith" }, after: 4 });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Mary",
+                "Smith",
+                "Kate",
+                "",
+                "Sofia",
+            ]);
+            store.in.exec("filter-rows", {});
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Alex",
+                "John",
+                "Bob",
+                "Mary",
+                "Smith",
+                "Kate",
+                "",
+                "Sofia",
+            ]);
+            store.in.exec("filter-rows", { key: "name", value: "Sam" });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq([]);
+            store.in.exec("add-row", { row: { name: "Sam" } });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq(["Sam"]);
+        });
+        test("can sort filtered data", () => {
+            resetState(getData("filters"));
+            store.in.exec("filter-rows", { key: "name", value: "a" });
+            store.in.exec("sort-rows", { key: "name", order: "asc" });
+            let { flatData } = store.getState();
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Alex",
+                "Kate",
+                "Mary",
+            ]);
+            store.in.exec("filter-rows", {});
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "",
+                "Alex",
+                "Bob",
+                "John",
+                "Kate",
+                "Mary",
+            ]);
+            store.in.exec("filter-rows", { key: "type", value: "2" });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq(["", "Kate", "Mary"]);
+        });
+        test("can delete row from filtered data", () => {
+            resetState({
+                ...getData("filters"),
+                selectedRows: [],
+            });
+            store.in.exec("filter-rows", { key: "name", value: "a" });
+            store.in.exec("delete-row", { id: 4 });
+            let { flatData } = store.getState();
+            expect(flatData.map(x => x.name)).to.deep.eq(["Alex", "Kate"]);
+            store.in.exec("filter-rows", {});
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Alex",
+                "John",
+                "Bob",
+                "Kate",
+                "",
+            ]);
+        });
+        test("can update cell value in filtered data", () => {
+            resetState(getData("filters"));
+            store.in.exec("filter-rows", { key: "type", value: "1" });
+            let { flatData } = store.getState();
+            expect(flatData.length).to.eq(3);
+            store.in.exec("update-cell", {
+                id: 1,
+                column: "type",
+                value: "Type 3",
+            });
+            ({ flatData } = store.getState());
+            expect(flatData.length).to.eq(3);
+            expect(flatData.map(x => x.type)).to.deep.eq([
+                "Type 3",
+                "Type 1",
+                "Type 1",
+            ]);
+        });
+        test("can update row in filtered data", () => {
+            resetState(getData("filters"));
+            store.in.exec("filter-rows", { key: "name", value: "a" });
+            let { flatData } = store.getState();
+            expect(flatData.length).to.eq(3);
+            store.in.exec("update-row", { id: 1, row: { name: "Smith" } });
+            ({ flatData } = store.getState());
+            expect(flatData.length).to.eq(3);
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Smith",
+                "Mary",
+                "Kate",
+            ]);
+        });
+        test("can filter tree data correctly", () => {
+            resetState(getData("tree_filters"));
+            let { flatData } = store.getState();
+            expect(flatData.length).to.eq(14);
+            store.in.exec("filter-rows", { key: "name", value: "a" });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Alex",
+                "Adam",
+                "Mary",
+                "Adam",
+                "Mary",
+                "Sam",
+            ]);
+            store.in.exec("filter-rows", { key: "name", value: "o" });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq([
+                "Bob",
+                "John",
+                "Tom",
+                "Bob",
+            ]);
+            store.in.exec("filter-rows", { key: "type", value: "2" });
+            ({ flatData } = store.getState());
+            expect(flatData.map(x => x.name)).to.deep.eq(["John"]);
+            store.in.exec("filter-rows", {});
+            ({ flatData } = store.getState());
+            expect(flatData.length).to.eq(14);
+        });
+    });
+    describe("move-item", () => {
+        test("should move item before target", () => {
+            resetState();
+            store.in.exec("move-item", { id: 3, target: 2, mode: "before" });
+            const { data } = store.getState();
+            expect(store.getRowIndex(3)).to.eq(1);
+            expect(data.map(x => x.id)).to.deep.eq([1, 3, 2, 4, 5, 6]);
+        });
+        test("should move item after target", () => {
+            resetState();
+            store.in.exec("move-item", { id: 2, target: 4, mode: "after" });
+            const { data } = store.getState();
+            expect(store.getRowIndex(2)).to.eq(3);
+            expect(data.map(x => x.id)).to.deep.eq([1, 3, 4, 2, 5, 6]);
+        });
+        test("should move item to the start", () => {
+            resetState();
+            store.in.exec("move-item", { id: 5, target: 1, mode: "before" });
+            const { data } = store.getState();
+            expect(store.getRowIndex(5)).to.eq(0);
+            expect(data.map(x => x.id)).to.deep.eq([5, 1, 2, 3, 4, 6]);
+        });
+        test("should move item to the end", () => {
+            resetState();
+            store.in.exec("move-item", { id: 2, target: 6, mode: "after" });
+            const { data } = store.getState();
+            expect(store.getRowIndex(2)).to.eq(5);
+            expect(data.map(x => x.id)).to.deep.eq([1, 3, 4, 5, 6, 2]);
+        });
+        test("should move item between the boundaries", () => {
+            resetState();
+            store.in.exec("move-item", { id: 4, target: 1, mode: "before" });
+            let { data } = store.getState();
+            expect(store.getRowIndex(4)).to.eq(0);
+            expect(data.map(x => x.id)).to.deep.eq([4, 1, 2, 3, 5, 6]);
+            store.in.exec("move-item", { id: 4, target: 6, mode: "after" });
+            ({ data } = store.getState());
+            expect(store.getRowIndex(4)).to.eq(5);
+            expect(data.map(x => x.id)).to.deep.eq([1, 2, 3, 5, 6, 4]);
+        });
+        test("should not perform move with a wrong ID specified", () => {
+            resetState();
+            store.in.exec("move-item", {
+                id: "someId",
+                target: 4,
+                mode: "before",
+            });
+            const { data } = store.getState();
+            expect(data.map(x => x.id)).to.deep.eq([1, 2, 3, 4, 5, 6]);
+        });
+        test("should not perform move with a wrong target specified", () => {
+            resetState();
+            store.in.exec("move-item", {
+                id: 4,
+                target: "someId",
+                mode: "before",
+            });
+            const { data } = store.getState();
+            expect(data.map(x => x.id)).to.deep.eq([1, 2, 3, 4, 5, 6]);
+        });
+    });
+    describe("undo/redo", () => {
+        test("can set state history correctly", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            store.in.exec("add-row", { id: 7, row: {} });
+            store.in.exec("hide-column", { id: "type" });
+            let { history } = store.getState();
+            expect(history).to.deep.eq({
+                undo: 2,
+                redo: 0,
+            });
+            store.in.exec("undo");
+            ({ history } = store.getState());
+            expect(history).to.deep.eq({
+                undo: 1,
+                redo: 1,
+            });
+            store.in.exec("undo");
+            ({ history } = store.getState());
+            expect(history).to.deep.eq({
+                undo: 0,
+                redo: 2,
+            });
+            store.in.exec("redo");
+            ({ history } = store.getState());
+            expect(history).to.deep.eq({
+                undo: 1,
+                redo: 1,
+            });
+            store.in.exec("redo");
+            ({ history } = store.getState());
+            expect(history).to.deep.eq({
+                undo: 2,
+                redo: 0,
+            });
+        });
+        test("can undo/redo after adding rows", () => {
+            const initData = getData();
+            initData.data = initData.data.map(d => ({ ...d }));
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            store.in.exec("add-row", { id: 7, row: {}, after: 3 });
+            store.in.exec("add-row", { id: 8, row: {}, before: 1 });
+            store.in.exec("add-row", { id: 9, row: {}, before: 6 });
+            store.in.exec("add-row", { id: 10, row: {} });
+            const testIds = [
+                [8, 1, 2, 3, 7, 4, 5, 9, 6, 10],
+                [8, 1, 2, 3, 7, 4, 5, 9, 6],
+                [8, 1, 2, 3, 7, 4, 5, 6],
+                [1, 2, 3, 7, 4, 5, 6],
+                [1, 2, 3, 4, 5, 6],
+            ];
+            let { data } = store.getState();
+            for (let i = 0; i < testIds.length; i++) {
+                if (!i)
+                    expect(data.map(d => d.id)).to.deep.eq(testIds[i]);
+                else {
+                    store.in.exec("undo");
+                    ({ data } = store.getState());
+                    expect(data.map(d => d.id)).to.deep.eq(testIds[i]);
+                }
+            }
+            for (let i = testIds.length - 2; i >= 0; i--) {
+                store.in.exec("redo");
+                ({ data } = store.getState());
+                expect(data.map(d => d.id)).to.deep.eq(testIds[i]);
+            }
+        });
+        test("can undo/redo after deleting rows", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            store.in.exec("delete-row", { id: 1 });
+            store.in.exec("delete-row", { id: 3 });
+            store.in.exec("delete-row", { id: 6 });
+            const testIds = [
+                [2, 4, 5],
+                [2, 4, 5, 6],
+                [2, 3, 4, 5, 6],
+                [1, 2, 3, 4, 5, 6],
+            ];
+            let { data } = store.getState();
+            for (let i = 0; i < testIds.length; i++) {
+                if (!i)
+                    expect(data.map(d => d.id)).to.deep.eq(testIds[i]);
+                else {
+                    store.in.exec("undo");
+                    ({ data } = store.getState());
+                    expect(data.map(d => d.id)).to.deep.eq(testIds[i]);
+                }
+            }
+            for (let i = testIds.length - 2; i >= 0; i--) {
+                store.in.exec("redo");
+                ({ data } = store.getState());
+                expect(data.map(d => d.id)).to.deep.eq(testIds[i]);
+            }
+        });
+        test("can undo/redo after updating rows", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            const testRows = [
+                {
+                    id: 1,
+                    row: { id: 1, name: "Item 1 new", type: "Type 1 new" },
+                },
+                {
+                    id: 3,
+                    row: { id: 3, name: "Item 3 new", type: "Type 3 new" },
+                },
+                {
+                    id: 1,
+                    row: { id: 1, name: "Item 1 new new", type: "Type new" },
+                },
+            ];
+            for (let i = 0; i < testRows.length; i++) {
+                store.in.exec("update-row", testRows[i]);
+            }
+            let { data } = store.getState();
+            for (let i = testRows.length - 2; i >= 0; i--) {
+                store.in.exec("undo");
+                ({ data } = store.getState());
+                expect(findById(data, testRows[i].id)).to.deep.eq(testRows[i].row);
+            }
+            store.in.exec("undo");
+            for (let i = 0; i < testRows.length; i++) {
+                store.in.exec("redo");
+                ({ data } = store.getState());
+                expect(findById(data, testRows[i].id)).to.deep.eq(testRows[i].row);
+            }
+        });
+        test("can undo/redo after updating cells", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            const updateCells = [
+                { id: 1, column: "name", value: "Item 1 new" },
+                { id: 1, column: "name", value: "Item 1 new new" },
+                { id: 3, column: "type", value: "Type 3 new" },
+                { id: 5, column: "type", value: "Type 5 new" },
+            ];
+            const previousCellValues = [];
+            for (let i = 0; i < updateCells.length; i++) {
+                const row = findById(store.getState().data, updateCells[i].id);
+                previousCellValues.push(row[updateCells[i].column]);
+                store.in.exec("update-cell", updateCells[i]);
+            }
+            let { data } = store.getState();
+            for (let i = updateCells.length - 1; i >= 0; i--) {
+                store.in.exec("undo");
+                ({ data } = store.getState());
+                const row = findById(data, updateCells[i].id);
+                expect(row[updateCells[i].column]).to.deep.eq(previousCellValues[i]);
+            }
+            for (let i = 0; i < updateCells.length; i++) {
+                store.in.exec("redo");
+                ({ data } = store.getState());
+                const row = findById(data, updateCells[i].id);
+                expect(row[updateCells[i].column]).to.deep.eq(updateCells[i].value);
+            }
+        });
+        test("can undo/redo after showing/hiding columns", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            store.in.exec("hide-column", { id: "name" });
+            store.in.exec("hide-column", { id: "type" });
+            let { columns } = store.getState();
+            expect(columns.filter(c => c.hidden).length).to.eq(2);
+            store.in.exec("undo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "type")?.hidden).to.eq(false);
+            store.in.exec("undo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "name")?.hidden).to.eq(false);
+            store.in.exec("redo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "name")?.hidden).to.eq(true);
+            expect(findColumnById(columns, "type")?.hidden).to.eq(false);
+        });
+        test("can undo/redo after collapsing/expanding columns", () => {
+            const initData = getData();
+            initData.columns.forEach(c => (c.header = { text: c.header, collapsible: true }));
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            store.in.exec("collapse-column", { id: "name" });
+            store.in.exec("collapse-column", { id: "type" });
+            let { columns } = store.getState();
+            expect(columns.filter(c => c.header?.collapsed).length).to.eq(2);
+            store.in.exec("undo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "type")?.header
+                ?.collapsed).to.eq(false);
+            expect(findColumnById(columns, "name")?.header
+                ?.collapsed).to.eq(true);
+            store.in.exec("undo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "name")?.header
+                ?.collapsed).to.eq(false);
+            store.in.exec("redo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "name")?.header
+                ?.collapsed).to.eq(true);
+            expect(findColumnById(columns, "type")?.header
+                ?.collapsed).to.eq(false);
+        });
+        test("can undo/redo after resizing the column", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            store.in.exec("resize-column", { id: "name", width: 220 });
+            store.in.exec("resize-column", { id: "name", width: 500 });
+            store.in.exec("undo");
+            let { columns } = store.getState();
+            expect(findColumnById(columns, "name")?.width).to.eq(220);
+            store.in.exec("redo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "name")?.width).to.eq(500);
+            store.in.exec("resize-column", { id: "name", width: 350 });
+            store.in.exec("undo");
+            store.in.exec("undo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "name")?.width).to.eq(220);
+            store.in.exec("redo");
+            store.in.exec("redo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "name")?.width).to.eq(350);
+        });
+        test("can undo/redo after resizing the column with 'inProgress' property", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            for (let i = 1; i < 11; i++) {
+                store.in.exec("resize-column", {
+                    id: "name",
+                    width: 160 + i,
+                    inProgress: true,
+                });
+            }
+            store.in.exec("resize-column", {
+                id: "name",
+                width: 170,
+                inProgress: false,
+            });
+            let { columns } = store.getState();
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "name")?.width).to.eq(170);
+            store.in.exec("undo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "name")?.width).to.eq(160);
+            store.in.exec("redo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "name")?.width).to.eq(170);
+        });
+        test("can undo/redo after opening/closing branches in tree mode", () => {
+            const initData = getData("tree");
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            const ids = [1, 4, 14];
+            ids.forEach(id => store.in.exec("close-row", { id }));
+            store.in.exec("undo");
+            let { flatData } = store.getState();
+            expect(flatData.filter(d => ids.includes(d.id)).map(d => d.open)).to.deep.eq([false, false, true]);
+            store.in.exec("undo");
+            ({ flatData } = store.getState());
+            expect(flatData.filter(d => ids.includes(d.id)).map(d => d.open)).to.deep.eq([false, true, true]);
+            store.in.exec("redo");
+            ({ flatData } = store.getState());
+            expect(flatData.filter(d => ids.includes(d.id)).map(d => d.open)).to.deep.eq([false, false, true]);
+            store.in.exec("redo");
+            ({ flatData } = store.getState());
+            expect(flatData.filter(d => ids.includes(d.id)).map(d => d.open)).to.deep.eq([false, false, false]);
+        });
+        test("can undo/redo after combinations of different actions", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            store.in.exec("add-row", { id: 7, row: {}, after: 3 });
+            store.in.exec("hide-column", { id: "type" });
+            store.in.exec("delete-row", { id: 1 });
+            store.in.exec("update-cell", {
+                id: 6,
+                column: "name",
+                value: "Item 6 new",
+            });
+            let { data, columns } = store.getState();
+            store.in.exec("undo");
+            ({ data, columns } = store.getState());
+            expect(findById(data, 6).name).to.eq("Item 6");
+            expect(data.map(d => d.id)).to.deep.eq([2, 3, 7, 4, 5, 6]);
+            expect(findColumnById(columns, "type")?.hidden).to.eq(true);
+            store.in.exec("undo");
+            ({ data, columns } = store.getState());
+            expect(data.map(d => d.id)).to.deep.eq([1, 2, 3, 7, 4, 5, 6]);
+            expect(findColumnById(columns, "type")?.hidden).to.eq(true);
+            store.in.exec("redo");
+            ({ data, columns } = store.getState());
+            expect(data.map(d => d.id)).to.deep.eq([2, 3, 7, 4, 5, 6]);
+            expect(findColumnById(columns, "type")?.hidden).to.eq(true);
+            store.in.exec("undo");
+            store.in.exec("undo");
+            ({ columns } = store.getState());
+            expect(findColumnById(columns, "type")?.hidden).to.eq(false);
+            store.in.exec("undo");
+            ({ data } = store.getState());
+            expect(data.map(d => d.id)).to.deep.eq([1, 2, 3, 4, 5, 6]);
+            store.in.exec("redo");
+            store.in.exec("redo");
+            ({ data, columns } = store.getState());
+            expect(data.map(d => d.id)).to.deep.eq([1, 2, 3, 7, 4, 5, 6]);
+            expect(findColumnById(columns, "type")?.hidden).to.eq(true);
+            store.in.exec("add-row", { id: 8, row: {} });
+            store.in.exec("redo");
+            ({ data } = store.getState());
+            expect(data.length).to.eq(8);
+            store.in.exec("undo");
+            ({ data } = store.getState());
+            expect(data.length).to.eq(7);
+        });
+        test("can undo/redo after moving items", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            store.in.exec("move-item", { id: 2, target: 5 });
+            store.in.exec("move-item", { id: 6, target: 5, mode: "before" });
+            store.in.exec("move-item", { id: 3, target: 1, mode: "before" });
+            store.in.exec("move-item", { id: 4, target: 6 });
+            const testIds = [
+                [3, 1, 6, 4, 5, 2],
+                [3, 1, 4, 6, 5, 2],
+                [1, 3, 4, 6, 5, 2],
+                [1, 3, 4, 5, 2, 6],
+                [1, 2, 3, 4, 5, 6],
+            ];
+            let { data } = store.getState();
+            for (let i = 1; i < testIds.length; i++) {
+                store.in.exec("undo");
+                ({ data } = store.getState());
+                expect(data.map(d => d.id)).to.deep.eq(testIds[i]);
+            }
+            for (let i = testIds.length - 2; i >= 0; i--) {
+                store.in.exec("redo");
+                ({ data } = store.getState());
+                expect(data.map(d => d.id)).to.deep.eq(testIds[i]);
+            }
+            store.in.exec("undo");
+            ({ data } = store.getState());
+            expect(data.map(d => d.id)).to.deep.eq(testIds[1]);
+        });
+        test("can undo/redo after moving items with 'inProgress' property", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            for (let i = 1; i < 5; i++) {
+                store.in.exec("move-item", {
+                    id: 1,
+                    target: i + 1,
+                    inProgress: true,
+                });
+            }
+            store.in.exec("move-item", { id: 1, target: 5, inProgress: false });
+            store.in.exec("move-item", {
+                id: 6,
+                target: 1,
+                mode: "before",
+                inProgress: true,
+            });
+            store.in.exec("move-item", {
+                id: 6,
+                target: 5,
+                mode: "before",
+                inProgress: true,
+            });
+            store.in.exec("move-item", {
+                id: 6,
+                target: 4,
+                mode: "before",
+                inProgress: true,
+            });
+            store.in.exec("move-item", {
+                id: 6,
+                target: 4,
+                mode: "before",
+                inProgress: false,
+            });
+            let { data } = store.getState();
+            const testIds = [
+                [2, 3, 6, 4, 5, 1],
+                [2, 3, 4, 5, 1, 6],
+                [1, 2, 3, 4, 5, 6],
+            ];
+            for (let i = 1; i < testIds.length; i++) {
+                store.in.exec("undo");
+                ({ data } = store.getState());
+                expect(data.map(d => d.id)).to.deep.eq(testIds[i]);
+            }
+            for (let i = testIds.length - 2; i >= 0; i--) {
+                store.in.exec("redo");
+                ({ data } = store.getState());
+                expect(data.map(d => d.id)).to.deep.eq(testIds[i]);
+            }
+        });
+        test("can undo/redo after moving items in tree mode", () => {
+            const initData = getData("tree_short");
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            store.in.exec("move-item", { id: 2, target: 6 });
+            store.in.exec("move-item", { id: 7, target: 3, mode: "before" });
+            store.in.exec("move-item", { id: 8, target: 9 });
+            store.in.exec("move-item", { id: 13, target: 12, mode: "before" });
+            const testIds = [
+                [1, 7, 3, 4, 5, 6, 2, 9, 8, 10, 11, 13, 12],
+                [1, 7, 3, 4, 5, 6, 2, 9, 8, 10, 11, 12, 13],
+                [1, 7, 3, 4, 5, 6, 2, 8, 9, 10, 11, 12, 13],
+                [1, 3, 4, 5, 6, 2, 7, 8, 9, 10, 11, 12, 13],
+                [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13],
+            ];
+            let { flatData } = store.getState();
+            for (let i = 1; i < testIds.length; i++) {
+                store.in.exec("undo");
+                ({ flatData } = store.getState());
+                expect(flatData.map(d => d.id)).to.deep.eq(testIds[i]);
+            }
+            for (let i = testIds.length - 2; i >= 0; i--) {
+                store.in.exec("redo");
+                ({ flatData } = store.getState());
+                expect(flatData.map(d => d.id)).to.deep.eq(testIds[i]);
+            }
+            store.in.exec("undo");
+            ({ flatData } = store.getState());
+            expect(flatData.map(d => d.id)).to.deep.eq(testIds[1]);
+        });
+        test("can undo/redo after copying items", () => {
+            const initData = getData();
+            resetState({
+                ...initData,
+                undo: true,
+            });
+            store.in.exec("copy-row", { id: 1, target: 5 });
+            store.in.exec("copy-row", { id: 3, target: 1, mode: "before" });
+            let data = store.getState().data;
+            const copiedRow1 = data[6];
+            const copiedRow2 = data[0];
+            const testIds = [
+                [1, 2, 3, 4, 5, 6],
+                [1, 2, 3, 4, 5, copiedRow1.id, 6],
+                [copiedRow2.id, 1, 2, 3, 4, 5, copiedRow1.id, 6],
+            ];
+            store.in.exec("undo");
+            data = store.getState().data;
+            expect(data.map(d => d.id)).to.deep.eq(testIds[1]);
+            store.in.exec("undo");
+            data = store.getState().data;
+            expect(data.map(d => d.id)).to.deep.eq(testIds[0]);
+            store.in.exec("redo");
+            store.in.exec("redo");
+            data = store.getState().data;
+            expect(data.map(d => d.id)).to.deep.eq(testIds[2]);
+            expect(data[0].name).to.eq(data[3].name);
+            expect(data[6].name).to.eq(data[1].name);
+        });
+    });
+    describe("search-rows", () => {
+        test("should search rows with basic text search", () => {
+            resetState();
+            store.in.exec("search-rows", { search: "It" });
+            let search = store.getState().search;
+            expect(search.value).to.eq("It");
+            for (let i = 1; i <= 6; i++) {
+                expect(search.rows[i]).to.deep.equal({ name: true });
+            }
+            store.in.exec("search-rows", { search: "1" });
+            search = store.getState().search;
+            expect(search.value).to.eq("1");
+            expect(search.rows[1]).to.deep.equal({
+                id: true,
+                name: true,
+                type: true,
+            });
+            [2, 3].forEach(id => {
+                expect(search.rows[id]).to.deep.equal({ type: true });
+            });
+            store.in.exec("search-rows", { search: "2" });
+            search = store.getState().search;
+            expect(search.value).to.eq("2");
+            expect(search.rows[2]).to.deep.equal({ id: true, name: true });
+            [4, 5, 6].forEach(id => {
+                expect(search.rows[id]).to.deep.equal({ type: true });
+            });
+            store.in.exec("search-rows", { search: "Item 2" });
+            search = store.getState().search;
+            expect(search.value).to.eq("Item 2");
+            expect(search.rows).to.deep.equal({ 2: { name: true } });
+            store.in.exec("search-rows", { search: "items" });
+            search = store.getState().search;
+            expect(search.value).to.eq("items");
+            expect(search.rows).to.deep.equal({});
+        });
+        test("should search rows with specific column", () => {
+            resetState();
+            store.in.exec("search-rows", {
+                search: "item",
+                columns: { name: true },
+            });
+            let search = store.getState().search;
+            expect(search.value).to.eq("item");
+            for (let i = 1; i <= 6; i++) {
+                expect(search.rows[i]).to.deep.equal({ name: true });
+            }
+            store.in.exec("search-rows", {
+                search: "item",
+                columns: { type: true },
+            });
+            search = store.getState().search;
+            expect(search.value).to.eq("item");
+            expect(search.rows).to.deep.equal({});
+        });
+        test("should search rows with multiple specific columns", () => {
+            resetState();
+            store.in.exec("search-rows", {
+                search: "t",
+                columns: { name: true, type: true },
+            });
+            let search = store.getState().search;
+            expect(search.value).to.eq("t");
+            for (let i = 1; i <= 6; i++) {
+                expect(search.rows[i]).to.deep.equal({
+                    name: true,
+                    type: true,
+                });
+            }
+            store.in.exec("search-rows", {
+                search: "ty",
+                columns: { name: true, type: true },
+            });
+            search = store.getState().search;
+            expect(search.value).to.eq("ty");
+            for (let i = 1; i <= 6; i++) {
+                expect(search.rows[i]).to.deep.equal({ type: true });
+            }
+            store.in.exec("search-rows", {
+                search: "tyyy",
+                columns: { name: true, type: true },
+            });
+            search = store.getState().search;
+            expect(search.value).to.eq("tyyy");
+            expect(search.rows).to.deep.equal({});
+        });
+        test("should handle case-insensitive search", () => {
+            resetState();
+            store.in.exec("search-rows", { search: "ITEM 1" });
+            let search = store.getState().search;
+            expect(search.value).to.eq("ITEM 1");
+            expect(search.rows).to.deep.equal({ 1: { name: true } });
+            store.in.exec("search-rows", {
+                search: "TyPe 2",
+                columns: { name: true, type: true },
+            });
+            search = store.getState().search;
+            expect(search.value).to.eq("TyPe 2");
+            [4, 5, 6].forEach(id => {
+                expect(search.rows[id]).to.deep.equal({ type: true });
+            });
+        });
+        test("should handle empty search string", () => {
+            resetState();
+            store.in.exec("search-rows", { search: "" });
+            let search = store.getState().search;
+            expect(search.value).to.eq("");
+            expect(search.rows).to.deep.equal({});
+            store.in.exec("search-rows", {
+                search: "",
+                column: { name: true },
+            });
+            search = store.getState().search;
+            expect(search.value).to.eq("");
+            expect(search.rows).to.deep.equal({});
+        });
+        test("should handle whitespace-only search", () => {
+            resetState();
+            store.in.exec("search-rows", { search: "  Item   " });
+            let search = store.getState().search;
+            expect(search.value).to.eq("  Item   ");
+            for (let i = 1; i <= 6; i++) {
+                expect(search.rows[i]).to.deep.equal({ name: true });
+            }
+            store.in.exec("search-rows", {
+                search: "  pe 1   ",
+                columns: { name: true, type: true },
+            });
+            search = store.getState().search;
+            expect(search.value).to.eq("  pe 1   ");
+            [1, 2, 3].forEach(id => {
+                expect(search.rows[id]).to.deep.equal({ type: true });
+            });
+        });
+        test("should handle data with empty values", () => {
+            resetState(getData("empty"));
+            store.in.exec("search-rows", { search: "em" });
+            let search = store.getState().search;
+            expect(search.value).to.eq("em");
+            [1, 4, 5, 8].forEach(id => expect(search.rows[id]).to.deep.equal({ name: true }));
+            store.in.exec("search-rows", {
+                search: "1",
+                columns: { name: true, type: true },
+            });
+            search = store.getState().search;
+            expect(search.value).to.eq("1");
+            expect(search.rows).to.deep.equal({
+                1: { name: true, type: true },
+                2: { type: true },
+                3: { type: true },
+            });
+        });
+    });
+    describe("copy-row", () => {
+        test("should copy row after target", () => {
+            resetState();
+            store.in.exec("copy-row", { id: 2, target: 5 });
+            const data = store.getState().data;
+            expect(data.length).to.eq(7);
+            const targetRow = data[1];
+            const copiedRow = data[5];
+            expect(copiedRow.id !== 2).to.eq(true);
+            expect(copiedRow.name).to.eq(targetRow.name);
+            expect(copiedRow.type).to.eq(targetRow.type);
+        });
+        test("should copy row before target", () => {
+            resetState();
+            store.in.exec("copy-row", { id: 4, target: 1, mode: "before" });
+            const data = store.getState().data;
+            expect(data.length).to.eq(7);
+            const targetRow = data[4];
+            const copiedRow = data[0];
+            expect(copiedRow.id !== 4).to.eq(true);
+            expect(copiedRow.name).to.eq(targetRow.name);
+            expect(copiedRow.type).to.eq(targetRow.type);
+        });
+        test("should copy row after self", () => {
+            resetState();
+            store.in.exec("copy-row", { id: 1, target: 1 });
+            const data = store.getState().data;
+            expect(data.length).to.eq(7);
+            const targetRow = data[0];
+            const copiedRow = data[1];
+            expect(copiedRow.id !== 1).to.eq(true);
+            expect(copiedRow.name).to.eq(targetRow.name);
+            expect(copiedRow.type).to.eq(targetRow.type);
+        });
+        test("should copy row before self", () => {
+            resetState();
+            store.in.exec("copy-row", { id: 1, target: 1, mode: "before" });
+            const data = store.getState().data;
+            expect(data.length).to.eq(7);
+            const targetRow = data[1];
+            const copiedRow = data[0];
+            expect(copiedRow.id !== 1).to.eq(true);
+            expect(copiedRow.name).to.eq(targetRow.name);
+            expect(copiedRow.type).to.eq(targetRow.type);
+        });
+        test("should not perform copy with a wrong ID specified", () => {
+            resetState();
+            store.in.exec("copy-row", {
+                id: "someId",
+                target: 4,
+            });
+            const data = store.getState().data;
+            expect(data.map(x => x.id)).to.deep.eq([1, 2, 3, 4, 5, 6]);
+        });
+        test("should not perform copy with a wrong target specified", () => {
+            resetState();
+            store.in.exec("copy-row", {
+                id: 4,
+                target: "someId",
+            });
+            const data = store.getState().data;
+            expect(data.map(x => x.id)).to.deep.eq([1, 2, 3, 4, 5, 6]);
+        });
+        test.skip("should copy row after target in tree mode", () => {
+            resetState(getData("tree_short"));
+            store.in.exec("copy-row", { id: 2, target: 5 });
+            const { flatData } = store.getState();
+            expect(flatData.length).to.eq(14);
+            const targetRow = flatData[1];
+            const copiedRow = flatData[5];
+            expect(copiedRow.id !== targetRow.id).to.eq(true);
+            expect(copiedRow.name).to.eq(targetRow.name);
+            expect(copiedRow.type).to.eq(targetRow.type);
+            expect(copiedRow.parent).to.eq(3);
+            expect(flatData[3].data.length).to.eq(4);
+            expect(flatData[3].data[1].id).to.eq(copiedRow.id);
+        });
+        test.skip("should copy row with children after target in tree mode", () => {
+            resetState(getData("tree_short"));
+            store.in.exec("copy-row", { id: 1, target: 10 });
+            const { flatData } = store.getState();
+            expect(flatData.length).to.eq(4);
+            const targetRow = flatData[0];
+            const copiedRow = flatData[10];
+            expect(copiedRow.id !== targetRow.id).to.eq(true);
+            expect(copiedRow.name).to.eq(targetRow.name);
+            expect(copiedRow.type).to.eq(targetRow.type);
+            expect(copiedRow.data.length).to.eq(targetRow.data.length);
+            for (let i = 0; i < copiedRow.data.length; i++) {
+                const tc = targetRow.data[i];
+                const cc = copiedRow.data[i];
+                expect(tc.id !== cc.id).to.eq(true);
+                expect(tc.name).to.eq(cc.name);
+                expect(tc.type).to.eq(cc.type);
+                expect(cc.parent).to.eq(copiedRow.id);
+            }
+            expect(copiedRow.parent).to.eq(3);
+            expect(flatData[3].data.length).to.eq(4);
+            expect(flatData[3].data[1].id).to.eq(copiedRow.id);
+        });
+    });
+    describe("select-row", () => {
+        test("should select single row", () => {
+            resetState();
+            const ids = [1, 3, 6];
+            let selectedRows;
+            ids.forEach(id => {
+                store.in.exec("select-row", { id });
+                selectedRows = store.getState().selectedRows;
+                expect(selectedRows).to.deep.equal([id]);
+            });
+        });
+        test("should toggle multi select rows", () => {
+            resetState();
+            const ids = [1, 3, 6, 4];
+            let selectedRows;
+            const result = [];
+            ids.forEach(id => {
+                store.in.exec("select-row", { id, toggle: true });
+                result.push(id);
+                selectedRows = store.getState().selectedRows;
+                expect(selectedRows).to.deep.equal(result);
+            });
+        });
+        test("should select a range of rows", () => {
+            resetState();
+            store.in.exec("select-row", { id: 1 });
+            store.in.exec("select-row", { id: 3, range: true });
+            let selectedRows = store.getState().selectedRows;
+            expect(selectedRows).to.deep.equal([1, 2, 3]);
+            store.in.exec("select-row", { id: 5, range: true });
+            selectedRows = store.getState().selectedRows;
+            expect(selectedRows).to.deep.equal([1, 2, 3, 4, 5]);
+        });
+    });
+    describe("column spans", () => {
+        /* eslint-disable vitest/expect-expect -- assertions are in expectHeader() */
+        function getColumns() {
+            return [
+                { id: "id" },
+                {
+                    id: "firstName",
+                    header: [
+                        { text: "Main client info", colspan: 5 },
+                        { text: "User", colspan: 2 },
+                        { text: "First Name" },
+                    ],
+                    width: 50,
+                },
+                {
+                    id: "lastName",
+                    header: ["", "", "Last Name"],
+                    width: 60,
+                },
+                {
+                    id: "email",
+                    header: ["", { text: "Email", rowspan: 2 }],
+                    width: 70,
+                },
+                {
+                    id: "companyName",
+                    header: [
+                        "",
+                        { text: "Company", colspan: 2 },
+                        { text: "Name" },
+                    ],
+                    width: 80,
+                },
+                {
+                    id: "city",
+                    header: ["", "", "City"],
+                    width: 90,
+                },
+            ];
+        }
+        function expectHeader(id, cells) {
+            const column = store.getState()._columns.find(c => c.id === id);
+            cells.forEach(({ text, colspan, width, _hidden }, i) => {
+                if (_hidden)
+                    return;
+                expect(column.header[i].text).to.eq(text);
+                if (colspan)
+                    expect(column.header[i].colspan).to.eq(colspan);
+                expect(column.header[i].width).to.eq(width);
+            });
+        }
+        test("normalize columns with colspans after hiding columns", () => {
+            resetState({ ...getData(), columns: getColumns() });
+            store.in.exec("hide-column", { id: "firstName", mode: true });
+            expectHeader("lastName", [
+                { text: "Main client info", colspan: 4, width: 300 },
+                { text: "User", colspan: 1, width: 60 },
+                { text: "Last Name", width: 60 },
+            ]);
+            store.in.exec("hide-column", { id: "lastName", mode: true });
+            expectHeader("email", [
+                { text: "Main client info", colspan: 3, width: 240 },
+                { text: "Email", width: 70 },
+                { _hidden: true },
+            ]);
+            store.in.exec("hide-column", { id: "companyName", mode: true });
+            expectHeader("email", [
+                { text: "Main client info", colspan: 2, width: 160 },
+                { text: "Email", width: 70 },
+                { _hidden: true },
+            ]);
+            expectHeader("city", [
+                { _hidden: true },
+                { text: "Company", colspan: 1, width: 90 },
+                { text: "City", width: 90 },
+            ]);
+            store.in.exec("hide-column", { id: "city", mode: true });
+            expectHeader("email", [
+                { text: "Main client info", colspan: 1, width: 70 },
+                { text: "Email", width: 70 },
+                { _hidden: true },
+            ]);
+        });
+        test("normalize columns with colspans after showing columns", () => {
+            resetState({ ...getData(), columns: getColumns() });
+            store.in.exec("hide-column", { id: "firstName", mode: true });
+            store.in.exec("hide-column", { id: "lastName", mode: true });
+            store.in.exec("hide-column", { id: "companyName", mode: true });
+            store.in.exec("hide-column", { id: "city", mode: true });
+            store.in.exec("hide-column", { id: "city", mode: false });
+            expectHeader("email", [
+                { text: "Main client info", colspan: 2, width: 160 },
+                { text: "Email", width: 70 },
+                { _hidden: true },
+            ]);
+            expectHeader("city", [
+                { _hidden: true },
+                { text: "Company", colspan: 1, width: 90 },
+                { text: "City", width: 90 },
+            ]);
+            store.in.exec("hide-column", { id: "lastName", mode: false });
+            expectHeader("lastName", [
+                { text: "Main client info", colspan: 3, width: 220 },
+                { text: "User", colspan: 1, width: 60 },
+                { text: "Last Name", width: 60 },
+            ]);
+            store.in.exec("hide-column", { id: "firstName", mode: false });
+            expectHeader("firstName", [
+                { text: "Main client info", colspan: 4, width: 270 },
+                { text: "User", colspan: 2, width: 110 },
+                { text: "First Name", width: 50 },
+            ]);
+            store.in.exec("hide-column", { id: "companyName", mode: false });
+            expectHeader("firstName", [
+                { text: "Main client info", colspan: 5, width: 350 },
+                { text: "User", colspan: 2, width: 110 },
+                { text: "First Name", width: 50 },
+            ]);
+        });
+    });
+});
+
+=== 18013 store/test/stubs/data.ts	js
+export const defaultSizes = {
+    rowHeight: 37,
+    columnWidth: 160,
+    headerHeight: 36,
+    footerHeight: 36,
+};
+export const getData = (type) => {
+    if (!type)
+        type = "default";
+    return { ...structuredClone(data[type]), sizes: defaultSizes };
+};
+export const shuffle = (arr) => {
+    const array = [...arr];
+    let currentIndex = array.length;
+    while (currentIndex != 0) {
+        const randomIndex = Math.floor(Math.random() * currentIndex);
+        currentIndex--;
+        [array[currentIndex], array[randomIndex]] = [
+            array[randomIndex],
+            array[currentIndex],
+        ];
+    }
+    return array;
+};
+export const cols = [
+    {
+        id: "id",
+        header: "",
+    },
+    {
+        id: "name",
+        header: "Name",
+    },
+    {
+        id: "type",
+        header: "Type",
+    },
+];
+const filterCols = [
+    {
+        id: "id",
+        header: "",
+    },
+    {
+        id: "name",
+        header: { filter: "text" },
+    },
+    {
+        id: "type",
+        header: { filter: "text" },
+    },
+    {
+        id: "season",
+        header: {
+            filter: "richselect",
+            options: [
+                { id: 1, label: "winter" },
+                { id: 2, label: "spring" },
+                { id: 3, label: "summer" },
+                { id: 4, label: "autumn" },
+            ],
+        },
+    },
+];
+const data = {
+    default: {
+        columns: cols.map(c => ({ ...c })),
+        data: [
+            {
+                id: 1,
+                name: "Item 1",
+                type: "Type 1",
+            },
+            {
+                id: 2,
+                name: "Item 2",
+                type: "Type 1",
+            },
+            {
+                id: 3,
+                name: "Item 3",
+                type: "Type 1",
+            },
+            {
+                id: 4,
+                name: "Item 4",
+                type: "Type 2",
+            },
+            {
+                id: 5,
+                name: "Item 5",
+                type: "Type 2",
+            },
+            {
+                id: 6,
+                name: "Item 6",
+                type: "Type 2",
+            },
+        ],
+    },
+    with_subtype: {
+        columns: [
+            ...cols.map(c => ({
+                ...c,
+            })),
+            { id: "subtype", header: "subtype" },
+        ],
+        data: [
+            {
+                id: 1,
+                name: "Item 1",
+                type: "Type 1",
+                subtype: "Subtype 2",
+            },
+            {
+                id: 2,
+                name: "Item 2",
+                type: "Type 1",
+                subtype: "Subtype 2",
+            },
+            {
+                id: 3,
+                name: "Item 3",
+                type: "Type 1",
+                subtype: "Subtype 1",
+            },
+            {
+                id: 4,
+                name: "Item 4",
+                type: "Type 2",
+                subtype: "Subtype 2",
+            },
+            {
+                id: 5,
+                name: "Item 5",
+                type: "Type 2",
+                subtype: "Subtype 2",
+            },
+            {
+                id: 6,
+                name: "Item 6",
+                type: "Type 2",
+                subtype: "Subtype 1",
+            },
+        ],
+    },
+    empty: {
+        columns: cols.map(c => ({ ...c })),
+        data: [
+            {
+                id: 1,
+                name: "Item 1",
+                type: "Type 1",
+            },
+            {
+                id: 2,
+                name: "",
+                type: "Type 1",
+            },
+            {
+                id: 3,
+                type: "Type 1",
+            },
+            {
+                id: 4,
+                name: "Item 3",
+                type: "Type 2",
+            },
+            {
+                id: 5,
+                name: "Item 2",
+                type: "Type 2",
+            },
+            {
+                id: 6,
+                name: undefined,
+                type: "Type 2",
+            },
+            {
+                id: 7,
+                name: null,
+                type: "Type 3",
+            },
+            {
+                id: 8,
+                name: "Item 4",
+                type: "Type 3",
+            },
+        ],
+    },
+    tree: {
+        tree: true,
+        columns: cols.map(c => ({ ...c })),
+        data: [
+            {
+                id: 1,
+                name: "Parent 1",
+                type: "Type 1",
+                open: true,
+                data: [
+                    {
+                        id: 2,
+                        name: "Kid 1",
+                        type: "Type 1",
+                    },
+                    {
+                        id: 3,
+                        name: "Kid 2",
+                        type: "Type 2",
+                    },
+                ],
+            },
+            {
+                id: 4,
+                name: "Parent 2",
+                type: "Type 1",
+                open: true,
+                data: [
+                    {
+                        id: 5,
+                        name: "Kid 3",
+                        type: "Type 2",
+                        open: true,
+                        data: [
+                            {
+                                id: 6,
+                                name: "Grandkid 1",
+                                type: "Type 2",
+                            },
+                            {
+                                id: 7,
+                                name: "Grandkid 2",
+                                type: "Type 3",
+                                open: true,
+                                data: [
+                                    {
+                                        id: 8,
+                                        name: "Great-grandkid 1",
+                                        type: "Type 3",
+                                        open: true,
+                                        data: [
+                                            {
+                                                id: 9,
+                                                name: "Great-great-grandkid 1",
+                                                type: "Type 1",
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                id: 10,
+                name: "Parent 3",
+                type: "Type 2",
+                open: true,
+                data: [
+                    {
+                        id: 11,
+                        name: "Kid 4",
+                        type: "Type 1",
+                    },
+                    {
+                        id: 12,
+                        name: "Kid 5",
+                        type: "Type 2",
+                        open: true,
+                        data: [
+                            {
+                                id: 13,
+                                name: "Grandkid 3",
+                                type: "Type 1",
+                            },
+                            {
+                                id: 14,
+                                name: "Grandkid 4",
+                                type: "Type 3",
+                                open: true,
+                                data: [
+                                    {
+                                        id: 15,
+                                        name: "Great-grandkid 2",
+                                        type: "Type 2",
+                                    },
+                                    {
+                                        id: 16,
+                                        name: "Great-grandkid 3",
+                                        type: "Type 1",
+                                        open: true,
+                                        data: [
+                                            {
+                                                id: 17,
+                                                name: "Great-great-grandkid 2",
+                                                type: "Type 2",
+                                                open: true,
+                                                data: [
+                                                    {
+                                                        id: 18,
+                                                        name: "Great-great-great-grandkid 1",
+                                                        type: "Type 3",
+                                                    },
+                                                    {
+                                                        id: 19,
+                                                        name: "Great-great-great-grandkid 2",
+                                                        type: "Type 1",
+                                                    },
+                                                ],
+                                            },
+                                        ],
+                                    },
+                                ],
+                            },
+                            {
+                                id: 20,
+                                name: "Grandkid 5",
+                                type: "Type 2",
+                            },
+                            {
+                                id: 21,
+                                name: "Grandkid 6",
+                                type: "Type 2",
+                            },
+                        ],
+                    },
+                    {
+                        id: 22,
+                        name: "Kid 6",
+                        type: "Type 2",
+                    },
+                    {
+                        id: 23,
+                        name: "Kid 7",
+                        type: "Type 1",
+                    },
+                    {
+                        id: 24,
+                        name: "Kid 8",
+                        type: "Type 3",
+                    },
+                    {
+                        id: 25,
+                        name: "Kid 9",
+                        type: "Type 3",
+                    },
+                ],
+            },
+        ],
+    },
+    tree_short: {
+        tree: true,
+        columns: cols,
+        data: [
+            {
+                id: 1,
+                name: "Parent 1",
+                type: "Type 2",
+                open: true,
+                data: [
+                    {
+                        id: 2,
+                        name: "Kid 1",
+                        type: "Type 3",
+                    },
+                    {
+                        id: 3,
+                        name: "Kid 2",
+                        type: "Type 2",
+                    },
+                    {
+                        id: 4,
+                        name: "Kid 3",
+                        type: "Type 2",
+                        data: [
+                            {
+                                id: 5,
+                                name: "Grandkid 1",
+                                type: "Type 1",
+                            },
+                            {
+                                id: 6,
+                                name: "Grandkid 2",
+                                type: "Type 2",
+                            },
+                            {
+                                id: 7,
+                                name: "Grandkid 3",
+                                type: "Type 2",
+                            },
+                        ],
+                    },
+                    {
+                        id: 8,
+                        name: "Kid 4",
+                        type: "Type 1",
+                    },
+                ],
+            },
+            {
+                id: 9,
+                name: "Parent 2",
+                type: "Type 1",
+                open: true,
+                data: [
+                    {
+                        id: 10,
+                        name: "Kid 5",
+                        type: "Type 3",
+                    },
+                    {
+                        id: 11,
+                        name: "Kid 6",
+                        type: "Type 1",
+                    },
+                    {
+                        id: 12,
+                        name: "Kid 7",
+                        type: "Type 2",
+                    },
+                ],
+            },
+            {
+                id: 13,
+                name: "Parent 3",
+                type: "Type 2",
+            },
+        ],
+    },
+    filters: {
+        columns: filterCols,
+        data: [
+            {
+                id: 1,
+                name: "Alex",
+                type: "Type 1",
+                season: 1,
+            },
+            {
+                id: 2,
+                name: "John",
+                type: "Type 1",
+                season: 2,
+            },
+            {
+                id: 3,
+                name: "Bob",
+                type: "Type 1",
+                season: 3,
+            },
+            {
+                id: 4,
+                name: "Mary",
+                type: "Type 2",
+                season: 4,
+            },
+            {
+                id: 5,
+                name: "Kate",
+                type: "Type 2",
+                season: 2,
+            },
+            {
+                id: 6,
+                name: "",
+                type: "Type 2",
+                season: 3,
+            },
+        ],
+    },
+    tree_filters: {
+        tree: true,
+        columns: filterCols,
+        data: [
+            {
+                id: 1,
+                name: "Alex",
+                type: "Type 1",
+                season: 1,
+                open: true,
+                data: [
+                    {
+                        id: 11,
+                        name: "Adam",
+                        type: "Type 2",
+                        season: 1,
+                    },
+                    {
+                        id: 12,
+                        name: "Mary",
+                        type: "Type 1",
+                        season: 2,
+                        open: true,
+                        data: [
+                            {
+                                id: 121,
+                                name: "Adam",
+                                type: "Type 2",
+                                season: 1,
+                            },
+                            {
+                                id: 122,
+                                name: "Bill",
+                                type: "Type 1",
+                                season: 4,
+                            },
+                        ],
+                    },
+                    {
+                        id: 13,
+                        name: "Bob",
+                        type: "Type 1",
+                        season: 3,
+                    },
+                ],
+            },
+            {
+                id: 2,
+                name: "John",
+                type: "Type 2",
+                season: 2,
+                open: true,
+                data: [
+                    {
+                        id: 21,
+                        name: "Mary",
+                        type: "Type 2",
+                        season: 4,
+                    },
+                    {
+                        id: 22,
+                        name: "Tom",
+                        type: "Type 1",
+                        season: 2,
+                    },
+                    {
+                        id: 23,
+                        name: "",
+                        type: "Type 2",
+                        season: 3,
+                        data: [
+                            {
+                                id: 231,
+                                name: "Sam",
+                                type: "Type 2",
+                                season: 1,
+                            },
+                            {
+                                id: 232,
+                                name: "Bill",
+                                type: "Type 1",
+                                season: 4,
+                            },
+                        ],
+                    },
+                ],
+            },
+            {
+                id: 3,
+                name: "Bob",
+                type: "Type 1",
+                season: 3,
+                open: true,
+                data: [
+                    {
+                        id: 31,
+                        name: "Ben",
+                        type: "Type 1",
+                        season: 4,
+                    },
+                ],
+            },
+        ],
+    },
+    with_sort_weight: {
+        columns: cols.map(c => ({ ...c })), //sort weight column assigned in test case due to cloning function limitations
+        data: [
+            {
+                id: 1,
+                name: "Item 1",
+                type: "Type 1",
+                sortWeight: "1",
+            },
+            {
+                id: 2,
+                name: "Item 2",
+                type: "Type 1",
+                sortWeight: "2",
+            },
+            {
+                id: 3,
+                name: "Item 3",
+                type: "Type 1",
+                sortWeight: "3",
+            },
+            {
+                id: 4,
+                name: "Item 4",
+                type: "Type 2",
+                sortWeight: "4",
+            },
+            {
+                id: 5,
+                name: "Item 5",
+                type: "Type 2",
+                sortWeight: "5",
+            },
+            {
+                id: 6,
+                name: "Item 6",
+                type: "Type 2",
+                sortWeight: "6",
+            },
+        ],
+    },
+};
+export const sortByWeight = (a, b) => a.sortWeight - b.sortWeight;
+
+=== 898 store/test/stubs/helpers.ts	js
+export function findById(data, id) {
+    for (let i = 0; i < data.length; i++) {
+        if (data[i].id === id)
+            return data[i];
+        if (data[i].data) {
+            const res = findById(data[i].data, id);
+            if (res)
+                return res;
+        }
+    }
+    return null;
+}
+export function findColumnById(columns, id) {
+    return columns.find(c => c.id == id);
+}
+export function extractPropsAndFlatten(obj, props = [], out = []) {
+    if (props && props.length) {
+        const propArr = [];
+        props.forEach((p) => {
+            if (typeof obj[p] !== "undefined")
+                propArr.push(obj[p]);
+        });
+        if (propArr.length)
+            out.push(propArr);
+    }
+    else if (typeof obj.name !== "undefined")
+        out.push(obj.name);
+    if (obj.data)
+        obj.data.forEach((x) => extractPropsAndFlatten(x, props, out));
+    return out;
+}
+
+=== 563 store/test/stubs/writable.ts	js
+export function writable(value) {
+    let subscriptions = [];
+    const trigger = (b) => subscriptions.forEach((a) => {
+        if (a)
+            a(b);
+    });
+    return {
+        subscribe: (handler) => {
+            subscriptions.push(handler);
+            trigger(value);
+            return () => (subscriptions = subscriptions.filter(a => a != handler));
+        },
+        set: (nv) => {
+            value = nv;
+            trigger(value);
+        },
+        update: (cb) => {
+            value = cb(value);
+            trigger(value);
+        },
+    };
+}
+

@@ -71,7 +71,7 @@ async function run(job: Job): Promise<JobResult> {
 		// A unit kept only for a reader is never compared as code, so its code may not parse.
 		const compared = applies(task, variant.id, unit);
 		for (const art of Object.values(artifacts)) {
-			if (compared && art.compare === 'js-ast') {
+			if (compared && (art.compare === 'js-ast' || art.compare === 'js-ast-parens')) {
 				try {
 					parseJs(art.text);
 				} catch (e) {

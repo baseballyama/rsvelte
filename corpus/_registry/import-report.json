@@ -1,13 +1,13 @@
 {
 	"animotion": {
-		"admitted": 17,
-		"claimed": 17,
+		"admitted": 22,
+		"claimed": 22,
 		"duplicate": 0
 	},
 	"appwrite-console": {
-		"admitted": 438,
-		"claimed": 1013,
-		"duplicate": 1,
+		"admitted": 847,
+		"claimed": 1428,
+		"duplicate": 7,
 		"not-runes-compatible:css_empty_declaration": 6,
 		"not-runes-compatible:css_expected_identifier": 15,
 		"not-runes-compatible:css_global_block_invalid_combinator": 1,
@@ -19,54 +19,54 @@
 		"not-runes-compatible:typescript_invalid_feature": 4
 	},
 	"attractions": {
-		"admitted": 22,
-		"claimed": 86,
+		"admitted": 23,
+		"claimed": 87,
 		"duplicate": 0,
 		"not-runes-compatible:legacy_export_invalid": 32,
 		"not-runes-compatible:legacy_rest_props_invalid": 32
 	},
 	"bits-ui": {
-		"admitted": 671,
-		"claimed": 677,
+		"admitted": 1051,
+		"claimed": 1057,
 		"duplicate": 5,
 		"not-runes-compatible:legacy_rest_props_invalid": 1
 	},
 	"carbon-components-svelte": {
-		"admitted": 648,
-		"claimed": 1380,
-		"duplicate": 3,
+		"admitted": 1238,
+		"claimed": 1972,
+		"duplicate": 5,
 		"not-runes-compatible:legacy_export_invalid": 369,
 		"not-runes-compatible:legacy_props_invalid": 73,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 63,
 		"not-runes-compatible:legacy_rest_props_invalid": 224
 	},
 	"cmsaasstarter": {
-		"admitted": 33,
-		"claimed": 34,
-		"duplicate": 1
+		"admitted": 62,
+		"claimed": 69,
+		"duplicate": 7
 	},
 	"cnblocks": {
-		"admitted": 755,
-		"claimed": 825,
-		"duplicate": 68,
+		"admitted": 858,
+		"claimed": 953,
+		"duplicate": 93,
 		"not-runes-compatible:legacy_rest_props_invalid": 2
 	},
 	"date-picker-svelte": {
-		"admitted": 8,
-		"claimed": 14,
+		"admitted": 15,
+		"claimed": 21,
 		"duplicate": 0,
 		"not-runes-compatible:css_expected_identifier": 6
 	},
 	"edra": {
-		"admitted": 175,
-		"claimed": 224,
-		"duplicate": 48,
+		"admitted": 238,
+		"claimed": 303,
+		"duplicate": 64,
 		"not-runes-compatible:experimental_async": 1
 	},
 	"eslint-plugin-svelte": {
-		"admitted": 1095,
-		"claimed": 1554,
-		"duplicate": 197,
+		"admitted": 1353,
+		"claimed": 1814,
+		"duplicate": 199,
 		"not-runes-compatible:animation_invalid_placement": 24,
 		"not-runes-compatible:attribute_unquoted_sequence": 1,
 		"not-runes-compatible:bind_invalid_expression": 1,
@@ -93,19 +93,19 @@
 		"not-runes-compatible:typescript_invalid_feature": 7
 	},
 	"flare": {
-		"admitted": 150,
-		"claimed": 150,
+		"admitted": 234,
+		"claimed": 234,
 		"duplicate": 0
 	},
 	"flowbite-svelte": {
-		"admitted": 1264,
-		"claimed": 1300,
-		"duplicate": 34,
+		"admitted": 1589,
+		"claimed": 1634,
+		"duplicate": 43,
 		"not-runes-compatible:legacy_export_invalid": 2
 	},
 	"gitlight": {
-		"admitted": 56,
-		"claimed": 101,
+		"admitted": 105,
+		"claimed": 150,
 		"duplicate": 0,
 		"not-runes-compatible:css_expected_identifier": 1,
 		"not-runes-compatible:legacy_export_invalid": 29,
@@ -113,45 +113,45 @@
 		"not-runes-compatible:runes_mode_invalid_import": 1
 	},
 	"ha-fusion": {
-		"admitted": 15,
-		"claimed": 172,
+		"admitted": 44,
+		"claimed": 201,
 		"duplicate": 0,
 		"not-runes-compatible:legacy_export_invalid": 151,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 5,
 		"not-runes-compatible:typescript_invalid_feature": 1
 	},
 	"headscale-ui": {
-		"admitted": 16,
-		"claimed": 37,
+		"admitted": 17,
+		"claimed": 38,
 		"duplicate": 0,
 		"not-runes-compatible:legacy_export_invalid": 19,
 		"not-runes-compatible:node_invalid_placement": 2
 	},
 	"joy-of-code": {
-		"admitted": 90,
-		"claimed": 90,
+		"admitted": 115,
+		"claimed": 115,
 		"duplicate": 0
 	},
 	"kampsy-ui": {
-		"admitted": 188,
-		"claimed": 190,
+		"admitted": 275,
+		"claimed": 277,
 		"duplicate": 2
 	},
 	"kener": {
-		"admitted": 317,
-		"claimed": 343,
-		"duplicate": 25,
+		"admitted": 605,
+		"claimed": 641,
+		"duplicate": 35,
 		"not-runes-compatible:runes_mode_invalid_import": 1
 	},
 	"kite-public": {
-		"admitted": 156,
-		"claimed": 159,
-		"duplicate": 3
+		"admitted": 336,
+		"claimed": 340,
+		"duplicate": 4
 	},
 	"language-tools": {
-		"admitted": 500,
-		"claimed": 810,
-		"duplicate": 24,
+		"admitted": 1103,
+		"claimed": 1429,
+		"duplicate": 32,
 		"not-runes-compatible:animation_invalid_placement": 6,
 		"not-runes-compatible:attribute_invalid_name": 1,
 		"not-runes-compatible:attribute_unquoted_sequence": 2,
@@ -179,7 +179,9 @@
 		"not-runes-compatible:svelte_fragment_invalid_placement": 1,
 		"not-runes-compatible:transition_conflict": 1,
 		"not-runes-compatible:typescript_invalid_feature": 1,
-		"not-runes-compatible:unexpected_eof": 7
+		"not-runes-compatible:unexpected_eof": 7,
+		"typescript-emit-unparseable": 6,
+		"typescript-syntax-error": 2
 	},
 	"layercake": {
 		"admitted": 176,
@@ -188,51 +190,52 @@
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"layerchart": {
-		"admitted": 1507,
-		"claimed": 1548,
-		"duplicate": 15,
+		"admitted": 1709,
+		"claimed": 1767,
+		"duplicate": 32,
 		"not-runes-compatible:experimental_async": 26
 	},
 	"melt-ui": {
-		"admitted": 83,
-		"claimed": 84,
-		"duplicate": 1
-	},
-	"mode-watcher": {
-		"admitted": 17,
-		"claimed": 19,
+		"admitted": 124,
+		"claimed": 126,
 		"duplicate": 2
 	},
+	"mode-watcher": {
+		"admitted": 34,
+		"claimed": 40,
+		"duplicate": 5,
+		"typescript-emit-unparseable": 1
+	},
 	"neohtop": {
-		"admitted": 3,
-		"claimed": 31,
+		"admitted": 20,
+		"claimed": 48,
 		"duplicate": 1,
 		"not-runes-compatible:legacy_export_invalid": 25,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 2
 	},
 	"networking-toolbox": {
-		"admitted": 308,
-		"claimed": 350,
-		"duplicate": 1,
+		"admitted": 631,
+		"claimed": 675,
+		"duplicate": 3,
 		"not-runes-compatible:css_expected_identifier": 31,
 		"not-runes-compatible:legacy_export_invalid": 6,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 4
 	},
 	"originui-svelte": {
-		"admitted": 681,
-		"claimed": 697,
-		"duplicate": 16
+		"admitted": 754,
+		"claimed": 772,
+		"duplicate": 18
 	},
 	"primo": {
-		"admitted": 208,
-		"claimed": 212,
-		"duplicate": 3,
+		"admitted": 313,
+		"claimed": 318,
+		"duplicate": 4,
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"rsvelte": {
-		"admitted": 2978,
-		"claimed": 3017,
-		"duplicate": 39,
+		"admitted": 3007,
+		"claimed": 3050,
+		"duplicate": 43,
 		"rejected:module-rejected:derived_invalid_export": 1,
 		"rejected:module-rejected:dollar_prefix_invalid": 1,
 		"rejected:module-rejected:import_svelte_internal_forbidden": 1,
@@ -590,25 +593,26 @@
 		"rejected:not-runes-compatible:transition_conflict": 1
 	},
 	"runed": {
-		"admitted": 91,
-		"claimed": 91,
-		"duplicate": 0
+		"admitted": 161,
+		"claimed": 165,
+		"duplicate": 2,
+		"typescript-emit-unparseable": 2
 	},
 	"shadcn-svelte": {
-		"admitted": 1656,
-		"claimed": 1691,
-		"duplicate": 34,
+		"admitted": 2683,
+		"claimed": 2727,
+		"duplicate": 43,
 		"not-runes-compatible:legacy_rest_props_invalid": 1
 	},
 	"shadcn-svelte-extras": {
-		"admitted": 682,
-		"claimed": 697,
-		"duplicate": 15
+		"admitted": 860,
+		"claimed": 886,
+		"duplicate": 26
 	},
 	"skeleton": {
-		"admitted": 699,
-		"claimed": 714,
-		"duplicate": 1,
+		"admitted": 1117,
+		"claimed": 1137,
+		"duplicate": 6,
 		"not-runes-compatible:experimental_async": 14
 	},
 	"smelte": {
@@ -620,8 +624,8 @@
 		"not-runes-compatible:legacy_reactive_statement_invalid": 2
 	},
 	"svader": {
-		"admitted": 21,
-		"claimed": 24,
+		"admitted": 23,
+		"claimed": 26,
 		"duplicate": 0,
 		"not-runes-compatible:legacy_export_invalid": 3
 	},
@@ -632,15 +636,15 @@
 		"not-runes-compatible:legacy_export_invalid": 2
 	},
 	"svar-grid": {
-		"admitted": 151,
-		"claimed": 165,
+		"admitted": 177,
+		"claimed": 191,
 		"duplicate": 8,
 		"not-runes-compatible:legacy_export_invalid": 5,
 		"not-runes-compatible:runes_mode_invalid_import": 1
 	},
 	"svelte": {
-		"admitted": 2536,
-		"claimed": 4671,
+		"admitted": 2583,
+		"claimed": 4718,
 		"duplicate": 161,
 		"module-rejected:bindable_invalid_location": 1,
 		"module-rejected:constant_assignment": 1,
@@ -793,14 +797,14 @@
 		"not-runes-compatible:void_element_invalid_content": 1
 	},
 	"svelte-awesome-color-picker": {
-		"admitted": 14,
-		"claimed": 14,
+		"admitted": 22,
+		"claimed": 22,
 		"duplicate": 0
 	},
 	"svelte-bits": {
-		"admitted": 308,
-		"claimed": 309,
-		"duplicate": 1
+		"admitted": 327,
+		"claimed": 329,
+		"duplicate": 2
 	},
 	"svelte-calendar": {
 		"admitted": 19,
@@ -811,29 +815,29 @@
 		"not-runes-compatible:legacy_reactive_statement_invalid": 7
 	},
 	"svelte-canvas": {
-		"admitted": 32,
-		"claimed": 32,
+		"admitted": 41,
+		"claimed": 41,
 		"duplicate": 0
 	},
 	"svelte-chartjs": {
-		"admitted": 41,
-		"claimed": 50,
+		"admitted": 55,
+		"claimed": 64,
 		"duplicate": 9
 	},
 	"svelte-codemirror-editor": {
-		"admitted": 7,
-		"claimed": 7,
-		"duplicate": 0
+		"admitted": 11,
+		"claimed": 12,
+		"duplicate": 1
 	},
 	"svelte-command-palette": {
-		"admitted": 26,
-		"claimed": 27,
+		"admitted": 53,
+		"claimed": 54,
 		"duplicate": 1
 	},
 	"svelte-commerce": {
-		"admitted": 337,
-		"claimed": 356,
-		"duplicate": 3,
+		"admitted": 476,
+		"claimed": 499,
+		"duplicate": 7,
 		"not-runes-compatible:legacy_export_invalid": 2,
 		"not-runes-compatible:legacy_rest_props_invalid": 14
 	},
@@ -844,9 +848,9 @@
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"svelte-eslint-parser": {
-		"admitted": 457,
-		"claimed": 637,
-		"duplicate": 20,
+		"admitted": 556,
+		"claimed": 744,
+		"duplicate": 27,
 		"not-runes-compatible:animation_invalid_placement": 1,
 		"not-runes-compatible:bind_invalid_name": 4,
 		"not-runes-compatible:bind_invalid_value": 18,
@@ -869,28 +873,29 @@
 		"not-runes-compatible:runes_mode_invalid_import": 3,
 		"not-runes-compatible:state_invalid_placement": 2,
 		"not-runes-compatible:svelte_options_deprecated_tag": 1,
-		"not-runes-compatible:svelte_options_unknown_attribute": 1
+		"not-runes-compatible:svelte_options_unknown_attribute": 1,
+		"typescript-emit-unparseable": 1
 	},
 	"svelte-fa": {
-		"admitted": 11,
-		"claimed": 17,
+		"admitted": 19,
+		"claimed": 25,
 		"duplicate": 0,
 		"not-runes-compatible:legacy_export_invalid": 6
 	},
 	"svelte-formly": {
-		"admitted": 3,
-		"claimed": 16,
-		"duplicate": 1,
+		"admitted": 20,
+		"claimed": 34,
+		"duplicate": 2,
 		"not-runes-compatible:legacy_export_invalid": 12
 	},
 	"svelte-french-toast": {
-		"admitted": 13,
-		"claimed": 13,
-		"duplicate": 0
+		"admitted": 22,
+		"claimed": 24,
+		"duplicate": 2
 	},
 	"svelte-gantt": {
-		"admitted": 27,
-		"claimed": 81,
+		"admitted": 59,
+		"claimed": 113,
 		"duplicate": 0,
 		"not-runes-compatible:attribute_unquoted_sequence": 1,
 		"not-runes-compatible:legacy_export_invalid": 33,
@@ -899,41 +904,41 @@
 		"not-runes-compatible:legacy_rest_props_invalid": 2
 	},
 	"svelte-heroicons": {
-		"admitted": 0,
-		"claimed": 294,
-		"duplicate": 0,
+		"admitted": 6,
+		"claimed": 301,
+		"duplicate": 1,
 		"not-runes-compatible:legacy_props_invalid": 293,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 1
 	},
 	"svelte-inspect-value": {
-		"admitted": 196,
-		"claimed": 196,
-		"duplicate": 0
-	},
-	"svelte-lexical": {
-		"admitted": 169,
-		"claimed": 171,
+		"admitted": 260,
+		"claimed": 262,
 		"duplicate": 2
 	},
+	"svelte-lexical": {
+		"admitted": 233,
+		"claimed": 246,
+		"duplicate": 13
+	},
 	"svelte-maplibre": {
-		"admitted": 91,
-		"claimed": 91,
-		"duplicate": 0
+		"admitted": 150,
+		"claimed": 151,
+		"duplicate": 1
 	},
 	"svelte-material-ui": {
-		"admitted": 449,
-		"claimed": 449,
-		"duplicate": 0
+		"admitted": 799,
+		"claimed": 819,
+		"duplicate": 20
 	},
 	"svelte-pivottable": {
-		"admitted": 15,
-		"claimed": 15,
+		"admitted": 24,
+		"claimed": 24,
 		"duplicate": 0
 	},
 	"svelte-put": {
-		"admitted": 106,
-		"claimed": 128,
-		"duplicate": 0,
+		"admitted": 156,
+		"claimed": 179,
+		"duplicate": 1,
 		"not-runes-compatible:bind_invalid_name": 2,
 		"not-runes-compatible:expected_token": 7,
 		"not-runes-compatible:js_parse_error": 2,
@@ -942,9 +947,9 @@
 		"not-runes-compatible:tag_invalid_name": 2
 	},
 	"svelte-render-scan": {
-		"admitted": 5,
-		"claimed": 5,
-		"duplicate": 0
+		"admitted": 8,
+		"claimed": 9,
+		"duplicate": 1
 	},
 	"svelte-simple-modal": {
 		"admitted": 0,
@@ -953,31 +958,31 @@
 		"not-runes-compatible:legacy_export_invalid": 1
 	},
 	"svelte-sites": {
-		"admitted": 13,
-		"claimed": 13,
-		"duplicate": 0
+		"admitted": 27,
+		"claimed": 28,
+		"duplicate": 1
 	},
 	"svelte-sonner": {
-		"admitted": 32,
-		"claimed": 32,
-		"duplicate": 0
+		"admitted": 49,
+		"claimed": 50,
+		"duplicate": 1
 	},
 	"svelte-spa-router": {
-		"admitted": 22,
-		"claimed": 24,
-		"duplicate": 2
+		"admitted": 29,
+		"claimed": 32,
+		"duplicate": 3
 	},
 	"svelte-splitpanes": {
-		"admitted": 37,
-		"claimed": 49,
-		"duplicate": 0,
+		"admitted": 52,
+		"claimed": 83,
+		"duplicate": 19,
 		"not-runes-compatible:css_expected_identifier": 1,
 		"not-runes-compatible:legacy_export_invalid": 10,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 1
 	},
 	"svelte-table": {
-		"admitted": 5,
-		"claimed": 11,
+		"admitted": 7,
+		"claimed": 13,
 		"duplicate": 0,
 		"not-runes-compatible:legacy_export_invalid": 2,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 4
@@ -988,8 +993,8 @@
 		"duplicate": 0
 	},
 	"svelte-tiny-virtual-list": {
-		"admitted": 10,
-		"claimed": 10,
+		"admitted": 11,
+		"claimed": 11,
 		"duplicate": 0
 	},
 	"svelte-toast": {
@@ -1000,30 +1005,30 @@
 		"not-runes-compatible:legacy_reactive_statement_invalid": 1
 	},
 	"svelte-toolbelt": {
-		"admitted": 12,
-		"claimed": 12,
+		"admitted": 37,
+		"claimed": 37,
 		"duplicate": 0
 	},
 	"svelte-tweakpane-ui": {
-		"admitted": 53,
-		"claimed": 110,
-		"duplicate": 0,
+		"admitted": 116,
+		"claimed": 174,
+		"duplicate": 1,
 		"not-runes-compatible:legacy_export_invalid": 16,
 		"not-runes-compatible:legacy_props_invalid": 19,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 3,
 		"not-runes-compatible:legacy_rest_props_invalid": 19
 	},
 	"svelte-typeahead": {
-		"admitted": 0,
-		"claimed": 3,
+		"admitted": 5,
+		"claimed": 8,
 		"duplicate": 0,
 		"not-runes-compatible:legacy_export_invalid": 1,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 1,
 		"not-runes-compatible:legacy_rest_props_invalid": 1
 	},
 	"svelte-ux": {
-		"admitted": 80,
-		"claimed": 198,
+		"admitted": 175,
+		"claimed": 293,
 		"duplicate": 0,
 		"not-runes-compatible:legacy_export_invalid": 36,
 		"not-runes-compatible:legacy_props_invalid": 51,
@@ -1031,23 +1036,23 @@
 		"not-runes-compatible:legacy_rest_props_invalid": 24
 	},
 	"svelte-virtuallists": {
-		"admitted": 24,
-		"claimed": 25,
-		"duplicate": 0,
+		"admitted": 29,
+		"claimed": 32,
+		"duplicate": 2,
 		"not-runes-compatible:typescript_invalid_feature": 1
 	},
 	"sveltekit": {
-		"admitted": 544,
-		"claimed": 1015,
-		"duplicate": 258,
+		"admitted": 637,
+		"claimed": 1127,
+		"duplicate": 277,
 		"not-runes-compatible:experimental_async": 41,
 		"not-runes-compatible:legacy_export_invalid": 171,
 		"not-runes-compatible:unexpected_eof": 1
 	},
 	"sveltepress": {
-		"admitted": 127,
-		"claimed": 132,
-		"duplicate": 5
+		"admitted": 253,
+		"claimed": 263,
+		"duplicate": 10
 	},
 	"sveltestrap": {
 		"admitted": 38,
@@ -1059,32 +1064,33 @@
 		"not-runes-compatible:legacy_rest_props_invalid": 83
 	},
 	"svelteui": {
-		"admitted": 261,
-		"claimed": 496,
-		"duplicate": 2,
+		"admitted": 815,
+		"claimed": 1082,
+		"duplicate": 31,
 		"not-runes-compatible:import_svelte_internal_forbidden": 4,
 		"not-runes-compatible:legacy_export_invalid": 120,
 		"not-runes-compatible:legacy_props_invalid": 2,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 22,
-		"not-runes-compatible:legacy_rest_props_invalid": 85
+		"not-runes-compatible:legacy_rest_props_invalid": 85,
+		"typescript-emit-unparseable": 3
 	},
 	"svelthree": {
-		"admitted": 1,
-		"claimed": 21,
+		"admitted": 51,
+		"claimed": 71,
 		"duplicate": 0,
 		"not-runes-compatible:legacy_export_invalid": 1,
 		"not-runes-compatible:runes_mode_invalid_import": 19
 	},
 	"syntaxfm-website": {
-		"admitted": 109,
-		"claimed": 110,
+		"admitted": 243,
+		"claimed": 244,
 		"duplicate": 0,
 		"not-runes-compatible:js_parse_error": 1
 	},
 	"threlte": {
-		"admitted": 830,
-		"claimed": 886,
-		"duplicate": 53,
+		"admitted": 1229,
+		"claimed": 1288,
+		"duplicate": 56,
 		"not-runes-compatible:legacy_export_invalid": 1,
 		"not-runes-compatible:legacy_reactive_statement_invalid": 1,
 		"not-runes-compatible:legacy_rest_props_invalid": 1

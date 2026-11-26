@@ -7,6 +7,7 @@ import svelteCompile from './tasks/svelte-compile.ts';
 import svelteCompileModule from './tasks/svelte-compile-module.ts';
 import svelteFormat from './tasks/svelte-format.ts';
 import svelteLint from './tasks/svelte-lint.ts';
+import tsCompile from './tasks/ts-compile.ts';
 import vueCheck from './tasks/vue-check.ts';
 import vueCompile from './tasks/vue-compile.ts';
 import vueFormat from './tasks/vue-format.ts';
@@ -22,6 +23,7 @@ export const TASKS: Task[] = [
 	svelteFormat,
 	svelteLint,
 	svueCompile,
+	tsCompile,
 	vueCheck,
 	vueCompile,
 	vueFormat,

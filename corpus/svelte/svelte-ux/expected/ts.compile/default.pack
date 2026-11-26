@@ -1,0 +1,1633 @@
+# rsvelte pack 1
+=== 6374 packages/svelte-ux/src/lib/components/index.ts	js
+export { default as ApiDocs } from './ApiDocs.svelte';
+export { default as AppBar } from './AppBar.svelte';
+export { default as AppLayout } from './AppLayout.svelte';
+export { default as Avatar } from './Avatar.svelte';
+export { default as Backdrop } from './Backdrop.svelte';
+export { default as Badge } from './Badge.svelte';
+export { default as BarStack } from './BarStack.svelte';
+export { default as Breadcrumb } from './Breadcrumb.svelte';
+export { default as Button } from './Button.svelte';
+export { default as ButtonGroup } from './ButtonGroup.svelte';
+export { default as Card } from './Card.svelte';
+export { default as Checkbox } from './Checkbox.svelte';
+export { default as CopyButton } from './CopyButton.svelte';
+export { default as Progress } from './Progress.svelte';
+export { default as ProgressCircle } from './ProgressCircle.svelte';
+// export { default as Code } from './Code.svelte';
+export { default as Collapse } from './Collapse.svelte';
+export { default as DateButton } from './DateButton.svelte';
+export { default as DateField } from './DateField.svelte';
+export { default as DatePickerField } from './DatePickerField.svelte';
+export { default as DateRange } from './DateRange.svelte';
+export { default as DateRangeDisplay } from './DateRangeDisplay.svelte';
+export { default as DateRangeField } from './DateRangeField.svelte';
+export { default as DateSelect } from './DateSelect.svelte';
+export { default as Dialog } from './Dialog.svelte';
+export { default as DividerDot } from './DividerDot.svelte';
+export { default as Drawer } from './Drawer.svelte';
+export { default as Duration } from './Duration.svelte';
+export { default as EmptyMessage } from './EmptyMessage.svelte';
+export { default as ErrorNotification } from './ErrorNotification.svelte';
+export { default as ExpansionPanel } from './ExpansionPanel.svelte';
+export { default as Field } from './Field.svelte';
+export { default as Gooey } from './Gooey.svelte';
+export { default as Grid } from './Grid.svelte';
+export { default as Header } from './Header.svelte';
+export { default as Icon } from './Icon.svelte';
+export { default as InfiniteScroll } from './InfiniteScroll.svelte';
+export { default as Input } from './Input.svelte';
+export { default as Form } from './Form.svelte';
+export { default as Kbd } from './Kbd.svelte';
+export { default as Lazy } from './Lazy.svelte';
+export { default as ListItem } from './ListItem.svelte';
+export { default as Menu } from './Menu.svelte';
+export { default as MenuButton } from './MenuButton.svelte';
+export { default as MenuField } from './MenuField.svelte';
+export { default as MenuItem } from './MenuItem.svelte';
+export { default as Month } from './Month.svelte';
+export { default as MonthList } from './MonthList.svelte';
+export { default as MonthListByYear } from './MonthListByYear.svelte';
+export { default as MultiSelect } from './MultiSelect.svelte';
+export { default as MultiSelectField } from './MultiSelectField.svelte';
+export { default as MultiSelectMenu } from './MultiSelectMenu.svelte';
+export { default as MultiSelectOption } from './MultiSelectOption.svelte';
+export { default as NumberStepper } from './NumberStepper.svelte';
+export { default as NavItem } from './NavItem.svelte';
+export { default as Notification } from './Notification.svelte';
+export { default as Overflow } from './Overflow.svelte';
+export { default as Overlay } from './Overlay.svelte';
+export { default as Paginate } from './Paginate.svelte';
+export { default as Pagination } from './Pagination.svelte';
+export { default as Popover } from './Popover.svelte';
+// export { default as Preview } from './Preview.svelte'; // TODO: Export after `SyntaxError: The requested module '/node_modules/prismjs/prism.js?v=fe9edf62' does not provide an export named 'default'` is fixed
+export { default as QuickSearch } from './QuickSearch.svelte';
+export { default as Radio } from './Radio.svelte';
+export { default as RangeField } from './RangeField.svelte';
+export { default as RangeSlider } from './RangeSlider.svelte';
+export { default as ResponsiveMenu } from './ResponsiveMenu.svelte';
+export { default as ScrollContainer } from './ScrollContainer.svelte';
+export { default as ScrollingValue } from './ScrollingValue.svelte';
+export { default as SectionDivider } from './SectionDivider.svelte';
+export { default as Selection } from './Selection.svelte';
+export { default as SelectField } from './SelectField.svelte';
+export { default as Settings } from './Settings.svelte';
+export { default as Shine } from './Shine.svelte';
+export { default as SpringValue } from './SpringValue.svelte';
+export { default as Stack } from './Stack.svelte';
+export { default as State } from './State.svelte';
+export { default as Step } from './Step.svelte';
+export { default as Steps } from './Steps.svelte';
+export { default as StoreSubscribe } from './StoreSubscribe.svelte';
+export { default as Switch } from './Switch.svelte';
+export { default as Table } from './Table.svelte';
+export { default as TableOfContents } from './TableOfContents.svelte';
+export { default as TableOrderIcon } from './TableOrderIcon.svelte';
+export { default as Tab } from './Tab.svelte';
+export { default as Tabs } from './Tabs.svelte';
+export { default as TextField } from './TextField.svelte';
+export { default as ThemeSelect } from './ThemeSelect.svelte';
+export { default as ThemeSwitch } from './ThemeSwitch.svelte';
+export { default as ThemeInit } from './ThemeInit.svelte';
+export { default as Tilt } from './Tilt.svelte';
+export { default as Timeline } from './Timeline.svelte';
+export { default as TimelineEvent } from './TimelineEvent.svelte';
+export { default as Toggle } from './Toggle.svelte';
+export { default as ToggleButton } from './ToggleButton.svelte';
+export { default as ToggleGroup } from './ToggleGroup.svelte';
+export { default as ToggleOption } from './ToggleOption.svelte';
+export { default as TogglePanel } from './TogglePanel.svelte';
+export { default as Tooltip } from './Tooltip.svelte';
+export { default as TreeList } from './TreeList.svelte';
+export { default as TweenedValue } from './TweenedValue.svelte';
+export { default as ViewportCenter } from './ViewportCenter.svelte';
+export { default as YearList } from './YearList.svelte';
+export { settings, getSettings, getComponentSettings } from './settings.js';
+export { getComponentClasses } from './theme.js';
+
+=== 3536 packages/svelte-ux/src/lib/components/settings.ts	js
+import { getContext, setContext } from 'svelte';
+import { writable, derived } from 'svelte/store';
+import { BROWSER } from 'esm-env';
+import { buildFormatters } from '@layerstack/utils/format';
+import { getAllKnownLocales, localeStore, } from '@layerstack/utils/locale';
+import { breakpoints } from '@layerstack/svelte-stores';
+import { createThemeStore } from '@layerstack/svelte-stores';
+import { resolveComponentClasses, } from './theme.js';
+const settingsKey = Symbol();
+function createLocaleStores(settings) {
+    if (settings.locale && settings.localeSettings && settings.format) {
+        return {
+            locale: settings.locale,
+            localeSettings: settings.localeSettings,
+            format: settings.format,
+        };
+    }
+    let allLocales = getAllKnownLocales(settings.localeFormats);
+    let locale = localeStore(settings.forceLocale, settings.fallbackLocale);
+    let localeSettings = derived(locale, ($locale) => {
+        let settings = allLocales[$locale];
+        if (settings) {
+            return settings;
+        }
+        return {
+            ...allLocales.en,
+            locale: $locale,
+        };
+    });
+    return {
+        locale,
+        localeSettings,
+        format: derived(localeSettings, buildFormatters),
+    };
+}
+function createShowDrawer() {
+    return writable(BROWSER ? window.innerWidth >= breakpoints.md : true);
+}
+export function settings(settings = {}) {
+    const lightThemes = settings.themes ? (settings.themes.light ?? []) : ['light'];
+    const darkThemes = settings.themes ? (settings.themes.dark ?? []) : ['dark'];
+    const currentTheme = 
+    // In some cases, `settings` is called again from inside a component. Don't create a new theme store in this case.
+    settings.currentTheme ??
+        createThemeStore({
+            light: lightThemes,
+            dark: darkThemes,
+        });
+    const localeStores = createLocaleStores(settings);
+    const showDrawer = createShowDrawer();
+    return setContext(settingsKey, {
+        ...settings,
+        themes: {
+            light: lightThemes,
+            dark: darkThemes,
+        },
+        currentTheme,
+        componentSettingsCache: {},
+        showDrawer,
+        ...localeStores,
+    });
+}
+let FALLBACK_SETTINGS = null;
+function getFallbackSettings() {
+    FALLBACK_SETTINGS = FALLBACK_SETTINGS ?? {
+        currentTheme: createThemeStore({ light: [], dark: [] }),
+        componentSettingsCache: {},
+        showDrawer: createShowDrawer(),
+        ...createLocaleStores({}),
+    };
+    return FALLBACK_SETTINGS;
+}
+export function getSettings() {
+    // in a try/catch to be able to test w/o svelte components
+    try {
+        return getContext(settingsKey) ?? getFallbackSettings();
+    }
+    catch (error) {
+        return getFallbackSettings();
+    }
+}
+export function resolveComponentSettings(settings, name) {
+    const { classes: themeClasses, ...defaultProps } = settings?.components?.[name] ?? {};
+    const classes = resolveComponentClasses(themeClasses);
+    const output = {
+        defaults: (defaultProps ?? {}),
+        classes,
+    };
+    return output;
+}
+/**
+ * Returns default component props and classes for a given component.
+ * @param name component name
+ */
+export function getComponentSettings(name) {
+    const settings = getSettings();
+    const existing = settings.componentSettingsCache[name];
+    if (existing) {
+        return existing;
+    }
+    const output = resolveComponentSettings(settings, name);
+    settings.componentSettingsCache[name] = output;
+    return output;
+}
+
+=== 581 packages/svelte-ux/src/lib/components/theme.ts	js
+import { getSettings } from './settings.js';
+export function getComponents() {
+    return getSettings().components ?? {};
+}
+export function resolveComponentClasses(theme) {
+    return typeof theme === 'string' ? { root: theme } : (theme ?? {});
+}
+/**
+ * Returns default component classes for a given component. See {@link resolveComponentSettings}
+ * to get both default props and classes.
+ * @param name component name
+ */
+export function getComponentClasses(name) {
+    const settings = getSettings();
+    return resolveComponentClasses(settings?.components?.[name]?.classes);
+}
+
+=== 73 packages/svelte-ux/src/lib/index.ts	js
+export * from './components/index.js';
+export * from './types/index.js';
+
+=== 108 packages/svelte-ux/src/lib/placeholder.test.ts	js
+import { expect, test } from 'vitest';
+test('adds 1 + 2 to equal 3', () => {
+    expect(1 + 1).toBe(2);
+});
+
+=== 48 packages/svelte-ux/src/lib/types/index.ts	js
+export const DEFAULT_LABEL_PLACEMENT = 'inset';
+
+=== 431 packages/svelte-ux/src/lib/utils/icons.ts	js
+import { isLiteralObject } from '@layerstack/utils/object';
+export function asIconData(v) {
+    return isIconComponentProps(v) ? v.data : v;
+}
+function isIconComponentProps(v) {
+    // `iconName` is a required property of `IconDefinition`, the only other object that `IconInput` supports.
+    // If it is undefined, then only ComponentProps<Icon> is viable.
+    return isLiteralObject(v) && typeof v['iconName'] === 'undefined';
+}
+
+=== 650 packages/svelte-ux/src/routes/+layout.server.ts	js
+import { redirect } from '@sveltejs/kit';
+import { getThemeNames } from '@layerstack/tailwind';
+import { env } from '$env/dynamic/private';
+import themes from '../../themes.json' with { type: 'json' };
+export async function load({ url }) {
+    // Redirect `svelte-ux.vercel.app` to `svelte-ux.techniq.dev`
+    if (url.host === 'svelte-ux.vercel.app') {
+        const newUrl = new URL(url);
+        newUrl.host = 'svelte-ux.techniq.dev';
+        redirect(302, newUrl.toString());
+    }
+    return {
+        themes: getThemeNames(themes),
+        // themes: { light: ['light'], dark: ['dark'] },
+        pr_id: env.VERCEL_GIT_PULL_REQUEST_ID,
+    };
+}
+
+=== 615 packages/svelte-ux/src/routes/+layout.ts	js
+import posthog from 'posthog-js';
+import { BROWSER, DEV } from 'esm-env';
+// Disable server-side rendering until AppLayout shift is fixed (issue #22)
+export const ssr = false;
+export const load = async ({ data }) => {
+    // Setup Posthog
+    if (BROWSER && !DEV) {
+        // @ts-expect-error: `posthog.init()` is valid - https://posthog.com/docs/product-analytics/installation
+        posthog.init('phc_F78mUWQpKPpsXS1mamJFzDWM8bivZrwIx4Nm1cI8BSb', {
+            api_host: 'https://app.posthog.com',
+            capture_pageview: false,
+            capture_pageleave: false,
+        });
+    }
+    return data;
+};
+
+=== 301 packages/svelte-ux/src/routes/docs/components/AppBar/+page.ts	js
+import api from '$lib/components/AppBar.svelte?raw&sveld';
+import source from '$lib/components/AppBar.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 303 packages/svelte-ux/src/routes/docs/components/AppLayout/+page.ts	js
+import api from '$lib/components/AppLayout.svelte?raw&sveld';
+import source from '$lib/components/AppLayout.svelte?raw';
+import pageSource from './+page.md?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 301 packages/svelte-ux/src/routes/docs/components/Avatar/+page.ts	js
+import api from '$lib/components/Avatar.svelte?raw&sveld';
+import source from '$lib/components/Avatar.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 299 packages/svelte-ux/src/routes/docs/components/Badge/+page.ts	js
+import api from '$lib/components/Badge.svelte?raw&sveld';
+import source from '$lib/components/Badge.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 351 packages/svelte-ux/src/routes/docs/components/BarStack/+page.ts	js
+import api from '$lib/components/BarStack.svelte?raw&sveld';
+import source from '$lib/components/BarStack.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/Progress'],
+        },
+    };
+}
+
+=== 309 packages/svelte-ux/src/routes/docs/components/Breadcrumb/+page.ts	js
+import api from '$lib/components/Breadcrumb.svelte?raw&sveld';
+import source from '$lib/components/Breadcrumb.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 369 packages/svelte-ux/src/routes/docs/components/Button/+page.ts	js
+import api from '$lib/components/Button.svelte?raw&sveld';
+import source from '$lib/components/Button.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/ButtonGroup', 'components/Icon'],
+        },
+    };
+}
+
+=== 355 packages/svelte-ux/src/routes/docs/components/ButtonGroup/+page.ts	js
+import api from '$lib/components/ButtonGroup.svelte?raw&sveld';
+import source from '$lib/components/ButtonGroup.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/Button'],
+        },
+    };
+}
+
+=== 297 packages/svelte-ux/src/routes/docs/components/Card/+page.ts	js
+import api from '$lib/components/Card.svelte?raw&sveld';
+import source from '$lib/components/Card.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 305 packages/svelte-ux/src/routes/docs/components/Checkbox/+page.ts	js
+import api from '$lib/components/Checkbox.svelte?raw&sveld';
+import source from '$lib/components/Checkbox.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 384 packages/svelte-ux/src/routes/docs/components/Collapse/+page.ts	js
+import api from '$lib/components/Collapse.svelte?raw&sveld';
+import source from '$lib/components/Collapse.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/ExpansionPanel', 'components/ToggleButton'],
+        },
+    };
+}
+
+=== 415 packages/svelte-ux/src/routes/docs/components/CopyButton/+page.ts	js
+import api from '$lib/components/CopyButton.svelte?raw&sveld';
+import source from '$lib/components/CopyButton.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Button to copy value to clipboard',
+            related: ['components/Button'],
+        },
+    };
+}
+
+=== 307 packages/svelte-ux/src/routes/docs/components/DateField/+page.ts	js
+import api from '$lib/components/DateField.svelte?raw&sveld';
+import source from '$lib/components/DateField.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 319 packages/svelte-ux/src/routes/docs/components/DatePickerField/+page.ts	js
+import api from '$lib/components/DatePickerField.svelte?raw&sveld';
+import source from '$lib/components/DatePickerField.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 307 packages/svelte-ux/src/routes/docs/components/DateRange/+page.ts	js
+import api from '$lib/components/DateRange.svelte?raw&sveld';
+import source from '$lib/components/DateRange.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 317 packages/svelte-ux/src/routes/docs/components/DateRangeField/+page.ts	js
+import api from '$lib/components/DateRangeField.svelte?raw&sveld';
+import source from '$lib/components/DateRangeField.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 301 packages/svelte-ux/src/routes/docs/components/Dialog/+page.ts	js
+import api from '$lib/components/Dialog.svelte?raw&sveld';
+import source from '$lib/components/Dialog.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 301 packages/svelte-ux/src/routes/docs/components/Drawer/+page.ts	js
+import api from '$lib/components/Drawer.svelte?raw&sveld';
+import source from '$lib/components/Drawer.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 367 packages/svelte-ux/src/routes/docs/components/Duration/+page.ts	js
+import api from '$lib/components/Duration.svelte?raw&sveld';
+import source from '$lib/components/Duration.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['stores/timerStore', 'utils/duration'],
+        },
+    };
+}
+
+=== 363 packages/svelte-ux/src/routes/docs/components/ExpansionPanel/+page.ts	js
+import api from '$lib/components/ExpansionPanel.svelte?raw&sveld';
+import source from '$lib/components/ExpansionPanel.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/Collapse'],
+        },
+    };
+}
+
+=== 346 packages/svelte-ux/src/routes/docs/components/Field/+page.ts	js
+import api from '$lib/components/Field.svelte?raw&sveld';
+import source from '$lib/components/Field.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/TextField'],
+        },
+    };
+}
+
+=== 191 packages/svelte-ux/src/routes/docs/components/Form/+page.server.ts	js
+export const actions = {
+    default: async (event) => {
+        console.log('Default action');
+    },
+    // example: async (event) => {
+    //   console.log('Example action');
+    // },
+};
+
+=== 340 packages/svelte-ux/src/routes/docs/components/Form/+page.ts	js
+import api from '$lib/components/Form.svelte?raw&sveld';
+import source from '$lib/components/Form.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['stores/formStore'],
+        },
+    };
+}
+
+=== 342 packages/svelte-ux/src/routes/docs/components/Gooey/+page.ts	js
+import api from '$lib/components/Gooey.svelte?raw&sveld';
+import source from '$lib/components/Gooey.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/Shine'],
+        },
+    };
+}
+
+=== 388 packages/svelte-ux/src/routes/docs/components/Grid/+page.ts	js
+import api from '$lib/components/Grid.svelte?raw&sveld';
+import source from '$lib/components/Grid.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Use tailwind classes instead',
+            status: 'deprecated',
+        },
+    };
+}
+
+=== 255 packages/svelte-ux/src/routes/docs/components/GridTailwind/+page.ts	js
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            pageSource,
+            title: 'Grid',
+            description: 'Uses tailwind classes',
+            hideUsage: true,
+        },
+    };
+}
+
+=== 805 packages/svelte-ux/src/routes/docs/components/Icon/+page.ts	js
+import api from '$lib/components/Icon.svelte?raw&sveld';
+import source from '$lib/components/Icon.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            features: [
+                'Supports loading icons as path data, SVG as string, SVG from URL, or as an SVG element via slot',
+                'Convenient `data` prop to support most of the above use cases via a single prop through introspection',
+                'Supports most icon collections.  Verified with Material Design Icons and Font Awesome',
+                'Simple in-memory cache when loaded via URL and only fetches once',
+            ],
+            related: ['components/Button'],
+        },
+    };
+}
+
+=== 487 packages/svelte-ux/src/routes/docs/components/InfiniteScroll/+page.ts	js
+import api from '$lib/components/InfiniteScroll.svelte?raw&sveld';
+import source from '$lib/components/InfiniteScroll.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Continues to render additional items as bottom is reached. Does not perform virtualized scrolling.',
+            related: ['actions/observer'],
+        },
+    };
+}
+
+=== 351 packages/svelte-ux/src/routes/docs/components/Input/+page.ts	js
+import api from '$lib/components/Input.svelte?raw&sveld';
+import source from '$lib/components/Input.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'input with mask support',
+        },
+    };
+}
+
+=== 450 packages/svelte-ux/src/routes/docs/components/Lazy/+page.ts	js
+import api from '$lib/components/Lazy.svelte?raw&sveld';
+import source from '$lib/components/Lazy.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Waits to render a component until visible. Requires placeholder size (min-height)',
+            related: ['actions/observer'],
+        },
+    };
+}
+
+=== 444 packages/svelte-ux/src/routes/docs/components/ListItem/+page.ts	js
+import api from '$lib/components/ListItem.svelte?raw&sveld';
+import source from '$lib/components/ListItem.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'A list item that provides a standard layout and works best with multiple instances in the same parent element.',
+        },
+    };
+}
+
+=== 542 packages/svelte-ux/src/routes/docs/components/Menu/+page.ts	js
+import api from '$lib/components/Menu.svelte?raw&sveld';
+import source from '$lib/components/Menu.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: [
+                'components/MenuItem',
+                'components/MenuButton',
+                'components/MenuField',
+                'components/SelectField',
+                'components/ResponsiveMenu',
+            ],
+        },
+    };
+}
+
+=== 503 packages/svelte-ux/src/routes/docs/components/MenuButton/+page.ts	js
+import api from '$lib/components/MenuButton.svelte?raw&sveld';
+import source from '$lib/components/MenuButton.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: [
+                'components/Menu',
+                'components/MenuItem',
+                'components/MenuField',
+                'components/SelectField',
+            ],
+        },
+    };
+}
+
+=== 538 packages/svelte-ux/src/routes/docs/components/MenuField/+page.ts	js
+import api from '$lib/components/MenuField.svelte?raw&sveld';
+import source from '$lib/components/MenuField.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: [
+                'components/Field',
+                'components/Menu',
+                'components/MenuItem',
+                'components/MenuButton',
+                'components/SelectField',
+            ],
+        },
+    };
+}
+
+=== 546 packages/svelte-ux/src/routes/docs/components/MenuItem/+page.ts	js
+import api from '$lib/components/MenuItem.svelte?raw&sveld';
+import source from '$lib/components/MenuItem.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: [
+                'components/Menu',
+                'components/MenuButton',
+                'components/MenuField',
+                'components/ResponsiveMenu',
+                'components/SelectField',
+            ],
+        },
+    };
+}
+
+=== 299 packages/svelte-ux/src/routes/docs/components/Month/+page.ts	js
+import api from '$lib/components/Month.svelte?raw&sveld';
+import source from '$lib/components/Month.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 307 packages/svelte-ux/src/routes/docs/components/MonthList/+page.ts	js
+import api from '$lib/components/MonthList.svelte?raw&sveld';
+import source from '$lib/components/MonthList.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 319 packages/svelte-ux/src/routes/docs/components/MonthListByYear/+page.ts	js
+import api from '$lib/components/MonthListByYear.svelte?raw&sveld';
+import source from '$lib/components/MonthListByYear.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 487 packages/svelte-ux/src/routes/docs/components/MultiSelect/+page.ts	js
+import api from '$lib/components/MultiSelect.svelte?raw&sveld';
+import source from '$lib/components/MultiSelect.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: [
+                'components/InfiniteScroll',
+                'components/MultiSelectField',
+                'components/MultiSelectMenu',
+            ],
+        },
+    };
+}
+
+=== 424 packages/svelte-ux/src/routes/docs/components/MultiSelectField/+page.ts	js
+import api from '$lib/components/MultiSelectField.svelte?raw&sveld';
+import source from '$lib/components/MultiSelectField.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/MultiSelect', 'components/MultiSelectMenu', 'components/TextField'],
+        },
+    };
+}
+
+=== 418 packages/svelte-ux/src/routes/docs/components/MultiSelectMenu/+page.ts	js
+import api from '$lib/components/MultiSelectMenu.svelte?raw&sveld';
+import source from '$lib/components/MultiSelectMenu.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/Menu', 'components/MultiSelect', 'components/MultiSelectField'],
+        },
+    };
+}
+
+=== 303 packages/svelte-ux/src/routes/docs/components/NavItem/+page.ts	js
+import api from '$lib/components/NavItem.svelte?raw&sveld';
+import source from '$lib/components/NavItem.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 313 packages/svelte-ux/src/routes/docs/components/Notification/+page.ts	js
+import api from '$lib/components/Notification.svelte?raw&sveld';
+import source from '$lib/components/Notification.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 367 packages/svelte-ux/src/routes/docs/components/NumberStepper/+page.ts	js
+import api from '$lib/components/NumberStepper.svelte?raw&sveld';
+import source from '$lib/components/NumberStepper.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/ScrollingValue'],
+        },
+    };
+}
+
+=== 368 packages/svelte-ux/src/routes/docs/components/Overflow/+page.ts	js
+import api from '$lib/components/Overflow.svelte?raw&sveld';
+import source from '$lib/components/Overflow.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['actions/layout', 'components/Tooltip'],
+        },
+    };
+}
+
+=== 303 packages/svelte-ux/src/routes/docs/components/Overlay/+page.ts	js
+import api from '$lib/components/Overlay.svelte?raw&sveld';
+import source from '$lib/components/Overlay.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 467 packages/svelte-ux/src/routes/docs/components/Paginate/+page.ts	js
+import api from '$lib/components/Paginate.svelte?raw&sveld';
+import source from '$lib/components/Paginate.svelte?raw';
+import pageSource from './+page.md?raw';
+export async function load() {
+    return {
+        meta: {
+            description: 'Client-side paginate through items',
+            api,
+            source,
+            pageSource,
+            hideUsage: true,
+            related: ['components/Pagination', 'stores/paginationStore'],
+        },
+    };
+}
+
+=== 614 packages/svelte-ux/src/routes/docs/components/Pagination/+page.ts	js
+import api from '$lib/components/Pagination.svelte?raw&sveld';
+import source from '$lib/components/Pagination.svelte?raw';
+import pageSource from './+page.md?raw';
+export async function load() {
+    return {
+        meta: {
+            description: 'Controls to navigate through paginated results.  Works with `paginationStore()` or `Paginate` component',
+            api,
+            source,
+            pageSource,
+            hideUsage: true,
+            features: ['Easily customize display of results and controls'],
+            related: ['components/Paginate', 'stores/paginationStore'],
+        },
+    };
+}
+
+=== 303 packages/svelte-ux/src/routes/docs/components/Popover/+page.ts	js
+import api from '$lib/components/Popover.svelte?raw&sveld';
+import source from '$lib/components/Popover.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 380 packages/svelte-ux/src/routes/docs/components/Progress/+page.ts	js
+import api from '$lib/components/Progress.svelte?raw&sveld';
+import source from '$lib/components/Progress.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/BarStack', 'components/ProgressCircle'],
+        },
+    };
+}
+
+=== 363 packages/svelte-ux/src/routes/docs/components/ProgressCircle/+page.ts	js
+import api from '$lib/components/ProgressCircle.svelte?raw&sveld';
+import source from '$lib/components/ProgressCircle.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/Progress'],
+        },
+    };
+}
+
+=== 299 packages/svelte-ux/src/routes/docs/components/Radio/+page.ts	js
+import api from '$lib/components/Radio.svelte?raw&sveld';
+import source from '$lib/components/Radio.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 358 packages/svelte-ux/src/routes/docs/components/RangeField/+page.ts	js
+import api from '$lib/components/RangeField.svelte?raw&sveld';
+import source from '$lib/components/RangeField.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/RangeSlider'],
+        },
+    };
+}
+
+=== 646 packages/svelte-ux/src/routes/docs/components/RangeSlider/+page.ts	js
+import api from '$lib/components/RangeSlider.svelte?raw&sveld';
+import source from '$lib/components/RangeSlider.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/RangeField'],
+            status: 'beta',
+            features: [
+                'Drag start and end points individually, or drag the middle together',
+                'Double click start, end or range to set min/max',
+                'Use keyboard arrow keys to adjust last changed',
+            ],
+        },
+    };
+}
+
+=== 482 packages/svelte-ux/src/routes/docs/components/ResponsiveMenu/+page.ts	js
+import api from '$lib/components/ResponsiveMenu.svelte?raw&sveld';
+import source from '$lib/components/ResponsiveMenu.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Dynamically switch between Menu and bottom Drawer based on viewport width',
+            related: ['components/Menu', 'components/Drawer'],
+        },
+    };
+}
+
+=== 319 packages/svelte-ux/src/routes/docs/components/ScrollContainer/+page.ts	js
+import api from '$lib/components/ScrollContainer.svelte?raw&sveld';
+import source from '$lib/components/ScrollContainer.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 421 packages/svelte-ux/src/routes/docs/components/ScrollingValue/+page.ts	js
+import api from '$lib/components/ScrollingValue.svelte?raw&sveld';
+import source from '$lib/components/ScrollingValue.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/NumberStepper', 'components/SpringValue', 'components/TweenedValue'],
+        },
+    };
+}
+
+=== 829 packages/svelte-ux/src/routes/docs/components/SelectField/+page.ts	js
+import api from '$lib/components/SelectField.svelte?raw&sveld';
+import source from '$lib/components/SelectField.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            features: [
+                'Asynchronous loading of options',
+                'Grouped options',
+                'Field actions, Menu actions, and per-option actions',
+                'Smart placement of menu (with granular control and overflow handling)',
+            ],
+            related: [
+                'components/TextField',
+                'components/Menu',
+                'components/MenuItem',
+                'components/MenuButton',
+                'components/MenuField',
+            ],
+        },
+    };
+}
+
+=== 307 packages/svelte-ux/src/routes/docs/components/Selection/+page.ts	js
+import api from '$lib/components/Selection.svelte?raw&sveld';
+import source from '$lib/components/Selection.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 549 packages/svelte-ux/src/routes/docs/components/Settings/+page.ts	js
+import api from '$lib/components/Settings.svelte?raw&sveld';
+import source from '$lib/components/Settings.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Create settings context as a component.  Useful to scope theme, numbers, ... within a component tree, although typically `settings()` is used directly',
+            related: ['components/ThemeInit', '/customization'],
+        },
+    };
+}
+
+=== 362 packages/svelte-ux/src/routes/docs/components/Shine/+page.ts	js
+import api from '$lib/components/Shine.svelte?raw&sveld';
+import source from '$lib/components/Shine.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['actions/spotlight', 'components/Tilt'],
+        },
+    };
+}
+
+=== 390 packages/svelte-ux/src/routes/docs/components/SpringValue/+page.ts	js
+import api from '$lib/components/SpringValue.svelte?raw&sveld';
+import source from '$lib/components/SpringValue.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/TweenedValue', 'components/ScrollingValue'],
+        },
+    };
+}
+
+=== 390 packages/svelte-ux/src/routes/docs/components/Stack/+page.ts	js
+import api from '$lib/components/Stack.svelte?raw&sveld';
+import source from '$lib/components/Stack.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Use tailwind classes instead',
+            status: 'deprecated',
+        },
+    };
+}
+
+=== 256 packages/svelte-ux/src/routes/docs/components/StackTailwind/+page.ts	js
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            pageSource,
+            title: 'Stack',
+            description: 'Uses tailwind classes',
+            hideUsage: true,
+        },
+    };
+}
+
+=== 295 packages/svelte-ux/src/routes/docs/components/State/+page.ts	js
+import api from '$lib/components/State.svelte?raw&sveld';
+import source from '$lib/components/State.svelte?raw';
+import pageSource from './+page.md?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 456 packages/svelte-ux/src/routes/docs/components/Steps/+page.ts	js
+import api from '$lib/components/Steps.svelte?raw&sveld';
+import source from '$lib/components/Steps.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            description: 'List of steps in a process with consistent width (horizontal) or height (vertical)',
+            api,
+            source,
+            pageSource,
+            related: ['components/Timeline'],
+        },
+    };
+}
+
+=== 453 packages/svelte-ux/src/routes/docs/components/StoreSubscribe/+page.ts	js
+import api from '$lib/components/StoreSubscribe.svelte?raw&sveld';
+import source from '$lib/components/StoreSubscribe.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Wrapper component to convenient subscribe to a store value when impractical (for example, slot `let:value`)',
+        },
+    };
+}
+
+=== 350 packages/svelte-ux/src/routes/docs/components/Switch/+page.ts	js
+import api from '$lib/components/Switch.svelte?raw&sveld';
+import source from '$lib/components/Switch.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/ToggleGroup'],
+        },
+    };
+}
+
+=== 391 packages/svelte-ux/src/routes/docs/components/Table/+page.ts	js
+import api from '$lib/components/Table.svelte?raw&sveld';
+import source from '$lib/components/Table.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['actions/table', 'actions/dataBackground', 'stores/tableOrderStore'],
+        },
+    };
+}
+
+=== 365 packages/svelte-ux/src/routes/docs/components/TableOfContents/+page.ts	js
+import api from '$lib/components/TableOfContents.svelte?raw&sveld';
+import source from '$lib/components/TableOfContents.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/TreeList'],
+        },
+    };
+}
+
+=== 346 packages/svelte-ux/src/routes/docs/components/Tabs/+page.ts	js
+import api from '$lib/components/Tabs.svelte?raw&sveld';
+import source from '$lib/components/Tabs.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/ToggleGroup'],
+        },
+    };
+}
+
+=== 350 packages/svelte-ux/src/routes/docs/components/TextField/+page.ts	js
+import api from '$lib/components/TextField.svelte?raw&sveld';
+import source from '$lib/components/TextField.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/Field'],
+        },
+    };
+}
+
+=== 704 packages/svelte-ux/src/routes/docs/components/ThemeInit/+page.ts	js
+import api from '$lib/components/ThemeInit.svelte?raw&sveld';
+import source from '$lib/components/ThemeInit.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Initialize theme from localStorage before anything renders, including when SSR is used.\nUsing <Settings> component instead of `settings()` will setup <ThemeInit> internally',
+            related: [
+                'components/Settings',
+                'components/ThemeSelect',
+                'components/ThemeSwitch',
+                '/customization',
+            ],
+        },
+    };
+}
+
+=== 489 packages/svelte-ux/src/routes/docs/components/ThemeSelect/+page.ts	js
+import api from '$lib/components/ThemeSelect.svelte?raw&sveld';
+import source from '$lib/components/ThemeSelect.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Supports selecting a theme when more than one light and/or dark themes are defined',
+            related: ['components/ThemeSwitch', '/customization'],
+        },
+    };
+}
+
+=== 468 packages/svelte-ux/src/routes/docs/components/ThemeSwitch/+page.ts	js
+import api from '$lib/components/ThemeSwitch.svelte?raw&sveld';
+import source from '$lib/components/ThemeSwitch.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Toggle between `light` and `dark` themes',
+            related: ['components/ThemeSelect', 'components/Switch', '/customization'],
+        },
+    };
+}
+
+=== 340 packages/svelte-ux/src/routes/docs/components/Tilt/+page.ts	js
+import api from '$lib/components/Tilt.svelte?raw&sveld';
+import source from '$lib/components/Tilt.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/Shine'],
+        },
+    };
+}
+
+=== 445 packages/svelte-ux/src/routes/docs/components/Timeline/+page.ts	js
+import api from '$lib/components/Timeline.svelte?raw&sveld';
+import source from '$lib/components/Timeline.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            description: 'List of events with variable width (horizontal) or height (vertical)',
+            api,
+            source,
+            pageSource,
+            related: ['components/Steps'],
+        },
+    };
+}
+
+=== 487 packages/svelte-ux/src/routes/docs/components/Toggle/+page.ts	js
+import api from '$lib/components/Toggle.svelte?raw&sveld';
+import source from '$lib/components/Toggle.svelte?raw';
+import pageSource from './+page.md?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: [
+                'components/Dialog',
+                'components/Drawer',
+                'components/Menu',
+                'components/ToggleButton',
+            ],
+        },
+    };
+}
+
+=== 498 packages/svelte-ux/src/routes/docs/components/ToggleButton/+page.ts	js
+import api from '$lib/components/ToggleButton.svelte?raw&sveld';
+import source from '$lib/components/ToggleButton.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Simplifies using Button/Toggle, and helps coordinate unmounting of toggled content (i.e. delays unmount to allow children to transition (ex. Drawer/Dialog))',
+        },
+    };
+}
+
+=== 293 packages/svelte-ux/src/routes/docs/components/ToggleGroup/+page.ts	js
+import source from '$lib/components/ToggleGroup.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            source,
+            pageSource,
+            related: ['components/Switch', 'components/Tabs'],
+        },
+    };
+}
+
+=== 349 packages/svelte-ux/src/routes/docs/components/Tooltip/+page.ts	js
+import api from '$lib/components/Tooltip.svelte?raw&sveld';
+import source from '$lib/components/Tooltip.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/Overflow'],
+        },
+    };
+}
+
+=== 442 packages/svelte-ux/src/routes/docs/components/TreeList/+page.ts	js
+import api from '$lib/components/TreeList.svelte?raw&sveld';
+import source from '$lib/components/TreeList.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            description: 'Recursively render <ul> and <li> children at each level',
+            related: ['components/TableOfContents'],
+        },
+    };
+}
+
+=== 391 packages/svelte-ux/src/routes/docs/components/TweenedValue/+page.ts	js
+import api from '$lib/components/TweenedValue.svelte?raw&sveld';
+import source from '$lib/components/TweenedValue.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+            related: ['components/SpringValue', 'components/ScrollingValue'],
+        },
+    };
+}
+
+=== 305 packages/svelte-ux/src/routes/docs/components/YearList/+page.ts	js
+import api from '$lib/components/YearList.svelte?raw&sveld';
+import source from '$lib/components/YearList.svelte?raw';
+import pageSource from './+page.svelte?raw';
+export async function load() {
+    return {
+        meta: {
+            api,
+            source,
+            pageSource,
+        },
+    };
+}
+
+=== 294 packages/svelte-ux/src/routes/theme/+page.server.ts	js
+import { themes as daisyThemes } from '@layerstack/tailwind/daisy';
+import { themes as skeletonThemes } from '@layerstack/tailwind/skeleton';
+export async function load() {
+    return {
+        themes: {
+            daisy: daisyThemes,
+            skeleton: skeletonThemes,
+        },
+    };
+}
+
+=== 758 packages/svelte-ux/src/routes/theme/colors.ts	js
+import { colorVariableValue } from '@layerstack/tailwind';
+import { formatHex } from 'culori';
+export function formatColor(value, colorSpace) {
+    if (value) {
+        if (colorSpace === 'hex') {
+            // Only format if not already formatted.  Fixes `#123` becoming `#112233`
+            return value.startsWith('#') ? value : formatHex(value);
+        }
+        else {
+            const colorValue = colorVariableValue(value, colorSpace);
+            if (colorValue) {
+                return `${colorSpace}(${colorValue})`;
+            }
+            else {
+                // Return original if unable to convert (i.e invalid such as `rgb( 20 30)`)
+                return value;
+            }
+        }
+    }
+    else {
+        return value;
+    }
+}
+

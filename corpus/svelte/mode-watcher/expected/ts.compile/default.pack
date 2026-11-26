@@ -1,0 +1,1146 @@
+# rsvelte pack 1
+=== 1912 docs/src/lib/navigation.ts	js
+import { defineNavigation } from "@svecodocs/kit";
+import ChalkboardTeacher from "phosphor-svelte/lib/ChalkboardTeacher";
+import RocketLaunch from "phosphor-svelte/lib/RocketLaunch";
+import NoteBlank from "phosphor-svelte/lib/NoteBlank";
+import Tag from "phosphor-svelte/lib/Tag";
+import { getAllDocs } from "./utils.js";
+const allDocs = getAllDocs();
+const components = allDocs
+    .filter((doc) => doc.section === "Components")
+    .map((doc) => ({
+    title: doc.title,
+    href: `/docs/${doc.slug}`,
+}));
+const states = allDocs
+    .filter((doc) => doc.section === "States")
+    .map((doc) => ({
+    title: doc.title,
+    href: `/docs/${doc.slug}`,
+}));
+const utilities = allDocs
+    .filter((doc) => doc.section === "Utilities")
+    .map((doc) => ({
+    title: doc.title,
+    href: `/docs/${doc.slug}`,
+}));
+const testing = allDocs
+    .filter((doc) => doc.section === "Testing")
+    .map((doc) => ({
+    title: doc.title,
+    href: `/docs/${doc.slug}`,
+}));
+export const navigation = defineNavigation({
+    anchors: [
+        {
+            title: "Introduction",
+            href: "/docs",
+            icon: ChalkboardTeacher,
+        },
+        {
+            title: "Getting Started",
+            href: "/docs/getting-started",
+            icon: RocketLaunch,
+        },
+        {
+            title: "Mode vs Theme",
+            href: "/docs/mode-vs-theme",
+            icon: NoteBlank,
+        },
+        {
+            title: "Releases",
+            href: "https://github.com/svecosystem/mode-watcher/releases",
+            icon: Tag,
+        },
+    ],
+    sections: [
+        {
+            title: "Components",
+            items: components,
+        },
+        {
+            title: "States",
+            items: states,
+        },
+        {
+            title: "Utilities",
+            items: utilities,
+        },
+        {
+            title: "Testing",
+            items: testing,
+        },
+    ],
+});
+
+=== 836 docs/src/lib/site-config.ts	js
+import { defineSiteConfig } from "@svecodocs/kit";
+export const siteConfig = defineSiteConfig({
+    name: "Mode Watcher",
+    url: "https://mode-watcher.sveco.dev",
+    ogImage: {
+        url: "https://mode-watcher.sveco.dev/og.png",
+        height: "630",
+        width: "1200",
+    },
+    description: "Simple light/dark mode and theme management for Svelte apps.",
+    author: "Huntabyte",
+    keywords: [
+        "svelte",
+        "sveltekit",
+        "dark mode",
+        "themes",
+        "light mode",
+        "theme switcher",
+        "theme toggle",
+        "mode watcher",
+    ],
+    license: {
+        name: "MIT",
+        url: "https://github.com/svecosystem/mode-watcher/blob/main/LICENSE",
+    },
+    links: {
+        x: "https://x.com/huntabyte",
+        github: "https://github.com/svecosystem/mode-watcher",
+    },
+});
+
+=== 893 docs/src/lib/utils.ts	js
+import { docs } from "$content/index.js";
+import { error } from "@sveltejs/kit";
+export function getDocMetadata(slug = "index") {
+    return docs.find((doc) => doc.slug === slug);
+}
+export function getAllDocs() {
+    return docs;
+}
+function slugFromPath(path) {
+    return path.replace("/src/content/", "").replace(".md", "");
+}
+export async function getDoc(slug = "index") {
+    const modules = import.meta.glob("/src/content/**/*.md");
+    let match = {};
+    for (const [path, resolver] of Object.entries(modules)) {
+        if (slugFromPath(path) === slug) {
+            match = { path, resolver: resolver };
+            break;
+        }
+    }
+    const doc = await match?.resolver?.();
+    const metadata = getDocMetadata(slug);
+    if (!doc || !metadata) {
+        error(404, "Could not find the document.");
+    }
+    return {
+        component: doc.default,
+        metadata,
+    };
+}
+
+=== 91 docs/src/routes/(docs)/docs/+page.ts	js
+import { getDoc } from "$lib/utils";
+export async function load() {
+    return getDoc();
+}
+
+=== 112 docs/src/routes/(docs)/docs/[...slug]/+page.ts	js
+import { getDoc } from "$lib/utils";
+export async function load({ params }) {
+    return getDoc(params.slug);
+}
+
+=== 97 docs/src/routes/(landing)/+page.ts	js
+import { redirect } from "@sveltejs/kit";
+export function load() {
+    redirect(302, "/docs");
+}
+
+=== 402 docs/vite.config.ts	js
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+import { resolve } from "node:path";
+const __dirname = new URL(".", import.meta.url).pathname;
+export default defineConfig({
+    plugins: [sveltekit(), tailwindcss()],
+    server: {
+        fs: {
+            allow: [resolve(__dirname, "./.velite")],
+        },
+    },
+});
+
+=== 208 packages/mode-watcher/playwright.config.ts	js
+const config = {
+    webServer: {
+        command: "pnpm run build && pnpm run preview",
+        port: 4173,
+    },
+    testDir: "tests",
+    testMatch: /(.+\.)?(test|spec)\.[jt]s/,
+};
+export default config;
+
+=== 3309 packages/mode-watcher/scripts/setupTest.ts	js
+// setupTest.ts
+import "@testing-library/svelte/vitest";
+import "@testing-library/jest-dom/vitest";
+import "vitest-localstorage-mock";
+import * as matchers from "@testing-library/jest-dom/matchers";
+import { expect, vi } from "vitest";
+import { readable } from "svelte/store";
+import { configure } from "@testing-library/dom";
+// @ts-expect-error - this works
+expect.extend(matchers);
+configure({
+    asyncUtilTimeout: 1500,
+});
+// Mock SvelteKit runtime module $app/environment
+vi.mock("$app/environment", () => ({
+    browser: false,
+    dev: true,
+    building: false,
+    version: "any",
+}));
+// Mock SvelteKit runtime module $app/navigation
+vi.mock("$app/navigation", () => ({
+    afterNavigate: () => { },
+    beforeNavigate: () => { },
+    disableScrollHandling: () => { },
+    goto: () => Promise.resolve(),
+    invalidate: () => Promise.resolve(),
+    invalidateAll: () => Promise.resolve(),
+    preloadData: () => Promise.resolve({
+        data: {},
+        type: "loaded",
+        status: 200,
+    }),
+    preloadCode: () => Promise.resolve(),
+    onNavigate: () => { },
+    pushState: () => { },
+    replaceState: () => { },
+}));
+// Mock SvelteKit runtime module $app/stores
+vi.mock("$app/stores", () => {
+    const getStores = () => {
+        const navigating = readable(null);
+        const page = readable({
+            url: new URL("http://localhost"),
+            params: {},
+            route: {
+                id: null,
+            },
+            status: 200,
+            error: null,
+            data: {},
+            form: undefined,
+            state: {},
+        });
+        const updated = { subscribe: readable(false).subscribe, check: async () => false };
+        return { navigating, page, updated };
+    };
+    const page = {
+        subscribe(fn) {
+            return getStores().page.subscribe(fn);
+        },
+    };
+    const navigating = {
+        subscribe(fn) {
+            return getStores().navigating.subscribe(fn);
+        },
+    };
+    const updated = {
+        subscribe(fn) {
+            return getStores().updated.subscribe(fn);
+        },
+        check: async () => false,
+    };
+    return {
+        getStores,
+        navigating,
+        page,
+        updated,
+    };
+});
+export const mediaQueryState = {
+    matches: false,
+};
+const listeners = [];
+Object.defineProperty(window, "matchMedia", {
+    writable: true,
+    value: vi.fn().mockImplementation((query) => ({
+        matches: mediaQueryState.matches,
+        media: query,
+        onchange: null,
+        addListener: vi.fn(),
+        removeListener: vi.fn(),
+        addEventListener: vi.fn((type, callback) => {
+            if (type === "change") {
+                listeners.push(callback);
+            }
+        }),
+        removeEventListener: vi.fn((type, callback) => {
+            const index = listeners.indexOf(callback);
+            if (index !== -1) {
+                listeners.splice(index, 1);
+            }
+        }),
+        dispatchEvent: vi.fn((event) => {
+            if (event.type === "change") {
+                for (const callback of listeners) {
+                    callback({
+                        matches: mediaQueryState.matches,
+                        media: "(prefers-color-scheme: light)",
+                    });
+                }
+            }
+        }),
+    })),
+});
+
+=== 612 packages/mode-watcher/src/lib/index.ts	js
+import { generateSetInitialModeExpression, createInitialModeExpression, resetMode, setMode, setTheme, toggleMode, } from "./mode.js";
+import { modeStorageKey, themeStorageKey } from "./storage-keys.svelte.js";
+import { mode, theme } from "./states.svelte.js";
+import { userPrefersMode, systemPrefersMode } from "./mode-states.svelte.js";
+export { generateSetInitialModeExpression, createInitialModeExpression, setMode, toggleMode, resetMode, modeStorageKey, userPrefersMode, systemPrefersMode, mode, theme, setTheme, themeStorageKey, };
+export { default as ModeWatcher } from "./components/mode-watcher.svelte";
+
+=== 2704 packages/mode-watcher/src/lib/mode-states.svelte.ts	js
+import { PersistedState, watch } from "runed";
+import { isBrowser, noopStorage } from "./utils.js";
+import { modeStorageKey } from "./storage-keys.svelte.js";
+import { isValidMode } from "./modes.js";
+import { MediaQuery } from "svelte/reactivity";
+export class UserPrefersMode {
+    #defaultValue = "system";
+    #storage = isBrowser ? localStorage : noopStorage;
+    #initialValue = this.#storage.getItem(modeStorageKey.current);
+    #value = isValidMode(this.#initialValue) ? this.#initialValue : this.#defaultValue;
+    #persisted = $state(this.#makePersisted());
+    #makePersisted(value = this.#value) {
+        return new PersistedState(modeStorageKey.current, value, {
+            serializer: {
+                serialize: (v) => v,
+                deserialize: (v) => {
+                    if (isValidMode(v))
+                        return v;
+                    return this.#defaultValue;
+                },
+            },
+        });
+    }
+    constructor() {
+        $effect.root(() => {
+            return watch.pre(() => modeStorageKey.current, (_, prevStorageKey) => {
+                const currModeValue = this.#persisted.current;
+                this.#persisted = this.#makePersisted(currModeValue);
+                if (prevStorageKey) {
+                    localStorage.removeItem(prevStorageKey);
+                }
+            });
+        });
+    }
+    get current() {
+        return this.#persisted.current;
+    }
+    set current(newValue) {
+        this.#persisted.current = newValue;
+    }
+}
+export class SystemPrefersMode {
+    #defaultValue = undefined;
+    #track = true;
+    #current = $state(this.#defaultValue);
+    #mediaQueryState = typeof window !== "undefined" && typeof window.matchMedia === "function"
+        ? new MediaQuery("prefers-color-scheme: light")
+        : { current: false };
+    query() {
+        if (!isBrowser)
+            return;
+        this.#current = this.#mediaQueryState.current ? "light" : "dark";
+    }
+    tracking(active) {
+        this.#track = active;
+    }
+    constructor() {
+        $effect.root(() => {
+            $effect.pre(() => {
+                if (!this.#track)
+                    return;
+                this.query();
+            });
+        });
+        this.query = this.query.bind(this);
+        this.tracking = this.tracking.bind(this);
+    }
+    get current() {
+        return this.#current;
+    }
+}
+/**
+ * Writable state that represents the user's preferred mode
+ * (`"dark"`, `"light"` or `"system"`)
+ */
+export const userPrefersMode = new UserPrefersMode();
+/**
+ * Readable store that represents the system's preferred mode (`"dark"`, `"light"` or `undefined`)
+ */
+export const systemPrefersMode = new SystemPrefersMode();
+
+=== 2765 packages/mode-watcher/src/lib/mode.ts	js
+import { userPrefersMode } from "./mode-states.svelte.js";
+import { customTheme } from "./theme-state.svelte.js";
+import { derivedMode } from "./states.svelte.js";
+/** Toggle between light and dark mode */
+export function toggleMode() {
+    userPrefersMode.current = derivedMode.current === "dark" ? "light" : "dark";
+}
+/** Set the mode to light or dark */
+export function setMode(mode) {
+    userPrefersMode.current = mode;
+}
+/** Reset the mode to operating system preference */
+export function resetMode() {
+    userPrefersMode.current = "system";
+}
+/** Set the theme to a custom value */
+export function setTheme(newTheme) {
+    customTheme.current = newTheme;
+}
+export function defineConfig(config) {
+    return config;
+}
+/** Used to set the mode on initial page load to prevent FOUC */
+export function setInitialMode({ defaultMode = "system", themeColors, darkClassNames = ["dark"], lightClassNames = [], defaultTheme = "", modeStorageKey = "mode-watcher-mode", themeStorageKey = "mode-watcher-theme", }) {
+    const rootEl = document.documentElement;
+    const mode = localStorage.getItem(modeStorageKey) ?? defaultMode;
+    const theme = localStorage.getItem(themeStorageKey) ?? defaultTheme;
+    const light = mode === "light" ||
+        (mode === "system" && window.matchMedia("(prefers-color-scheme: light)").matches);
+    if (light) {
+        if (darkClassNames.length)
+            rootEl.classList.remove(...darkClassNames.filter(Boolean));
+        if (lightClassNames.length)
+            rootEl.classList.add(...lightClassNames.filter(Boolean));
+    }
+    else {
+        if (lightClassNames.length)
+            rootEl.classList.remove(...lightClassNames.filter(Boolean));
+        if (darkClassNames.length)
+            rootEl.classList.add(...darkClassNames.filter(Boolean));
+    }
+    rootEl.style.colorScheme = light ? "light" : "dark";
+    if (themeColors) {
+        const themeMetaEl = document.querySelector('meta[name="theme-color"]');
+        if (themeMetaEl) {
+            themeMetaEl.setAttribute("content", mode === "light" ? themeColors.light : themeColors.dark);
+        }
+    }
+    if (theme) {
+        rootEl.setAttribute("data-theme", theme);
+        localStorage.setItem(themeStorageKey, theme);
+    }
+    localStorage.setItem(modeStorageKey, mode);
+}
+/**
+ * A type-safe way to generate the source expression used to set the initial mode and avoid FOUC.
+ */
+export function createInitialModeExpression(config = {}) {
+    return `(${setInitialMode.toString()})(${JSON.stringify(config)});`;
+}
+/**
+ * A type-safe way to generate the source expression used to set the initial mode and avoid FOUC.
+ *
+ * @deprecated Use `createInitialModeExpression` instead.
+ */
+export const generateSetInitialModeExpression = createInitialModeExpression;
+
+=== 262 packages/mode-watcher/src/lib/modes.ts	js
+/**
+ * the modes that are supported, used for validation & type
+ * derivation
+ */
+export const modes = ["dark", "light", "system"];
+export function isValidMode(value) {
+    if (typeof value !== "string")
+        return false;
+    return modes.includes(value);
+}
+
+=== 3875 packages/mode-watcher/src/lib/states.svelte.ts	js
+import { box } from "svelte-toolbelt";
+import { isBrowser, sanitizeClassNames } from "./utils.js";
+import { withoutTransition } from "./without-transition.js";
+import { systemPrefersMode, userPrefersMode } from "./mode-states.svelte.js";
+import { customTheme } from "./theme-state.svelte.js";
+import { untrack } from "svelte";
+/**
+ * Theme colors for light and dark modes.
+ */
+export const themeColors = box(undefined);
+/**
+ * Whether to disable transitions when changing the mode.
+ */
+export const disableTransitions = box(true);
+/**
+ * Whether to run the mode changes synchronously instead of using
+ * an animation frame. If true, will have an impact on blocking performance
+ * due to blocking the main thread.
+ */
+export const synchronousModeChanges = box(false);
+/**
+ * The classnames to add to the root `html` element when the mode is dark.
+ */
+export const darkClassNames = box([]);
+/**
+ * The classnames to add to the root `html` element when the mode is light.
+ */
+export const lightClassNames = box([]);
+function createDerivedMode() {
+    const current = $derived.by(() => {
+        if (!isBrowser)
+            return undefined;
+        const derivedMode = userPrefersMode.current === "system"
+            ? systemPrefersMode.current
+            : userPrefersMode.current;
+        const sanitizedDarkClassNames = sanitizeClassNames(darkClassNames.current);
+        const sanitizedLightClassNames = sanitizeClassNames(lightClassNames.current);
+        function update() {
+            const htmlEl = document.documentElement;
+            const themeColorEl = document.querySelector('meta[name="theme-color"]');
+            if (derivedMode === "light") {
+                if (sanitizedDarkClassNames.length)
+                    htmlEl.classList.remove(...sanitizedDarkClassNames);
+                if (sanitizedLightClassNames.length)
+                    htmlEl.classList.add(...sanitizedLightClassNames);
+                htmlEl.style.colorScheme = "light";
+                if (themeColorEl && themeColors.current) {
+                    themeColorEl.setAttribute("content", themeColors.current.light);
+                }
+            }
+            else {
+                if (sanitizedLightClassNames.length)
+                    htmlEl.classList.remove(...sanitizedLightClassNames);
+                if (sanitizedDarkClassNames.length)
+                    htmlEl.classList.add(...sanitizedDarkClassNames);
+                htmlEl.style.colorScheme = "dark";
+                if (themeColorEl && themeColors.current) {
+                    themeColorEl.setAttribute("content", themeColors.current.dark);
+                }
+            }
+        }
+        if (disableTransitions.current) {
+            withoutTransition(update, synchronousModeChanges.current);
+        }
+        else {
+            update();
+        }
+        return derivedMode;
+    });
+    return {
+        get current() {
+            return current;
+        },
+    };
+}
+function createDerivedTheme() {
+    const current = $derived.by(() => {
+        customTheme.current;
+        if (!isBrowser)
+            return undefined;
+        function update() {
+            const htmlEl = document.documentElement;
+            htmlEl.setAttribute("data-theme", customTheme.current);
+        }
+        if (disableTransitions.current) {
+            withoutTransition(update, untrack(() => synchronousModeChanges.current));
+        }
+        else {
+            update();
+        }
+        return customTheme.current;
+    });
+    return {
+        get current() {
+            return current;
+        },
+    };
+}
+/**
+ * Derived store that represents the current mode (`"dark"`, `"light"` or `undefined`)
+ */
+export const derivedMode = createDerivedMode();
+/**
+ * Derived store that represents the current custom theme
+ */
+export const derivedTheme = createDerivedTheme();
+export { derivedMode as mode, derivedTheme as theme };
+
+=== 276 packages/mode-watcher/src/lib/storage-keys.svelte.ts	js
+import { box } from "svelte-toolbelt";
+/**
+ * The key used to store the `mode` in localStorage.
+ */
+export const modeStorageKey = box("mode-watcher-mode");
+/**
+ * The key used to store the `theme` in localStorage.
+ */
+export const themeStorageKey = box("mode-watcher-theme");
+
+=== 1683 packages/mode-watcher/src/lib/theme-state.svelte.ts	js
+import { PersistedState, watch } from "runed";
+import { themeStorageKey } from "./storage-keys.svelte.js";
+import { isBrowser, noopStorage } from "./utils.js";
+class CustomTheme {
+    #storage = isBrowser ? localStorage : noopStorage;
+    #initialValue = this.#storage.getItem(themeStorageKey.current);
+    #value = this.#initialValue === null || this.#initialValue === undefined ? "" : this.#initialValue;
+    #persisted = $state(this.#makePersisted());
+    #makePersisted(value = this.#value) {
+        return new PersistedState(themeStorageKey.current, value, {
+            serializer: {
+                serialize: (v) => {
+                    if (typeof v !== "string")
+                        return "";
+                    return v;
+                },
+                deserialize: (v) => v,
+            },
+        });
+    }
+    constructor() {
+        $effect.root(() => {
+            return watch.pre(() => themeStorageKey.current, (_, prevStorageKey) => {
+                const currModeValue = this.#persisted.current;
+                this.#persisted = this.#makePersisted(currModeValue);
+                if (prevStorageKey) {
+                    localStorage.removeItem(prevStorageKey);
+                }
+            });
+        });
+    }
+    /**
+     * The current theme.
+     * @returns The current theme.
+     */
+    get current() {
+        return this.#persisted.current;
+    }
+    /**
+     * Set the current theme.
+     * @param newValue The new theme to set.
+     */
+    set current(newValue) {
+        this.#persisted.current = newValue;
+    }
+}
+/**
+ * A custom theme to apply and persist to the root `html` element.
+ */
+export const customTheme = new CustomTheme();
+
+=== 11 packages/mode-watcher/src/lib/types.ts	js
+export {};
+
+=== 348 packages/mode-watcher/src/lib/utils.ts	js
+/**
+ * Sanitizes an array of classnames by removing any empty strings.
+ */
+export function sanitizeClassNames(classNames) {
+    return classNames.filter((className) => className.length > 0);
+}
+export const noopStorage = {
+    getItem: (_key) => null,
+    setItem: (_key, _value) => { },
+};
+export const isBrowser = typeof document !== "undefined";
+
+=== 2591 packages/mode-watcher/src/lib/without-transition.ts	js
+// Original Source: https://reemus.dev/article/disable-css-transition-color-scheme-change#heading-ultimate-solution-for-changing-color-scheme-without-transitions
+let timeoutAction;
+let timeoutEnable;
+/**
+ * Whether this is the first time the function has been
+ * called, which will be true for the initial load, where
+ * we shouldn't need to disable any transitions, as there
+ * is nothing to transition from.
+ */
+let hasLoaded = false;
+let styleElement = null;
+// Create reusable style element
+function getStyleElement() {
+    if (styleElement)
+        return styleElement;
+    styleElement = document.createElement("style");
+    styleElement.appendChild(document.createTextNode(`* {
+		-webkit-transition: none !important;
+		-moz-transition: none !important;
+		-o-transition: none !important;
+		-ms-transition: none !important;
+		transition: none !important;
+	}`));
+    return styleElement;
+}
+// Perform a task without any css transitions
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function withoutTransition(action, synchronous = false) {
+    if (typeof document === "undefined")
+        return;
+    // Skip transition disabling on initial load
+    if (!hasLoaded) {
+        hasLoaded = true;
+        action();
+        return;
+    }
+    // In test environments, run synchronously to avoid timing issues
+    const isTest = (typeof process !== "undefined" && process.env?.NODE_ENV === "test") ||
+        (typeof window !== "undefined" &&
+            window.__vitest_worker__);
+    if (isTest) {
+        action();
+        return;
+    }
+    clearTimeout(timeoutAction);
+    clearTimeout(timeoutEnable);
+    const style = getStyleElement();
+    const disable = () => document.head.appendChild(style);
+    const enable = () => {
+        if (style.parentNode) {
+            document.head.removeChild(style);
+        }
+    };
+    function executeAction() {
+        action();
+        // defer enable to ensure action completes
+        window.requestAnimationFrame(enable);
+    }
+    // Use requestAnimationFrame for better performance
+    if (typeof window.requestAnimationFrame !== "undefined") {
+        disable();
+        if (synchronous) {
+            executeAction();
+        }
+        else {
+            // defer action to next frame to avoid blocking
+            window.requestAnimationFrame(() => {
+                executeAction();
+            });
+        }
+        return;
+    }
+    // Fallback for older browsers
+    disable();
+    timeoutAction = window.setTimeout(() => {
+        action();
+        timeoutEnable = window.setTimeout(enable, 16);
+    }, 16);
+}
+
+=== 16229 packages/mode-watcher/src/tests/mode.spec.ts	js
+import { render } from "@testing-library/svelte/svelte5";
+import { afterEach, describe, expect, it } from "vitest";
+import { userEvent } from "@testing-library/user-event";
+import { tick } from "svelte";
+import { mediaQueryState } from "../../scripts/setupTest.js";
+import Mode from "./Mode.svelte";
+import StealthMode from "./StealthMode.svelte";
+function setup(props = {}) {
+    const user = userEvent.setup();
+    const returned = render(Mode, { props });
+    const theme = returned.getByTestId("theme");
+    const mode = returned.getByTestId("mode");
+    const themeStorageKey = returned.getByTestId("theme-storage-key");
+    const modeStorageKey = returned.getByTestId("mode-storage-key");
+    const rootEl = returned.container.parentElement?.parentElement;
+    const themeDracula = returned.getByTestId("theme-dracula");
+    const themeRetro = returned.getByTestId("theme-retro");
+    const themeClear = returned.getByTestId("theme-clear");
+    return {
+        user,
+        theme,
+        mode,
+        themeStorageKey,
+        modeStorageKey,
+        rootEl,
+        themeDracula,
+        themeRetro,
+        themeClear,
+        ...returned,
+    };
+}
+describe("mode-watcher", () => {
+    afterEach(() => {
+        localStorage.clear();
+    });
+    it("renders mode", async () => {
+        const { rootEl } = setup();
+        const classes = getClasses(rootEl);
+        expect(classes).toContain("dark");
+    });
+    it("toggles the mode", async () => {
+        const { getByTestId, user, rootEl } = setup();
+        const classes = getClasses(rootEl);
+        const colorScheme = getColorScheme(rootEl);
+        const themeColor = getThemeColor(rootEl);
+        expect(classes).toContain("dark");
+        expect(colorScheme).toBe("dark");
+        expect(themeColor).toBe("black");
+        const toggle = getByTestId("toggle");
+        await user.click(toggle);
+        const classes2 = getClasses(rootEl);
+        const colorScheme2 = getColorScheme(rootEl);
+        const themeColor2 = getThemeColor(rootEl);
+        expect(classes2).not.toContain("dark");
+        expect(colorScheme2).toBe("light");
+        expect(themeColor2).toBe("white");
+        await user.click(toggle);
+        const classes3 = getClasses(rootEl);
+        const colorScheme3 = getColorScheme(rootEl);
+        const themeColor3 = getThemeColor(rootEl);
+        expect(classes3).toContain("dark");
+        expect(colorScheme3).toBe("dark");
+        expect(themeColor3).toBe("black");
+    });
+    it("allows the user to set the mode", async () => {
+        const { getByTestId, user, rootEl } = setup();
+        const classes = getClasses(rootEl);
+        const colorScheme = getColorScheme(rootEl);
+        const themeColor = getThemeColor(rootEl);
+        expect(classes).toContain("dark");
+        expect(colorScheme).toBe("dark");
+        expect(themeColor).toBe("black");
+        const light = getByTestId("light");
+        await user.click(light);
+        const classes2 = getClasses(rootEl);
+        const colorScheme2 = getColorScheme(rootEl);
+        const themeColor2 = getThemeColor(rootEl);
+        expect(classes2).not.toContain("dark");
+        expect(colorScheme2).toBe("light");
+        expect(themeColor2).toBe("white");
+        const dark = getByTestId("dark");
+        await user.click(dark);
+        const classes3 = getClasses(rootEl);
+        const colorScheme3 = getColorScheme(rootEl);
+        const themeColor3 = getThemeColor(rootEl);
+        expect(classes3).toContain("dark");
+        expect(colorScheme3).toBe("dark");
+        expect(themeColor3).toBe("black");
+    });
+    it("keeps the mode store in sync with current mode", async () => {
+        const { getByTestId, user, rootEl } = setup();
+        const light = getByTestId("light");
+        const dark = getByTestId("dark");
+        const mode = getByTestId("mode");
+        const classes = getClasses(rootEl);
+        const colorScheme = getColorScheme(rootEl);
+        const themeColor = getThemeColor(rootEl);
+        expect(classes).toContain("dark");
+        expect(colorScheme).toBe("dark");
+        expect(themeColor).toBe("black");
+        expect(mode.textContent).toBe("dark");
+        await user.click(light);
+        const classes2 = getClasses(rootEl);
+        const colorScheme2 = getColorScheme(rootEl);
+        const themeColor2 = getThemeColor(rootEl);
+        expect(classes2).not.toContain("dark");
+        expect(colorScheme2).toBe("light");
+        expect(themeColor2).toBe("white");
+        expect(mode.textContent).toBe("light");
+        await user.click(dark);
+        const classes3 = getClasses(rootEl);
+        const colorScheme3 = getColorScheme(rootEl);
+        const themeColor3 = getThemeColor(rootEl);
+        expect(classes3).toContain("dark");
+        expect(colorScheme3).toBe("dark");
+        expect(themeColor3).toBe("black");
+        expect(mode.textContent).toBe("dark");
+    });
+    it("resets the mode to system preferences", async () => {
+        const { getByTestId, user, rootEl } = setup();
+        const light = getByTestId("light");
+        const reset = getByTestId("reset");
+        const mode = getByTestId("mode");
+        const classes = getClasses(rootEl);
+        const colorScheme = getColorScheme(rootEl);
+        const themeColor = getThemeColor(rootEl);
+        expect(classes).toContain("dark");
+        expect(colorScheme).toBe("dark");
+        expect(themeColor).toBe("black");
+        expect(mode.textContent).toBe("dark");
+        await user.click(light);
+        const classes2 = getClasses(rootEl);
+        const colorScheme2 = getColorScheme(rootEl);
+        const themeColor2 = getThemeColor(rootEl);
+        expect(classes2).not.toContain("dark");
+        expect(colorScheme2).toBe("light");
+        expect(themeColor2).toBe("white");
+        expect(mode.textContent).toBe("light");
+        await user.click(reset);
+        const classes3 = getClasses(rootEl);
+        const colorScheme3 = getColorScheme(rootEl);
+        const themeColor3 = getThemeColor(rootEl);
+        expect(classes3).toContain("dark");
+        expect(colorScheme3).toBe("dark");
+        expect(themeColor3).toBe("black");
+        expect(mode.textContent).toBe("dark");
+    });
+    // need to mock Svelte's media query somehow
+    it.skip("tracks changes to system preferences", async () => {
+        const { getByTestId, rootEl } = setup();
+        const mode = getByTestId("mode");
+        const classes = getClasses(rootEl);
+        const colorScheme = getColorScheme(rootEl);
+        const themeColor = getThemeColor(rootEl);
+        expect(classes).toContain("dark");
+        expect(colorScheme).toBe("dark");
+        expect(themeColor).toBe("black");
+        expect(mode.textContent).toBe("dark");
+        mediaQueryState.matches = true;
+        const changeEvent = new Event("change");
+        window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+        await tick();
+        const classes2 = getClasses(rootEl);
+        const colorScheme2 = getColorScheme(rootEl);
+        const themeColor2 = getThemeColor(rootEl);
+        expect(classes2).not.toContain("dark");
+        expect(colorScheme2).toBe("light");
+        expect(themeColor2).toBe("white");
+        expect(mode.textContent).toBe("light");
+        mediaQueryState.matches = false;
+        window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+        await tick();
+        const classes3 = getClasses(rootEl);
+        const colorScheme3 = getColorScheme(rootEl);
+        const themeColor3 = getThemeColor(rootEl);
+        expect(classes3).toContain("dark");
+        expect(colorScheme3).toBe("dark");
+        expect(themeColor3).toBe("black");
+        expect(mode.textContent).toBe("dark");
+    });
+    // need to mock Svelte's media query somehow
+    it.skip("stops tracking changes to system preferences when user sets a mode", async () => {
+        const { getByTestId, user, rootEl } = setup();
+        const light = getByTestId("light");
+        const reset = getByTestId("reset");
+        const mode = getByTestId("mode");
+        const classes = getClasses(rootEl);
+        const colorScheme = getColorScheme(rootEl);
+        const themeColor = getThemeColor(rootEl);
+        expect(classes).toContain("dark");
+        expect(colorScheme).toBe("dark");
+        expect(themeColor).toBe("black");
+        expect(mode.textContent).toBe("dark");
+        mediaQueryState.matches = true;
+        const changeEvent = new Event("change");
+        window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+        await tick();
+        const classes2 = getClasses(rootEl);
+        const colorScheme2 = getColorScheme(rootEl);
+        const themeColor2 = getThemeColor(rootEl);
+        expect(classes2).not.toContain("dark");
+        expect(colorScheme2).toBe("light");
+        expect(themeColor2).toBe("white");
+        expect(mode.textContent).toBe("light");
+        mediaQueryState.matches = false;
+        window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+        await tick();
+        const classes3 = getClasses(rootEl);
+        const colorScheme3 = getColorScheme(rootEl);
+        const themeColor3 = getThemeColor(rootEl);
+        expect(classes3).toContain("dark");
+        expect(colorScheme3).toBe("dark");
+        expect(themeColor3).toBe("black");
+        expect(mode.textContent).toBe("dark");
+        await user.click(light);
+        const classes4 = getClasses(rootEl);
+        const colorScheme4 = getColorScheme(rootEl);
+        const themeColor4 = getThemeColor(rootEl);
+        expect(classes4).not.toContain("dark");
+        expect(colorScheme4).toBe("light");
+        expect(themeColor4).toBe("white");
+        expect(mode.textContent).toBe("light");
+        mediaQueryState.matches = true;
+        window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+        await tick();
+        const classes5 = getClasses(rootEl);
+        const colorScheme5 = getColorScheme(rootEl);
+        const themeColor5 = getThemeColor(rootEl);
+        expect(classes5).not.toContain("dark");
+        expect(colorScheme5).toBe("light");
+        expect(themeColor5).toBe("white");
+        expect(mode.textContent).toBe("light");
+        mediaQueryState.matches = false;
+        window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+        await tick();
+        const classes6 = getClasses(rootEl);
+        const colorScheme6 = getColorScheme(rootEl);
+        const themeColor6 = getThemeColor(rootEl);
+        expect(classes6).not.toContain("dark");
+        expect(colorScheme6).toBe("light");
+        expect(themeColor6).toBe("white");
+        expect(mode.textContent).toBe("light");
+        await user.click(reset);
+        const classes7 = getClasses(rootEl);
+        const colorScheme7 = getColorScheme(rootEl);
+        const themeColor7 = getThemeColor(rootEl);
+        expect(classes7).toContain("dark");
+        expect(colorScheme7).toBe("dark");
+        expect(themeColor7).toBe("black");
+        expect(mode.textContent).toBe("dark");
+    });
+    // need to mock Svelte's media query
+    it.skip("does not track changes to system preference when track prop is set to false", async () => {
+        const { container, getByTestId } = render(Mode, { track: false });
+        const rootEl = container.parentElement?.parentElement;
+        const mode = getByTestId("mode");
+        const classes = getClasses(rootEl);
+        const colorScheme = getColorScheme(rootEl);
+        const themeColor = getThemeColor(rootEl);
+        expect(classes).toContain("dark");
+        expect(colorScheme).toBe("dark");
+        expect(themeColor).toBe("black");
+        expect(mode.textContent).toBe("dark");
+        mediaQueryState.matches = true;
+        const changeEvent = new Event("change");
+        window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+        await tick();
+        const classes2 = getClasses(rootEl);
+        const colorScheme2 = getColorScheme(rootEl);
+        const themeColor2 = getThemeColor(rootEl);
+        expect(classes2).toContain("dark");
+        expect(colorScheme2).toBe("dark");
+        expect(themeColor2).toBe("black");
+        expect(mode.textContent).toBe("dark");
+        mediaQueryState.matches = false;
+        window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+        await tick();
+        const classes3 = getClasses(rootEl);
+        const colorScheme3 = getColorScheme(rootEl);
+        const themeColor3 = getThemeColor(rootEl);
+        expect(classes3).toContain("dark");
+        expect(colorScheme3).toBe("dark");
+        expect(themeColor3).toBe("black");
+        expect(mode.textContent).toBe("dark");
+    });
+    it("also works when $mode is not used in the current page", async () => {
+        const user = userEvent.setup();
+        const { container, getByTestId } = render(StealthMode);
+        const rootEl = container.parentElement?.parentElement;
+        const classes = getClasses(rootEl);
+        const colorScheme = getColorScheme(rootEl);
+        const themeColor = getThemeColor(rootEl);
+        expect(classes).toContain("dark");
+        expect(colorScheme).toBe("dark");
+        expect(themeColor).toBe("black");
+        const toggle = getByTestId("toggle");
+        await user.click(toggle);
+        const classes2 = getClasses(rootEl);
+        const colorScheme2 = getColorScheme(rootEl);
+        const themeColor2 = getThemeColor(rootEl);
+        expect(classes2).not.toContain("dark");
+        expect(colorScheme2).toBe("light");
+        expect(themeColor2).toBe("white");
+        await user.click(toggle);
+        const classes3 = getClasses(rootEl);
+        const colorScheme3 = getColorScheme(rootEl);
+        const themeColor3 = getThemeColor(rootEl);
+        expect(classes3).toContain("dark");
+        expect(colorScheme3).toBe("dark");
+        expect(themeColor3).toBe("black");
+    });
+    it("allows the user to apply custom classnames to the root html element", async () => {
+        const { getByTestId, user, rootEl } = setup({
+            darkClassNames: ["custom-d-class"],
+            lightClassNames: ["custom-l-class"],
+        });
+        const classes = getClasses(rootEl);
+        expect(classes).toContain("custom-d-class");
+        const toggle = getByTestId("toggle");
+        await user.click(toggle);
+        const classes2 = getClasses(rootEl);
+        expect(classes2).toContain("custom-l-class");
+    });
+    it("allows the user to set a custom theme via the `defaultTheme` prop", async () => {
+        const { theme, rootEl } = setup({
+            defaultTheme: "dracula",
+        });
+        expect(rootEl).toHaveAttribute("data-theme", "dracula");
+        expect(theme).toHaveTextContent("dracula");
+    });
+    it("allows the user to programmatically change the theme", async () => {
+        const { themeDracula, theme, rootEl, user } = setup({
+            defaultTheme: "money",
+        });
+        expect(rootEl).toHaveAttribute("data-theme", "money");
+        await user.click(themeDracula);
+        expect(rootEl).toHaveAttribute("data-theme", "dracula");
+        expect(theme).toHaveTextContent("dracula");
+    });
+    it("allows the user to programmatically clear the theme", async () => {
+        const { themeClear, rootEl, user } = setup({
+            defaultTheme: "money",
+        });
+        expect(rootEl).toHaveAttribute("data-theme", "money");
+        await user.click(themeClear);
+        expect(rootEl).toHaveAttribute("data-theme", "");
+        expect(rootEl).not.toHaveAttribute("data-theme", "money");
+    });
+});
+function getClasses(element) {
+    if (element === null)
+        return [];
+    const classes = element.className.split(" ").filter((c) => c.length > 0);
+    return classes;
+}
+function getColorScheme(element) {
+    if (element === null)
+        return "";
+    return element.style.colorScheme;
+}
+function getThemeColor(element) {
+    if (element === null)
+        return "";
+    const themeMetaEl = element.querySelector('meta[name="theme-color"]');
+    if (themeMetaEl === null)
+        return "";
+    const content = themeMetaEl.getAttribute("content");
+    if (content === null)
+        return "";
+    return content;
+}
+
+=== 1044 packages/mode-watcher/vite.config.ts	js
+import process from "node:process";
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vitest/config";
+import { svelteTesting } from "@testing-library/svelte/vite";
+const vitestBrowserConditionPlugin = {
+    name: "vite-plugin-vitest-browser-condition",
+    //@ts-expect-error - this works
+    config({ resolve }) {
+        if (process.env.VITEST) {
+            resolve.conditions.unshift("browser");
+        }
+    },
+};
+export default defineConfig({
+    plugins: [vitestBrowserConditionPlugin, sveltekit(), svelteTesting()],
+    test: {
+        include: ["src/**/*.{test,spec}.{js,ts}"],
+        // jest like globals
+        globals: true,
+        environment: "jsdom",
+        // in-source testing
+        includeSource: ["src/**/*.{js,ts,svelte}"],
+        // Add @testing-library/jest-dom matchers & mocks of SvelteKit modules
+        setupFiles: ["./scripts/setupTest.ts"],
+        // Exclude files in v8
+        coverage: {
+            exclude: ["setupTest.ts"],
+        },
+        mockReset: false,
+    },
+});
+

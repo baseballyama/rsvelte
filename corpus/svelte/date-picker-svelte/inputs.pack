@@ -1,4 +1,711 @@
 # rsvelte pack 1
+=== 4721 src/lib/date-utils.ts	ts	module	-
+import type { FormatToken } from './parse.js'
+
+export function isLeapYear(year: number): boolean {
+	return (year % 4 === 0 && year % 100 !== 0) || year % 400 === 0
+}
+export function getMonthLength(year: number, month: number): number {
+	const feb = isLeapYear(year) ? 29 : 28
+	const monthLengths = [31, feb, 31, 30, 31, 30, 31, 31, 30, 31, 30, 31]
+	return monthLengths[month]
+}
+
+export function toText(date: Date | null, formatTokens: FormatToken[]): string {
+	let text = ''
+	if (date) {
+		for (const token of formatTokens) {
+			if (typeof token === 'string') {
+				text += token
+			} else {
+				text += token.toString(date)
+			}
+		}
+	}
+	return text
+}
+
+export function isSameDate(date1: Date, date2: Date) {
+	return (
+		date1.getFullYear() === date2.getFullYear() &&
+		date1.getMonth() === date2.getMonth() &&
+		date1.getDate() === date2.getDate()
+	)
+}
+
+export type CalendarDay = {
+	year: number
+	month: number
+	number: number
+}
+export function getMonthDays(year: number, month: number): CalendarDay[] {
+	const monthLength = getMonthLength(year, month)
+	const days: CalendarDay[] = []
+	for (let i = 0; i < monthLength; i++) {
+		days.push({
+			year: year,
+			month: month,
+			number: i + 1,
+		})
+	}
+	return days
+}
+export function getCalendarDays(value: Date, weekStartsOn: number): CalendarDay[] {
+	const year = value.getFullYear()
+	const month = value.getMonth()
+	const firstWeekday = new Date(year, month, 1).getDay()
+
+	let days: CalendarDay[] = []
+
+	// add last month
+	const daysBefore = (firstWeekday - weekStartsOn + 7) % 7
+	if (daysBefore > 0) {
+		let lastMonth = month - 1
+		let lastMonthYear = year
+		if (lastMonth === -1) {
+			lastMonth = 11
+			lastMonthYear = year - 1
+		}
+		days = getMonthDays(lastMonthYear, lastMonth).slice(-daysBefore)
+	}
+
+	// add current month
+	days = days.concat(getMonthDays(year, month))
+
+	// add next month
+	let nextMonth = month + 1
+	let nextMonthYear = year
+	if (nextMonth === 12) {
+		nextMonth = 0
+		nextMonthYear = year + 1
+	}
+	const daysAfter = 42 - days.length
+	days = days.concat(getMonthDays(nextMonthYear, nextMonth).slice(0, daysAfter))
+
+	return days
+}
+
+export function applyTimePrecision(
+	date: Date,
+	timePrecision: 'minute' | 'second' | 'millisecond' | null,
+) {
+	// Set unused time components to 0
+	if (timePrecision === null) {
+		date.setHours(0, 0, 0, 0)
+	} else if (timePrecision === 'minute') {
+		date.setSeconds(0, 0)
+	} else if (timePrecision === 'second') {
+		date.setMilliseconds(0)
+	}
+}
+
+export function cloneDate(d: Date) {
+	return new Date(d)
+}
+
+export function toValidDate(
+	oldDate: Date,
+	newDate: Date,
+	minDate: Date,
+	maxDate: Date,
+	isDisabledDate: ((date: Date) => boolean) | null,
+): Date {
+	// Don't mutate the original newDate to avoid unintended side effects
+	let adjustedDate = cloneDate(newDate)
+
+	if (oldDate > newDate) {
+		adjustDate(adjustedDate, -1, minDate, maxDate, isDisabledDate)
+		if (adjustedDate < minDate) {
+			adjustedDate = clampDate(adjustedDate, minDate, maxDate)
+			// Adjusts the date one more time if the min date is disabled, to ensure a valid, enabled date is selected
+			adjustDate(adjustedDate, 1, minDate, maxDate, isDisabledDate)
+		}
+	} else {
+		adjustDate(adjustedDate, 1, minDate, maxDate, isDisabledDate)
+		if (adjustedDate > maxDate) {
+			adjustedDate = clampDate(adjustedDate, minDate, maxDate)
+			// Adjusts the date one more time if the max date is disabled, to ensure a valid, enabled date is selected
+			adjustDate(adjustedDate, -1, minDate, maxDate, isDisabledDate)
+		}
+	}
+	// Finally, clamp the time
+	if (adjustedDate < minDate || adjustedDate > maxDate) {
+		adjustedDate = clamp(adjustedDate, minDate, maxDate)
+	}
+	return adjustedDate
+}
+
+function adjustDate(
+	date: Date,
+	increment: number,
+	minDate: Date,
+	maxDate: Date,
+	isDisabledDate: ((date: Date) => boolean) | null,
+) {
+	// Prevents accidental infinite loops
+	const MAXLOOPS = 36525 // ~100 years, should be large enough
+	let loopCount = 0
+
+	while (isDisabledDate?.(date) && date >= minDate && date <= maxDate && loopCount <= MAXLOOPS) {
+		date.setDate(date.getDate() + increment)
+		loopCount++
+	}
+}
+
+export function clamp(value: Date, min: Date, max: Date) {
+	if (value > max) {
+		return cloneDate(max)
+	} else if (value < min) {
+		return cloneDate(min)
+	} else {
+		return cloneDate(value)
+	}
+}
+
+/** Clamps the date, but keeps the time unchanged */
+export function clampDate(value: Date, min: Date, max: Date) {
+	const limit = clamp(value, min, max)
+	value = new Date(
+		limit.getFullYear(),
+		limit.getMonth(),
+		limit.getDate(),
+		value.getHours(),
+		value.getMinutes(),
+		value.getSeconds(),
+		value.getMilliseconds(),
+	)
+	if (value > max) {
+		value.setDate(max.getDate())
+	}
+	if (value < min) {
+		value.setDate(min.getDate())
+	}
+	return value
+}
+
+=== 231 src/lib/index.ts	ts	module	-
+export { default as DatePicker } from './DatePicker.svelte'
+export { default as DateInput } from './DateInput.svelte'
+
+export { localeFromDateFnsLocale, type Locale } from './locale.js'
+export { isSameDate } from './date-utils.js'
+
+=== 2218 src/lib/locale.ts	ts	module	-
+export type Locale = {
+	weekdays?: string[]
+	months?: string[]
+	shortMonths?: string[]
+	weekStartsOn?: number
+}
+export type InnerLocale = {
+	weekdays: string[]
+	months: string[]
+	shortMonths: string[]
+	weekStartsOn: number
+}
+export function getLocaleDefaults(): InnerLocale {
+	return {
+		weekdays: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
+		months: [
+			'January',
+			'February',
+			'March',
+			'April',
+			'May',
+			'June',
+			'July',
+			'August',
+			'September',
+			'October',
+			'November',
+			'December',
+		],
+		shortMonths: [
+			'Jan',
+			'Feb',
+			'Mar',
+			'Apr',
+			'May',
+			'Jun',
+			'Jul',
+			'Aug',
+			'Sep',
+			'Oct',
+			'Nov',
+			'Dec',
+		],
+		weekStartsOn: 1,
+	}
+}
+export function getInnerLocale(locale: Locale): InnerLocale {
+	const innerLocale = getLocaleDefaults()
+	if (typeof locale.weekStartsOn === 'number') {
+		innerLocale.weekStartsOn = locale.weekStartsOn
+	}
+	if (locale.months) innerLocale.months = locale.months
+	if (locale.shortMonths) innerLocale.shortMonths = locale.shortMonths
+	if (locale.weekdays) innerLocale.weekdays = locale.weekdays
+	return innerLocale
+}
+
+type Month = 0 | 1 | 2 | 3 | 4 | 5 | 6 | 7 | 8 | 9 | 10 | 11
+type Day = 0 | 1 | 2 | 3 | 4 | 5 | 6
+type LocaleWidth = 'short' | 'wide' | 'abbreviated' | 'narrow' | 'any'
+type DateFnsLocale = {
+	options?: {
+		weekStartsOn?: 0 | 1 | 2 | 3 | 4 | 5 | 6
+	}
+	localize?: {
+		month: (n: Month, options?: { width?: LocaleWidth }) => string
+		day: (i: Day, options?: { width?: LocaleWidth }) => string
+	}
+}
+/** Create a Locale from a date-fns locale */
+export function localeFromDateFnsLocale(dateFnsLocale: DateFnsLocale): InnerLocale {
+	const locale = getLocaleDefaults()
+	if (typeof dateFnsLocale.options?.weekStartsOn === 'number') {
+		locale.weekStartsOn = dateFnsLocale.options.weekStartsOn
+	}
+	if (dateFnsLocale.localize) {
+		for (let i = 0; i < 7; i++) {
+			// widths: narrow, short, abbreviated, wide, any
+			locale.weekdays[i] = dateFnsLocale.localize.day(i as Day, { width: 'short' })
+		}
+
+		for (let i = 0; i < 12; i++) {
+			locale.months[i] = dateFnsLocale.localize.month(i as Month, { width: 'wide' })
+			locale.shortMonths[i] = dateFnsLocale.localize.month(i as Month, { width: 'abbreviated' })
+		}
+	}
+	return locale
+}
+
+=== 4971 src/lib/parse.ts	ts	module	-
+import { getMonthLength } from '$lib/date-utils.js'
+import { type Locale, type InnerLocale, getInnerLocale } from '$lib/locale'
+
+type RuleToken = {
+	id: string
+	allowedValues?: string[]
+	toString: (d: Date) => string
+}
+
+export type FormatToken = string | RuleToken
+
+type ParseResult = {
+	date: Date | null
+	missingPunctuation: string
+}
+
+/** Parse a string according to the supplied format tokens. Returns a date if successful, and the missing punctuation if there is any that should be after the string */
+export function parse(str: string, tokens: FormatToken[], baseDate: Date | null): ParseResult {
+	let missingPunctuation = ''
+	let valid = true
+
+	baseDate = baseDate || new Date(new Date().getFullYear(), 0, 1, 0, 0, 0, 0)
+	let year = baseDate.getFullYear()
+	let month = baseDate.getMonth()
+	let day = baseDate.getDate()
+	let hours = baseDate.getHours()
+	let minutes = baseDate.getMinutes()
+	let seconds = baseDate.getSeconds()
+	const ms = baseDate.getMilliseconds()
+
+	function parseString(token: string) {
+		for (let i = 0; i < token.length; i++) {
+			if (str.startsWith(token[i])) {
+				str = str.slice(1)
+			} else {
+				valid = false
+				if (str.length === 0) missingPunctuation = token.slice(i)
+				return
+			}
+		}
+	}
+
+	function parseUint(pattern: RegExp, min: number, max: number) {
+		const matches = str.match(pattern)
+		if (matches?.[0]) {
+			str = str.slice(matches[0].length)
+			const n = parseInt(matches[0])
+			if (n > max || n < min) {
+				valid = false
+				return null
+			} else {
+				return n
+			}
+		} else {
+			valid = false
+			return null
+		}
+	}
+
+	function parseEnum(allowedValues: string[]) {
+		const n = allowedValues.findIndex((allowedValue) => {
+			return allowedValue.toLowerCase() === str.slice(0, allowedValue.length).toLowerCase()
+		})
+
+		if (n >= 0) {
+			str = str.slice(allowedValues[n].length)
+			return n
+		} else {
+			valid = false
+			return null
+		}
+	}
+
+	function parseToken(token: FormatToken) {
+		if (typeof token === 'string') {
+			parseString(token)
+		} else if (token.id === 'yy') {
+			const value = parseUint(/^[0-9]{2}/, 0, 99)
+			if (value !== null) year = 2000 + value
+		} else if (token.id === 'yyyy') {
+			const value = parseUint(/^[0-9]{4}/, 0, 9999)
+			if (value !== null) year = value
+		} else if (token.id === 'MM') {
+			const value = parseUint(/^[0-9]{2}/, 1, 12)
+			if (value !== null) month = value - 1
+		} else if (token.id === 'MMM') {
+			const value = parseEnum(token.allowedValues || [])
+			if (value !== null) month = value
+		} else if (token.id === 'dd') {
+			const value = parseUint(/^[0-9]{2}/, 1, 31)
+			if (value !== null) day = value
+		} else if (token.id === 'HH') {
+			const value = parseUint(/^[0-9]{2}/, 0, 23)
+			if (value !== null) hours = value
+		} else if (token.id === 'mm') {
+			const value = parseUint(/^[0-9]{2}/, 0, 59)
+			if (value !== null) minutes = value
+		} else if (token.id === 'ss') {
+			const value = parseUint(/^[0-9]{2}/, 0, 59)
+			if (value !== null) seconds = value
+		}
+	}
+
+	for (const token of tokens) {
+		parseToken(token)
+		if (!valid) break
+	}
+
+	const monthLength = getMonthLength(year, month)
+	if (day > monthLength) {
+		valid = false
+	}
+
+	return {
+		date: valid ? new Date(year, month, day, hours, minutes, seconds, ms) : null,
+		missingPunctuation: missingPunctuation,
+	}
+}
+
+function twoDigit(value: number) {
+	return ('0' + value.toString()).slice(-2)
+}
+
+function parseRule(s: string, innerLocale: InnerLocale) {
+	if (s.startsWith('yyyy')) {
+		return {
+			id: 'yyyy',
+			toString: (d: Date) => d.getFullYear().toString(),
+		}
+	} else if (s.startsWith('yy')) {
+		return {
+			id: 'yy',
+			toString: (d: Date) => d.getFullYear().toString().slice(-2),
+		}
+	} else if (s.startsWith('MMM')) {
+		return {
+			id: 'MMM',
+			allowedValues: innerLocale.shortMonths,
+			toString: (d: Date) => innerLocale.shortMonths[d.getMonth()],
+		}
+	} else if (s.startsWith('MM')) {
+		return {
+			id: 'MM',
+			toString: (d: Date) => twoDigit(d.getMonth() + 1),
+		}
+	} else if (s.startsWith('dd')) {
+		return {
+			id: 'dd',
+			toString: (d: Date) => twoDigit(d.getDate()),
+		}
+	} else if (s.startsWith('HH')) {
+		return {
+			id: 'HH',
+			toString: (d: Date) => twoDigit(d.getHours()),
+		}
+	} else if (s.startsWith('mm')) {
+		return {
+			id: 'mm',
+			toString: (d: Date) => twoDigit(d.getMinutes()),
+		}
+	} else if (s.startsWith('ss')) {
+		return {
+			id: 'ss',
+			toString: (d: Date) => twoDigit(d.getSeconds()),
+		}
+	}
+}
+
+export function createFormat(s: string, locale: Locale = {}): FormatToken[] {
+	const innerLocale = getInnerLocale(locale)
+	const tokens = []
+	while (s.length > 0) {
+		const token = parseRule(s, innerLocale)
+		if (token) {
+			// parsed a token like "yyyy"
+			tokens.push(token)
+			s = s.slice(token.id.length)
+		} else if (typeof tokens[tokens.length - 1] === 'string') {
+			// last token is a string token, so append to it
+			tokens[tokens.length - 1] += s[0]
+			s = s.slice(1)
+		} else {
+			// add string token
+			tokens.push(s[0])
+			s = s.slice(1)
+		}
+	}
+
+	return tokens
+}
+
+=== 6396 src/lib/utils.test.ts	ts	module	-
+import { describe, it, expect, test } from 'vitest'
+import { nb } from 'date-fns/locale'
+import { getCalendarDays, getMonthDays, toText } from './date-utils.js'
+import { createFormat, parse } from './parse.js'
+import { getInnerLocale, localeFromDateFnsLocale } from './locale.js'
+
+describe('getMonthDays', () => {
+	it('gets the correct amount of days', () => {
+		const feb2021 = getMonthDays(2021, 1)
+		expect(feb2021.length).toEqual(28)
+	})
+	it('works with leap years', () => {
+		const feb2020 = getMonthDays(2020, 1)
+		expect(feb2020.length).toEqual(29)
+	})
+})
+
+describe('getCalendarDays', () => {
+	it('works for all months in 1995-2025', () => {
+		const weekdayStartsOn = 1 // monday
+		for (let year = 1995; year < 2025; year++) {
+			for (let month = 0; month < 11; month++) {
+				testMonth(year, month)
+			}
+		}
+		function testMonth(year: number, month: number) {
+			const calDays = getCalendarDays(new Date(year, month, 1), weekdayStartsOn)
+			expect(calDays.length).toEqual(42)
+			for (let i = 0; i < calDays.length; i++) {
+				const calDay = calDays[i]
+				expect({
+					year: calDay.year,
+					month: calDay.month,
+					number: calDay.number,
+					weekday: new Date(calDay.year, calDay.month, calDay.number).getDay(),
+				}).toEqual({
+					year: calDay.year,
+					month: calDay.month,
+					number: calDay.number,
+					weekday: ((i % 7) + weekdayStartsOn) % 7,
+				})
+			}
+		}
+	})
+
+	it('gets the correct correct days from the prev/next month', () => {
+		const jan2020 = new Date(2020, 0, 1, 0, 0, 0, 0)
+		const jan2020CalDays = getCalendarDays(jan2020, 1)
+		expect(jan2020CalDays).toEqual([
+			{ year: 2019, month: 11, number: 30 },
+			{ year: 2019, month: 11, number: 31 },
+			...getMonthDays(2020, 0),
+			{ year: 2020, month: 1, number: 1 },
+			{ year: 2020, month: 1, number: 2 },
+			{ year: 2020, month: 1, number: 3 },
+			{ year: 2020, month: 1, number: 4 },
+			{ year: 2020, month: 1, number: 5 },
+			{ year: 2020, month: 1, number: 6 },
+			{ year: 2020, month: 1, number: 7 },
+			{ year: 2020, month: 1, number: 8 },
+			{ year: 2020, month: 1, number: 9 },
+		])
+
+		const dec2019 = new Date(2019, 11, 1, 0, 0, 0, 0)
+		const dec2019CalDays = getCalendarDays(dec2019, 1)
+		expect(dec2019CalDays).toEqual([
+			{ year: 2019, month: 10, number: 25 },
+			{ year: 2019, month: 10, number: 26 },
+			{ year: 2019, month: 10, number: 27 },
+			{ year: 2019, month: 10, number: 28 },
+			{ year: 2019, month: 10, number: 29 },
+			{ year: 2019, month: 10, number: 30 },
+			...getMonthDays(2019, 11),
+			{ year: 2020, month: 0, number: 1 },
+			{ year: 2020, month: 0, number: 2 },
+			{ year: 2020, month: 0, number: 3 },
+			{ year: 2020, month: 0, number: 4 },
+			{ year: 2020, month: 0, number: 5 },
+		])
+	})
+})
+
+describe('toText', () => {
+	test('basic conversion', () => {
+		const format = createFormat('yyyy-MM-dd HH:mm:ss')
+		const text = toText(new Date(2020, 0, 1, 0, 0, 0, 0), format)
+		expect(text).toEqual('2020-01-01 00:00:00')
+	})
+
+	test('conversion to month string', () => {
+		const format = createFormat('dd MMM yyyy HH:mm:ss')
+		const text = toText(new Date(2020, 0, 1, 0, 0, 0, 0), format)
+		expect(text).toEqual('01 Jan 2020 00:00:00')
+	})
+
+	test('conversion to month string using non-en locale', () => {
+		const format = createFormat('dd MMM yyyy HH:mm:ss', localeFromDateFnsLocale(nb))
+		const text = toText(new Date(2020, 0, 1, 0, 0, 0, 0), format)
+		expect(text).toEqual('01 jan. 2020 00:00:00')
+	})
+})
+
+describe('parse()', () => {
+	const baseDate = new Date(1234, 0, 1, 0, 0, 0, 999)
+	const format = createFormat('yyyy--MM-dd HH:mm:ss')
+
+	it('works with a basic date', () => {
+		const result = parse('1234--12-31 23:59:59', format, baseDate)
+		expect(result).toEqual({
+			date: new Date(1234, 11, 31, 23, 59, 59, 999),
+			missingPunctuation: '',
+		})
+	})
+
+	it('works with a short month date', () => {
+		const format = createFormat('dd MMM yyyy HH:mm:ss')
+		const result = parse('31 Dec 2022 23:59:59', format, baseDate)
+		expect(result).toEqual({
+			date: new Date(2022, 11, 31, 23, 59, 59, 999),
+			missingPunctuation: '',
+		})
+	})
+
+	it('works with a short month date in non-En locale', () => {
+		const format = createFormat('dd MMM yyyy HH:mm:ss', localeFromDateFnsLocale(nb))
+		const result = parse('31 des. 2022 23:59:59', format, baseDate)
+		expect(result).toEqual({
+			date: new Date(2022, 11, 31, 23, 59, 59, 999),
+			missingPunctuation: '',
+		})
+	})
+
+	it('handles badly formed month name', () => {
+		const format = createFormat('dd MMM yyyy HH:mm:ss')
+		const result = parse('31 Dex 2022 23:59:59', format, baseDate)
+		expect(result).toEqual({
+			date: null,
+			missingPunctuation: '',
+		})
+	})
+
+	it('handles missing punctuation', () => {
+		const result = parse('2345', format, baseDate)
+		expect(result).toEqual({
+			date: null,
+			missingPunctuation: '--',
+		})
+	})
+
+	it('fails with too high minute', () => {
+		const result = parse('1234--12-31 23:99:59', format, baseDate)
+		expect(result).toEqual({
+			date: null,
+			missingPunctuation: '',
+		})
+	})
+
+	it('fails with too high date-of-month', () => {
+		// separate test because some months have less than 31 days
+		const dayOfMonthOverflow = parse('1234--02-31 23:59:59', format, baseDate)
+		expect(dayOfMonthOverflow).toEqual({
+			date: null,
+			missingPunctuation: '',
+		})
+	})
+
+	it('fails when the second has a non-numeric character', () => {
+		const noNumber = parse('1234--02-31 23:59:5d', format, baseDate)
+		expect(noNumber).toEqual({
+			date: null,
+			missingPunctuation: '',
+		})
+	})
+})
+
+describe('locale', () => {
+	const nbLocale = {
+		weekdays: ['sø', 'ma', 'ti', 'on', 'to', 'fr', 'lø'],
+		months: [
+			'januar',
+			'februar',
+			'mars',
+			'april',
+			'mai',
+			'juni',
+			'juli',
+			'august',
+			'september',
+			'oktober',
+			'november',
+			'desember',
+		],
+		shortMonths: [
+			'jan.',
+			'feb.',
+			'mars',
+			'apr.',
+			'mai',
+			'juni',
+			'juli',
+			'aug.',
+			'sep.',
+			'okt.',
+			'nov.',
+			'des.',
+		],
+		weekStartsOn: 1,
+	}
+
+	test('getInnerLocale', () => {
+		const locale = getInnerLocale({
+			months: nbLocale.months,
+			shortMonths: nbLocale.shortMonths,
+			weekStartsOn: 4,
+		})
+
+		expect(locale).toEqual({
+			weekdays: ['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'],
+			months: nbLocale.months,
+			shortMonths: nbLocale.shortMonths,
+			weekStartsOn: 4,
+		})
+	})
+
+	test('localeFromDateFnsLocale', () => {
+		const locale = localeFromDateFnsLocale(nb)
+		expect(locale).toEqual(nbLocale)
+	})
+})
+
+=== 30 src/routes/+layout.ts	ts	module	-
+export const prerender = true
+
 === 3112 src/routes/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	import DemoDatePicker from './DemoDatePicker.svelte'
@@ -379,4 +1086,12 @@
 <a id="DatePicker"></a>
 <h2>DatePicker</h2>
 <DemoDatePicker />
+
+=== 142 vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite'
+import { defineConfig } from 'vite'
+
+export default defineConfig({
+	plugins: [sveltekit()],
+})
 

@@ -6668,3 +6668,9 @@
 
 ["svelte/svelte-spa-router/examples/dynamic-imports/src/routes/Wild.svelte".skip]
 "svelte.format" = "oxc formatter: crates/oxc_formatter_core/DIVERGENCES.md#fill-separator-measure"
+
+["svelte/rsvelte/pattern/module-top-level-return.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit is a script, not a module ('return' outside of function), so the module tree comparison cannot read it; a plain .ts file like it is not imported (typescript-emit-unparseable)"
+
+["svelte/rsvelte/pattern/module-legacy-octal-escape-in-a-script.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit is a script, not a module (an octal escape in strict mode), so the module tree comparison cannot read it; a plain .ts file like it is not imported (typescript-emit-unparseable)"

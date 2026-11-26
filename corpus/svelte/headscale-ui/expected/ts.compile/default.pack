@@ -1,0 +1,57 @@
+# rsvelte pack 1
+=== 974 src/lib/common/classes.ts	js
+export class Device {
+    id = '';
+    name = '';
+    givenName = '';
+    lastSeen = '';
+    ipAddresses = [];
+    tags = [];
+    approvedRoutes = [];
+    availableRoutes = [];
+    subnetRoutes = [];
+    user = new User();
+    online;
+    constructor(init) {
+        Object.assign(this, init);
+    }
+}
+export class ACL {
+    groups = {};
+    constructor(init) {
+        Object.assign(this, init);
+    }
+}
+export class APIKey {
+    id = '';
+    prefix = '';
+    expiration = '';
+    createdAt = '';
+    lastSeen = '';
+    constructor(init) {
+        Object.assign(this, init);
+    }
+}
+export class PreAuthKey {
+    user = '';
+    id = '';
+    key = '';
+    createdAt = '';
+    expiration = '';
+    reusable = false;
+    ephemeral = false;
+    used = false;
+    constructor(init) {
+        Object.assign(this, init);
+    }
+}
+export class User {
+    id = '';
+    name = '';
+    email = '';
+    createdAt = '';
+    constructor(init) {
+        Object.assign(this, init);
+    }
+}
+

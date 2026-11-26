@@ -9,12 +9,14 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
-use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing, run_each};
+use rsvelte_kernel::computation::pipeline::{
+    DocumentResult, RunOptions, Sharing, run_each_per_document,
+};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::performance::parallel;
 use rsvelte_kernel::source::document::Document;
 
-use crate::compare::{self, Ours, Verdict};
+use crate::compare::{self, Ours, Parentheses, Verdict};
 use crate::pack::{self, Entry, Pack};
 use crate::sources::{self, Source};
 use crate::{ledger, task_files};
@@ -38,6 +40,8 @@ pub struct Conformance {
     compared: Vec<Compared>,
     also_run: Vec<&'static str>,
     out_of_scope: Option<&'static str>,
+    /// `(task, languages)`: the task runs only on a unit of one of the languages.
+    languages: Vec<(&'static str, &'static [&'static str])>,
     /// The units [`Self::out_of_scope`]'s task reported.
     excluded: AtomicUsize,
     /// `(unit key, task)` for each official entry of a unit that no reader of the pack takes.
@@ -48,6 +52,7 @@ pub struct Conformance {
 struct Compared {
     task: &'static str,
     kind: Kind,
+    parentheses: Parentheses,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -72,6 +77,7 @@ impl Conformance {
             compared: Vec::new(),
             also_run: Vec::new(),
             out_of_scope: None,
+            languages: Vec::new(),
             excluded: AtomicUsize::new(0),
             stale: Mutex::new(Vec::new()),
         }
@@ -83,6 +89,19 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             kind: Kind::Output,
+            parentheses: Parentheses::Dropped,
+        });
+        self
+    }
+
+    /// [`Self::compare`], with each pair of parentheses in the JavaScript part of the tree: for an
+    /// oracle whose output keeps the pairs of its source.
+    #[must_use]
+    pub fn compare_with_parentheses(mut self, task: &'static str) -> Self {
+        self.compared.push(Compared {
+            task,
+            kind: Kind::Output,
+            parentheses: Parentheses::Kept,
         });
         self
     }
@@ -95,6 +114,7 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             kind: Kind::Comments { of },
+            parentheses: Parentheses::Dropped,
         });
         self
     }
@@ -108,6 +128,7 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             kind: Kind::Reader,
+            parentheses: Parentheses::Dropped,
         });
         self
     }
@@ -124,6 +145,15 @@ impl Conformance {
     #[must_use]
     pub const fn out_of_scope(mut self, task: &'static str) -> Self {
         self.out_of_scope = Some(task);
+        self
+    }
+
+    /// Runs `task` only on a unit whose language, the first attribute of its `inputs.pack` entry,
+    /// is one of `languages`. A task whose project is the units that run it, such as a type check,
+    /// then holds only those.
+    #[must_use]
+    pub fn only_on(mut self, task: &'static str, languages: &'static [&'static str]) -> Self {
+        self.languages.push((task, languages));
         self
     }
 
@@ -256,10 +286,12 @@ impl Conformance {
     ) -> Result<(usize, Verdicts), String> {
         let inputs = source.inputs()?;
         let mut documents = Vec::with_capacity(inputs.len());
+        let mut languages = Vec::with_capacity(inputs.len());
         for e in inputs.entries().filter(|e| selected(&source.key(e.path))) {
             let d = Document::new(e.path, e.body)
                 .map_err(|err| format!("{}: {err:?}", source.key(e.path)))?;
             documents.push(d);
+            languages.push(e.attributes.split('\t').next().unwrap_or(e.attributes));
         }
         let expected: Vec<Pack> = self
             .compared
@@ -274,6 +306,20 @@ impl Conformance {
             .chain(self.also_run.iter().copied())
             .chain(self.out_of_scope)
             .collect();
+        let mut tasks_of_language: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
+        for &language in &languages {
+            tasks_of_language.entry(language).or_insert_with(|| {
+                tasks
+                    .iter()
+                    .copied()
+                    .filter(|task| {
+                        self.languages
+                            .iter()
+                            .all(|(t, only)| t != task || only.contains(&language))
+                    })
+                    .collect()
+            });
+        }
         let options = RunOptions {
             tasks: &tasks,
             sharing: Sharing::Shared,
@@ -310,7 +356,9 @@ impl Conformance {
                 }
             }
         };
-        run_each(&self.registry, &documents, &options, &sink).map_err(|e| e.to_string())?;
+        let tasks_of = |i: usize| -> &[&str] { &tasks_of_language[languages[i]] };
+        run_each_per_document(&self.registry, &documents, &options, &tasks_of, &sink)
+            .map_err(|e| e.to_string())?;
         if write_actual {
             let actual = actual
                 .into_inner()
@@ -418,7 +466,7 @@ impl Conformance {
                     diagnostics: (!out.diagnostics.is_empty())
                         .then(|| task_files::diagnostics_json(&document.text, out)),
                 });
-                compare::verdict(&official, ours.as_ref())
+                compare::verdict(&official, ours.as_ref(), c.parentheses)
                     .map_err(|e| format!("{}: {e}", source.key(&document.path)))?
             };
             if let Some(v) = verdict {

@@ -11,6 +11,20 @@
 	}
 </style>
 
+=== 752 src/lib/components/common/index.ts	ts	module	-
+export { default as AnimatedLogo } from './AnimatedLogo.svelte';
+export { default as Button } from './Button.svelte';
+export { default as DragRegion } from './DragRegion.svelte';
+export { default as IconButton } from './IconButton.svelte';
+export { default as InlineSelect } from './InlineSelect.svelte';
+export { default as Input } from './Input.svelte';
+export { default as Modal, modalOpen } from './Modal.svelte';
+export { default as ScrollbarContainer } from './ScrollbarContainer.svelte';
+export { default as Select } from './Select.svelte';
+export { default as ShrinkableWrapper } from './ShrinkableWrapper.svelte';
+export { default as Switch } from './Switch.svelte';
+export { default as Tooltip, type TooltipContent } from './Tooltip.svelte';
+
 === 2919 src/lib/components/dashboard/Banner.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { onDestroy, onMount } from 'svelte';
@@ -213,6 +227,42 @@
 	}
 </style>
 
+=== 316 src/lib/components/dashboard/index.ts	ts	module	-
+export * from './notifications';
+export * from './priorities';
+export * from './sidebar';
+export { default as Banner } from './Banner.svelte';
+export { default as LoadingScreen } from './LoadingScreen.svelte';
+export { default as Main } from './Main.svelte';
+export { default as SyncPill } from './SyncPill.svelte';
+
+=== 361 src/lib/components/dashboard/notifications/index.ts	ts	module	-
+export { default as DoneModal } from './DoneModal.svelte';
+export { default as Notification } from './Notification.svelte';
+export { default as NotificationColumn } from './NotificationColumn.svelte';
+export { default as NotificationList } from './NotificationList.svelte';
+export { default as NotificationPlaceholder } from './NotificationPlaceholder.svelte';
+
+=== 61 src/lib/components/dashboard/priorities/index.ts	ts	module	-
+export { default as Priorities } from './Priorities.svelte';
+
+=== 55 src/lib/components/dashboard/sidebar/index.ts	ts	module	-
+export { default as Sidebar } from './Sidebar.svelte';
+
+=== 135 src/lib/components/index.ts	ts	module	-
+export * from './common';
+export * from './dashboard';
+export * from './landing';
+export * from './login';
+export * from './settings';
+
+=== 69 src/lib/components/landing/index.ts	ts	module	-
+export { default as DownloadButton } from './DownloadButton.svelte';
+
+=== 150 src/lib/components/login/index.ts	ts	module	-
+export { default as GithubLoginButton } from './GithubLoginButton.svelte';
+export { default as GitlabLoginButton } from './GitlabLoginButton.svelte';
+
 === 627 src/lib/components/settings/accounts/Accounts.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { page } from '$app/stores';
@@ -239,6 +289,12 @@
 		grid-template-columns: 1fr 1fr;
 	}
 </style>
+
+=== 45 src/lib/components/settings/accounts/index.ts	ts	module	-
+export { default } from './Accounts.svelte';
+
+=== 51 src/lib/components/settings/github-settings/index.ts	ts	module	-
+export { default } from './GithubSettings.svelte';
 
 === 964 src/lib/components/settings/gitlab-settings/GitlabSettings.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -285,6 +341,1757 @@
 		width: fit-content;
 	}
 </style>
+
+=== 114 src/lib/components/settings/gitlab-settings/index.ts	ts	module	-
+export { default } from './GitlabSettings.svelte';
+export { default as GitlabRepos } from './GitlabRepos.svelte';
+
+=== 106 src/lib/components/settings/index.ts	ts	module	-
+export { default as Settings } from './Settings.svelte';
+export { GitlabRepos } from './gitlab-settings';
+
+=== 14825 src/lib/features/createGithubNotificationData.ts	ts	module	-
+import { page } from '$app/stores';
+import { error, githubNotifications, settings } from '$lib/stores';
+import type {
+	GithubComment,
+	GithubCommit,
+	GithubIssue,
+	GithubItem,
+	GithubNotification,
+	GithubPullRequest,
+	GithubRelease,
+	GithubReview,
+	NotificationData,
+	Priority,
+	SavedNotifications,
+	User
+} from '$lib/types';
+import { fetchGithub } from './fetchGithub';
+import { getDiscussion } from './getGithubDiscussionData';
+import { storage } from './storage';
+import { getIssueIcon, getPullRequestIcon } from '../helpers/getIcon';
+import { cleanSpecifier, prioritiesLabel } from '../helpers/priorities';
+import { removeMarkdownSymbols } from '../helpers/removeMarkdownSymbols';
+
+type PullRequestEvent = {
+	author: {
+		login: string;
+		avatar?: string;
+		bot?: boolean;
+	};
+	description: string;
+	time: string;
+	url?: string;
+};
+
+type FetchOptions = Parameters<typeof fetchGithub>[1];
+
+const IRRELEVANT_NOTIFICATION_IDS = new Set<string>();
+
+export async function createGithubNotificationData(
+	githubNotification: GithubNotification,
+	savedNotifications: SavedNotifications,
+	firstTime: boolean
+): Promise<NotificationData | null> {
+	const { id, repository, subject, unread, updated_at, reason } = githubNotification;
+	const previous = savedNotifications.find((n) => n.id === id);
+	const status =
+		previous?.status === 'pinned' ? 'pinned' : unread ? 'unread' : previous?.status || 'unread';
+	const muted = previous?.muted || false;
+
+	// Get Personal Access Tokens
+	let fetchOptions: FetchOptions = {};
+	settings.subscribe(({ pats }) => {
+		if (!repository.private || !pats.length) return;
+		const pat = pats.find((pat) => pat.owner === repository.owner.login);
+		if (!pat) return;
+		fetchOptions = { pat: pat.token };
+	});
+
+	// Fetch additional data
+	let data: GithubItem | null = null;
+	try {
+		data = subject.url ? await fetchGithub<GithubItem>(subject.url, fetchOptions) : null;
+	} catch (e) {
+		error.set(
+			`At least one notification comes from a private repository (${repository.full_name}) for which you have not configured a Personal Access Token. Please go to GitHub settings and scroll down.`
+		);
+		return null;
+	}
+
+	const common = {
+		id,
+		from: 'github',
+		status,
+		muted,
+		time: updated_at,
+		title: subject.title,
+		type: subject.type,
+		repository: {
+			id: repository.id,
+			url: repository.html_url,
+			namespace: repository.full_name,
+			domain: 'github.com'
+		},
+		ownerAvatar: repository.owner.avatar_url
+	} as const;
+	let value: NotificationData;
+
+	switch (subject.type) {
+		case 'Commit': {
+			const { author, html_url, commit } = data as GithubCommit;
+			value = {
+				...common,
+				author: author
+					? { login: author.login, avatar: author.avatar_url, bot: author.type === 'Bot' }
+					: { login: commit.author.name },
+				description: '*made a commit*',
+				icon: 'commit',
+				url: html_url,
+				type: 'commit'
+			};
+			break;
+		}
+
+		case 'Issue': {
+			const {
+				labels,
+				number,
+				state,
+				created_at,
+				closed_at,
+				closed_by,
+				user,
+				html_url,
+				comments,
+				comments_url
+			} = data as GithubIssue;
+
+			let author: NotificationData['author'];
+			let description: NotificationData['description'] = '';
+			let url = html_url;
+			if (
+				state == 'open' &&
+				new Date(common.time).getTime() - new Date(created_at).getTime() < 30000
+			) {
+				author = { login: user.login, avatar: user.avatar_url, bot: user.type === 'Bot' };
+				description = '*opened* this issue';
+			} else if (
+				state === 'closed' &&
+				new Date(common.time).getTime() - new Date(closed_at as string).getTime() < 30000
+			) {
+				author = closed_by
+					? {
+							login: closed_by.login,
+							avatar: closed_by.avatar_url,
+							bot: closed_by.type === 'Bot'
+						}
+					: undefined;
+				description = '*closed* this issue';
+			} else if (comments) {
+				const comment = await getLatestComment(comments_url, fetchOptions);
+				if (comment) {
+					author = comment.author;
+					description = comment.description;
+					if (comment.url) url = comment.url;
+				}
+			}
+
+			if ((!firstTime && previous?.description === description) || !description) {
+				IRRELEVANT_NOTIFICATION_IDS.add(id);
+				return null;
+			}
+
+			value = {
+				...common,
+				author,
+				creator: { login: user.login, avatar: user.avatar_url, bot: user.type === 'Bot' },
+				description,
+				icon: getIssueIcon(data as GithubIssue),
+				opened: state === 'open',
+				number,
+				labels,
+				url,
+				previously:
+					previous?.description !== description ? previous : previous?.previously || undefined,
+				type: 'issue'
+			};
+			break;
+		}
+
+		case 'PullRequest': {
+			const {
+				url: apiUrl,
+				user,
+				merged_by,
+				number,
+				labels,
+				state,
+				created_at,
+				closed_at,
+				html_url,
+				comments,
+				comments_url,
+				review_comments,
+				review_comments_url,
+				commits,
+				commits_url
+			} = data as GithubPullRequest;
+
+			const handleReviewRequested = () => {
+				githubNotifications.subscribe((notifications) => {
+					const current = notifications.find((n) => n.id === id);
+					if (current?.priority?.label !== prioritiesLabel['review-request']) {
+						author = { login: user.login, avatar: user.avatar_url, bot: user.type === 'Bot' };
+						description = '*requested your review*';
+					}
+				});
+			};
+
+			let author: NotificationData['author'];
+			let description: NotificationData['description'] = '';
+			let url = html_url;
+			const time = new Date(common.time).getTime();
+			if (
+				state == 'open' &&
+				time - new Date(created_at).getTime() < 30000 &&
+				reason !== 'review_requested'
+			) {
+				author = { login: user.login, avatar: user.avatar_url, bot: user.type === 'Bot' };
+				description = '*opened* this pull request';
+			} else if (state === 'closed' && time - new Date(closed_at as string).getTime() < 30000) {
+				author = merged_by
+					? {
+							login: merged_by.login,
+							avatar: merged_by.avatar_url,
+							bot: merged_by.type === 'Bot'
+						}
+					: { login: user.login, avatar: user.avatar_url, bot: user.type === 'Bot' };
+				description = `*${merged_by ? 'merged' : 'closed'}* this pull request`;
+			} else if (review_comments || comments || commits) {
+				const events = await Promise.all([
+					review_comments ? getLatestComment(review_comments_url, fetchOptions) : undefined,
+					comments ? getLatestComment(comments_url, fetchOptions) : undefined,
+					commits ? getLatestCommit(commits_url, fetchOptions) : undefined,
+					getLatestReview(apiUrl, fetchOptions)
+				]);
+				const event = events.reduce<Awaited<ReturnType<typeof getLatestCommit>> | undefined>(
+					(previous, current) => {
+						if (!current) return previous;
+						if (!previous) return current;
+						return Math.abs(new Date(current.time).getTime() - time) <
+							Math.abs(new Date(previous.time).getTime() - time)
+							? current
+							: previous;
+					},
+					undefined
+				);
+				if (event && time - new Date(event.time).getTime() < 30000) {
+					author = event.author;
+					description = event.description;
+					if (event.url) url = event.url;
+				} else if (reason === 'review_requested') {
+					handleReviewRequested();
+				}
+			} else if (reason === 'review_requested') {
+				handleReviewRequested();
+			}
+
+			if ((!firstTime && previous?.description === description) || !description) {
+				IRRELEVANT_NOTIFICATION_IDS.add(id);
+				return null;
+			}
+
+			value = {
+				...common,
+				author,
+				creator: { login: user.login, avatar: user.avatar_url, bot: user.type === 'Bot' },
+				description,
+				icon: getPullRequestIcon(data as GithubPullRequest),
+				opened: state === 'open',
+				number,
+				labels,
+				url,
+				previously:
+					previous?.description !== description ? previous : previous?.previously || undefined,
+				type: 'pr'
+			};
+			break;
+		}
+
+		case 'Release': {
+			const { author, tag_name, prerelease, html_url } = data as GithubRelease;
+			value = {
+				...common,
+				author: { login: author.login, avatar: author.avatar_url, bot: author.type === 'Bot' },
+				description: 'made a release',
+				icon: 'release',
+				labels: [
+					{ name: tag_name, color: 'auto' },
+					...(prerelease ? [{ name: 'pre-release', color: 'FFA723' }] : [])
+				],
+				url: html_url,
+				type: 'release'
+			};
+			break;
+		}
+
+		case 'Discussion': {
+			const data = await getDiscussion(githubNotification);
+			if (!data) return null;
+			let { url } = data;
+			const { latestCommentEdge, isAnswered } = data;
+			const number = parseInt(data.url.split('/').pop() ?? '0');
+			let description: string;
+			let author;
+			if (!latestCommentEdge) {
+				description = 'New activity on discussion';
+			} else {
+				url += '#discussioncomment-' + latestCommentEdge.node.databaseId;
+				author = latestCommentEdge.node.author;
+				author = {
+					login: author.login,
+					avatar: author.avatarUrl,
+					bot: author.__typename === 'Bot'
+				};
+				description = commentBodyToDescription(latestCommentEdge.node.bodyText);
+			}
+
+			value = {
+				...common,
+				number,
+				author,
+				description,
+				url,
+				icon: isAnswered ? 'answered-discussion' : 'open-discussion',
+				previously:
+					previous?.description !== description ? previous : previous?.previously || undefined,
+				type: 'discussion'
+			};
+			break;
+		}
+
+		case 'CheckSuite': {
+			const splited = subject.title.split(' ');
+			const workflowName = splited[0];
+			const branch = splited[splited.length - 2];
+			const status = splited[3];
+			const data = {
+				...common,
+				title: `${workflowName} for ${branch}`,
+				description: `Workflow run ${status}`,
+				url: `https://github.com/${repository.full_name}/pull/${branch}`,
+				type: 'workflow'
+			} as const;
+
+			if (subject.title.includes('succeeded')) {
+				value = { ...data, icon: 'workflow-success' };
+				break;
+			}
+
+			if (subject.title.includes('failed')) {
+				value = { ...data, icon: 'workflow-fail' };
+				break;
+			}
+
+			value = { ...data, icon: 'closed-issue' };
+			break;
+		}
+
+		default:
+			value = {
+				...common,
+				description: `'${subject.type}' notifications are not yet fully supported`,
+				icon: 'unsupported',
+				type: 'workflow'
+			};
+			break;
+	}
+
+	const priorities = storage.get('priorities');
+	if (!priorities || priorities.length === 0) return value;
+
+	// Get value for each priority
+	const valuedPriorities = priorities.map<[Priority['criteria'], number, string | undefined]>(
+		(priority) => [
+			priority.criteria,
+			getPriorityValue(priority, value, data, reason) ? priority.value : 0,
+			'specifier' in priority ? priority.specifier : undefined
+		]
+	);
+
+	// Get the accumulated value of all priorities
+	const accumulatedValue = valuedPriorities.reduce<number>(
+		(previous, current) => previous + current[1],
+		0
+	);
+	if (accumulatedValue === 0) return value;
+
+	// Get the most valued criteria
+	const mostValuedCriteria = valuedPriorities.reduce<(typeof valuedPriorities)[number]>(
+		(previous, current) =>
+			(accumulatedValue > 0 ? previous[1] > current[1] : previous[1] < current[1])
+				? previous
+				: current,
+		valuedPriorities[0]
+	);
+
+	const priorityLabel = mostValuedCriteria[2]
+		? `${prioritiesLabel[mostValuedCriteria[0]]} "${cleanSpecifier(mostValuedCriteria[2])}"`
+		: prioritiesLabel[mostValuedCriteria[0]];
+	return {
+		...value,
+		priority: {
+			label: priorityLabel.replace('...', ''),
+			value: accumulatedValue
+		}
+	};
+}
+
+export function isIrrelevant(id: string) {
+	return IRRELEVANT_NOTIFICATION_IDS.has(id);
+}
+
+const commentBodyToDescription = (body: string) => {
+	return `*commented*: _${body.slice(0, 100)}${body.length > 100 ? '...' : ''}_`;
+};
+
+async function getLatestComment(
+	url: string,
+	fetchOptions: FetchOptions
+): Promise<PullRequestEvent | undefined> {
+	const comments = await fetchGithub<GithubComment[]>(url, fetchOptions);
+	if (!comments.length) return undefined;
+	const comment = comments[comments.length - 1];
+	const author = {
+		login: comment.user.login,
+		avatar: comment.user.avatar_url,
+		bot: comment.user.type === 'Bot'
+	};
+	const body = removeMarkdownSymbols(comment.body);
+	const description = commentBodyToDescription(body);
+	return { author, description, time: comment.created_at, url: comment.html_url };
+}
+
+async function getLatestCommit(
+	url: string,
+	fetchOptions: FetchOptions
+): Promise<PullRequestEvent | undefined> {
+	const commits = await fetchGithub<GithubCommit[]>(url, fetchOptions);
+	if (!commits.length) return undefined;
+	const commit = commits[commits.length - 1];
+	const author = commit.author
+		? {
+				login: commit.author.login,
+				avatar: commit.author.avatar_url,
+				bot: commit.author.type === 'Bot'
+			}
+		: { login: commit.commit.author.name };
+	const description = `*committed*: _${commit.commit.message}_`;
+	return { author, description, time: commit.commit.author.date };
+}
+
+async function getLatestReview(
+	url: string,
+	fetchOptions: FetchOptions
+): Promise<PullRequestEvent | undefined> {
+	const reviews = await fetchGithub<GithubReview[]>(`${url}/reviews`, fetchOptions);
+	if (!reviews.length) return undefined;
+	const review = reviews[reviews.length - 1];
+	const author = {
+		login: review.user.login,
+		avatar: review.user.avatar_url
+	};
+	const body = review.body ? removeMarkdownSymbols(review.body).slice(0, 100) : undefined;
+	let description = '';
+	switch (review.state) {
+		case 'APPROVED':
+			description = '*approved*';
+			break;
+		case 'CHANGES_REQUESTED':
+			description = `*requested changes*${body ? '' : ' on'}`;
+			break;
+		case 'COMMENTED':
+			description = `*commented*${body ? '' : ' on'}`;
+			break;
+		case 'DISMISSED':
+			description = `*dismissed review*${body ? '' : ' on'}`;
+			break;
+	}
+	if (body) {
+		description += `: _${body}${body.length === 100 ? '...' : ''}_`;
+	} else {
+		description += ' this pull request';
+	}
+	return { author, description, time: review.submitted_at, url: review.html_url };
+}
+
+function getPriorityValue(
+	priority: Priority,
+	notification: NotificationData,
+	data: GithubItem | null,
+	reason: GithubNotification['reason']
+): boolean | null | undefined {
+	switch (priority.criteria) {
+		case 'assigned':
+			return (
+				data &&
+				'assignees' in data &&
+				data.assignees.some((assignee) => assignee.login === getLoggedUser()?.login)
+			);
+
+		case 'many-comments':
+			return data && 'comments' in data && data.comments > 5;
+
+		case 'many-reactions':
+			return data && 'reactions' in data && data.reactions.total_count > 5;
+
+		case 'mentioned':
+			return reason === 'mention' || reason === 'team_mention';
+
+		case 'review-request':
+			return reason === 'review_requested';
+
+		case 'label':
+			return notification.labels?.some((label) => label.name === priority.specifier);
+
+		case 'state':
+			return data && 'state' in data && data.state === priority.specifier;
+
+		case 'type':
+			return notification.type === priority.specifier;
+	}
+}
+
+function getLoggedUser() {
+	let user: User | undefined;
+	page.subscribe((page) => {
+		user = page.data.session?.githubUser;
+	});
+	return user;
+}
+
+=== 11884 src/lib/features/createGitlabNotificationData.ts	ts	module	-
+import { page } from '$app/stores';
+import { fetchGitlab } from './fetchGitlab';
+import { storage } from './storage';
+import { cleanSpecifier, getGitlabIcon, prioritiesLabel, removeMarkdownSymbols } from '../helpers';
+import type {
+	GitlabEventWithRepoData,
+	GitlabIssue,
+	GitlabLabel,
+	GitlabMergeRequest,
+	NotificationData,
+	Priority,
+	SavedNotifications,
+	User
+} from '../types';
+
+type GroupedEvent = {
+	target_id?: number;
+	ref?: string;
+	events: GitlabEventWithRepoData[];
+	data?: GitlabMergeRequest | GitlabIssue;
+};
+
+let GITLAB_LABELS: Map<string, GitlabLabel[]> | undefined;
+
+/*
+- Group events by target_id, or ref
+  - if not first fetch, search in savedNotifications and take same id
+- For each group
+  - if target_id, get the issue/mr
+  - if ref, do nothing
+- Merge ref group with target_id group
+- Order by date inside groups
+- Create notification data with previous for each group (one group = one notification)
+*/
+export async function prepareGitlabNotificationData(events: GitlabEventWithRepoData[]) {
+	const grouped = events.reduce<GroupedEvent[]>((previous, current) => {
+		const { target_type } = current;
+		const target_id =
+			(target_type === 'Note' || target_type === 'DiffNote' || target_type === 'DiscussionNote'
+				? current.note.noteable_id
+				: current.target_id) || undefined;
+		const ref =
+			current.action_name === 'pushed to' || current.action_name === 'pushed new'
+				? current.push_data.ref
+				: undefined;
+		const group = previous.find((item) =>
+			target_id ? item.target_id === target_id : ref ? item.ref === ref : false
+		);
+		if (group) {
+			group.events.push(current);
+		} else {
+			previous.push({ target_id, ref, events: [current] });
+		}
+		return previous;
+	}, []);
+
+	const groupedWithData = await Promise.all(
+		grouped.map<Promise<GroupedEvent>>(async (item) => {
+			if (item.target_id) {
+				const firstEvent = item.events[0];
+				const { target_type } = firstEvent;
+				if (target_type === 'Milestone') return item;
+				const isNote = isNoteType(firstEvent);
+				let type: 'Issue' | 'MergeRequest' = 'MergeRequest';
+				if (
+					(isNote && firstEvent.note.noteable_type === 'Issue') ||
+					('target_type' in firstEvent && target_type === 'Issue')
+				) {
+					type = 'Issue';
+				}
+				try {
+					const data = await fetchGitlab<GitlabMergeRequest | GitlabIssue>(
+						`projects/${firstEvent.repository.encoded}/${
+							type === 'Issue' ? 'issues' : 'merge_requests'
+						}/${isNote ? firstEvent.note.noteable_iid : firstEvent.target_iid}`
+					);
+					return {
+						target_id: item.target_id,
+						ref: item.ref,
+						events: item.events,
+						data
+					};
+				} catch {
+					return item;
+				}
+			} else {
+				return item;
+			}
+		})
+	);
+
+	if (events.length === 1) return groupedWithData;
+
+	const mergedGroups = groupedWithData
+		.reduce<GroupedEvent[]>((previous, current) => {
+			if (current.target_id && !current.ref) {
+				previous.push(current);
+			} else {
+				const group = previous.find((item) =>
+					item.data && 'source_branch' in item.data
+						? item.data.source_branch === current.ref
+						: false
+				);
+				if (group) {
+					group.events.push(...current.events);
+				} else {
+					previous.push(...current.events.map((event) => ({ events: [event], ref: current.ref })));
+				}
+			}
+			return previous;
+		}, [])
+		.map((item) => {
+			if (item.events.length > 1) {
+				item.events.sort(
+					(a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+				);
+			}
+			return item;
+		});
+
+	return mergedGroups;
+}
+
+function isNoteType(
+	event: GitlabEventWithRepoData
+): event is GitlabEventWithRepoData & { target_type: 'Note' | 'DiffNote' | 'DiscussionNote' } {
+	return event.target_type?.includes('Note') ?? false;
+}
+
+function getTextData(
+	gitlabEvent: GitlabEventWithRepoData,
+	hasData = true
+): {
+	author: NotificationData['author'];
+	description: NotificationData['description'];
+} {
+	return {
+		author: {
+			login: gitlabEvent.author.username,
+			avatar: gitlabEvent.author.avatar_url,
+			name: gitlabEvent.author.name
+		},
+		description: (() => {
+			switch (gitlabEvent.action_name) {
+				case 'pushed new':
+				case 'pushed to':
+					if (hasData) return '*made a commit*';
+					return `*committed*: _${gitlabEvent.push_data.commit_title}_`;
+
+				case 'opened':
+					return `*opened* this ${gitlabEvent.target_type === 'Issue' ? 'issue' : 'merge request'}`;
+
+				case 'commented on': {
+					const body =
+						gitlabEvent.note.body && removeMarkdownSymbols(gitlabEvent.note.body).slice(0, 100);
+					if (
+						gitlabEvent.target_type === 'DiffNote' &&
+						gitlabEvent.author.username !== getLoggedUser()?.login
+					) {
+						return `*requested changes*${body ? `: _${body}_` : ' on this pull request'}`;
+					}
+					return `*commented*: _${body}_`;
+				}
+
+				case 'approved':
+					return `*approved* this merge request`;
+
+				case 'closed':
+					return `*closed* this ${gitlabEvent.target_type === 'Issue' ? 'issue' : 'merge request'}`;
+
+				case 'accepted':
+					return `*merged* this merge request`;
+
+				default:
+					return '';
+			}
+		})()
+	};
+}
+
+export async function createGitlabNotificationData(
+	event: GroupedEvent,
+	savedNotifications: SavedNotifications
+): Promise<NotificationData | null> {
+	const firstEvent = event.events[0];
+	const id = event.target_id ? event.target_id.toString() : firstEvent.id.toString();
+	if (!id) return null;
+
+	const previous = savedNotifications.find((n) => n.id === id);
+	const status = previous?.status || 'unread';
+	const muted = previous?.muted || false;
+
+	const common = {
+		id,
+		from: 'gitlab',
+		status,
+		muted,
+		time: firstEvent.created_at,
+		repository: firstEvent.repository
+	} as const;
+	let value: NotificationData;
+
+	const textData = getTextData(firstEvent, !event.data);
+	const secondEvent =
+		event.events[1] ||
+		(previous && previous?.description !== textData.description ? previous : undefined);
+	const previously = secondEvent ? getTextData(secondEvent) : undefined;
+
+	switch (firstEvent.action_name) {
+		case 'pushed new':
+		case 'pushed to':
+			if (!event.data) {
+				return {
+					...common,
+					...textData,
+					type: 'commit',
+					icon: 'commit',
+					title: firstEvent.push_data.commit_title ?? ''
+				};
+			} else {
+				value = {
+					...common,
+					...textData,
+					type: 'pr',
+					icon: getGitlabIcon(event.data),
+					title: event.data.title,
+					number: event.data.iid,
+					labels: getColoredLabels(firstEvent.repository.encoded, event.data.labels),
+					url: event.data.web_url,
+					ref: event.ref,
+					creator: {
+						login: event.data.author.username,
+						name: event.data.author.name,
+						avatar: event.data.author.avatar_url
+					},
+					previously
+				};
+			}
+			break;
+
+		case 'opened':
+		case 'closed':
+		case 'accepted':
+		case 'approved':
+		case 'commented on':
+			if (!event.data) return null;
+			value = {
+				...common,
+				...textData,
+				type: 'source_branch' in event.data ? 'pr' : 'issue',
+				icon: getGitlabIcon(event.data),
+				title: event.data.title,
+				number: event.data.iid,
+				labels: getColoredLabels(firstEvent.repository.encoded, event.data.labels),
+				url: event.data.web_url,
+				ref: event.ref,
+				creator: {
+					login: event.data.author.username,
+					name: event.data.author.name,
+					avatar: event.data.author.avatar_url
+				},
+				previously
+			};
+			break;
+
+		case 'created':
+		case 'deleted':
+		case 'joined':
+		case 'updated':
+			return null;
+
+		default:
+			// Log for debug purposes
+			// eslint-disable-next-line no-console
+			console.log(`Unknown event type: ${(firstEvent as GitlabEventWithRepoData).action_name}`);
+			return null;
+	}
+
+	// Get all comments
+	const { target_type } = firstEvent;
+	const isNote =
+		target_type === 'Note' || target_type === 'DiffNote' || target_type === 'DiscussionNote';
+	const iid = isNote ? firstEvent.note.noteable_iid : firstEvent.target_iid;
+	const comments = iid
+		? await fetchGitlab<Array<{ body: string }>>(
+				`projects/${firstEvent.repository.encoded}/${
+					(isNote && firstEvent.note.noteable_type === 'Issue') || target_type === 'Issue'
+						? 'issues'
+						: 'merge_requests'
+				}/${iid}/notes`
+			)
+		: undefined;
+
+	// Get if user is assigned, mentioned or review requested
+	const loggedUser = getLoggedUser();
+	const { data } = event;
+	const assigned =
+		data &&
+		'assignees' in data &&
+		data.assignees.some((assignee) => assignee.username === getLoggedUser()?.login);
+	const mentioned = comments?.some(
+		({ body }) =>
+			body.includes(`@${loggedUser?.login}`) &&
+			!body.startsWith('assigned to ') &&
+			!body.startsWith('requested review from ')
+	);
+	const reviewRequested =
+		data &&
+		'reviewers' in data &&
+		data.reviewers.some((assignee) => assignee.username === getLoggedUser()?.login);
+
+	// Set if user is involved
+	if (!(assigned || mentioned || reviewRequested || data?.author.username === loggedUser?.login)) {
+		value.notInvolved = true;
+	}
+
+	const priorities = storage.get('priorities');
+	if (!priorities || priorities.length === 0) return value;
+
+	// Get value for each priority
+	const valuedPriorities = priorities.map<[Priority['criteria'], number, string | undefined]>(
+		(priority) => [
+			priority.criteria,
+			getPriorityValue(priority, value, data, assigned, mentioned, reviewRequested)
+				? priority.value
+				: 0,
+			'specifier' in priority ? priority.specifier : undefined
+		]
+	);
+
+	// Get the accumulated value of all priorities
+	const accumulatedValue = valuedPriorities.reduce<number>(
+		(previous, current) => previous + current[1],
+		0
+	);
+	if (accumulatedValue === 0) return value;
+
+	// Get the most valued criteria
+	const mostValuedCriteria = valuedPriorities.reduce<(typeof valuedPriorities)[number]>(
+		(previous, current) =>
+			(accumulatedValue > 0 ? previous[1] > current[1] : previous[1] < current[1])
+				? previous
+				: current,
+		valuedPriorities[0]
+	);
+
+	const priorityLabel = mostValuedCriteria[2]
+		? `${prioritiesLabel[mostValuedCriteria[0]]} "${cleanSpecifier(mostValuedCriteria[2])}"`
+		: prioritiesLabel[mostValuedCriteria[0]];
+	return {
+		...value,
+		priority: {
+			label: priorityLabel.replace('...', ''),
+			value: accumulatedValue
+		}
+	};
+}
+
+export async function fetchGitlabLabels(repos: GitlabEventWithRepoData['repository'][]) {
+	const responses = await Promise.all(
+		repos.map((repo) =>
+			fetchGitlab<Array<GitlabLabel>>(`projects/${repo.encoded}/labels?per_page=100`)
+		)
+	);
+	GITLAB_LABELS = new Map(responses.map((response, index) => [repos[index].encoded, response]));
+}
+
+function getColoredLabels(repo: string, labels: string[]): NotificationData['labels'] {
+	const gitlabLabels = GITLAB_LABELS?.get(repo);
+	if (!gitlabLabels) return [];
+	return labels.map((label) => {
+		const gitlabLabel = gitlabLabels.find((l) => l.name === label);
+		return {
+			name: label,
+			color: gitlabLabel?.color || '#000000'
+		};
+	});
+}
+
+function getPriorityValue(
+	priority: Priority,
+	notification: NotificationData,
+	data?: GitlabIssue | GitlabMergeRequest,
+	assigned?: boolean,
+	mentioned?: boolean,
+	reviewRequested?: boolean
+): boolean | null | undefined {
+	switch (priority.criteria) {
+		case 'assigned':
+			return assigned;
+
+		case 'many-comments':
+			return data && 'user_notes_count' in data && data.user_notes_count > 5;
+
+		case 'many-reactions':
+			return data && 'upvotes' in data && data.upvotes + data.downvotes > 5;
+
+		case 'mentioned':
+			return mentioned;
+
+		case 'review-request':
+			return reviewRequested;
+
+		case 'label':
+			return notification.labels?.some((label) => label.name === priority.specifier);
+
+		case 'state': {
+			if (!(data && 'state' in data)) {
+				return false;
+			}
+			let { state } = data;
+			if (state === 'merged') state = 'closed';
+			return state === priority.specifier;
+		}
+
+		case 'type':
+			return notification.type === priority.specifier;
+	}
+}
+
+function getLoggedUser() {
+	let user: User | undefined;
+	page.subscribe((page) => {
+		user = page.data.session?.gitlabUser;
+	});
+	return user;
+}
+
+=== 701 src/lib/features/delayed-hover.ts	ts	module	-
+import type { Action } from 'svelte/action';
+
+export const delayedHover: Action<HTMLElement, string> = (node, className) => {
+	let timeout: ReturnType<typeof setTimeout>;
+
+	function handleMouseEnter() {
+		timeout = setTimeout(() => {
+			if (!node.classList.contains(className)) {
+				node.classList.add(className);
+			}
+		}, 200);
+	}
+
+	function handleMouseLeave() {
+		node.classList.remove(className);
+		clearTimeout(timeout);
+	}
+
+	node.addEventListener('mouseenter', handleMouseEnter);
+	node.addEventListener('mouseleave', handleMouseLeave);
+
+	return {
+		destroy() {
+			node.removeEventListener('mouseenter', handleMouseEnter);
+			node.removeEventListener('mouseleave', handleMouseLeave);
+		}
+	};
+};
+
+=== 2821 src/lib/features/drag-actions.ts	ts	module	-
+import type { Action } from 'svelte/action';
+import { settings } from '../stores';
+
+const lists: Array<{
+	node: HTMLElement;
+	hovering: boolean;
+	onHoverChange: (value: boolean) => void;
+}> = [];
+let itemId: string;
+let dropzone: number;
+let dragging = false;
+
+export const drag: Action<HTMLElement, { id: string; onDragStart: (id: string) => void }> = (
+	node,
+	{ id, onDragStart }
+) => {
+	let x: number;
+	let y: number;
+	let vertical = false;
+
+	function handleMouseDown(e: MouseEvent) {
+		window.addEventListener('mousemove', handleMouseMove);
+		window.addEventListener('mouseup', handleMouseUp);
+
+		itemId = id;
+		x = e.clientX;
+		y = e.clientY;
+		settings.subscribe(({ viewMode }) => (vertical = viewMode === 'Kanban (vertical)'));
+	}
+
+	function handleMouseMove({ clientX, clientY }: MouseEvent) {
+		if (!dragging && (Math.abs(clientX - x) > 5 || Math.abs(clientY - y) > 5)) {
+			onDragStart(itemId);
+			dragging = true;
+		}
+
+		node.setAttribute(
+			'style',
+			`
+        transform: translate(${clientX - x}px, ${clientY - y}px);
+        z-index: 10;
+        cursor: grabbing;
+      `
+		);
+
+		for (const list of lists) {
+			const listRect = list.node.getBoundingClientRect();
+			if (
+				vertical
+					? clientY > listRect.top && clientY < listRect.bottom
+					: clientX > listRect.left && clientX < listRect.right
+			) {
+				const newDropzone = lists.indexOf(list);
+				if (dropzone !== newDropzone) {
+					dropzone = newDropzone;
+					list.hovering = true;
+					list.onHoverChange(true);
+				}
+			} else if (list.hovering) {
+				list.hovering = false;
+				list.onHoverChange(false);
+			}
+		}
+	}
+
+	function handleMouseUp({ clientX, clientY }: MouseEvent) {
+		dragging = false;
+
+		// If the mouse hasn't moved enough, reset the styles
+		if (Math.abs(clientX - x) <= 5 && Math.abs(clientY - y) <= 5) {
+			node.setAttribute(
+				'style',
+				`
+          transform: unset;
+          z-index: unset;
+          cursor: grab;
+		    `
+			);
+		}
+
+		window.removeEventListener('mousemove', handleMouseMove);
+		window.removeEventListener('mouseup', handleMouseUp);
+	}
+
+	node.addEventListener('mousedown', handleMouseDown);
+
+	return {
+		destroy() {
+			node.removeEventListener('mousedown', handleMouseDown);
+			window.removeEventListener('mousemove', handleMouseMove);
+			window.removeEventListener('mouseup', handleMouseUp);
+		}
+	};
+};
+
+export const drop: Action<
+	HTMLElement,
+	{
+		onDrop: (id: string) => void;
+		onHoverChange: (value: boolean) => void;
+	}
+> = (node, { onDrop, onHoverChange }) => {
+	const index = lists.length;
+	lists.push({ node, hovering: false, onHoverChange });
+
+	function handleMouseUp() {
+		if (dragging && index === dropzone) {
+			onDrop(itemId);
+		}
+	}
+
+	window.addEventListener('mouseup', handleMouseUp);
+
+	return {
+		destroy() {
+			window.removeEventListener('mouseup', handleMouseUp);
+		}
+	};
+};
+
+=== 1086 src/lib/features/fetchGithub.ts	ts	module	-
+import { page } from '$app/stores';
+
+type Options = {
+	noCache?: boolean;
+	accessToken?: string;
+	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+	body?: Record<string, unknown>;
+	pat?: string;
+};
+
+export async function fetchGithub<T = void>(url: string, options?: Options): Promise<T> {
+	let { accessToken } = options || {};
+	if (!accessToken) {
+		page.subscribe(({ data }) => {
+			accessToken = data.session?.githubAccessToken || '';
+		});
+	}
+
+	const response = await fetch(`${url.startsWith('http') ? '' : 'https://api.github.com/'}${url}`, {
+		headers: {
+			Accept: 'application/vnd.github+json',
+			Authorization: options?.pat ? `token ${options.pat}` : `Bearer ${accessToken}`
+		},
+		method: options?.method || 'GET',
+		body: options?.body ? JSON.stringify(options.body) : undefined,
+		cache: options?.noCache ? 'no-store' : undefined
+	});
+
+	if (options?.method === 'PATCH') return undefined as T;
+
+	if (response.ok && response.status === 200) {
+		return await response.json();
+	}
+
+	if (!response.ok) {
+		throw new Error(`${response.status}`);
+	}
+
+	return undefined as T;
+}
+
+=== 2392 src/lib/features/fetchGitlab.ts	ts	module	-
+import { page } from '$app/stores';
+import { PUBLIC_SITE_URL } from '$env/static/public';
+import { storage } from './storage';
+
+type Options = {
+	domain?: string;
+	noCache?: boolean;
+	accessToken?: string;
+	method?: 'GET' | 'POST' | 'PUT' | 'PATCH' | 'DELETE';
+	body?: Record<string, unknown>;
+};
+
+export async function fetchGitlab<T = void>(url: string, options?: Options): Promise<T> {
+	let { accessToken } = options || {};
+	if (!accessToken) {
+		if (storage.has('gitlab-pat')) {
+			accessToken = storage.get('gitlab-pat') as string;
+		} else if (storage.has('gitlab-access-token')) {
+			accessToken = storage.get('gitlab-access-token') as string;
+		} else {
+			page.subscribe(({ data }) => {
+				accessToken = data.session?.gitlabAccessToken || '';
+			});
+		}
+	}
+
+	const gitlabOrigin = options?.domain ?? storage.get('gitlab-url') ?? 'https://gitlab.com';
+
+	const newToken = await checkGitlabToken();
+	if (newToken) accessToken = newToken;
+
+	const response = await fetch(`${url.startsWith('http') ? '' : `${gitlabOrigin}/api/v4/`}${url}`, {
+		headers: {
+			Authorization: `Bearer ${accessToken}`
+		},
+		method: options?.method || 'GET',
+		body: options?.body ? JSON.stringify(options.body) : undefined,
+		cache: options?.noCache ? 'no-store' : undefined
+	});
+
+	if (options?.method === 'PATCH') return undefined as T;
+
+	if (response.ok) {
+		return await response.json();
+	}
+
+	throw new Error(`${response.status}`);
+}
+
+// Refresh the GitLab access token if it has expired
+export async function checkGitlabToken(): Promise<string | undefined> {
+	if (storage.has('gitlab-pat')) {
+		return;
+	}
+	const refreshToken = storage.get('gitlab-refresh-token');
+	const expiration = storage.get('gitlab-expires-in');
+	if (refreshToken && expiration && new Date().getTime() > parseInt(expiration)) {
+		try {
+			const response = await fetch(
+				`${PUBLIC_SITE_URL}/auth/gitlab/refresh?refresh_token=${refreshToken}`
+			);
+			if (response.ok) {
+				const { access_token, refresh_token, expires_in, created_at } = await response.json();
+				storage.set('gitlab-access-token', access_token);
+				storage.set('gitlab-refresh-token', refresh_token);
+				storage.set('gitlab-expires-in', `${(created_at + expires_in) * 1000}`);
+				return access_token;
+			}
+			throw new Error();
+		} catch {
+			throw new Error(
+				'An error occurred while refreshing the GitLab access token. Please try again.'
+			);
+		}
+	}
+}
+
+=== 4467 src/lib/features/getGithubDiscussionData.ts	ts	module	-
+// source code from https://github.com/gitify-app/gitify/pull/538
+import { fetchGithub } from '$lib/features';
+import type { GithubNotification } from '$lib/types';
+import { settings } from '../stores';
+
+export type ViewerSubscription = 'IGNORED' | 'SUBSCRIBED' | 'UNSUBSCRIBED';
+
+export interface GraphQLSearch {
+	data: {
+		search: {
+			edges: DiscussionEdge[];
+		};
+	};
+}
+
+export interface DiscussionEdge {
+	node: {
+		viewerSubscription: ViewerSubscription;
+		title: string;
+		url: string;
+		isAnswered: boolean;
+		comments?: {
+			edges: DiscussionCommentEdge[];
+		};
+	};
+}
+
+// https://docs.github.com/en/graphql/reference/interfaces#actor
+export interface Actor {
+	login: string;
+	avatarUrl: string;
+	__typename: 'Bot' | 'EnterpriseUserAccount' | 'Mannequin' | 'Organization' | 'User';
+}
+
+export interface DiscussionCommentEdge {
+	node: {
+		databaseId: string | number;
+		createdAt: string;
+		author: Actor;
+		bodyText: string;
+		replies: {
+			edges: DiscussionSubCommentEdge[];
+		};
+	};
+}
+
+export interface DiscussionSubCommentEdge {
+	node: {
+		databaseId: string | number;
+		createdAt: string;
+		author: Actor;
+		bodyText: string;
+	};
+}
+
+const addHours = (date: string, hours: number) =>
+	new Date(new Date(date).getTime() + hours * 36e5).toISOString();
+
+const queryString = (repo: string, title: string, lastUpdated: string) =>
+	`${title} in:title repo:${repo} updated:>${addHours(lastUpdated, -2)}`;
+
+export const getLatestDiscussionCommentEdge = (comments: DiscussionCommentEdge[]) =>
+	comments
+		.flatMap((comment) => comment.node.replies.edges)
+		.concat([comments.at(-1) || ({} as DiscussionCommentEdge)])
+		.reduce((a, b) => (a.node.createdAt > b.node.createdAt ? a : b));
+
+export async function getDiscussion(notification: GithubNotification): Promise<{
+	url: string;
+	latestCommentEdge: DiscussionSubCommentEdge | undefined;
+	isAnswered: boolean;
+} | null> {
+	// Get Personal Access Tokens
+	let pat: string | undefined;
+	settings.subscribe(({ pats }) => {
+		if (!notification.repository.private || !pats.length) return;
+		pat = pats.find((pat) => pat.owner === notification.repository.owner.login)?.token;
+	});
+	const response: GraphQLSearch = await fetchGithub('graphql', {
+		method: 'POST',
+		pat,
+		body: {
+			query: `{
+        search(query:"${queryString(
+					notification.repository.full_name,
+					notification.subject.title,
+					notification.updated_at
+				)}"
+			  type: DISCUSSION
+        first: 10
+    ) {
+        edges {
+            node {
+                ... on Discussion {
+                    viewerSubscription
+                    title
+                    url
+                    isAnswered
+                    comments(last: 100) {
+                        edges {
+                            node {
+                                author {
+                                    login
+                                    avatarUrl
+                                    __typename
+                                }
+                                bodyText
+                                databaseId
+                                createdAt
+                                replies(last: 1) {
+                                    edges {
+                                        node {
+                                            databaseId
+                                            createdAt
+                                            author {
+                                                login
+                                                avatarUrl
+                                                __typename
+                                            }
+                                            bodyText
+                                        }
+                                    }
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        }
+      }
+    }`
+		}
+	});
+
+	let edges =
+		response?.data?.search?.edges?.filter(
+			(edge) => edge.node.title === notification.subject.title
+		) || [];
+	if (edges.length > 1)
+		edges = edges.filter((edge) => edge.node.viewerSubscription === 'SUBSCRIBED');
+
+	const node = edges[0]?.node;
+	if (!node) return null;
+	const comments = node?.comments?.edges;
+
+	let latestCommentEdge: DiscussionSubCommentEdge | undefined;
+	if (comments?.length) {
+		latestCommentEdge = getLatestDiscussionCommentEdge(comments);
+	}
+
+	return {
+		url: node.url,
+		latestCommentEdge,
+		isAnswered: node.isAnswered
+	};
+}
+
+=== 332 src/lib/features/index.ts	ts	module	-
+export * from './createGithubNotificationData';
+export * from './createGitlabNotificationData';
+export * from './delayed-hover';
+export * from './drag-actions';
+export * from './fetchGithub';
+export * from './fetchGitlab';
+export * from './getGithubDiscussionData';
+export * from './intersection-action';
+export * from './storage';
+
+=== 475 src/lib/features/intersection-action.ts	ts	module	-
+import type { Action } from 'svelte/action';
+
+export const intersect: Action<HTMLElement, { callback: () => void; active?: boolean }> = (
+	node,
+	{ callback, active = true }
+) => {
+	if (!active) return;
+
+	const observer = new IntersectionObserver(
+		(entries) => {
+			entries.forEach((entry) => {
+				if (entry.isIntersecting) {
+					callback();
+				}
+			});
+		},
+		{ threshold: 1 }
+	);
+
+	observer.observe(node);
+
+	return {
+		destroy() {
+			observer.disconnect();
+		}
+	};
+};
+
+=== 1153 src/lib/features/storage.ts	ts	module	-
+import type {
+	Priority,
+	SavedNotifications,
+	Settings,
+	User,
+	WatchedPerson,
+	WatchedRepo
+} from '../types';
+
+export type StorageMap = {
+	'github-user': User;
+	'github-access-token': string;
+	'gitlab-user': User;
+	'gitlab-access-token': string;
+	'gitlab-refresh-token': string;
+	'gitlab-expires-in': string;
+	'gitlab-url': string;
+	'gitlab-pat': string;
+	settings: Settings;
+	'github-notifications': SavedNotifications;
+	'gitlab-notifications': SavedNotifications;
+	'watched-repos': WatchedRepo[];
+	'watched-persons': WatchedPerson[];
+	'type-filters': boolean[];
+	priorities: Priority[];
+};
+
+export const storage = {
+	get<T extends keyof StorageMap>(key: T): StorageMap[T] | null {
+		if (storage.has(key)) {
+			const value = localStorage.getItem(key) as string;
+			try {
+				return JSON.parse(value);
+			} catch {
+				return value as StorageMap[T];
+			}
+		}
+		return null;
+	},
+	set<T extends keyof StorageMap>(key: T, value: StorageMap[T]) {
+		localStorage.setItem(key, JSON.stringify(value));
+	},
+	has(key: keyof StorageMap): boolean {
+		return !!localStorage.getItem(key);
+	},
+	remove(key: keyof StorageMap) {
+		localStorage.removeItem(key);
+	}
+};
+
+=== 309 src/lib/helpers/debounce.ts	ts	module	-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+export function debounce(callback: (...args: any[]) => void, delay: number): () => void {
+	let timeout: ReturnType<typeof setTimeout>;
+
+	return (...args: any[]) => {
+		clearTimeout(timeout);
+		timeout = setTimeout(() => callback(...args), delay);
+	};
+}
+
+=== 482 src/lib/helpers/formatRelativeDate.ts	ts	module	-
+export function formatRelativeDate(date: string) {
+	const seconds = Math.floor((new Date().getTime() - new Date(date).getTime()) / 1000);
+	if (seconds < 60) return `${seconds}s`;
+
+	const minutes = Math.floor(seconds / 60);
+	if (minutes < 60) return `${minutes}m`;
+
+	const hours = Math.floor(minutes / 60);
+	if (hours < 24) return `${hours}h`;
+
+	const days = Math.floor(hours / 24);
+	if (days < 30) return `${days}d`;
+
+	const months = Math.floor(days / 30);
+	return `${months}mo`;
+}
+
+=== 61 src/lib/helpers/getAppVersion.ts	ts	module	-
+export function getAppVersion() {
+	return __APP_VERSION__;
+}
+
+=== 1224 src/lib/helpers/getIcon.ts	ts	module	-
+import type {
+	GithubIssue,
+	GithubPullRequest,
+	GitlabIssue,
+	GitlabMergeRequest,
+	NotificationIcon
+} from '$lib/types';
+
+export function getIssueIcon({ state, state_reason }: GithubIssue): NotificationIcon {
+	switch (state) {
+		case 'open':
+			return 'open-issue';
+		case 'closed':
+			return state_reason === 'completed' ? 'completed-issue' : 'closed-issue';
+		default:
+			throw new Error('Invalid state');
+	}
+}
+
+export function getPullRequestIcon({ state, merged, draft }: GithubPullRequest): NotificationIcon {
+	switch (state) {
+		case 'open':
+			return draft ? 'draft-pr' : 'open-pr';
+		case 'closed':
+			return merged ? 'merged-pr' : 'closed-pr';
+		default:
+			throw new Error('Invalid state');
+	}
+}
+
+export function getGitlabIcon(data: GitlabMergeRequest | GitlabIssue): NotificationIcon {
+	if ('source_branch' in data) {
+		switch (data.state) {
+			case 'opened':
+				return data.draft ? 'draft-pr' : 'open-pr';
+			case 'closed':
+				return 'closed-pr';
+			case 'merged':
+				return 'merged-pr';
+			default:
+				throw new Error('Invalid state');
+		}
+	}
+
+	switch (data.state) {
+		case 'opened':
+			return 'open-issue';
+		case 'closed':
+			return 'completed-issue';
+		default:
+			throw new Error('Invalid state');
+	}
+}
+
+=== 1221 src/lib/helpers/getNotificationIcon.ts	ts	module	-
+import {
+	AnsweredDiscussionIcon,
+	ClosedIssueIcon,
+	ClosedPullRequestIcon,
+	CommitIcon,
+	CompletedIssueIcon,
+	DiscussionIcon,
+	DraftPullRequestIcon,
+	ExclamationMarkIcon,
+	MergedPullRequestIcon,
+	OpenIssueIcon,
+	OpenPullRequestIcon,
+	ReleaseIcon,
+	WorkflowFailIcon,
+	WorkflowSuccessIcon
+} from '$lib/icons';
+import type { NotificationIcon } from '$lib/types';
+
+export function getNotificationIcon(icon: NotificationIcon) {
+	switch (icon) {
+		case 'closed-issue':
+			return ClosedIssueIcon;
+		case 'closed-pr':
+			return ClosedPullRequestIcon;
+		case 'commit':
+			return CommitIcon;
+		case 'completed-issue':
+			return CompletedIssueIcon;
+		case 'discussion':
+		case 'open-discussion':
+			return DiscussionIcon;
+		case 'answered-discussion':
+			return AnsweredDiscussionIcon;
+		case 'draft-pr':
+			return DraftPullRequestIcon;
+		case 'merged-pr':
+			return MergedPullRequestIcon;
+		case 'issue':
+		case 'open-issue':
+			return OpenIssueIcon;
+		case 'pr':
+		case 'open-pr':
+			return OpenPullRequestIcon;
+		case 'release':
+			return ReleaseIcon;
+		case 'workflow-fail':
+			return WorkflowFailIcon;
+		case 'workflow':
+		case 'workflow-success':
+			return WorkflowSuccessIcon;
+		default:
+			return ExclamationMarkIcon;
+	}
+}
+
+=== 300 src/lib/helpers/index.ts	ts	module	-
+export * from './debounce';
+export * from './formatRelativeDate';
+export * from './getAppVersion';
+export * from './getIcon';
+export * from './getNotificationIcon';
+export * from './shadeColor';
+export * from './openDesktopApp';
+export * from './priorities';
+export * from './removeMarkdownSymbols';
+
+=== 925 src/lib/helpers/openDesktopApp.ts	ts	module	-
+export function openDesktopApp({
+	githubAccessToken,
+	gitlabAccessToken,
+	gitlabRefreshToken,
+	gitlabExpiresIn,
+	gitlabUrl,
+	gitlabPat
+}: {
+	githubAccessToken?: string | null;
+	gitlabAccessToken?: string | null;
+	gitlabRefreshToken?: string | null;
+	gitlabExpiresIn?: string | null;
+	gitlabUrl?: string | null;
+	gitlabPat?: string | null;
+}) {
+	const searchParams = new URLSearchParams();
+	if (githubAccessToken) {
+		searchParams.set('github_access_token', githubAccessToken);
+	}
+	if (gitlabAccessToken && gitlabRefreshToken && gitlabExpiresIn) {
+		searchParams.set('gitlab_access_token', gitlabAccessToken);
+		searchParams.set('gitlab_refresh_token', gitlabRefreshToken);
+		searchParams.set('gitlab_expires_in', gitlabExpiresIn);
+	}
+	if (gitlabUrl && gitlabPat) {
+		searchParams.set('gitlab_url', gitlabUrl);
+		searchParams.set('gitlab_pat', gitlabPat);
+	}
+	window.location.href = `gitlight://${searchParams.toString()}`;
+}
+
+=== 1086 src/lib/helpers/priorities.ts	ts	module	-
+import type { Priority } from '../types';
+
+export const prioritiesLabel: Record<Priority['criteria'], string> = {
+	'many-comments': 'Has many comments',
+	'many-reactions': 'Has many reactions',
+	assigned: 'You are assigned',
+	mentioned: 'You were mentioned',
+	'review-request': 'Review requested',
+	label: 'Has the label...',
+	state: 'State is...',
+	type: 'Type is...'
+};
+
+export const defaultPriorities: Priority[] = [
+	{ criteria: 'mentioned', value: 6 },
+	{ criteria: 'assigned', value: 4 },
+	{ criteria: 'review-request', value: 3 },
+	{ criteria: 'label', value: 2, specifier: 'bug' },
+	{ criteria: 'type', value: -2, specifier: 'commit' },
+	{ criteria: 'state', value: -8, specifier: 'closed' }
+];
+
+export function cleanSpecifier(string: string) {
+	const regex = /([A-Z][a-z]+)/g;
+	const words = string.match(regex);
+
+	if (!words) return string;
+
+	return words.join(' ').toLowerCase();
+}
+
+export function getGrayscale(value: number) {
+	let grayscale = 1;
+	if (value > 0) {
+		grayscale = 1 - value / 5;
+	} else {
+		grayscale = 1 + value / 5;
+	}
+	return `grayscale(${grayscale})`;
+}
+
+=== 989 src/lib/helpers/removeMarkdownSymbols.ts	ts	module	-
+const markdownSymbols: Array<[RegExp, string]> = [
+	[/#+\s/g, ''], // Remove headers (e.g., # Header)
+	[/(\*{1,2}|_{1,2})(.*?)\1/g, '$2'], // Remove emphasis and bold (e.g., *emphasis* or **bold**)
+	[/~~(.*?)~~/g, '$1'], // Remove strikethrough (e.g., ~~strikethrough~~)
+	[/\[(.*?)\]\((.*?)\)/g, '$1'], // Remove links (e.g., [link](url))
+	[/\n- (.*)/g, '$1'], // Remove unordered list (e.g., - Item)
+	[/\n\d+\. (.*)/g, '$1'], // Remove ordered list (e.g., 1. Item)
+	[/^>\s(.*)$/gm, ''], // Remove blockquotes (e.g., > Quote)
+	[/<[^>]*>/g, ''], // Remove tags (e.g., <span>content</span>)
+	[/\|.*\|.*\|/g, ''], // Remove tables (e.g., | header | header |)
+	[/^-{3,}\s*$/gm, ''], // Remove horizontal rule (e.g., ---)
+	[/^\[vc\]: #[^\r\n]*/g, ''] // Remove vercel comment beginning
+];
+
+export function removeMarkdownSymbols(markdown: string): string {
+	markdownSymbols.forEach(([symbol, replacement]) => {
+		markdown = markdown.replace(symbol, replacement);
+	});
+	return markdown.trim();
+}
+
+=== 474 src/lib/helpers/shadeColor.ts	ts	module	-
+export function shadeColor(hex: string, amount: number) {
+	const color = hex.replace('#', '');
+
+	const num = parseInt(color, 16);
+	let r = (num >> 16) & 255;
+	let g = (num >> 8) & 255;
+	let b = num & 255;
+
+	r += (amount / 100) * 255;
+	g += (amount / 100) * 255;
+	b += (amount / 100) * 255;
+
+	r = Math.min(255, Math.max(0, r));
+	g = Math.min(255, Math.max(0, g));
+	b = Math.min(255, Math.max(0, b));
+
+	return `#${(b | (g << 8) | (r << 16)).toString(16).padStart(6, '0')}`;
+}
 
 === 727 src/lib/icons/AnsweredDiscussionIcon.svelte	svelte	runes	neutral
 <svg viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -825,6 +2632,562 @@
 	/>
 </svg>
 
+=== 3184 src/lib/icons/index.ts	ts	module	-
+export { default as AnsweredDiscussionIcon } from './AnsweredDiscussionIcon.svelte';
+export { default as ArrowRightIcon } from './ArrowRightIcon.svelte';
+export { default as ArrowUpIcon } from './ArrowUpIcon.svelte';
+export { default as CheckIcon } from './CheckIcon.svelte';
+export { default as ClosedIssueIcon } from './ClosedIssueIcon.svelte';
+export { default as ClosedPullRequestIcon } from './ClosedPullRequestIcon.svelte';
+export { default as CommitIcon } from './CommitIcon.svelte';
+export { default as CompletedIssueIcon } from './CompletedIssueIcon.svelte';
+export { default as CrossIcon } from './CrossIcon.svelte';
+export { default as DiscussionIcon } from './DiscussionIcon.svelte';
+export { default as DoubleArrowIcon } from './DoubleArrowIcon.svelte';
+export { default as DoubleCheckIcon } from './DoubleCheckIcon.svelte';
+export { default as DraftPullRequestIcon } from './DraftPullRequestIcon.svelte';
+export { default as ExclamationMarkIcon } from './ExclamationMarkIcon.svelte';
+export { default as ExternalLinkIcon } from './ExternalLinkIcon.svelte';
+export { default as GearIcon } from './GearIcon.svelte';
+export { default as GithubIcon } from './GithubIcon.svelte';
+export { default as GitlabIcon } from './GitlabIcon.svelte';
+export { default as HeartIcon } from './HeartIcon.svelte';
+export { default as LightningIcon } from './LightningIcon.svelte';
+export { default as LinuxIcon } from './LinuxIcon.svelte';
+export { default as MacosIcon } from './MacosIcon.svelte';
+export { default as MergedPullRequestIcon } from './MergedPullRequestIcon.svelte';
+export { default as OpenIssueIcon } from './OpenIssueIcon.svelte';
+export { default as OpenPullRequestIcon } from './OpenPullRequestIcon.svelte';
+export { default as PersonIcon } from './PersonIcon.svelte';
+export { default as PinIcon } from './PinIcon.svelte';
+export { default as PlusIcon } from './PlusIcon.svelte';
+export { default as PriorityDownIcon } from './PriorityDownIcon.svelte';
+export { default as PriorityIcon } from './PriorityIcon.svelte';
+export { default as PriorityUpIcon } from './PriorityUpIcon.svelte';
+export { default as RefreshIcon } from './RefreshIcon.svelte';
+export { default as ReleaseIcon } from './ReleaseIcon.svelte';
+export { default as RepositoryIcon } from './RepositoryIcon.svelte';
+export { default as RestoreIcon } from './RestoreIcon.svelte';
+export { default as SearchIcon } from './SearchIcon.svelte';
+export { default as SmallArrowIcon } from './SmallArrowIcon.svelte';
+export { default as SparklesIcon } from './SparklesIcon.svelte';
+export { default as ThreeDotsIcon } from './ThreeDotsIcon.svelte';
+export { default as TrashIcon } from './TrashIcon.svelte';
+export { default as MutedIcon } from './MutedIcon.svelte';
+export { default as MuteIcon } from './MuteIcon.svelte';
+export { default as UnpinIcon } from './UnpinIcon.svelte';
+export { default as UnreadIcon } from './UnreadIcon.svelte';
+export { default as WindowsIcon } from './WindowsIcon.svelte';
+export { default as WorkflowFailIcon } from './WorkflowFailIcon.svelte';
+export { default as WorkflowSuccessIcon } from './WorkflowSuccessIcon.svelte';
+export { default as XIcon } from './XIcon.svelte';
+
+=== 26 src/lib/stores/index.ts	ts	module	-
+export * from './stores';
+
+=== 1575 src/lib/stores/stores.ts	ts	module	-
+import { writable } from 'svelte/store';
+import type {
+	NotificationData,
+	Settings,
+	TypeFilters,
+	WatchedPerson,
+	WatchedRepo
+} from '$lib/types';
+
+export const filteredNotifications = writable<NotificationData[]>([]);
+
+export const githubNotifications = writable<NotificationData[]>([]);
+
+export const gitlabNotifications = writable<NotificationData[]>([]);
+
+export const globalNotifications = writable<NotificationData[]>([]);
+
+export const typeFilters = writable<TypeFilters>([
+	{ name: 'Pull requests', type: 'pr', active: true, number: 0 },
+	{ name: 'Issues', type: 'issue', active: true, number: 0 },
+	{ name: 'Commits', type: 'commit', active: true, number: 0 },
+	{ name: 'Workflows', type: 'workflow', active: true, number: 0 },
+	{ name: 'Discussions', type: 'discussion', active: true, number: 0 },
+	{ name: 'Releases', type: 'release', active: true, number: 0 }
+]);
+
+export const watchedRepos = writable<WatchedRepo[]>([]);
+
+export const watchedPersons = writable<WatchedPerson[]>([]);
+
+export const loading = writable<boolean>(true);
+
+export const settings = writable<Settings>({
+	theme: 'System',
+	activateNotifications: true,
+	readWhenOpenInBrowser: true,
+	notificationNumber: 50,
+	sidebarHidden: false,
+	showOnlyOpen: false,
+	pats: [],
+	prioritySorting: true,
+	showPriority: true,
+	providerView: 'both',
+	applyFiltersForDone: false,
+	viewMode: 'Kanban',
+	activeTray: true,
+	gitlabRepos: [],
+	gitlabOnlyInvolved: true,
+	markClosedAsDone: false
+});
+
+export const theme = writable<'light' | 'dark'>('light');
+
+export const error = writable<string | null>(null);
+
+=== 3239 src/lib/types/common-types.ts	ts	module	-
+import type { GithubLabel, GithubRepository } from './github-types';
+import type { GitlabEvent } from './gitlab-types';
+
+export type User = {
+	name?: string;
+	login: string;
+	avatar?: string;
+	bot?: boolean;
+};
+
+export type Session = {
+	githubUser?: User;
+	githubAccessToken?: string;
+	gitlabUser?: User;
+	gitlabAccessToken?: string;
+};
+
+export type NotificationIcon =
+	| 'commit'
+	| 'issue'
+	| 'open-issue'
+	| 'completed-issue'
+	| 'closed-issue'
+	| 'pr'
+	| 'draft-pr'
+	| 'open-pr'
+	| 'merged-pr'
+	| 'closed-pr'
+	| 'release'
+	| 'discussion'
+	| 'open-discussion'
+	| 'answered-discussion'
+	| 'workflow'
+	| 'workflow-fail'
+	| 'workflow-success'
+	| 'unsupported';
+
+export type NotificationType = 'pr' | 'issue' | 'commit' | 'release' | 'discussion' | 'workflow';
+
+export type NotificationData = {
+	id: string;
+	from: 'github' | 'gitlab';
+	type: NotificationType;
+	status: 'unread' | 'read' | 'pinned' | 'done';
+	muted: boolean;
+	author?: User;
+	creator?: User;
+	title: string;
+	description: string;
+	priority?: {
+		label: string;
+		value: number;
+	};
+	time: string;
+	icon: NotificationIcon;
+	opened?: boolean;
+	repository: {
+		id: number;
+		url: string;
+		domain: string;
+		namespace: string;
+	};
+	ownerAvatar?: string;
+	number?: number;
+	labels?: GithubLabel[];
+	url?: string;
+	ref?: string;
+	notInvolved?: true;
+	previously?: {
+		author?: User;
+		description: NotificationData['description'];
+	};
+};
+
+export type TypeFilters = Array<{
+	name: string;
+	type: NotificationType;
+	active: boolean;
+	number: number;
+}>;
+
+export type Subscription = {
+	repo: GithubRepository;
+	active: boolean;
+};
+
+export type SavedNotifications = Array<{
+	id: string;
+	author?: User;
+	description: string;
+	status: 'unread' | 'read' | 'pinned' | 'done';
+	muted: boolean;
+	time: string;
+	previously?: NotificationData['previously'];
+}>;
+
+export type WatchedRepo = {
+	id: number;
+	name: string;
+	ownerName: string;
+	ownerAvatar?: string;
+	number: number;
+	active: boolean;
+	muted: boolean;
+	from: 'github' | 'gitlab';
+};
+
+export type WatchedPerson = {
+	login: string;
+	avatar?: string;
+	number: number;
+	active: boolean;
+	muted: boolean;
+	bot?: boolean;
+	from: 'github' | 'gitlab';
+};
+
+export type GitlabEventWithRepoData = GitlabEvent & {
+	repository: {
+		id: number;
+		url: string;
+		domain: string;
+		namespace: string;
+		encoded: string;
+	};
+};
+
+export type Settings = {
+	theme: 'System' | 'Light' | 'Dark';
+	activateNotifications: boolean;
+	readWhenOpenInBrowser: boolean;
+	notificationNumber: number;
+	sidebarHidden: boolean;
+	showOnlyOpen: boolean;
+	pats: Array<{
+		owner: string;
+		token: string;
+	}>;
+	prioritySorting: boolean;
+	showPriority: boolean;
+	providerView: 'github' | 'gitlab' | 'both';
+	applyFiltersForDone: boolean;
+	viewMode: 'List' | 'Kanban' | 'Kanban (vertical)';
+	activeTray: boolean;
+	gitlabRepos: Array<{
+		id: number;
+		url: string;
+	}>;
+	gitlabOnlyInvolved: boolean;
+	markClosedAsDone: boolean;
+};
+
+export type Priority = {
+	value: number;
+} & (
+	| {
+			criteria: 'many-comments' | 'many-reactions' | 'assigned' | 'mentioned' | 'review-request';
+	  }
+	| {
+			criteria: 'label';
+			specifier: string;
+	  }
+	| {
+			criteria: 'state';
+			specifier: 'open' | 'closed';
+	  }
+	| {
+			criteria: 'type';
+			specifier: NotificationType;
+	  }
+);
+
+=== 2478 src/lib/types/github-types.ts	ts	module	-
+export type GithubLabel = {
+	color: string;
+	name: string;
+};
+
+export type GithubUser = {
+	avatar_url: string;
+	display_login: string;
+	login: string;
+	name: string;
+	url: string;
+	type: 'User' | 'Bot';
+};
+
+export type GithubRepository = {
+	id: number;
+	full_name: string;
+	owner: GithubUser;
+	private: boolean;
+	html_url: string;
+};
+
+export type GithubIssue = {
+	number: number;
+	title: string;
+	url: string;
+	assignees: GithubUser[];
+	state: 'open' | 'closed';
+	state_reason: 'completed' | 'not_planned' | 'reopened' | null;
+	created_at: string;
+	closed_at: string | null;
+	closed_by?: GithubUser;
+	user: GithubUser;
+	labels: GithubLabel[];
+	html_url: string;
+	comments: number;
+	comments_url: string;
+	reactions: {
+		total_count: number;
+	};
+};
+
+export type GithubPullRequest = GithubIssue & {
+	merged: boolean;
+	merged_at: string | null;
+	merged_by?: GithubUser;
+	draft: boolean;
+	review_comments: number;
+	review_comments_url: string;
+	commits: number;
+	commits_url: string;
+};
+
+export type GithubCommit = {
+	sha: string;
+	url: string;
+	author?: GithubUser;
+	html_url: string;
+	commit: {
+		message: string;
+		author: {
+			name: string;
+			email: string;
+			date: string;
+		};
+	};
+};
+
+export type GithubComment = {
+	body: string;
+	html_url: string;
+	user: GithubUser;
+	created_at: string;
+};
+
+export type GithubReview = {
+	body?: string;
+	html_url: string;
+	user: GithubUser;
+	state: 'APPROVED' | 'CHANGES_REQUESTED' | 'COMMENTED' | 'DISMISSED';
+	submitted_at: string;
+};
+
+export type GithubRelease = {
+	author: GithubUser;
+	tag_name: string;
+	name: string;
+	body: string;
+	draft: boolean;
+	prerelease: boolean;
+	html_url: string;
+	assets: Array<{
+		name: string;
+		browser_download_url: string;
+	}>;
+	published_at: string;
+};
+
+export type GithubItem = GithubIssue | GithubRepository | GithubCommit | GithubRelease;
+
+export type GithubNotificationType =
+	| 'PullRequest'
+	| 'Issue'
+	| 'Commit'
+	| 'Release'
+	| 'Discussion'
+	| 'CheckSuite';
+
+export type GithubNotificationReason =
+	| 'assign'
+	| 'author'
+	| 'comment'
+	| 'ci_activity'
+	| 'invitation'
+	| 'manual'
+	| 'mention'
+	| 'review_requested'
+	| 'security_alert'
+	| 'state_change'
+	| 'subscribed'
+	| 'team_mention';
+
+export type GithubNotification = {
+	id: string;
+	last_read_at: string;
+	reason: GithubNotificationReason;
+	repository: GithubRepository;
+	subject: {
+		latest_comment_url: string | null;
+		title: string;
+		type: GithubNotificationType;
+		url: string | null;
+	};
+	unread: boolean;
+	updated_at: string;
+};
+
+=== 2357 src/lib/types/gitlab-types.ts	ts	module	-
+export type GitlabUser = {
+	id: number;
+	name: string;
+	username: string;
+	avatar_url: string;
+};
+
+export type GitlabRepository = {
+	id: number;
+};
+
+export type GitlabBaseItem = {
+	id: number;
+	iid: number;
+	title: string;
+	description: string;
+	created_at: string;
+	updated_at: string;
+	web_url: string;
+	author: GitlabUser;
+	labels: string[];
+	user_notes_count: number;
+};
+
+export type GitlabIssue = GitlabBaseItem & {
+	state: 'opened' | 'closed';
+};
+
+export type GitlabMergeRequest = GitlabBaseItem & {
+	state: 'opened' | 'closed' | 'merged';
+	source_branch: string;
+	draft: boolean;
+	reviewers: GitlabUser[];
+	assignees: GitlabUser[];
+	upvotes: number;
+	downvotes: number;
+};
+
+export type GitlabEvent = {
+	id: number;
+	author: GitlabUser;
+	created_at: string;
+	project_id: number;
+} & (
+	| {
+			action_name: 'pushed new' | 'pushed to';
+			target_id: null;
+			target_iid: null;
+			target_type: null;
+			push_data: {
+				action: 'created' | 'pushed';
+				commit_count: number;
+				commit_title: string | null;
+				ref: string;
+				ref_type: 'branch' | 'tag';
+			};
+	  }
+	| {
+			action_name: 'created';
+			target_id: number;
+			target_iid: number;
+			target_type: null;
+	  }
+	| {
+			action_name: 'opened';
+			target_id: number;
+			target_iid: number;
+			target_type: 'MergeRequest' | 'Issue' | 'Milestone';
+			target_title: string;
+	  }
+	| {
+			action_name: 'closed';
+			target_id: number;
+			target_iid: number;
+			target_type: 'MergeRequest' | 'Issue';
+			target_title: string;
+	  }
+	| {
+			action_name: 'accepted';
+			target_id: number;
+			target_iid: number;
+			target_type: null;
+	  }
+	| {
+			action_name: 'deleted';
+			target_id: number;
+			target_iid: number;
+			target_type: null;
+	  }
+	| {
+			action_name: 'joined';
+			target_id: number;
+			target_iid: number;
+			target_type: null;
+	  }
+	| {
+			action_name: 'updated';
+			target_id: number;
+			target_iid: number;
+			target_type: null;
+	  }
+	| {
+			action_name: 'approved';
+			target_id: number;
+			target_iid: number;
+			target_type: 'MergeRequest';
+	  }
+	| {
+			action_name: 'commented on';
+			target_id: number;
+			target_iid: number;
+			target_type: 'Note' | 'DiffNote' | 'DiscussionNote';
+			note: {
+				body: string;
+				noteable_id: number;
+				noteable_iid: number;
+				noteable_type: 'MergeRequest' | 'Issue';
+			};
+	  }
+);
+
+export type GitlabLabel = {
+	name: string;
+	color: string;
+};
+
+=== 128 src/lib/types/index.ts	ts	module	-
+export * from './common-types';
+export * from './github-types';
+export * from './gitlab-types';
+export * from './type-helpers';
+
+=== 76 src/lib/types/type-helpers.ts	ts	module	-
+export type ObjectEntries<T extends object> = Array<[keyof T, T[keyof T]]>;
+
 === 1581 src/routes/(app)/deeplink/+page.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { onMount } from 'svelte';
@@ -973,6 +3336,129 @@
 		height: 100vh;
 	}
 </style>
+
+=== 3655 src/routes/+layout.ts	ts	module	-
+import { redirect } from '@sveltejs/kit';
+import { browser } from '$app/environment';
+import { goto } from '$app/navigation';
+import { checkGitlabToken, fetchGithub, fetchGitlab, storage } from '$lib/features';
+import type { GithubUser, GitlabUser } from '$lib/types';
+
+import '~/styles/_reset.scss';
+import '~/styles/_base.scss';
+import '~/styles/_fonts.scss';
+
+export const prerender = true;
+export const ssr = true;
+
+export async function load({ url }) {
+	if (!browser || url.pathname === '/tray') return;
+
+	let githubUser = storage.get('github-user');
+	let githubAccessToken = storage.get('github-access-token');
+	let gitlabUser = storage.get('gitlab-user');
+	let gitlabAccessToken = storage.get('gitlab-access-token');
+	let gitlabRefreshToken = storage.get('gitlab-refresh-token');
+	let gitlabExpiresIn = storage.get('gitlab-expires-in');
+	const gitlabPat = storage.get('gitlab-pat');
+	const gitlabUrl = storage.get('gitlab-url');
+
+	const githubTokenParam = url.searchParams.get('github_access_token');
+	const gitlabTokenParam = url.searchParams.get('gitlab_access_token');
+	const gitlabRefreshTokenParam = url.searchParams.get('gitlab_refresh_token');
+	const gitlabExpiresInParam = url.searchParams.get('gitlab_expires_in');
+
+	// Get GitHub access token
+	if (githubTokenParam) {
+		githubAccessToken = githubTokenParam;
+		storage.set('github-access-token', githubAccessToken);
+	}
+
+	// Get GitLab access token
+	if (gitlabTokenParam) {
+		gitlabAccessToken = gitlabTokenParam;
+		storage.set('gitlab-access-token', gitlabAccessToken);
+	}
+
+	// Get GitLab refresh token
+	if (gitlabRefreshTokenParam) {
+		gitlabRefreshToken = gitlabRefreshTokenParam;
+		storage.set('gitlab-refresh-token', gitlabRefreshToken);
+	}
+
+	// Get GitLab expiration
+	if (gitlabExpiresInParam) {
+		gitlabExpiresIn = gitlabExpiresInParam;
+		storage.set('gitlab-expires-in', gitlabExpiresIn);
+	}
+
+	// If the GitLab access token has expired, refresh it
+	if (gitlabAccessToken && gitlabRefreshToken && gitlabExpiresIn) {
+		try {
+			await checkGitlabToken();
+		} catch {
+			// If this fail, logout
+			storage.remove(`gitlab-user`);
+			storage.remove(`gitlab-access-token`);
+			storage.remove(`gitlab-refresh-token`);
+			storage.remove(`gitlab-expires-in`);
+
+			if (storage.has('github-user')) {
+				window.location.reload();
+			} else {
+				goto('/login');
+			}
+		}
+	}
+
+	// Remove access tokens from the URL
+	if (githubTokenParam || gitlabTokenParam) {
+		history.replaceState({}, '', '/dashboard');
+	}
+
+	// Set GitHub user data
+	if (!githubUser && githubAccessToken) {
+		try {
+			const { name, login, avatar_url } = await fetchGithub<GithubUser>('user', {
+				accessToken: githubAccessToken
+			});
+			githubUser = { name, login, avatar: avatar_url };
+			storage.set('github-user', githubUser);
+		} catch {
+			//
+		}
+	}
+
+	// Set GitLab user data
+	if (!gitlabUser && (gitlabAccessToken || gitlabPat)) {
+		try {
+			const { name, username, avatar_url } = await fetchGitlab<GitlabUser>('user', {
+				accessToken: gitlabAccessToken ?? (gitlabPat as string),
+				domain: gitlabUrl ?? undefined
+			});
+			gitlabUser = { name, login: username, avatar: avatar_url };
+			storage.set('gitlab-user', gitlabUser);
+		} catch {
+			//
+		}
+	}
+
+	const session =
+		(githubUser && githubAccessToken) ||
+		(gitlabUser && (gitlabAccessToken || (gitlabPat && gitlabUrl)))
+			? { githubUser, githubAccessToken, gitlabUser, gitlabAccessToken }
+			: null;
+
+	// Handle redirects
+	const protectedRoute = ['/dashboard', '/deeplink'].includes(url.pathname);
+	if (protectedRoute && !session) {
+		redirect(302, '/login');
+	} else if (!protectedRoute && session) {
+		redirect(302, '/dashboard');
+	}
+
+	return { session };
+}
 
 === 7026 src/routes/+page.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -1318,4 +3804,290 @@
 		}
 	}
 </style>
+
+=== 1096 src/routes/auth/github/callback/+server.ts	ts	module	-
+import { redirect } from '@sveltejs/kit';
+import { AUTH_SECRET, AUTH_GITHUB_ID, AUTH_GITHUB_SECRET } from '$env/static/private';
+
+export async function GET({ url }) {
+	const { searchParams, origin } = url;
+
+	if (
+		searchParams.has('code') &&
+		searchParams.has('state') &&
+		searchParams.get('state') === AUTH_SECRET
+	) {
+		const code = searchParams.get('code');
+		const response = await fetch('https://github.com/login/oauth/access_token', {
+			method: 'POST',
+			headers: {
+				Accept: 'application/json',
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				client_id: AUTH_GITHUB_ID,
+				client_secret: AUTH_GITHUB_SECRET,
+				redirect_uri: `${origin}/auth/github/callback`,
+				code
+			})
+		});
+
+		if (response.ok) {
+			const { access_token } = await response.json();
+			const params = new URLSearchParams();
+			params.append('github_access_token', access_token);
+			if (searchParams.has('from_app')) {
+				redirect(302, `/deeplink?${params.toString()}`);
+			}
+			redirect(302, `/dashboard?${params.toString()}`);
+		}
+
+		redirect(302, '/');
+	}
+
+	redirect(302, '/');
+}
+
+=== 556 src/routes/auth/github/login/+server.ts	ts	module	-
+import { redirect } from '@sveltejs/kit';
+import { AUTH_SECRET, AUTH_GITHUB_ID } from '$env/static/private';
+
+export async function GET({ url }) {
+	const githubLoginUrl = new URL('https://github.com/login/oauth/authorize');
+	githubLoginUrl.searchParams.set('scope', 'notifications');
+	githubLoginUrl.searchParams.set('client_id', AUTH_GITHUB_ID);
+	githubLoginUrl.searchParams.set(
+		'redirect_uri',
+		`${url.origin}/auth/github/callback${url.search}`
+	);
+	githubLoginUrl.searchParams.set('state', AUTH_SECRET);
+	redirect(302, githubLoginUrl.toString());
+}
+
+=== 1361 src/routes/auth/gitlab/callback/+server.ts	ts	module	-
+import { redirect } from '@sveltejs/kit';
+import { AUTH_SECRET, AUTH_GITLAB_ID, AUTH_GITLAB_SECRET } from '$env/static/private';
+
+export async function GET({ url }) {
+	const { searchParams, origin } = url;
+
+	if (
+		searchParams.has('code') &&
+		searchParams.has('state') &&
+		searchParams.get('state') === AUTH_SECRET
+	) {
+		const code = searchParams.get('code');
+		const response = await fetch('https://gitlab.com/oauth/token', {
+			method: 'POST',
+			headers: {
+				Accept: 'application/json',
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				client_id: AUTH_GITLAB_ID,
+				client_secret: AUTH_GITLAB_SECRET,
+				redirect_uri: `${origin}/auth/gitlab/callback${
+					searchParams.has('from_app') ? '?from_app=true' : ''
+				}`,
+				grant_type: 'authorization_code',
+				code
+			})
+		});
+
+		if (response.ok) {
+			const { access_token, refresh_token, expires_in, created_at } = await response.json();
+			const params = new URLSearchParams();
+			params.append('gitlab_access_token', access_token);
+			params.append('gitlab_refresh_token', refresh_token);
+			params.append('gitlab_expires_in', `${(created_at + expires_in) * 1000}`);
+			if (searchParams.has('from_app')) {
+				redirect(302, `/deeplink?${params.toString()}`);
+			}
+			redirect(302, `/dashboard?${params.toString()}`);
+		}
+
+		redirect(302, '/');
+	}
+
+	redirect(302, '/');
+}
+
+=== 614 src/routes/auth/gitlab/login/+server.ts	ts	module	-
+import { redirect } from '@sveltejs/kit';
+import { AUTH_SECRET, AUTH_GITLAB_ID } from '$env/static/private';
+
+export async function GET({ url }) {
+	const gitlabLoginUrl = new URL('https://gitlab.com/oauth/authorize');
+	gitlabLoginUrl.searchParams.set('scope', 'read_api read_user');
+	gitlabLoginUrl.searchParams.set('client_id', AUTH_GITLAB_ID);
+	gitlabLoginUrl.searchParams.set(
+		'redirect_uri',
+		`${url.origin}/auth/gitlab/callback${url.search}`
+	);
+	gitlabLoginUrl.searchParams.set('state', AUTH_SECRET);
+	gitlabLoginUrl.searchParams.set('response_type', 'code');
+	redirect(302, gitlabLoginUrl.toString());
+}
+
+=== 1138 src/routes/auth/gitlab/refresh/+server.ts	ts	module	-
+import { AUTH_GITLAB_ID, AUTH_GITLAB_SECRET } from '$env/static/private';
+import { PUBLIC_SITE_URL } from '$env/static/public';
+
+const headers = {
+	'Access-Control-Allow-Origin': '*'
+};
+
+export async function GET({ url }) {
+	const { searchParams } = url;
+
+	if (!searchParams.has('refresh_token')) {
+		return new Response('refresh_token not found', { status: 400, headers });
+	}
+
+	try {
+		const response = await fetch('https://gitlab.com/oauth/token', {
+			method: 'POST',
+			headers: {
+				Accept: 'application/json',
+				'Content-Type': 'application/json'
+			},
+			body: JSON.stringify({
+				client_id: AUTH_GITLAB_ID,
+				client_secret: AUTH_GITLAB_SECRET,
+				refresh_token: searchParams.get('refresh_token'),
+				redirect_uri: `${PUBLIC_SITE_URL}/auth/gitlab/callback`,
+				grant_type: 'refresh_token'
+			})
+		});
+
+		if (response.ok) {
+			const data = await response.json();
+			return new Response(JSON.stringify(data), { status: 200, headers });
+		}
+
+		return new Response(response.statusText, { status: response.status, headers });
+	} catch (error) {
+		return new Response(JSON.stringify({ error }), { status: 500, headers });
+	}
+}
+
+=== 915 src/routes/download/[os]/+server.ts	ts	module	-
+import { redirect } from '@sveltejs/kit';
+import type { GithubRelease } from '$lib/types';
+
+export async function GET({ params }) {
+	async function getDownloadUrl(os: 'aarch64.dmg' | 'x64.dmg' | '.msi' | '.AppImage') {
+		const response = await fetch('https://api.github.com/repos/colinlienard/gitlight/releases');
+		const data = (await response.json()) as GithubRelease[];
+		const { assets } = data[0];
+		return assets.find(({ name }) => name.endsWith(os))?.browser_download_url as string;
+	}
+
+	switch (params.os) {
+		case 'apple-silicon':
+			redirect(302, await getDownloadUrl('aarch64.dmg'));
+			break;
+
+		case 'mac-intel':
+			redirect(302, await getDownloadUrl('x64.dmg'));
+			break;
+
+		case 'windows':
+			redirect(302, await getDownloadUrl('.msi'));
+			break;
+
+		case 'linux':
+			redirect(302, await getDownloadUrl('.AppImage'));
+			break;
+
+		default:
+			return new Response('Not found', { status: 404 });
+	}
+}
+
+=== 1747 src/routes/version/[target]/[version]/+server.ts	ts	module	-
+import type { GithubRelease } from '$lib/types/github-types.js';
+
+type Target = 'linux' | 'windows' | 'darwin';
+
+type MacosArch = 'aarch64' | 'x86_64' | undefined;
+
+const targetExtensions: Record<Target, string> = {
+	linux: '.AppImage.tar.gz',
+	windows: '.msi.zip',
+	darwin: '.app.tar.gz'
+};
+
+export async function GET({ params, url }) {
+	try {
+		const target = params.target as Target;
+		const { version } = params;
+		const arch = url.searchParams.get('arch') as MacosArch;
+
+		// Get latest release from Github
+		const response = await fetch('https://api.github.com/repos/colinlienard/gitlight/releases');
+		const data = (await response.json()) as GithubRelease[];
+		const { assets, published_at, body, tag_name } = data[0];
+		const latestVersion = tag_name.split('v')[1];
+
+		if (version === latestVersion) throw new Error();
+
+		let extension = targetExtensions[target];
+		if (target === 'darwin') {
+			extension = arch === 'aarch64' ? 'aarch64.app.tar.gz' : 'x64.app.tar.gz';
+		}
+
+		if (!extension) throw new Error();
+
+		// Get the asset and its signature file
+		const updaterAsset = assets.find(({ name }) => name.endsWith(extension));
+		const signatureAsset = assets.find(({ name }) => name.endsWith(`${extension}.sig`));
+
+		if (!updaterAsset || !signatureAsset) throw new Error();
+
+		// Get the signature from the .sig file
+		const signatureResponse = await fetch(signatureAsset.browser_download_url);
+		const signature = await signatureResponse.text();
+
+		const returnValue = {
+			url: updaterAsset.browser_download_url,
+			version: latestVersion,
+			notes: body,
+			pub_date: published_at,
+			signature
+		};
+
+		return new Response(JSON.stringify(returnValue), { status: 200 });
+	} catch {
+		return new Response(null, { status: 204 });
+	}
+}
+
+=== 551 vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+
+export default defineConfig({
+	plugins: [sveltekit()],
+	css: {
+		preprocessorOptions: {
+			scss: {
+				additionalData: `
+          @use 'sass:color';
+          @use "~/styles/mixins";
+          @use "~/styles/screens";
+          @use "~/styles/themes";
+          @use "~/styles/typography";
+          @use "~/styles/variables";
+        `
+			}
+		}
+	},
+	define: {
+		__APP_VERSION__: JSON.stringify(process.env.npm_package_version)
+	},
+	preview: {
+		port: 5173
+	}
+});
 

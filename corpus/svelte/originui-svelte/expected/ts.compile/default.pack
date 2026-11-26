@@ -1,0 +1,3801 @@
+# rsvelte pack 1
+=== 16032 scripts/createComponentRegistryTypes.ts	js
+import { exec } from 'node:child_process';
+import fs from 'node:fs/promises';
+import path from 'node:path';
+// =========================================
+// Constants and Configuration
+// =========================================
+const CONSTANTS = {
+    COMPONENT_STATES: {
+        READY: 'ready',
+        TODO: 'todo'
+    },
+    FILE_EXTENSIONS: {
+        SVELTE: '.svelte'
+    },
+    PREFIX: 'OUI'
+};
+const CONFIG = {
+    dirs: {
+        component: path.join(process.cwd(), 'src', 'lib', 'components'),
+        exclude: ['ui', '.', 'index.svelte', '_extras'],
+        object: {
+            output: path.join(process.cwd(), 'src', 'lib', 'componentRegistry.components.ts')
+        },
+        types: {
+            output: path.join(process.cwd(), 'src', 'lib', 'componentRegistry.types.ts')
+        }
+    },
+    files: {
+        exclude: ['index.svelte', '.DS_Store']
+    },
+    validation: {
+        enforceNaming: true,
+        namingPattern: /^[a-z]+-\d+$/
+    }
+};
+// Type name constants
+const TYPES = {
+    componentHelperName: `${CONSTANTS.PREFIX}ComponentHelper`,
+    componentTypeName: `${CONSTANTS.PREFIX}Component`,
+    directoryHelperName: `${CONSTANTS.PREFIX}DirectoryHelper`,
+    directoryToComponentName: `${CONSTANTS.PREFIX}DirectoryToComponent`,
+    directoryTypeName: `${CONSTANTS.PREFIX}Directory`,
+    objectName: `${CONSTANTS.PREFIX}_DIRECTORIES`,
+    objectTypeName: `${CONSTANTS.PREFIX}Directories`
+};
+// =========================================
+// Component Registry Generator
+// =========================================
+class ComponentRegistryGenerator {
+    #dirComponentSet = new Set();
+    #errors = [];
+    #startTime = 0;
+    // Initialize stats with default values
+    #stats = {
+        directorySizes: new Map(),
+        largestDirectory: {
+            count: 0,
+            name: ''
+        },
+        smallestDirectory: {
+            count: Infinity,
+            name: ''
+        },
+        status: {
+            ready: 0,
+            todo: 0
+        },
+        totalComponents: 0,
+        totalDirectories: 0
+    };
+    // =========================================
+    // Statistics Management
+    // =========================================
+    #updateStats(directory) {
+        // Update component counts
+        this.#stats.totalComponents += directory.componentCount;
+        this.#stats.directorySizes.set(directory.dir, directory.componentCount);
+        // Update status counts
+        this.#stats.status.ready += directory.status.ready;
+        this.#stats.status.todo += directory.status.todo;
+        // Update directory size records
+        if (directory.componentCount > this.#stats.largestDirectory.count) {
+            this.#stats.largestDirectory = {
+                count: directory.componentCount,
+                name: directory.dir
+            };
+        }
+        if (directory.componentCount < this.#stats.smallestDirectory.count) {
+            this.#stats.smallestDirectory = {
+                count: directory.componentCount,
+                name: directory.dir
+            };
+        }
+    }
+    #logStatistics() {
+        const totalTime = Math.round(performance.now() - this.#startTime);
+        const readyPercentage = ((this.#stats.status.ready / this.#stats.totalComponents) *
+            100).toFixed(1);
+        const todoPercentage = ((this.#stats.status.todo / this.#stats.totalComponents) * 100).toFixed(1);
+        console.info('\n Component Registry Statistics:');
+        console.info('--------------------------------');
+        console.info(`📁 Total Directories: ${this.#stats.totalDirectories}`);
+        console.info(`📦 Total Components: ${this.#stats.totalComponents}`);
+        console.info('\n📈 Component Status:');
+        console.info(`   ✅ Ready: ${this.#stats.status.ready} (${readyPercentage}%)`);
+        console.info(`   📝 Todo: ${this.#stats.status.todo} (${todoPercentage}%)`);
+        console.info('\n📊 Directory Insights:');
+        console.info(`   📈 Largest: ${this.#stats.largestDirectory.name} (${this.#stats.largestDirectory.count} components)`);
+        console.info(`   📉 Smallest: ${this.#stats.smallestDirectory.name} (${this.#stats.smallestDirectory.count} components)`);
+        if (this.#errors.length) {
+            console.warn('\n⚠️  Warnings:');
+            this.#errors.forEach((error) => console.warn(`   - ${error}`));
+            console.info(`\n   Found ${this.#errors.length} warnings during generation`);
+        }
+        else {
+            console.info('\n✅ No warnings found during generation');
+        }
+        console.info('\n⚡ Performance:');
+        console.info(`   🕒 Generation Time: ${totalTime}ms`);
+    }
+    // =========================================
+    // Component Validation
+    // =========================================
+    async #getValidDirectories() {
+        try {
+            const entries = await fs.readdir(CONFIG.dirs.component);
+            const validDirs = await Promise.all(entries.map(async (dir) => {
+                try {
+                    const stats = await fs.stat(path.join(CONFIG.dirs.component, dir));
+                    return stats.isDirectory() && !CONFIG.dirs.exclude.includes(dir) ? dir : null;
+                }
+                catch {
+                    this.#errors.push(`Failed to read directory: ${dir}`);
+                    return null;
+                }
+            }));
+            return validDirs.filter(Boolean);
+        }
+        catch (error) {
+            throw new Error(`Failed to read component directory: ${error}`);
+        }
+    }
+    #validateComponentName(file) {
+        if (!CONFIG.validation?.enforceNaming)
+            return true;
+        const baseName = path
+            .basename(file, CONSTANTS.FILE_EXTENSIONS.SVELTE)
+            .replace(`.${CONSTANTS.COMPONENT_STATES.TODO}`, '');
+        return CONFIG.validation.namingPattern?.test(baseName) ?? true;
+    }
+    #getComponentStatus(files) {
+        return files.reduce((acc, file) => {
+            if (file.includes(CONSTANTS.COMPONENT_STATES.TODO)) {
+                acc.todo++;
+            }
+            else {
+                acc.ready++;
+            }
+            return acc;
+        }, { ready: 0, todo: 0 });
+    }
+    async #validateDirectoryComponents(dir) {
+        try {
+            const files = await fs.readdir(path.join(CONFIG.dirs.component, dir));
+            const svelteFiles = files
+                .filter((file) => {
+                const isValid = !CONFIG.files.exclude.includes(file) &&
+                    (file.endsWith(CONSTANTS.FILE_EXTENSIONS.SVELTE) ||
+                        file.endsWith(`${CONSTANTS.COMPONENT_STATES.TODO}${CONSTANTS.FILE_EXTENSIONS.SVELTE}`));
+                if (isValid && !this.#validateComponentName(file)) {
+                    this.#errors.push(`Invalid component name: ${file} in directory ${dir}`);
+                    return false;
+                }
+                return isValid;
+            })
+                .sort();
+            if (!svelteFiles.length) {
+                throw new Error(`Directory "${dir}" does not contain any .svelte files`);
+            }
+            const directoryInfo = {
+                componentCount: svelteFiles.length,
+                dir,
+                files: svelteFiles,
+                firstFile: svelteFiles[0].split('-')[0],
+                status: this.#getComponentStatus(svelteFiles)
+            };
+            this.#dirComponentSet.add(directoryInfo);
+            this.#updateStats(directoryInfo);
+        }
+        catch (error) {
+            throw new Error(`Failed to validate directory ${dir}: ${error}`);
+        }
+    }
+    // =========================================
+    // File Generation
+    // =========================================
+    #fileHeader() {
+        const version = process.env.npm_package_version ?? '0.0.1';
+        const timestamp = new Date().toLocaleString();
+        return `
+/* eslint-disable */
+/**
+ * !!!!!!!!!!
+ * This file is auto-generated. Do not edit manually
+ * Last generated at: ${timestamp}
+ * To update, run: pnpm generate:registry --format
+ * @version ${version}
+ * !!!!!!!!!!
+ */
+`;
+    }
+    async #getComponents() {
+        return Array.from(this.#dirComponentSet).sort((a, b) => a.dir.localeCompare(b.dir));
+    }
+    // =========================================
+    // Components Object Generation
+    // =========================================
+    async #generateComponentsObject() {
+        const components = await this.#getComponents();
+        function directoryObject() {
+            let output = `export const ${TYPES.objectName} = {`;
+            components.forEach(({ dir, files, status }) => {
+                output += `
+  '${dir.toUpperCase()}': {
+    directory: '${dir}',
+    name: '${dir.charAt(0).toUpperCase()}${dir.slice(1)}',
+    components: [${files
+                    .sort()
+                    .map((f) => `'${f}'`)
+                    .join(', ')}],
+    status: {
+      todo: ${status.todo},
+      ready: ${status.ready}
+    }
+  },`;
+            });
+            return `${output}\n} as const;`;
+        }
+        return directoryObject();
+    }
+    async #generateComponentsObjectFile() {
+        const componentsObject = await this.#generateComponentsObject();
+        const componentsObjectType = `\nexport type ${TYPES.objectTypeName} = typeof ${TYPES.objectName};`;
+        const componentStates = `
+export const COMPONENT_STATES = {
+	TODO: '${CONSTANTS.COMPONENT_STATES.TODO}',
+	READY: '${CONSTANTS.COMPONENT_STATES.READY}'
+} as const;
+
+export type ComponentState = (typeof COMPONENT_STATES)[keyof typeof COMPONENT_STATES];`;
+        return `${this.#fileHeader()}${componentsObject}${componentsObjectType}${componentStates}`;
+    }
+    // =========================================
+    // Type Definition Generation
+    // =========================================
+    async #generateTypeDefinitions() {
+        const components = await this.#getComponents();
+        function generateDirName(dir) {
+            const formattedDir = dir.replace(/[^a-zA-Z]/g, '');
+            return `${CONSTANTS.PREFIX}${formattedDir.charAt(0).toUpperCase()}${formattedDir.slice(1)}`;
+        }
+        function generateComponentTypeHelper() {
+            return `export type ${TYPES.componentHelperName}<T extends keyof ${TYPES.objectTypeName}> = ${TYPES.objectTypeName}[T]['components'][number];`;
+        }
+        function generateDirectoryTypeHelper() {
+            return `export type ${TYPES.directoryHelperName}<T extends keyof ${TYPES.objectTypeName}> = ${TYPES.objectTypeName}[T]['directory'];`;
+        }
+        function generateReadyComponentHelpers() {
+            return `
+// Ready Component Helpers
+export type OUIReadyComponent<T extends keyof ${TYPES.objectTypeName}> = Exclude<
+  ${TYPES.objectTypeName}[T]['components'][number],
+  \`\${string}${CONSTANTS.COMPONENT_STATES.TODO}${CONSTANTS.FILE_EXTENSIONS.SVELTE}\`
+>;
+
+// Get all ready components
+export type OUIReadyComponents = {
+  [K in keyof ${TYPES.objectTypeName}]: OUIReadyComponent<K>
+}[keyof ${TYPES.objectTypeName}];
+
+// Get ready components by directory
+export type OUIDirectoryReadyComponents = {
+  [K in keyof ${TYPES.objectTypeName}]: {
+    directory: K;
+    components: OUIReadyComponent<K>[];
+  }
+};`;
+        }
+        function generateComponentCountTypes() {
+            return `
+// Component Count Types
+export type OUIDirectoryComponentCounts = {
+  [K in keyof ${TYPES.objectTypeName}]: {
+    directory: K;
+    total: number;
+    status: ${TYPES.objectTypeName}[K]['status'];
+  }
+};`;
+        }
+        function generateDirectoryStatusFilters() {
+            return `
+// Directory Status Filters
+export type OUIDirectoriesWithTodo = {
+  [K in keyof ${TYPES.objectTypeName} as ${TYPES.objectTypeName}[K]['status']['todo'] extends 0 ? never : K]: ${TYPES.objectTypeName}[K]
+};`;
+        }
+        function generateComponentMetadata() {
+            return `
+// Component Metadata
+export type OUIComponentMetadata = {
+  [K in keyof ${TYPES.objectTypeName}]: {
+    directory: K;
+    name: ${TYPES.objectTypeName}[K]['name'];
+    totalComponents: number;
+    status: ${TYPES.objectTypeName}[K]['status'];
+    hasInProgress: boolean;
+  }
+};`;
+        }
+        function generateStatusTypeHelpers() {
+            return `
+// Status Type Helpers
+export type OUITodoComponent<T extends keyof ${TYPES.objectTypeName}> = Extract<${TYPES.objectTypeName}[T]['components'][number], \`\${string}${CONSTANTS.COMPONENT_STATES.TODO}${CONSTANTS.FILE_EXTENSIONS.SVELTE}\`>;
+
+// Get all todo components
+export type OUITodoComponents = {
+  [K in keyof ${TYPES.objectTypeName}]: OUITodoComponent<K>
+}[keyof ${TYPES.objectTypeName}];
+
+// Get todo components by directory
+export type OUIDirectoryTodoComponents = {
+  [K in keyof ${TYPES.objectTypeName}]: {
+    directory: K;
+    components: OUITodoComponent<K>[];
+  }
+};`;
+        }
+        function componentTypes() {
+            return components
+                .map(({ dir }) => `export type ${generateDirName(dir)}Components = ${TYPES.componentHelperName}<'${dir.toUpperCase()}'>;`)
+                .join('\n');
+        }
+        function allComponentTypes() {
+            const types = components.map(({ dir }) => `${generateDirName(dir)}Components`).join(' | ');
+            return `export type ${TYPES.componentTypeName} = Prettify<${types}>;`;
+        }
+        function directoryType() {
+            return `export type ${TYPES.directoryTypeName} = ${TYPES.directoryHelperName}<keyof ${TYPES.objectTypeName}>;`;
+        }
+        function directoryToComponent() {
+            const mappings = components
+                .map(({ dir }) => `  '${dir}': ${generateDirName(dir)}Components;`)
+                .join('\n');
+            return `export type ${TYPES.directoryToComponentName} = Prettify<{\n${mappings}\n}>;`;
+        }
+        return `
+${this.#fileHeader()}
+import type { Prettify } from '$lib/types/helpers';
+import type { ${TYPES.objectTypeName} } from './componentRegistry.components';
+
+// Directory Type
+${directoryType()}
+
+// Helpers
+${generateDirectoryTypeHelper()}
+${generateComponentTypeHelper()}
+
+// Status Helpers
+${generateStatusTypeHelpers()}
+${generateReadyComponentHelpers()}
+${generateComponentCountTypes()}
+${generateDirectoryStatusFilters()}
+${generateComponentMetadata()}
+
+// Component Types
+${componentTypes()}
+
+// All Component Types
+${allComponentTypes()}
+
+// Directory To Component
+${directoryToComponent()}
+`;
+    }
+    // =========================================
+    // File Formatting
+    // =========================================
+    async #formatFiles() {
+        if (process.argv.includes('--format')) {
+            await Promise.all([
+                exec(`prettier --write ${CONFIG.dirs.object.output}`),
+                exec(`prettier --write ${CONFIG.dirs.types.output}`)
+            ]);
+        }
+    }
+    // =========================================
+    // Main Generation Process
+    // =========================================
+    async generate() {
+        this.#startTime = performance.now();
+        try {
+            const directories = await this.#getValidDirectories();
+            this.#stats.totalDirectories = directories.length;
+            await Promise.all(directories.map((dir) => this.#validateDirectoryComponents(dir)));
+            const [componentsObject, typesContent] = await Promise.all([
+                this.#generateComponentsObjectFile(),
+                this.#generateTypeDefinitions()
+            ]);
+            await Promise.all([
+                fs.writeFile(CONFIG.dirs.object.output, componentsObject),
+                fs.writeFile(CONFIG.dirs.types.output, typesContent)
+            ]);
+            await this.#formatFiles();
+            this.#logStatistics();
+        }
+        catch (error) {
+            console.error('Failed to generate component types:', error);
+            process.exit(1);
+        }
+    }
+}
+// =========================================
+// Run Generator
+// =========================================
+new ComponentRegistryGenerator().generate();
+
+=== 874 src/hooks.server.ts	js
+import { sequence } from '@sveltejs/kit/hooks';
+import { RequestClient } from '$data/api/helpers/RequestClient';
+import { redirects } from '$lib/server/redirects/config';
+import { checkRedirect, createRedirectResponse } from '$lib/server/redirects/handler';
+const typedServerFetch = async ({ event, resolve }) => {
+    const { fetch, locals } = event;
+    if (!locals.serverClient) {
+        locals.serverClient = new RequestClient(fetch);
+    }
+    return await resolve(event);
+};
+const handleRedirects = async ({ event, resolve }) => {
+    const path = event.url.pathname;
+    const redirectResult = checkRedirect(path, redirects);
+    if (redirectResult.shouldRedirect && redirectResult.destination) {
+        createRedirectResponse(redirectResult.destination);
+    }
+    return await resolve(event);
+};
+export const handle = sequence(typedServerFetch, handleRedirects);
+
+=== 570 src/lib/actions/clickOutside.ts	js
+export const clickOutside = (node, { ignore = '' } = {}) => {
+    const handleClick = (event) => {
+        const target = event.target;
+        if (!event.target || (ignore && target.closest(ignore))) {
+            return;
+        }
+        if (node && !node.contains(target) && !event.defaultPrevented) {
+            node.dispatchEvent(new CustomEvent('clickoutside'));
+        }
+    };
+    document.addEventListener('click', handleClick, true);
+    return {
+        destroy() {
+            document.removeEventListener('click', handleClick, true);
+        }
+    };
+};
+
+=== 21458 src/lib/componentRegistry.components.ts	js
+/* eslint-disable */
+/**
+ * !!!!!!!!!!
+ * This file is auto-generated. Do not edit manually
+ * Last generated at: 6/18/2025, 8:46:01 PM
+ * To update, run: pnpm generate:registry --format
+ * @version 0.0.1
+ * !!!!!!!!!!
+ */
+export const OUI_DIRECTORIES = {
+    ACCORDIONS: {
+        directory: 'accordions',
+        name: 'Accordions',
+        components: [
+            'accordion-01.svelte',
+            'accordion-02.svelte',
+            'accordion-03.svelte',
+            'accordion-04.svelte',
+            'accordion-05.svelte',
+            'accordion-06.svelte',
+            'accordion-07.svelte',
+            'accordion-08.svelte',
+            'accordion-09.svelte',
+            'accordion-10.svelte',
+            'accordion-11.svelte',
+            'accordion-12.svelte',
+            'accordion-13.svelte',
+            'accordion-14.svelte',
+            'accordion-15.svelte',
+            'accordion-16.svelte',
+            'accordion-17.svelte',
+            'accordion-18.svelte',
+            'accordion-19.svelte',
+            'accordion-20.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 20
+        }
+    },
+    ALERTS: {
+        directory: 'alerts',
+        name: 'Alerts',
+        components: [
+            'alert-01.svelte',
+            'alert-02.svelte',
+            'alert-03.svelte',
+            'alert-04.svelte',
+            'alert-05.svelte',
+            'alert-06.svelte',
+            'alert-07.svelte',
+            'alert-08.svelte',
+            'alert-09.svelte',
+            'alert-10.svelte',
+            'alert-11.svelte',
+            'alert-12.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 12
+        }
+    },
+    AVATARS: {
+        directory: 'avatars',
+        name: 'Avatars',
+        components: [
+            'avatar-01.svelte',
+            'avatar-02.svelte',
+            'avatar-03.svelte',
+            'avatar-04.svelte',
+            'avatar-05.svelte',
+            'avatar-06.svelte',
+            'avatar-07.svelte',
+            'avatar-08.svelte',
+            'avatar-09.svelte',
+            'avatar-10.svelte',
+            'avatar-11.svelte',
+            'avatar-12.svelte',
+            'avatar-13.svelte',
+            'avatar-14.svelte',
+            'avatar-15.svelte',
+            'avatar-16.svelte',
+            'avatar-17.svelte',
+            'avatar-18.svelte',
+            'avatar-19.svelte',
+            'avatar-20.svelte',
+            'avatar-21.svelte',
+            'avatar-22.svelte',
+            'avatar-23.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 23
+        }
+    },
+    BADGES: {
+        directory: 'badges',
+        name: 'Badges',
+        components: [
+            'badge-01.svelte',
+            'badge-02.svelte',
+            'badge-03.svelte',
+            'badge-04.svelte',
+            'badge-05.svelte',
+            'badge-06.svelte',
+            'badge-07.svelte',
+            'badge-08.svelte',
+            'badge-09.svelte',
+            'badge-10.svelte',
+            'badge-11.svelte',
+            'badge-12.svelte',
+            'badge-13.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 13
+        }
+    },
+    BANNERS: {
+        directory: 'banners',
+        name: 'Banners',
+        components: [
+            'banner-01.svelte',
+            'banner-02.svelte',
+            'banner-03.svelte',
+            'banner-04.svelte',
+            'banner-05.svelte',
+            'banner-06.svelte',
+            'banner-07.svelte',
+            'banner-08.svelte',
+            'banner-09.svelte',
+            'banner-10.svelte',
+            'banner-11.svelte',
+            'banner-12.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 12
+        }
+    },
+    BREADCRUMBS: {
+        directory: 'breadcrumbs',
+        name: 'Breadcrumbs',
+        components: [
+            'breadcrumb-01.svelte',
+            'breadcrumb-02.svelte',
+            'breadcrumb-03.svelte',
+            'breadcrumb-04.svelte',
+            'breadcrumb-05.svelte',
+            'breadcrumb-06.svelte',
+            'breadcrumb-07.svelte',
+            'breadcrumb-08.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 8
+        }
+    },
+    BUTTONS: {
+        directory: 'buttons',
+        name: 'Buttons',
+        components: [
+            'button-01.svelte',
+            'button-02.svelte',
+            'button-03.svelte',
+            'button-04.svelte',
+            'button-05.svelte',
+            'button-06.svelte',
+            'button-07.svelte',
+            'button-08.svelte',
+            'button-09.svelte',
+            'button-10.svelte',
+            'button-11.svelte',
+            'button-12.svelte',
+            'button-13.svelte',
+            'button-14.svelte',
+            'button-15.svelte',
+            'button-16.svelte',
+            'button-17.svelte',
+            'button-18.svelte',
+            'button-19.svelte',
+            'button-20.svelte',
+            'button-21.svelte',
+            'button-22.svelte',
+            'button-23.svelte',
+            'button-24.svelte',
+            'button-25.svelte',
+            'button-26.svelte',
+            'button-27.svelte',
+            'button-28.svelte',
+            'button-29.svelte',
+            'button-30.svelte',
+            'button-31.svelte',
+            'button-32.svelte',
+            'button-33.svelte',
+            'button-34.svelte',
+            'button-35.svelte',
+            'button-36.svelte',
+            'button-37.svelte',
+            'button-38.svelte',
+            'button-39.svelte',
+            'button-40.svelte',
+            'button-41.svelte',
+            'button-42.svelte',
+            'button-43.svelte',
+            'button-44.svelte',
+            'button-45.svelte',
+            'button-46.svelte',
+            'button-47.svelte',
+            'button-48.svelte',
+            'button-49.svelte',
+            'button-50.svelte',
+            'button-51.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 51
+        }
+    },
+    CHECKBOXES: {
+        directory: 'checkboxes',
+        name: 'Checkboxes',
+        components: [
+            'checkbox-01.svelte',
+            'checkbox-02.svelte',
+            'checkbox-03.svelte',
+            'checkbox-04.svelte',
+            'checkbox-05.svelte',
+            'checkbox-06.svelte',
+            'checkbox-07.svelte',
+            'checkbox-08.svelte',
+            'checkbox-09.svelte',
+            'checkbox-10.svelte',
+            'checkbox-11.svelte',
+            'checkbox-12.svelte',
+            'checkbox-13.svelte',
+            'checkbox-14.svelte',
+            'checkbox-15.svelte',
+            'checkbox-16.svelte',
+            'checkbox-17.svelte',
+            'checkbox-18.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 18
+        }
+    },
+    DIALOGS: {
+        directory: 'dialogs',
+        name: 'Dialogs',
+        components: [
+            'dialog-01.svelte',
+            'dialog-02.svelte',
+            'dialog-03.svelte',
+            'dialog-04.svelte',
+            'dialog-05.svelte',
+            'dialog-06.svelte',
+            'dialog-07.svelte',
+            'dialog-08.svelte',
+            'dialog-09.svelte',
+            'dialog-10.svelte',
+            'dialog-11.svelte',
+            'dialog-12.todo.svelte',
+            'dialog-13.svelte',
+            'dialog-14.svelte',
+            'dialog-15.svelte',
+            'dialog-16.todo.svelte',
+            'dialog-17.todo.svelte',
+            'dialog-18.svelte',
+            'dialog-19.svelte',
+            'dialog-20.svelte',
+            'dialog-21.svelte'
+        ],
+        status: {
+            todo: 3,
+            ready: 18
+        }
+    },
+    DROPDOWNS: {
+        directory: 'dropdowns',
+        name: 'Dropdowns',
+        components: [
+            'dropdown-01.svelte',
+            'dropdown-02.svelte',
+            'dropdown-03.svelte',
+            'dropdown-04.svelte',
+            'dropdown-05.svelte',
+            'dropdown-06.svelte',
+            'dropdown-07.svelte',
+            'dropdown-08.svelte',
+            'dropdown-09.svelte',
+            'dropdown-10.svelte',
+            'dropdown-11.svelte',
+            'dropdown-12.svelte',
+            'dropdown-13.svelte',
+            'dropdown-14.svelte',
+            'dropdown-15.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 15
+        }
+    },
+    INPUTS: {
+        directory: 'inputs',
+        name: 'Inputs',
+        components: [
+            'input-01.svelte',
+            'input-02.svelte',
+            'input-03.svelte',
+            'input-04.svelte',
+            'input-05.svelte',
+            'input-06.svelte',
+            'input-07.svelte',
+            'input-08.svelte',
+            'input-09.svelte',
+            'input-10.svelte',
+            'input-11.svelte',
+            'input-12.svelte',
+            'input-13.svelte',
+            'input-14.svelte',
+            'input-15.svelte',
+            'input-16.svelte',
+            'input-17.svelte',
+            'input-18.svelte',
+            'input-19.svelte',
+            'input-20.svelte',
+            'input-21.svelte',
+            'input-22.svelte',
+            'input-23.svelte',
+            'input-24.svelte',
+            'input-25.svelte',
+            'input-26.svelte',
+            'input-27.svelte',
+            'input-28.svelte',
+            'input-29.svelte',
+            'input-30.svelte',
+            'input-31.svelte',
+            'input-32.svelte',
+            'input-33.svelte',
+            'input-34.svelte',
+            'input-35.svelte',
+            'input-36.svelte',
+            'input-37.svelte',
+            'input-38.svelte',
+            'input-39.svelte',
+            'input-40.svelte',
+            'input-41.svelte',
+            'input-42.svelte',
+            'input-43.svelte',
+            'input-44.svelte',
+            'input-45.svelte',
+            'input-46.svelte',
+            'input-47.svelte',
+            'input-48.todo.svelte',
+            'input-49.todo.svelte',
+            'input-50.todo.svelte',
+            'input-51.todo.svelte',
+            'input-52.svelte',
+            'input-53.svelte',
+            'input-54.svelte',
+            'input-55.svelte',
+            'input-56.svelte',
+            'input-57.svelte',
+            'input-58.todo.svelte',
+            'input-59.todo.svelte'
+        ],
+        status: {
+            todo: 6,
+            ready: 53
+        }
+    },
+    NAVBARS: {
+        directory: 'navbars',
+        name: 'Navbars',
+        components: [
+            'navbar-01.svelte',
+            'navbar-02.svelte',
+            'navbar-03.svelte',
+            'navbar-04.svelte',
+            'navbar-05.svelte',
+            'navbar-06.svelte',
+            'navbar-07.svelte',
+            'navbar-08.svelte',
+            'navbar-09.svelte',
+            'navbar-10.svelte',
+            'navbar-11.svelte',
+            'navbar-12.svelte',
+            'navbar-13.svelte',
+            'navbar-14.svelte',
+            'navbar-15.svelte',
+            'navbar-16.svelte',
+            'navbar-17.todo.svelte',
+            'navbar-18.svelte',
+            'navbar-19.svelte',
+            'navbar-20.svelte'
+        ],
+        status: {
+            todo: 1,
+            ready: 19
+        }
+    },
+    NOTIFICATIONS: {
+        directory: 'notifications',
+        name: 'Notifications',
+        components: [
+            'notification-01.svelte',
+            'notification-02.svelte',
+            'notification-03.svelte',
+            'notification-04.svelte',
+            'notification-05.svelte',
+            'notification-06.svelte',
+            'notification-07.svelte',
+            'notification-08.svelte',
+            'notification-09.svelte',
+            'notification-10.svelte',
+            'notification-11.svelte',
+            'notification-12.svelte',
+            'notification-13.svelte',
+            'notification-14.svelte',
+            'notification-15.svelte',
+            'notification-16.svelte',
+            'notification-17.svelte',
+            'notification-18.svelte',
+            'notification-19.todo.svelte',
+            'notification-20.todo.svelte',
+            'notification-21.svelte',
+            'notification-22.svelte',
+            'notification-23.svelte'
+        ],
+        status: {
+            todo: 2,
+            ready: 21
+        }
+    },
+    PAGINATIONS: {
+        directory: 'paginations',
+        name: 'Paginations',
+        components: [
+            'pagination-01.svelte',
+            'pagination-02.svelte',
+            'pagination-03.svelte',
+            'pagination-04.svelte',
+            'pagination-05.svelte',
+            'pagination-06.svelte',
+            'pagination-07.svelte',
+            'pagination-08.svelte',
+            'pagination-09.svelte',
+            'pagination-10.svelte',
+            'pagination-11.svelte',
+            'pagination-12.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 12
+        }
+    },
+    POPOVERS: {
+        directory: 'popovers',
+        name: 'Popovers',
+        components: [
+            'popover-01.svelte',
+            'popover-02.svelte',
+            'popover-03.svelte',
+            'popover-04.svelte',
+            'popover-05.svelte',
+            'popover-06.svelte',
+            'popover-07.svelte',
+            'popover-08.svelte',
+            'popover-09.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 9
+        }
+    },
+    RADIOS: {
+        directory: 'radios',
+        name: 'Radios',
+        components: [
+            'radio-01.svelte',
+            'radio-02.svelte',
+            'radio-03.svelte',
+            'radio-04.svelte',
+            'radio-05.svelte',
+            'radio-06.svelte',
+            'radio-07.svelte',
+            'radio-08.svelte',
+            'radio-09.svelte',
+            'radio-10.svelte',
+            'radio-11.svelte',
+            'radio-12.svelte',
+            'radio-13.svelte',
+            'radio-14.svelte',
+            'radio-15.svelte',
+            'radio-16.svelte',
+            'radio-17.svelte',
+            'radio-18.svelte',
+            'radio-19.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 19
+        }
+    },
+    SELECTS: {
+        directory: 'selects',
+        name: 'Selects',
+        components: [
+            'select-01.svelte',
+            'select-02.svelte',
+            'select-03.svelte',
+            'select-04.svelte',
+            'select-05.svelte',
+            'select-06.svelte',
+            'select-07.svelte',
+            'select-08.svelte',
+            'select-09.svelte',
+            'select-10.svelte',
+            'select-11.svelte',
+            'select-12.svelte',
+            'select-13.svelte',
+            'select-14.svelte',
+            'select-15.svelte',
+            'select-16.svelte',
+            'select-17.svelte',
+            'select-18.svelte',
+            'select-19.svelte',
+            'select-20.svelte',
+            'select-21.svelte',
+            'select-22.svelte',
+            'select-23.svelte',
+            'select-24.svelte',
+            'select-25.svelte',
+            'select-26.svelte',
+            'select-27.svelte',
+            'select-28.svelte',
+            'select-29.svelte',
+            'select-30.svelte',
+            'select-31.svelte',
+            'select-32.svelte',
+            'select-33.svelte',
+            'select-34.svelte',
+            'select-35.svelte',
+            'select-36.svelte',
+            'select-37.svelte',
+            'select-38.svelte',
+            'select-39.svelte',
+            'select-40.svelte',
+            'select-41.svelte',
+            'select-42.svelte',
+            'select-43.svelte',
+            'select-44.svelte',
+            'select-45.svelte',
+            'select-46.todo.svelte',
+            'select-47.todo.svelte',
+            'select-48.svelte',
+            'select-49.todo.svelte',
+            'select-50.todo.svelte',
+            'select-51.todo.svelte'
+        ],
+        status: {
+            todo: 5,
+            ready: 46
+        }
+    },
+    SLIDERS: {
+        directory: 'sliders',
+        name: 'Sliders',
+        components: [
+            'slider-01.svelte',
+            'slider-02.svelte',
+            'slider-03.svelte',
+            'slider-04.svelte',
+            'slider-05.svelte',
+            'slider-06.svelte',
+            'slider-07.svelte',
+            'slider-08.svelte',
+            'slider-09.svelte',
+            'slider-10.svelte',
+            'slider-11.svelte',
+            'slider-12.svelte',
+            'slider-13.svelte',
+            'slider-14.svelte',
+            'slider-15.svelte',
+            'slider-16.svelte',
+            'slider-17.svelte',
+            'slider-18.svelte',
+            'slider-19.svelte',
+            'slider-20.svelte',
+            'slider-21.svelte',
+            'slider-22.svelte',
+            'slider-23.svelte',
+            'slider-24.svelte',
+            'slider-25.svelte',
+            'slider-26.svelte',
+            'slider-27.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 27
+        }
+    },
+    SWITCHES: {
+        directory: 'switches',
+        name: 'Switches',
+        components: [
+            'switch-01.svelte',
+            'switch-02.svelte',
+            'switch-03.svelte',
+            'switch-04.svelte',
+            'switch-05.svelte',
+            'switch-06.svelte',
+            'switch-07.svelte',
+            'switch-08.svelte',
+            'switch-09.svelte',
+            'switch-10.svelte',
+            'switch-11.svelte',
+            'switch-12.svelte',
+            'switch-13.svelte',
+            'switch-14.svelte',
+            'switch-15.svelte',
+            'switch-16.svelte',
+            'switch-17.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 17
+        }
+    },
+    TABLES: {
+        directory: 'tables',
+        name: 'Tables',
+        components: [
+            'table-01.svelte',
+            'table-02.svelte',
+            'table-03.svelte',
+            'table-04.svelte',
+            'table-05.svelte',
+            'table-06.svelte',
+            'table-07.svelte',
+            'table-08.svelte',
+            'table-09.svelte',
+            'table-10.svelte',
+            'table-11.svelte',
+            'table-12.svelte',
+            'table-13.svelte',
+            'table-14.svelte',
+            'table-15.svelte',
+            'table-16.svelte',
+            'table-17.svelte',
+            'table-18.svelte',
+            'table-19.svelte',
+            'table-20.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 20
+        }
+    },
+    TABS: {
+        directory: 'tabs',
+        name: 'Tabs',
+        components: [
+            'tab-01.svelte',
+            'tab-02.svelte',
+            'tab-03.svelte',
+            'tab-04.svelte',
+            'tab-05.svelte',
+            'tab-06.svelte',
+            'tab-07.svelte',
+            'tab-08.svelte',
+            'tab-09.svelte',
+            'tab-10.svelte',
+            'tab-11.svelte',
+            'tab-12.svelte',
+            'tab-13.svelte',
+            'tab-14.svelte',
+            'tab-15.svelte',
+            'tab-16.svelte',
+            'tab-17.svelte',
+            'tab-18.svelte',
+            'tab-19.svelte',
+            'tab-20.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 20
+        }
+    },
+    TEXTAREAS: {
+        directory: 'textareas',
+        name: 'Textareas',
+        components: [
+            'textarea-01.svelte',
+            'textarea-02.svelte',
+            'textarea-03.svelte',
+            'textarea-04.svelte',
+            'textarea-05.svelte',
+            'textarea-06.svelte',
+            'textarea-07.svelte',
+            'textarea-08.svelte',
+            'textarea-09.svelte',
+            'textarea-10.svelte',
+            'textarea-11.svelte',
+            'textarea-12.svelte',
+            'textarea-13.svelte',
+            'textarea-14.svelte',
+            'textarea-15.svelte',
+            'textarea-16.svelte',
+            'textarea-17.svelte',
+            'textarea-18.svelte',
+            'textarea-19.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 19
+        }
+    },
+    TIMELINES: {
+        directory: 'timelines',
+        name: 'Timelines',
+        components: [
+            'timeline-01.svelte',
+            'timeline-02.svelte',
+            'timeline-03.svelte',
+            'timeline-04.svelte',
+            'timeline-05.svelte',
+            'timeline-06.svelte',
+            'timeline-07.svelte',
+            'timeline-08.svelte',
+            'timeline-09.svelte',
+            'timeline-10.svelte',
+            'timeline-11.svelte',
+            'timeline-12.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 12
+        }
+    },
+    TOOLTIPS: {
+        directory: 'tooltips',
+        name: 'Tooltips',
+        components: [
+            'tooltip-01.svelte',
+            'tooltip-02.svelte',
+            'tooltip-03.svelte',
+            'tooltip-04.svelte',
+            'tooltip-05.svelte',
+            'tooltip-06.svelte',
+            'tooltip-07.svelte',
+            'tooltip-08.svelte',
+            'tooltip-09.svelte',
+            'tooltip-10.svelte',
+            'tooltip-11.svelte',
+            'tooltip-12.svelte'
+        ],
+        status: {
+            todo: 0,
+            ready: 12
+        }
+    }
+};
+export const COMPONENT_STATES = {
+    TODO: 'todo',
+    READY: 'ready'
+};
+
+=== 4770 src/lib/componentRegistry.ts	js
+import { OUI_DIRECTORIES } from '$lib/componentRegistry.components';
+import { GITHUB_REPO_URL } from './constants';
+// =========================================
+// Component Registry Implementation
+// =========================================
+class ComponentRegistry {
+    #components;
+    constructor() {
+        this.#components = new Map();
+        this.refresh();
+    }
+    // =========================================
+    // Initialization
+    // =========================================
+    async refresh() {
+        this.#components = await this.#initializeComponents();
+    }
+    #getFileImports = () => {
+        return import.meta.glob([
+            '$lib/components/**/*.svelte',
+            '!$lib/components/_extras/**/*.svelte',
+            '!$lib/components/ui/**/*.svelte'
+        ], { eager: false, import: 'default' });
+    };
+    async #initializeComponents() {
+        const files = this.#getFileImports();
+        const componentMap = new Map();
+        // In dev mode, we just need the paths
+        const paths = Object.keys(files);
+        for (const path of paths) {
+            const match = path.match(/\/components\/([^/]+)\/([^/]+)\.svelte$/);
+            if (!match)
+                continue;
+            const [, directory, filename] = match;
+            if (!componentMap.has(directory)) {
+                componentMap.set(directory, new Set());
+            }
+            componentMap.get(directory)?.add(filename);
+        }
+        return componentMap;
+    }
+    /**
+     * Determines the state of a component based on its filename
+     */
+    #getComponentState(filename) {
+        if (filename.includes('.todo'))
+            return 'todo';
+        return 'ready';
+    }
+    /**
+     * Gets the GitHub URL for a directory or component
+     */
+    #generateGithubUrl(directory, filename) {
+        const basePath = `${GITHUB_REPO_URL}/tree/main/src/lib/components/${directory}`;
+        return filename ? `${basePath}/${filename}.svelte` : basePath;
+    }
+    #getFile(directory) {
+        const components = this.#components.get(directory);
+        if (!components?.size) {
+            throw new Error(`Components ${directory} not found in components/${directory}`);
+        }
+        return Array.from(components);
+    }
+    getAllDirectories() {
+        return Array.from(this.#components.keys());
+    }
+    getDirectories(directories) {
+        return directories.map((directory) => OUI_DIRECTORIES[directory].directory);
+    }
+    getFiles(directories) {
+        return directories.flatMap((directory) => this.#getFile(directory));
+    }
+    getRegistryMetaData() {
+        const metadata = {
+            directoriesBreakdown: {},
+            totalComponents: 0,
+            totalDirectories: Object.keys(OUI_DIRECTORIES).length
+        };
+        Object.values(OUI_DIRECTORIES).forEach((directoryConfig) => {
+            const directory = directoryConfig.directory;
+            const directoryPath = `src/lib/components/${directory}`;
+            const components = this.#components.get(directory);
+            const componentsMetadata = [];
+            const stateBreakdown = {
+                ready: 0,
+                soon: 0,
+                todo: 0
+            };
+            components?.forEach((component) => {
+                const state = this.#getComponentState(component);
+                stateBreakdown[state]++;
+                componentsMetadata.push({
+                    githubUrl: this.#generateGithubUrl(directory, component),
+                    name: component,
+                    path: `${directoryPath}/${component}`,
+                    state
+                });
+            });
+            metadata.directoriesBreakdown[directory] = {
+                apiUrl: `/api/v1/components/${directory}.json`,
+                componentCount: components?.size || 0,
+                components: componentsMetadata,
+                directoryPath,
+                githubUrl: this.#generateGithubUrl(directory),
+                llmsTextUrl: `/llms/${directory}.txt`,
+                stateBreakdown
+            };
+            metadata.totalComponents += components?.size || 0;
+        });
+        return metadata;
+    }
+}
+let componentRegistryInstance = null;
+const initComponentRegistry = async () => {
+    const registry = new ComponentRegistry();
+    await registry.refresh();
+    return registry;
+};
+export const getComponentRegistry = async () => {
+    if (!componentRegistryInstance) {
+        componentRegistryInstance = await initComponentRegistry();
+    }
+    return componentRegistryInstance;
+};
+export const getComponentDirectories = async () => (await getComponentRegistry()).getAllDirectories();
+export const getComponentFileNames = async (directory) => (await getComponentRegistry()).getFiles([directory]);
+
+=== 234 src/lib/componentRegistry.types.ts	js
+/* eslint-disable */
+/**
+ * !!!!!!!!!!
+ * This file is auto-generated. Do not edit manually
+ * Last generated at: 6/18/2025, 8:46:01 PM
+ * To update, run: pnpm generate:registry --format
+ * @version 0.0.1
+ * !!!!!!!!!!
+ */
+export {};
+
+=== 550 src/lib/components/_extras/navbars/index.ts	js
+export { default as AppToggle } from './app-toggle.svelte';
+export { default as Filters } from './filters.svelte';
+export { default as InfoMenu } from './info-menu.svelte';
+export { default as Logo } from './logo.svelte';
+export { default as NotificationMenu } from './notification-menu.svelte';
+export { default as SettingsMenu } from './settings-menu.svelte';
+export { default as TeamSwitcher } from './team-switcher.svelte';
+export { default as ThemeToggle } from './theme-toggle.svelte';
+export { default as UserMenu } from './user-menu.svelte';
+
+=== 436 src/lib/components/ui/accordion/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Content from './accordion-content.svelte';
+import Item from './accordion-item.svelte';
+import Trigger from './accordion-trigger.svelte';
+import { Accordion as AccordionPrimitive } from 'bits-ui';
+const Root = AccordionPrimitive.Root;
+export { Content, Content as AccordionContent, Item, Item as AccordionItem, Root, Root as Accordion, Trigger, Trigger as AccordionTrigger };
+
+=== 1100 src/lib/components/ui/alert-dialog/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Action from './alert-dialog-action.svelte';
+import Cancel from './alert-dialog-cancel.svelte';
+import Content from './alert-dialog-content.svelte';
+import Description from './alert-dialog-description.svelte';
+import Footer from './alert-dialog-footer.svelte';
+import Header from './alert-dialog-header.svelte';
+import Overlay from './alert-dialog-overlay.svelte';
+import Title from './alert-dialog-title.svelte';
+import { AlertDialog as AlertDialogPrimitive } from 'bits-ui';
+const Root = AlertDialogPrimitive.Root;
+const Trigger = AlertDialogPrimitive.Trigger;
+const Portal = AlertDialogPrimitive.Portal;
+export { Action, Action as AlertDialogAction, Cancel, Cancel as AlertDialogCancel, Content, Content as AlertDialogContent, Description, Description as AlertDialogDescription, Footer, Footer as AlertDialogFooter, Header, Header as AlertDialogHeader, Overlay, Overlay as AlertDialogOverlay, Portal, Portal as AlertDialogPortal, Root, Root as AlertDialogRoot, Title, Title as AlertDialogTitle, Trigger, Trigger as AlertDialogTrigger };
+
+=== 286 src/lib/components/ui/avatar/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Fallback from './avatar-fallback.svelte';
+import Image from './avatar-image.svelte';
+import Root from './avatar.svelte';
+export { Root, Image, Fallback, 
+//
+Root as Avatar, Image as AvatarImage, Fallback as AvatarFallback };
+
+=== 630 src/lib/components/ui/breadcrumb/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Ellipsis from './breadcrumb-ellipsis.svelte';
+import Item from './breadcrumb-item.svelte';
+import Link from './breadcrumb-link.svelte';
+import List from './breadcrumb-list.svelte';
+import Page from './breadcrumb-page.svelte';
+import Separator from './breadcrumb-separator.svelte';
+import Root from './breadcrumb.svelte';
+export { Root, Ellipsis, Item, Separator, Link, List, Page, 
+//
+Root as Breadcrumb, Ellipsis as BreadcrumbEllipsis, Item as BreadcrumbItem, Separator as BreadcrumbSeparator, Link as BreadcrumbLink, List as BreadcrumbList, Page as BreadcrumbPage };
+
+=== 371 src/lib/components/ui/collapsible/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import { Collapsible as CollapsiblePrimitive } from 'bits-ui';
+const Root = CollapsiblePrimitive.Root;
+const Trigger = CollapsiblePrimitive.Trigger;
+const Content = CollapsiblePrimitive.Content;
+export { Root, Content, Trigger, 
+//
+Root as Collapsible, Content as CollapsibleContent, Trigger as CollapsibleTrigger };
+
+=== 884 src/lib/components/ui/command/index.ts	js
+import Dialog from './command-dialog.svelte';
+import Empty from './command-empty.svelte';
+import Group from './command-group.svelte';
+import Input from './command-input.svelte';
+import Item from './command-item.svelte';
+import List from './command-list.svelte';
+import Separator from './command-separator.svelte';
+import Shortcut from './command-shortcut.svelte';
+import Root from './command.svelte';
+/* eslint-disable perfectionist/sort-named-exports */
+import { Command as CommandPrimitive } from 'bits-ui';
+const Loading = CommandPrimitive.Loading;
+export { Root, Dialog, Empty, Group, Item, Input, List, Separator, Shortcut, Loading, 
+//
+Root as Command, Dialog as CommandDialog, Empty as CommandEmpty, Group as CommandGroup, Item as CommandItem, Input as CommandInput, List as CommandList, Separator as CommandSeparator, Shortcut as CommandShortcut, Loading as CommandLoading };
+
+=== 2903 src/lib/components/ui/data-table/data-table.svelte.ts	js
+import { createTable } from '@tanstack/table-core';
+/**
+ * Creates a reactive TanStack table object for Svelte.
+ * @param options Table options to create the table with.
+ * @returns A reactive table object.
+ * @example
+ * ```svelte
+ * <script>
+ *   const table = createSvelteTable({ ... })
+ * </script>
+ *
+ * <table>
+ *   <thead>
+ *     {#each table.getHeaderGroups() as headerGroup}
+ *       <tr>
+ *         {#each headerGroup.headers as header}
+ *           <th colspan={header.colSpan}>
+ *         	   <FlexRender content={header.column.columnDef.header} context={header.getContext()} />
+ *         	 </th>
+ *         {/each}
+ *       </tr>
+ *     {/each}
+ *   </thead>
+ * 	 <!-- ... -->
+ * </table>
+ * ```
+ */
+export function createSvelteTable(options) {
+    const resolvedOptions = mergeObjects({
+        mergeOptions: (defaultOptions, options) => {
+            return mergeObjects(defaultOptions, options);
+        },
+        onStateChange() { },
+        renderFallbackValue: null,
+        state: {}
+    }, options);
+    const table = createTable(resolvedOptions);
+    let state = $state(table.initialState);
+    function updateOptions() {
+        table.setOptions((prev) => {
+            return mergeObjects(prev, options, {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                onStateChange: (updater) => {
+                    if (updater instanceof Function)
+                        state = updater(state);
+                    else
+                        state = mergeObjects(state, updater);
+                    options.onStateChange?.(updater);
+                },
+                state: mergeObjects(state, options.state || {})
+            });
+        });
+    }
+    updateOptions();
+    $effect.pre(() => {
+        updateOptions();
+    });
+    return table;
+}
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function mergeObjects(...sources) {
+    const target = {};
+    for (let i = 0; i < sources.length; i++) {
+        let source = sources[i];
+        if (typeof source === 'function')
+            source = source();
+        if (source) {
+            const descriptors = Object.getOwnPropertyDescriptors(source);
+            for (const key in descriptors) {
+                if (key in target)
+                    continue;
+                Object.defineProperty(target, key, {
+                    enumerable: true,
+                    get() {
+                        for (let i = sources.length - 1; i >= 0; i--) {
+                            let s = sources[i];
+                            if (typeof s === 'function')
+                                s = s();
+                            const v = (s || {})[key];
+                            if (v !== undefined)
+                                return v;
+                        }
+                    }
+                });
+            }
+        }
+    }
+    return target;
+}
+
+=== 192 src/lib/components/ui/data-table/index.ts	js
+export { createSvelteTable } from './data-table.svelte.js';
+export { default as FlexRender } from './flex-render.svelte';
+export { renderComponent, renderSnippet } from './render-helpers.js';
+
+=== 3215 src/lib/components/ui/data-table/render-helpers.ts	js
+/**
+ * A helper class to make it easy to identify Svelte components in
+ * `columnDef.cell` and `columnDef.header` properties.
+ *
+ * > NOTE: This class should only be used internally by the adapter. If you're
+ * reading this and you don't know what this is for, you probably don't need it.
+ *
+ * @example
+ * ```svelte
+ * {@const result = content(context as any)}
+ * {#if result instanceof RenderComponentConfig}
+ *   {@const { component: Component, props } = result}
+ *   <Component {...props} />
+ * {/if}
+ * ```
+ */
+export class RenderComponentConfig {
+    component;
+    props;
+    constructor(component, props = {}) {
+        this.component = component;
+        this.props = props;
+    }
+}
+/**
+ * A helper class to make it easy to identify Svelte Snippets in `columnDef.cell` and `columnDef.header` properties.
+ *
+ * > NOTE: This class should only be used internally by the adapter. If you're
+ * reading this and you don't know what this is for, you probably don't need it.
+ *
+ * @example
+ * ```svelte
+ * {@const result = content(context as any)}
+ * {#if result instanceof RenderSnippetConfig}
+ *   {@const { snippet, params } = result}
+ *   {@render snippet(params)}
+ * {/if}
+ * ```
+ */
+export class RenderSnippetConfig {
+    snippet;
+    params;
+    constructor(snippet, params) {
+        this.snippet = snippet;
+        this.params = params;
+    }
+}
+/**
+ * A helper function to help create cells from Svelte components through ColumnDef's `cell` and `header` properties.
+ *
+ * This is only to be used with Svelte Components - use `renderSnippet` for Svelte Snippets.
+ *
+ * @param component A Svelte component
+ * @param props The props to pass to `component`
+ * @returns A `RenderComponentConfig` object that helps svelte-table know how to render the header/cell component.
+ * @example
+ * ```ts
+ * // +page.svelte
+ * const defaultColumns = [
+ *   columnHelper.accessor('name', {
+ *     header: header => renderComponent(SortHeader, { label: 'Name', header }),
+ *   }),
+ *   columnHelper.accessor('state', {
+ *     header: header => renderComponent(SortHeader, { label: 'State', header }),
+ *   }),
+ * ]
+ * ```
+ * @see {@link https://tanstack.com/table/latest/docs/guide/column-defs}
+ */
+export function renderComponent(component, props) {
+    return new RenderComponentConfig(component, props);
+}
+/**
+ * A helper function to help create cells from Svelte Snippets through ColumnDef's `cell` and `header` properties.
+ *
+ * The snippet must only take one parameter.
+ *
+ * This is only to be used with Snippets - use `renderComponent` for Svelte Components.
+ *
+ * @param snippet
+ * @param params
+ * @returns - A `RenderSnippetConfig` object that helps svelte-table know how to render the header/cell snippet.
+ * @example
+ * ```ts
+ * // +page.svelte
+ * const defaultColumns = [
+ *   columnHelper.accessor('name', {
+ *     cell: cell => renderSnippet(nameSnippet, { name: cell.row.name }),
+ *   }),
+ *   columnHelper.accessor('state', {
+ *     cell: cell => renderSnippet(stateSnippet, { state: cell.row.state }),
+ *   }),
+ * ]
+ * ```
+ * @see {@link https://tanstack.com/table/latest/docs/guide/column-defs}
+ */
+export function renderSnippet(snippet, params) {
+    return new RenderSnippetConfig(snippet, params);
+}
+
+=== 936 src/lib/components/ui/datefield-rac/index.ts	js
+import DateField from './date-field.svelte';
+import DateInput from './date-input.svelte';
+import DateSegment from './date-segment.svelte';
+import TimeField from './time-field.svelte';
+import TimeInput from './time-input.svelte';
+import TimeSegment from './time-segment.svelte';
+const dateInputStyle = 'text-foreground focus:bg-accent data-invalid:focused:bg-destructive focused:aria-[valuetext=Empty]:text-foreground focused:text-foreground data-invalid:aria-[valuetext=Empty]:text-destructive data-invalid:text-destructive aria-[valuetext=Empty]:text-muted-foreground/70 data-invalid:focused:text-white data-invalid:focused:aria-[valuetext=Empty]:text-white inline rounded p-0.5 caret-transparent outline-hidden disabled:cursor-not-allowed disabled:opacity-50 data-[segment=literal]:text-muted-foreground/70 data-[segment=literal]:px-0';
+export { DateField, DateInput, dateInputStyle, DateSegment, TimeField, TimeInput, TimeSegment };
+
+=== 884 src/lib/components/ui/dialog/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Content from './dialog-content.svelte';
+import Description from './dialog-description.svelte';
+import Footer from './dialog-footer.svelte';
+import Header from './dialog-header.svelte';
+import Overlay from './dialog-overlay.svelte';
+import Title from './dialog-title.svelte';
+import { Dialog as DialogPrimitive } from 'bits-ui';
+const Root = DialogPrimitive.Root;
+const Trigger = DialogPrimitive.Trigger;
+const Portal = DialogPrimitive.Portal;
+const Close = DialogPrimitive.Close;
+export { Close, Close as DialogClose, Content, Content as DialogContent, Description, Description as DialogDescription, Footer, Footer as DialogFooter, Header, Header as DialogHeader, Overlay, Overlay as DialogOverlay, Portal, Portal as DialogPortal, Root, Root as DialogRoot, Title, Title as DialogTitle, Trigger, Trigger as DialogTrigger };
+
+=== 1509 src/lib/components/ui/dropdowns/index.ts	js
+import CheckboxItem from './dropdown-menu-checkbox-item.svelte';
+import Content from './dropdown-menu-content.svelte';
+import Item from './dropdown-menu-item.svelte';
+import Label from './dropdown-menu-label.svelte';
+import RadioItem from './dropdown-menu-radio-item.svelte';
+import Separator from './dropdown-menu-separator.svelte';
+import Shortcut from './dropdown-menu-shortcut.svelte';
+import SubContent from './dropdown-menu-sub-content.svelte';
+import SubTrigger from './dropdown-menu-sub-trigger.svelte';
+import { DropdownMenu as DropdownMenuPrimitive } from 'bits-ui';
+const Sub = DropdownMenuPrimitive.Sub;
+const Root = DropdownMenuPrimitive.Root;
+const Trigger = DropdownMenuPrimitive.Trigger;
+const Group = DropdownMenuPrimitive.Group;
+const RadioGroup = DropdownMenuPrimitive.RadioGroup;
+const GroupHeading = DropdownMenuPrimitive.GroupHeading;
+export { CheckboxItem, Content, Root as DropdownMenu, CheckboxItem as DropdownMenuCheckboxItem, Content as DropdownMenuContent, Group as DropdownMenuGroup, GroupHeading as DropdownMenuGroupHeading, Item as DropdownMenuItem, Label as DropdownMenuLabel, RadioGroup as DropdownMenuRadioGroup, RadioItem as DropdownMenuRadioItem, Separator as DropdownMenuSeparator, Shortcut as DropdownMenuShortcut, Sub as DropdownMenuSub, SubContent as DropdownMenuSubContent, SubTrigger as DropdownMenuSubTrigger, Trigger as DropdownMenuTrigger, Group, GroupHeading, Item, Label, RadioGroup, RadioItem, Root, Separator, Shortcut, Sub, SubContent, SubTrigger, Trigger };
+
+=== 360 src/lib/components/ui/hover-card/index.ts	js
+import Content from './hover-card-content.svelte';
+/* eslint-disable perfectionist/sort-named-exports */
+import { LinkPreview as HoverCardPrimitive } from 'bits-ui';
+const Root = HoverCardPrimitive.Root;
+const Trigger = HoverCardPrimitive.Trigger;
+export { Root, Content, Trigger, Root as HoverCard, Content as HoverCardContent, Trigger as HoverCardTrigger };
+
+=== 839 src/lib/components/ui/navigation-menu/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports, perfectionist/sort-imports */
+import Root from './navigation-menu.svelte';
+import Content from './navigation-menu-content.svelte';
+import Indicator from './navigation-menu-indicator.svelte';
+import Item from './navigation-menu-item.svelte';
+import Link from './navigation-menu-link.svelte';
+import List from './navigation-menu-list.svelte';
+import Trigger from './navigation-menu-trigger.svelte';
+import Viewport from './navigation-menu-viewport.svelte';
+export { Root, Content, Indicator, Item, Link, List, Trigger, Viewport, 
+//
+Root as NavigationMenuRoot, Content as NavigationMenuContent, Indicator as NavigationMenuIndicator, Item as NavigationMenuItem, Link as NavigationMenuLink, List as NavigationMenuList, Trigger as NavigationMenuTrigger, Viewport as NavigationMenuViewport };
+
+=== 682 src/lib/components/ui/pagination/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Content from './pagination-content.svelte';
+import Ellipsis from './pagination-ellipsis.svelte';
+import Item from './pagination-item.svelte';
+import Link from './pagination-link.svelte';
+import NextButton from './pagination-next-button.svelte';
+import PrevButton from './pagination-prev-button.svelte';
+import Root from './pagination.svelte';
+export { Root, Content, Item, Link, PrevButton, NextButton, Ellipsis, 
+//
+Root as Pagination, Content as PaginationContent, Item as PaginationItem, Link as PaginationLink, PrevButton as PaginationPrevButton, NextButton as PaginationNextButton, Ellipsis as PaginationEllipsis };
+
+=== 413 src/lib/components/ui/popover/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Content from './popover-content.svelte';
+import { Popover as PopoverPrimitive } from 'bits-ui';
+const Root = PopoverPrimitive.Root;
+const Trigger = PopoverPrimitive.Trigger;
+const Close = PopoverPrimitive.Close;
+export { Root, Content, Trigger, Close, 
+//
+Root as Popover, Content as PopoverContent, Trigger as PopoverTrigger, Close as PopoverClose };
+
+=== 142 src/lib/components/ui/radio-group/index.ts	js
+import Item from './radio-group-item.svelte';
+import Root from './radio-group.svelte';
+export { Root as RadioGroup, Item as RadioGroupItem };
+
+=== 179 src/lib/components/ui/scroll-area/index.ts	js
+import Scrollbar from './scroll-area-scrollbar.svelte';
+import Root from './scroll-area.svelte';
+export { Root, Root as ScrollArea, Scrollbar as ScrollAreaScrollbar, Scrollbar };
+
+=== 924 src/lib/components/ui/select/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Content from './select-content.svelte';
+import GroupHeading from './select-group-heading.svelte';
+import Item from './select-item.svelte';
+import ScrollDownButton from './select-scroll-down-button.svelte';
+import ScrollUpButton from './select-scroll-up-button.svelte';
+import Separator from './select-separator.svelte';
+import Trigger from './select-trigger.svelte';
+import { Select as SelectPrimitive } from 'bits-ui';
+const Root = SelectPrimitive.Root;
+const Group = SelectPrimitive.Group;
+export { Root, Item, Group, GroupHeading, Content, Trigger, Separator, ScrollDownButton, ScrollUpButton, 
+//
+Root as Select, Item as SelectItem, Group as SelectGroup, GroupHeading as SelectGroupHeading, Content as SelectContent, Trigger as SelectTrigger, Separator as SelectSeparator, ScrollDownButton as SelectScrollDownButton, ScrollUpButton as SelectScrollUpButton };
+
+=== 556 src/lib/components/ui/table/index.ts	js
+import Body from './table-body.svelte';
+import Caption from './table-caption.svelte';
+import Cell from './table-cell.svelte';
+import Footer from './table-footer.svelte';
+import Head from './table-head.svelte';
+import Header from './table-header.svelte';
+import Row from './table-row.svelte';
+import Root from './table.svelte';
+export { Body, Caption, Cell, Footer, Head, Header, Root, Row, 
+//
+Root as Table, Body as TableBody, Caption as TableCaption, Cell as TableCell, Footer as TableFooter, Head as TableHead, Header as TableHeader, Row as TableRow };
+
+=== 347 src/lib/components/ui/tabs/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Content from './tabs-content.svelte';
+import List from './tabs-list.svelte';
+import Root from './tabs-root.svelte';
+import Trigger from './tabs-trigger.svelte';
+export { Root, Content, List, Trigger, 
+//
+Root as Tabs, Content as TabsContent, List as TabsList, Trigger as TabsTrigger };
+
+=== 698 src/lib/components/ui/timeline/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Content from './timeline-content.svelte';
+import Date from './timeline-date.svelte';
+import Header from './timeline-header.svelte';
+import Indicator from './timeline-indicator.svelte';
+import Item from './timeline-item.svelte';
+import Separator from './timeline-separator.svelte';
+import Title from './timeline-title.svelte';
+import Timeline from './timeline.svelte';
+export { Timeline, Content, Date, Header, Indicator, Item, Title, Separator, 
+//
+Content as TimelineContent, Separator as TimelineSeparator, Date as TimelineDate, Header as TimelineHeader, Indicator as TimelineIndicator, Title as TimelineTitle, Item as TimelineItem };
+
+=== 295 src/lib/components/ui/timeline/timeline-context.svelte.ts	js
+import { Context } from 'runed';
+export const timelineContext = new Context('timeline:context');
+export const useTimeline = () => {
+    const context = timelineContext.get();
+    if (!context) {
+        throw new Error('useTimeline must be used within a Timeline');
+    }
+    return context;
+};
+
+=== 146 src/lib/components/ui/toggle-group/index.ts	js
+import Item from './toggle-group-item.svelte';
+import Root from './toggle-group.svelte';
+export { Root as ToggleGroup, Item as ToggleGroupItem };
+
+=== 318 src/lib/components/ui/tooltip/index.ts	js
+import TooltipContent from './tooltip-content.svelte';
+import { Tooltip as TooltipPrimitive } from 'bits-ui';
+const TooltipProvider = TooltipPrimitive.Provider;
+const Tooltip = TooltipPrimitive.Root;
+const TooltipTrigger = TooltipPrimitive.Trigger;
+export { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger };
+
+=== 84 src/lib/config.ts	js
+export const PROJECT_NAME = 'Origin UI - Svelte';
+export const SEO_DELIMITER = '|';
+
+=== 2039 src/lib/constants.ts	js
+export const ENHANCED_IMAGE_REGEX = /<enhanced:img/;
+export const GITHUB_REPO_URL = 'https://github.com/max-got/originui-svelte/';
+export const POSSIBLE_DEPENDENCIES = [
+    {
+        dev: false,
+        name: 'bits-ui',
+        packageName: 'bits-ui',
+        url: 'https://github.com/huntabyte/bits-ui'
+    },
+    {
+        dev: false,
+        name: '@lucide/svelte',
+        packageName: '@lucide/svelte',
+        url: 'https://github.com/lucide-icons/lucide'
+    },
+    {
+        dev: true,
+        name: '~icons/ri',
+        packageName: '@iconify-json/ri',
+        url: 'https://www.npmjs.com/package/@iconify-json/ri'
+    },
+    {
+        dev: true,
+        name: '~icons/ri',
+        packageName: 'unplugin-icons',
+        url: 'https://github.com/antfu/unplugin-icons'
+    },
+    {
+        dev: false,
+        name: '@internationalized/date',
+        packageName: '@internationalized/date',
+        url: 'https://github.com/adobe/react-spectrum/tree/main/packages/@internationalized/date'
+    },
+    {
+        dev: false,
+        name: 'inputmask',
+        packageName: 'inputmask',
+        url: 'https://github.com/RobinHerbots/Inputmask'
+    },
+    {
+        dev: false,
+        name: 'svelte-sonner',
+        packageName: 'svelte-sonner',
+        url: 'https://github.com/wobsoriano/svelte-sonner'
+    },
+    {
+        dev: false,
+        name: '@dnd-kit-svelte/core',
+        packageName: '@dnd-kit-svelte/core',
+        url: 'https://github.com/HanielU/dnd-kit-svelte'
+    },
+    {
+        dev: false,
+        name: '@dnd-kit-svelte/modifiers',
+        packageName: '@dnd-kit-svelte/modifiers',
+        url: 'https://github.com/HanielU/dnd-kit-svelte'
+    },
+    {
+        dev: false,
+        name: '@dnd-kit-svelte/sortable',
+        packageName: '@dnd-kit-svelte/sortable',
+        url: 'https://github.com/HanielU/dnd-kit-svelte'
+    },
+    {
+        dev: false,
+        name: '@dnd-kit-svelte/utilities',
+        packageName: '@dnd-kit-svelte/utilities',
+        url: 'https://github.com/HanielU/dnd-kit-svelte'
+    }
+];
+
+=== 300 src/lib/data/api/components/_meta/_meta.handler.ts	js
+import { getComponentRegistry } from '$lib/componentRegistry';
+export const API_V1_COMPONENTS_META_ENDPOINT_HANDLER = {
+    GET: (async () => {
+        const instance = await getComponentRegistry();
+        const files = instance.getRegistryMetaData();
+        return Response.json(files);
+    })
+};
+
+=== 270 src/lib/data/api/components/_meta/_meta.query.ts	js
+import { RequestClient } from '$data/api/helpers/RequestClient';
+import { API_V1_COMPONENTS_META_ROUTE } from './_meta.route';
+export const getComponentMetaAPIResponseJSON = async (serverClient) => {
+    return serverClient.requestJSON(API_V1_COMPONENTS_META_ROUTE);
+};
+
+=== 148 src/lib/data/api/components/_meta/_meta.route.ts	js
+import { API_V1_COMPONENTS_ROUTE } from '../components.route';
+export const API_V1_COMPONENTS_META_ROUTE = `${API_V1_COMPONENTS_ROUTE}/_meta.json`;
+
+=== 1544 src/lib/data/api/components/components.handler.ts	js
+import { getComponentDirectories, getComponentFileNames } from '$lib/componentRegistry';
+import { getComponentSource } from '$lib/utils/handleComponentSource';
+export class ComponentAPIError extends Error {
+    constructor(message) {
+        super(message);
+        this.name = 'ComponentAPIError';
+    }
+}
+export const API_V1_COMPONENTS_ENDPOINT_HANDLER = {
+    entries: (async () => {
+        const directories = await getComponentDirectories();
+        return directories.map((directory) => ({ directory }));
+    }),
+    fallback: (async () => {
+        return Response.json({
+            message: "Components not available (yet?). Create a new issue if you need this. Not even sure why you're here."
+        }, { status: 404 });
+    }),
+    GET: (async ({ params, setHeaders }) => {
+        const { directory } = params;
+        const componentFiles = await getComponentFileNames(directory);
+        const components = await Promise.all(componentFiles.map((file) => getComponentSource(directory, file)));
+        const meta = {
+            directory,
+            fileStats: {
+                completed: components.filter((c) => c.availability === 'available').length,
+                todo: components.filter((c) => c.availability === 'todo').length,
+                total: components.length
+            }
+        };
+        setHeaders({
+            'cache-control': 'public, max-age=31536000, immutable, stale-while-revalidate=86400'
+        });
+        return Response.json({
+            components,
+            meta
+        });
+    })
+};
+
+=== 61 src/lib/data/api/components/components.route.ts	js
+export const API_V1_COMPONENTS_ROUTE = '/api/v1/components';
+
+=== 1297 src/lib/data/api/components/components.ts	js
+import { ComponentAPIError } from './components.handler';
+import { API_V1_COMPONENTS_ROUTE } from './components.route';
+const fetchFromAPI = async (fetch, directory) => {
+    const response = await fetch(`${API_V1_COMPONENTS_ROUTE}/${directory}.json`);
+    if (!response.ok)
+        throw new ComponentAPIError(`API request for "${directory}" failed: ${response.status} ${response.statusText}`);
+    return response.json();
+};
+//Sadly we need to fetch all directories at once, because it is not possible
+//to prerender all the component routes in advance.
+//Cloudflare Pages has a limit of 100 routes, so we need to make sure we don't hit that limit.
+//With this way, we just mimic that for better DX.
+export const fetchComponentsFromAPI = (fetch, directory) => fetchFromAPI(fetch, directory);
+export const fetchComponentFromAPI = async (fetch, { directory, id }) => {
+    const { components } = await fetchFromAPI(fetch, directory);
+    const [component] = components.filter((c) => {
+        if (c.id !== id)
+            return false;
+        if (c.availability !== 'available')
+            return false;
+        return true;
+    });
+    if (!component)
+        throw new ComponentAPIError(`Component ${id} not found in ${directory}`);
+    return {
+        componentMetadata: component
+    };
+};
+
+=== 21059 src/lib/data/api/data/users.handlers.ts	js
+const USERS_DATA = [
+    {
+        balance: 1750,
+        department: 'Engineering',
+        email: 'a.tompson@company.com',
+        flag: '🇺🇸',
+        id: '1',
+        joinDate: '2023-03-15',
+        lastActive: '2025-01-06',
+        location: 'San Francisco, US',
+        name: 'Alex Thompson',
+        note: 'Key team member in our San Francisco office, leading several major client projects and mentoring junior developers. Consistently exceeds performance targets and maintains excellent client relationships. Recently completed advanced certification in project management and cloud architecture. Scheduled for quarterly performance review and promotion discussion.',
+        performance: 'Excellent',
+        role: 'Senior Developer',
+        status: 'Inactive'
+    },
+    {
+        balance: 600,
+        department: 'Product',
+        email: 'sarah.c@company.com',
+        flag: '🇸🇬',
+        id: '2',
+        joinDate: '2023-06-22',
+        lastActive: '2025-01-11',
+        location: 'Singapore',
+        name: 'Sarah Chen',
+        note: 'Demonstrates exceptional leadership in product strategy and team coordination across APAC region. Successfully launched three major product features in Q4 2024 that increased user engagement by 45%. Currently leading the development of our new mobile platform while mentoring junior product managers and coordinating with global teams.',
+        performance: 'Outstanding',
+        role: 'Product Manager',
+        status: 'Active'
+    },
+    {
+        balance: 650,
+        department: 'Marketing',
+        email: 'j.wilson@company.com',
+        flag: '🇬🇧',
+        id: '3',
+        joinDate: '2023-09-01',
+        lastActive: '2024-12-15',
+        location: 'London, UK',
+        name: 'James Wilson',
+        note: 'Effective in managing marketing campaigns across European markets. Currently working on Q1 2025 marketing strategy and collaborating with the sales team to drive business growth. Developing strong relationships with key stakeholders and implementing innovative marketing initiatives.',
+        performance: 'Good',
+        role: 'Marketing Director',
+        status: 'Inactive'
+    },
+    {
+        balance: 0,
+        department: 'Design',
+        email: 'm.garcia@company.com',
+        flag: '🇪🇸',
+        id: '4',
+        joinDate: '2024-01-10',
+        lastActive: '2025-01-10',
+        location: 'Madrid, Spain',
+        name: 'Maria Garcia',
+        note: 'Collaborating with the development team to improve user experience and leading the design of our new mobile application. Developing strong relationships with key stakeholders and implementing innovative design solutions.',
+        performance: 'Very Good',
+        role: 'UI/UX Designer',
+        status: 'Active'
+    },
+    {
+        balance: 1000,
+        department: 'Engineering',
+        email: 'l.nielsen@company.com',
+        flag: '🇸🇪',
+        id: '5',
+        joinDate: '2023-11-15',
+        lastActive: '2025-01-09',
+        location: 'Stockholm, SE',
+        name: 'Lars Nielsen',
+        note: 'Leading the frontend development of our new user dashboard and collaborating with the design team to improve user experience. Consistently delivers high-quality code and provides valuable feedback to junior developers. Recently completed advanced training in React and Angular.',
+        performance: 'Excellent',
+        role: 'Frontend Developer',
+        status: 'Active'
+    },
+    {
+        balance: 920,
+        department: 'Sales',
+        email: 'e.kowalski@company.com',
+        flag: '🇰🇷',
+        id: '6',
+        joinDate: '2023-07-25',
+        lastActive: '2025-01-08',
+        location: 'Seoul, KR',
+        name: 'Eva Kowalski',
+        note: 'Successfully expanded our client base in the APAC region and developed strong relationships with key stakeholders. Currently working on new market opportunities in South Korea and mentoring junior sales team members. Recently completed advanced training in sales strategy and negotiation techniques.',
+        performance: 'Good',
+        role: 'Sales Manager',
+        status: 'Active'
+    },
+    {
+        balance: 1200,
+        department: 'HR',
+        email: 'e.laurent@company.com',
+        flag: '🇩🇪',
+        id: '7',
+        joinDate: '2023-10-12',
+        lastActive: '2025-01-07',
+        location: 'Berlin, DE',
+        name: 'Emma Laurent',
+        note: 'Implementing new employee wellness programs and improving recruitment processes. Collaborating with the management team to improve company culture and employee engagement. Developing strong relationships with key stakeholders and implementing innovative HR initiatives.',
+        performance: 'Very Good',
+        role: 'HR Manager',
+        status: 'Active'
+    },
+    {
+        balance: 2100,
+        department: 'Finance',
+        email: 'm.rossi@company.com',
+        flag: '🇪🇸',
+        id: '8',
+        joinDate: '2023-08-20',
+        lastActive: '2025-01-05',
+        location: 'Madrid, Spain',
+        name: 'Marco Rossi',
+        note: 'Providing valuable financial insights to support business growth and collaborating with the management team to improve financial planning processes. Successfully implemented cost-saving measures in Q4 2024. Developing strong relationships with key stakeholders and implementing innovative financial initiatives.',
+        performance: 'Excellent',
+        role: 'Financial Analyst',
+        status: 'Active'
+    },
+    {
+        balance: 450,
+        department: 'IT',
+        email: 'y.tanaka@company.com',
+        flag: '🇵🇱',
+        id: '9',
+        joinDate: '2023-05-15',
+        lastActive: '2025-01-04',
+        location: 'Warsaw, PL',
+        name: 'Yuki Tanaka',
+        note: 'Effective in resolving technical issues and improving system efficiency. Collaborating with the development team on new project initiatives and providing technical support to junior team members. Recently completed advanced training in cybersecurity and network administration.',
+        performance: 'Good',
+        role: 'IT Specialist',
+        status: 'Active'
+    },
+    {
+        balance: 1250,
+        department: 'Engineering',
+        email: 'm.allison@company.com',
+        flag: '🇺🇸',
+        id: '10',
+        joinDate: '2023-04-10',
+        lastActive: '2024-12-20',
+        location: 'San Francisco, US',
+        name: 'Mike Allison',
+        note: 'Key contributor to our backend infrastructure development and collaborating with the frontend team to improve user experience. Consistently delivers high-quality code and provides valuable feedback to junior developers. Recently completed advanced training in Node.js and MongoDB.',
+        performance: 'Very Good',
+        role: 'Backend Developer',
+        status: 'Inactive'
+    },
+    {
+        balance: 0,
+        department: 'Marketing',
+        email: 'anna.visconti@company.com',
+        flag: '🇮🇹',
+        id: '11',
+        joinDate: '2024-02-20',
+        lastActive: '2025-01-03',
+        location: 'Rome, IT',
+        name: 'Anna Visconti',
+        note: 'Supporting marketing campaigns across European markets and collaborating with the sales team to drive business growth. Developing strong relationships with key stakeholders and implementing innovative marketing strategies. Recently completed advanced training in social media marketing and content creation.',
+        performance: 'Good',
+        role: 'Marketing Specialist',
+        status: 'Active'
+    },
+    {
+        balance: 890,
+        department: 'Sales',
+        email: 'd.kim@company.com',
+        flag: '🇫🇷',
+        id: '12',
+        joinDate: '2023-06-15',
+        lastActive: '2025-01-02',
+        location: 'Paris, FR',
+        name: 'David Kim',
+        note: 'Consistently meeting sales targets and expanding our client base in European markets. Strong relationship builder with clients and collaborating with the marketing team to drive business growth. Recently completed advanced training in sales strategy and negotiation techniques.',
+        performance: 'Very Good',
+        role: 'Sales Representative',
+        status: 'Active'
+    },
+    {
+        balance: 1890,
+        department: 'Finance',
+        email: 'lucia.sorna@company.com',
+        flag: '🇩🇰',
+        id: '13',
+        joinDate: '2023-03-20',
+        lastActive: '2024-12-18',
+        location: 'Copenhagen, DK',
+        name: 'Lucia Sorna',
+        note: 'Providing strategic financial guidance to support business growth and collaborating with the management team to improve financial planning processes. Developing strong relationships with key stakeholders and implementing innovative financial initiatives. Recently completed advanced training in financial analysis and planning.',
+        performance: 'Excellent',
+        role: 'Financial Manager',
+        status: 'Inactive'
+    },
+    {
+        balance: 1250,
+        department: 'Engineering',
+        email: 'sa.carteron@company.com',
+        flag: '🇺🇸',
+        id: '14',
+        joinDate: '2023-04-25',
+        lastActive: '2024-12-15',
+        location: 'San Francisco, US',
+        name: 'Samuel Carteron',
+        note: 'Leading our cloud infrastructure optimization project and collaborating with the development team to improve system efficiency. Consistently delivers high-quality code and provides valuable feedback to junior developers. Recently completed advanced training in cloud computing and DevOps practices.',
+        performance: 'Very Good',
+        role: 'DevOps Engineer',
+        status: 'Inactive'
+    },
+    {
+        balance: 2100,
+        department: 'Sales',
+        email: 'alex.allan@company.com',
+        flag: '🇧🇷',
+        id: '15',
+        joinDate: '2023-07-10',
+        lastActive: '2025-01-01',
+        location: 'São Paulo, BR',
+        name: 'Alex Allan',
+        note: 'Outstanding performance in Latin American markets and exceeding annual sales targets by 35%. Strong leader and mentor to junior sales team members, providing guidance on sales strategies and market dynamics. Recently completed advanced training in sales leadership and management.',
+        performance: 'Excellent',
+        role: 'Sales Director',
+        status: 'Active'
+    },
+    {
+        balance: 1600,
+        department: 'Marketing',
+        email: 'o.brown@company.com',
+        flag: '🇦🇺',
+        id: '16',
+        joinDate: '2023-09-15',
+        lastActive: '2025-01-01',
+        location: 'Sydney, AU',
+        name: 'Olivia Brown',
+        note: 'Supporting marketing campaigns across APAC markets and collaborating with the sales team to drive business growth. Developing strong relationships with key stakeholders and implementing innovative marketing strategies. Recently completed advanced training in digital marketing and social media management.',
+        performance: 'Good',
+        role: 'Marketing Coordinator',
+        status: 'Active'
+    },
+    {
+        balance: 2200,
+        department: 'Engineering',
+        email: 'h.yamamoto@company.com',
+        flag: '🇯🇵',
+        id: '17',
+        joinDate: '2023-10-25',
+        lastActive: '2025-01-01',
+        location: 'Osaka, JP',
+        name: 'Hiroshi Yamamoto',
+        note: 'Key developer for our Asian market localization project and collaborating with the design team to improve user experience. Consistently delivers high-quality code and provides valuable feedback to junior developers. Recently completed advanced training in software development and testing.',
+        performance: 'Excellent',
+        role: 'Software Engineer',
+        status: 'Active'
+    },
+    {
+        balance: 950,
+        department: 'HR',
+        email: 's.dubois@company.com',
+        flag: '🇨🇦',
+        id: '18',
+        joinDate: '2023-05-20',
+        lastActive: '2024-12-12',
+        location: 'Montreal, CA',
+        name: 'Sophie Dubois',
+        note: 'Supporting employee onboarding and training programs and collaborating with the management team to improve company culture. Developing strong relationships with key stakeholders and implementing innovative HR initiatives. Recently completed advanced training in HR management and employee development.',
+        performance: 'Very Good',
+        role: 'HR Specialist',
+        status: 'Inactive'
+    },
+    {
+        balance: 1800,
+        department: 'Sales',
+        email: 'd.mendoza@company.com',
+        flag: '🇲🇽',
+        id: '19',
+        joinDate: '2023-08-15',
+        lastActive: '2025-01-01',
+        location: 'Mexico City, MX',
+        name: 'Diego Mendoza',
+        note: 'Consistently meeting sales targets and expanding our client base in Latin American markets. Strong relationship builder with clients and collaborating with the marketing team to drive business growth. Recently completed advanced training in sales strategy and negotiation techniques.',
+        performance: 'Good',
+        role: 'Sales Representative',
+        status: 'Active'
+    },
+    {
+        balance: 1350,
+        department: 'Marketing',
+        email: 'l.mueller@company.com',
+        flag: '🇦🇹',
+        id: '20',
+        joinDate: '2023-11-10',
+        lastActive: '2025-01-01',
+        location: 'Vienna, AT',
+        name: 'Lena Müller',
+        note: 'Supporting marketing campaigns across European markets and collaborating with the sales team to drive business growth. Developing strong relationships with key stakeholders and implementing innovative marketing strategies. Recently completed advanced training in digital marketing and social media management.',
+        performance: 'Very Good',
+        role: 'Marketing Specialist',
+        status: 'Active'
+    },
+    {
+        balance: 2500,
+        department: 'Engineering',
+        email: 'r.patel@company.com',
+        flag: '🇮🇳',
+        id: '21',
+        joinDate: '2023-12-15',
+        lastActive: '2025-01-01',
+        location: 'Mumbai, IN',
+        name: 'Raj Patel',
+        note: 'Key developer for our Indian market localization project and collaborating with the design team to improve user experience. Consistently delivers high-quality code and provides valuable feedback to junior developers. Recently completed advanced training in software development and testing.',
+        performance: 'Excellent',
+        role: 'Software Engineer',
+        status: 'Active'
+    },
+    {
+        balance: 1100,
+        department: 'Finance',
+        email: 'a.andersen@company.com',
+        flag: '🇳🇴',
+        id: '22',
+        joinDate: '2023-06-20',
+        lastActive: '2024-12-10',
+        location: 'Oslo, NO',
+        name: 'Astrid Andersen',
+        note: 'Providing financial analysis and insights to support business growth and collaborating with the management team to improve financial planning processes. Developing strong relationships with key stakeholders and implementing innovative financial initiatives. Recently completed advanced training in financial analysis and planning.',
+        performance: 'Good',
+        role: 'Financial Analyst',
+        status: 'Inactive'
+    },
+    {
+        balance: 1950,
+        department: 'Sales',
+        email: 'f.alsayed@company.com',
+        flag: '🇪🇬',
+        id: '23',
+        joinDate: '2023-09-10',
+        lastActive: '2025-01-01',
+        location: 'Cairo, EG',
+        name: 'Fatima Al-Sayed',
+        note: 'Outstanding performance in Middle Eastern markets and exceeding annual sales targets by 25%. Strong leader and mentor to junior sales team members, providing guidance on sales strategies and market dynamics. Recently completed advanced training in sales leadership and management.',
+        performance: 'Excellent',
+        role: 'Sales Manager',
+        status: 'Active'
+    },
+    {
+        balance: 1700,
+        department: 'Marketing',
+        email: 'j.fernandez@company.com',
+        flag: '🇦🇷',
+        id: '24',
+        joinDate: '2023-10-20',
+        lastActive: '2025-01-01',
+        location: 'Buenos Aires, AR',
+        name: 'Javier Fernández',
+        note: 'Supporting marketing campaigns across Latin American markets and collaborating with the sales team to drive business growth. Developing strong relationships with key stakeholders and implementing innovative marketing strategies. Recently completed advanced training in digital marketing and social media management.',
+        performance: 'Good',
+        role: 'Marketing Coordinator',
+        status: 'Active'
+    },
+    {
+        balance: 2300,
+        department: 'Engineering',
+        email: 'z.williams@company.com',
+        flag: '🇳🇿',
+        id: '25',
+        joinDate: '2023-11-25',
+        lastActive: '2025-01-01',
+        location: 'Auckland, NZ',
+        name: 'Zoe Williams',
+        note: 'Key developer for our Australian market localization project and collaborating with the design team to improve user experience. Consistently delivers high-quality code and provides valuable feedback to junior developers. Recently completed advanced training in software development and testing.',
+        performance: 'Excellent',
+        role: 'Software Engineer',
+        status: 'Active'
+    },
+    {
+        balance: 3100,
+        department: 'Sales',
+        email: 'n.petrov@company.com',
+        flag: '🇷🇺',
+        id: '26',
+        joinDate: '2023-12-10',
+        lastActive: '2025-01-01',
+        location: 'Moscow, RU',
+        name: 'Nikolai Petrov',
+        note: 'Outstanding performance in European markets and exceeding annual sales targets by 40%. Strong leader and mentor to junior sales team members, providing guidance on sales strategies and market dynamics. Recently completed advanced training in sales leadership and management.',
+        performance: 'Excellent',
+        role: 'Sales Director',
+        status: 'Active'
+    },
+    {
+        balance: 1850,
+        department: 'Finance',
+        email: 'i.rossi@company.com',
+        flag: '🇮🇹',
+        id: '27',
+        joinDate: '2023-07-20',
+        lastActive: '2024-12-08',
+        location: 'Milan, IT',
+        name: 'Isabella Rossi',
+        note: 'Providing strategic financial guidance to support business growth and collaborating with the management team to improve financial planning processes. Developing strong relationships with key stakeholders and implementing innovative financial initiatives. Recently completed advanced training in financial analysis and planning.',
+        performance: 'Very Good',
+        role: 'Financial Manager',
+        status: 'Inactive'
+    },
+    {
+        balance: 2700,
+        department: 'Engineering',
+        email: 'c.wei@company.com',
+        flag: '🇨🇳',
+        id: '28',
+        joinDate: '2023-11-15',
+        lastActive: '2025-01-01',
+        location: 'Shanghai, CN',
+        name: 'Cheng Wei',
+        note: 'Key developer for our Asian market localization project and collaborating with the design team to improve user experience. Consistently delivers high-quality code and provides valuable feedback to junior developers. Recently completed advanced training in software development and testing.',
+        performance: 'Excellent',
+        role: 'Software Engineer',
+        status: 'Active'
+    },
+    {
+        balance: 1400,
+        department: 'Sales',
+        email: 'l.patel@company.com',
+        flag: '🇰🇪',
+        id: '29',
+        joinDate: '2023-10-15',
+        lastActive: '2025-01-01',
+        location: 'Nairobi, KE',
+        name: 'Licia Patel',
+        note: 'Successfully expanding our presence in East African markets with a focus on enterprise clients. Has developed strong relationships with key stakeholders and implemented innovative sales strategies. Recently completed advanced negotiation training and is mentoring new team members in regional market dynamics and cultural sensitivity training.',
+        performance: 'Good',
+        role: 'Sales Representative',
+        status: 'Active'
+    },
+    {
+        balance: 2050,
+        department: 'Marketing',
+        email: 'm.gonzalez@company.com',
+        flag: '🇨🇴',
+        id: '30',
+        joinDate: '2023-11-20',
+        lastActive: '2025-01-01',
+        location: 'Bogotá, CO',
+        name: 'Mateo Gonzalez',
+        note: 'Leading digital marketing initiatives across Latin America with innovative social media campaigns that increased engagement by 65%. Specializes in data-driven marketing strategies and cross-cultural campaign optimization. Currently expanding our marketing presence in emerging markets while mentoring junior team members in digital marketing best practices.',
+        performance: 'Very Good',
+        role: 'Marketing Specialist',
+        status: 'Active'
+    }
+];
+export const API_V1_USERS_ENDPOINT_HANDLER = {
+    GET: (async ({ setHeaders }) => {
+        setHeaders({
+            'cache-control': 'public, max-age=31536000, immutable, stale-while-revalidate=86400',
+            'Content-Type': 'application/json'
+        });
+        return Response.json(USERS_DATA);
+    })
+};
+
+=== 56 src/lib/data/api/data/users.routes.ts	js
+export const API_V1_USERS_ROUTE = '/api/v1/data/users';
+
+=== 263 src/lib/data/api/data/users.ts	js
+import { createRequestClient } from '../helpers/RequestClient';
+import { API_V1_USERS_ROUTE } from './users.routes';
+export const fetchUsers = async () => {
+    const response = await createRequestClient().requestJSON(API_V1_USERS_ROUTE);
+    return response;
+};
+
+=== 448 src/lib/data/api/helpers/RequestClient.ts	js
+export class RequestClient {
+    fetch;
+    constructor(fetch = globalThis.fetch) {
+        this.fetch = fetch;
+    }
+    async request(url) {
+        const response = await this.fetch(url);
+        return response;
+    }
+    async requestJSON(url) {
+        const response = await this.request(url);
+        return response.json();
+    }
+}
+export const createRequestClient = (fetch = globalThis.fetch) => {
+    return new RequestClient(fetch);
+};
+
+=== 11 src/lib/data/api/helpers/types.ts	js
+export {};
+
+=== 2131 src/lib/data/api/llms.handler.ts	js
+import { getComponentDirectories } from '$lib/componentRegistry';
+import { API_V1_COMPONENTS_ROUTE } from './components/components.route';
+import { llmsMdGenerator } from './llms';
+export const API_V1_LLMS_ENDPOINT_HANDLER = {
+    entries: (async () => {
+        const directories = await getComponentDirectories();
+        return directories.map((directory) => ({ directory }));
+    }),
+    fallback: (async () => {
+        return Response.json({
+            message: "Components llms.txt not available (yet?). Create a new issue if you need this. Not even sure why you're here."
+        }, { status: 404 });
+    }),
+    GET: async (fetch) => {
+        return async ({ params, setHeaders }) => {
+            const { directory } = params;
+            const componentFiles = await fetch(`${API_V1_COMPONENTS_ROUTE}/${directory}.json`);
+            const components = (await componentFiles.json());
+            const systemPrompt = `<SYSTEM>This is the llms.txt documentation for the "${components.meta.directory}" directory of the Origin UI - Svelte project.</SYSTEM>`;
+            // Main title and description following llms.txt spec
+            const sections = [
+                `# "${components.meta.directory}" directory`,
+                '',
+                '> A collection of production-ready, accessible UI components built with Svelte 5 and Tailwind CSS. These components are designed to be drop-in solutions for rapidly building modern web applications.',
+                '',
+                `This documentation covers ${components.meta.fileStats.total} components, each following best practices for accessibility, performance, and type safety.`,
+                '',
+                '## Components',
+                ''
+            ];
+            const md = components.components.map((c) => llmsMdGenerator(c)).join('\n\n');
+            const response = systemPrompt + '\n\n' + sections.join('\n') + '\n\n' + md;
+            setHeaders({
+                'Cache-Control': 'public, max-age=3600',
+                'Content-Type': 'text/markdown'
+            });
+            return new Response(response);
+        };
+    }
+};
+
+=== 43 src/lib/data/api/llms.route.ts	js
+export const API_LLMS_ROUTE = '/llms.txt';
+
+=== 1779 src/lib/data/api/llms.ts	js
+import { GITHUB_REPO_URL } from '$lib/constants';
+export function llmsMdGenerator(component) {
+    const { code: { raw: { content } }, componentDependencies: { list: componentDependencies }, directory, id, name, path } = component;
+    const sections = [];
+    // Title and description following llms.txt spec
+    sections.push(`## ${name}`);
+    sections.push('');
+    sections.push(`> A type-safe, accessible ${name} component for building modern UIs. This component is part of the ${directory} collection.`);
+    sections.push('');
+    // Core information section
+    sections.push('### Core Information');
+    sections.push('');
+    sections.push(`- **Component ID**: \`${id}\``);
+    sections.push(`- **Location**: \`${path}\``);
+    sections.push(`- **Type**: UI Component`);
+    sections.push('');
+    // Usage section
+    sections.push('### Usage');
+    sections.push('');
+    sections.push('```svelte');
+    // Dependencies section if any
+    if (componentDependencies?.length) {
+        sections.push('### Dependencies');
+        sections.push('');
+        sections.push('Required packages and components:');
+        sections.push('');
+        componentDependencies.forEach((dep) => {
+            sections.push(`- [\`${dep.name}\`](${dep.url})${dep.dev ? ' (dev dependency)' : ''}`);
+        });
+        sections.push('');
+    }
+    // Optional section for full implementation
+    sections.push('Full component implementation:');
+    sections.push('');
+    sections.push('```svelte');
+    sections.push(content);
+    sections.push('```');
+    sections.push('');
+    // Links section
+    sections.push('### Links');
+    sections.push('');
+    sections.push(`- [View Source](${GITHUB_REPO_URL}tree/main${path})`);
+    sections.push('');
+    return sections.join('\n');
+}
+
+=== 658 src/lib/demo/component-preview/component-dialog-context.svelte.ts	js
+import { getContext, setContext } from 'svelte';
+const COMPONENT_DIALOG_CTX_KEY = Symbol('ctx:component-dialog');
+class ComponentDialog {
+    #component = $state();
+    constructor(props) {
+        this.#component = props.component;
+    }
+    get component() {
+        return this.#component;
+    }
+    reset() {
+        this.#component = undefined;
+    }
+    setComponent(component) {
+        this.#component = component;
+    }
+}
+export const setComponentDialogCtx = (props) => {
+    return setContext(COMPONENT_DIALOG_CTX_KEY, new ComponentDialog(props));
+};
+export const getComponentDialogCtx = () => {
+    return getContext(COMPONENT_DIALOG_CTX_KEY);
+};
+
+=== 290 src/lib/demo/component-preview/index.ts	js
+import ComponentDialogContextProvider from './component-dialog-context-provider.svelte';
+import ComponentDialog from './component-dialog.svelte';
+export { ComponentDialog, ComponentDialogContextProvider, ComponentDialog as Dialog, ComponentDialogContextProvider as DialogContextProvider };
+
+=== 884 src/lib/demo/ui/dialog/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Content from './dialog-content.svelte';
+import Description from './dialog-description.svelte';
+import Footer from './dialog-footer.svelte';
+import Header from './dialog-header.svelte';
+import Overlay from './dialog-overlay.svelte';
+import Title from './dialog-title.svelte';
+import { Dialog as DialogPrimitive } from 'bits-ui';
+const Root = DialogPrimitive.Root;
+const Trigger = DialogPrimitive.Trigger;
+const Portal = DialogPrimitive.Portal;
+const Close = DialogPrimitive.Close;
+export { Root, Title, Portal, Footer, Header, Trigger, Overlay, Content, Description, Close, 
+//
+Root as Dialog, Title as DialogTitle, Portal as DialogPortal, Footer as DialogFooter, Header as DialogHeader, Trigger as DialogTrigger, Overlay as DialogOverlay, Content as DialogContent, Description as DialogDescription, Close as DialogClose };
+
+=== 901 src/lib/demo/ui/drawer/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Close from './drawer-close.svelte';
+import Content from './drawer-content.svelte';
+import Description from './drawer-description.svelte';
+import Footer from './drawer-footer.svelte';
+import Header from './drawer-header.svelte';
+import Overlay from './drawer-overlay.svelte';
+import Title from './drawer-title.svelte';
+import Trigger from './drawer-trigger.svelte';
+import Root from './drawer.svelte';
+import { Drawer as DrawerPrimitive } from 'vaul-svelte';
+const Portal = DrawerPrimitive.Portal;
+export { Root, Content, Description, Overlay, Footer, Header, Title, Trigger, Portal, Close, 
+//
+Root as Drawer, Content as DrawerContent, Description as DrawerDescription, Overlay as DrawerOverlay, Footer as DrawerFooter, Header as DrawerHeader, Title as DrawerTitle, Trigger as DrawerTrigger, Portal as DrawerPortal, Close as DrawerClose };
+
+=== 863 src/lib/demo/ui/sheet/index.ts	js
+/* eslint-disable perfectionist/sort-named-exports */
+import Content from './sheet-content.svelte';
+import Description from './sheet-description.svelte';
+import Footer from './sheet-footer.svelte';
+import Header from './sheet-header.svelte';
+import Overlay from './sheet-overlay.svelte';
+import Title from './sheet-title.svelte';
+import { Dialog as SheetPrimitive } from 'bits-ui';
+const Root = SheetPrimitive.Root;
+const Close = SheetPrimitive.Close;
+const Trigger = SheetPrimitive.Trigger;
+const Portal = SheetPrimitive.Portal;
+export { Root, Close, Trigger, Portal, Overlay, Content, Header, Footer, Title, Description, 
+//
+Root as Sheet, Close as SheetClose, Trigger as SheetTrigger, Portal as SheetPortal, Overlay as SheetOverlay, Content as SheetContent, Header as SheetHeader, Footer as SheetFooter, Title as SheetTitle, Description as SheetDescription };
+
+=== 543 src/lib/hooks/use-character-limit.svelte.ts	js
+export class CharacterLimit {
+    #value = $state('');
+    characterCount = $derived(this.#value.length);
+    maxLength;
+    constructor(maxLength, initialValue = '') {
+        this.maxLength = maxLength;
+        this.#value = initialValue;
+    }
+    set value(value) {
+        if (value.length <= this.maxLength) {
+            this.#value = value;
+        }
+    }
+    get value() {
+        return this.#value;
+    }
+}
+export function useCharacterLimit(maxLength, initialValue = '') {
+    return new CharacterLimit(maxLength, initialValue);
+}
+
+=== 5258 src/lib/hooks/use-currency-input.svelte.ts	js
+import { tick } from 'svelte';
+export class CurrencyInput {
+    #isInitialLoad = $state(true);
+    #value = $state(0);
+    #id = '';
+    #setValue = () => { };
+    #formatter;
+    #displayValue = $state('');
+    constructor({ currency = 'EUR', id, initialValue = 0, locale = 'de-DE', setValue }) {
+        this.#value = initialValue;
+        this.#setValue = setValue ?? (() => { });
+        this.#id = id;
+        this.#formatter = new Intl.NumberFormat(locale, {
+            currency,
+            currencySign: 'accounting',
+            maximumFractionDigits: 2,
+            minimumFractionDigits: 2,
+            style: 'currency'
+        });
+        this.#displayValue = this.#formatCurrency(initialValue);
+        this.#setValue(this.#displayValue);
+        this.#isInitialLoad = false;
+        $effect(() => {
+            if (!this.#isInitialLoad) {
+                this.#displayValue = this.#formatCurrency(this.#value);
+                this.#setValue(this.#displayValue);
+            }
+        });
+    }
+    decrement = (event) => {
+        const step = event?.shiftKey ? 0.1 : 1;
+        this.#value = Math.max(0, this.#value - step);
+    };
+    increment = (event) => {
+        const step = event?.shiftKey ? 0.1 : 1;
+        this.#value += step;
+    };
+    #formatCurrency(amount) {
+        return this.#formatter.format(amount);
+    }
+    #handleBlur = (event) => {
+        const value = this.#parseLocaleNumber(event.currentTarget.value);
+        if (!Number.isNaN(value)) {
+            this.#value = value;
+        }
+    };
+    #handleFocus = (event) => {
+        const input = event.currentTarget;
+        const numericValue = input.value.replace('.', ',');
+        input.value = numericValue;
+        tick().then(() => {
+            input.setSelectionRange(numericValue.length, numericValue.length);
+        });
+    };
+    #handleInput = (event) => {
+        const input = event.currentTarget;
+        const cleanedInput = input.value.replace(/[^\d,]/g, '');
+        const cursorPosition = input.selectionStart;
+        // Handle empty input
+        if (!cleanedInput) {
+            this.#value = 0;
+            this.#displayValue = this.#formatCurrency(0);
+            this.#setValue(this.#displayValue);
+            return;
+        }
+        this.#updateValue(cleanedInput);
+        tick().then(() => {
+            input.value = this.displayValue;
+            const newCursorPosition = Math.min(cursorPosition ?? 0, input.value.length);
+            input.setSelectionRange(newCursorPosition, newCursorPosition);
+        });
+    };
+    #handleKeyDown = (event) => {
+        // Allow standard keyboard shortcuts (Ctrl+A, Delete, etc.)
+        if (event.ctrlKey || event.metaKey) {
+            return;
+        }
+        switch (event.key) {
+            case 'ArrowDown':
+                event.preventDefault();
+                this.decrement(event);
+                break;
+            case 'ArrowUp':
+                event.preventDefault();
+                this.increment(event);
+                break;
+            case 'Enter':
+                event.currentTarget.blur();
+                break;
+        }
+    };
+    #parseLocaleNumber(stringNumber) {
+        const decimalSeparator = ',';
+        const thousandSeparator = '.';
+        return Number.parseFloat(stringNumber.replace(thousandSeparator, '').replace(decimalSeparator, '.'));
+    }
+    #updateValue(value) {
+        const [integerPart, fractionalPart = ''] = value.split(',');
+        const limitedFractionalPart = fractionalPart.slice(0, 2);
+        const limitedValue = `${integerPart},${limitedFractionalPart}`;
+        const parsedValue = this.#parseLocaleNumber(limitedValue);
+        if (!Number.isNaN(parsedValue)) {
+            this.#value = parsedValue;
+        }
+    }
+    get displayValue() {
+        return this.#displayValue;
+    }
+    get value() {
+        return this.#value;
+    }
+    set value(val) {
+        this.#value = val;
+    }
+    get inputProps() {
+        return {
+            'aria-describedby': `${this.#id}-description`,
+            'aria-label': 'Currency amount',
+            'aria-roledescription': 'Currency input',
+            autocomplete: 'off',
+            autocorrect: 'off',
+            id: this.#id,
+            inputmode: 'numeric',
+            onblur: this.#handleBlur,
+            onfocus: this.#handleFocus,
+            oninput: this.#handleInput,
+            onkeydown: this.#handleKeyDown,
+            spellcheck: false,
+            type: 'text',
+            value: this.displayValue
+        };
+    }
+    get decrementProps() {
+        return {
+            'aria-controls': this.#id,
+            'aria-description': 'Hold Shift to decrease by 10 cents',
+            'aria-label': 'Decrease value',
+            'aria-labelledby': this.#id,
+            id: 'decrement',
+            onclick: (e) => this.decrement(e),
+            tabindex: -1
+        };
+    }
+    get incrementProps() {
+        return {
+            'aria-controls': this.inputProps.id,
+            'aria-description': 'Hold Shift to increase by 10 cents',
+            'aria-label': 'Increase value',
+            'aria-labelledby': this.inputProps.id,
+            id: 'increment',
+            onclick: (e) => this.increment(e),
+            tabindex: -1
+        };
+    }
+}
+
+=== 1602 src/lib/hooks/use-image-upload.svelte.ts	js
+export class ImageUpload {
+    #previewUrl = $state(null);
+    #fileName = $state(null);
+    #fileInput = $state(null);
+    #files = $state(null);
+    #onUpload;
+    constructor(options = {}) {
+        this.#onUpload = options.onUpload;
+        if (options.initialImage) {
+            this.#previewUrl = options.initialImage;
+        }
+    }
+    get previewUrl() {
+        return this.#previewUrl;
+    }
+    get fileName() {
+        return this.#fileName;
+    }
+    get fileInput() {
+        return this.#fileInput;
+    }
+    set fileInput(input) {
+        this.#fileInput = input;
+    }
+    get files() {
+        return this.#files;
+    }
+    set files(files) {
+        this.#files = files;
+        const file = files?.[0];
+        if (file) {
+            this.#fileName = file.name;
+            const url = URL.createObjectURL(file);
+            if (this.#previewUrl) {
+                URL.revokeObjectURL(this.#previewUrl);
+            }
+            this.#previewUrl = url;
+            this.#onUpload?.(url);
+        }
+    }
+    handleThumbnailClick = () => {
+        this.#fileInput?.click();
+    };
+    handleRemove = () => {
+        if (this.#previewUrl) {
+            URL.revokeObjectURL(this.#previewUrl);
+        }
+        this.#previewUrl = null;
+        this.#fileName = null;
+        if (this.#fileInput) {
+            this.#fileInput.value = '';
+        }
+        this.#files = null;
+    };
+    destroy() {
+        if (this.#previewUrl) {
+            URL.revokeObjectURL(this.#previewUrl);
+        }
+    }
+}
+export function useImageUpload(options) {
+    return new ImageUpload(options);
+}
+
+=== 2215 src/lib/hooks/use-local-storage.svelte.ts	js
+import { on } from 'svelte/events';
+import { createSubscriber } from 'svelte/reactivity';
+export class LocalStorage {
+    #key;
+    #value;
+    #update;
+    #subscribe = createSubscriber((update) => {
+        this.#update = update;
+        return on(window, 'storage', (e) => {
+            if (e.storageArea !== localStorage)
+                return;
+            if (e.key !== this.#key)
+                return;
+            update();
+        });
+    });
+    constructor(key, initial) {
+        this.#key = key;
+        this.#value = initial;
+        if (typeof localStorage !== 'undefined') {
+            if (localStorage.getItem(key) === null) {
+                localStorage.setItem(key, JSON.stringify(initial));
+            }
+        }
+    }
+    get current() {
+        this.#subscribe();
+        const root = typeof localStorage !== 'undefined'
+            ? JSON.parse(localStorage.getItem(this.#key))
+            : this.#value;
+        const proxies = new WeakMap();
+        const proxy = (value) => {
+            if (typeof value !== 'object' || value === null) {
+                return value;
+            }
+            let p = proxies.get(value);
+            if (!p) {
+                p = new Proxy(value, {
+                    get: (target, property) => {
+                        this.#subscribe();
+                        return proxy(Reflect.get(target, property));
+                    },
+                    set: (target, property, value) => {
+                        Reflect.set(target, property, value);
+                        if (typeof localStorage !== 'undefined') {
+                            localStorage.setItem(this.#key, JSON.stringify(root));
+                        }
+                        this.#update?.();
+                        return true;
+                    }
+                });
+                proxies.set(value, p);
+            }
+            return p;
+        };
+        return proxy(root);
+    }
+    set current(value) {
+        if (typeof localStorage !== 'undefined') {
+            localStorage.setItem(this.#key, JSON.stringify(value));
+        }
+        this.#update?.();
+    }
+}
+export function useLocalStorage(key, initial) {
+    return new LocalStorage(key, initial);
+}
+
+=== 821 src/lib/hooks/use-locale.svelte.ts	js
+import { getContext, setContext } from 'svelte';
+const LOCALE_CONTEXT_KEY = Symbol('ctx:locale');
+export class LocaleManager {
+    #locale = $state('');
+    constructor(options = {}) {
+        this.#locale = options.locale ?? getDefaultLocale();
+    }
+    get locale() {
+        return this.#locale;
+    }
+    set locale(value) {
+        this.#locale = value;
+    }
+}
+export function useLocale(options = {}) {
+    const contextLocale = getContext(LOCALE_CONTEXT_KEY);
+    if (contextLocale) {
+        return contextLocale;
+    }
+    const localeManager = new LocaleManager(options);
+    setContext(LOCALE_CONTEXT_KEY, localeManager);
+    return localeManager;
+}
+function getDefaultLocale() {
+    if (typeof navigator !== 'undefined' && navigator.language) {
+        return navigator.language;
+    }
+    return 'en-US';
+}
+
+=== 1678 src/lib/hooks/use-pagination.svelte.ts	js
+export class Pagination {
+    currentPage = $state(1);
+    totalPages = $state(1);
+    #itemsCount = $state(5);
+    showLeftEllipsis = $derived(this.currentPage > Math.ceil(this.#itemsCount / 2));
+    showRightEllipsis = $derived(this.totalPages - this.currentPage >= Math.ceil(this.#itemsCount / 2));
+    pages = $derived.by(() => {
+        if (this.totalPages <= this.#itemsCount) {
+            return Array.from({ length: this.totalPages }, (_, i) => i + 1);
+        }
+        const half = Math.floor(this.#itemsCount / 2);
+        let start = Math.max(1, this.currentPage - half);
+        let end = Math.min(this.totalPages, start + this.#itemsCount - 1);
+        if (end === this.totalPages) {
+            start = Math.max(1, end - this.#itemsCount + 1);
+        }
+        else if (start === 1) {
+            end = Math.min(this.totalPages, this.#itemsCount);
+        }
+        if (this.showLeftEllipsis)
+            start++;
+        if (this.showRightEllipsis)
+            end--;
+        return Array.from({ length: end - start + 1 }, (_, i) => start + i);
+    });
+    constructor(props) {
+        this.currentPage = props.currentPage;
+        this.#itemsCount = props.paginationItemsToDisplay;
+        this.totalPages = props.totalPages;
+    }
+    setPage(newPage) {
+        if (newPage >= 1 && newPage <= this.totalPages) {
+            this.currentPage = newPage;
+        }
+    }
+    updateTotalPages(count) {
+        if (count >= 1) {
+            this.totalPages = count;
+            if (this.currentPage > count) {
+                this.currentPage = count;
+            }
+        }
+    }
+}
+export function usePagination(options) {
+    return new Pagination(options);
+}
+
+=== 1899 src/lib/hooks/use-password-strength.svelte.ts	js
+const DEFAULT_REQUIREMENTS = [
+    { regex: /.{8,}/, text: 'At least 8 characters' },
+    { regex: /[0-9]/, text: 'At least 1 number' },
+    { regex: /[a-z]/, text: 'At least 1 lowercase letter' },
+    { regex: /[A-Z]/, text: 'At least 1 uppercase letter' }
+];
+export class PasswordStrength {
+    #password = $state('');
+    #isVisible = $state(false);
+    id;
+    requirements = DEFAULT_REQUIREMENTS;
+    constructor(options) {
+        this.id = options.id;
+        this.#password = options.initialPassword ?? '';
+        if (options.requirements) {
+            this.requirements = options.requirements;
+        }
+        this.toggleVisibility = this.toggleVisibility.bind(this);
+    }
+    get password() {
+        return this.#password;
+    }
+    set password(value) {
+        this.#password = value;
+    }
+    get isVisible() {
+        return this.#isVisible;
+    }
+    toggleVisibility = () => {
+        this.#isVisible = !this.#isVisible;
+    };
+    strength = $derived(this.requirements.map((req) => ({
+        met: req.regex.test(this.#password),
+        text: req.text
+    })));
+    strengthScore = $derived(this.strength.filter((req) => req.met).length);
+    get strengthColor() {
+        if (this.strengthScore === 0)
+            return 'bg-border';
+        if (this.strengthScore <= 1)
+            return 'bg-red-500';
+        if (this.strengthScore <= 2)
+            return 'bg-orange-500';
+        if (this.strengthScore === 3)
+            return 'bg-amber-500';
+        return 'bg-emerald-500';
+    }
+    get strengthText() {
+        if (this.strengthScore === 0)
+            return 'Enter a password';
+        if (this.strengthScore <= 2)
+            return 'Weak password';
+        if (this.strengthScore === 3)
+            return 'Medium password';
+        return 'Strong password';
+    }
+}
+export function usePasswordStrength(options) {
+    return new PasswordStrength(options);
+}
+
+=== 2431 src/lib/hooks/use-slider-with-input.svelte.ts	js
+export class SliderWithInput {
+    minValue;
+    maxValue;
+    defaultValue;
+    sliderValue = $state([]);
+    inputValues = $state([]);
+    constructor({ minValue = 0, defaultValue = [minValue], initialValue = [minValue], maxValue = 100 } = {}) {
+        this.minValue = minValue;
+        this.maxValue = maxValue;
+        this.defaultValue = defaultValue;
+        this.sliderValue = [...initialValue];
+        this.inputValues = initialValue.map((v) => v.toString());
+        this.handleSliderChange = this.handleSliderChange.bind(this);
+        this.resetToDefault = this.resetToDefault.bind(this);
+        this.validateAndUpdateValue = this.validateAndUpdateValue.bind(this);
+        this.handleInputChange = this.handleInputChange.bind(this);
+    }
+    get showReset() {
+        return (this.sliderValue.length === this.defaultValue.length &&
+            !this.sliderValue.every((value, index) => value === this.defaultValue[index]));
+    }
+    validateAndUpdateValue = (rawValue, index) => {
+        if (rawValue === '' || rawValue === '-') {
+            this.inputValues[index] = '0';
+            this.sliderValue[index] = 0;
+            return;
+        }
+        const numValue = parseFloat(rawValue);
+        if (isNaN(numValue)) {
+            this.inputValues[index] = this.sliderValue[index].toString();
+            return;
+        }
+        let clampedValue = Math.min(this.maxValue, Math.max(this.minValue, numValue));
+        if (this.sliderValue.length > 1) {
+            if (index === 0) {
+                clampedValue = Math.min(clampedValue, this.sliderValue[1]);
+            }
+            else {
+                clampedValue = Math.max(clampedValue, this.sliderValue[0]);
+            }
+        }
+        this.sliderValue[index] = clampedValue;
+        this.inputValues[index] = clampedValue.toString();
+    };
+    handleInputChange = (e, index) => {
+        const target = e.target;
+        const newValue = target.value;
+        if (newValue === '' || /^-?\d*\.?\d*$/.test(newValue)) {
+            this.inputValues[index] = newValue;
+        }
+    };
+    handleSliderChange = () => {
+        this.inputValues = this.sliderValue.map((v) => v.toString());
+    };
+    resetToDefault = () => {
+        this.sliderValue = [...this.defaultValue];
+        this.inputValues = this.defaultValue.map((v) => v.toString());
+    };
+}
+export function useSliderWithInput(props = {}) {
+    return new SliderWithInput(props);
+}
+
+=== 2358 src/lib/server/redirects/config.ts	js
+const OLD_COMPONENT_ROUTES = {
+    accordions: {
+        componentDirectory: ['accordions'],
+        path: 'accordions'
+    },
+    alertsNotificationsBanners: {
+        componentDirectory: ['alerts', 'notifications', 'banners'],
+        path: 'alerts-notifications-banners'
+    },
+    avatarAndBadges: {
+        componentDirectory: ['avatars', 'badges'],
+        path: 'avatar-badges'
+    },
+    breadcrumbsAndPaginations: {
+        componentDirectory: ['breadcrumbs', 'paginations'],
+        path: 'breadcrumbs-paginations'
+    },
+    buttons: {
+        componentDirectory: ['buttons'],
+        path: 'buttons'
+    },
+    checkboxesRadiosSwitches: {
+        componentDirectory: ['checkboxes', 'radios', 'switches'],
+        path: 'checks-radios-switches'
+    },
+    dialogs: {
+        componentDirectory: ['dialogs'],
+        path: 'dialogs'
+    },
+    dropdownsPopovers: {
+        componentDirectory: ['dropdowns', 'popovers'],
+        path: 'dropdowns-popovers'
+    },
+    inputsTextareas: {
+        componentDirectory: ['inputs', 'textareas'],
+        path: 'inputs'
+    },
+    selects: {
+        componentDirectory: ['selects'],
+        path: 'selects'
+    },
+    sliders: {
+        componentDirectory: ['sliders'],
+        path: 'sliders'
+    },
+    tabs: {
+        componentDirectory: ['tabs'],
+        path: 'tabs'
+    },
+    tooltipsHovercards: {
+        componentDirectory: ['tooltips', 'hover-cards'],
+        path: 'tooltips'
+    }
+};
+// Create redirects from COMPONENT_ROUTES
+function createRedirectsFromRoutes() {
+    const redirects = {};
+    Object.values(OLD_COMPONENT_ROUTES).forEach((route) => {
+        const oldPath = `/${route.path}`;
+        const newPath = `/${route.componentDirectory[0]}`;
+        // Create directory mappings
+        const directoryMappings = {};
+        route.componentDirectory.forEach((dir) => {
+            // Each directory in the array maps to its own base path
+            directoryMappings[dir] = `/${dir}`;
+        });
+        // Only add the redirect if the old path is different from the new path
+        if (oldPath !== newPath) {
+            redirects[oldPath] = {
+                componentDirectories: directoryMappings,
+                destination: newPath,
+                dynamic: true
+            };
+        }
+    });
+    return redirects;
+}
+export const redirects = createRedirectsFromRoutes();
+
+=== 1573 src/lib/server/redirects/handler.ts	js
+import { redirect } from '@sveltejs/kit';
+export function checkRedirect(path, redirects) {
+    // Check for exact matches first
+    const exactMatch = redirects[path];
+    if (exactMatch) {
+        return {
+            destination: exactMatch.destination,
+            shouldRedirect: true
+        };
+    }
+    // Then check for dynamic routes
+    for (const [source, config] of Object.entries(redirects)) {
+        if (config.dynamic && path.startsWith(source + '/')) {
+            const { directory, id } = getComponentParts(path);
+            // If no directory or id, just do the basic redirect
+            if (!directory || !id) {
+                return {
+                    destination: path.replace(source, config.destination),
+                    shouldRedirect: true
+                };
+            }
+            // Check if we have a mapping for this directory
+            const newBasePath = config.componentDirectories?.[directory];
+            if (newBasePath) {
+                // Redirect to the new base path with just the ID
+                return {
+                    destination: `${newBasePath}/${id}`,
+                    shouldRedirect: true
+                };
+            }
+        }
+    }
+    return {
+        shouldRedirect: false
+    };
+}
+export function createRedirectResponse(destination, status = 301) {
+    redirect(status, destination);
+}
+function getComponentParts(path) {
+    const parts = path.split('/').filter(Boolean);
+    if (parts.length < 2)
+        return {};
+    return {
+        directory: parts[1],
+        id: parts[2]
+    };
+}
+
+=== 11 src/lib/types/helpers.ts	js
+export {};
+
+=== 139 src/lib/utils.ts	js
+import { clsx } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+export function cn(...inputs) {
+    return twMerge(clsx(inputs));
+}
+
+=== 1797 src/lib/utils/codePreview.ts	js
+import { createHighlighterCore } from 'shiki/core';
+import { createOnigurumaEngine } from 'shiki/engine/oniguruma';
+import githubDarkDefault from 'shiki/themes/github-dark-default.mjs';
+import githubLightDefault from 'shiki/themes/github-light-default.mjs';
+let highlighterInstance = null;
+let highlighterPromise = null;
+export async function highlighterSvelte(code, options = {}) {
+    const instance = await createHighlighterInstance();
+    const html = instance.codeToHtml(code, {
+        lang: 'svelte',
+        meta: {
+            'data-lang': 'svelte'
+        },
+        themes: {
+            dark: 'github-dark-default',
+            light: 'github-light-default'
+        },
+        ...options
+    });
+    return html;
+}
+export async function highlighterZsh(code, options = {}) {
+    const instance = await createHighlighterInstance();
+    return instance.codeToHtml(code, {
+        lang: 'zsh',
+        meta: {
+            'data-lang': 'zsh'
+        },
+        themes: {
+            dark: 'github-dark-default',
+            light: 'github-light-default'
+        },
+        ...options
+    });
+}
+async function createHighlighterInstance() {
+    // Return existing instance if available
+    if (highlighterInstance)
+        return highlighterInstance;
+    // Return in-progress initialization if one exists
+    if (highlighterPromise)
+        return highlighterPromise;
+    // Create new initialization promise
+    highlighterPromise = createHighlighterCore({
+        engine: createOnigurumaEngine(import('shiki/wasm')),
+        langs: [import('shiki/langs/svelte.mjs'), import('shiki/langs/zsh.mjs')],
+        themes: [githubDarkDefault, githubLightDefault]
+    }).then((instance) => {
+        highlighterInstance = instance;
+        return instance;
+    });
+    return highlighterPromise;
+}
+
+=== 4407 src/lib/utils/handleComponentSource.ts	js
+import { highlighterSvelte, highlighterZsh } from './codePreview.js';
+import { ENHANCED_IMAGE_REGEX, POSSIBLE_DEPENDENCIES } from '$lib/constants.js';
+const IMPORTS_REGEX = /(?<=(?:import|export)[^`'"]*from\s+[`'"])(?<path1>[^`'"]+)(?=[`'"])|(?:import|export)(?:\s+|\s*\(\s*)[`'"](?<path2>[|'"`])/g;
+const getImports = () => {
+    return {
+        compiled: import.meta.glob([
+            '/src/lib/components/**/*.svelte',
+            '!$lib/components/_extras/**/*.svelte',
+            '!/src/lib/components/ui/**/*.svelte'
+        ], {
+            eager: false,
+            import: 'default'
+        }),
+        source: import.meta.glob([
+            '/src/lib/components/**/*.svelte',
+            '!$lib/components/_extras/**/*.svelte',
+            '!/src/lib/components/ui/**/*.svelte'
+        ], {
+            eager: false,
+            import: 'default',
+            query: '?raw'
+        })
+    };
+};
+export async function getComponentSource(directory, componentName) {
+    const path = buildComponentPath(directory, componentName);
+    const imports = getImports();
+    const importFn = imports.source[path];
+    const processedComponentSource = await processComponentSource(await importFn());
+    const componentState = {
+        isAvailable: !componentName.includes('.todo'),
+        isTodo: componentName.includes('.todo')
+    };
+    if (componentState.isTodo) {
+        return {
+            ...processedComponentSource,
+            availability: 'todo',
+            directory,
+            id: componentName,
+            name: componentName.replace('.todo', ''),
+            path
+        };
+    }
+    return {
+        ...processedComponentSource,
+        availability: 'available',
+        directory,
+        id: componentName,
+        name: componentName,
+        path
+    };
+}
+function buildComponentPath(directory, componentName) {
+    return `/src/lib/components/${directory}/${componentName}.svelte`;
+}
+function getDependencies(source) {
+    const dependencies = new Set();
+    const matches = source.matchAll(IMPORTS_REGEX);
+    for (const match of matches) {
+        const importPath = match[1] || match[2];
+        const matchingDeps = POSSIBLE_DEPENDENCIES.filter((dep) => importPath.includes(dep.name));
+        matchingDeps.forEach((dep) => dependencies.add(dep));
+    }
+    const enhancedImageMatch = source.match(ENHANCED_IMAGE_REGEX);
+    if (enhancedImageMatch) {
+        dependencies.add({
+            dev: true,
+            //@ts-expect-error  - isn't a direct dependency, but must be treated as such
+            name: 'enhanced-image',
+            //@ts-expect-error  - isn't a direct dependency, but must be treated as such
+            packageName: '@sveltejs/enhanced-img',
+            //@ts-expect-error  - isn't a direct dependency, but must be treated as such
+            url: 'https://www.npmjs.com/package/@sveltejs/enhanced-img'
+        });
+    }
+    const sortedDependencies = Array.from(dependencies.values()).sort((a, b) => Number(a.dev) - Number(b.dev));
+    if (sortedDependencies.length === 0)
+        return [];
+    return sortedDependencies;
+}
+function getDependenciesInstallCommand(dependencies) {
+    if (dependencies.length === 0)
+        return '';
+    let command = '';
+    const deps = dependencies.filter((d) => !d.dev).map((d) => d.packageName);
+    const devDeps = dependencies.filter((d) => d.dev).map((d) => d.packageName);
+    if (devDeps.length)
+        command += `pnpm i -D ${devDeps.join(' ')}`;
+    if (deps.length) {
+        if (command)
+            command += ' && ';
+        command += `pnpm i ${deps.join(' ')}`;
+    }
+    return command;
+}
+async function processComponentSource(rawSource) {
+    const dependencies = getDependencies(rawSource);
+    const dependenciesInstallCommand = getDependenciesInstallCommand(dependencies);
+    const [highlightedCleanedSource, highlightedInstallCommand] = await Promise.all([
+        highlighterSvelte(rawSource),
+        highlighterZsh(dependenciesInstallCommand)
+    ]);
+    return {
+        code: {
+            highlighted: { content: highlightedCleanedSource },
+            raw: { content: rawSource }
+        },
+        componentDependencies: {
+            command: {
+                highlighted: { content: dependenciesInstallCommand ? highlightedInstallCommand : '' },
+                raw: { content: dependenciesInstallCommand }
+            },
+            list: dependencies
+        }
+    };
+}
+
+=== 196 src/params/componentDirectory.ts	js
+import { OUI_DIRECTORIES } from '$lib/componentRegistry.components';
+export const match = ((param) => {
+    return Object.values(OUI_DIRECTORIES).some(({ directory }) => directory === param);
+});
+
+=== 348 src/params/componentId.ts	js
+import { OUI_DIRECTORIES } from '$lib/componentRegistry.components';
+export const match = ((param) => {
+    return Object.values(OUI_DIRECTORIES).some((route) => route.components.some((componentId) => {
+        const componentName = componentId.split('.');
+        return !componentId.includes('.todo.') && componentName[0] === param;
+    }));
+});
+
+=== 320 src/routes/(api)/api/v1/components/[directory=componentDirectory].json/+server.ts	js
+import { API_V1_COMPONENTS_ENDPOINT_HANDLER } from '$data/api/components/components.handler';
+export const prerender = true;
+export const entries = API_V1_COMPONENTS_ENDPOINT_HANDLER.entries;
+export const GET = API_V1_COMPONENTS_ENDPOINT_HANDLER.GET;
+export const fallback = API_V1_COMPONENTS_ENDPOINT_HANDLER.fallback;
+
+=== 168 src/routes/(api)/api/v1/components/_meta.json/+server.ts	js
+import { API_V1_COMPONENTS_META_ENDPOINT_HANDLER } from '$lib/data/api/components/_meta/_meta.handler';
+export const GET = API_V1_COMPONENTS_META_ENDPOINT_HANDLER.GET;
+
+=== 164 src/routes/(api)/api/v1/data/users/+server.ts	js
+import { API_V1_USERS_ENDPOINT_HANDLER } from '$data/api/data/users.handlers';
+export const prerender = true;
+export const GET = API_V1_USERS_ENDPOINT_HANDLER.GET;
+
+=== 1745 src/routes/(components)/[directory=componentDirectory]/+page.server.ts	js
+import { dev } from '$app/environment';
+import { fetchComponentsFromAPI } from '$data/api/components/components';
+import { PROJECT_NAME, SEO_DELIMITER } from '$lib/config';
+function generatePageHeader(directory, componentData) {
+    const { completed, total } = componentData.meta.fileStats;
+    if (completed === total) {
+        return {
+            description: `A growing collection of ${total}
+		${directory} components built with Svelte and Tailwind CSS.`,
+            title: directory.charAt(0).toUpperCase() + directory.slice(1)
+        };
+    }
+    return {
+        description: `A growing collection of ${completed}/${total}
+		${directory} components built with Svelte and Tailwind CSS.`,
+        title: directory.charAt(0).toUpperCase() + directory.slice(1)
+    };
+}
+function generateSEO(directory, componentsData) {
+    return {
+        description: `An extensive collection of ${componentsData.meta.fileStats.completed} copy-and-paste ${componentsData.meta.directory} components built with Svelte and TailwindCSS. Open-source and ready to drop into your projects.`,
+        title: `${directory} ${SEO_DELIMITER} Svelte Components ${SEO_DELIMITER} ${PROJECT_NAME}`
+    };
+}
+export const load = (async ({ fetch, params, setHeaders }) => {
+    const { directory } = params;
+    const componentsData = await fetchComponentsFromAPI(fetch, directory);
+    // Set caching headers for production
+    if (!dev) {
+        setHeaders({
+            'cache-control': 'public, max-age=31536000, immutable, stale-while-revalidate=86400'
+        });
+    }
+    return {
+        componentsData,
+        pageHeader: generatePageHeader(directory, componentsData),
+        path: directory,
+        SEO: generateSEO(directory, componentsData)
+    };
+});
+
+=== 880 src/routes/(components)/[directory=componentDirectory]/+page.ts	js
+export const load = (async ({ data }) => {
+    const { componentsData: serverComponentsData, ...rest } = data;
+    const componentPromises = serverComponentsData.components.map(async (componentData) => {
+        try {
+            const Component = (await import(`$lib/components/${componentData.directory}/${componentData.id}.svelte`).then((module) => module.default));
+            return {
+                ...componentData,
+                Component
+            };
+        }
+        catch (error) {
+            console.error(`Failed to load component ${componentData.path}:`, error);
+            return {
+                ...componentData,
+                Component: null
+            };
+        }
+    });
+    return {
+        componentsData: {
+            ...serverComponentsData,
+            components: await Promise.all(componentPromises)
+        },
+        ...rest
+    };
+});
+
+=== 110 src/routes/(components)/[directory=componentDirectory]/[id=componentId]/+layout.ts	js
+//If we prerender this routes, we will reach the limit of Cloudflare Pages...
+export const prerender = false;
+
+=== 325 src/routes/(components)/[directory=componentDirectory]/[id=componentId]/+page.server.ts	js
+import { fetchComponentFromAPI } from '$data/api/components/components.js';
+export const load = (async ({ fetch, params }) => {
+    const { directory, id } = params;
+    const { componentMetadata } = await fetchComponentFromAPI(fetch, {
+        directory,
+        id
+    });
+    return {
+        componentMetadata
+    };
+});
+
+=== 702 src/routes/(components)/[directory=componentDirectory]/[id=componentId]/+page.ts	js
+import { error } from '@sveltejs/kit';
+export const load = (async ({ data }) => {
+    const { componentMetadata: serverComponentMetadata } = data;
+    const componentMetadata = await import(`$lib/components/${serverComponentMetadata.directory}/${serverComponentMetadata.id}.svelte`)
+        .then((module) => module.default)
+        .catch((e) => {
+        console.error(`Failed to load component ${serverComponentMetadata.id}:`, e);
+        error(500, 'Failed to load component');
+    });
+    if (!componentMetadata)
+        error(500, 'Failed to load component');
+    return {
+        component: {
+            ...serverComponentMetadata,
+            Component: componentMetadata
+        }
+    };
+});
+
+=== 1034 src/routes/(llms.txt)/llms.txt/+server.ts	js
+import { API_V1_LLMS_ENDPOINT_HANDLER } from '$data/api/llms.handler';
+export const prerender = true;
+export const GET = (async ({ setHeaders }) => {
+    const directories = await API_V1_LLMS_ENDPOINT_HANDLER.entries();
+    const sections = [];
+    sections.push('# Origin UI - Svelte Documentation for LLMs');
+    sections.push('');
+    sections.push(`> Origin UI - Svelte is an extensive collection of copy-and-paste components for quickly building app UIs. It's free, open-source, and ready to drop into your projects. Built with Tailwind CSS and Svelte.`);
+    sections.push('');
+    sections.push('## Individual Component Directories Documentation');
+    sections.push('');
+    directories.forEach(({ directory }) => {
+        const url = `https://originui-svelte.pages.dev/llms/${directory}.txt`;
+        sections.push(`- [${directory}](${url})`);
+    });
+    setHeaders({
+        cacheControl: 'public, max-age=0, must-revalidate',
+        contentType: 'text/markdown'
+    });
+    return new Response(sections.join('\n'));
+});
+
+=== 375 src/routes/(llms.txt)/llms/[directory=componentDirectory].txt/+server.ts	js
+import { API_V1_LLMS_ENDPOINT_HANDLER } from '$data/api/llms.handler';
+export const prerender = true;
+export const entries = API_V1_LLMS_ENDPOINT_HANDLER.entries;
+export const fallback = API_V1_LLMS_ENDPOINT_HANDLER.fallback;
+export const GET = (async ({ fetch, ...rest }) => {
+    const handler = await API_V1_LLMS_ENDPOINT_HANDLER.GET(fetch);
+    return handler(rest);
+});
+
+=== 1406 src/routes/+layout.server.ts	js
+import { getComponentRegistry } from '$lib/componentRegistry';
+export const load = (async () => {
+    const instance = await getComponentRegistry();
+    const files = instance.getRegistryMetaData();
+    const entries = Object.entries(files.directoriesBreakdown);
+    const links = entries.map(([directory, metadata]) => ({
+        components: {
+            'aria-label': 'Raw JSON for ' + directory,
+            href: metadata.apiUrl,
+            label: directory + '.json'
+        },
+        llms: {
+            'aria-label': 'LLMs.txt for ' + directory,
+            href: metadata.llmsTextUrl,
+            label: 'llms/' + directory + '.txt'
+        }
+    }));
+    const footerLinks = [
+        {
+            links: [
+                {
+                    'aria-label': 'LLMs.txt for all components',
+                    href: '/llms.txt',
+                    label: 'llms.txt'
+                },
+                ...links.map((link) => link.llms)
+            ],
+            title: 'llms.txt'
+        },
+        {
+            links: [
+                {
+                    'aria-label': 'Raw JSON for all components',
+                    href: '/api/v1/components/_meta.json',
+                    label: '_meta.json'
+                },
+                ...links.map((link) => link.components)
+            ],
+            title: 'components.json'
+        }
+    ];
+    return {
+        footerLinks
+    };
+});
+
+=== 257 src/routes/+page.server.ts	js
+import { getComponentMetaAPIResponseJSON } from '$data/api/components/_meta/_meta.query';
+export const load = (async ({ locals }) => {
+    const componentsMeta = await getComponentMetaAPIResponseJSON(locals.serverClient);
+    return { componentsMeta };
+});
+
+=== 444 vite.config.ts	js
+/// <reference types="vitest" />
+import Icons from 'unplugin-icons/vite';
+import { defineConfig } from 'vite';
+import { enhancedImages } from '@sveltejs/enhanced-img';
+import { sveltekit } from '@sveltejs/kit/vite';
+import tailwindcss from '@tailwindcss/vite';
+export default defineConfig({
+    plugins: [
+        tailwindcss(),
+        enhancedImages(),
+        sveltekit(),
+        Icons({
+            compiler: 'svelte'
+        })
+    ]
+});
+
+=== 467 vitest-setup-client.ts	js
+import '@testing-library/jest-dom/vitest';
+import { vi } from 'vitest';
+// required for svelte5 + jsdom as jsdom does not support matchMedia
+Object.defineProperty(window, 'matchMedia', {
+    enumerable: true,
+    value: vi.fn().mockImplementation((query) => ({
+        addEventListener: vi.fn(),
+        dispatchEvent: vi.fn(),
+        matches: false,
+        media: query,
+        onchange: null,
+        removeEventListener: vi.fn()
+    })),
+    writable: true
+});
+
+=== 974 vitest.config.ts	js
+import { svelteTesting } from '@testing-library/svelte/vite';
+import { defineConfig } from 'vitest/config';
+export default defineConfig({
+    test: {
+        workspace: [
+            {
+                extends: './vite.config.ts',
+                plugins: [svelteTesting()],
+                test: {
+                    clearMocks: true,
+                    environment: 'jsdom',
+                    exclude: ['src/lib/server/**'],
+                    include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+                    name: 'client',
+                    setupFiles: ['./vitest-setup-client.ts']
+                }
+            },
+            {
+                extends: './vite.config.ts',
+                test: {
+                    environment: 'node',
+                    exclude: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+                    include: ['src/**/*.{test,spec}.{js,ts}'],
+                    name: 'server'
+                }
+            }
+        ]
+    }
+});
+

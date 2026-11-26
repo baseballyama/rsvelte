@@ -1,0 +1,277 @@
+# rsvelte pack 1
+=== 481 src/index.ts	js
+import Chart from './Chart.svelte';
+import Line from './Line.svelte';
+import Radar from './Radar.svelte';
+import Doughnut from './Doughnut.svelte';
+import Pie from './Pie.svelte';
+import Bar from './Bar.svelte';
+import PolarArea from './PolarArea.svelte';
+import Bubble from './Bubble.svelte';
+import Scatter from './Scatter.svelte';
+export * from './types/index.js';
+export * from './utils/index.js';
+export { Chart, Line, Radar, Doughnut, Pie, Bar, Scatter, Bubble, PolarArea };
+
+=== 11 src/types/chart.ts	js
+export {};
+
+=== 28 src/types/index.ts	js
+export * from './chart.js';
+
+=== 867 src/utils/events.ts	js
+/**
+ * Get dataset from mouse click event
+ * @param chart - Chart.js instance
+ * @param event - Mouse click event
+ * @returns Dataset
+ */
+export function getDatasetAtEvent(chart, event) {
+    return chart.getElementsAtEventForMode(event, 'dataset', { intersect: true }, false);
+}
+/**
+ * Get single dataset element from mouse click event
+ * @param chart - Chart.js instance
+ * @param event - Mouse click event
+ * @returns Dataset
+ */
+export function getElementAtEvent(chart, event) {
+    return chart.getElementsAtEventForMode(event, 'nearest', { intersect: true }, false);
+}
+/**
+ * Get all dataset elements from mouse click event
+ * @param chart - Chart.js instance
+ * @param event - Mouse click event
+ * @returns Dataset
+ */
+export function getElementsAtEvent(chart, event) {
+    return chart.getElementsAtEventForMode(event, 'index', { intersect: true }, false);
+}
+
+=== 29 src/utils/index.ts	js
+export * from './events.js';
+
+=== 816 test/Bar.spec.ts	js
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/svelte/svelte5';
+import 'chart.js/auto';
+import { Bar } from '../src/index.js';
+import { data } from '../sandboxes/bar/components/data.js';
+const options = {
+    responsive: true,
+};
+describe('Bar Chart', () => {
+    it('should render a canvas', () => {
+        const { container } = render(Bar);
+        const canvas = container.querySelector('canvas');
+        expect(canvas).not.toBeNull();
+    });
+    it('should pass data prop', () => {
+        const component = render(Bar, { props: { data } });
+        expect(() => component).not.toThrow();
+    });
+    it('should pass options prop', () => {
+        const component = render(Bar, { props: { data, options } });
+        expect(() => component).not.toThrow();
+    });
+});
+
+=== 834 test/Bubble.spec.ts	js
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/svelte/svelte5';
+import 'chart.js/auto';
+import { Bubble } from '../src/index.js';
+import { data } from '../sandboxes/bubble/components/data.js';
+const options = {
+    responsive: true,
+};
+describe('Bubble Chart', () => {
+    it('should render a canvas', () => {
+        const { container } = render(Bubble);
+        const canvas = container.querySelector('canvas');
+        expect(canvas).not.toBeNull();
+    });
+    it('should pass data prop', () => {
+        const component = render(Bubble, { props: { data } });
+        expect(() => component).not.toThrow();
+    });
+    it('should pass options prop', () => {
+        const component = render(Bubble, { props: { data, options } });
+        expect(() => component).not.toThrow();
+    });
+});
+
+=== 846 test/Doughnut.spec.ts	js
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/svelte/svelte5';
+import 'chart.js/auto';
+import { Doughnut } from '../src/index.js';
+import { data } from '../sandboxes/doughnut/components/data.js';
+const options = {
+    responsive: true,
+};
+describe('Doughnut Chart', () => {
+    it('should render a canvas', () => {
+        const { container } = render(Doughnut);
+        const canvas = container.querySelector('canvas');
+        expect(canvas).not.toBeNull();
+    });
+    it('should pass data prop', () => {
+        const component = render(Doughnut, { props: { data } });
+        expect(() => component).not.toThrow();
+    });
+    it('should pass options prop', () => {
+        const component = render(Doughnut, { props: { data, options } });
+        expect(() => component).not.toThrow();
+    });
+});
+
+=== 822 test/Line.spec.ts	js
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/svelte/svelte5';
+import 'chart.js/auto';
+import { Line } from '../src/index.js';
+import { data } from '../sandboxes/line/components/data.js';
+const options = {
+    responsive: true,
+};
+describe('Line Chart', () => {
+    it('should render a canvas', () => {
+        const { container } = render(Line);
+        const canvas = container.querySelector('canvas');
+        expect(canvas).not.toBeNull();
+    });
+    it('should pass data prop', () => {
+        const component = render(Line, { props: { data } });
+        expect(() => component).not.toThrow();
+    });
+    it('should pass options prop', () => {
+        const component = render(Line, { props: { data, options } });
+        expect(() => component).not.toThrow();
+    });
+});
+
+=== 816 test/Pie.spec.ts	js
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/svelte/svelte5';
+import 'chart.js/auto';
+import { Pie } from '../src/index.js';
+import { data } from '../sandboxes/pie/components/data.js';
+const options = {
+    responsive: true,
+};
+describe('Pie Chart', () => {
+    it('should render a canvas', () => {
+        const { container } = render(Pie);
+        const canvas = container.querySelector('canvas');
+        expect(canvas).not.toBeNull();
+    });
+    it('should pass data prop', () => {
+        const component = render(Pie, { props: { data } });
+        expect(() => component).not.toThrow();
+    });
+    it('should pass options prop', () => {
+        const component = render(Pie, { props: { data, options } });
+        expect(() => component).not.toThrow();
+    });
+});
+
+=== 844 test/PolarArea.spec.ts	js
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/svelte/svelte5';
+import 'chart.js/auto';
+import { PolarArea } from '../src/index.js';
+import { data } from '../sandboxes/polar/components/data.js';
+const options = {
+    responsive: true,
+};
+describe('Polar Chart', () => {
+    it('should render a canvas', () => {
+        const { container } = render(PolarArea);
+        const canvas = container.querySelector('canvas');
+        expect(canvas).not.toBeNull();
+    });
+    it('should pass data prop', () => {
+        const component = render(PolarArea, { props: { data } });
+        expect(() => component).not.toThrow();
+    });
+    it('should pass options prop', () => {
+        const component = render(PolarArea, { props: { data, options } });
+        expect(() => component).not.toThrow();
+    });
+});
+
+=== 828 test/Radar.spec.ts	js
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/svelte/svelte5';
+import 'chart.js/auto';
+import { Radar } from '../src/index.js';
+import { data } from '../sandboxes/radar/components/data.js';
+const options = {
+    responsive: true,
+};
+describe('Radar Chart', () => {
+    it('should render a canvas', () => {
+        const { container } = render(Radar);
+        const canvas = container.querySelector('canvas');
+        expect(canvas).not.toBeNull();
+    });
+    it('should pass data prop', () => {
+        const component = render(Radar, { props: { data } });
+        expect(() => component).not.toThrow();
+    });
+    it('should pass options prop', () => {
+        const component = render(Radar, { props: { data, options } });
+        expect(() => component).not.toThrow();
+    });
+});
+
+=== 913 test/Scatter.spec.ts	js
+import { describe, it, expect } from 'vitest';
+import { render } from '@testing-library/svelte/svelte5';
+import 'chart.js/auto';
+import { Scatter } from '../src/index.js';
+import { data } from '../sandboxes/scatter/components/data.js';
+const options = {
+    title: {
+        display: true,
+        text: 'Scatter Chart - Logarithmic X-Axis',
+    },
+};
+describe('Scatter Chart', () => {
+    it('should render a canvas', () => {
+        const { container } = render(Scatter);
+        const canvas = container.querySelector('canvas');
+        expect(canvas).not.toBeNull();
+    });
+    it('should pass data prop', () => {
+        const component = render(Scatter, { props: { data } });
+        expect(() => component).not.toThrow();
+    });
+    it('should pass options prop', () => {
+        const component = render(Scatter, { props: { data, options } });
+        expect(() => component).not.toThrow();
+    });
+});
+
+=== 831 test/events.spec.ts	js
+import { describe, it, expect, vi } from 'vitest';
+import { getDatasetAtEvent, getElementAtEvent, getElementsAtEvent, } from '../src/utils/events.js';
+function createMockChart() {
+    return {
+        getElementsAtEventForMode: vi.fn().mockReturnValue([]),
+    };
+}
+describe('Event utilities', () => {
+    const event = new MouseEvent('click');
+    it.each([
+        ['getDatasetAtEvent', getDatasetAtEvent, 'dataset'],
+        ['getElementAtEvent', getElementAtEvent, 'nearest'],
+        ['getElementsAtEvent', getElementsAtEvent, 'index'],
+    ])('%s calls getElementsAtEventForMode with mode "%s"', (_name, fn, expectedMode) => {
+        const chart = createMockChart();
+        fn(chart, event);
+        expect(chart.getElementsAtEventForMode).toHaveBeenCalledWith(event, expectedMode, { intersect: true }, false);
+    });
+});
+

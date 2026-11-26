@@ -204,6 +204,14 @@
 			"vue": "3.5.45"
 		}
 	},
+	"ts.compile": {
+		"canonicalizer": {
+			"acorn": "8.19.0"
+		},
+		"oracles": {
+			"typescript": "6.0.3"
+		}
+	},
 	"vue.check": {
 		"canonicalizer": {
 			"acorn": "8.19.0"

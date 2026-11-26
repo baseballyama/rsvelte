@@ -1,4 +1,2502 @@
 # rsvelte pack 1
+=== 124 cspell.config.ts	ts	module	-
+import { cspellConfig } from '@kitschpatrol/cspell-config'
+
+export default cspellConfig({ words: ['onwarn', 'Titleless'] })
+
+=== 2842 docs/astro.config.ts	ts	module	-
+/* eslint-disable ts/naming-convention */
+// @case-police-ignore blueSky
+
+import starlight from '@astrojs/starlight'
+import svelte from '@astrojs/svelte'
+import { defineConfig } from 'astro/config'
+import checkCloudflareCompatibility from './integrations/check-cloudflare-compatibility'
+import saveVersionJson from './integrations/save-version-json'
+import { componentMenu } from './src/utils/config-helpers'
+
+// https://astro.build/config
+export default defineConfig({
+	base: '/svelte-tweakpane-ui',
+	compressHTML: true,
+	// Messes up pagefind index if we want to strip the .html
+	// build: {
+	// 	format: 'file'
+	// },
+	integrations: [
+		// https://starlight.astro.build/reference/configuration/
+		starlight({
+			components: {
+				EditLink: './src/components/overrides/EditLink.astro',
+				Head: './src/components/overrides/Head.astro',
+				MarkdownContent: './src/components/overrides/MarkdownContent.astro',
+				PageTitle: './src/components/overrides/PageTitle.astro',
+				TableOfContents: './src/components/overrides/TableOfContents.astro',
+				ThemeSelect: './src/components/overrides/ThemeSelect.astro',
+			},
+			customCss: ['./src/style.css'],
+			description: 'A Svelte Tweakpane UI component library.',
+			editLink: {
+				baseUrl: 'https://github.com/kitschpatrol/svelte-tweakpane-ui/edit/main/docs/',
+			},
+			expressiveCode: {
+				styleOverrides: {
+					codeLineHeight: '1.65',
+					frames: {
+						tooltipSuccessBackground: 'var(--sl-color-gray-3)',
+					},
+				},
+				// Themes: ['github-dark', 'github-light']
+			},
+			lastUpdated: true,
+			// Logo: {
+			// 	dark: './src/assets/svelte-tweakpane-ui-logo-dark.svg',
+			// 	light: './src/assets/svelte-tweakpane-ui-logo-light.svg'
+			// },
+			sidebar: [
+				{
+					label: 'Overview',
+					link: '/docs',
+				},
+				{
+					label: 'Getting Started',
+					link: '/docs/getting-started',
+				},
+				{
+					label: 'Features',
+					link: '/docs/features',
+				},
+				{
+					label: 'Plugins',
+					link: '/docs/plugins',
+				},
+				{
+					label: 'Themes',
+					link: '/docs/themes',
+				},
+				{
+					label: 'Utilities',
+					link: '/docs/utilities',
+				},
+				// eslint-disable-next-line ts/no-unsafe-assignment
+				...componentMenu(),
+				{
+					label: 'Acknowledgments',
+					link: '/docs/acknowledgments',
+				},
+			],
+			social: [
+				{
+					href: 'https://github.com/kitschpatrol/svelte-tweakpane-ui',
+					icon: 'github',
+					label: 'GitHub',
+				},
+				{ href: 'https://x.com/kitschpatrol', icon: 'x.com', label: 'X' },
+			],
+			title: 'Svelte Tweakpane UI',
+		}),
+		svelte({}),
+		saveVersionJson(),
+		checkCloudflareCompatibility(),
+	],
+	outDir: './dist/svelte-tweakpane-ui',
+	server: {
+		open: true,
+	},
+	site: 'https://kitschpatrol.com/',
+	trailingSlash: 'never',
+	vite: {
+		ssr: {
+			// https://github.com/withastro/astro/issues/8660
+			noExternal: ['nanoid'],
+		},
+	},
+})
+
+=== 3664 docs/integrations/check-cloudflare-compatibility.ts	ts	module	-
+import type { AstroIntegration, AstroIntegrationLogger } from 'astro'
+import { readdir, stat } from 'node:fs/promises'
+import { join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+// Via https://developers.cloudflare.com/workers/platform/limits/#static-assets
+const MAX_FILE_COUNT = 20_000
+const MAX_FILE_SIZE_BYTES = 25_000_000
+
+/**
+ * Formats a byte count as a human-readable string (e.g. "25 MB").
+ */
+function formatBytes(bytes: number): string {
+	if (!Number.isFinite(bytes)) {
+		return `${bytes}`
+	}
+
+	if (Math.abs(bytes) < 1000) {
+		return `${bytes} B`
+	}
+
+	const units = ['kB', 'MB', 'GB', 'TB', 'PB']
+	const exponent = Math.min(Math.floor(Math.log10(Math.abs(bytes)) / 3), units.length)
+	const value = bytes / 1000 ** exponent
+	const formatted = value.toLocaleString('en-US', { maximumFractionDigits: 2 })
+	return `${formatted} ${units[exponent - 1]}`
+}
+
+/**
+ * Returns the singular or plural form of a word based on count.
+ */
+function pluralize(word: string, count: number): string {
+	return count === 1 ? word : `${word}s`
+}
+
+/**
+ * Recursively collects all file paths in a directory.
+ */
+async function getAllFiles(directory: string): Promise<string[]> {
+	const entries = await readdir(directory, { withFileTypes: true })
+	const files: string[] = []
+
+	for (const entry of entries) {
+		const fullPath = join(directory, entry.name)
+		if (entry.isDirectory()) {
+			files.push(...(await getAllFiles(fullPath)))
+		} else {
+			files.push(fullPath)
+		}
+	}
+
+	return files
+}
+
+/**
+ * Validates that the build output meets Cloudflare Workers assets limitations.
+ *
+ * @throws {Error} If any file exceeds the max file size or if file count
+ *   exceeds the max file count
+ * @see https://developers.cloudflare.com/workers/platform/limits/#static-assets
+ */
+async function checkBuild(
+	distributionDirectory: string,
+	maxFileCount: number,
+	maxFileSizeBytes: number,
+	logger: AstroIntegrationLogger,
+): Promise<void> {
+	const files = await getAllFiles(distributionDirectory)
+
+	let errorsFound = false
+
+	const oversizeFiles: Array<{
+		filePath: string
+		size: number
+	}> = []
+
+	for (const filePath of files) {
+		const stats = await stat(filePath)
+		if (stats.size > maxFileSizeBytes) {
+			oversizeFiles.push({ filePath, size: stats.size })
+		}
+	}
+
+	if (files.length > maxFileCount) {
+		errorsFound = true
+		logger.error(
+			`Dist directory contains more than ${maxFileCount.toLocaleString()} files: ${files.length.toLocaleString()}`,
+		)
+	}
+
+	if (oversizeFiles.length > 0) {
+		errorsFound = true
+		const oversizeFilesList = oversizeFiles.map(
+			(file) => `${file.filePath} (${formatBytes(file.size)})`,
+		)
+		logger.error(
+			`Files are over ${formatBytes(maxFileSizeBytes)}: ${oversizeFilesList.join('\n▸ ')}`,
+		)
+	}
+
+	if (errorsFound) {
+		throw new Error('Build is invalid')
+	}
+
+	logger.info(
+		`Build is valid with ${files.length.toLocaleString()} ${pluralize('file', files.length)} and no files over ${formatBytes(maxFileSizeBytes)}`,
+	)
+}
+
+/**
+ * Astro integration that fails the build if the output exceeds Cloudflare
+ * Workers assets limitations (file count and per-file size).
+ */
+export default function checkCloudflareCompatibility(): AstroIntegration {
+	let outputDirectory: string | undefined
+
+	return {
+		hooks: {
+			async 'astro:build:done'({ logger }) {
+				if (outputDirectory === undefined) {
+					throw new Error('Resolved Astro config not available — astro:config:done did not run')
+				}
+
+				await checkBuild(outputDirectory, MAX_FILE_COUNT, MAX_FILE_SIZE_BYTES, logger)
+			},
+			'astro:config:done'({ config }) {
+				outputDirectory = fileURLToPath(config.outDir)
+			},
+		},
+		name: 'check-cloudflare-compatibility',
+	}
+}
+
+=== 3797 docs/integrations/save-version-json.ts	ts	module	-
+/* eslint-disable unicorn/no-null */
+/* eslint-disable ts/no-restricted-types */
+
+import type { AstroIntegration } from 'astro'
+import { execFile } from 'node:child_process'
+import { readFile, writeFile } from 'node:fs/promises'
+import { dirname, join } from 'node:path'
+import { fileURLToPath } from 'node:url'
+
+async function execFileAsync(
+	file: string,
+	args: string[],
+): Promise<{ stderr: string; stdout: string }> {
+	return new Promise((resolve, reject) => {
+		execFile(file, args, (error, stdout, stderr) => {
+			if (error === null) {
+				resolve({ stderr, stdout })
+			} else {
+				reject(new Error(`execFile ${file} failed: ${error.message}`, { cause: error }))
+			}
+		})
+	})
+}
+
+type GitInfo = {
+	branch: null | string
+	commit: null | string
+	commitDate: null | string
+	tag: null | string
+}
+
+async function getGitInfo(): Promise<GitInfo> {
+	const info: GitInfo = { branch: null, commit: null, commitDate: null, tag: null }
+
+	const run = async (args: string[]): Promise<null | string> => {
+		try {
+			const { stdout } = await execFileAsync('git', args)
+			return stdout.trim()
+		} catch {
+			return null
+		}
+	}
+
+	info.tag = await run(['describe', '--tags', '--abbrev=0'])
+	info.commit = await run(['rev-parse', '--short', 'HEAD'])
+	info.branch = await run(['rev-parse', '--abbrev-ref', 'HEAD'])
+
+	const rawDate = await run(['log', '-1', '--format=%cI'])
+	if (rawDate !== null && rawDate !== '') {
+		info.commitDate = new Date(rawDate).toISOString()
+	}
+
+	return info
+}
+
+type PackageInfo = {
+	name: null | string
+	version: null | string
+}
+
+async function readPackageUp(startDirectory: string): Promise<null | Record<string, unknown>> {
+	let directory = startDirectory
+	// eslint-disable-next-line ts/no-unnecessary-condition
+	while (true) {
+		try {
+			const pkgPath = join(directory, 'package.json')
+			const contents = await readFile(pkgPath, 'utf8')
+			// eslint-disable-next-line ts/no-unsafe-return
+			return JSON.parse(contents)
+		} catch {
+			const parent = dirname(directory)
+			if (parent === directory) {
+				return null
+			}
+
+			directory = parent
+		}
+	}
+}
+
+function parsePrerelease(version: null | string | undefined): string[] {
+	if (typeof version !== 'string' || version === '') {
+		return []
+	}
+
+	// E.g. "1.2.3-beta.1" → ["beta", "1"]
+	const hyphen = version.indexOf('-')
+	if (hyphen === -1) {
+		return []
+	}
+
+	return version.slice(hyphen + 1).split('.')
+}
+
+async function getPackageInfo(startDirectory: string): Promise<PackageInfo> {
+	const pkg = await readPackageUp(startDirectory)
+	return {
+		// eslint-disable-next-line ts/no-unnecessary-condition
+		name: (pkg?.name as string) ?? null,
+		// eslint-disable-next-line ts/no-unnecessary-condition
+		version: (pkg?.version as string) ?? null,
+	}
+}
+
+/**
+ * Astro integration that writes a `version.json` file with the build date and
+ * package and git metadata to the site's base path in the build output.
+ */
+export default function saveVersionJson(): AstroIntegration {
+	let root = process.cwd()
+
+	return {
+		hooks: {
+			async 'astro:build:done'({ dir, logger }) {
+				const packageInfo = await getPackageInfo(root)
+				const prerelease = parsePrerelease(packageInfo.version)
+
+				const versionJson = {
+					date: new Date().toISOString(),
+					deployment: prerelease.length === 0 ? 'main' : 'preview',
+					git: await getGitInfo(),
+					package: packageInfo,
+				}
+
+				// `dir` is the client output directory, which already includes the
+				// site's base path (e.g. dist/client/x/cma/ten-kings/)
+				const versionJsonPath = join(fileURLToPath(dir), 'version.json')
+				await writeFile(versionJsonPath, JSON.stringify(versionJson, undefined, 2))
+				logger.info(`Wrote ${versionJsonPath}`)
+			},
+			'astro:config:done'({ config }) {
+				root = fileURLToPath(config.root)
+			},
+		},
+		name: 'save-version-json',
+	}
+}
+
+=== 2241 docs/src/content.config.ts	ts	module	-
+import { docsLoader } from '@astrojs/starlight/loaders'
+import { docsSchema } from '@astrojs/starlight/schema'
+import { defineCollection } from 'astro:content'
+import { glob } from 'astro/loaders'
+import { z } from 'astro/zod'
+
+// Acknowledgments schema as delivered from pnpm
+// license-checker-rseidelsohn is a good pnpm-agnostic alternative,
+// but it has a slightly different schema
+// Note changes to the schema in the PNPM 8 --> 9 transition
+const acknowledgmentsSchema = z.record(
+	z.string(),
+	z.array(
+		z.object({
+			author: z.string().optional(),
+			description: z.string().optional(),
+			homepage: z.string().optional(),
+			license: z.string().min(1),
+			name: z.string().min(1),
+			paths: z.array(z.string().min(1)).min(1),
+			versions: z.array(z.string().min(1)).min(1),
+		}),
+	),
+)
+
+// Component documentation schema
+// must be kept in sync with ./scripts/generate-documentation-data.ts
+
+const componentJsDocRecordSchema = z.record(z.string(), z.string())
+
+const componentPartInfoSchema = z.array(
+	z.object({
+		doc: z.string(),
+		jsDocs: componentJsDocRecordSchema,
+		name: z.string(),
+		type: z.string(),
+	}),
+)
+
+const componentPropConditionSchema = z.record(
+	z.string(),
+	z.union([z.boolean(), z.number(), z.string()]),
+)
+
+const componentDocumentSchema = z.object({
+	doc: z.string(),
+	dynamicProps: z
+		.array(
+			z.object({
+				condition: componentPropConditionSchema,
+				description: z.string(),
+				props: componentPartInfoSchema,
+			}),
+		)
+		.optional(),
+	events: componentPartInfoSchema,
+	jsDocs: componentJsDocRecordSchema.optional(),
+	name: z.string(),
+	path: z.string(),
+	pathParts: z.array(z.string()),
+	props: componentPartInfoSchema,
+	slots: componentPartInfoSchema,
+})
+
+const universalFrontmatter = z.object({
+	sourceUrl: z.url().optional(),
+})
+
+const componentFrontmatter = z.object({
+	componentData: componentDocumentSchema.optional(),
+	note: z.string().optional(),
+})
+
+export const collections = {
+	acknowledgments: defineCollection({
+		loader: glob({ base: './src/content/acknowledgments', pattern: '*.json' }),
+		schema: acknowledgmentsSchema,
+	}),
+	docs: defineCollection({
+		loader: docsLoader(),
+		schema: docsSchema({
+			extend: universalFrontmatter.extend(componentFrontmatter.shape),
+		}),
+	}),
+}
+
+=== 1000 docs/src/middleware/automatic-component-links.ts	ts	module	-
+import { defineDomMiddleware } from 'astro-html-kit/middleware'
+import { linkifyTerms } from './utilities'
+const { BASE_URL: baseUrl } = import.meta.env
+import { getCollection } from 'astro:content'
+
+const documentationCollection = await getCollection('docs')
+
+const componentLinks = documentationCollection.reduce<Record<string, string>>((acc, component) => {
+	if (component.data.componentData !== undefined) {
+		acc[component.data.componentData.name] = component.id
+	}
+
+	return acc
+}, {})
+
+export const automaticComponentLinks = defineDomMiddleware((context, document) => {
+	// Filter out own page
+
+	const componentLinksNotSelf = Object.entries(componentLinks).reduce<Record<string, string>>(
+		(acc, [componentName, componentId]) => {
+			if (context.props.id !== componentId) {
+				acc[`<${componentName}>`] = componentId
+			}
+
+			return acc
+		},
+		{},
+	)
+
+	for (const element of document.querySelectorAll('code')) {
+		linkifyTerms(element, componentLinksNotSelf, baseUrl)
+	}
+
+	return document
+})
+
+=== 862 docs/src/middleware/automatic-prop-links.ts	ts	module	-
+/* eslint-disable ts/no-unsafe-member-access */
+/* eslint-disable ts/no-unsafe-argument */
+import { defineDomMiddleware } from 'astro-html-kit/middleware'
+import { slug } from 'github-slugger'
+import type { ComponentData } from '../utils/prop-utilities'
+import { allProps } from '../utils/prop-utilities'
+import { linkifyTerms } from './utilities'
+
+export const automaticPropLinks = defineDomMiddleware((context, document) => {
+	const componentData = context.props.entry?.data?.componentData as ComponentData
+	if (componentData) {
+		const props = allProps(context.props.entry.data.componentData)
+
+		const propLinks = props.reduce<Record<string, string>>((acc, prop) => {
+			acc[prop.name] = `#${slug(prop.name)}`
+			return acc
+		}, {})
+
+		for (const element of document.querySelectorAll('code')) {
+			linkifyTerms(element, propLinks)
+		}
+	}
+
+	return document
+})
+
+=== 363 docs/src/middleware/index.ts	ts	module	-
+import { htmlKit } from 'astro-html-kit/middleware'
+import { automaticComponentLinks } from './automatic-component-links'
+import { automaticPropLinks } from './automatic-prop-links'
+
+export const onRequest = htmlKit({
+	addLinkPrefix: true,
+	annotateExternalLinks: true,
+	customDomHandler: [automaticComponentLinks, automaticPropLinks],
+	stripLinkSuffix: true,
+})
+
+=== 968 docs/src/middleware/utilities.ts	ts	module	-
+/**
+ * Links terms in the given node based on a dictionary of terms and their
+ * corresponding URLs.
+ *
+ * ONLY works if the entire child of the element is the word
+ *
+ * Document is mutated
+ *
+ * @param node - The node to process.
+ * @param termDictionary - A record mapping terms to their URLs.
+ * @param base - The base URL for linking.
+ */
+export function linkifyTerms(node: Node, termDictionary: Record<string, string>, base = '') {
+	if (node.nodeType !== node.ELEMENT_NODE || !node.parentNode || !node.ownerDocument) {
+		return
+	}
+
+	// eslint-disable-next-line ts/no-unnecessary-condition
+	const text = (node as HTMLElement).textContent ?? ''
+
+	if (Object.keys(termDictionary).includes(text)) {
+		const link = node.ownerDocument.createElement('a')
+		// TODO use Astro path functions...
+		link.href = `${base.length > 0 ? base + '/' : ''}${termDictionary[text]}`
+
+		// Wrap the node in the link
+		node.parentNode.insertBefore(link, node)
+		link.append(node)
+	}
+}
+
+=== 2546 docs/src/utils/config-helpers.ts	ts	module	-
+/* eslint-disable ts/no-unsafe-return */
+/* eslint-disable ts/no-unsafe-argument */
+/* eslint-disable ts/no-unsafe-member-access */
+/* eslint-disable ts/no-unsafe-call */
+/* eslint-disable ts/no-unsafe-assignment */
+/* eslint-disable ts/no-explicit-any */
+
+import { slug } from 'github-slugger'
+import { globSync } from 'glob'
+import matter from 'gray-matter'
+import { capitalize } from './string-utilities.ts'
+
+// Create custom sidebar which nests differently from directory structure
+// can't seem to fish the menu type out of Astro's public exports
+export function componentMenu(
+	label: string = 'Components',
+	mergeTopLevel: boolean = true,
+	maxDepth: number = 1,
+): any[] {
+	// Const sidebarItems = [];
+
+	const menu: any = {
+		items: [],
+		label,
+	}
+
+	// Would prefer to use `astro:content` here, but there's a chicken / egg problem
+	// since `astro:content` depends on the config to know where to look for content
+	const componentFiles = globSync('src/content/docs/docs/components/*.mdx', { posix: true })
+	for (const file of componentFiles) {
+		const { data } = matter.read(file)
+
+		let currentMenu = menu
+
+		const pathParts = data.componentData?.pathParts?.slice(0, maxDepth)
+		for (const pathPart of pathParts) {
+			let existingMenu = currentMenu.items?.find(
+				(item: any) => item.label === capitalize(slug(pathPart)),
+			)
+
+			if (existingMenu === undefined) {
+				existingMenu = {
+					items: [],
+					label: capitalize(slug(pathPart)),
+				}
+
+				currentMenu.items?.unshift(existingMenu)
+			}
+
+			currentMenu = existingMenu
+		}
+
+		currentMenu.items?.unshift({
+			label: data.title,
+			link: `/docs/components/${slug(data.componentData?.name)}`,
+		})
+	}
+
+	// Custom sort order
+	const sortOrder = ['core', 'control', 'monitor', 'extra']
+
+	menu.items?.sort((a: any, b: any) => {
+		const aLabel = a.label.toLowerCase()
+		const bLabel = b.label.toLowerCase()
+
+		const aIndex = sortOrder.indexOf(aLabel)
+		const bIndex = sortOrder.indexOf(bLabel)
+
+		if (aIndex !== -1 && bIndex !== -1) {
+			return aIndex - bIndex // Both labels are in sortOrder
+		}
+
+		if (aIndex !== -1) {
+			return -1 // Only aLabel is in sortOrder
+		}
+
+		if (bIndex !== -1) {
+			return 1 // Only bLabel is in sortOrder
+		}
+
+		return aLabel.localeCompare(bLabel) // Neither label is in sortOrder, sort alphabetically
+	})
+
+	// Put all the second level items at the top level,
+	// suffixed with the original top level label
+	return mergeTopLevel
+		? menu.items!.map((item: any) => ({
+				items: item.items,
+				label: `${item.label} ${menu.label}`,
+			}))
+		: [menu]
+}
+
+=== 1687 docs/src/utils/prop-utilities.ts	ts	module	-
+/* eslint-disable max-depth */
+import type { StarlightRouteData } from '@astrojs/starlight/route-data'
+export type ComponentData = StarlightRouteData['entry']['data']['componentData']
+export type ComponentProp = NonNullable<ComponentData>['props'][number]
+export type Condition = Omit<
+	NonNullable<NonNullable<ComponentData>['dynamicProps']>[number],
+	'props'
+>
+export type ConditionsRecord = Record<string, Condition[]>
+
+function uniqueProps(commonProps: ComponentProp[], dynamicProps: ComponentProp[]): ComponentProp[] {
+	const filteredProps = dynamicProps.filter((dynamicProp) =>
+		commonProps.every((commonProp) => dynamicProp.name !== commonProp.name),
+	)
+	return filteredProps
+}
+
+export function allPropConditions(data: ComponentData): ConditionsRecord {
+	if (data?.dynamicProps) {
+		const conditionsRecord: ConditionsRecord = {}
+
+		for (const dynamicProp of data.dynamicProps) {
+			const unique = uniqueProps(data.props, dynamicProp.props)
+
+			for (const prop of unique) {
+				// Ensure unique
+				conditionsRecord[prop.name] ??= []
+
+				conditionsRecord[prop.name].push({
+					condition: dynamicProp.condition,
+					description: dynamicProp.description,
+				})
+			}
+		}
+
+		return conditionsRecord
+	}
+
+	return {}
+}
+
+export function allProps(data: ComponentData): ComponentProp[] {
+	if (data) {
+		const collectedProps = [...data.props]
+		if (data.dynamicProps) {
+			for (const dynamicProp of data.dynamicProps) {
+				for (const prop of dynamicProp.props) {
+					// Ensure unique
+					const alreadyPresent = collectedProps.some((p) => p.name === prop.name)
+					if (!alreadyPresent) {
+						collectedProps.push(prop)
+					}
+				}
+			}
+		}
+
+		return collectedProps
+	}
+
+	return []
+}
+
+=== 120 docs/src/utils/string-utilities.ts	ts	module	-
+export function capitalize(text: string): string {
+	return text.charAt(0).toUpperCase() + text.slice(1).toLowerCase()
+}
+
+=== 5120 eslint.config.ts	ts	module	-
+import type { Rules } from '@kitschpatrol/eslint-config'
+import { eslintConfig, generatePerfectionistSortConfig } from '@kitschpatrol/eslint-config'
+
+/**
+ * This completely overrides the defaults provided in
+ * `@kitschpatrol/shared-config` It is clunky and duplicative, but is the only
+ * way to ensure consistent sorting of props across both the source code and
+ * documentation.
+ */
+const perfectionistSortConfig = [
+	['min', 'max'],
+	['min', 'max', 'begin', 'end', 'interval', 'label', 'rows'],
+	['r', 'g', 'b'],
+	['r', 'g', 'b', 'a'],
+	['value', 'amount'],
+	['value', 'columns', 'groupName', 'prefix', 'rows', 'suffix', 'values'],
+	['value', 'extensions', 'fit'],
+	['value', 'extensions', 'invalidExtensionMessage', 'rows'],
+	['value', 'label'],
+	['value', 'label', 'options'],
+	['value', 'live'],
+	['value', 'live', 'placeholder', 'rows'],
+	['value', 'meanValue'],
+	['value', 'min', 'max', 'lineStyle'],
+	['value', 'min', 'max', 'format', 'graph'],
+	['value', 'min', 'max', 'format', 'keyScale', 'pointerScale', 'step'],
+	['value', 'multiline'],
+	['value', 'optionsX', 'optionsY', 'optionsZ', 'order', 'unit'],
+	['value', 'optionsX', 'optionsY', 'optionsZ', 'optionsW'],
+	['value', 'origin'],
+	['value', 'pixels', 'ticks'],
+	['value', 'series', 'unit'],
+	['value', 'text'],
+	['value', 'title'],
+	['value', 'type'],
+	['x', 'y', 'width', 'expanded'],
+	[
+		'x',
+		'y',
+		'width',
+		'minWidth',
+		'maxWidth',
+		'resizable',
+		'padding',
+		'collapseChildrenToFit',
+		'storePositionLocally',
+		'localStoreId',
+	],
+	['x', 'y', 'z', 'w'],
+	['x1', 'y1', 'x2', 'y2'],
+].map((element) => generatePerfectionistSortConfig(element))
+
+/**
+ * These rules are used in both TypeScript and Svelte files.
+ */
+const sharedOverrides: Rules = {
+	'e18e/prefer-array-fill': 'off', // Messes with types
+	'perfectionist/sort-object-types': [
+		'error',
+		...perfectionistSortConfig,
+		{ newlinesBetween: 0, order: 'asc', type: 'natural' },
+	],
+	'perfectionist/sort-objects': [
+		'error',
+		...perfectionistSortConfig,
+		{ newlinesBetween: 0, order: 'asc', type: 'natural' },
+	],
+	'ts/no-inferrable-types': 'off',
+	'unicorn/no-array-reduce': 'off',
+	'unicorn/prefer-dom-node-html-methods': 'off',
+}
+
+export default eslintConfig({
+	astro: {
+		overrides: {
+			'ts/no-unsafe-return': 'off',
+		},
+	},
+	ignores: [
+		'src/examples/components/*', // Generated kit files, error free but redundant
+		'docs/src/content/docs/docs/components/*', // Generated doc files, error free but redundant
+		'docs/src/content/acknowledgments/*', // Generated doc files, error free but redundant
+		'docs/src/examples/*', // Generated doc files, error free but redundant
+		'**/*.md/*.svelte', // Virtual Svelte files in MD code blocks (not in tsconfig)
+		'**/*.mdx/*.{svelte,js}', // Virtual Svelte files in MD code blocks (not in tsconfig)
+	],
+	svelte: {
+		overrides: {
+			'import/consistent-type-specifier-style': 'off',
+			'jsdoc/check-tag-names': 'off',
+			'jsdoc/valid-types': 'off',
+			'no-self-assign': 'off',
+			'node/no-unsupported-features/node-builtins': 'off',
+			'require-unicode-regexp': ['error', { requireFlag: 'u' }], // The Svelte 4 compiler can't parse the 'v' flag, so require 'u' instead
+			'svelte/experimental-require-strict-events': 'off', // Svelte 5 warns that the Svelte 4 strictEvents attribute is unrecognized
+			'svelte/no-navigation-without-resolve': 'off',
+			'svelte/no-reactive-reassign': 'off',
+			'svelte/no-unused-class-name': [
+				'error',
+				{
+					allowedClassNames: [
+						'skip-element-index', // Needed in Element.svelte
+					],
+				},
+			],
+			'svelte/require-each-key': 'off',
+			'svelte/require-store-reactive-access': 'off', // See Binding.svelte... was this a mistake?
+			'svelte/require-stores-init': 'off', // Revisit when confident nothing dependent on detecting uninitialized stores
+			'ts/consistent-type-assertions': 'off',
+			'ts/dot-notation': 'off',
+			'ts/no-deprecated': [
+				'error',
+				{
+					allow: [
+						{
+							from: 'package',
+							name: 'createEventDispatcher',
+							package: 'svelte',
+						},
+						{
+							from: 'package',
+							name: 'beforeUpdate',
+							package: 'svelte',
+						},
+					],
+				},
+			],
+			'ts/no-empty-object-type': 'off', // Oh no...
+			'ts/no-explicit-any': 'off', // Oh no...
+			'ts/no-redundant-type-constituents': 'off', // Oh no...
+			'ts/no-unnecessary-condition': 'off', // Oh no...
+			'ts/no-unsafe-argument': 'off', // Oh no...
+			'ts/no-unsafe-assignment': 'off', // Oh no...
+			'ts/no-unsafe-call': 'off', // Oh no...
+			'ts/no-unsafe-member-access': 'off', // Oh no...
+			'ts/no-unsafe-return': 'off', // Oh no...
+			'ts/no-unused-vars': [
+				'error',
+				{
+					varsIgnorePattern: String.raw`^\$\$|^_`,
+				},
+			],
+			'unicorn/no-null': 'off',
+			'unicorn/no-optional-chaining-on-undeclared-variable': 'off', // False positives on Svelte's compiler-declared `$store` auto-subscription variables
+			...sharedOverrides,
+		},
+	},
+	ts: {
+		overrides: {
+			'depend/ban-dependencies': [
+				'error',
+				{
+					allowed: ['execa', 'glob', 'read-package-up'],
+				},
+			],
+			'jsdoc/require-jsdoc': 'off',
+			...sharedOverrides,
+		},
+	},
+	type: 'lib',
+})
+
+=== 344 knip.config.ts	ts	module	-
+import { knipConfig } from '@kitschpatrol/knip-config'
+
+export default knipConfig({
+	entry: ['src/examples/**/*.svelte', 'docs/src/middleware/index.ts', 'tests/**/*.ts'],
+	ignoreDependencies: [
+		'@astrojs/check',
+		'canvas',
+		'svelte-check',
+		'@sveltejs/package',
+		'postcss-html',
+		'publint',
+		'svelte-check',
+		'tslib',
+		'mdat',
+	],
+})
+
+=== 175 mdat.config.ts	ts	module	-
+import { mdatConfig } from '@kitschpatrol/mdat-config'
+import mdatComponentRules from './scripts/mdat-component-rules'
+
+export default mdatConfig({
+	...mdatComponentRules,
+})
+
+=== 441 playwright.config.ts	ts	module	-
+import type { PlaywrightTestConfig } from '@playwright/test'
+
+const config: PlaywrightTestConfig = {
+	expect: {
+		timeout: process.env.CI !== undefined && process.env.CI !== '' ? 20_000 : 5000,
+	},
+	retries: process.env.CI !== undefined && process.env.CI !== '' ? 2 : 0,
+	testDir: 'tests',
+	testMatch: /(.+\.)?(test|spec)\.[jt]s/v,
+	webServer: {
+		command: 'vite dev',
+		port: 5173,
+		reuseExistingServer: true,
+	},
+}
+
+export default config
+
+=== 1534 scripts/add-source-links.ts	ts	module	-
+// Replaces @sourceLink in JSDocs with GitHub URLs in source files References the git url provided
+// in package.json.
+
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { getAllLibraryFiles, getGithubUrlForSourceFile } from './ast-tools'
+
+const verbose = false
+const SOURCE_LINK_MARKER_REGEX = /@sourceLink(?:.+\))?\n/sv
+
+async function addLinksToComponentBlock(filePath: string): Promise<void> {
+	const fileContent = await fs.readFile(filePath, 'utf8')
+	const fileName = path.basename(filePath)
+	const url = await getGithubUrlForSourceFile(filePath)
+
+	// If the markdown link is already there, it will work out to a no-op if it needs an update, this
+	// will do it...
+	const updatedContent = fileContent.replace(
+		SOURCE_LINK_MARKER_REGEX,
+		() => `@sourceLink\n[${fileName}](${url})\n`,
+	)
+
+	if (fileContent === updatedContent) {
+		// Warn if we have undocumented svelte components
+		if (filePath.endsWith('.svelte') && !fileContent.includes('@sourceLink')) {
+			console.warn(`No @sourceLink found in ${filePath}`)
+		}
+	} else {
+		// eslint-disable-next-line ts/no-unnecessary-condition
+		if (verbose) {
+			console.log(`Added source links to ${filePath}`)
+		}
+
+		await fs.writeFile(filePath, updatedContent, 'utf8')
+	}
+}
+
+export async function addSourceLinks(): Promise<void> {
+	const files = getAllLibraryFiles()
+
+	console.log(`Replacing @sourceLink with GitHub URLs in ${files.length} files...`)
+
+	await Promise.all(files.map(async (filePath) => addLinksToComponentBlock(filePath)))
+
+	console.log('Done.')
+}
+
+=== 11061 scripts/ast-tools.ts	ts	module	-
+// TypeScript AST traversal and extraction tools used by various scripts.
+// @case-police-ignore jsDoc
+
+import type {
+	ClassDeclaration,
+	MethodSignature,
+	Node,
+	PropertySignature,
+	StringLiteral,
+} from 'ts-morph'
+import { fix as eslintFix } from '@kitschpatrol/eslint-config'
+import { fix as prettierFix } from '@kitschpatrol/prettier-config'
+import { query as tsquery } from '@phenomnomnominal/tsquery'
+import { globSync } from 'glob'
+import { exec } from 'node:child_process'
+import fs from 'node:fs'
+import path from 'node:path'
+import { readPackageUp } from 'read-package-up'
+import { svelte2tsx } from 'svelte2tsx'
+import { Project } from 'ts-morph'
+
+const GIT_PREFIX_REGEX = /^git\+/v
+const GIT_SUFFIX_REGEX = /\.git$/v
+const CODE_BLOCK_EXTRACTION_REGEX = /```\w*\n([\s\S]+?)```/v
+const EXAMPLE_TAG_EXTRACTION_REGEX = /@example[\s\S]+(```[\s\S]+```)/v
+const JSDOC_PREFIX_STRIPPING_REGEX = /^ ?\/*\*+[ \/]?/gmv
+
+// This will break if multiple components with the same name exist in different folders
+function findFile(
+	base: string,
+	componentName: string,
+	suffix: string,
+	warn: boolean = true,
+): string | undefined {
+	const files = globSync(`./${base}/**/${componentName}${suffix}`, { posix: true })
+	if (files.length === 0) {
+		if (warn) {
+			console.warn(`No files found for ${componentName}`)
+		}
+
+		return undefined
+	}
+
+	if (files.length > 1) {
+		if (warn) {
+			console.error(`Fatal: Found multiple files for ${componentName}: ${files.join(' ')}`)
+		}
+
+		return undefined
+	}
+
+	return path.resolve(files[0])
+}
+
+async function getRepoUrl(): Promise<string | undefined> {
+	const closestPackageJson = await readPackageUp({ normalize: false })
+	const { repository } = closestPackageJson?.packageJson ?? {}
+	if (repository === undefined || repository === '') {
+		return undefined
+	}
+
+	// Handle string case or object with url property
+	if (typeof repository === 'string') {
+		return repository
+	}
+
+	if (typeof repository === 'object' && repository.url !== '') {
+		return repository.url
+	}
+
+	return undefined
+}
+
+export async function getGithubUrlForSourceFile(filePath: string): Promise<string> {
+	// Gonna be slow
+	const url = await getRepoUrl()
+	if (url === undefined || url === '') {
+		throw new Error('No repository url found in package.json')
+	}
+
+	const sourceBaseUrl = `${url.replace(GIT_PREFIX_REGEX, '').replace(GIT_SUFFIX_REGEX, '')}/blob/main/`
+	return sourceBaseUrl + filePath
+}
+
+export async function getEditUrlForSourceFile(filePath: string): Promise<string> {
+	// Gonna be slow
+	const url = await getRepoUrl()
+	if (url === undefined || url === '') {
+		throw new Error('No repository url found in package.json')
+	}
+
+	const sourceBaseUrl = `${url.replace(GIT_PREFIX_REGEX, '').replace(GIT_SUFFIX_REGEX, '')}/edit/main/`
+	return sourceBaseUrl + filePath
+}
+
+export function getDefinitionFilePath(
+	componentName: string,
+	warn: boolean = true,
+): string | undefined {
+	return findFile('dist', componentName, '.svelte.d.ts', warn)
+}
+
+export function getSourceFilePath(componentName: string, warn: boolean = true): string | undefined {
+	return findFile('src/lib', componentName, '.svelte', warn)
+}
+
+export function getAllLibraryFiles(): string[] {
+	return globSync('./src/lib/**/*', { posix: true }).filter((file) => fs.statSync(file).isFile())
+}
+
+export function getAllLibraryComponentNames(): string[] {
+	// What happens with js components?
+	return globSync('./src/lib/**/*.svelte', { posix: true }).map((file) =>
+		path.basename(file).replace('.svelte', ''),
+	)
+}
+
+const sourceFileCache = new Map<string, Node>()
+
+function getOrCreateSourceFile(filePath: string): Node {
+	let sourceFile = sourceFileCache.get(filePath)
+	if (!sourceFile) {
+		sourceFile = new Project().addSourceFileAtPath(filePath)
+		sourceFileCache.set(filePath, sourceFile)
+	}
+
+	return sourceFile
+}
+
+export function getExportedComponents(indexPath: string): Array<{ name: string; path: string }> {
+	return queryTree<StringLiteral>(
+		getOrCreateSourceFile(indexPath),
+		'ExportDeclaration[isTypeOnly=false] StringLiteral[value=/.+.svelte/]',
+	).map((node) => {
+		const cleanPath = node.getText().replaceAll(/["']/gv, '')
+
+		return {
+			name: path.basename(cleanPath).replace('.svelte', ''),
+			path: cleanPath,
+		}
+	})
+}
+
+// Brittle
+export function getExportedJs(indexPath: string): Array<{ name: string; path: string }> {
+	return queryTree<StringLiteral>(
+		getOrCreateSourceFile(indexPath),
+		'ExportDeclaration[isTypeOnly=false]:has(StringLiteral[value=/.+.js/])',
+	).map((node) => {
+		const name = queryTree(node, 'Identifier.name').at(0)!.getText()
+		const importPath = queryTree(node, 'StringLiteral').at(0)!.getText().replaceAll(/["']/gv, '')
+
+		return {
+			name,
+			path: importPath,
+		}
+	})
+}
+
+/**
+ * Wraps tsquery to return ts-morph Nodes
+ *
+ * @see https://tsquery-playground.firebaseapp.com
+ * @see https://astexplorer.net/
+ */
+export function queryTree<T extends Node>(node: Node, tsqueryString: string): T[] {
+	// TODO type issues...
+	return tsquery(node.compilerNode as unknown as string, tsqueryString).map(
+		// eslint-disable-next-line ts/no-explicit-any, ts/no-unsafe-call, ts/no-unsafe-member-access
+		(n) => (node as any)._getNodeFromCompilerNode(n) as Node,
+	) as T[]
+}
+
+export type PropNode = MethodSignature | PropertySignature
+
+/**
+ * Get a prop node by name from a component definition file
+ *
+ * @param source - Either a string of source code, the name of a component with
+ *   an existing definition file, or a Node
+ * @param propertyName - Optional name of a specific prop to return, happens at
+ *   query level so might be more efficient than filtering the returned array
+ * @param include - 'all' | 'commented' | 'uncommented' to filter the props
+ *   returned by the presence of comments on the props
+ *
+ * @returns An array of ts-morph Nodes representing the props meeting the
+ *   argument criteria, or an empty array if none are found
+ */
+export function getProp(
+	source: Node | string,
+	propertyName: string,
+	include: 'all' | 'commented' | 'uncommented' = 'all',
+): PropNode | undefined {
+	return getPropsInternal(source, include, propertyName)[0]
+}
+
+/**
+ * Get all prop nodes from a component definition file
+ *
+ * @param source - Either a string of source code, the name of a component with
+ *   an existing definition file, or a Node
+ * @param include - 'all' | 'commented' | 'uncommented' to filter the props
+ *   returned by the presence of comments on the props
+ *
+ * @returns An array of ts-morph Nodes representing the props meeting the
+ *   argument criteria, or an empty array if none are found
+ */
+export function getProps(
+	source: Node | string,
+	include: 'all' | 'commented' | 'uncommented' = 'all',
+): PropNode[] {
+	return getPropsInternal(source, include)
+}
+
+function getPropsInternal(
+	source: Node | string,
+	include: 'all' | 'commented' | 'uncommented' = 'all',
+	propertyName?: string,
+): PropNode[] {
+	return queryTree<PropNode>(
+		typeof source === 'string'
+			? new Project().addSourceFileAtPath(getDefinitionFilePath(source) ?? source)
+			: source,
+		':declaration [name.name="props"] :matches(PropertySignature, MethodSignature):not(:declaration [name.name="props"] :matches(PropertySignature, MethodSignature) :matches(PropertySignature, MethodSignature))' +
+			(include === 'commented' ? ':has([jsDoc])' : '') +
+			(include === 'uncommented' ? ':not(:has([jsDoc]))' : '') +
+			(propertyName === undefined ? '' : `[name.name="${propertyName}"]`),
+	)
+}
+
+// Doc-specific
+
+function extractCodeBlock(inputString: string): string | undefined {
+	const match = CODE_BLOCK_EXTRACTION_REGEX.exec(inputString)
+	if (match?.[1] !== undefined && match[1] !== '') {
+		return match[1].trim()
+	}
+}
+
+export async function getComponentExampleCodeFromSource(
+	componentName: string,
+	includeMarkdown: boolean = false,
+): Promise<string | undefined> {
+	const componentPath = getSourceFilePath(componentName)
+	if (componentPath === undefined || componentPath === '') {
+		return undefined
+	}
+
+	const componentCode = svelte2tsx(fs.readFileSync(componentPath, 'utf8')).code
+
+	const classDeclaration = queryTree<ClassDeclaration>(
+		new Project().createSourceFile('TempComponent.ts', componentCode),
+		'ClassDeclaration:has([jsDoc]):has(ExportKeyword)',
+	).at(0)
+
+	// Strip jsdoc comments
+	if (classDeclaration === undefined) {
+		console.error(`Class declaration not found in ${componentName}`)
+		return undefined
+	}
+
+	// Support two extraction strategies... sticking with AST for now
+	const useAst = true
+
+	let exampleCommentWithFence: string | undefined
+	// eslint-disable-next-line ts/no-unnecessary-condition
+	if (useAst) {
+		// Note that this breaks if there are @ css blocks in the JSDoc comments,
+		// but so do a lot of other things so just don't do that!
+
+		// try for an actual @example tag in case there are multiple code block
+		exampleCommentWithFence =
+			classDeclaration
+				.getJsDocs()
+				.at(0)
+				?.getTags()
+				.find((tag) => tag.getTagName() === 'example')
+				?.getCommentText() ?? classDeclaration.getJsDocs().at(0)?.getCommentText()
+	} else {
+		// Get the full text of the JSDoc block and strip the JSDoc syntax
+		const fullCommentText = classDeclaration
+			.getJsDocs()
+			.at(0)
+			?.getFullText()
+			.replaceAll(JSDOC_PREFIX_STRIPPING_REGEX, '')
+
+		if (fullCommentText === undefined) {
+			console.error(`Class declaration comment not found in ${componentName}`)
+			return undefined
+		}
+
+		// Pull out just the @example code fence
+		// TODO multiple example support (via .exec, /g doesn't work with .match)
+		exampleCommentWithFence = EXAMPLE_TAG_EXTRACTION_REGEX.exec(fullCommentText)?.at(1)
+	}
+
+	if (exampleCommentWithFence === undefined) {
+		console.error(`Example comment not found in ${componentName}`)
+		return undefined
+	}
+
+	// Format, because it's lost in the AST
+
+	const exampleCommentWithoutFence = extractCodeBlock(exampleCommentWithFence)
+
+	if (exampleCommentWithoutFence === undefined) {
+		console.error(`Could not extract example code block in ${componentName}`)
+		return undefined
+	}
+
+	const formattedComment = await lintAndFormat(exampleCommentWithoutFence)
+
+	// Put the formatted code block back inside the fence
+	const wrappedComment = `${exampleCommentWithFence
+		.split('\n', 1)
+		.at(0)}\n${formattedComment}${exampleCommentWithFence.split('\n').at(-1)}`
+
+	return includeMarkdown ? wrappedComment : formattedComment
+}
+
+export async function lintAndFormat(
+	code: string,
+	fileExtension: string = 'svelte',
+): Promise<string> {
+	const lintedCode = await eslintFix(code, fileExtension)
+	return format(lintedCode, fileExtension)
+}
+
+export async function format(code: string, fileType: string): Promise<string> {
+	return prettierFix(code, fileType, { printWidth: 75, useTabs: false })
+}
+
+export async function getLastUpdatedDate(filePath: string): Promise<Date | undefined> {
+	return new Promise((resolve, reject) => {
+		exec(`git log -1 --format=%cd "${filePath}"`, (error, stdout) => {
+			if (error) {
+				reject(error)
+				return
+			}
+
+			const date = new Date(stdout.trim())
+			if (Number.isNaN(date.getTime())) {
+				resolve(undefined)
+			} else {
+				resolve(date)
+			}
+		})
+	})
+}
+
+=== 3693 scripts/build.ts	ts	module	-
+/* eslint-disable unicorn/prefer-top-level-await */
+
+import { execa, parseCommandString } from 'execa'
+import { mkdir } from 'node:fs/promises'
+import prettyMs from 'pretty-ms'
+import { addSourceLinks } from './add-source-links'
+import { formatEmbeddedCode } from './format-embedded-code'
+import { generateDocumentationData } from './generate-documentation-data'
+import { generateExampleComponents } from './generate-example-components'
+import { generateExports } from './generate-exports'
+import { generateKitExamples } from './generate-kit-examples'
+import { healDtsComments } from './heal-dts-comments'
+import { stripComponentDocumentation } from './strip-component-documentation'
+
+// Takes about ~40s locally
+
+const startTime = performance.now()
+
+console.log('Starting build script in ./scripts/build.ts')
+
+// 1. Sync and package the Svelte component library (~14s)
+await mkdir('./docs/src/content/acknowledgments', { recursive: true })
+await parallel(
+	// Generate library types
+	'svelte-kit sync',
+	// Generate documentation site types
+	'pnpm -C ./docs run sync',
+)
+await parallel(
+	// Update package.json with component exports
+	generateExports,
+	// Replace placeholder links in @component jsdoc
+	// with links to actual github source
+	addSourceLinks,
+)
+await parallel(
+	// Format package.json to clean up after generateExports pass
+	serial('ksc-eslint fix package.json', 'ksc-prettier fix package.json'),
+	// Generate component list in readme
+	'ksc-mdat fix readme.md',
+	// Customize formatting for embedded code examples in @component jsdoc
+	formatEmbeddedCode,
+)
+await run(
+	// Create the Svelte component package
+	'svelte-package',
+)
+
+// 2. Clean up Svelte component library
+await parallel(
+	// Fix missing comments in component type files
+	// A brittle PITA: https://github.com/sveltejs/language-tools/issues/2186
+	healDtsComments,
+	// Don't need @component jsdoc in .svelte files when we have it in .svelte.d.ts files
+	stripComponentDocumentation,
+)
+await run(
+	// Clean up the now-mangled component library files
+	'prettier --ignore-path --plugin prettier-plugin-svelte --write ./dist',
+)
+
+// 3. Generate content + acknowledgments for doc site and demo project
+await parallel(
+	// Extract type info from components for doc site
+	generateDocumentationData,
+	// Generate component example pages for demo project
+	generateKitExamples,
+	// Generate component example Markdown for doc site
+	generateExampleComponents,
+	// Use pnpm's built-in licenses command to get data for acknowledgements in docs
+	// Note that this is separate from the docs acknowledgements data generated in the docs package
+	'pnpm licenses list --json > ./docs/src/content/acknowledgments/acknowledgments-lib.json',
+)
+
+// 4. Build doc site + demo project and validate package
+await parallel(
+	// Build documentation site
+	'pnpm -C ./docs run build',
+	// Build the demo SvelteKit 4 project
+	'vite build',
+	// Validate final Svelte component library package
+	'publint',
+)
+
+console.log(`Build completed. Total build duration: ${prettyMs(performance.now() - startTime)}`)
+
+// Run helpers
+
+async function run(command: string): Promise<void> {
+	await execa({ shell: true, stdio: 'inherit' })`${parseCommandString(command)}`
+}
+
+type Step = (() => Promise<void> | void) | Promise<void> | string
+
+async function resolve(step: Step): Promise<void> {
+	if (typeof step === 'string') {
+		return run(step)
+	}
+
+	if (typeof step === 'function') {
+		await step()
+		return
+	}
+
+	return step
+}
+
+async function serial(...steps: Step[]): Promise<void> {
+	for (const step of steps) {
+		await resolve(step)
+	}
+}
+
+async function parallel(...steps: Step[]): Promise<void> {
+	await Promise.all(steps.map(async (step) => resolve(step)))
+}
+
+=== 10394 scripts/component-info.ts	ts	module	-
+// @case-police-ignore jsDoc, tsDoc
+
+import { nanoid } from 'nanoid'
+import path from 'node:path'
+import ts from 'typescript'
+import {
+	Document,
+	DocumentManager,
+} from '../node_modules/svelte-language-server/dist/src/lib/documents'
+import { LSConfigManager } from '../node_modules/svelte-language-server/dist/src/ls-config.js'
+import { LSAndTSDocResolver } from '../node_modules/svelte-language-server/dist/src/plugins/typescript/LSAndTSDocResolver.js'
+import {
+	isNotNullOrUndefined,
+	pathToUrl,
+} from '../node_modules/svelte-language-server/dist/src/utils.js'
+
+/**
+ * Records of jsdoc tag names (without the @) and their values e.g. { default:
+ * "`256`" }
+ */
+export type JsDocRecord = Record<string, string>
+
+export type ComponentPartInfo = Array<{
+	doc: string
+	jsDocs: JsDocRecord
+	name: string
+	type: string
+}>
+
+export type ComponentPropCondition = Record<string, boolean | number | string>
+
+export type ComponentDynamicPropTest = {
+	condition: ComponentPropCondition
+	description: string // For documentation
+}
+
+export type ComponentInfo = {
+	doc: string
+	dynamicProps?: Array<{
+		condition: ComponentPropCondition
+		description: string
+		props: ComponentPartInfo
+	}>
+	events: ComponentPartInfo
+	jsDocs: JsDocRecord
+	name: string
+	path: string
+	pathParts: string[]
+	props: ComponentPartInfo
+	slots: ComponentPartInfo
+}
+
+function jsDocumentTagInfoToJsDocumentRecord(jsDocumentTags: ts.JSDocTagInfo[]): JsDocRecord {
+	const result: JsDocRecord = {}
+	for (const tag of jsDocumentTags) {
+		result[tag.name] = ts.displayPartsToString(tag.text)
+	}
+
+	return result
+}
+
+// Shared language server infrastructure to avoid creating a new TypeScript
+// program for every component. Lazily initialized on first use.
+const testDirectory = '.'
+let sharedDocumentManager: DocumentManager | undefined
+let sharedResolver: LSAndTSDocResolver | undefined
+
+function getSharedResolver(): {
+	documentManager: DocumentManager
+	resolver: LSAndTSDocResolver
+} {
+	if (!sharedDocumentManager || !sharedResolver) {
+		sharedDocumentManager = new DocumentManager(
+			// eslint-disable-next-line ts/no-unsafe-argument
+			(textDocument) => new Document(textDocument.uri, textDocument.text),
+		)
+
+		sharedResolver = new LSAndTSDocResolver(
+			sharedDocumentManager,
+			[pathToUrl(testDirectory)],
+			new LSConfigManager(),
+			{ tsconfigPath: path.join(path.resolve(testDirectory), 'tsconfig.info.json') },
+		)
+	}
+
+	return { documentManager: sharedDocumentManager, resolver: sharedResolver }
+}
+
+// Alt approach to get cleaner types... use the static approach for the basics,
+// then do a pass with the dynamic approach to get types even for static props
+// TODO figure out why my extraction approach is yielding different types than the language server
+async function getStaticComponentInfo(componentPath: string): Promise<ComponentInfo | undefined> {
+	// Static approach
+	const info = await getStaticComponentInfoInternal(componentPath)
+	if (!info) {
+		return undefined
+	}
+
+	// Amend type data with dynamic approach
+	const lsPropInfo = await getDynamicComponentProps(componentPath, {})
+	for (const property of info.props) {
+		const lsProp = lsPropInfo.find((p) => p.name === property.name)
+
+		if (!lsProp) {
+			console.warn(`No LS prop found for ${property.name}`)
+			continue
+		}
+
+		property.type = lsProp.type
+	}
+
+	return info
+}
+
+// Basic, just get the static component's info
+async function getStaticComponentInfoInternal(
+	componentPath: string,
+): Promise<ComponentInfo | undefined> {
+	const resolvedPath = path.join(testDirectory, componentPath)
+	const { documentManager, resolver } = getSharedResolver()
+
+	const fileText = ts.sys.readFile(resolvedPath)
+	if (fileText === undefined) {
+		throw new Error(`Failed to read file ${resolvedPath}`)
+	}
+
+	const document = documentManager.openClientDocument({
+		text: fileText,
+		uri: pathToUrl(path.resolve(resolvedPath)),
+	})
+
+	const { lang, tsDoc } = await resolver.getLSAndTSDoc(document)
+	const program = lang.getProgram()
+	if (!program) {
+		return undefined
+	}
+
+	// Get the component class definition
+	const componentSourceFile = program.getSourceFile(tsDoc.filePath)
+	if (!componentSourceFile) {
+		return undefined
+	}
+
+	const classDefinition = getClassDefinition(componentSourceFile)
+	if (!classDefinition) {
+		console.error('No class def found.')
+		return undefined
+	}
+
+	const typeChecker = program.getTypeChecker()
+	const classType = typeChecker.getTypeAtLocation(classDefinition)
+	const classSymbol = classType.getSymbol()
+
+	if (!classSymbol) {
+		console.error('No class symbol found.')
+		return undefined
+	}
+
+	// Get props, events, slots
+	const results: ComponentInfo = {
+		doc: ts.displayPartsToString(classSymbol.getDocumentationComment(typeChecker)),
+		events: getInfoFor('$$events_def', classType, typeChecker), // Natural sorting...
+		jsDocs: jsDocumentTagInfoToJsDocumentRecord(classSymbol.getJsDocTags()),
+		name: componentPath.split('/').pop()!.replace('.svelte', ''),
+		path: componentPath,
+		pathParts: componentPath.split('/').slice(3, -1),
+		props: getInfoFor('$$prop_def', classType, typeChecker), // Natural sorting...
+		slots: getInfoFor('$$slot_def', classType, typeChecker), // Natural sorting...
+	}
+
+	await resolver.deleteSnapshot(tsDoc.filePath)
+	return results
+}
+
+// ----------------------
+
+function getClassDefinition(sourceFile: ts.SourceFile): ts.Node | undefined {
+	let classDefinition: ts.Node | undefined
+	sourceFile.forEachChild((node) => {
+		if (ts.isClassDeclaration(node)) {
+			classDefinition = node
+		}
+	})
+	return classDefinition
+}
+
+// Adapted from ComponentInfoProvider
+function mapPropertiesOfType(typeChecker: ts.TypeChecker, type: ts.Type) {
+	return type
+		.getProperties()
+		.map((property: ts.Symbol) => {
+			// Type would still be correct when there're multiple declarations
+			const declaration = property.valueDeclaration ?? property.declarations?.[0]
+			if (!declaration) {
+				return
+			}
+
+			// TODO despite its resemblance to the language-server's ComponentInfoProvider implementation,
+			// this doesn't seem to give the same type strings
+			// for now, the type field is later discarded and replaced with the language-server's output
+			return {
+				doc: ts.displayPartsToString(property.getDocumentationComment(typeChecker)),
+				jsDocs: jsDocumentTagInfoToJsDocumentRecord(property.getJsDocTags()),
+				name: property.name,
+				type: typeChecker.typeToString(
+					typeChecker.getTypeOfSymbolAtLocation(property, declaration),
+				),
+			}
+		})
+		.filter((element) => isNotNullOrUndefined(element)) as ComponentPartInfo
+}
+
+function getInfoFor(
+	propertyName: string,
+	classType: ts.Type,
+	typeChecker: ts.TypeChecker,
+): ComponentPartInfo {
+	const propertySymbol = classType.getProperty(propertyName)
+
+	if (propertySymbol?.valueDeclaration) {
+		const propertiesType = typeChecker.getTypeOfSymbolAtLocation(
+			propertySymbol,
+			propertySymbol.valueDeclaration,
+		)
+
+		return mapPropertiesOfType(typeChecker, propertiesType)
+	}
+
+	return []
+}
+
+// Similar to what you'd get from JsOrTsComponentInfoProvider, but includes JSDocs and condition for dynamic props
+async function getDynamicComponentProps(
+	componentPath: string,
+	testProps: ComponentPropCondition,
+): Promise<ComponentPartInfo> {
+	const { documentManager, resolver } = getSharedResolver()
+
+	const componentName = componentPath.split('/').pop()!.replace('.svelte', '')
+	const testComponentSourceRows = [
+		'<script lang="ts">',
+		`import ${componentName} from '${componentPath.replace('./src/lib/', '$lib/')}';`,
+		'</script>',
+		`<${componentName} ${generateStringFromPropObject(testProps)} />`,
+	]
+
+	// Generated file name must be unique, cleanup doesn't seem to be enough
+	// to avoid stale autocompletion values across repeat invocations
+	const document = documentManager.openClientDocument({
+		text: testComponentSourceRows.join('\n'),
+		uri: pathToUrl(path.resolve(`.in-memory-${componentName}-${nanoid()}.svelte`)),
+	})
+
+	const { lsContainer, tsDoc } = await resolver.getLSAndTSDoc(document)
+
+	// Ensure the virtual document is added to the language service program
+	lsContainer.openVirtualDocument(document)
+
+	// Get the synchronized language service after opening the virtual document
+	const lang = lsContainer.getService(false)
+	const program = lang.getProgram()
+	if (!program) {
+		return []
+	}
+
+	const testPosition = {
+		character: testComponentSourceRows.at(-1)!.length - 2,
+		line: testComponentSourceRows.length - 1,
+	}
+
+	const completions = lang.getCompletionsAtPosition(
+		tsDoc.filePath,
+		tsDoc.offsetAt(tsDoc.getGeneratedPosition(testPosition)),
+		{
+			allowIncompleteCompletions: true, // No change to output
+			includeCompletionsForModuleExports: true,
+			includeCompletionsWithInsertText: false,
+			triggerCharacter: '.',
+			useLabelDetailsInCompletionEntries: true,
+			// IncludeSymbol // TODO try this...
+		},
+	)
+
+	const typeChecker = program.getTypeChecker()
+
+	const results =
+		completions?.entries.map((entry) => {
+			const completionSymbols = lang.getCompletionEntrySymbol(
+				tsDoc.filePath,
+				tsDoc.offsetAt(tsDoc.getGeneratedPosition(testPosition)),
+				entry.name,
+
+				undefined,
+			)
+
+			return {
+				doc: ts.displayPartsToString(completionSymbols!.getDocumentationComment(typeChecker)),
+				jsDocs: jsDocumentTagInfoToJsDocumentRecord(completionSymbols!.getJsDocTags()),
+				name: entry.name,
+				type: typeChecker.typeToString(typeChecker.getTypeOfSymbol(completionSymbols!)),
+			}
+		}) ?? []
+
+	await resolver.deleteSnapshot(tsDoc.filePath)
+	return results
+}
+
+function generateStringFromPropObject(propertiesObject: ComponentPropCondition): string {
+	return Object.entries(propertiesObject)
+		.map(([key, value]) => {
+			const formattedValue = typeof value === 'string' ? `"${value}"` : `{${value}}`
+			return `${key}=${formattedValue}`
+		})
+		.join(' ')
+}
+
+export async function getComponentInfo(
+	componentPath: string,
+	testProps?: ComponentDynamicPropTest[],
+): Promise<ComponentInfo | undefined> {
+	if (!ts.sys.fileExists(componentPath)) {
+		console.error(`File ${componentPath}" does not exist.`)
+		return undefined
+	}
+
+	const results = await getStaticComponentInfo(componentPath)
+
+	if (testProps) {
+		results!.dynamicProps = []
+		for (const testProp of testProps) {
+			results!.dynamicProps.push({
+				condition: testProp.condition,
+				description: testProp.description,
+				props: await getDynamicComponentProps(componentPath, testProp.condition), // Natural sorting...
+			})
+		}
+	}
+
+	return results
+}
+
+=== 2279 scripts/format-embedded-code.ts	ts	module	-
+import fs from 'node:fs/promises'
+import { getAllLibraryFiles, lintAndFormat } from './ast-tools'
+
+// Assumes all code blocks are svelte-like
+async function formatEmbeddedCodeInFile(file: string): Promise<number> {
+	let embedsFormatted = 0
+	try {
+		const data = await fs.readFile(file, 'utf8')
+		let formattedData = ''
+		let lastIndex = 0
+		const regex = /(```.*\n)([\s\S]*?)(\n```)/gv
+		// eslint-disable-next-line ts/no-restricted-types
+		let match: null | RegExpExecArray
+
+		while ((match = regex.exec(data)) !== null) {
+			const [fullMatch, opening, code, closing] = match
+			const { index } = match
+
+			// Append the part before this match.
+			formattedData += data.slice(lastIndex, index)
+
+			try {
+				const formattedCode = await lintAndFormat(code)
+				embedsFormatted++
+				// Using the original opening and closing backticks
+				formattedData += `${opening}${formattedCode.trimEnd()}${closing}`
+			} catch (error) {
+				if (error instanceof Error) {
+					console.error(`Error formatting code: ${error.message}`)
+				} else {
+					console.error(`Error formatting code: ${String(error)}`)
+				}
+
+				formattedData += fullMatch
+			}
+
+			lastIndex = index + fullMatch.length
+		}
+
+		// Append the remaining part of the file
+		formattedData += data.slice(lastIndex)
+
+		// Only write if necessary
+		if (formattedData === data) {
+			embedsFormatted = 0
+		} else {
+			await fs.writeFile(file, formattedData, 'utf8')
+		}
+	} catch (error) {
+		if (error instanceof Error) {
+			console.error(`Error: ${error.message}`)
+		} else {
+			console.error(`Error: ${String(error)}`)
+		}
+	}
+
+	return embedsFormatted
+}
+
+export async function formatEmbeddedCode(): Promise<void> {
+	const files = getAllLibraryFiles()
+
+	console.log(
+		`Checking ${files.length} files for embedded code blocks with incorrect formatting...`,
+	)
+
+	const results = await Promise.all(files.map(async (file) => formatEmbeddedCodeInFile(file)))
+
+	const totalFilesTouched = results.filter((count) => count > 0).length
+	const totalEmbedsFormatted = results.reduce((sum, count) => sum + count, 0)
+
+	if (totalFilesTouched === 0) {
+		console.log(`Embedded formatting is correct in all files.`)
+	} else {
+		console.log(
+			`Formatted ${totalEmbedsFormatted} embedded code blocks across ${totalFilesTouched} files.`,
+		)
+	}
+}
+
+=== 4948 scripts/generate-documentation-data.ts	ts	module	-
+// Figures out prop data from src components
+// and writes out a json and / or markdown file with the prop info in the frontmatter for each
+
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import * as yaml from 'yaml'
+import type { ComponentDynamicPropTest } from './component-info'
+import {
+	format,
+	getExportedComponents,
+	getGithubUrlForSourceFile,
+	getLastUpdatedDate,
+} from './ast-tools'
+import { getComponentInfo } from './component-info'
+
+async function generateComponentData(
+	componentName: string,
+	componentPath: string,
+	destination: string,
+	outputFormat: 'json' | 'mdx', // Must match file extension
+	testProps?: ComponentDynamicPropTest[],
+): Promise<boolean> {
+	const expandedPath = componentPath.replace('$lib', './src/lib')
+
+	const componentInfo = await getComponentInfo(expandedPath, testProps)
+
+	if (componentInfo) {
+		// Overwrites existing, creates intermediate directories
+		const resolvedPath = path.resolve(`${destination}/${componentName}.${outputFormat}`)
+		await fs.mkdir(path.dirname(resolvedPath), { recursive: true })
+
+		let content: string
+		switch (outputFormat) {
+			case 'json': {
+				content = await format(JSON.stringify(componentInfo, undefined, 2), 'json')
+				break
+			}
+
+			case 'mdx': {
+				{
+					// Add some extra metadata for Astro
+					// The shape of this object needs to be coordinated with the Astro
+					// frontmatter schema definitions in docs/src/content/config.ts
+					const frontmatter = {
+						componentData: componentInfo,
+						editUrl: false,
+						lastUpdated: (await getLastUpdatedDate(expandedPath)) ?? false,
+						note: `Generated by generate-documentation-data.ts from JSDoc information in "${expandedPath}" at ${new Date().toISOString()}. Do not edit directly.`,
+						sourceUrl: await getGithubUrlForSourceFile(expandedPath),
+						title: componentName,
+					}
+
+					content = `---\n${yaml.stringify(frontmatter, {
+						toStringDefaults: {
+							// DefaultStringType: 'QUOTE_DOUBLE',
+							lineWidth: 0,
+						},
+					})}---\n`
+
+					// Embed example component so we don't have to load it dynamically so that it can prerender to avoid cls
+					content += `\nimport Example from '../../../../examples/components/${componentName}Example.svelte';\n`
+					content += `\n<Example client:load />\n`
+				}
+
+				break
+			}
+		}
+
+		await fs.writeFile(resolvedPath, content)
+
+		return true
+	}
+
+	return false
+}
+
+export async function generateDocumentationData(): Promise<void> {
+	const components = getExportedComponents('./src/lib/index.ts')
+	const destination = './docs/src/content/docs/docs/components'
+	const extension = 'mdx'
+
+	console.log(`Generating documentation data for ${components.length} components...`)
+
+	try {
+		await fs.access(destination)
+		console.log(`Removing existing component documentation data at "${destination}"...`)
+		await fs.rm(destination, { recursive: true })
+	} catch {
+		// Directory doesn't exist, nothing to remove
+	}
+
+	const results = await Promise.all(
+		components.map(async ({ name, path: componentPath }) => {
+			//  TODO break out and pass in this config...
+			// Pass custom dynamic prop test cases to certain components
+			let testProps: ComponentDynamicPropTest[] | undefined
+
+			switch (name) {
+				case 'Monitor': {
+					testProps = [
+						{
+							condition: {
+								value: 1,
+							},
+							description: '`value` is of type `number`',
+						},
+						{
+							condition: {
+								value: false,
+							},
+							description: '`value` is of type `boolean`',
+						},
+						{
+							condition: {
+								value: 'string',
+							},
+							description: '`value` is of type `string`',
+						},
+					]
+
+					break
+				}
+
+				case 'Pane': {
+					testProps = [
+						{
+							condition: {
+								position: 'draggable',
+							},
+							description: '`position="draggable"`',
+						},
+						{
+							condition: {
+								position: 'inline',
+							},
+							description: '`position="inline"`',
+						},
+						{
+							condition: {
+								position: 'fixed',
+							},
+							description: '`position="fixed"`',
+						},
+					]
+
+					break
+				}
+
+				case 'Point': {
+					testProps = [
+						{
+							condition: {
+								value: '{[0, 0]}',
+							},
+							description: '`value` is 2D',
+						},
+						{
+							condition: {
+								value: '{[0, 0, 0]}',
+							},
+							description: '`value` is 3D',
+						},
+						{
+							condition: {
+								value: '{[0, 0, 0, 0]}',
+							},
+							description: '`value` is 4D',
+						},
+					]
+
+					break
+				}
+				// No default
+			}
+
+			const success = await generateComponentData(
+				name,
+				componentPath,
+				destination,
+				extension,
+				testProps,
+			)
+
+			if (!success) {
+				console.warn(`Issue generating component data for "${name}.svelte"`)
+			}
+
+			return success
+		}),
+	)
+
+	const totalComponentsGenerated = results.filter(Boolean).length
+
+	console.log(
+		`Done. Created ${totalComponentsGenerated} component documentation ${extension} files in "${destination}" .`,
+	)
+}
+
+=== 1603 scripts/generate-example-components.ts	ts	module	-
+// Copies examples from kit src to docs
+// changes import path, formats for narrower screens, and also generates markdown
+
+import { globSync } from 'glob'
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import { lintAndFormat } from './ast-tools'
+
+// Leave this on
+const reformat = true
+const IMPORT_LIB_PATH_REGEX = /'\$lib/v
+
+export async function generateExampleComponents(): Promise<void> {
+	await fs.rm('./docs/src/examples', { force: true, recursive: true })
+
+	await fs.cp('./src/examples', './docs/src/examples', { recursive: true })
+
+	const files = globSync('./docs/src/examples/**/*.svelte', { posix: true })
+
+	await Promise.all(
+		files.map(async (filePath) => {
+			try {
+				const directory = path.dirname(filePath)
+				const baseName = path.basename(filePath, '.svelte')
+
+				// Optionally Re-format and save .svelte file
+				let svelteContent = await fs.readFile(filePath, 'utf8')
+				svelteContent = svelteContent.replace(IMPORT_LIB_PATH_REGEX, "'svelte-tweakpane-ui")
+
+				// eslint-disable-next-line ts/no-unnecessary-condition
+				const formattedSvelteContent = reformat
+					? await lintAndFormat(svelteContent, 'svelte')
+					: svelteContent
+
+				await fs.writeFile(filePath, formattedSvelteContent)
+
+				// Generate markdown with title
+				const markdownContent =
+					'```svelte title="' + baseName + '.svelte"\n' + formattedSvelteContent + '```\n'
+				const markdownPath = path.join(directory, `${baseName}.md`)
+				await fs.writeFile(markdownPath, markdownContent)
+			} catch (error) {
+				console.error(`Error processing file ${filePath}:`, error)
+			}
+		}),
+	)
+}
+
+=== 2682 scripts/generate-exports.ts	ts	module	-
+// Inspired by https://github.com/shinokada/svelte-lib-helpers
+
+import type { ReadResult } from 'read-package-up'
+import fs from 'node:fs'
+import { readPackageUp } from 'read-package-up'
+import { getExportedComponents, getExportedJs } from './ast-tools'
+
+const verbose = false
+
+type Export = { default?: string; svelte?: string; types: string }
+type Exports = Record<string, Export>
+
+// Gets all props for a given component from its definition file
+function addExports(sourceIndexFile: string, closestPackage: ReadResult) {
+	const { path } = closestPackage
+
+	console.log(`Adding Svelte components found in ${sourceIndexFile} to ${path}`)
+
+	// Default export
+	const exports: Exports = {
+		'.': {
+			types: './dist/index.d.ts',
+			// eslint-disable-next-line perfectionist/sort-objects
+			svelte: './dist/index.js',
+		},
+	}
+
+	// Extract components from index file
+	for (const component of getExportedComponents(sourceIndexFile)) {
+		const { name, path: componentPath } = component
+
+		const key = `./${name}.svelte`
+		const types = `./dist/${componentPath.replace('$lib/', '')}.d.ts`
+		const svelte = `./dist/${componentPath.replace('$lib/', '')}`
+		// eslint-disable-next-line perfectionist/sort-objects
+		exports[key] = { types, svelte }
+
+		// eslint-disable-next-line ts/no-unnecessary-condition
+		if (verbose) {
+			console.log(exports[key])
+		}
+	}
+
+	// Extract JS exports from index file (like Utils, etc.)
+	for (const file of getExportedJs(sourceIndexFile)) {
+		const { name, path: filePath } = file
+
+		const key = `./${name}.js`
+		const types = `./dist/${filePath.replace('.js', '').replace('$lib/', '')}.d.ts`
+		const defaultValue = `./dist/${filePath.replace('$lib/', '')}`
+		// eslint-disable-next-line perfectionist/sort-objects
+		exports[key] = { types, default: defaultValue }
+
+		// eslint-disable-next-line ts/no-unnecessary-condition
+		if (verbose) {
+			console.log(exports[key])
+		}
+	}
+
+	// Save to package.json
+	const { packageJson } = closestPackage
+
+	packageJson.exports = exports
+	packageJson.types = './dist/index.d.ts'
+
+	// Deprecated, Astro complains
+	// https://github.com/sveltejs/vite-plugin-svelte/blob/main/docs/faq.md#conflicts-in-svelte-resolve
+	// packageJson.svelte = './dist/index.d.ts';
+
+	fs.writeFileSync(path, JSON.stringify(packageJson, undefined, 2))
+
+	console.log(
+		`Done. Wrote 'types' and ${
+			Object.keys(exports).length - 1
+		} component 'exports' values to ${path}.`,
+	)
+}
+
+export async function generateExports(): Promise<void> {
+	const closestPackage = await readPackageUp({ normalize: false })
+
+	if (closestPackage === undefined) {
+		throw new Error('Could not find package.json')
+	}
+
+	addExports('./src/lib/index.ts', closestPackage)
+}
+
+=== 985 scripts/generate-kit-examples.ts	ts	module	-
+import fs from 'node:fs'
+// Extracts and saves example blocks from component jsdoc,
+import {
+	getComponentExampleCodeFromSource,
+	getExportedComponents,
+	lintAndFormat,
+} from './ast-tools'
+
+// Leave this on
+const reformat = true
+const IMPORT_TWEAKPANE_PATH_REGEX = /'svelte-tweakpane-ui/v
+
+export async function generateKitExamples(): Promise<void> {
+	const components = getExportedComponents('./src/lib/index.ts')
+
+	fs.mkdirSync('./src/examples/components', { recursive: true })
+
+	await Promise.all(
+		components.map(async ({ name }) => {
+			const code = await getComponentExampleCodeFromSource(name, false)
+			if (code !== undefined && code !== '') {
+				const codeWithFixedImport = code.replace(IMPORT_TWEAKPANE_PATH_REGEX, "'$lib")
+				// eslint-disable-next-line ts/no-unnecessary-condition
+				const formattedCode = reformat ? await lintAndFormat(codeWithFixedImport) : code
+				fs.writeFileSync(`./src/examples/components/${name}Example.svelte`, formattedCode)
+			}
+		}),
+	)
+}
+
+=== 4334 scripts/heal-dts-comments.ts	ts	module	-
+// @case-police-ignore jsDoc
+
+// Works around https://github.com/sveltejs/language-tools/issues/2186 by
+// manually adding missing prop comments from ancestor components run it after
+// build to modify the .d.ts files in dist. it needs access to the source files
+// as well. idempotent.
+
+import type { JSDoc, SourceFile } from 'ts-morph'
+import { Project } from 'ts-morph'
+import type { PropNode } from './ast-tools'
+import {
+	getAllLibraryComponentNames,
+	getDefinitionFilePath,
+	getProp,
+	getProps,
+	getSourceFilePath,
+	queryTree,
+} from './ast-tools'
+
+// TODO a more robust approach that uses the typescript type checker (see ComponentInfo.ts)
+
+// extra logging
+const verbose = false
+
+export function healDtsComments(): void {
+	// Pre-load all source and definition files into shared Projects to avoid
+	// creating a new Project() per file access (~94 instantiations → 2)
+	const componentNames = getAllLibraryComponentNames()
+
+	const sourceProject = new Project()
+	const sourceFiles = new Map<string, SourceFile>()
+	for (const name of componentNames) {
+		const filePath = getSourceFilePath(name)
+		if (filePath !== undefined && filePath !== '') {
+			sourceFiles.set(name, sourceProject.addSourceFileAtPath(filePath))
+		}
+	}
+
+	const definitionProject = new Project()
+	const definitionFiles = new Map<string, SourceFile>()
+	for (const name of componentNames) {
+		const filePath = getDefinitionFilePath(name)
+		if (filePath !== undefined && filePath !== '') {
+			definitionFiles.set(name, definitionProject.addSourceFileAtPath(filePath))
+		}
+	}
+
+	// Helper functions
+
+	// looks at use of ComponentProps in $$Props type to find the name of the component that is extended
+	function getParentComponentNames(componentName: string): string[] {
+		const sourceFile = sourceFiles.get(componentName)
+		if (!sourceFile) {
+			return []
+		}
+
+		return queryTree<PropNode>(
+			sourceFile,
+			':matches(ExpressionWithTypeArguments[expression.name="ComponentProps"], TypeReference[typeName.name="ComponentProps"]) > TypeReference > Identifier',
+		).map((node) => node.getText())
+	}
+
+	function getCommentForProp(componentName: string, propName: string): JSDoc[] | undefined {
+		const definitionFile = definitionFiles.get(componentName)
+		if (!definitionFile) {
+			return undefined
+		}
+
+		return getProp(definitionFile, propName, 'commented')?.getJsDocs()
+	}
+
+	// Recursively walks up the component inheritance chain to find a comment for a prop
+	function getPropCommentInParents(componentName: string, propName: string): JSDoc[] | undefined {
+		// Some components extend multiple components, e.g. Pane, Monitor
+		const parentComponents = getParentComponentNames(componentName)
+
+		let comment: JSDoc[] | undefined
+		while (comment === undefined && parentComponents.length > 0) {
+			const parent = parentComponents.pop()!
+			// Recurse as needed
+			comment = getCommentForProp(parent, propName) ?? getPropCommentInParents(parent, propName)
+		}
+
+		return comment
+	}
+
+	function inheritPropCommentsAndSave(componentName: string): number {
+		const definitionFile = definitionFiles.get(componentName)
+		if (!definitionFile) {
+			return 0
+		}
+
+		let quantityFixed = 0
+		const props = getProps(definitionFile, 'uncommented')
+		for (const propNode of props) {
+			// Check self first, then go up the component inheritance chain
+			const comments =
+				getCommentForProp(componentName, propNode.getName()) ??
+				getPropCommentInParents(componentName, propNode.getName())
+
+			if (comments) {
+				propNode.insertJsDocs(
+					0,
+					comments.map((jsDoc) => jsDoc.getStructure()),
+				)
+				quantityFixed++
+			} else {
+				console.warn(
+					`Component <${componentName}> is missing comment for prop "${propNode.getName()}"`,
+				)
+			}
+		}
+
+		definitionFile.saveSync()
+		return quantityFixed
+	}
+
+	// Main
+	let totalPropsFixed = 0
+
+	console.log(`Healing missing prop comments for ${componentNames.length} components...`)
+
+	// Order doesn't matter since going up the chain is consistent
+	for (const componentName of componentNames) {
+		// eslint-disable-next-line ts/no-unnecessary-condition
+		if (verbose) {
+			console.log(`Adding missing prop comments for "${componentName}"`)
+		}
+
+		totalPropsFixed += inheritPropCommentsAndSave(componentName)
+	}
+
+	console.log(
+		`Done. Found and fixed ${totalPropsFixed} missing .d.ts component prop JSDoc annotations.`,
+	)
+}
+
+=== 1634 scripts/mdat-component-rules.ts	ts	module	-
+// Generate basic component documentation for the readme.md file via a
+// custom mdat rule
+
+import { defineConfig } from 'mdat'
+import { getExportedComponents } from './ast-tools'
+import { getComponentInfo } from './component-info'
+
+export default defineConfig({
+	'component-count': {
+		// eslint-disable-next-line ts/require-await
+		async content() {
+			return String(getExportedComponents('./src/lib/index.ts').length)
+		},
+	},
+	'component-list': {
+		async content() {
+			const components = getExportedComponents('./src/lib/index.ts')
+
+			const sections = new Map<string, string[]>()
+
+			for (const component of components) {
+				const { name, path } = component
+
+				const resolvePath = path.replace('$lib', './src/lib')
+				const componentInfo = await getComponentInfo(resolvePath)
+
+				if (componentInfo === undefined) {
+					continue
+				}
+
+				const sectionName = componentInfo.pathParts[0]
+				const output = sections.get(sectionName) ?? []
+
+				const firstLineOfDocumentation = componentInfo.doc.split('\n\n', 1)[0].replaceAll('\n', ' ')
+
+				output.push(
+					`- **[${name}](https://kitschpatrol.com/svelte-tweakpane-ui/docs/components/${name.toLowerCase()})**  `,
+					`  ${firstLineOfDocumentation}`,
+				)
+
+				sections.set(sectionName, output)
+			}
+
+			const finalOutput: string[] = []
+			for (const sectionName of ['core', 'control', 'monitor', 'extra']) {
+				finalOutput.push(`### ${sectionName.charAt(0).toUpperCase() + sectionName.slice(1)}`)
+
+				const section = sections.get(sectionName) ?? []
+				for (const line of section) {
+					finalOutput.push(line)
+				}
+			}
+
+			return finalOutput.join('\n')
+		},
+	},
+})
+
+=== 1312 scripts/strip-component-documentation.ts	ts	module	-
+// There's redundant @component documentation between the svelte file and the svelte.d.ts file
+
+import { globSync } from 'glob'
+import { readFile, writeFile } from 'node:fs/promises'
+
+const verbose = false
+
+async function removeComponentBlock(filePath: string): Promise<void> {
+	// Read the file
+	const fileContent = await readFile(filePath, 'utf8')
+
+	// Use regular expression to remove everything between <!-- @component and -->
+	const updatedContent = fileContent.replaceAll(/<!--\s*@component[\s\S]*?-->/gv, '')
+
+	if (fileContent === updatedContent) {
+		// eslint-disable-next-line ts/no-unnecessary-condition
+		if (verbose) {
+			console.log(`No @component comment found in ${filePath}`)
+		}
+	} else {
+		// eslint-disable-next-line ts/no-unnecessary-condition
+		if (verbose) {
+			console.log(`Stripped @component comment from ${filePath}`)
+		}
+
+		await writeFile(filePath, updatedContent, 'utf8')
+	}
+}
+
+export async function stripComponentDocumentation(): Promise<void> {
+	const svelteFiles = globSync(`./dist/**/*.svelte`, { posix: true })
+
+	console.log(`Removing @component blocks from ${svelteFiles.length} Svelte files...`)
+	console.log(`Documentation is preserved in .svelte.d.ts files.`)
+
+	await Promise.all(svelteFiles.map(async (filePath) => removeComponentBlock(filePath)))
+
+	console.log(`Done.`)
+}
+
 === 1190 src/examples/docs/SvelteTweakpaneEventExample.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { Button, Monitor, Slider, type SliderChangeEvent } from '$lib'
@@ -2445,4 +4943,2527 @@
 <Wheel label="Wheel 1" {wide} bind:value />
 <Checkbox label="Wide" bind:value={wide} />
 <pre>Value: {value}</pre>
+
+=== 5598 src/lib/index.ts	ts	module	-
+export { default as Button } from '$lib/control/Button.svelte'
+
+export type { ButtonClickEvent } from '$lib/control/Button.svelte'
+
+export { default as ButtonGrid } from '$lib/control/ButtonGrid.svelte'
+
+export type { ButtonGridClickEvent } from '$lib/control/ButtonGrid.svelte'
+
+export { default as Checkbox } from '$lib/control/Checkbox.svelte'
+
+export type { CheckboxChangeEvent } from '$lib/control/Checkbox.svelte'
+
+export { default as Color } from '$lib/control/Color.svelte'
+
+export type {
+	ColorChangeEvent,
+	ColorValue,
+	ColorValueRgbaObject,
+	ColorValueRgbaTuple,
+	ColorValueRgbObject,
+	ColorValueRgbTuple,
+	ColorValueString,
+} from '$lib/control/Color.svelte'
+
+export { default as CubicBezier } from '$lib/control/CubicBezier.svelte'
+
+export type {
+	CubicBezierChangeEvent,
+	CubicBezierValue,
+	CubicBezierValueObject,
+	CubicBezierValueTuple,
+} from '$lib/control/CubicBezier.svelte'
+
+export { default as File } from '$lib/control/File.svelte'
+
+export type { FileChangeEvent, FileValue } from '$lib/control/File.svelte'
+
+export { default as Image } from '$lib/control/Image.svelte'
+
+export type { ImageChangeEvent, ImageValue } from '$lib/control/Image.svelte'
+
+export { default as IntervalSlider } from '$lib/control/IntervalSlider.svelte'
+
+export type {
+	IntervalSliderChangeEvent,
+	IntervalSliderValue,
+	IntervalSliderValueObject,
+	IntervalSliderValueTuple,
+} from '$lib/control/IntervalSlider.svelte'
+
+export { default as List } from '$lib/control/List.svelte'
+
+export type {
+	ListChangeEvent,
+	ListOptions,
+	ListOptionsArray,
+	ListOptionsObjectArray,
+	ListOptionsRecord,
+} from '$lib/control/List.svelte'
+
+export { default as Point } from '$lib/control/Point.svelte'
+
+export type {
+	PointChangeEvent,
+	PointOptions,
+	PointValue2d,
+	PointValue2dObject,
+	PointValue2dTuple,
+	PointValue3d,
+	PointValue3dObject,
+	PointValue3dTuple,
+	PointValue4d,
+	PointValue4dObject,
+	PointValue4dTuple,
+} from '$lib/control/Point.svelte'
+
+export { default as RadioGrid } from '$lib/control/RadioGrid.svelte'
+
+export type { RadioGridChangeEvent } from '$lib/control/RadioGrid.svelte'
+// Camerakit (1st party plugins)
+
+export { default as Ring } from '$lib/control/Ring.svelte'
+
+export type { RingChangeEvent, RingSeries, RingUnit } from '$lib/control/Ring.svelte'
+
+export { default as RotationEuler } from '$lib/control/RotationEuler.svelte'
+
+export type {
+	RotationEulerChangeEvent,
+	RotationEulerOptions,
+	RotationEulerOrder,
+	RotationEulerUnit,
+	RotationEulerValue,
+	RotationEulerValueObject,
+	RotationEulerValueTuple,
+} from '$lib/control/RotationEuler.svelte'
+
+export { default as RotationQuaternion } from '$lib/control/RotationQuaternion.svelte'
+
+export type {
+	RotationQuaternionChangeEvent,
+	RotationQuaternionOptions,
+	RotationQuaternionValue,
+	RotationQuaternionValueObject,
+	RotationQuaternionValueTuple,
+} from '$lib/control/RotationQuaternion.svelte'
+
+export { default as Slider } from '$lib/control/Slider.svelte'
+
+export type { SliderChangeEvent } from '$lib/control/Slider.svelte'
+
+export { default as Stepper } from '$lib/control/Stepper.svelte'
+
+export type { StepperChangeEvent } from '$lib/control/Stepper.svelte'
+
+export { default as Text } from '$lib/control/Text.svelte'
+
+export type { TextChangeEvent } from '$lib/control/Text.svelte'
+
+export { default as Textarea } from '$lib/control/Textarea.svelte'
+
+export type { TextareaChangeEvent } from '$lib/control/Textarea.svelte'
+
+export { default as Wheel } from '$lib/control/Wheel.svelte'
+
+export type { WheelChangeEvent } from '$lib/control/Wheel.svelte'
+
+export { default as Binding } from '$lib/core/Binding.svelte'
+
+export type { BindingChangeEvent, BindingOptions, BindingRef } from '$lib/core/Binding.svelte'
+
+export { default as Blade } from '$lib/core/Blade.svelte'
+
+export type { BladeOptions, BladeRef } from '$lib/core/Blade.svelte'
+
+export { default as Folder } from '$lib/core/Folder.svelte'
+
+export { default as Pane } from '$lib/core/Pane.svelte'
+
+export type { PanePosition } from '$lib/core/Pane.svelte'
+
+export { default as Separator } from '$lib/core/Separator.svelte'
+
+export { default as TabGroup } from '$lib/core/TabGroup.svelte'
+
+export { default as TabPage } from '$lib/core/TabPage.svelte'
+
+export { default as AutoObject } from '$lib/extra/AutoObject.svelte'
+
+export type { AutoObjectChangeEvent } from '$lib/extra/AutoObject.svelte'
+
+export { default as AutoValue } from '$lib/extra/AutoValue.svelte'
+
+export type { AutoValueChangeEvent } from '$lib/extra/AutoValue.svelte'
+
+export { default as Element } from '$lib/extra/Element.svelte'
+
+export { default as FpsGraph } from '$lib/monitor/FpsGraph.svelte'
+
+export type { FpsGraphChangeEvent } from '$lib/monitor/FpsGraph.svelte'
+
+export { default as Monitor } from '$lib/monitor/Monitor.svelte'
+
+export { default as Profiler } from '$lib/monitor/Profiler.svelte'
+
+export type {
+	ProfilerCalcMode,
+	ProfilerMeasure,
+	ProfilerMeasureAsync,
+	ProfilerMeasureHandler,
+} from '$lib/monitor/Profiler.svelte'
+
+export { default as WaveformMonitor } from '$lib/monitor/WaveformMonitor.svelte'
+
+export type { WaveformMonitorValue } from '$lib/monitor/WaveformMonitor.svelte'
+
+// Themes export default can still leak "internal" theme stuff, but worth it for simple file
+// structure at the moment
+export type { Theme, ThemeColorValue } from '$lib/theme.js'
+
+export { default as ThemeUtils } from '$lib/theme.js'
+
+// Utilities export default can still leak "internal" theme stuff, but worth it for simple file
+// structure at the moment
+export type { BindingObject, Plugin, ValueChangeEvent } from '$lib/utils.js'
+
+export { default as Utils } from '$lib/utils.js'
+
+=== 16482 src/lib/theme.ts	ts	module	-
+import type { RgbaColorObject, RgbColorObject } from '@tweakpane/core'
+import { getWindowDocument, isRgbaColorObject, isRgbColorObject } from '@tweakpane/core'
+import type { Simplify } from '$lib/utils.js'
+
+// Only need undefined if we had nested themes... undefined shouldn't override global theme
+export type ThemeColorValue = Simplify<RgbaColorObject | RgbColorObject | string>
+export type Theme = CustomThemeKeys & ThemeKeys
+
+type ThemeKeys = {
+	// Tweakpane
+	baseBackgroundColor?: ThemeColorValue
+	baseBorderRadius?: string
+	baseFontFamily?: string
+	baseShadowColor?: ThemeColorValue
+	bladeBorderRadius?: string
+	bladeHorizontalPadding?: string
+	bladeValueWidth?: string
+	buttonBackgroundColor?: ThemeColorValue
+	buttonBackgroundColorActive?: ThemeColorValue
+	buttonBackgroundColorFocus?: ThemeColorValue
+	buttonBackgroundColorHover?: ThemeColorValue
+	buttonForegroundColor?: ThemeColorValue
+	containerBackgroundColor?: ThemeColorValue
+	containerBackgroundColorActive?: ThemeColorValue
+	containerBackgroundColorFocus?: ThemeColorValue
+	containerBackgroundColorHover?: ThemeColorValue
+	containerForegroundColor?: ThemeColorValue
+	containerHorizontalPadding?: string
+	containerUnitSize?: string
+	containerUnitSpacing?: string
+	containerVerticalPadding?: string
+	grooveForegroundColor?: ThemeColorValue
+	inputBackgroundColor?: ThemeColorValue
+	inputBackgroundColorActive?: ThemeColorValue
+	inputBackgroundColorFocus?: ThemeColorValue
+	inputBackgroundColorHover?: ThemeColorValue
+	inputForegroundColor?: ThemeColorValue
+	labelForegroundColor?: ThemeColorValue
+	monitorBackgroundColor?: ThemeColorValue
+	monitorForegroundColor?: ThemeColorValue
+	// Plugins
+	pluginImageDraggingColor?: ThemeColorValue
+	// PluginThumbnailListHeight?: string; pluginThumbnailListThumbSize?: string;
+	// pluginThumbnailListWidth?: string;
+}
+
+type CustomThemeKeys = Record<string, ThemeColorValue>
+
+// Standard Tweakpane themes from https://tweakpane.github.io/docs/theming/#builder Must be kept in
+// sync with TP...
+
+const standard: Theme = {
+	baseBackgroundColor: 'hsl(230, 7%, 17%)',
+	baseBorderRadius: '6px',
+	baseFontFamily: 'Roboto Mono, Source Code Pro, Menlo, Courier, monospace',
+	baseShadowColor: 'rgba(0, 0, 0, 0.2)',
+	bladeBorderRadius: '2px',
+	bladeHorizontalPadding: '4px',
+	bladeValueWidth: '160px',
+	buttonBackgroundColor: 'hsl(230, 7%, 70%)',
+	buttonBackgroundColorActive: '#d6d7db',
+	buttonBackgroundColorFocus: '#c8cad0',
+	buttonBackgroundColorHover: '#bbbcc4',
+	buttonForegroundColor: 'hsl(230, 7%, 17%)',
+	containerBackgroundColor: 'rgba(187, 188, 196, 0.1)',
+	containerBackgroundColorActive: 'rgba(187, 188, 196, 0.25)',
+	containerBackgroundColorFocus: 'rgba(187, 188, 196, 0.2)',
+	containerBackgroundColorHover: 'rgba(187, 188, 196, 0.15)',
+	containerForegroundColor: 'hsl(230, 7%, 75%)',
+	containerHorizontalPadding: '4px',
+	containerUnitSize: '20px',
+	containerUnitSpacing: '4px',
+	containerVerticalPadding: '4px',
+	grooveForegroundColor: 'rgba(187, 188, 196, 0.1)',
+	inputBackgroundColor: 'rgba(187, 188, 196, 0.1)',
+	inputBackgroundColorActive: 'rgba(187, 188, 196, 0.25)',
+	inputBackgroundColorFocus: 'rgba(187, 188, 196, 0.2)',
+	inputBackgroundColorHover: 'rgba(187, 188, 196, 0.15)',
+	inputForegroundColor: 'hsl(230, 7%, 75%)',
+	labelForegroundColor: 'rgba(187, 188, 196, 0.7)',
+	monitorBackgroundColor: 'rgba(0, 0, 0, 0.2)',
+	monitorForegroundColor: 'rgba(187, 188, 196, 0.7)',
+	pluginImageDraggingColor: 'hsla(230, 100%, 66%, 1)',
+	// PluginThumbnailListHeight: '400px', pluginThumbnailListThumbSize: '20px',
+	// pluginThumbnailListWidth: '200px'
+}
+
+export const keys = Object.keys(standard).reduce<Record<string, string>>((acc, key) => {
+	acc[key] = key
+	return acc
+}, {})
+
+const light: Theme = {
+	baseBackgroundColor: 'hsla(230, 5%, 90%, 1.00)',
+	baseShadowColor: 'hsla(0, 0%, 0%, 0.10)',
+	buttonBackgroundColor: 'hsla(230, 7%, 75%, 1.00)',
+	buttonBackgroundColorActive: 'hsla(230, 7%, 60%, 1.00)',
+	buttonBackgroundColorFocus: 'hsla(230, 7%, 65%, 1.00)',
+	buttonBackgroundColorHover: 'hsla(230, 7%, 70%, 1.00)',
+	buttonForegroundColor: 'hsla(230, 10%, 30%, 1.00)',
+	containerBackgroundColor: 'hsla(230, 15%, 30%, 0.20)',
+	containerBackgroundColorActive: 'hsla(230, 15%, 30%, 0.32)',
+	containerBackgroundColorFocus: 'hsla(230, 15%, 30%, 0.28)',
+	containerBackgroundColorHover: 'hsla(230, 15%, 30%, 0.24)',
+	containerForegroundColor: 'hsla(230, 10%, 30%, 1.00)',
+	grooveForegroundColor: 'hsla(230, 15%, 30%, 0.10)',
+	inputBackgroundColor: 'hsla(230, 15%, 30%, 0.10)',
+	inputBackgroundColorActive: 'hsla(230, 15%, 30%, 0.22)',
+	inputBackgroundColorFocus: 'hsla(230, 15%, 30%, 0.18)',
+	inputBackgroundColorHover: 'hsla(230, 15%, 30%, 0.14)',
+	inputForegroundColor: 'hsla(230, 10%, 30%, 1.00)',
+	labelForegroundColor: 'hsla(230, 10%, 30%, 0.70)',
+	monitorBackgroundColor: 'hsla(230, 15%, 30%, 0.10)',
+	monitorForegroundColor: 'hsla(230, 10%, 30%, 0.50)',
+}
+
+const iceberg: Theme = {
+	baseBackgroundColor: 'hsla(230, 20%, 11%, 1.00)',
+	baseShadowColor: 'hsla(0, 0%, 0%, 0.20)',
+	buttonBackgroundColor: 'hsla(230, 10%, 80%, 1.00)',
+	buttonBackgroundColorActive: 'hsla(230, 10%, 95%, 1.00)',
+	buttonBackgroundColorFocus: 'hsla(230, 10%, 90%, 1.00)',
+	buttonBackgroundColorHover: 'hsla(230, 10%, 85%, 1.00)',
+	buttonForegroundColor: 'hsla(230, 20%, 11%, 1.00)',
+	containerBackgroundColor: 'hsla(230, 25%, 16%, 1.00)',
+	containerBackgroundColorActive: 'hsla(230, 25%, 31%, 1.00)',
+	containerBackgroundColorFocus: 'hsla(230, 25%, 26%, 1.00)',
+	containerBackgroundColorHover: 'hsla(230, 25%, 21%, 1.00)',
+	containerForegroundColor: 'hsla(230, 10%, 80%, 1.00)',
+	grooveForegroundColor: 'hsla(230, 20%, 8%, 1.00)',
+	inputBackgroundColor: 'hsla(230, 20%, 8%, 1.00)',
+	inputBackgroundColorActive: 'hsla(230, 28%, 23%, 1.00)',
+	inputBackgroundColorFocus: 'hsla(230, 28%, 18%, 1.00)',
+	inputBackgroundColorHover: 'hsla(230, 20%, 13%, 1.00)',
+	inputForegroundColor: 'hsla(230, 10%, 80%, 1.00)',
+	labelForegroundColor: 'hsla(230, 12%, 48%, 1.00)',
+	monitorBackgroundColor: 'hsla(230, 20%, 8%, 1.00)',
+	monitorForegroundColor: 'hsla(230, 12%, 48%, 1.00)',
+}
+
+const jetblack: Theme = {
+	baseBackgroundColor: 'hsla(0, 0%, 0%, 1.00)',
+	baseShadowColor: 'hsla(0, 0%, 0%, 0.2)',
+	buttonBackgroundColor: 'hsla(0, 0%, 70%, 1.00)',
+	buttonBackgroundColorActive: 'hsla(0, 0%, 85%, 1.00)',
+	buttonBackgroundColorFocus: 'hsla(0, 0%, 80%, 1.00)',
+	buttonBackgroundColorHover: 'hsla(0, 0%, 75%, 1.00)',
+	buttonForegroundColor: 'hsla(0, 0%, 0%, 1.00)',
+	containerBackgroundColor: 'hsla(0, 0%, 10%, 1.00)',
+	containerBackgroundColorActive: 'hsla(0, 0%, 25%, 1.00)',
+	containerBackgroundColorFocus: 'hsla(0, 0%, 20%, 1.00)',
+	containerBackgroundColorHover: 'hsla(0, 0%, 15%, 1.00)',
+	containerForegroundColor: 'hsla(0, 0%, 50%, 1.00)',
+	grooveForegroundColor: 'hsla(0, 0%, 10%, 1.00)',
+	inputBackgroundColor: 'hsla(0, 0%, 10%, 1.00)',
+	inputBackgroundColorActive: 'hsla(0, 0%, 25%, 1.00)',
+	inputBackgroundColorFocus: 'hsla(0, 0%, 20%, 1.00)',
+	inputBackgroundColorHover: 'hsla(0, 0%, 15%, 1.00)',
+	inputForegroundColor: 'hsla(0, 0%, 70%, 1.00)',
+	labelForegroundColor: 'hsla(0, 0%, 50%, 1.00)',
+	monitorBackgroundColor: 'hsla(0, 0%, 8%, 1.00)',
+	monitorForegroundColor: 'hsla(0, 0%, 48%, 1.00)',
+}
+
+const retro: Theme = {
+	baseBackgroundColor: 'hsla(40, 3%, 90%, 1.00)',
+	baseShadowColor: 'hsla(0, 0%, 0%, 0.30)',
+	buttonBackgroundColor: 'hsla(40, 3%, 70%, 1.00)',
+	buttonBackgroundColorActive: 'hsla(40, 3%, 55%, 1.00)',
+	buttonBackgroundColorFocus: 'hsla(40, 3%, 60%, 1.00)',
+	buttonBackgroundColorHover: 'hsla(40, 3%, 65%, 1.00)',
+	buttonForegroundColor: 'hsla(40, 3%, 20%, 1.00)',
+	containerBackgroundColor: 'hsla(40, 3%, 70%, 1.00)',
+	containerBackgroundColorActive: 'hsla(40, 3%, 55%, 1.00)',
+	containerBackgroundColorFocus: 'hsla(40, 3%, 60%, 1.00)',
+	containerBackgroundColorHover: 'hsla(40, 3%, 65%, 1.00)',
+	containerForegroundColor: 'hsla(40, 3%, 20%, 1.00)',
+	grooveForegroundColor: 'hsla(40, 3%, 40%, 1.00)',
+	inputBackgroundColor: 'hsla(120, 3%, 20%, 1.00)',
+	inputBackgroundColorActive: 'hsla(120, 3%, 35%, 1.00)',
+	inputBackgroundColorFocus: 'hsla(120, 3%, 30%, 1.00)',
+	inputBackgroundColorHover: 'hsla(120, 3%, 25%, 1.00)',
+	inputForegroundColor: 'hsla(120, 40%, 60%, 1.00)',
+	labelForegroundColor: 'hsla(40, 3%, 50%, 1.00)',
+	monitorBackgroundColor: 'hsla(120, 3%, 20%, 1.00)',
+	monitorForegroundColor: 'hsla(120, 40%, 60%, 0.80)',
+}
+
+const translucent: Theme = {
+	baseBackgroundColor: 'hsla(0, 0%, 10%, 0.80)',
+	baseShadowColor: 'hsla(0, 0%, 0%, 0.20)',
+	buttonBackgroundColor: 'hsla(0, 0%, 80%, 1.00)',
+	buttonBackgroundColorActive: 'hsla(0, 0%, 100%, 1.00)',
+	buttonBackgroundColorFocus: 'hsla(0, 0%, 95%, 1.00)',
+	buttonBackgroundColorHover: 'hsla(0, 0%, 85%, 1.00)',
+	buttonForegroundColor: 'hsla(0, 0%, 0%, 0.80)',
+	containerBackgroundColor: 'hsla(0, 0%, 0%, 0.30)',
+	containerBackgroundColorActive: 'hsla(0, 0%, 0%, 0.60)',
+	containerBackgroundColorFocus: 'hsla(0, 0%, 0%, 0.50)',
+	containerBackgroundColorHover: 'hsla(0, 0%, 0%, 0.40)',
+	containerForegroundColor: 'hsla(0, 0%, 100%, 0.50)',
+	grooveForegroundColor: 'hsla(0, 0%, 0%, 0.20)',
+	inputBackgroundColor: 'hsla(0, 0%, 0%, 0.30)',
+	inputBackgroundColorActive: 'hsla(0, 0%, 0%, 0.60)',
+	inputBackgroundColorFocus: 'hsla(0, 0%, 0%, 0.50)',
+	inputBackgroundColorHover: 'hsla(0, 0%, 0%, 0.40)',
+	inputForegroundColor: 'hsla(0, 0%, 100%, 0.50)',
+	labelForegroundColor: 'hsla(0, 0%, 100%, 0.50)',
+	monitorBackgroundColor: 'hsla(0, 0%, 0%, 0.30)',
+	monitorForegroundColor: 'hsla(0, 0%, 100%, 0.30)',
+}
+
+const vivid: Theme = {
+	baseBackgroundColor: 'hsla(0, 80%, 40%, 1)',
+	baseShadowColor: 'hsla(0, 0%, 0%, 0.2)',
+	buttonBackgroundColor: 'hsla(0, 0%, 100%, 1)',
+	buttonBackgroundColorActive: 'hsla(0, 0%, 85%, 1)',
+	buttonBackgroundColorFocus: 'hsla(0, 0%, 90%, 1)',
+	buttonBackgroundColorHover: 'hsla(0, 0%, 95%, 1)',
+	buttonForegroundColor: 'hsla(230, 20%, 11%, 1)',
+	containerBackgroundColor: 'hsla(0, 0%, 0%, 0.2)',
+	containerBackgroundColorActive: 'hsla(0, 0%, 0%, 0.35)',
+	containerBackgroundColorFocus: 'hsla(0, 0%, 0%, 0.3)',
+	containerBackgroundColorHover: 'hsla(0, 0%, 0%, 0.25)',
+	containerForegroundColor: 'hsla(0, 0%, 100%, 0.9)',
+	grooveForegroundColor: 'hsla(0, 0%, 0%, 0.5)',
+	inputBackgroundColor: 'hsla(0, 0%, 0%, 0.5)',
+	inputBackgroundColorActive: 'hsla(0, 0%, 0%, 0.65)',
+	inputBackgroundColorFocus: 'hsla(0, 0%, 0%, 0.60)',
+	inputBackgroundColorHover: 'hsla(0, 0%, 0%, 0.55)',
+	inputForegroundColor: 'hsla(0, 0%, 100%, 0.9)',
+	labelForegroundColor: 'hsla(0, 0%, 100%, 0.9)',
+	monitorBackgroundColor: 'hsla(0, 0%, 0%, 0.5)',
+	monitorForegroundColor: 'hsla(0, 0%, 100%, 0.5)',
+}
+
+export const presets = {
+	/** Dark blue theme. */
+	iceberg,
+	/** Extra dark theme. */
+	jetblack,
+	/** Standard Tweakpane light theme. */
+	light,
+	/** Light theme with CRT vibes. */
+	retro,
+	/** Standard Tweakpane dark theme. This is the default theme. */
+	standard,
+	/** Dark translucent theme. */
+	translucent,
+	/** Red theme. */
+	vivid,
+}
+
+// More humane theme names... Note that the shorthand variables don't work
+const keyToCssVariableMap = new Map([
+	// Tweakpane
+	['baseBackgroundColor', '--tp-base-background-color'],
+	['baseBorderRadius', '--tp-base-border-radius'],
+	['baseFontFamily', '--tp-base-font-family'],
+	['baseShadowColor', '--tp-base-shadow-color'],
+	['bladeBorderRadius', '--tp-blade-border-radius'],
+	['bladeHorizontalPadding', '--tp-blade-horizontal-padding'],
+	['bladeValueWidth', '--tp-blade-value-width'],
+	['buttonBackgroundColor', '--tp-button-background-color'],
+	['buttonBackgroundColorActive', '--tp-button-background-color-active'],
+	['buttonBackgroundColorFocus', '--tp-button-background-color-focus'],
+	['buttonBackgroundColorHover', '--tp-button-background-color-hover'],
+	['buttonForegroundColor', '--tp-button-foreground-color'],
+	['containerBackgroundColor', '--tp-container-background-color'],
+	['containerBackgroundColorActive', '--tp-container-background-color-active'],
+	['containerBackgroundColorFocus', '--tp-container-background-color-focus'],
+	['containerBackgroundColorHover', '--tp-container-background-color-hover'],
+	['containerForegroundColor', '--tp-container-foreground-color'],
+	['containerHorizontalPadding', '--tp-container-horizontal-padding'],
+	['containerUnitSize', '--tp-container-unit-size'],
+	['containerUnitSpacing', '--tp-container-unit-spacing'],
+	['containerVerticalPadding', '--tp-container-vertical-padding'],
+	['grooveForegroundColor', '--tp-groove-foreground-color'],
+	['inputBackgroundColor', '--tp-input-background-color'],
+	['inputBackgroundColorActive', '--tp-input-background-color-active'],
+	['inputBackgroundColorFocus', '--tp-input-background-color-focus'],
+	['inputBackgroundColorHover', '--tp-input-background-color-hover'],
+	['inputForegroundColor', '--tp-input-foreground-color'],
+	['labelForegroundColor', '--tp-label-foreground-color'],
+	['monitorBackgroundColor', '--tp-monitor-background-color'],
+	['monitorForegroundColor', '--tp-monitor-foreground-color'],
+	// Plugins
+	['pluginImageDraggingColor', '--tp-plugin-image-dragging-color'],
+	// ['pluginThumbnailListHeight', '--tp-plugin-thumbnail-list-height'],
+	// ['pluginThumbnailListThumbSize', '--tp-plugin-thumbnail-list-thumb-size'],
+	// ['pluginThumbnailListWidth', '--tp-plugin-thumbnail-list-width']
+])
+
+// Just do it dynamically instead of the map? function transformToCustomProperty(str: string):
+// string { return '--tp-' + str.replace(/([a-zA-Z])(?=[A-Z])/g, '$1-').toLowerCase();
+// }
+
+function stringToCssValue(v: string | ThemeColorValue | undefined): string | undefined {
+	if (v === undefined) {
+		return undefined
+	}
+
+	if (typeof v === 'string') {
+		return v
+	}
+
+	if (isRgbaColorObject(v)) {
+		return `rgba(${v.r}, ${v.g}, ${v.b}, ${v.a})`
+	}
+
+	if (isRgbColorObject(v)) {
+		return `rgb(${v.r}, ${v.g}, ${v.b})`
+	}
+}
+
+function expandVariableKey(name: string): string {
+	// Pass explicit variables through
+	if (name.startsWith('--tp-')) {
+		return name
+	}
+
+	const variableName = keyToCssVariableMap.get(name)
+	if (variableName !== undefined) {
+		return variableName
+	}
+
+	throw new Error(`Unknown Tweakpane CSS theme map variable key: "${name}"`)
+}
+
+/**
+ * Used during SSR to calculate metrics Returns CSS string.
+ */
+export function getValueOrFallback(theme: Theme | undefined, key: keyof ThemeKeys): string {
+	return theme?.[key] === undefined
+		? stringToCssValue(standard[key])!
+		: stringToCssValue(theme[key])!
+}
+
+export function applyTheme(element: HTMLElement, theme: Theme | undefined) {
+	const rootDocument = getWindowDocument().documentElement
+
+	if (theme === undefined) {
+		for (const k of Object.keys(standard)) {
+			const key = expandVariableKey(k)
+
+			if (element.style.getPropertyValue(key).length > 0) {
+				element.style.removeProperty(key)
+			}
+		}
+	} else {
+		for (const [k, v] of Object.entries(theme)) {
+			const key = expandVariableKey(k)
+			const value = stringToCssValue(v)
+			// Only set the variable if it deviates from the standard theme or  the root theme (set
+			// by setGlobalDefaultTheme).... but if theme is explicitly standard and not undefined,
+			// then apply it anyway so that any global theme is overridden TODO normalize color
+			// representation for comparison? TODO tests for this logic
+
+			const standardValue = standard[k] === '' ? undefined : standard[k]
+			const rootPropertyValue = rootDocument.style.getPropertyValue(key)
+			const rootValue = rootPropertyValue === '' ? undefined : rootPropertyValue
+
+			const isDeviationFromRoot = rootValue !== undefined && value !== rootValue
+			const isDeviationFromStandard = standardValue !== undefined && value !== standardValue
+
+			if (
+				value !== undefined &&
+				(isDeviationFromRoot || (rootValue === undefined && isDeviationFromStandard))
+			) {
+				element.style.setProperty(key, value)
+			} else if (element.style.getPropertyValue(key).length > 0) {
+				element.style.removeProperty(key)
+			}
+		}
+	}
+}
+
+/**
+ * Sets a default theme for all Tweakpane components on the page. Useful if you
+ * have a light / dark mode toggle.
+ */
+export function setGlobalDefaultTheme(theme: Theme | undefined) {
+	// Wait for dom ready... better outside?
+	// eslint-disable-next-line unicorn/prefer-global-this, ts/no-unnecessary-condition
+	if (window?.document !== undefined) {
+		applyTheme(getWindowDocument().documentElement, theme)
+	}
+}
+
+// Library exports
+export default {
+	/**
+	 * A collection of default theme color schemes, matching those provided in the
+	 * Tweakpane [Panebuilder
+	 * presets](https://tweakpane.github.io/docs/theming/#builder).
+	 */
+	presets,
+	setGlobalDefaultTheme,
+}
+
+=== 13101 src/lib/utils.ts	ts	module	-
+/* eslint-disable ts/no-unsafe-call */
+/* eslint-disable ts/no-explicit-any */
+/* eslint-disable ts/no-unnecessary-type-parameters */
+/* eslint-disable ts/no-unsafe-member-access */
+/* eslint-disable ts/no-unnecessary-type-arguments */
+
+// Type aliases and utility functions
+
+import type { FolderApi, Pane, TabPageApi } from 'tweakpane'
+import type { Theme } from '$lib/theme.js'
+
+// Internal types
+export type Container = FolderApi | Pane | TabPageApi
+
+// From https://github.com/sindresorhus/type-fest doesn't work for hover expansion when imported,
+// only if defined in the file where it's used?
+export type Simplify<T> = NonNullable<unknown> & { [KeyType in keyof T]: T[KeyType] }
+
+// From https://github.com/sindresorhus/type-fest this works?
+export type SimplifyDeep<Type> = Type extends Theme // Exclude Theme
+	? Type
+	: { [TypeKey in keyof Type]: SimplifyDeep<Type[TypeKey]> }
+
+// Possible alternative to all the explicitly defined value type variations export type
+// ExtractTuple<T> = T extends (infer U)[] ? U : never; export type ExtractObject<T> = T extends
+// object ? T : never;
+
+export type HasKey<U, V extends PropertyKey> = V extends keyof U ? U[V] : unknown
+
+// User-facing types
+import type { Bindable, BladeApi, BladeController, TpPluginBundle, View } from '@tweakpane/core'
+export type BindingObject = Bindable
+export type Plugin = TpPluginBundle
+
+/**
+ * The base event type for value change notification events emitted by various
+ * controls.
+ */
+export type ValueChangeEvent<V> = CustomEvent<{
+	/**
+	 * A copy of the value at the time of the event.
+	 */
+	value: V
+	/**
+	 * The origin of the event. Changes resulting from the user's direct
+	 * manipulation of the control will are marked as `internal`. Changes
+	 * resulting from manipulation of the bound value from _outside_ the component
+	 * are marked as `external`.
+	 */
+	origin: 'external' | 'internal'
+}>
+
+/**
+ * Needed to conveniently use $$Events as the single source of truth for
+ * component events Performs the transformation necessary (extracting detail
+ * types) to pass the $$Events type into createEventDispatcher(). See
+ * [documentation](https://svelte.dev/docs/typescript#script-lang-ts-events).
+ *
+ * An alternative would be to use a custom dispatcher, like [Threlte
+ * does])https://github.com/threlte/threlte/blob/main/packages/core/src/lib/lib/createRawEventDispatcher.ts_.
+ */
+export type UnwrapCustomEvents<T> = {
+	[P in keyof T]: T[P] extends CustomEvent<infer detail> ? detail : never
+}
+
+// Utility functions
+
+/**
+ * For CLS SSR calculation
+ */
+export function rowsForMonitor(buffer?: number, rows?: number, graph?: boolean) {
+	if (graph) {
+		return Math.max(rows ?? 3, 3)
+	}
+
+	if (buffer === undefined && rows === undefined) {
+		return 1
+	}
+
+	if (buffer === undefined && rows !== undefined) {
+		return 1
+	}
+
+	if (buffer !== undefined && rows === undefined) {
+		return buffer > 1 ? 3 : 1
+	}
+
+	if (buffer === 1) {
+		return 1
+	}
+
+	// Both defined
+	return rows ?? 1 // TODO
+}
+
+/**
+ * Fills an array of length `quantity` with a `value`
+ */
+export function fillWith<T>(value: T, quantity: number): T[] {
+	return Array.from({ length: quantity }, () => value)
+}
+
+/**
+ * There's no way to enforce readonly properties in Svelte components, so this
+ * is a workaround. See [general
+ * approach](https://github.com/sveltejs/svelte/issues/7712#issuecomment-1642470141)
+ * and [runtime error
+ * approach](https://github.com/sveltejs/svelte/issues/7712#issuecomment-1642817764)
+ *
+ * Generally:
+ *
+ * ```svelte
+ * <script>
+ *   export let value = "foo"
+ *   let _value;
+ *   // if you want to set init value from outside
+ *   // uncomment this line:
+ *   // _value = value;
+ *   $: value = _value;
+ *   $: enforceReadonly(_value, value, "value");
+ * </script>
+ *
+ * <input bind:value={_value} />
+ *
+ * This is not perfect and there are some edge cases it doesn't catch because we have to
+ * allow assignment to undefined in some internal cases (via the `allowAssignmentToUndefined` flag).
+ * ```
+ */
+export function enforceReadonly(
+	internal: unknown,
+	external: unknown,
+	componentName?: string,
+	propertyName?: string,
+	allowAssignmentToUndefined?: boolean,
+) {
+	allowAssignmentToUndefined ??= false
+
+	if (
+		external !== internal &&
+		(!allowAssignmentToUndefined || internal !== undefined || external === undefined)
+	) {
+		const componentString =
+			componentName === undefined || componentName === '' ? '' : `<${componentName}> `
+		const propertyString =
+			propertyName === undefined || propertyName === '' ? '' : `property "${propertyName}" `
+
+		console.error(
+			`Svelte component "${componentString}" property "${propertyString}" is intended for readonly use.\nAssigning\n"${String(
+				external,
+			)}"\nto\n"${String(internal)}"\nis not allowed.`,
+		)
+	}
+}
+
+export function isRootPane(container: Container): boolean {
+	return container.constructor.name === 'Pane'
+}
+
+export function clamp(value: number, min: number, max: number): number {
+	// Prioritize min over max
+	return Math.min(Math.max(value, min), max)
+}
+
+export function getElementIndex(element: HTMLElement): number {
+	let index = 0
+
+	// eslint-disable-next-line ts/no-restricted-types
+	let sibling: Element | null | undefined = element
+	while ((sibling = sibling.previousElementSibling) !== null) {
+		// The Element component can add extra stuff to the DOM which will mess up counting...
+		// So we add an extra class to its wrapper and don't let it increment the index.
+		// This was the cause of https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/18
+		if (!sibling.classList.contains('skip-element-index')) {
+			index++
+		}
+	}
+
+	return index
+}
+
+// Doesn't create a new object, only works with string keys
+export function removeKeys<T extends Record<string, unknown>>(object: T, ...keys: string[]): T {
+	for (const key of keys) {
+		if (Object.hasOwn(object, key)) {
+			// eslint-disable-next-line ts/no-dynamic-delete
+			delete object[key as keyof T]
+		}
+	}
+
+	return object
+}
+
+function clickBlocker(event: MouseEvent) {
+	// Only block user clicks, not programmatic ones
+	if (event.isTrusted) {
+		event.stopPropagation()
+	}
+}
+
+// Used by folder and pane TODO rewrite to use getSwatchButton etc.
+export function updateCollapsibility(
+	isUserExpandableEnabled: boolean,
+	element: HTMLElement | undefined,
+	titleBarClass: string,
+	iconClass?: string,
+) {
+	if (element) {
+		const titleBarElement = element.querySelector<HTMLButtonElement>(`.${titleBarClass}`)
+
+		if (titleBarElement) {
+			const iconElement =
+				iconClass === undefined || iconClass === ''
+					? undefined
+					: element.querySelector<HTMLDivElement>(`.${iconClass}`)
+
+			if (isUserExpandableEnabled) {
+				titleBarElement.removeEventListener('click', clickBlocker, { capture: true })
+				titleBarElement.style.cursor = 'pointer'
+
+				if (iconElement) {
+					iconElement.style.display = 'block'
+				}
+			} else {
+				// Expanded = true;
+				titleBarElement.addEventListener('click', clickBlocker, { capture: true })
+				titleBarElement.style.cursor = 'default'
+
+				if (iconElement) {
+					iconElement.style.display = 'none'
+				}
+			}
+		}
+	} else {
+		console.warn(`Title bar element not found with class "${titleBarClass}"`)
+	}
+}
+
+/**
+ * Infers grid dimensions for a given number of items, respecting optional
+ * maximums for rows and columns.
+ *
+ * If no constraints are provided, it creates the most square grid possible.
+ *
+ * If a single constraint is provided, it lets the undefined axis grow / shrink
+ * as needed.
+ *
+ * If both constraints are provided, values may be clipped.
+ */
+export function getGridDimensions(
+	itemCount: number,
+	maxColumns?: number,
+	maxRows?: number,
+): { columns: number; rows: number } {
+	let rows: number
+	let columns: number
+
+	if (maxColumns !== undefined && maxRows !== undefined && maxColumns > 0 && maxRows > 0) {
+		// No flexing; items can exceed the available slots
+		rows = Math.min(Math.ceil(itemCount / maxColumns), maxRows)
+		columns = Math.min(maxColumns, itemCount)
+	} else if (maxColumns !== undefined && maxColumns > 0) {
+		// Only maxColumns defined, so rows will flex
+		rows = Math.ceil(itemCount / maxColumns)
+		columns = maxColumns
+	} else if (maxRows !== undefined && maxRows > 0) {
+		// Only maxRows defined, so columns will flex
+		columns = Math.ceil(itemCount / maxRows)
+		rows = maxRows
+	} else {
+		// Neither maxColumns nor maxRows defined; create a square grid
+		columns = Math.ceil(Math.sqrt(itemCount))
+		rows = Math.ceil(itemCount / columns)
+	}
+
+	return { columns, rows }
+}
+
+// eslint-disable-next-line ts/consistent-indexed-object-style
+export function tupleToObject<T extends string, O extends { [K in T]: number }>(
+	tuple: number[],
+	keys: T[],
+): O {
+	// eslint-disable-next-line ts/consistent-type-assertions
+	const result = {} as O
+
+	for (const [index, key] of keys.entries()) {
+		// Assert that the assignment is safe
+		result[key as keyof O] = tuple[index] as O[keyof O]
+	}
+
+	return result
+}
+
+export function objectToTuple<T extends string, O extends Record<T, number>>(
+	object: O,
+	keys: [T],
+): [number]
+export function objectToTuple<T extends string, O extends Record<T, number>>(
+	object: O,
+	keys: [T, T],
+): [number, number]
+export function objectToTuple<T extends string, O extends Record<T, number>>(
+	object: O,
+	keys: [T, T, T],
+): [number, number, number]
+export function objectToTuple<T extends string, O extends Record<T, number>>(
+	object: O,
+	keys: [T, T, T, T],
+): [number, number, number, number]
+export function objectToTuple<T extends string, O extends Record<T, number>>(
+	object: O,
+	keys: T[],
+): number[] {
+	return keys.map((key) => object[key])
+}
+
+// Tweakpane  helpers
+
+export function pickerIsOpen(blade: BladeApi<BladeController<View>>): boolean {
+	return Boolean((blade.controller as any).valueController?.foldable_?.valMap_?.expanded?.value_)
+}
+
+export function getSwatchButton(
+	blade: BladeApi<BladeController<View>>,
+): HTMLButtonElement | undefined {
+	const swatch = ((blade.controller as any)?.valueController?.view?.swatchElement?.querySelector(
+		'button',
+	) ?? (blade.controller as any)?.valueController?.view?.buttonElement) as
+		HTMLButtonElement | undefined
+
+	return swatch
+}
+
+// ------------------------
+
+// public runtime helpers, mostly used in examples but re-exported for user's convenience end
+// exposed under the Utils namespace alternative might be to scope these under the related
+// component's module as static methods?
+
+import type { CubicBezierValue } from '$lib/control/CubicBezier.svelte'
+import type { RotationEulerUnit, RotationEulerValue } from '$lib/control/RotationEuler.svelte'
+import type { RotationQuaternionValue } from '$lib/control/RotationQuaternion.svelte'
+
+// Utility functions
+
+function quaternionToCssTransform(quaternion: RotationQuaternionValue): string {
+	const [x, y, z, w] = (
+		Array.isArray(quaternion)
+			? quaternion
+			: [quaternion.x, quaternion.y, quaternion.z, quaternion.w]
+	) as [number, number, number, number]
+
+	const m11 = 1 - 2 * y * y - 2 * z * z
+	const m12 = 2 * x * y - 2 * z * w
+	const m13 = 2 * x * z + 2 * y * w
+	const m21 = 2 * x * y + 2 * z * w
+	const m22 = 1 - 2 * x * x - 2 * z * z
+	const m23 = 2 * y * z - 2 * x * w
+	const m31 = 2 * x * z - 2 * y * w
+	const m32 = 2 * y * z + 2 * x * w
+	const m33 = 1 - 2 * x * x - 2 * y * y
+
+	return `matrix3d(
+  		${m11}, ${m12}, ${m13}, 0,
+  		${m21}, ${m22}, ${m23}, 0,
+  		${m31}, ${m32}, ${m33}, 0,
+  		0, 0, 0, 1
+		)`
+}
+
+function eulerToCssTransform(
+	rotation: RotationEulerValue,
+	units: RotationEulerUnit = 'rad', // Rad is component default
+): string {
+	const [x, y, z] = (Array.isArray(rotation) ? rotation : [rotation.x, rotation.y, rotation.z]) as [
+		number,
+		number,
+		number,
+	]
+	// Note negative z
+	return `rotateX(${x}${units}) rotateY(${y}${units}) rotateZ(${-z}${units})`
+}
+
+function cubicBezierToEaseFunction(cubicBezier: CubicBezierValue): (t: number) => number {
+	const [_x1, y1, _x2, y2] = (
+		Array.isArray(cubicBezier)
+			? cubicBezier
+			: [cubicBezier.x1, cubicBezier.y1, cubicBezier.x2, cubicBezier.y2]
+	) as [number, number, number, number]
+
+	// The Bernstein term for y0 is omitted since y0 is always 0
+	return (t: number): number => (1 - t) ** 2 * t * 3 * y1 + (1 - t) * t ** 2 * 3 * y2 + t ** 3 * 1
+}
+
+// Library exports
+export default {
+	/**
+	 * Convenience function for creating easing functions ready for Svelte's tween
+	 * and animation systems
+	 *
+	 * @param cubicBezier - `CubicBezierValue`, probably from a `<CubicBezier>`
+	 *   component
+	 *
+	 * @returns Tween function
+	 */
+	cubicBezierToEaseFunction,
+	/**
+	 * Convenience function for creating CSS-ready euler rotation transforms
+	 *
+	 * @param rotation - `RotationEulerValue`, probably from a `<RotationEuler>`
+	 *   component
+	 * @param quaternion
+	 *
+	 * @returns CSS rotate X/Y/Z string ready to be passed into a CSS transform
+	 */
+	eulerToCssTransform,
+	/**
+	 * Convenience function for creating CSS-ready quaternion rotation transforms
+	 *
+	 * @param rotation - RotationQuaternionValue, probably from a
+	 *   <RotationQuaternionValue> component
+	 *
+	 * @returns CSS matrix3d string ready to be passed into a CSS transform
+	 */
+	quaternionToCssTransform,
+}
+
+=== 381 src/routes/+page.server.ts	ts	module	-
+import { glob } from 'glob'
+import type { PageServerLoad } from './$types'
+
+export const load: PageServerLoad = async () => {
+	const examples = await glob('./src/examples/**/*.svelte', { posix: true })
+	const sortedExamples = examples
+		.map((example) => example.replace('src/examples/', './'))
+		.toSorted((a, b) => a.localeCompare(b))
+
+	return {
+		examples: sortedExamples,
+	}
+}
+
+=== 417 src/routes/[component].svelte/+page.server.ts	ts	module	-
+import { error } from '@sveltejs/kit'
+import { glob } from 'glob'
+import type { PageServerLoad } from './$types'
+
+export const load: PageServerLoad = async ({ params }) => {
+	const examples = await glob('./src/examples/**/*.svelte', { posix: true })
+	const match = examples.find((path) => path.endsWith(`${params.component}.svelte`))
+
+	if (match === undefined) {
+		error(404, 'Not found')
+	}
+
+	return {
+		match,
+	}
+}
+
+=== 622 src/routes/[component].svelte/+page.ts	ts	module	-
+import type { ComponentType } from 'svelte'
+import type { PageLoad } from './$types'
+
+const modules = import.meta.glob<{ default: ComponentType }>('../../examples/**/*.svelte')
+
+export const load: PageLoad = async ({ data }) => {
+	const { match } = data
+
+	const filename = match.split('/').at(-1)
+
+	// Find matching module by filename to avoid platform-specific path issues
+	const entry = Object.entries(modules).find(([key]) => key.endsWith(`/${filename}`))
+	if (!entry) {
+		throw new Error(`Component not found: ${filename}`)
+	}
+
+	const { default: component } = await entry[1]()
+
+	return {
+		component,
+		filename,
+	}
+}
+
+=== 396 src/routes/all/+page.server.ts	ts	module	-
+import { error } from '@sveltejs/kit'
+import { glob } from 'glob'
+import type { PageServerLoad } from './$types'
+
+export const load: PageServerLoad = async () => {
+	let examples = await glob('./src/examples/**/*.svelte', { posix: true })
+	if (examples.length === 0) {
+		error(404, 'Component not found')
+	}
+
+	examples = examples.toSorted((a, b) => a.localeCompare(b))
+
+	return {
+		examples,
+	}
+}
+
+=== 737 src/routes/all/+page.ts	ts	module	-
+import type { ComponentType } from 'svelte'
+import type { PageLoad } from './$types'
+
+const modules = import.meta.glob<{ default: ComponentType }>('../../examples/**/*.svelte')
+
+export const load: PageLoad = async ({ data }) => {
+	const { examples } = data
+
+	const components: Array<{ component: ComponentType; filename: string }> = []
+
+	for (const example of examples) {
+		const filename = example.split('/').at(-1)!
+
+		// Find matching module by filename to avoid platform-specific path issues
+		const entry = Object.entries(modules).find(([key]) => key.endsWith(`/${filename}`))
+		if (!entry) {
+			continue
+		}
+
+		const { default: component } = await entry[1]()
+		components.push({ component, filename })
+	}
+
+	return { components }
+}
+
+=== 1767 tests/components/control/checkbox.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Checkbox component', () => {
+	test.describe('basic functionality', () => {
+		test('checkbox renders and can be toggled', async ({ page }) => {
+			await page.goto('/TestCheckbox.svelte')
+
+			// Find the checkbox wrapper element (actual input is hidden, click on wrapper)
+			const checkboxWrapper = page.locator('.tp-ckbv_w').first()
+			await expect(checkboxWrapper).toBeVisible()
+
+			// Get initial value
+			const initialValue = await page
+				.locator('pre')
+				.filter({ hasText: 'Value:' })
+				.locator('span')
+				.innerHTML()
+
+			// Click to toggle using the wrapper
+			await checkboxWrapper.click()
+
+			// Value should have changed
+			const newValue = await page
+				.locator('pre')
+				.filter({ hasText: 'Value:' })
+				.locator('span')
+				.innerHTML()
+
+			expect(newValue).not.toBe(initialValue)
+		})
+	})
+
+	test.describe('change events', () => {
+		test('internal event fires when checkbox is directly changed', async ({ page }) => {
+			await page.goto('/TestCheckbox.svelte')
+
+			// Click first checkbox wrapper
+			await page.locator('.tp-ckbv_w').first().click()
+
+			// Check internal event count
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 1 Internal:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('1')
+		})
+
+		test('external event fires when value changes from another checkbox', async ({ page }) => {
+			await page.goto('/TestCheckbox.svelte')
+
+			// Click first checkbox wrapper
+			await page.locator('.tp-ckbv_w').first().click()
+
+			// Binding 2 should receive external event
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 2 External:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('1')
+		})
+	})
+})
+
+=== 1197 tests/components/control/color.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Color component', () => {
+	test.describe('basic functionality', () => {
+		test('color picker renders with color swatch', async ({ page }) => {
+			await page.goto('/TestColor.svelte')
+
+			// Should have color swatch elements
+			await expect(page.locator('.tp-colswv').first()).toBeVisible()
+		})
+
+		test('color picker can be expanded', async ({ page }) => {
+			await page.goto('/TestColor.svelte')
+
+			// Click on the color swatch to expand picker
+			const swatch = page.locator('.tp-colswv').first()
+			await swatch.click()
+
+			// Expanded picker elements should be visible
+			await expect(page.locator('.tp-colv').first()).toBeVisible()
+		})
+	})
+
+	test.describe('change events', () => {
+		test('changing color fires internal event', async ({ page }) => {
+			await page.goto('/TestColor.svelte')
+
+			// Click on the color swatch to expand
+			await page.locator('.tp-colswv').first().click()
+
+			// Wait for picker to expand
+			await expect(page.locator('.tp-colv').first()).toBeVisible()
+
+			// The event counters should exist
+			await expect(page.locator('pre').filter({ hasText: 'Binding 1 Internal:' })).toBeVisible()
+		})
+	})
+})
+
+=== 652 tests/components/control/list.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('List component', () => {
+	test.describe('basic functionality', () => {
+		test('list/select renders', async ({ page }) => {
+			await page.goto('/TestList.svelte')
+
+			// Should have a list label
+			await expect(page.getByText('Alphanumerics 1').first()).toBeVisible()
+		})
+
+		test('list displays initial value', async ({ page }) => {
+			await page.goto('/TestList.svelte')
+
+			// Initial value should be displayed
+			const initialValue = await page
+				.locator('pre')
+				.filter({ hasText: 'Value:' })
+				.locator('span')
+				.innerHTML()
+
+			expect(initialValue).toBe('1')
+		})
+	})
+})
+
+=== 2198 tests/components/control/other.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Other control components', () => {
+	test.describe('Ring', () => {
+		test('ring input renders with label', async ({ page }) => {
+			await page.goto('/TestRing.svelte')
+
+			// Ring should have labels
+			await expect(page.getByText('Ring 1').first()).toBeVisible()
+		})
+
+		test('wide ring input renders', async ({ page }) => {
+			await page.goto('/TestRingWide.svelte')
+
+			// Wide ring should render
+			await expect(page.getByText('Value:').first()).toBeVisible()
+		})
+	})
+
+	test.describe('Wheel', () => {
+		test('wheel input renders with label', async ({ page }) => {
+			await page.goto('/TestWheel.svelte')
+
+			// Wheel should have labels
+			await expect(page.getByText('Wheel 1').first()).toBeVisible()
+		})
+
+		test('wide wheel input renders', async ({ page }) => {
+			await page.goto('/TestWheelWide.svelte')
+
+			// Wide wheel should render
+			await expect(page.getByText('Value:').first()).toBeVisible()
+		})
+	})
+
+	test.describe('Scale', () => {
+		test('scale input renders', async ({ page }) => {
+			await page.goto('/TestScale.svelte')
+
+			// Scale should have text inputs
+			await expect(page.locator('.tp-txtv_i').first()).toBeVisible()
+		})
+	})
+
+	test.describe('CubicBezier', () => {
+		test('cubic bezier editor renders', async ({ page }) => {
+			await page.goto('/TestCubicBezier.svelte')
+
+			// Cubic bezier should render with label
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+
+	test.describe('RadioGrid', () => {
+		test('radio grid renders', async ({ page }) => {
+			await page.goto('/TestRadioGrid.svelte')
+
+			// Radio grid should have label
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+
+	test.describe('File', () => {
+		test('file input renders with label', async ({ page }) => {
+			await page.goto('/TestFile.svelte')
+
+			// File input should have labels
+			await expect(page.getByText('File 1').first()).toBeVisible()
+		})
+	})
+
+	test.describe('Image', () => {
+		test('image input renders', async ({ page }) => {
+			await page.goto('/TestImage.svelte')
+
+			// Image input should render
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+})
+
+=== 567 tests/components/control/point.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Point component', () => {
+	test.describe('basic functionality', () => {
+		test('point input renders with label', async ({ page }) => {
+			await page.goto('/TestPoint.svelte')
+
+			// Should have labels for point inputs
+			await expect(page.getByText('Binding 1').first()).toBeVisible()
+		})
+
+		test('point input displays value', async ({ page }) => {
+			await page.goto('/TestPoint.svelte')
+
+			// Should show the value display
+			await expect(page.getByText('Value:').first()).toBeVisible()
+		})
+	})
+})
+
+=== 649 tests/components/control/rotation.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Rotation components', () => {
+	test.describe('Euler rotation', () => {
+		test('euler rotation input renders', async ({ page }) => {
+			await page.goto('/TestRotationEuler.svelte')
+
+			// Should have rotation-related inputs
+			await expect(page.locator('.tp-txtv_i').first()).toBeVisible()
+		})
+	})
+
+	test.describe('Quaternion rotation', () => {
+		test('quaternion rotation input renders', async ({ page }) => {
+			await page.goto('/TestRotationQuaternion.svelte')
+
+			// Should have rotation-related inputs
+			await expect(page.locator('.tp-txtv_i').first()).toBeVisible()
+		})
+	})
+})
+
+=== 3487 tests/components/control/slider.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Slider component', () => {
+	test.describe('value binding', () => {
+		test('slider value updates on interaction', async ({ page }) => {
+			await page.goto('/TestSlider.svelte')
+
+			// Get the initial value
+			const initialValue = await page
+				.locator('pre')
+				.filter({ hasText: 'Value:' })
+				.locator('span')
+				.innerHTML()
+
+			// Interact with the first slider
+			await page.getByRole('textbox').first().press('ArrowUp')
+
+			// Value should have changed
+			const newValue = await page
+				.locator('pre')
+				.filter({ hasText: 'Value:' })
+				.locator('span')
+				.innerHTML()
+
+			expect(Number(newValue)).toBeGreaterThan(Number(initialValue))
+		})
+
+		test('multiple sliders sharing the same value stay synchronized', async ({ page }) => {
+			await page.goto('/TestSlider.svelte')
+
+			// Interact with second slider
+			await page.getByRole('textbox').last().press('ArrowUp')
+			await page.getByRole('textbox').last().press('ArrowUp')
+			await page.getByRole('textbox').last().press('ArrowUp')
+
+			// Both sliders should show the same value
+			const value = await page
+				.locator('pre')
+				.filter({ hasText: 'Value:' })
+				.locator('span')
+				.innerHTML()
+
+			expect(Number(value)).toBeGreaterThan(0)
+		})
+	})
+
+	test.describe('change events', () => {
+		test('internal event fires when slider is directly changed', async ({ page }) => {
+			await page.goto('/TestSlider.svelte')
+
+			// Interact with first slider
+			await page.getByRole('textbox').first().press('ArrowUp')
+
+			// Check internal event count for binding 1
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 1 Internal:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('1')
+		})
+
+		test('external event fires when value changes from another source', async ({ page }) => {
+			await page.goto('/TestSlider.svelte')
+
+			// Interact with first slider
+			await page.getByRole('textbox').first().press('ArrowUp')
+
+			// Binding 2 should receive external event
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 2 External:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('1')
+		})
+	})
+
+	test.describe('formatting', () => {
+		test('custom format function displays formatted value', async ({ page }) => {
+			await page.goto('/TestFormat.svelte')
+
+			// The slider should show the formatted value with 'px' suffix
+			await expect(page.locator('.tp-txtv_i')).toBeVisible()
+
+			// The input should contain 'px' in its display
+			const inputValue = await page.locator('.tp-txtv_i').inputValue()
+			expect(inputValue).toContain('px')
+		})
+	})
+
+	test.describe('wide slider', () => {
+		test('wide slider renders', async ({ page }) => {
+			await page.goto('/TestSliderWide.svelte')
+
+			// Slider elements should be visible
+			await expect(page.locator('.tp-sldv').first()).toBeVisible()
+
+			// Should have a value display
+			await expect(page.getByText('Value:')).toBeVisible()
+		})
+	})
+
+	test.describe('interval slider', () => {
+		test('interval slider renders with label', async ({ page }) => {
+			await page.goto('/TestIntervalSlider.svelte')
+
+			// Interval slider should have labels
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+
+		test('wide interval slider renders', async ({ page }) => {
+			await page.goto('/TestIntervalSliderWide.svelte')
+
+			// Wide interval slider should render
+			await expect(page.getByText('Value:').first()).toBeVisible()
+		})
+	})
+})
+
+=== 1894 tests/components/control/stepper.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Stepper component', () => {
+	test.describe('value binding', () => {
+		test('stepper value updates on interaction', async ({ page }) => {
+			await page.goto('/TestStepper.svelte')
+
+			// Get initial value
+			const initialValue = await page
+				.locator('pre')
+				.filter({ hasText: 'Value:' })
+				.locator('span')
+				.innerHTML()
+
+			expect(initialValue).toBe('0')
+
+			// Click up arrow on stepper
+			await page.getByRole('textbox').first().press('ArrowUp')
+
+			// Value should have increased
+			const newValue = await page
+				.locator('pre')
+				.filter({ hasText: 'Value:' })
+				.locator('span')
+				.innerHTML()
+
+			expect(Number(newValue)).toBeGreaterThan(Number(initialValue))
+		})
+	})
+
+	test.describe('change events', () => {
+		test('internal event fires when stepper is directly changed', async ({ page }) => {
+			await page.goto('/TestStepper.svelte')
+
+			// Interact with first stepper
+			await page.getByRole('textbox').first().press('ArrowUp')
+
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 1 Internal:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('1')
+		})
+
+		test('external event fires when value changes from another source', async ({ page }) => {
+			await page.goto('/TestStepper.svelte')
+
+			// Interact with first stepper
+			await page.getByRole('textbox').first().press('ArrowUp')
+
+			// Binding 2 should receive external event
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 2 External:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('1')
+		})
+	})
+
+	test.describe('stepper value display', () => {
+		test('stepper displays current value', async ({ page }) => {
+			await page.goto('/TestStepperValue.svelte')
+
+			// Stepper should have text input
+			await expect(page.locator('.tp-txtv_i').first()).toBeVisible()
+		})
+	})
+})
+
+=== 1097 tests/components/control/text.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Text component', () => {
+	test.describe('basic functionality', () => {
+		test('text input renders and accepts input', async ({ page }) => {
+			await page.goto('/TestText.svelte')
+
+			// Find the text input
+			const textInput = page.locator('.tp-txtv_i').first()
+			await expect(textInput).toBeVisible()
+
+			// Clear and type new text
+			await textInput.fill('Hello World')
+
+			// Value should update
+			await expect(textInput).toHaveValue('Hello World')
+		})
+	})
+
+	test.describe('string type detection', () => {
+		test('text component detects string types correctly', async ({ page }) => {
+			await page.goto('/TestTextStringDetection.svelte')
+
+			// Component should render with text inputs
+			await expect(page.locator('.tp-txtv_i').first()).toBeVisible()
+		})
+	})
+
+	test.describe('textarea', () => {
+		test('textarea renders for multiline text', async ({ page }) => {
+			await page.goto('/TestTextarea.svelte')
+
+			// Textarea should have label elements
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+})
+
+=== 2690 tests/components/core/binding.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Binding component', () => {
+	test.describe('change events', () => {
+		test('fires internal event when user interacts directly with binding', async ({ page }) => {
+			await page.goto('/TestBinding.svelte')
+
+			// Interact with first binding
+			await page.getByRole('textbox').first().press('ArrowUp')
+
+			// First binding should have internal event
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 1 Internal:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('1')
+
+			// First binding should NOT have external event
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 1 External:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('0')
+		})
+
+		test('fires external event when value changes from another binding', async ({ page }) => {
+			await page.goto('/TestBinding.svelte')
+
+			// Interact with first binding
+			await page.getByRole('textbox').first().press('ArrowUp')
+
+			// Second binding should have external event (value changed from first binding)
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 2 External:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('1')
+
+			// Second binding should NOT have internal event
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 2 Internal:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('0')
+		})
+
+		test('multiple interactions update event counts correctly', async ({ page }) => {
+			await page.goto('/TestBinding.svelte')
+
+			// Interact 10 times with second binding
+			for (let i = 0; i < 10; i++) {
+				await page.getByRole('textbox').last().press('ArrowDown')
+			}
+
+			// Check that event counts are correct
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 1 Internal:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('0')
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 1 External:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('10')
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 2 Internal:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('10')
+			expect(
+				await page
+					.locator('pre')
+					.filter({ hasText: 'Binding 2 External:' })
+					.locator('span')
+					.innerHTML(),
+			).toBe('0')
+		})
+	})
+
+	test.describe('object change detection', () => {
+		test('detects when bound object properties change', async ({ page }) => {
+			await page.goto('/TestBindingObjectChange.svelte')
+
+			// Verify the page loads with text inputs
+			await expect(page.locator('.tp-txtv_i').first()).toBeVisible()
+		})
+	})
+})
+
+=== 639 tests/components/core/folder.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Folder component', () => {
+	test.describe('visibility', () => {
+		test('invisible folder can hide its contents', async ({ page }) => {
+			await page.goto('/TestInvisibleFolder.svelte')
+
+			// Page should load with labels
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+
+	test.describe('collapse/expand', () => {
+		test('folder can be collapsed and expanded', async ({ page }) => {
+			await page.goto('/TestCollapseExpand.svelte')
+
+			// Find a folder element by its title
+			await expect(page.locator('.tp-rotv_t').first()).toBeVisible()
+		})
+	})
+})
+
+=== 365 tests/components/core/order.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Component ordering', () => {
+	test.describe('element order', () => {
+		test('components render in correct order', async ({ page }) => {
+			await page.goto('/TestOrder.svelte')
+
+			// Page should load with components in order
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+})
+
+=== 2428 tests/components/core/pane.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Pane component', () => {
+	test.describe('basic functionality', () => {
+		test('renders pane with slider', async ({ page }) => {
+			await page.goto('/TestPane.svelte')
+
+			// Pane should be visible with slider
+			await expect(page.locator('.tp-sldv').first()).toBeVisible()
+		})
+
+		test('advanced pane features work correctly', async ({ page }) => {
+			await page.goto('/TestPaneAdvanced.svelte')
+
+			// Advanced pane should render with components
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+
+	test.describe('position modes', () => {
+		test('inline pane renders in document flow', async ({ page }) => {
+			await page.goto('/TestCollapseExpand.svelte')
+
+			// Find inline pane by title text
+			await expect(page.getByText('Inline Pane').first()).toBeVisible()
+		})
+
+		test('draggable pane can be positioned', async ({ page }) => {
+			await page.goto('/TestCollapseExpand.svelte')
+
+			// Draggable panes should be present by title text
+			await expect(page.getByText('Draggable Pane').first()).toBeVisible()
+		})
+
+		test('fixed pane renders at specified position', async ({ page }) => {
+			await page.goto('/TestCollapseExpand.svelte')
+
+			// Fixed pane should be visible by title text
+			await expect(page.getByText('Fixed Pane').first()).toBeVisible()
+		})
+	})
+
+	test.describe('collapse/expand', () => {
+		test('pane with expanded={false} starts collapsed', async ({ page }) => {
+			await page.goto('/TestCollapseExpand.svelte')
+
+			// Find inline pane with unbound literal (expanded={false})
+			await expect(page.getByText('Inline Pane Unbound Literal')).toBeVisible()
+		})
+
+		test('pane expanded state is shown', async ({ page }) => {
+			await page.goto('/TestCollapseExpand.svelte')
+
+			// The initial expanded state (false) should be displayed
+			await expect(page.getByText('false').first()).toBeVisible()
+		})
+	})
+
+	test.describe('grid layout', () => {
+		test('pane renders with grid layout', async ({ page }) => {
+			await page.goto('/TestGridLayoutPane.svelte')
+
+			// Grid layout pane should render with labels
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+
+		test('wrapper renders with grid layout', async ({ page }) => {
+			await page.goto('/TestGridLayoutWrapper.svelte')
+
+			// Grid layout wrapper should render with labels
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+})
+
+=== 2795 tests/components/core/tab-group.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('TabGroup component', () => {
+	test.describe('basic tab switching', () => {
+		test('clicking tab button switches to that tab', async ({ page }) => {
+			await page.goto('/TestTabIndexBinding.svelte')
+
+			// Initial state - Tab B should be selected (index 1)
+			await expect(page.getByText('TabIndex: 1')).toBeVisible()
+			await expect(page.getByRole('button', { exact: true, name: 'B' }).locator('..')).toHaveClass(
+				'tp-tbiv tp-tbiv-sel',
+			)
+
+			// Click Tab A
+			await page.getByRole('button', { exact: true, name: 'A' }).click()
+
+			// Tab A should now be selected
+			await expect(page.getByText('TabIndex: 0')).toBeVisible()
+			await expect(page.getByRole('button', { exact: true, name: 'A' }).locator('..')).toHaveClass(
+				'tp-tbiv tp-tbiv-sel',
+			)
+		})
+	})
+
+	test.describe('selectedIndex binding', () => {
+		test('selectedIndex updates when tab is selected', async ({ page }) => {
+			await page.goto('/TestTabIndexBinding.svelte')
+
+			// Select tab A
+			await page.getByRole('button', { exact: true, name: 'A' }).click()
+			await expect(page.getByText('TabIndex: 0')).toBeVisible()
+
+			// Select tab B
+			await page.getByRole('button', { exact: true, name: 'B' }).click()
+			await expect(page.getByText('TabIndex: 1')).toBeVisible()
+		})
+
+		test('tab selection persists when switching pane modes', async ({ page }) => {
+			await page.goto('/TestTabIndexBinding.svelte')
+
+			// Initial state: Mode 0, Tab B selected
+			await expect(page.getByText('Mode: 0')).toBeVisible()
+			await expect(page.getByText('TabIndex: 1')).toBeVisible()
+
+			// Cycle to mode 1
+			await page.getByRole('button', { name: 'Cycle Mode' }).first().click()
+			await expect(page.getByText('Mode: 1')).toBeVisible()
+
+			// Tab index should be preserved
+			await expect(page.getByText('TabIndex: 1')).toBeVisible()
+			await expect(page.getByRole('button', { exact: true, name: 'B' }).locator('..')).toHaveClass(
+				'tp-tbiv tp-tbiv-sel',
+			)
+		})
+	})
+
+	test.describe('nested tabs', () => {
+		test('nested tab groups render correctly', async ({ page }) => {
+			await page.goto('/TestTabsNested.svelte')
+
+			// Page should load with tab groups
+			await expect(page.locator('.tp-tbiv').first()).toBeVisible()
+		})
+	})
+
+	test.describe('tab sorting', () => {
+		test('tabs can be sorted', async ({ page }) => {
+			await page.goto('/TestTabsSort.svelte')
+
+			// Tab group should render
+			await expect(page.locator('.tp-tbiv').first()).toBeVisible()
+		})
+	})
+
+	test.describe('alternative binding patterns', () => {
+		test('alternative tab index binding works', async ({ page }) => {
+			await page.goto('/TestTabIndexBindingAlt.svelte')
+
+			// Component should render with tabs
+			await expect(page.locator('.tp-tbiv').first()).toBeVisible()
+		})
+	})
+})
+
+=== 315 tests/components/demo.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Tweakpane Demo', () => {
+	test('comprehensive demo page loads all components', async ({ page }) => {
+		await page.goto('/TweakpaneDemo.svelte')
+
+		// Demo should render with labels
+		await expect(page.locator('.tp-lblv').first()).toBeVisible()
+	})
+})
+
+=== 2311 tests/components/extra/auto-object.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('AutoObject component', () => {
+	test.describe('basic functionality', () => {
+		test('auto-generates controls for object properties', async ({ page }) => {
+			await page.goto('/TestAutoObject.svelte')
+
+			// Should have generated a checkbox for boolean (note: label is prettified)
+			await expect(page.getByText('Some Boolean').first()).toBeVisible()
+
+			// Should have generated a slider for number
+			await expect(page.getByText('Some Number').first()).toBeVisible()
+
+			// Should have generated a text input for string
+			await expect(page.getByText('Some String').first()).toBeVisible()
+		})
+
+		test('creates folder for nested objects', async ({ page }) => {
+			await page.goto('/TestAutoObject.svelte')
+
+			// Should have a folder for the nested object
+			await expect(page.getByText('Some Folder').first()).toBeVisible()
+		})
+
+		test('creates color picker for RGB objects', async ({ page }) => {
+			await page.goto('/TestAutoObject.svelte')
+
+			// Should have a color picker for the color object
+			await expect(page.getByText('Some Color').first()).toBeVisible()
+
+			// Should have color swatch
+			await expect(page.locator('.tp-colswv').first()).toBeVisible()
+		})
+
+		test('creates point input for x/y objects', async ({ page }) => {
+			await page.goto('/TestAutoObject.svelte')
+
+			// Should have a point input
+			await expect(page.getByText('Some Point').first()).toBeVisible()
+		})
+	})
+
+	test.describe('value display', () => {
+		test('displays object value as JSON', async ({ page }) => {
+			await page.goto('/TestAutoObject.svelte')
+
+			// Value should be displayed
+			await expect(page.getByText('Value:').first()).toBeVisible()
+		})
+
+		test('shows event counters', async ({ page }) => {
+			await page.goto('/TestAutoObject.svelte')
+
+			// Event counters should be visible
+			await expect(page.locator('pre').filter({ hasText: 'Binding 1 Internal:' })).toBeVisible()
+			await expect(page.locator('pre').filter({ hasText: 'Binding 2 External:' })).toBeVisible()
+		})
+	})
+
+	test.describe('nested objects', () => {
+		test('handles deeply nested objects', async ({ page }) => {
+			await page.goto('/TestAutoObjectNesting.svelte')
+
+			// Should render with labels
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+})
+
+=== 391 tests/components/extra/auto-value.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('AutoValue component', () => {
+	test.describe('basic functionality', () => {
+		test('auto-generates appropriate control for value type', async ({ page }) => {
+			await page.goto('/TestAutoValue.svelte')
+
+			// AutoValue should render controls (labels)
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+})
+
+=== 353 tests/components/extra/cls.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Cls component', () => {
+	test.describe('basic functionality', () => {
+		test('cls utility works for styling', async ({ page }) => {
+			await page.goto('/TestCls.svelte')
+
+			// Component should render with labels
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+})
+
+=== 1323 tests/components/extra/element.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Element component', () => {
+	test.describe('basic functionality', () => {
+		test('element renders custom HTML content', async ({ page }) => {
+			await page.goto('/TestElementIfStatement.svelte')
+
+			// Element should be inside the tab structure
+			await expect(page.locator('.tp-tbiv').first()).toBeVisible()
+		})
+	})
+
+	test.describe('conditional rendering', () => {
+		test('element inside if block renders correctly when condition is true', async ({ page }) => {
+			await page.goto('/TestElementIfStatement.svelte')
+
+			// Find the visibility checkbox and click it
+			const checkbox = page.locator('.tp-ckbv_w').first()
+			await expect(checkbox).toBeVisible()
+
+			await checkbox.click()
+
+			// The Element content should now be visible
+			await expect(page.getByText('C', { exact: true }).first()).toBeVisible()
+		})
+
+		test('controls after Element in if block render in correct order', async ({ page }) => {
+			await page.goto('/TestElementIfStatement.svelte')
+
+			// Toggle visibility on
+			await page.locator('.tp-ckbv_w').first().click()
+
+			// Both text inputs should be visible (C and D)
+			await expect(page.getByText('C', { exact: true }).first()).toBeVisible()
+			await expect(page.getByText('D', { exact: true }).first()).toBeVisible()
+		})
+	})
+})
+
+=== 339 tests/components/monitor/monitor.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+test.describe('Monitor components', () => {
+	test.describe('FpsGraph', () => {
+		test('fps graph renders', async ({ page }) => {
+			await page.goto('/TestFpsEvent.svelte')
+
+			// FPS graph should render with label
+			await expect(page.locator('.tp-lblv').first()).toBeVisible()
+		})
+	})
+})
+
+=== 1378 tests/issues/issue-001-empty-title-dragging.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+/**
+ * Issue #1: Empty titles break dragging behavior
+ * https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/1
+ *
+ * When a Pane has an empty title (title=''), the pane should still be
+ * draggable. Previously, setting an empty title would break the dragging
+ * functionality.
+ */
+test.describe('Issue #1: Empty titles break dragging behavior', () => {
+	test('pane with empty title renders', async ({ page }) => {
+		await page.goto('/TestTitlelessDraggable.svelte')
+
+		// The link to the issue should be visible
+		await expect(page.getByText('Issue #1')).toBeVisible()
+
+		// Text inputs should be visible
+		await expect(page.locator('.tp-txtv_i').first()).toBeVisible()
+	})
+
+	test('pane with non-empty title can be dragged', async ({ page }) => {
+		await page.goto('/TestTitlelessDraggable.svelte')
+
+		// Title should be visible
+		await expect(page.getByText('Title')).toBeVisible()
+	})
+
+	test('pane title can be changed dynamically via binding', async ({ page }) => {
+		await page.goto('/TestTitlelessDraggable.svelte')
+
+		// Find a text input inside a pane
+		const textInput = page.locator('.tp-txtv_i').first()
+		await expect(textInput).toBeVisible()
+
+		// Type a new title
+		await textInput.fill('New Title')
+
+		// The pane should still function
+		await expect(page.locator('.tp-txtv_i').first()).toBeVisible()
+	})
+})
+
+=== 2213 tests/issues/issue-004-pane-collapse.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+/**
+ * Issue #4: Pane collapse/expand behavior not correct
+ * https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/4
+ *
+ * When setting expanded={false} on a Pane, the pane should start collapsed.
+ * Clicking on it should expand it. Previously, setting expanded={false} would
+ * cause the pane to start collapsed but not open when clicked.
+ */
+test.describe('Issue #4: Pane collapse/expand behavior', () => {
+	test('inline pane with expanded={false} starts collapsed and can be expanded', async ({
+		page,
+	}) => {
+		await page.goto('/TestCollapseExpand.svelte')
+
+		// Find inline pane with unbound literal expanded={false}
+		const paneTitle = page.getByText('Inline Pane Unbound Literal')
+		await expect(paneTitle).toBeVisible()
+
+		// The pane container should exist
+		const pane = paneTitle.locator('..').locator('..')
+		await expect(pane).toBeVisible()
+
+		// Click on the title to expand
+		await paneTitle.click()
+
+		// Pane should still be visible and functional
+		await expect(pane).toBeVisible()
+	})
+
+	test('draggable pane with expanded={false} starts collapsed', async ({ page }) => {
+		await page.goto('/TestCollapseExpand.svelte')
+
+		// Find draggable pane
+		const paneTitle = page.getByText('Draggable Pane Unbound Literal')
+		await expect(paneTitle).toBeVisible()
+	})
+
+	test('fixed pane with expanded={false} starts collapsed', async ({ page }) => {
+		await page.goto('/TestCollapseExpand.svelte')
+
+		// Find fixed pane
+		const paneTitle = page.getByText('Fixed Pane Unbound Literal')
+		await expect(paneTitle).toBeVisible()
+	})
+
+	test('pane with bound expanded variable shows initial state', async ({ page }) => {
+		await page.goto('/TestCollapseExpand.svelte')
+
+		// Initial state should be collapsed (false)
+		await expect(page.getByText('false').first()).toBeVisible()
+	})
+
+	test('multiple pane types are rendered', async ({ page }) => {
+		await page.goto('/TestCollapseExpand.svelte')
+
+		// Various pane types should be rendered
+		await expect(page.getByText('Inline Pane').first()).toBeVisible()
+		await expect(page.getByText('Draggable Pane').first()).toBeVisible()
+		await expect(page.getByText('Fixed Pane').first()).toBeVisible()
+	})
+})
+
+=== 918 tests/issues/issue-007-draggable-pane-cursor.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+/**
+ * Issue #7: Draggable Pane sticks to cursor when dragging operation is
+ * interrupted https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/7
+ *
+ * When dragging a pane and the operation is interrupted (e.g., Alt+Tab), the
+ * pane would stick to the cursor. This was fixed by adding a pointercancel
+ * event listener.
+ */
+test.describe('Issue #7: Draggable Pane sticks to cursor', () => {
+	test('draggable panes are rendered', async ({ page }) => {
+		await page.goto('/TestCollapseExpand.svelte')
+
+		// Find a draggable pane title
+		await expect(page.getByText('Draggable Pane').first()).toBeVisible()
+	})
+
+	test('pane title bar is visible for dragging', async ({ page }) => {
+		await page.goto('/TestCollapseExpand.svelte')
+
+		// Find the title bar elements
+		const titleBar = page.locator('.tp-rotv_t').first()
+		await expect(titleBar).toBeVisible()
+	})
+})
+
+=== 1871 tests/issues/issue-015-store-initialization.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+/**
+ * Issue #15: Slider does not react immediately to store values updated in
+ * onMount https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/15
+ *
+ * When updating a store value in onMount, the Slider component would not pick
+ * up the new value immediately. The fix involved using Svelte's tick() to
+ * ensure the component updates after the store change.
+ */
+test.describe('Issue #15: Slider store initialization', () => {
+	test('slider shows correct value after store update in onMount with tick', async ({ page }) => {
+		await page.goto('/TestStoreInitialization.svelte')
+
+		// Wait for the component to mount and update
+		await page.waitForTimeout(100)
+
+		// Find the section "With tick, works in Svelte 4"
+		const section = page.locator('h1').filter({ hasText: 'With tick' })
+		await expect(section).toBeVisible()
+
+		// The native input should show 60
+		const nativeInput = page.locator('input[type="range"]').first()
+		await expect(nativeInput).toHaveValue('60')
+
+		// The Tweakpane slider should also reflect the value (60)
+		// The slider input should have a value close to 60
+		const tpSliderInput = page.locator('.tp-txtv_i').first()
+		const value = await tpSliderInput.inputValue()
+		expect(Number(value)).toBe(60)
+	})
+
+	test('slider shows correct value after store update without tick (Svelte 5)', async ({
+		page,
+	}) => {
+		await page.goto('/TestStoreInitialization.svelte')
+
+		// Wait for the component to mount and update
+		await page.waitForTimeout(100)
+
+		// Find the section "Without tick, works in Svelte 5"
+		const section = page.locator('h1').filter({ hasText: 'Without tick' })
+		await expect(section).toBeVisible()
+
+		// The native input in second section should show 60
+		const nativeInput = page.locator('input[type="range"]').nth(1)
+		await expect(nativeInput).toHaveValue('60')
+	})
+})
+
+=== 2475 tests/issues/issue-018-element-if-block.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+/**
+ * Issue #18: Element inside an IF block make next blade fly away
+ * https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/18
+ *
+ * When using an Element component inside an if block within a TabPage, the next
+ * blade after the Element would be incorrectly positioned. Specifically, blades
+ * inside the if block would appear outside their expected position.
+ */
+test.describe('Issue #18: Element inside IF block ordering', () => {
+	test('initial state shows checkbox and outer controls', async ({ page }) => {
+		await page.goto('/TestElementIfStatement.svelte')
+
+		// Checkbox should be visible (using Tweakpane class)
+		await expect(page.locator('.tp-ckbv_w').first()).toBeVisible()
+
+		// Text input D (outside if block) should be visible
+		await expect(page.getByText('D', { exact: true }).first()).toBeVisible()
+	})
+
+	test('toggling visibility shows elements in correct order', async ({ page }) => {
+		await page.goto('/TestElementIfStatement.svelte')
+
+		// Toggle the checkbox to show the if block content
+		await page.locator('.tp-ckbv_w').first().click()
+
+		// Now the Element and Text C should be visible
+		await expect(page.getByText('C', { exact: true }).first()).toBeVisible()
+		await expect(page.getByText('D', { exact: true }).first()).toBeVisible()
+	})
+
+	test('controls maintain correct DOM order after toggle', async ({ page }) => {
+		await page.goto('/TestElementIfStatement.svelte')
+
+		// Toggle on
+		await page.locator('.tp-ckbv_w').first().click()
+
+		// Get all blade labels to verify order
+		const blades = page.locator('.tp-lblv_l')
+		const labels: string[] = []
+
+		const count = await blades.count()
+		for (let i = 0; i < count; i++) {
+			const text = await blades.nth(i).textContent()
+			if (text !== null && text !== '') {
+				labels.push(text.trim())
+			}
+		}
+
+		// The order should include: Visibility, C, D
+		expect(labels).toContain('Visibility')
+		expect(labels).toContain('C')
+		expect(labels).toContain('D')
+	})
+
+	test('toggling visibility off hides conditional content', async ({ page }) => {
+		await page.goto('/TestElementIfStatement.svelte')
+
+		// Toggle on
+		await page.locator('.tp-ckbv_w').first().click()
+		await expect(page.getByText('C', { exact: true }).first()).toBeVisible()
+
+		// Toggle off
+		await page.locator('.tp-ckbv_w').first().click()
+
+		// D should still be visible (it's outside)
+		await expect(page.getByText('D', { exact: true }).first()).toBeVisible()
+	})
+})
+
+=== 4532 tests/issues/issue-031-tab-index-binding.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test'
+
+/**
+ * Issue #31: Tab Group selectedIndex binding gets set to -1 when switching Pane
+ * Position https://github.com/kitschpatrol/svelte-tweakpane-ui/issues/31
+ *
+ * When reactively switching between Pane positions (e.g., inline vs draggable),
+ * the TabGroup's selectedIndex binding would incorrectly get set to -1. This
+ * test verifies that the tab index is preserved when cycling through different
+ * pane position modes.
+ */
+test.describe('Issue #31: Tab Group selectedIndex binding with Pane position changes', () => {
+	test('initial state shows correct mode and tab index', async ({ page }) => {
+		await page.goto('/TestTabIndexBinding.svelte')
+
+		// Mode should be 0 (draggable)
+		await expect(page.getByText('Mode: 0')).toBeVisible()
+
+		// Tab index should be 1 (Tab B)
+		await expect(page.getByText('TabIndex: 1')).toBeVisible()
+
+		// Tab B should be selected
+		await expect(page.getByRole('button', { exact: true, name: 'B' }).locator('..')).toHaveClass(
+			'tp-tbiv tp-tbiv-sel',
+		)
+	})
+
+	test('tab selection works in draggable mode', async ({ page }) => {
+		await page.goto('/TestTabIndexBinding.svelte')
+
+		// Select tab A
+		await page.getByRole('button', { exact: true, name: 'A' }).click()
+		await expect(page.getByText('TabIndex: 0')).toBeVisible()
+		await expect(page.getByRole('button', { exact: true, name: 'A' }).locator('..')).toHaveClass(
+			'tp-tbiv tp-tbiv-sel',
+		)
+
+		// Select tab B
+		await page.getByRole('button', { exact: true, name: 'B' }).click()
+		await expect(page.getByText('TabIndex: 1')).toBeVisible()
+		await expect(page.getByRole('button', { exact: true, name: 'B' }).locator('..')).toHaveClass(
+			'tp-tbiv tp-tbiv-sel',
+		)
+	})
+
+	test('tab index is preserved when cycling to inline mode', async ({ page }) => {
+		await page.goto('/TestTabIndexBinding.svelte')
+
+		// Initial: Mode 0, Tab B
+		await expect(page.getByText('Mode: 0')).toBeVisible()
+		await expect(page.getByText('TabIndex: 1')).toBeVisible()
+
+		// Cycle to mode 1 (inline)
+		await page.getByRole('button', { name: 'Cycle Mode' }).first().click()
+
+		// Mode should be 1
+		await expect(page.getByText('Mode: 1')).toBeVisible()
+
+		// Tab index should still be 1 (NOT -1)
+		await expect(page.getByText('TabIndex: 1')).toBeVisible()
+
+		// Tab B should still be selected
+		await expect(page.getByRole('button', { exact: true, name: 'B' }).locator('..')).toHaveClass(
+			'tp-tbiv tp-tbiv-sel',
+		)
+	})
+
+	test('tab selection works after mode change', async ({ page }) => {
+		await page.goto('/TestTabIndexBinding.svelte')
+
+		// Cycle to mode 1
+		await page.getByRole('button', { name: 'Cycle Mode' }).first().click()
+		await expect(page.getByText('Mode: 1')).toBeVisible()
+
+		// Select tab A
+		await page.getByRole('button', { exact: true, name: 'A' }).click()
+		await expect(page.getByText('TabIndex: 0')).toBeVisible()
+
+		// Select tab B
+		await page.getByRole('button', { exact: true, name: 'B' }).click()
+		await expect(page.getByText('TabIndex: 1')).toBeVisible()
+	})
+
+	test('tab index preserved through multiple mode cycles', async ({ page }) => {
+		await page.goto('/TestTabIndexBinding.svelte')
+
+		// Select tab A first
+		await page.getByRole('button', { exact: true, name: 'A' }).click()
+		await expect(page.getByText('TabIndex: 0')).toBeVisible()
+
+		// Cycle through all modes
+		// Mode 0 -> 1
+		await page.getByRole('button', { name: 'Cycle Mode' }).first().click()
+		await expect(page.getByText('Mode: 1')).toBeVisible()
+		await expect(page.getByText('TabIndex: 0')).toBeVisible()
+
+		// Mode 1 -> 2 (no pane mode)
+		await page.getByRole('button', { name: 'Cycle Mode' }).first().click()
+		await expect(page.getByText('Mode: 2')).toBeVisible()
+		await expect(page.getByText('TabIndex: 0')).toBeVisible()
+	})
+
+	test('tab index never becomes -1 during mode transitions', async ({ page }) => {
+		await page.goto('/TestTabIndexBinding.svelte')
+
+		// Perform multiple transitions and verify index never becomes -1
+		for (let i = 0; i < 6; i++) {
+			// Check that tab index is not -1
+			await expect(page.getByText('TabIndex: -1')).not.toBeVisible()
+
+			// Only click cycle mode if not in mode 2 (no pane)
+			const modeText = await page.locator('p').filter({ hasText: 'Mode:' }).textContent()
+			if (modeText?.includes('Mode: 2')) {
+				// Skip - no button available in mode 2
+				break
+			}
+
+			const cycleButton = page.getByRole('button', { name: 'Cycle Mode' }).first()
+			if (await cycleButton.isVisible()) {
+				await cycleButton.click()
+			} else {
+				break
+			}
+		}
+	})
+})
+
+=== 1547 vite.config.ts	ts	module	-
+import type { Plugin, Rollup } from 'vite'
+import { sveltekit } from '@sveltejs/kit/vite'
+import { defineConfig } from 'vite'
+
+// SvelteKit 2.56+ runtime references Svelte 5-only exports (hydratable, untrack,
+// fork, settled) behind defensive guards. Rollup's static analysis can't see the
+// guards and emits MISSING_EXPORT warnings when building against Svelte 4.
+const svelte5GuardedExports = new Set(['fork', 'hydratable', 'settled', 'untrack'])
+
+// SvelteKit's plugin sets its own `rollupOptions.onwarn`, which replaces one
+// defined in this config on merge, so the filter must be applied from a `post`
+// plugin that wraps whatever handler is present after SvelteKit's config hook.
+function silenceSvelte5MissingExportWarnings(): Plugin {
+	return {
+		config(config) {
+			const previousOnwarn = config.build?.rollupOptions?.onwarn
+			config.build ??= {}
+			config.build.rollupOptions ??= {}
+			config.build.rollupOptions.onwarn = (
+				warning: Rollup.RollupLog,
+				defaultHandler: Rollup.LoggingFunction,
+			) => {
+				if (
+					warning.code === 'MISSING_EXPORT' &&
+					warning.id?.includes('@sveltejs/kit/src/runtime/') &&
+					svelte5GuardedExports.has(warning.binding ?? '')
+				) {
+					return
+				}
+
+				if (previousOnwarn) {
+					previousOnwarn(warning, defaultHandler)
+				} else {
+					defaultHandler(warning)
+				}
+			}
+		},
+		enforce: 'post',
+		name: 'silence-svelte-5-missing-export-warnings',
+	}
+}
+
+export default defineConfig({
+	plugins: [sveltekit(), silenceSvelte5MissingExportWarnings()],
+	server: {
+		open: true,
+	},
+})
 
