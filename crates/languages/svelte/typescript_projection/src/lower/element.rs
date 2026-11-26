@@ -92,12 +92,8 @@ impl Builder<'_> {
                 open: name,
                 close: Some(name),
             });
-            let component = match component {
-                Some(component) => self.expression_source(component, None),
-                None => self.tree.push(Node::AnyComponent),
-            };
             self.component_call(
-                component,
+                (component, name),
                 properties,
                 snippets,
                 reads_by_name || !directives.bindable.is_empty(),

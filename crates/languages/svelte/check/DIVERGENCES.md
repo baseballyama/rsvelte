@@ -49,13 +49,24 @@ difference and not the projection:
     }
     for (let [p, q] of [[1, 2]]) {
     }
+    for (let { a: renamed } of [{ a: 1 }]) {
+    }
   }
   ```
 
   Under `noUnusedLocals`, TypeScript 6.0.3 reports TS6133 for `x` at 2:12, the `{`, and TS6133
   for `p` and `q` at 4:13 and 4:16. TypeScript 7.1 reports TS6133 for `x` at 2:14, and one TS6198
-  `All destructured elements are unused.` at 4:12. An `{#each}` item `{ x }`, `{ x = 2 }` or
-  `[p, q]` gives the same pair, because svelte2tsx writes the item as the binding of a `for…of`.
+  `All destructured elements are unused.` at 4:12. For `renamed`, TypeScript 6.0.3 reports
+  TS6133 at 6:12, the `{`, and TypeScript 7.1 at 6:17, the name. An `{#each}` item `{ x }`,
+  `{ x = 2 }`, `{ a: renamed }` or `[p, q]` gives the same pair, because svelte2tsx writes the
+  item as the binding of a `for…of`. An index does not change it: with `[p, q], i` and `i` used,
+  svelte-check reports TS6133 at `p` and at `q`, and we report one TS6198 at the `[`.
+
+- A union prints its members in another order. A component tag whose value is `5` gets TS2345
+  against svelte2tsx's constraint, which TypeScript 6.0.3 prints as
+  `'ConstructorOfATypedSvelteComponent | Component<any, any, any> | null | undefined'` and
+  TypeScript 7.1 as `'Component<any, any, any> | ConstructorOfATypedSvelteComponent | null |
+  undefined'`. A plain `.ts` file with the same constraint gives the same pair.
 
 - Test: `typecheck_prints_what_typescript_7_prints` in the command line crate's
   `tests/cli/typecheck_checker.rs`.
@@ -137,3 +148,23 @@ declares no `$tns`, and neither does rsvelte. TypeScript 6.0.3, TypeScript 7.1 a
 itself give TS2552 for the same read in a `.ts` file. That holds at the top level, and inside an
 `async` arrow in a function, as the projection has it. svelte2tsx writes the same projection with
 svelte-check's options. The cause is not found.
+
+## A component whose value has no component shape
+
+svelte2tsx constructs a component with `new $$_P0C({ target, props })`. rsvelte calls it with
+`__rsvelte_component(P)(internals, props)`, so that a generic component infers its generics from the
+props (`component_call` in the projection crate's
+[`call.rs`](../typescript_projection/src/lower/call.rs)). For `null` or `undefined`, both give
+`never`. Then svelte-check 4.7.8 reports TS2351 `This expression is not constructable.` at the tag's
+name. rsvelte reports TS2349 `This expression is not callable.` there. For
+`<svelte:component this={P}>`, svelte-check reports it one column after the start of `P`, and
+rsvelte at the start.
+
+A function that returns no object, such as `() => 1`, is `never` in svelte2tsx too, and svelte-check
+reports the same TS2351. rsvelte calls the function itself: `() => 1` gets TS2554 `Expected 0
+arguments, but got 2.` and `(a, b) => {}` gets nothing. Upstream's test reads the props, the exports
+and the bindings off `Component<…>`. That test also turns some generic components of the projection
+into `never`, such as one with `generics="T, Key = T extends Map<infer K, unknown> ? K : keyof T"`.
+
+- Test: `typecheck_reports_a_value_that_is_no_component_at_its_tag` in the command line crate's
+  `tests/cli/typecheck_component_values.rs`.

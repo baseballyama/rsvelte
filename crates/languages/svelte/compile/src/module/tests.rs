@@ -567,3 +567,4 @@ fn a_typescript_module_is_analyzed_with_what_its_emit_lowers() {
 
 mod acorn_typescript;
 mod ambient_enums;
+mod erased_errors;

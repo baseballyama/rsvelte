@@ -5,8 +5,8 @@
 // starts: what is measured is what the next commit holds, as CI's clean checkout does, and the
 // working tree can be edited meanwhile. (Loading walks the fixture tree, so outputs a local run
 // left in it would count.) With --update the snapshot's baseline is copied back (stage it too).
-// The host's cargo registry is mounted (the build is --offline), and the Linux build has a target
-// directory of its own.
+// The host's cargo registry and git checkouts are mounted (the build is --offline), and the Linux
+// build has a target directory of its own.
 //
 // The container copies the snapshot onto its own file system, at the paths CI uses, before it
 // measures: loading counted 0.26% more instructions there than over the bind mount, more than the
@@ -37,6 +37,7 @@ export async function main(args: string[]): Promise<void> {
 			'crates',
 			'tools/performance',
 			'corpus',
+			'examples',
 		],
 		{ encoding: 'utf8', maxBuffer: 1 << 28 },
 	)
@@ -62,10 +63,7 @@ export async function main(args: string[]): Promise<void> {
 			stdio: ['ignore', 'ignore', 'inherit'],
 		},
 	);
-	const registry = path.join(
-		process.env.CARGO_HOME ?? path.join(os.homedir(), '.cargo'),
-		'registry',
-	);
+	const cargo = process.env.CARGO_HOME ?? path.join(os.homedir(), '.cargo');
 	const checkout = '/home/runner/work/rsvelte/rsvelte';
 	const script = [
 		'set -e',
@@ -93,7 +91,9 @@ export async function main(args: string[]): Promise<void> {
 			'-v',
 			`${target}:/target`,
 			'-v',
-			`${registry}:/home/runner/.cargo/registry`,
+			`${path.join(cargo, 'registry')}:/home/runner/.cargo/registry`,
+			'-v',
+			`${path.join(cargo, 'git')}:/home/runner/.cargo/git`,
 			'rsvelte-performance',
 			'sh',
 			'-c',

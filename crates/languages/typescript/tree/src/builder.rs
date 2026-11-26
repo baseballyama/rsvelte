@@ -13,6 +13,7 @@ use rsvelte_kernel::index::IndexVector;
 use rsvelte_kernel::source::positions::Span;
 
 mod check;
+mod number;
 mod parentheses;
 mod program;
 mod recorded;
@@ -490,16 +491,6 @@ impl<'a> TreeBuilder<'a> {
     /// Keeps a program built in [`TreeBuilder::nodes`]'s arena, such as one a compiler writes.
     pub fn keep_program(&mut self, program: Program<'a>) -> ProgramIdentifier {
         self.push_program(program, &[])
-    }
-
-    /// Lets `rewrite` change a program the builder read before anything analyzes it, as a compiler
-    /// that reads another's output does.
-    pub fn rewrite_program(
-        &mut self,
-        program: ProgramIdentifier,
-        rewrite: impl FnOnce(&'a Allocator, &mut Program<'a>),
-    ) {
-        rewrite(self.allocator, &mut self.programs[program].0);
     }
 
     /// Keeps a program with the tokens oxc read in it.
