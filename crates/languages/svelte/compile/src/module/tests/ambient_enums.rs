@@ -37,3 +37,34 @@ fn a_typescript_module_drops_an_ambient_enum() {
         assert_eq!(body(source, Target::Server), server, "{source:?}");
     }
 }
+
+#[test]
+fn a_typescript_module_keeps_a_namespace_that_holds_an_ambient_enum() {
+    // TypeScript 6.0.3's emit writes `var N; (function (N) {})(N || (N = {}));` for each, which
+    // svelte 5.59.1 compiles; the lowering writes it in oxc's form.
+    for source in [
+        "namespace N { declare enum E { A } }\nexport const x = 1;\n",
+        "namespace N { export declare const enum E { A } }\nexport const x = 1;\n",
+        "namespace N { declare const x: number; }\nexport const x = 1;\n",
+        "namespace N { declare namespace M { enum E { A } } }\nexport const x = 1;\n",
+    ] {
+        for target in [Target::Client, Target::Server] {
+            let body = body(source, target);
+            assert!(
+                body.starts_with("letN;(function(_N){})(N||(N={}));"),
+                "{source:?}: {body}"
+            );
+        }
+    }
+    // A namespace of types only is not emitted.
+    for source in [
+        "namespace N { export type T = 1; }\nexport const x = 1;\n",
+        "namespace N { declare namespace M { type T = 1; } }\nexport const x = 1;\n",
+    ] {
+        assert_eq!(
+            body(source, Target::Client),
+            "exportconstx=1;",
+            "{source:?}"
+        );
+    }
+}
