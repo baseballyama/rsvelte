@@ -3,11 +3,13 @@ use oxc_ast::ast::{ImportOrExportKind, Program, Statement};
 use oxc_ast::builder::AstBuilder;
 use oxc_ast_visit::VisitMut;
 use oxc_span::{SPAN, Span};
+use rsvelte_typescript_compile::original_text::OriginalText;
 use rsvelte_typescript_compile::strip::{ErasedComments, ModuleErasure, is_erased_module_syntax};
 
 /// Removes from a `.svelte.ts` module what TypeScript's emit, which upstream reads instead of the
-/// module, does not keep, and, when `record` is true, returns the spans of what it removed. The
-/// lowered module is emitted later.
+/// module, does not keep, and writes its numbers as that emit does, which is what the module's
+/// checks then read. When `record` is true, it returns the spans of what it removed. The lowered
+/// module is emitted later.
 pub(super) fn erase<'a>(
     allocator: &'a Allocator,
     program: &mut Program<'a>,
@@ -27,6 +29,7 @@ pub(super) fn erase<'a>(
         ModuleErasure::new(allocator)
     };
     erasure.visit_program(program);
+    OriginalText::new(allocator).visit_program(program);
     // A module left without an import or an export stays one.
     if module && !program.body.iter().any(Statement::is_module_declaration) {
         let b = AstBuilder::new(allocator);

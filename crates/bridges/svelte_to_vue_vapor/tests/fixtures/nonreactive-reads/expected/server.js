@@ -343,7 +343,7 @@ export default $$v_defineComponent({
 				"<p",
 				$$attribute("class", $$to_class("", { "called": read() > 0 })),
 				$$attribute("title", `call:${$$stringify(read())}`),
-				$$styles_text([{ "opacity": read() > 0 ? 1 : .5 }]),
+				$$styles_text([{ "opacity": read() > 0 ? 1 : 0.5 }]),
 				">",
 				$$join(["calls"]),
 				"</p>"

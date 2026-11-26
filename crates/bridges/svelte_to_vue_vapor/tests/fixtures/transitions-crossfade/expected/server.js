@@ -188,7 +188,7 @@ export default $$v_defineComponent({
 	setup(__props) {
 		const left = $$ref(true);
 		const events = $$ref([]);
-		const [send, receive] = crossfade({ duration: 1e3 });
+		const [send, receive] = crossfade({ duration: 1000 });
 		return { renderContent: ($$ssr_parent) => $$join([
 			$$join([
 				"<button",
