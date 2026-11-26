@@ -1,4 +1,4 @@
-# svelte.check/default: 35020 match
+# svelte.check/default: 35021 match
 svelte/appwrite-console/src/lib/commandCenter/panels/buckets.svelte	mismatch
 svelte/appwrite-console/src/lib/commandCenter/panels/databases.svelte	mismatch
 svelte/appwrite-console/src/lib/commandCenter/panels/files.svelte	mismatch
@@ -406,7 +406,6 @@ svelte/svelte/packages/svelte/tests/preprocess/samples/comments/output.svelte	mi
 svelte/svelte/packages/svelte/tests/preprocess/samples/script-multiple/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/preprocess/samples/script-multiple/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/action-on-component/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/binding-import-component/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	js-equivalent
