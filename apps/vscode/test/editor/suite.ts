@@ -81,6 +81,23 @@ export async function run(): Promise<void> {
 		return left.length === 2 ? left : undefined;
 	});
 
+	const typed = await open('src/Typed.svelte');
+	const typeErrors = () =>
+		vscode.languages
+			.getDiagnostics(typed.uri)
+			.filter((d) => d.source === 'ts')
+			.map((d) => `${d.range.start.line + 1}:${d.range.start.character + 1} ${String(d.code)}`);
+	// As `rsvelte typecheck` prints it.
+	assert.deepEqual(
+		await until('type errors', () => (typeErrors().length > 0 ? typeErrors() : undefined)),
+		['2:8 2322'],
+	);
+	const literal = typed.getText().indexOf("'x'");
+	const fixed = new vscode.Range(typed.positionAt(literal), typed.positionAt(literal + 3));
+	await apply(typed, [vscode.TextEdit.replace(fixed, '1')]);
+	// The unsaved text is what the type check reads next.
+	await until('no type errors', () => (typeErrors().length === 0 ? true : undefined));
+
 	const format = await open('src/Format.svelte');
 	const edits = await vscode.commands.executeCommand<vscode.TextEdit[]>(
 		'vscode.executeFormatDocumentProvider',

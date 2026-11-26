@@ -24,6 +24,11 @@ const files: Record<string, string> = {
 	'.oxlintrc.json': fs.readFileSync(path.join(here, 'oxlintrc.json'), 'utf8'),
 	'src/Lint.svelte': fs.readFileSync(path.join(here, 'Lint.svelte'), 'utf8'),
 	'src/Format.svelte': fs.readFileSync(path.join(here, 'Format.svelte'), 'utf8'),
+	'src/Typed.svelte': fs.readFileSync(path.join(here, 'Typed.svelte'), 'utf8'),
+	'tsconfig.json': JSON.stringify({
+		compilerOptions: { strict: true, skipLibCheck: true },
+		include: ['src'],
+	}),
 	'node_modules/@rsvelte/cli/package.json': '{ "name": "@rsvelte/cli", "type": "module" }',
 	'node_modules/@rsvelte/cli/platforms.json': JSON.stringify({
 		[`${process.platform}-${process.arch}`]: 'rsvelte-debug',
@@ -39,6 +44,19 @@ for (const [file, text] of Object.entries(files)) {
 	fs.writeFileSync(path.join(workspace, file), text);
 }
 fs.symlinkSync(built, path.join(workspace, 'node_modules/rsvelte-debug', executable));
+// The type check runs the content mapper beside the program, and the project's svelte and
+// TypeScript, which are this repository's.
+const mapper = `rsvelte-svelte-content-mapper${process.platform === 'win32' ? '.exe' : ''}`;
+fs.symlinkSync(
+	path.join(repository, 'target/debug', mapper),
+	path.join(workspace, 'node_modules/rsvelte-debug', mapper),
+);
+for (const [name, from] of Object.entries({ svelte: 'svelte', typescript: 'typescript-7' })) {
+	fs.symlinkSync(
+		fs.realpathSync(path.join(repository, 'node_modules', from)),
+		path.join(workspace, 'node_modules', name),
+	);
+}
 
 await bundle('test/editor/suite.ts', 'generated/suite.cjs');
 try {

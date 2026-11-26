@@ -59,7 +59,7 @@ ignore.workspace = true
 oxfmt.workspace = true
 oxc_language_server.workspace = true
 tower-lsp-server.workspace = true
-tokio = { workspace = true, features = ["io-std", "io-util", "sync"] }
+tokio = { workspace = true, features = ["io-std", "io-util", "sync", "time"] }
 oxc_formatter.workspace = true
 bpaf.workspace = true
 
