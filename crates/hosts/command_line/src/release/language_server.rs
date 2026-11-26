@@ -24,6 +24,7 @@ mod convert;
 mod folders;
 mod router;
 mod rpc;
+mod svelte;
 mod typecheck;
 mod typescript;
 
@@ -90,7 +91,24 @@ pub(super) fn language_server(arguments: &[String]) -> ExitCode {
             input: Box::new(input),
             output: Box::new(output),
         };
-        let mut servers = vec![lint, typecheck];
+        let (router_end, server_end) = tokio::io::duplex(1 << 20);
+        let (server_input, server_output) = tokio::io::split(server_end);
+        let (service, socket) = tower_lsp_server::LspService::new(|_| svelte::Svelte::default());
+        tokio::spawn(
+            tower_lsp_server::Server::new(server_input, server_output, socket).serve(service),
+        );
+        let (output, input) = tokio::io::split(router_end);
+        let svelte = router::Server {
+            name: "Svelte",
+            answers: router::Answers::Features {
+                methods: svelte::METHODS,
+                capabilities: svelte::CAPABILITIES,
+                documents: typescript::components,
+            },
+            input: Box::new(input),
+            output: Box::new(output),
+        };
+        let mut servers = vec![lint, typecheck, svelte];
         if with_typescript {
             let (router_end, server_end) = tokio::io::duplex(1 << 20);
             let (server_input, server_output) = tokio::io::split(server_end);

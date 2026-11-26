@@ -27,6 +27,8 @@ cannot set it.
   references, highlights and renames. They come from the TypeScript 7.1 that `rsvelte typecheck` runs, which reads each
   component as the type check does. To let TypeScript start that reader, rsvelte writes a small
   package to `node_modules/.cache/rsvelte/`; it does not change your `tsconfig.json`.
+- Folding in Svelte components: elements, comments and `<!-- #region -->` blocks, as the
+  Svelte extension folds them.
 - Fixes: oxlint's quick fixes and its fix of all problems. To fix on save:
 
   ```json

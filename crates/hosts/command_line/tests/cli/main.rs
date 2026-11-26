@@ -14,6 +14,7 @@ mod format;
 mod format_options;
 mod format_tailwind;
 mod language_server;
+mod language_server_svelte;
 mod language_server_typecheck;
 mod language_server_typescript;
 mod lint;
