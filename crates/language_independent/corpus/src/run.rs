@@ -490,9 +490,8 @@ impl Conformance {
                     diagnostics: (!out.diagnostics.is_empty())
                         .then(|| task_files::diagnostics_json(&document.text, out)),
                 });
-                let parentheses = match c.kind {
-                    Kind::Output { parentheses } => parentheses,
-                    _ => Parentheses::Dropped,
+                let Kind::Output { parentheses } = c.kind else {
+                    unreachable!("every other kind returned above; a reader is in readers.toml");
                 };
                 compare::verdict(&official, ours.as_ref(), parentheses)
                     .map_err(|e| format!("{}: {e}", source.key(&document.path)))?
