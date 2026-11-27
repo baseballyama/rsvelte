@@ -19,8 +19,7 @@ mod tag;
 mod type_assertion;
 use std::cell::OnceCell;
 
-use oxc_ast::ast::{AssignmentTarget, ChainElement, Expression, IdentifierReference};
-use oxc_ast_visit::Visit;
+use oxc_ast::ast::{AssignmentTarget, ChainElement, Expression};
 use oxc_span::GetSpan;
 use rsvelte_kernel::diagnostics::Unsupported;
 use rsvelte_kernel::source::positions::Span;
@@ -196,25 +195,6 @@ fn source_expression(span: Span, end: Option<u32>) -> SourceExpression {
         span,
         end: end.unwrap_or(span.end_offset),
     }
-}
-
-/// Whether `expression` reads one of `names`.
-fn reads_any(expression: &Expression<'_>, names: &[&str]) -> bool {
-    struct Reads<'n, 's> {
-        names: &'n [&'s str],
-        found: bool,
-    }
-    impl<'a> Visit<'a> for Reads<'_, '_> {
-        fn visit_identifier_reference(&mut self, it: &IdentifierReference<'a>) {
-            self.found |= self.names.contains(&it.name.as_str());
-        }
-    }
-    let mut reads = Reads {
-        names,
-        found: false,
-    };
-    reads.visit_expression(expression);
-    reads.found
 }
 
 /// Whether `e`'s first token is the `{` of an object literal.

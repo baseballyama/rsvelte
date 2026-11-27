@@ -1,16 +1,11 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { v = 1, o } = $props();
+	let /** @typedef {{ v?: number, o: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { v = 1, o } = $props();
 	let s = $state(2);
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    o: __rsvelte_untyped_prop(),
-  }, {
-    v: 1,
-  }, false);
   async () => {
     {
       svelteHTML.createElement("my-el", {
@@ -73,7 +68,7 @@ function $$render() {
       });
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const CustomElementAttributes__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof CustomElementAttributes__SvelteComponent_>} CustomElementAttributes__SvelteComponent_ */
