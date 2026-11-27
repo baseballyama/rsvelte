@@ -185,3 +185,16 @@ fn assignment_target_object<'b, 'a>(
 ) -> Option<&'b Expression<'a>> {
     target.as_member_expression().map(MemberExpression::object)
 }
+
+/// `inner`, or the expression inside a pair of parentheses: an assignment target or a chain keeps
+/// none, so those inside one of its types go with it.
+pub(crate) fn inner_or_parenthesized<'a>(
+    e: &mut Expression<'a>,
+    allocator: &'a Allocator,
+    inner: fn(&mut Expression<'a>, &'a Allocator) -> Option<Expression<'a>>,
+) -> Option<Expression<'a>> {
+    match e {
+        Expression::ParenthesizedExpression(e) => Some(e.expression.take_in(&allocator)),
+        e => inner(e, allocator),
+    }
+}

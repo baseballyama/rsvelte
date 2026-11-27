@@ -18,6 +18,8 @@ use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
 use oxc_span::{GetSpan, Span};
 use oxc_syntax::scope::ScopeFlags;
 
+use crate::parentheses::inner_or_parenthesized;
+
 /// Erases the types of every node it visits.
 pub struct Strip<'a> {
     allocator: &'a Allocator,
@@ -331,18 +333,6 @@ fn inner<'a>(e: &mut Expression<'a>, allocator: &'a Allocator) -> Option<Express
     Some(inner.take_in(&allocator))
 }
 
-/// [`inner`], or the expression inside a pair of parentheses: an assignment target or a chain
-/// keeps none, so those inside one of its types go with it.
-fn inner_or_parenthesized<'a>(
-    e: &mut Expression<'a>,
-    allocator: &'a Allocator,
-) -> Option<Expression<'a>> {
-    match e {
-        Expression::ParenthesizedExpression(e) => Some(e.expression.take_in(&allocator)),
-        e => inner(e, allocator),
-    }
-}
-
 /// Whether [`Strip`] removes `statement` from the list that holds it.
 #[must_use]
 pub fn strips(statement: &Statement<'_>) -> bool {
@@ -382,7 +372,7 @@ impl<'a> VisitMut<'a> for Strip<'a> {
             _ => return walk_mut::walk_simple_assignment_target(self, it),
         };
         let mut expression = expression.take_in(&self.allocator);
-        while let Some(e) = inner_or_parenthesized(&mut expression, self.allocator) {
+        while let Some(e) = inner_or_parenthesized(&mut expression, self.allocator, inner) {
             expression = e;
         }
         *it = match expression {
@@ -398,7 +388,7 @@ impl<'a> VisitMut<'a> for Strip<'a> {
     fn visit_chain_element(&mut self, it: &mut ChainElement<'a>) {
         if let ChainElement::TSNonNullExpression(e) = it {
             let mut expression = e.expression.take_in(&self.allocator);
-            while let Some(e) = inner_or_parenthesized(&mut expression, self.allocator) {
+            while let Some(e) = inner_or_parenthesized(&mut expression, self.allocator, inner) {
                 expression = e;
             }
             *it = match expression {
