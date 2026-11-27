@@ -264,6 +264,17 @@ impl Builder<'_> {
                 return Err(refuse("dynamic slot names", a.span));
             }
         };
+        // svelte2tsx's empty props map wherever its overwrites leave them; these map to the tag.
+        let properties = match self.tree.node(properties) {
+            Node::Object { properties: none } if self.tree.children(none).is_empty() => {
+                self.tree.push(Node::Located {
+                    value: properties,
+                    open: Span::new(tag_start, tag_start + "<slot".len() as u32),
+                    close: None,
+                })
+            }
+            _ => properties,
+        };
         let element = self.slot_element(attributes);
         self.slot_elements.push(element);
         let mut callee = self.tree.push(Node::Identifier("__rsvelte_slots"));

@@ -90,9 +90,36 @@ difference and not the projection:
   `(n: number) => void`, and `onclick={(e, x) => {}}` or `on:click={(e, x) => {}}` on a
   `<button>`. In a TypeScript component, both checkers report the TS2322.
 
+- The checkers give an empty object literal that misses a required property different codes.
+
+  ```ts
+  declare function slots<Slots>(): <Name extends keyof Slots>(
+    name: Name,
+    attributes: Slots[Name],
+  ) => Record<string, any>;
+  type S = { default: { x: number }; named: {} };
+  slots<S>()('default', {});
+  ```
+
+  TypeScript 6.0.3 reports TS2345 `Argument of type '{}' is not assignable to parameter of type
+  '{ x: number; }'.` at 6:23, and TypeScript 7.1 reports TS2741 `Property 'x' is missing in type
+  '{}' but required in type '{ x: number; }'.` there. A `<slot />` that misses a required prop of
+  its `$$Slots` gives the same pair, because svelte2tsx writes its props as this call's argument.
+
+  Where that finding starts differs too, for a `<slot>` without attributes. The overwrites
+  svelte2tsx makes of the tag decide where its empty props map, and svelte-check reports at the
+  first of their two braces. Counted in characters from `<slot`, that is +0 for `<slot />` and
+  for a slot inside an element, and +1 for `<slot/>`, `<slot></slot>` and
+  `<slot>fallback</slot>`. The offset is +6 for `<slot  />`, for `<slot name="named" />` and
+  for a named slot whose attribute is on the next line, so the finding can start on another
+  line. The projection maps the braces to `<slot`, +0, in `slot_call` in the projection crate's
+  [`call.rs`](../typescript_projection/src/lower/call.rs).
+
 - Test: `typecheck_prints_what_typescript_7_prints` and
   `typecheck_checks_a_javascript_snippet_s_parameters_as_typescript_7_does` in the command line
   crate's `tests/cli/typecheck_checker.rs`.
+  The slot finding's test is `typecheck_reports_a_missing_slot_prop_at_the_slot_tag` in
+  `tests/cli/typecheck_slots.rs`.
 - The reports are [#5254](https://github.com/baseballyama/rsvelte/issues/5254) and
   [#5319](https://github.com/baseballyama/rsvelte/issues/5319).
 
