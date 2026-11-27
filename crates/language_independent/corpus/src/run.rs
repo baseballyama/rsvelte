@@ -57,13 +57,12 @@ pub struct Conformance {
 struct Compared {
     task: &'static str,
     kind: Kind,
-    parentheses: Parentheses,
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Kind {
-    /// The task's output against its own pack.
-    Output,
+    /// The task's output against its own pack, the JavaScript with or without its parentheses.
+    Output { parentheses: Parentheses },
     /// A task in `readers.toml`: it compares one file of another task's official output.
     Reader,
     /// Where the comments of another task's JavaScript are, against that task's pack.
@@ -96,8 +95,9 @@ impl Conformance {
     pub fn compare(mut self, task: &'static str) -> Self {
         self.compared.push(Compared {
             task,
-            kind: Kind::Output,
-            parentheses: Parentheses::Dropped,
+            kind: Kind::Output {
+                parentheses: Parentheses::Dropped,
+            },
         });
         self
     }
@@ -108,8 +108,9 @@ impl Conformance {
     pub fn compare_with_parentheses(mut self, task: &'static str) -> Self {
         self.compared.push(Compared {
             task,
-            kind: Kind::Output,
-            parentheses: Parentheses::Kept,
+            kind: Kind::Output {
+                parentheses: Parentheses::Kept,
+            },
         });
         self
     }
@@ -122,7 +123,6 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             kind: Kind::Comments { of },
-            parentheses: Parentheses::Dropped,
         });
         self
     }
@@ -135,7 +135,6 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             kind: Kind::SourceMap { of },
-            parentheses: Parentheses::Dropped,
         });
         self
     }
@@ -149,7 +148,6 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             kind: Kind::Reader,
-            parentheses: Parentheses::Dropped,
         });
         self
     }
@@ -404,7 +402,7 @@ impl Conformance {
         let table = registry.units.get(&key);
         for (i, c) in self.compared.iter().enumerate() {
             // Regen writes nothing for a unit no reader of the pack takes.
-            if c.kind == Kind::Output
+            if matches!(c.kind, Kind::Output { .. })
                 && table.is_some_and(|t| registry.skips_every_reader(t, c.task))
                 && expected[i].find(&document.path).next().is_some()
             {
@@ -492,7 +490,11 @@ impl Conformance {
                     diagnostics: (!out.diagnostics.is_empty())
                         .then(|| task_files::diagnostics_json(&document.text, out)),
                 });
-                compare::verdict(&official, ours.as_ref(), c.parentheses)
+                let parentheses = match c.kind {
+                    Kind::Output { parentheses } => parentheses,
+                    _ => Parentheses::Dropped,
+                };
+                compare::verdict(&official, ours.as_ref(), parentheses)
                     .map_err(|e| format!("{}: {e}", source.key(&document.path)))?
             };
             if let Some(v) = verdict {
@@ -511,7 +513,8 @@ impl Conformance {
         expected: &'p [Pack],
         path: &str,
     ) -> Result<Vec<Entry<'p>>, String> {
-        let Some(j) = (self.compared.iter()).position(|o| o.task == of && o.kind == Kind::Output)
+        let Some(j) = (self.compared.iter())
+            .position(|o| o.task == of && matches!(o.kind, Kind::Output { .. }))
         else {
             return Err(format!("{of} is not compared"));
         };
