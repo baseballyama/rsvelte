@@ -5,7 +5,6 @@ use std::borrow::Cow;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{BigIntLiteral, Expression, NumericLiteral, Program, StaticMemberExpression};
 use oxc_ast_visit::{VisitMut, walk_mut};
-use oxc_syntax::identifier::is_white_space;
 
 /// TypeScript's `canUseOriginalText` (6.0.3 at 050880ce59, `src/compiler/utilities.ts:2036`).
 ///
@@ -99,8 +98,7 @@ impl OriginalText<'_> {
     /// property, `start..end`: the emit writes no second dot after a number in parentheses, which
     /// `mayNeedDotDotForPropertyAccess` does not see as a number, nor after a comment or a line
     /// break it writes before the dot (`hasTrailingComment`, `hasTrailingWhitespace`). The tree
-    /// keeps none of the three, so only JavaScript's white space other than a line break, which
-    /// includes `U+FEFF`, may come before the dot.
+    /// keeps none of the three, so only [`is_white_space_single_line`] may come before the dot.
     fn dot_follows(&self, start: u32, end: u32) -> bool {
         // A range outside the source is a node a transform built, which no comment, line break or
         // parenthesis precedes.
@@ -110,8 +108,18 @@ impl OriginalText<'_> {
         let before_dot = between
             .split_once('.')
             .map_or(between, |(before, _)| before);
-        before_dot.chars().all(is_white_space)
+        before_dot.chars().all(is_white_space_single_line)
     }
+}
+
+/// TypeScript's `isWhiteSpaceSingleLine` (6.0.3 at 050880ce59, `src/compiler/scanner.ts:557-572`),
+/// which, unlike JavaScript's white space, includes U+0085 and U+200B.
+const fn is_white_space_single_line(c: char) -> bool {
+    matches!(
+        c,
+        ' ' | '\t' | '\u{b}' | '\u{c}' | '\u{a0}' | '\u{85}' | '\u{1680}' | '\u{2000}'
+            ..='\u{200b}' | '\u{202f}' | '\u{205f}' | '\u{3000}' | '\u{feff}'
+    )
 }
 
 /// TypeScript's `mayNeedDotDotForPropertyAccess` (6.0.3 at 050880ce59,

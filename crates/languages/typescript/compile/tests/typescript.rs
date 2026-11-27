@@ -276,7 +276,7 @@ fn a_number_in_parentheses_or_before_a_comment_or_a_line_break_gets_no_second_do
         "08",
         "100000000000000000000",
     ];
-    let shapes: [(Shape, bool); 15] = [
+    let shapes: [(Shape, bool); 17] = [
         (|n| format!("({n}).x"), false),
         (|n| format!("({n} ).x"), false),
         (|n| format!("{n}\n.x"), false),
@@ -292,6 +292,8 @@ fn a_number_in_parentheses_or_before_a_comment_or_a_line_break_gets_no_second_do
         (|n| format!("{n}\u{a0}.x"), true),
         (|n| format!("{n}\u{feff}.x"), true),
         (|n| format!("{n}\u{3000}.x"), true),
+        (|n| format!("{n}\u{85}.x"), true),
+        (|n| format!("{n}\u{200b}.x"), true),
     ];
     for number in numbers {
         for (shape, dotted) in shapes {
