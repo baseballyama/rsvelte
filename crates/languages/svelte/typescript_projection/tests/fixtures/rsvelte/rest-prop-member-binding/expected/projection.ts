@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { p, ...rest } = $props();
+	let /** @typedef {{ p: any } & Record<string, any>} $$ComponentProps *//** @type {$$ComponentProps} */ { p, ...rest } = $props();
 	let obj = $state({});
 	let k = 'x';
 	let arr = [];
@@ -23,9 +23,6 @@ function $$render() {
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    p: __rsvelte_untyped_prop(),
-  }, {}, true);
   async () => {
     {
       svelteHTML.createElement("input", {
@@ -107,7 +104,7 @@ function $$render() {
       rest.t;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const RestPropMemberBinding__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof RestPropMemberBinding__SvelteComponent_>} RestPropMemberBinding__SvelteComponent_ */

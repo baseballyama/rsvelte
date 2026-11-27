@@ -1,14 +1,11 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { children } = $props();
+	let /** @typedef {{ children: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { children } = $props();
 	let x = $state(1);
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    children: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("svelte:options", {
@@ -24,7 +21,7 @@ function $$render() {
     }
     __rsvelte_ensure_snippet(children?.());
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const CssInjected__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof CssInjected__SvelteComponent_>} CssInjected__SvelteComponent_ */

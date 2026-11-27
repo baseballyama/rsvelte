@@ -6,16 +6,12 @@ import List from './List.svelte';;
 function $$render() {
   
 	
-	let /** @type {typeof __rsvelte_public_props0} */ { item, label } = $props();
+	let /** @typedef {{ item: any, label: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { item, label } = $props();
 	let count = $state(0);
 	let items = $state([1]);
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    item: __rsvelte_untyped_prop(),
-    label: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     if (label) {
       {
@@ -80,7 +76,7 @@ function $$render() {
       List;
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const SnippetShadows__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof SnippetShadows__SvelteComponent_>} SnippetShadows__SvelteComponent_ */

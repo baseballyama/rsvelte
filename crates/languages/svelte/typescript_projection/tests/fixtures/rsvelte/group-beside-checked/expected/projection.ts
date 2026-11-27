@@ -1,11 +1,8 @@
 ;
 function $$render() {
-  let g = $state(); let t = $state('a'); let /** @type {typeof __rsvelte_public_props0} */ { p } = $props();
+  let g = $state(); let t = $state('a'); let /** @typedef {{ p: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { p } = $props();
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    p: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("input", {
@@ -32,7 +29,7 @@ function $$render() {
       g = __rsvelte_untyped_prop();
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const GroupBesideChecked__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof GroupBesideChecked__SvelteComponent_>} GroupBesideChecked__SvelteComponent_ */
