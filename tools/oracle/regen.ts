@@ -31,12 +31,13 @@ const UNPARSEABLE_HEADER =
 	'# Written by `oracle regen`: <unit key>\t<task>/<variant>\t<why the unit is skipped>\n';
 
 /**
- * unparseable.txt after a run: its lines for what the run did not cover, and a skip for each unit
- * whose task records the unparseable output it found.
+ * unparseable.txt after a run: its lines for what the run did not cover, without those of units
+ * that left the corpus, and a skip for each unit whose task records the unparseable output it found.
  */
 export function updateUnparseable(
 	text: string,
 	ran: (key: string, task: string) => boolean,
+	left: (key: string) => boolean,
 	found: readonly Unparseable[],
 ): string {
 	const kept = text
@@ -44,7 +45,7 @@ export function updateUnparseable(
 		.filter((line) => line && !line.startsWith('#'))
 		.filter((line) => {
 			const [key = '', task = ''] = line.split('\t');
-			return !ran(key, task);
+			return !ran(key, task) && !left(key);
 		});
 	const fresh = found.flatMap((u) => {
 		const recorded = taskById(u.task.split('/')[0]!).unparseable;
@@ -54,6 +55,16 @@ export function updateUnparseable(
 	});
 	const lines = [...new Set([...kept, ...fresh])].toSorted();
 	return UNPARSEABLE_HEADER + lines.map((l) => `${l}\n`).join('');
+}
+
+/** Whether a unit key is gone: its source is one of those read, `sourceIds` or all, and lacks it. */
+export function gone(
+	keys: readonly string[],
+	sourceIds?: readonly string[],
+): (key: string) => boolean {
+	const known = new Set(keys);
+	// A key is `<family>/<source>/<path>`.
+	return (key) => (!sourceIds || sourceIds.includes(key.split('/')[1]!)) && !known.has(key);
 }
 
 /** Units per job: small enough that the largest source does not keep one worker busy alone. */
@@ -164,6 +175,7 @@ export async function regen({
 		updateUnparseable(
 			fs.existsSync(UNPARSEABLE_FILE) ? fs.readFileSync(UNPARSEABLE_FILE, 'utf8') : '',
 			(key, task) => ranTasks.has(task) && ranUnits.has(key),
+			gone(every.map(unitKey), sourceIds),
 			found,
 		),
 	);

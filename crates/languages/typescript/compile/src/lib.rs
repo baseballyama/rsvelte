@@ -16,6 +16,7 @@ pub mod features;
 pub mod original_text;
 pub mod parentheses;
 pub mod print;
+pub mod prologue;
 pub mod strip;
 
 /// TypeScript's emit of a `.ts` file [`features::first_erasure_feature`] found nothing to refuse
@@ -34,6 +35,8 @@ pub fn emit(program: &Program<'_>) -> String {
         .parse();
     debug_assert!(parsed.diagnostics.is_empty(), "the tree read the same text");
     let mut program = parsed.program;
+    // Before the types go: an `import type` still makes the file a module.
+    prologue::ensure_use_strict(&allocator, &mut program);
     parentheses::AroundAssertions::new(&allocator).visit_program(&mut program);
     Strip::new(&allocator).visit_program(&mut program);
     parentheses::Factory::new(&allocator).visit_program(&mut program);

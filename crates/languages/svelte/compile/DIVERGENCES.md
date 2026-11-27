@@ -94,9 +94,9 @@ The corpus compares JavaScript as a syntax tree
   body or a default export. The `ts.compile` corpus task compares that emit with parentheses kept
   as nodes. Two shapes still differ, as [#5389](https://github.com/baseballyama/rsvelte/issues/5389)
   tracks:
-  - oxc's parser keeps no parentheses in an assignment target, so `(a) = 1` and `[(a)] = b` print
+  - The parser keeps no parentheses in an assignment target, so `(a) = 1` and `[(a)] = b` print
     without the pair TypeScript keeps. The corpus reads both sides with that parser, so it cannot
-    see this one;
-  - the tree does not say whether `new A` had an argument list, so `(new A as any).b` prints as
+    see this one.
+  - The tree does not say whether `new A` had an argument list, so `(new A as any).b` prints as
     `new A().b` where TypeScript writes `(new A).b`.
   - Test: `tests/parentheses.rs` in `crates/languages/typescript/compile`.
