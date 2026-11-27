@@ -150,6 +150,13 @@ impl Printer<'_> {
         }
     }
 
+    /// `value`, as a range whose findings svelte-check hides.
+    fn ignored_range(&mut self, value: NodeIdentifier) {
+        let start = self.output.out.len() as u32;
+        self.node(value);
+        self.output.ignore_since(start);
+    }
+
     fn node(&mut self, identifier: NodeIdentifier) {
         match self.tree.node(identifier) {
             Node::Program { span, end_tag } => {
@@ -226,6 +233,7 @@ impl Printer<'_> {
             }
             Node::UnmappedSource(span) => self.output.push(span.text(self.source)),
             Node::Commented { comments, value } => self.commented(comments, value),
+            Node::IgnoredRange(value) => self.ignored_range(value),
             Node::Ignored(statement) => {
                 self.output.push("// @ts-ignore\n");
                 self.indentation();
