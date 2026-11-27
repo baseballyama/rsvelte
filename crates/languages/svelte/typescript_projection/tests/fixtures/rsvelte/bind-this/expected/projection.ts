@@ -6,7 +6,7 @@ import Foo from './Foo.svelte';;
 function $$render() {
   
 	
-	let /** @type {typeof __rsvelte_public_props0} */ { p = $bindable(), C } = $props();
+	let /** @typedef {{ p?: any, C: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { p = $bindable(), C } = $props();
   p;
 
 	let el;
@@ -17,11 +17,6 @@ function $$render() {
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    C: __rsvelte_untyped_prop(),
-  }, {
-    p: __rsvelte_untyped_prop(),
-  }, false);
   async () => {
     {
       el = svelteHTML.createElement("div", {});
@@ -74,7 +69,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "p">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "p">} */ (__rsvelte_export_component))();
 }
 export const BindThis__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof BindThis__SvelteComponent_>} BindThis__SvelteComponent_ */

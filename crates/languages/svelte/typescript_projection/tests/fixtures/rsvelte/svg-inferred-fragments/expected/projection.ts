@@ -17,14 +17,10 @@ function $$render() {
     return __rsvelte_snippet_return;
   };
 
-	let /** @type {typeof __rsvelte_public_props0} */ { show = true, label = 'a' } = $props();
+	let /** @typedef {{ show?: boolean, label?: string }} $$ComponentProps *//** @type {$$ComponentProps} */ { show = true, label = 'a' } = $props();
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({}, {
-    show: true,
-    label: 'a',
-  }, false);
   async () => {
     {
       new (__rsvelte_component(C))(__rsvelte_internals(), {
@@ -74,7 +70,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const SvgInferredFragments__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof SvgInferredFragments__SvelteComponent_>} SvgInferredFragments__SvelteComponent_ */

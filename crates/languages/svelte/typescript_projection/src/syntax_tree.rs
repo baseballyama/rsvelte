@@ -35,6 +35,9 @@ pub(crate) enum Node {
     /// A JavaScript declaration's type, in a `JSDoc` comment before it.
     DeclaredType(NodeIdentifier),
     TypeLiteral(Range),
+    /// `{ a, b }` on one line, of properties written as `Parts`, so that the source lines after it
+    /// stay where they are.
+    InlineTypeLiteral(Range),
     TypeProperty {
         name: NodeIdentifier,
         value: NodeIdentifier,
