@@ -1,16 +1,11 @@
 ;
 function $$render() {
   
-let /** @type {typeof __rsvelte_public_props0} */ {items,title='List'}=$props()
+let /** @typedef {{ items: any, title?: string }} $$ComponentProps *//** @type {$$ComponentProps} */ {items,title='List'}=$props()
 let total=$derived(items.length*2+1)
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    items: __rsvelte_untyped_prop(),
-  }, {
-    title: 'List',
-  }, false);
   async () => {
     {
       svelteHTML.createElement("section", {
@@ -36,7 +31,7 @@ let total=$derived(items.length*2+1)
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const FormatCases__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof FormatCases__SvelteComponent_>} FormatCases__SvelteComponent_ */

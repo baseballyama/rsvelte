@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	let { label }: typeof __rsvelte_public_props0 = $props();
+	type $$ComponentProps = { label: any }; let { label }: $$ComponentProps = $props();
 	function f(a, b) {
 		return b;
 	}
@@ -17,9 +17,6 @@ function $$render() {
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    label: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("button", {
@@ -57,7 +54,7 @@ function $$render() {
       });
     }
   };
-  return __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+  return __rsvelte_export_component<$$ComponentProps, {}, "">();
 }
 const LintEdge__SvelteComponent_ = $$render();
 type LintEdge__SvelteComponent_ = ReturnType<typeof LintEdge__SvelteComponent_>;

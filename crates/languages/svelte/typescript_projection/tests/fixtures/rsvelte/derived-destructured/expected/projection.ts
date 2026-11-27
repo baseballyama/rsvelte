@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	let { element, ...props }: typeof __rsvelte_public_props0 = $props();
+	type $$ComponentProps = { element: any } & Record<string, any>; let { element, ...props }: $$ComponentProps = $props();
 	let o = $state({ a: 1, b: [1, 2], c: {} });
 	let { a, b: [x, y = f()], ...rest } = $derived(o);
 	let [p, q = 1, ...r] = $derived.by(() => [1, 2, 3]);
@@ -12,9 +12,6 @@ function $$render() {
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    element: __rsvelte_untyped_prop(),
-  }, {}, true);
   async () => {
     {
       svelteHTML.createElement("p", {});
@@ -34,7 +31,7 @@ function $$render() {
       element;
     }
   };
-  return __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">();
+  return __rsvelte_export_component<$$ComponentProps, {}, "">();
 }
 const DerivedDestructured__SvelteComponent_ = $$render();
 type DerivedDestructured__SvelteComponent_ = ReturnType<typeof DerivedDestructured__SvelteComponent_>;

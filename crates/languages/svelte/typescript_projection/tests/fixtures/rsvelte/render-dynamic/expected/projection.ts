@@ -1,13 +1,8 @@
 ;
 function $$render() {
-  let /** @type {typeof __rsvelte_public_props0} */ { header, footer, items } = $props();
+  let /** @typedef {{ header: any, footer: any, items: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { header, footer, items } = $props();
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    header: __rsvelte_untyped_prop(),
-    footer: __rsvelte_untyped_prop(),
-    items: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     __rsvelte_ensure_snippet(header());
     {
@@ -20,7 +15,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const RenderDynamic__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof RenderDynamic__SvelteComponent_>} RenderDynamic__SvelteComponent_ */
