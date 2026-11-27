@@ -182,6 +182,15 @@ fn svelte_refuses_the_namespace_around_an_import_equals_and_an_ambient_one_with_
     }
 }
 
+/// What the emit starts a declaration's file with: a file without an export is not a module.
+fn prologue(declaration: &str) -> &'static str {
+    if declaration.starts_with("export") {
+        ""
+    } else {
+        "\"use strict\";\n"
+    }
+}
+
 #[test]
 fn numbers_print_as_typescripts_emit_prints_them() {
     // TypeScript 6.0.3's `transpileModule`: `canUseOriginalText`'s cases, in a module and a script.
@@ -202,7 +211,10 @@ fn numbers_print_as_typescripts_emit_prints_them() {
             let parsed = Parser::new(&allocator, &source_text, SourceType::ts()).parse();
             assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
             let words = |text: &str| text.split_whitespace().collect::<String>();
-            let expected = words(&format!("{declaration} = [{printed}];"));
+            let expected = words(&format!(
+                "{}{declaration} = [{printed}];",
+                prologue(declaration)
+            ));
             assert_eq!(words(&emit(&parsed.program)), expected, "{source_text}");
         }
     }
@@ -241,7 +253,7 @@ fn a_number_a_property_access_follows_prints_as_typescripts_emit_prints_it() {
             let source_text = format!("{declaration} = {written};\n");
             let parsed = Parser::new(&allocator, &source_text, SourceType::ts()).parse();
             assert!(parsed.diagnostics.is_empty(), "{:?}", parsed.diagnostics);
-            let expected = format!("{declaration} = {printed};\n");
+            let expected = format!("{}{declaration} = {printed};\n", prologue(declaration));
             assert_eq!(emit(&parsed.program), expected, "{source_text}");
         }
     }
