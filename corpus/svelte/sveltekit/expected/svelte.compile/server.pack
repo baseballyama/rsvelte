@@ -7438,6 +7438,22 @@ export default function _page($$renderer) {
 		secret
 	)}</p>`);
 }
+=== 226 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	}
+}
+
 === 129 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	js
 import * as $ from 'svelte/internal/server';
 

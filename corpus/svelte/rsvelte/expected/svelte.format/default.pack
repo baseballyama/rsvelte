@@ -598,6 +598,80 @@
   </div>
 </div>
 
+=== 31 errors/a11y_incorrect_aria_attribute_type_idlist.svelte	svelte
+<div aria-labelledby=""></div>
+
+=== 137 errors/attribute_contenteditable_dynamic.svelte	svelte
+<script>
+  let editable = $state(true);
+  let html = $state("");
+</script>
+
+<div contenteditable={editable} bind:innerHTML={html}></div>
+
+=== 79 errors/attribute_contenteditable_missing.svelte	svelte
+<script>
+  let html = $state("");
+</script>
+
+<div bind:innerHTML={html}></div>
+
+=== 151 errors/block_invalid_elseif.svelte	error.txt
+'elseif' should be 'else if'
+https://svelte.dev/e/block_invalid_elseif
+  3 | </script>
+  4 |
+> 5 | {#if a}
+    | ^
+  6 | 	A
+  7 | {:elseif b}
+  8 | 	B
+
+=== 80 errors/inspect_trace_generator.svelte	svelte
+<script>
+  function* items() {
+    $inspect.trace();
+    yield 1;
+  }
+</script>
+
+=== 54 errors/props_invalid_identifier.svelte	svelte
+<script>
+  let [value] = $props();
+</script>
+
+{value}
+
+=== 75 errors/render_tag_invalid_spread_argument.svelte	svelte
+<script>
+  let { row, args } = $props();
+</script>
+
+{@render row(...args)}
+
+=== 231 errors/script_invalid_attribute_value.svelte	error.txt
+If the `module` attribute is supplied, it must be a boolean attribute
+https://svelte.dev/e/script_invalid_attribute_value
+> 1 | <script module="server">
+    |        ^^^^^^^^^^^^^^^
+  2 | 	export const a = 1;
+  3 | </script>
+  4 |
+
+=== 183 errors/script_reserved_attribute.svelte	error.txt
+The `server` attribute is reserved and cannot be used
+https://svelte.dev/e/script_reserved_attribute
+> 1 | <script server>
+    |        ^^^^^^
+  2 | 	let a = 1;
+  3 | </script>
+  4 |
+
+=== 71 errors/svelte_boundary_invalid_attribute_value.svelte	svelte
+<svelte:boundary onerror="handle">
+  <p>content</p>
+</svelte:boundary>
+
 === 281 lint-env/no-sveltekit/src/nav.svelte	svelte
 <script>
   import { goto } from "$app/navigation";
@@ -36940,6 +37014,41 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 </script>
 
 <b>{g()}{o}</b>
+
+=== 237 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	svelte
+<script>
+  export let o = 1;
+  const pr = Promise.resolve(2);
+</script>
+
+{#each [1, 2] as $i, $n}{$i}{$n}{/each}
+
+{#snippet $s($p)}{@const $c = $p}<b>{$c}</b>{/snippet}
+{@render $s(o)}
+
+{#await pr then $v}{$v}{:catch $err}{$err}{/await}
+
+=== 407 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	svelte
+<script>
+  let o = $state(1);
+  const pr = Promise.resolve(2);
+</script>
+
+{#each [1, 2] as $i, $n}{$i}{$n}{/each}
+{#each [{ a: 1 }] as { a: $a }}{$a}{/each}
+
+{#snippet $s($p)}{@const $c = $p}<b>{$c}</b>{/snippet}
+{@render $s(o)}
+
+<div>
+  {#each [3] as $d}{@const $e = $d}{$e}{/each}
+</div>
+
+{#if o}{@const $f = o}{$f}{/if}
+
+{#await pr then $v}{$v}{:catch $err}{$err}{/await}
+
+{[1].map(($m) => $m).join("")}
 
 === 368 pattern/issues/3188-boundary-snippet-params.svelte	svelte
 <script>

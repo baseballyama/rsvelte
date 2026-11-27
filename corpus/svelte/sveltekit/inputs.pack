@@ -8789,6 +8789,8 @@ Page B
 
 <p>{secret}</p>
 
+=== 4 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	svelte	runes	rejected
+<div
 === 17 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	svelte	runes	neutral
 <h1>grouped</h1>
 

@@ -8,10 +8,20 @@ mod scanner;
 use rsvelte_kernel::source::characters::is_ecmascript_whitespace;
 use scanner::{Scanner, State, Token, matching_brace_end};
 
-/// Whether svelte-check reads the component as TypeScript: its first instance script or its first
-/// module script is, as `getScriptKindFromAttributes` reads their attributes.
+/// The scripts svelte-check reads a component by.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub struct CheckedScripts<'a> {
+    /// Whether it reads the component as TypeScript: its first instance script or its first
+    /// module script is, as `getScriptKindFromAttributes` reads their attributes.
+    pub typescript: bool,
+    /// What it checks when svelte2tsx throws: the content of the first instance script, else of
+    /// the first module script.
+    pub content: Option<&'a str>,
+}
+
+/// The scripts svelte-check reads `text` by.
 #[must_use]
-pub fn scripts_checked_as_typescript(text: &str) -> bool {
+pub fn checked_scripts(text: &str) -> CheckedScripts<'_> {
     let roots = root_nodes(text);
     let scripts: Vec<&Node<'_>> = (roots.iter().enumerate())
         .filter(|(index, node)| {
@@ -25,9 +35,13 @@ pub fn scripts_checked_as_typescript(text: &str) -> bool {
         |node: &Node<'_>| node.attribute("context") == Some("module") || node.has("module");
     let instance = scripts.iter().find(|node| !module(node));
     let module = scripts.iter().find(|node| module(node));
-    [instance, module].into_iter().flatten().any(|node| {
+    let typescript = [instance, module].into_iter().flatten().any(|node| {
         rsvelte_markup_syntax::script_language::checked_as_typescript(|name| node.attribute(name))
-    })
+    });
+    CheckedScripts {
+        typescript,
+        content: instance.or(module).map(|node| node.content(text)),
+    }
 }
 
 /// A node `parseHtml` reads, with the offsets `extractTags` reads of it.
@@ -36,6 +50,8 @@ struct Node<'a> {
     start: usize,
     end: usize,
     start_tag_end: Option<usize>,
+    /// Where the end tag that closes it starts, if one does.
+    end_tag_start: Option<usize>,
     parent: Option<usize>,
     /// Each attribute's name and its text: quoted, an expression, or none.
     attributes: Vec<(&'a str, Option<&'a str>)>,
@@ -60,6 +76,13 @@ impl<'a> Node<'a> {
                 .filter(|_| value.len() >= 2)
                 .unwrap_or(value),
         )
+    }
+
+    /// `transformToTagInfo`'s content: from the end of the start tag, else the start, to the end
+    /// tag's start, else the end.
+    fn content<'t>(&self, text: &'t str) -> &'t str {
+        let start = self.start_tag_end.unwrap_or(self.start);
+        &text[start..self.end_tag_start.unwrap_or(self.end)]
     }
 
     const fn is_same_tag(&self, tag: Option<&str>) -> bool {
@@ -174,6 +197,7 @@ impl Parse<'_> {
             start,
             end: self.text.len(),
             start_tag_end: None,
+            end_tag_start: None,
             parent: self.current,
             attributes: Vec::new(),
         });
@@ -214,6 +238,7 @@ impl Parse<'_> {
             self.current = self.nodes[open].parent;
         }
         self.nodes[matched].end = end;
+        self.nodes[matched].end_tag_start = Some(end_tag_start);
         self.current = self.nodes[matched].parent;
     }
 

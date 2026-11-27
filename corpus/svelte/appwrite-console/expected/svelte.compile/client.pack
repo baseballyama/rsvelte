@@ -279,6 +279,22 @@ export default function Teams($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 264 src/lib/commandCenter/panels/template.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 365,
+		"column": 4,
+		"character": 12862
+	},
+	"end": {
+		"line": 365,
+		"column": 4,
+		"character": 12862
+	}
+}
+
 === 810 src/lib/commandCenter/panels/users.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -3879,6 +3895,22 @@ export default function Code_1($$anchor, $$props) {
 
 	$.append($$anchor, section);
 }
+=== 260 src/lib/components/collapsibleItem.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 62,
+		"column": 4,
+		"character": 2162
+	},
+	"end": {
+		"line": 62,
+		"column": 4,
+		"character": 2162
+	}
+}
+
 === 473 src/lib/components/columnSelector.svelte	css
 
     /* global because its on a tooltip slot, nested */
@@ -4449,6 +4481,22 @@ export default function ColumnSelector($$anchor, $$props) {
 		}
 	}
 ]
+
+=== 256 src/lib/components/consent.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 137,
+		"column": 13,
+		"character": 4163
+	},
+	"end": {
+		"line": 137,
+		"column": 30,
+		"character": 4180
+	}
+}
 
 === 2814 src/lib/components/copy.svelte	js
 import 'svelte/internal/init-operations';
@@ -13433,6 +13481,22 @@ export default function SubMenu($$anchor, $$props) {
 	}
 ]
 
+=== 229 src/lib/components/modalWrapper.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token ;\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 96,
+		"column": 36,
+		"character": 2417
+	},
+	"end": {
+		"line": 96,
+		"column": 36,
+		"character": 2417
+	}
+}
+
 === 10410 src/lib/components/multiSelectTable.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -16476,6 +16540,22 @@ export default function Row($$anchor, $$props) {
 }
 
 $.delegate(['click', 'keydown']);
+=== 675 src/lib/components/regionCard.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 13,
+		"column": 4,
+		"character": 380
+	},
+	"end": {
+		"line": 18,
+		"column": 5,
+		"character": 566
+	}
+}
+
 === 83 src/lib/components/roles/base.svelte	css
 
     div.svelte-1vmm665 {
@@ -17188,6 +17268,22 @@ export default function SortButton($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 675 src/lib/components/svgIcon.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 11,
+		"column": 4,
+		"character": 301
+	},
+	"end": {
+		"line": 17,
+		"column": 5,
+		"character": 488
+	}
+}
+
 === 432 src/lib/components/tiles.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -19595,6 +19691,22 @@ export default function Seekbar($$anchor, $$props) {
 }
 
 $.delegate(['click', 'mousedown']);
+=== 262 src/lib/elements/forms/inputDateRange.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 139,
+		"column": 8,
+		"character": 4757
+	},
+	"end": {
+		"line": 139,
+		"column": 8,
+		"character": 4757
+	}
+}
+
 === 3893 src/lib/elements/forms/inputLine.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -22325,6 +22437,38 @@ export default function ResponsiveContainerHeader($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 256 src/lib/layout/unauthenticated.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 219,
+		"column": 25,
+		"character": 9468
+	},
+	"end": {
+		"line": 219,
+		"column": 42,
+		"character": 9485
+	}
+}
+
+=== 260 src/lib/layout/wizardCover.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 51,
+		"column": 4,
+		"character": 1484
+	},
+	"end": {
+		"line": 51,
+		"column": 4,
+		"character": 1484
+	}
+}
+
 === 683 src/lib/layout/wizardSecondaryFooter.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -22884,6 +23028,22 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
+=== 254 src/routes/(authenticated)/mfa/+page.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 96,
+		"column": 13,
+		"character": 3008
+	},
+	"end": {
+		"line": 96,
+		"column": 34,
+		"character": 3029
+	}
+}
+
 === 1509 src/routes/(console)/(migration-wizard)/step2.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -25294,6 +25454,38 @@ export default function FeedbackWizard($$anchor, $$props) {
 
 	$.pop();
 }
+=== 256 src/routes/(console)/onboarding/create-organization/+page.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 122,
+		"column": 17,
+		"character": 4265
+	},
+	"end": {
+		"line": 122,
+		"column": 38,
+		"character": 4286
+	}
+}
+
+=== 256 src/routes/(console)/onboarding/create-project/+page.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 140,
+		"column": 17,
+		"character": 4615
+	},
+	"end": {
+		"line": 140,
+		"column": 38,
+		"character": 4636
+	}
+}
+
 === 21808 src/routes/(console)/organization-[organization]/+page.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -47844,6 +48036,22 @@ export default function View($$anchor, $$props) {
 	}
 ]
 
+=== 266 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/empty.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 511,
+		"column": 12,
+		"character": 17061
+	},
+	"end": {
+		"line": 511,
+		"column": 12,
+		"character": 17061
+	}
+}
+
 === 3495 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/emptySheetCards.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -49944,6 +50152,22 @@ export default function Columns($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 268 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/empty.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 2151,
+		"column": 12,
+		"character": 85650
+	},
+	"end": {
+		"line": 2151,
+		"column": 12,
+		"character": 85650
+	}
+}
+
 === 425 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/icon/ai.svelte	css
 
     .ai-icon-holder {
@@ -50039,6 +50263,22 @@ import IconAI from './ai.svelte';
 export default function AiNotification($$anchor) {
 	IconAI($$anchor, { notification: true });
 }
+=== 264 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/indexes.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 544,
+		"column": 4,
+		"character": 19328
+	},
+	"end": {
+		"line": 544,
+		"column": 4,
+		"character": 19328
+	}
+}
+
 === 308 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/input.svelte	css
 
     .suggestions-switch.svelte-14wp6wu button:not(:disabled) {
@@ -53355,6 +53595,22 @@ export default function EmbeddingModal($$anchor, $$props) {
 
 	$.pop();
 }
+=== 266 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/view.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1717,
+		"column": 8,
+		"character": 65542
+	},
+	"end": {
+		"line": 1717,
+		"column": 8,
+		"character": 65542
+	}
+}
+
 === 519 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/hintBadge.svelte	css
 
     .hint-badge.svelte-mt12lf {
@@ -53814,6 +54070,22 @@ export default function Save($$anchor, $$props) {
 		}
 	}
 ]
+
+=== 306 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/suggestions.svelte	error.json
+{
+	"code": "css_global_block_invalid_combinator",
+	"message": "A `:global` selector cannot follow a `>` combinator\nhttps://svelte.dev/e/css_global_block_invalid_combinator",
+	"start": {
+		"line": 74,
+		"column": 10,
+		"character": 2390
+	},
+	"end": {
+		"line": 74,
+		"column": 31,
+		"character": 2411
+	}
+}
 
 === 355 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/+page.svelte	css
 
@@ -56251,6 +56523,22 @@ export default function DisplayName($$anchor, $$props) {
 
 	$.pop();
 }
+=== 266 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/spreadsheet.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1034,
+		"column": 4,
+		"character": 38858
+	},
+	"end": {
+		"line": 1034,
+		"column": 4,
+		"character": 38858
+	}
+}
+
 === 12114 src/routes/(console)/project-[region]-[project]/databases/database-[database]/delete.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -57294,6 +57582,38 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
+=== 264 src/routes/(console)/project-[region]-[project]/databases/database-[database]/subNavigation.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 362,
+		"column": 8,
+		"character": 13428
+	},
+	"end": {
+		"line": 362,
+		"column": 8,
+		"character": 13428
+	}
+}
+
+=== 264 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/+layout.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 599,
+		"column": 4,
+		"character": 20127
+	},
+	"end": {
+		"line": 599,
+		"column": 4,
+		"character": 20127
+	}
+}
+
 === 174 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/+page.svelte	css
 
     .floating-action-bar.svelte-udu459 {
@@ -60743,6 +61063,22 @@ export default function RequiredArrayCheckboxes($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
+=== 262 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/string.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 182,
+		"column": 8,
+		"character": 6250
+	},
+	"end": {
+		"line": 182,
+		"column": 8,
+		"character": 6250
+	}
+}
+
 === 479 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/createColumn.svelte	css
 
     .custom-inline-alert.svelte-giax55 {
@@ -65820,6 +66156,22 @@ export default function SheetOptions($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 266 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/spreadsheet.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1407,
+		"column": 4,
+		"character": 59368
+	},
+	"end": {
+		"line": 1407,
+		"column": 4,
+		"character": 59368
+	}
+}
+
 === 5978 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -78991,6 +79343,22 @@ export default function Header($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 674 src/routes/(console)/project-[region]-[project]/messaging/provider.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 2,
+		"column": 11,
+		"character": 47
+	},
+	"end": {
+		"line": 14,
+		"column": 5,
+		"character": 365
+	}
+}
+
 === 7105 src/routes/(console)/project-[region]-[project]/messaging/providers/+page.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -87163,6 +87531,22 @@ export default function Onboard($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 676 src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 12,
+		"column": 11,
+		"character": 519
+	},
+	"end": {
+		"line": 18,
+		"column": 5,
+		"character": 622
+	}
+}
+
 === 6402 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/+page@project-[region]-[project].svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -113811,6 +114195,38 @@ export default function _page($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
+=== 260 src/routes/(public)/auth/oauth2/failure/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 71,
+		"column": 4,
+		"character": 2553
+	},
+	"end": {
+		"line": 71,
+		"column": 4,
+		"character": 2553
+	}
+}
+
+=== 260 src/routes/(public)/auth/oauth2/success/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 45,
+		"column": 4,
+		"character": 1672
+	},
+	"end": {
+		"line": 45,
+		"column": 4,
+		"character": 1672
+	}
+}
+
 === 3453 src/routes/(public)/auth/preview/+page.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -123026,3 +123442,19 @@ export default function _error($$anchor) {
 		$$slots: { default: true }
 	});
 }
+=== 258 src/routes/+layout.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 307,
+		"column": 21,
+		"character": 10656
+	},
+	"end": {
+		"line": 307,
+		"column": 42,
+		"character": 10677
+	}
+}
+

@@ -777,6 +777,38 @@ export default function DragIndicator($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
+=== 676 src/lib/Modal/LightModal.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 28,
+		"column": 1,
+		"character": 976
+	},
+	"end": {
+		"line": 39,
+		"column": 2,
+		"character": 1195
+	}
+}
+
+=== 286 src/lib/Modal/PictureElements/HelpOverlay.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 7,
+		"column": 1,
+		"character": 182
+	},
+	"end": {
+		"line": 7,
+		"column": 30,
+		"character": 211
+	}
+}
+
 === 386 src/lib/Settings/CustomJs.svelte	css
 
 	.container.svelte-17atuhh {

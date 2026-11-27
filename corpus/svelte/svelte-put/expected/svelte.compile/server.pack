@@ -2314,6 +2314,22 @@ export default function Usage($$renderer, $$props) {
 		$$renderer.push(`<div class="not-prose flex flex-wrap items-center gap-2"><button class="c-btn c-btn--outlined">info</button> <button class="c-btn c-btn--outlined">success</button> <button class="c-btn c-btn--outlined">warning</button> <button class="c-btn c-btn--outlined">error</button></div>`);
 	});
 }
+=== 231 sites/docs/src/packages/async-stack/docs.md.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 120,
+		"column": 92,
+		"character": 4837
+	},
+	"end": {
+		"line": 120,
+		"column": 92,
+		"character": 4837
+	}
+}
+
 === 527 sites/docs/src/packages/avatar/_page/examples/custom.markup.svelte	js
 import * as $ from 'svelte/internal/server';
 import Avatar from '@svelte-put/avatar/Avatar.svelte';
@@ -2475,6 +2491,22 @@ export default function UiAvatar_verbose($$renderer) {
 		}
 	});
 }
+=== 325 sites/docs/src/packages/avatar/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 87,
+		"column": 0,
+		"character": 2706
+	},
+	"end": {
+		"line": 87,
+		"column": 0,
+		"character": 2706
+	}
+}
+
 === 1700 sites/docs/src/packages/clickoutside/_page/examples/demo.svelte	js
 import * as $ from 'svelte/internal/server';
 import { clickoutside } from '@svelte-put/clickoutside';
@@ -2552,6 +2584,22 @@ export default function Quick_start($$renderer) {
 
 	$$renderer.push(`<div>...</div>`);
 }
+=== 325 sites/docs/src/packages/clickoutside/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 57,
+		"column": 0,
+		"character": 1326
+	},
+	"end": {
+		"line": 57,
+		"column": 0,
+		"character": 1326
+	}
+}
+
 === 666 sites/docs/src/packages/cloudflare-turnstile/_page/examples/quick-start.svelte	js
 import * as $ from 'svelte/internal/server';
 import { turnstile } from '@svelte-put/cloudflare-turnstile';
@@ -2564,6 +2612,22 @@ export default function Quick_start($$renderer) {
 	;;
 	$$renderer.push(`<div${$.attr('turnstile-sitekey', PUBLIC_CLOUDFLARE_TURNSTILE_SITE_KEY)} turnstile-theme="auto" turnstile-size="normal" turnstile-language="en" turnstile-response-field-name="turnstile" turnstile-response-field=""></div> <p>Captured Token: <span class="hl-success px-2">${$.escape(token ?? 'pending')}</span></p>`);
 }
+=== 332 sites/docs/src/packages/cloudflare-turnstile/docs.md.svelte	error.json
+{
+	"code": "tag_invalid_name",
+	"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+	"start": {
+		"line": 111,
+		"column": 65,
+		"character": 3992
+	},
+	"end": {
+		"line": 111,
+		"column": 72,
+		"character": 3999
+	}
+}
+
 === 230 sites/docs/src/packages/copy/_page/examples/custom-event.svelte	js
 import * as $ from 'svelte/internal/server';
 import { copy } from '@svelte-put/copy';
@@ -2680,6 +2744,22 @@ export default function Synthetic_copy($$renderer) {
 
 	$$renderer.push(`<!--]--></div></div>`);
 }
+=== 231 sites/docs/src/packages/copy/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 127,
+		"column": 23,
+		"character": 5005
+	},
+	"end": {
+		"line": 127,
+		"column": 23,
+		"character": 5005
+	}
+}
+
 === 725 sites/docs/src/packages/dragscroll/_page/examples/limitation-scroll-snap.svelte	js
 import * as $ from 'svelte/internal/server';
 import { dragscroll } from '@svelte-put/dragscroll';
@@ -2793,6 +2873,22 @@ export default function Option_axis($$renderer, $$props) {
 	}
 ]
 
+=== 252 sites/docs/src/packages/dragscroll/docs.md.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:title` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 13,
+		"column": 42,
+		"character": 417
+	},
+	"end": {
+		"line": 13,
+		"column": 78,
+		"character": 453
+	}
+}
+
 === 87 sites/docs/src/packages/inline-svg/_page/examples/action.svelte	css
 
 	svg.svelte.svelte-3biusw {
@@ -2810,6 +2906,22 @@ export default function Action($$renderer, $$props) {
 
 	$$renderer.push(`<svg width="100" class="svelte svelte-3biusw"></svg>`);
 }
+=== 229 sites/docs/src/packages/inline-svg/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 107,
+		"column": 5,
+		"character": 3532
+	},
+	"end": {
+		"line": 107,
+		"column": 5,
+		"character": 3532
+	}
+}
+
 === 932 sites/docs/src/packages/intersect/_page/examples/event-intersect.svelte	js
 import * as $ from 'svelte/internal/server';
 import { intersect } from '@svelte-put/intersect';
@@ -2924,6 +3036,22 @@ export default function Quick_start($$renderer) {
 
 	$$renderer.push(`<div>...</div>`);
 }
+=== 252 sites/docs/src/packages/intersect/docs.md.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:title` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 16,
+		"column": 42,
+		"character": 622
+	},
+	"end": {
+		"line": 16,
+		"column": 78,
+		"character": 658
+	}
+}
+
 === 314 sites/docs/src/packages/lockscroll/_page/examples/quick-start.svelte	js
 import * as $ from 'svelte/internal/server';
 import { lockscroll } from '@svelte-put/lockscroll';
@@ -2983,6 +3111,22 @@ export default function Svelte_rune($$renderer, $$props) {
 		$$renderer.push(`<div class="flex justify-center gap-4"><button class="c-btn">Toggle lock scroll</button> <button class="c-btn c-btn--outlined">Force locked</button> <button class="c-btn c-btn--outlined">Force unlocked</button></div>`);
 	});
 }
+=== 297 sites/docs/src/packages/lockscroll/docs.md.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:body>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 90,
+		"column": 0,
+		"character": 2618
+	},
+	"end": {
+		"line": 90,
+		"column": 0,
+		"character": 2618
+	}
+}
+
 === 905 sites/docs/src/packages/modal/docs.md.svelte	js
 import * as $ from 'svelte/internal/server';
 import { SettingsContext } from '$lib/settings/context.svelte';
@@ -3116,6 +3260,38 @@ import { movable } from '@svelte-put/movable';
 export default function Quick_start($$renderer) {
 	$$renderer.push(`<div class="hl-info z-overlay grid h-20 w-20 place-items-center">...</div>`);
 }
+=== 227 sites/docs/src/packages/movable/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 63,
+		"column": 5,
+		"character": 1812
+	},
+	"end": {
+		"line": 63,
+		"column": 5,
+		"character": 1812
+	}
+}
+
+=== 325 sites/docs/src/packages/noti/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 85,
+		"column": 0,
+		"character": 2498
+	},
+	"end": {
+		"line": 85,
+		"column": 0,
+		"character": 2498
+	}
+}
+
 === 544 sites/docs/src/packages/popover/_page/examples/quick-start.svelte	js
 import * as $ from 'svelte/internal/server';
 import { Popover } from '@svelte-put/popover';
@@ -3202,6 +3378,22 @@ export default function Usage($$renderer) {
 
 	$$renderer.push(`<!----> <span>for some hinting action (or focus it using keyboard).</span></p>`);
 }
+=== 229 sites/docs/src/packages/popover/docs.md.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 92,
+		"column": 51,
+		"character": 3209
+	},
+	"end": {
+		"line": 92,
+		"column": 51,
+		"character": 3209
+	}
+}
+
 === 927 sites/docs/src/packages/preaction/_page/examples/demo.svelte	js
 import * as $ from 'svelte/internal/server';
 import { make, apply } from '@svelte-put/preaction';
@@ -3244,6 +3436,70 @@ export default function Demo($$renderer, $$props) {
 		$$renderer.push(`<button>Open Popover</button> <div>My simple popover</div>`);
 	});
 }
+=== 325 sites/docs/src/packages/preaction/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 59,
+		"column": 0,
+		"character": 1655
+	},
+	"end": {
+		"line": 59,
+		"column": 0,
+		"character": 1655
+	}
+}
+
+=== 229 sites/docs/src/packages/preprocess-auto-slug/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 57,
+		"column": 12,
+		"character": 1734
+	},
+	"end": {
+		"line": 57,
+		"column": 12,
+		"character": 1734
+	}
+}
+
+=== 229 sites/docs/src/packages/preprocess-external-link/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 51,
+		"column": 12,
+		"character": 1339
+	},
+	"end": {
+		"line": 51,
+		"column": 12,
+		"character": 1339
+	}
+}
+
+=== 229 sites/docs/src/packages/preprocess-inline-svg/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 47,
+		"column": 12,
+		"character": 1095
+	},
+	"end": {
+		"line": 47,
+		"column": 12,
+		"character": 1095
+	}
+}
+
 === 223 sites/docs/src/packages/qr/_page/examples/img-action.svelte	js
 import * as $ from 'svelte/internal/server';
 import { qr } from '@svelte-put/qr/img';
@@ -3400,6 +3656,22 @@ export default function Svg_headless($$renderer, $$props) {
 		$$renderer.push(`<div class="flex flex-col items-center gap-2">${$.html(svgString)} <a class="c-btn"${$.attr('href', dataURL)} download="qr.svg">Download QR as SVG</a></div>`);
 	});
 }
+=== 229 sites/docs/src/packages/qr/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 217,
+		"column": 5,
+		"character": 6374
+	},
+	"end": {
+		"line": 217,
+		"column": 5,
+		"character": 6374
+	}
+}
+
 === 1228 sites/docs/src/packages/resize/_page/examples/example.svelte	js
 import * as $ from 'svelte/internal/server';
 import { resize } from '@svelte-put/resize';
@@ -3429,6 +3701,38 @@ export default function Example($$renderer, $$props) {
 		see change</p> <div class="h-24 w-24 resize overflow-auto bg-blue-500"></div> <div class="flex items-center space-x-2"><label for="resize-enable">Check to ${$.escape(enabled ? 'disable' : 'enable')} action:</label> <input type="checkbox" id="resize-enable"${$.attr('checked', enabled, true)} class="c-input accent-primary h-5 w-5"/></div></div>`);
 	});
 }
+=== 325 sites/docs/src/packages/resize/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 44,
+		"column": 0,
+		"character": 1076
+	},
+	"end": {
+		"line": 44,
+		"column": 0,
+		"character": 1076
+	}
+}
+
+=== 323 sites/docs/src/packages/shortcut/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 35,
+		"column": 0,
+		"character": 722
+	},
+	"end": {
+		"line": 35,
+		"column": 0,
+		"character": 722
+	}
+}
+
 === 2626 sites/docs/src/packages/swipeable/_page/examples/demo.svelte	js
 import * as $ from 'svelte/internal/server';
 import { swipeable } from '@svelte-put/swipeable';
@@ -3503,6 +3807,38 @@ export default function Demo($$renderer, $$props) {
 		$$renderer.push(`<!--]--></ul>`);
 	});
 }
+=== 323 sites/docs/src/packages/swipeable/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 29,
+		"column": 0,
+		"character": 531
+	},
+	"end": {
+		"line": 29,
+		"column": 0,
+		"character": 531
+	}
+}
+
+=== 325 sites/docs/src/packages/toc/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 82,
+		"column": 0,
+		"character": 2236
+	},
+	"end": {
+		"line": 82,
+		"column": 0,
+		"character": 2236
+	}
+}
+
 === 531 sites/docs/src/packages/tooltip/docs.md.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -3987,6 +4323,22 @@ Source code can be found at [github/svelte-put](https://github.com/vnphanquang/s
 
 If you are based in Vietnam, stop by [sveltevietnam.dev](https://sveltevietnam.dev), a community for people of Svelte in Vietnam that I am proudly a part of. <p class="text-right text-sm"><a class="c-link" href="https://github.com/vnphanquang/svelte-put/edit/main/sites/docs/src/routes/(site)/docs/contributing/+page.md.svelte">Edit this page on Github</a></p>`);
 }
+=== 328 sites/docs/src/routes/(site)/docs/guidelines/+page.md.svelte	error.json
+{
+	"code": "tag_invalid_name",
+	"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+	"start": {
+		"line": 11,
+		"column": 26,
+		"character": 348
+	},
+	"end": {
+		"line": 11,
+		"column": 28,
+		"character": 350
+	}
+}
+
 === 3408 sites/docs/src/routes/(site)/search/+page.svelte	js
 import * as $ from 'svelte/internal/server';
 import { onMount } from 'svelte';

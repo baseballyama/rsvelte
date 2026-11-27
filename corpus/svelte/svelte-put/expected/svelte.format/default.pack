@@ -2554,6 +2554,17 @@
   </button>
 </div>
 
+=== 299 sites/docs/src/packages/async-stack/docs.md.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+  103 | ```svelte src=./_page/examples/comprehensive/NotificationPortal.svelte title=NotificationPortal.svelte
+  104 | ```
+> 105 |
+      | ^
+  106 | ```svelte src=./_page/examples/comprehensive/usage.svelte title=usage.svelte
+  107 | ```
+  108 |
+
 === 309 sites/docs/src/packages/avatar/_page/examples/custom.markup.svelte	svelte
 <script>
   import Avatar from "@svelte-put/avatar/Avatar.svelte";
@@ -2709,6 +2720,17 @@
   }}
 />
 
+=== 299 sites/docs/src/packages/avatar/docs.md.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  65 |
+  66 |   </ConnectedListItem>
+> 67 |   <ConnectedListItem>
+     |                     ^
+  68 |
+  69 | `fallback` prop - custom fallback
+  70 |
+
 === 1698 sites/docs/src/packages/clickoutside/_page/examples/exclude.svelte	svelte
 <script lang="ts">
   import { clickoutside } from "@svelte-put/clickoutside";
@@ -2780,6 +2802,17 @@
 
 <div use:clickoutside onclickoutside={doSomething}>...</div>
 
+=== 322 sites/docs/src/packages/clickoutside/docs.md.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  48 |
+  49 | ```svelte src=./_page/examples/demo.svelte title=feature-demo.svelte collapsed=true
+> 50 | ```
+     |   ^
+  51 |
+  52 | ### Limit the Clickoutside Zone
+  53 |
+
 === 664 sites/docs/src/packages/cloudflare-turnstile/_page/examples/quick-start.svelte	svelte
 <script lang="ts">
   import { turnstile } from "@svelte-put/cloudflare-turnstile";
@@ -2804,6 +2837,17 @@
 <p>
   Captured Token: <span class="hl-success px-2">{token ?? "pending"}</span>
 </p>
+
+=== 596 sites/docs/src/packages/cloudflare-turnstile/docs.md.svelte	error.txt
+Expected a valid element or component name. Components must have a valid variable name or dot notation expression
+https://svelte.dev/e/tag_invalid_name
+  104 | ```
+  105 |
+> 106 | ## Events
+      |          ^^^^^^^
+  107 |
+  108 | As seen [Quick Start], `turnstile` is a [CustomEvent] invoked upon success of the challenge. The event detail contains a token that should be sent to backend for validation. other `turnstile*` [CustomEvents][CustomEvent] are mapped directly to those found in [Cloudflare Turnstile's documentation][turnstile.client.configurations], without space or hyphen.
+  109 |
 
 === 226 sites/docs/src/packages/copy/_page/examples/custom-event.svelte	svelte
 <script>
@@ -2965,6 +3009,17 @@
   </div>
 </div>
 
+=== 533 sites/docs/src/packages/copy/docs.md.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  116 | ```svelte src=./_page/examples/synthetic-copy.svelte title=synthetic-copy.svelte
+  117 | ```
+> 118 |
+      | ^
+  119 | ## The `copyToClipboard` Helper
+  120 |
+  121 | Behind the scene, `copy` uses a `copyToClipboard` helper (See [its source code here](https://github.com/vnphanquang/svelte-put/blob/08c868417e68b963e2b5a51f4664e0a3b0b6242e/packages/copy/src/copy.helpers.js)). You may use this utility directly to build your own custom solution that fits your exact need.
+
 === 437 sites/docs/src/packages/dragscroll/_page/examples/limitation-scroll-snap.svelte	svelte
 <script>
   import { dragscroll } from "@svelte-put/dragscroll";
@@ -3103,6 +3158,72 @@
   </div>
 </div>
 
+=== 2964 sites/docs/src/packages/dragscroll/docs.md.svelte	svelte
+<script>
+  import { SettingsContext } from "$lib/settings/context.svelte";
+
+  import DemoNoParameters from "./_page/examples/no-parameters.svelte";
+  import DemoOptionAxis from "./_page/examples/option-axis.svelte";
+  import DemoLimitationScrollSnap from "./_page/examples/limitation-scroll-snap.svelte";
+
+  const settings = SettingsContext.get();
+</script>
+
+## Installation
+
+<enhanced-code-block group display="tabs" bind:title={settings.packageManager}>
+  ```bash title=npm npm install --save-dev @svelte-put/dragscroll ``` ```bash
+  title=pnpm pnpm add -D @svelte-put/dragscroll ``` ```bash title=yarn yarn add
+  -D @svelte-put/dragscroll ```
+</enhanced-code-block>
+
+## Quick Start
+
+<div class="c-callout c-callout--info">
+  Typically, `use:dragscroll` should be placed on the scroll container.
+</div>
+
+Below is a minimal demo of `dragscroll` with default options. Try scrolling
+horizontally by pressing and dragging your mouse within the chessboard-patterned
+box.
+
+<DemoNoParameters />
+
+```svelte src=./_page/examples/no-parameters.svelte title=default-options.svelte
+``` ## Specifying the Scroll Axis `dragscroll` supports both axes. you can
+specifying one or both scrolling axes using the `axis` option. By default,
+`axis` is set to `x`.
+
+<DemoOptionAxis />
+
+```svelte src=./_page/examples/option-axis.svelte title=option-axis.svelte ```
+## `mouse` vs `pointer` By default, `dragscroll` assumes
+[PointerEvent](https://developer.mozilla.org/en-US/docs/Web/API/PointerEvent),
+i.e `pointerup`, `pointerdown`, `pointermove`, `pointerleave`. You can switch to
+[MouseEvent](https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent)
+equivalents by setting the `event` option to `mouse`. ```svelte
+title=option-event.svelte
+<div use:dragscroll={{ event: "pointer" }}>...</div>
+<div use:dragscroll={{ event: "mouse" }}>...</div>
+``` ## Disable Cursor Handling By default, `dragscroll`adds `cursor: grab` to the
+node the action is placed on, and similarly, `cursor: grabbing` on `mousedown`. This
+can be disabled by setting the `cursor` option to `false` (default is `true`). ```svelte
+title=option-cursor.svelte
+<div use:dragscroll={{ cursor: false }}>...</div>
+``` ## Limitation There is a known issue when `dragscroll` is used with [scroll-snap-align](https://developer.mozilla.org/en-US/docs/Web/CSS/scroll-snap-align),
+where the scroll container tends to be unresponsive to `dragscroll` and requires a
+great `mousemove` length to snap to the next box. In the example below, try using
+the **scrollbar** to confirm `scroll-snap-align` has been set up. Then, try dragging
+with mouse and notice that it only works when the mouse is dragged over almost the
+entire width of the container.
+
+<DemoLimitationScrollSnap />
+
+If you find a solution or workaround to the above, please consider [open a
+PR](https://github.com/vnphanquang/svelte-put/pulls) or [discussion
+thread](https://github.com/vnphanquang/svelte-put/discussions). Thank you! Happy
+dragging! 👨‍💻
+
 === 403 sites/docs/src/packages/inline-svg/_page/examples/action.svelte	svelte
 <script>
   import { inlineSvg } from "@svelte-put/inline-svg";
@@ -3120,6 +3241,17 @@
     filter: drop-shadow(0 0 0.5rem var(--color-svelte));
   }
 </style>
+
+=== 368 sites/docs/src/packages/inline-svg/docs.md.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+   99 | <h3 id="action-customization">Customization</h3>
+  100 |
+> 101 | The `inlineSvg` action takes either a string as the remote SVG url, or a config object with the following interface:
+      |     ^
+  102 |
+  103 | ```typescript title=InlineSvgActionConfig
+  104 | /** verbose config for `inlineSvg` action */
 
 === 676 sites/docs/src/packages/intersect/_page/examples/event-intersect.svelte	svelte
 <script lang="ts">
@@ -3221,6 +3353,89 @@
 <div use:intersect onintersect={onIntersect}>...</div>
 <!-- ::: -->
 
+=== 3571 sites/docs/src/packages/intersect/docs.md.svelte	svelte
+<script>
+  import { SettingsContext } from "$lib/settings/context.svelte";
+
+  import DemoEventIntersect from "./_page/examples/event-intersect.svelte";
+  import DemoEventIntersectOnce from "./_page/examples/event-intersectonce.svelte";
+
+  const settings = SettingsContext.get();
+</script>
+
+## Acknowledgement This packages employs the [Svelte
+action](https://svelte.dev/docs/svelte-action) strategy. If you are looking for
+a declarative, component-oriented solution, check out [metonym's
+implementation](https://github.com/metonym/svelte-intersection-observer). ##
+Installation
+
+<enhanced-code-block group display="tabs" bind:title={settings.packageManager}>
+  ```bash title=npm npm install --save-dev @svelte-put/intersect ``` ```bash
+  title=pnpm pnpm add -D @svelte-put/intersect ``` ```bash title=yarn yarn add
+  -D @svelte-put/intersect ```
+</enhanced-code-block>
+
+<div class="c-callout c-callout--success c-callout--megaphone">
+  New to Svelte 5? See [Migration Guides](#migration-guides).
+</div>
+
+## Quick Start Below is a minimal example with default options. An `intersect`
+[CustomEvent] is fired when the targeted `div` intersects viewport. ```svelte
+src=./_page/examples/quick-start.svelte title=quick-start.svelte ``` ##
+Initialization Options `intersect` can take a config object that supports all
+options in [IntersectionObserver]'s constructor (`root`, `rootMargin`,
+`threshold`), and an additional `enabled` option to dynamically enable/disable
+the action. ```svelte src=./_page/examples/initialization-options.svelte
+title=initialization-options.svelte ``` ## Intersection CustomEvents ###
+`intersect` Listener for the `intersect` [CustomEvent] is essentially the same
+callback as one passed to the [IntersectionObserver]'s constructor.
+
+<div class="c-callout c-callout--info">
+  `intersect` will attempt to detect the scrolling direction by keeping record
+  of `boundingClientRect`. This is available in the event listener via the
+  `event.detail.direction` property.
+</div>
+
+<fieldset class="block border-2 border-violet-500 p-4">
+  <legend>Example</legend>
+  <div class="text-center">
+    <p>Scroll down / up so that this box goes in and out of the viewport.</p>
+    <p>
+      Observe the text indicator changes accordingly <strong>
+        near the edge of screen
+      </strong>.
+    </p>
+  </div>
+  <DemoEventIntersect />
+</fieldset>
+
+```svelte src=./_page/examples/event-intersect.svelte
+title=event-intersect.svelte ``` ### `intersectonce` Following the same
+interface as with `intersect`, `intersectonce` [CustomEvent] only fires once on
+the first intersection and never again. One possible use case is for fading-in
+animation on scroll, as seen in the below example.
+
+<fieldset class="block border-2 border-violet-500 p-4 not-prose">
+  <legend>Example</legend>
+  <p class="text-center">
+    Scroll down within this box and observe the fade-in intro effect!
+  </p>
+  <DemoEventIntersectOnce />
+</fieldset>
+
+```svelte src=./_page/examples/event-intersectonce.svelte
+title=event-intersect-once.svelte ``` ## Migration Guides ### V3 -> V4 (Svelte 5
+in Runes mode) When migrating to v4, you just need to update event attribute
+syntax to remove colon `:`: ```svelte
+<!-- :::diff - -->
+<div use:intersect on:intersect on:intersectonce></div>
+<!-- ::: -->
+<!-- :::diff + -->
+<div use:intersect onintersect onintersectonce></div>
+<!-- ::: -->
+``` --- Happy intersecting! 👨‍💻 [IntersectionObserver]: https://developer.mozilla.org/en-US/docs/Web/API/IntersectionObserver
+[CustomEvent]: https://developer.mozilla.org/en-US/docs/Web/API/CustomEvent
+
 === 301 sites/docs/src/packages/lockscroll/_page/examples/quick-start.svelte	svelte
 <script>
   import { lockscroll } from "@svelte-put/lockscroll";
@@ -3292,6 +3507,17 @@
     Force unlocked
   </button>
 </div>
+
+=== 350 sites/docs/src/packages/lockscroll/docs.md.svelte	error.txt
+`<svelte:body>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+  69 | ```
+  70 |
+> 71 | ## `lockscroll:toggle` CustomEvent
+     |                                  ^
+  72 |
+  73 | When lock scroll state changes, a `lockscroll:toggle` [CustomEvent] is fired from the element the action is placed on.
+  74 |
 
 === 733 sites/docs/src/packages/modal/docs.md.svelte	svelte
 <script>
@@ -3416,6 +3642,28 @@ documentation, [visit here](https://02e439f1.svelte-put.pages.dev/docs/modal).
   ...
 </div>
 
+=== 203 sites/docs/src/packages/movable/docs.md.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  49 | ```svelte src=./_page/examples/quick-start.svelte title=quick-start.svelte
+  50 | ```
+> 51 |
+     | ^
+  52 | ## Events
+  53 |
+  54 | ```svelte
+
+=== 413 sites/docs/src/packages/noti/docs.md.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  79 |
+  80 | ###  `notification` injected prop is now `item`
+> 81 |
+     | ^
+  82 | In `@svelte-put/noti` V1, a `notification` prop is injected for components used in the variant/push config.
+  83 |
+  84 | ```svelte title="previously: injected notification prop"
+
 === 423 sites/docs/src/packages/popover/_page/examples/quick-start.svelte	svelte
 <script>
   import { Popover } from "@svelte-put/popover";
@@ -3525,6 +3773,17 @@ documentation, [visit here](https://02e439f1.svelte-put.pages.dev/docs/modal).
   <span>for some hinting action (or focus it using keyboard).</span>
 </p>
 
+=== 255 sites/docs/src/packages/popover/docs.md.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+  83 |
+  84 | popover.show(); // Show the popover
+> 85 | popover.hide(); // Hide the popover
+     |                                    ^
+  86 | popover.toggle(); // Toggle the popover
+  87 | ```
+  88 |
+
 === 1256 sites/docs/src/packages/preaction/_page/examples/demo.svelte	svelte
 <script lang="ts">
   // :::highlight
@@ -3578,6 +3837,50 @@ documentation, [visit here](https://02e439f1.svelte-put.pages.dev/docs/modal).
   <!-- ::: -->
   My simple popover
 </div>
+
+=== 376 sites/docs/src/packages/preaction/docs.md.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  51 | The source code is:
+  52 |
+> 53 | ```svelte title="demo.svelte" src="./_page/examples/demo.svelte"
+     |                                                                ^
+  54 | ```
+  55 |
+  56 | Which is equivalent to:
+
+=== 248 sites/docs/src/packages/preprocess-auto-slug/docs.md.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  48 | ## Setup
+  49 |
+> 50 | Given the following config...
+     |            ^
+  51 |
+  52 | ```javascript title=svelte.config.js
+  53 | import autoSlug from '@svelte-put/preprocess-auto-slug';
+
+=== 257 sites/docs/src/packages/preprocess-external-link/docs.md.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  45 | import externalLink from '@svelte-put/preprocess-external-link';
+  46 | // :::
+> 47 |
+     | ^
+  48 | /** @type {import('@sveltejs/kit').Config} */
+  49 | const config = {
+  50 |   // :::highlight
+
+=== 254 sites/docs/src/packages/preprocess-inline-svg/docs.md.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  41 | // :::diff +
+  42 | import inlineSvg from '@svelte-put/inline-svg/preprocessor';
+> 43 | // :::
+     |       ^
+  44 |
+  45 | /** @type {import('@sveltejs/kit').Config} */
+  46 | const config = {
 
 === 366 sites/docs/src/packages/qr/_page/examples/img-action.svelte	svelte
 <script>
@@ -3737,6 +4040,39 @@ documentation, [visit here](https://02e439f1.svelte-put.pages.dev/docs/modal).
   <a class="c-btn" href={dataURL} download="qr.svg">Download QR as SVG</a>
 </div>
 
+=== 321 sites/docs/src/packages/qr/docs.md.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+  198 | ```svelte src=./_page/examples/img-headless.svelte title="PNG Headless Helper"
+  199 | ```
+> 200 |
+      | ^
+  201 | <div class="c-callout c-callout--warning">
+  202 |
+  203 | Note that `createQrPngDataUrl` requires the [Canvas API] and only works in browser.
+
+=== 349 sites/docs/src/packages/resize/docs.md.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  36 |
+  37 | </div>
+> 38 |
+     | ^
+  39 | ## Quick Start
+  40 |
+  41 | Use the `resized` [CustomEvent] (named so to avoid conflict with window's `resize` event) as the callback for `ResizeObserver`
+
+=== 473 sites/docs/src/packages/shortcut/docs.md.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  30 | ## Quick Start
+  31 |
+> 32 | The minimal example below shows how to register a global shortcut for `Ctrl + K` (`Cmd + K` on macOS).
+     |                                                                                                      ^
+  33 |
+  34 | ```svelte title=quick-start.svelte
+  35 | <script lang="ts">
+
 === 2812 sites/docs/src/packages/swipeable/_page/examples/demo.svelte	svelte
 <script lang="ts">
   // :::focus
@@ -3833,6 +4169,28 @@ documentation, [visit here](https://02e439f1.svelte-put.pages.dev/docs/modal).
     </li>
   {/each}
 </ul>
+
+=== 263 sites/docs/src/packages/swipeable/docs.md.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  22 | ```
+  23 |
+> 24 | </enhanced-code-block>
+     |                      ^
+  25 |
+  26 | ## Quick Start
+  27 |
+
+=== 355 sites/docs/src/packages/toc/docs.md.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  75 | </div>
+  76 |
+> 77 | <h2 id="quick-start">Quick Start</h2>
+     |                                     ^
+  78 |
+  79 | Given the following Svelte source code, let's see how `toc` does its job.
+  80 |
 
 === 405 sites/docs/src/packages/tooltip/docs.md.svelte	svelte
 ## Deprecation Notice This package has been dropped in favor of
@@ -4481,6 +4839,17 @@ in Vietnam that I am proudly a part of.
     Edit this page on Github
   </a>
 </p>
+
+=== 399 sites/docs/src/routes/(site)/docs/guidelines/+page.md.svelte	error.txt
+Expected a valid element or component name. Components must have a valid variable name or dot notation expression
+https://svelte.dev/e/tag_invalid_name
+   9 | ```svelte title=example.svelte
+  10 | <!-- :::diff - -->
+> 11 | <Component use:action /> <-- incorrect usage-->
+     |                          ^^
+  12 | <!-- ::: -->
+  13 | <!-- :::diff + -->
+  14 | <div use:action /> <-- correct usage-->
 
 === 3043 sites/docs/src/routes/(site)/search/+page.svelte	svelte
 <script lang="ts">

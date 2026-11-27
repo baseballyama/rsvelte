@@ -1,4 +1,68 @@
 # rsvelte pack 1
+=== 264 src/lib/DateInput.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 262,
+		"column": 11,
+		"character": 7510
+	},
+	"end": {
+		"line": 262,
+		"column": 11,
+		"character": 7510
+	}
+}
+
+=== 266 src/lib/DatePicker.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 363,
+		"column": 10,
+		"character": 10923
+	},
+	"end": {
+		"line": 363,
+		"column": 10,
+		"character": 10923
+	}
+}
+
+=== 264 src/lib/TimePicker.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 207,
+		"column": 12,
+		"character": 5612
+	},
+	"end": {
+		"line": 207,
+		"column": 12,
+		"character": 5612
+	}
+}
+
+=== 264 src/routes/+layout.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 100,
+		"column": 12,
+		"character": 3091
+	},
+	"end": {
+		"line": 100,
+		"column": 12,
+		"character": 3091
+	}
+}
+
 === 150 src/routes/+page.svelte	css
 
 	.theming.svelte-1uha8ag {
@@ -914,3 +978,35 @@ export default function _page($$renderer) {
 	DemoDatePicker($$renderer, {});
 	$$renderer.push(`<!---->`);
 }
+=== 262 src/routes/prop.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 76,
+		"column": 10,
+		"character": 1901
+	},
+	"end": {
+		"line": 76,
+		"column": 10,
+		"character": 1901
+	}
+}
+
+=== 260 src/routes/split.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 16,
+		"column": 10,
+		"character": 298
+	},
+	"end": {
+		"line": 16,
+		"column": 10,
+		"character": 298
+	}
+}
+

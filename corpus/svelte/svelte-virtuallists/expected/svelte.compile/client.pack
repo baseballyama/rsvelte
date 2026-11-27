@@ -959,6 +959,22 @@ export default function ToggleButton($$anchor, $$props) {
 }
 
 $.delegate(['click']);
+=== 677 src/lib/VirtualListNew.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 53,
+		"column": 2,
+		"character": 1361
+	},
+	"end": {
+		"line": 56,
+		"column": 3,
+		"character": 1428
+	}
+}
+
 === 2274 src/routes/+layout.svelte	css
 
   .page-container.svelte-12qhfyh {

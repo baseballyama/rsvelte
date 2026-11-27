@@ -40,12 +40,223 @@
   {/each}
 </div>
 
+=== 116 packages/svelte/tests/compiler-errors/samples/attribute-empty/main.svelte	error.txt
+Expected attribute value
+https://svelte.dev/e/expected_attribute_value
+> 1 | <div class= ></div>
+    |            ^
+
+=== 139 packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression-2/main.svelte	svelte
+<script>
+  let { x, y, z } = $props();
+</script>
+
+<!-- allowed -->
+<span foo={(x, y, z)} />
+
+<!-- not allowed -->
+<span foo={(x, y, z)} />
+
+=== 179 packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression/main.svelte	svelte
+<script>
+  import Child from "./Child.svelte";
+  let { x, y, z } = $props();
+</script>
+
+<!-- allowed -->
+<Child foo={(x, y, z)} />
+
+<!-- not allowed -->
+<Child foo={(x, y, z)} />
+
+=== 135 packages/svelte/tests/compiler-errors/samples/attribute-unique-binding/main.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+> 1 | <Widget foo={42} bind:foo/>
+    |                 ^^^^^^^^
+
+=== 170 packages/svelte/tests/compiler-errors/samples/attribute-unique-class/main.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+> 1 | <div class:cool={true} class:cool={true}></div>
+    |                       ^^^^^^^^^^^^^^^^^
+
+=== 138 packages/svelte/tests/compiler-errors/samples/attribute-unique-shorthand/main.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+> 1 | <div title='foo' {title}></div>
+    |                 ^^^^^^^
+
+=== 174 packages/svelte/tests/compiler-errors/samples/attribute-unique-style/main.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+> 1 | <div style:color="red" style:color="green"></div>
+    |                       ^^^^^^^^^^^^^^^^^^^
+
+=== 146 packages/svelte/tests/compiler-errors/samples/attribute-unique/main.svelte	error.txt
+Attributes need to be unique
+https://svelte.dev/e/attribute_duplicate
+> 1 | <div class='foo' class='bar'></div>
+    |                 ^^^^^^^^^^^
+
+=== 145 packages/svelte/tests/compiler-errors/samples/catch-before-closing/main.svelte	error.txt
+Expected token {:else}
+https://svelte.dev/e/expected_token
+  1 | {#await true}
+  2 | 	{#each foo as bar}
+> 3 | {:catch f}
+    | ^
+  4 | {/await}
+
+=== 195 packages/svelte/tests/compiler-errors/samples/catch-without-await/main.svelte	error.txt
+{:...} block is invalid at this position (did you forget to close the preceding element or block?)
+https://svelte.dev/e/block_invalid_continuation_placement
+> 1 | {:catch theValue}
+    | ^
+  2 |
+
+=== 60 packages/svelte/tests/compiler-errors/samples/class-state-field-static/main.svelte	svelte
+<script>
+  class X {
+    static x = $state();
+  }
+</script>
+
+=== 117 packages/svelte/tests/compiler-errors/samples/comment-unclosed/main.svelte	error.txt
+Expected token -->
+https://svelte.dev/e/expected_token
+> 1 | <!-- an unclosed comment
+    |                        ^
+
+=== 229 packages/svelte/tests/compiler-errors/samples/component-invalid-name/main.svelte	error.txt
+Expected a valid element or component name. Components must have a valid variable name or dot notation expression
+https://svelte.dev/e/tag_invalid_name
+  5 |
+  6 | <!-- error -->
+> 7 | <Components[1] />
+    | ^^^^^^^^^^^^^
+  8 |
+
+=== 188 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-2/main.svelte	svelte
+<script>
+  import Nested from "./irrelevant";
+</script>
+
+<Nested>
+  <svelte:fragment slot="foo">{value}</svelte:fragment>
+  <svelte:fragment slot="foo">{value}</svelte:fragment>
+</Nested>
+
+=== 160 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-3/main.svelte	svelte
+<script>
+  import Nested from "./irrelevant";
+</script>
+
+<Nested>
+  <svelte:fragment slot="foo">{value}</svelte:fragment>
+  <p slot="foo">{value}</p>
+</Nested>
+
+=== 149 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-4/main.svelte	svelte
+<script>
+  import Nested from "./irrelevant";
+</script>
+
+<Nested>
+  <svelte:fragment slot="default">value</svelte:fragment>
+  <p>value</p>
+</Nested>
+
+=== 184 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-5/main.svelte	svelte
+<script>
+  import Nested from "./irrelevant";
+  import Inner from "./irrelevant";
+</script>
+
+<Nested>
+  <Inner slot="foo">{value}</Inner>
+  <Inner slot="foo">{value}</Inner>
+</Nested>
+
+=== 176 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-6/main.svelte	svelte
+<script>
+  import Nested from "./irrelevant";
+  import Inner from "./irrelevant";
+</script>
+
+<Nested>
+  <p slot="foo">{value}</p>
+  <Inner slot="foo">{value}</Inner>
+</Nested>
+
+=== 260 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error/main.svelte	svelte
+<script>
+  import Nested from "./irrelevant";
+</script>
+
+<!-- allowed in custom elements -->
+<c-e>
+  <c-e-item slot="allowed"></c-e-item>
+  <c-e-item slot="allowed"></c-e-item>
+</c-e>
+
+<Nested>
+  <p slot="foo">{value}</p>
+  <p slot="foo">{value}</p>
+</Nested>
+
+=== 158 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error-2/main.svelte	svelte
+<script>
+  import Nested from "./irrelevant";
+</script>
+
+<Nested>
+  <div slot="slot1">
+    <div>
+      <div slot="slot2"></div>
+    </div>
+  </div>
+</Nested>
+
+=== 145 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error-3/main.svelte	svelte
+<script>
+  import Nested from "./irrelevant";
+</script>
+
+<Nested>
+  <div>
+    <div>
+      <div slot="slot2"></div>
+    </div>
+  </div>
+</Nested>
+
+=== 135 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error/main.svelte	svelte
+<script>
+  import Nested from "./irrelevant";
+</script>
+
+<Nested>
+  <div slot="slot1">
+    <div slot="slot2"></div>
+  </div>
+</Nested>
+
 === 72 packages/svelte/tests/compiler-errors/samples/const-tag-cyclical/main.svelte	svelte
 {#if true}
   {@const a = b}
   {@const b = a}
   <h1>hello {a}</h1>
 {/if}
+
+=== 224 packages/svelte/tests/compiler-errors/samples/const-tag-sequence/main.svelte	error.txt
+{@const ...} must consist of a single variable declaration
+https://svelte.dev/e/const_tag_invalid_expression
+  4 |
+  5 | {#if true}
+> 6 | 	{@const foo = 'foo', bar = 'bar'}
+    | 	             ^^^^^^^^^^^^^^^^^^
+  7 | {/if}
 
 === 438 packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte	svelte
 <svelte:options runes />
@@ -109,6 +320,881 @@
     {foo}
   {/snippet}
 </Component>
+
+=== 138 packages/svelte/tests/compiler-errors/samples/const-tag-whitespace/main.svelte	error.txt
+Expected whitespace
+https://svelte.dev/e/expected_whitespace
+  1 | {#if true}
+> 2 | 	{@constfoo = 'bar'}
+    | 	      ^
+  3 | {/if}
+  4 |
+
+=== 113 packages/svelte/tests/compiler-errors/samples/css-global-block-combinator-2/main.svelte	svelte
+<style>
+  /* ok */
+  .x :global.x p {
+  }
+  .x :global > p {
+  }
+
+  /* not ok */
+  .x > :global p {
+  }
+</style>
+
+=== 84 packages/svelte/tests/compiler-errors/samples/css-global-block-combinator/main.svelte	svelte
+<style>
+  /* ok */
+  .x :global {
+  }
+
+  /* not ok */
+  .x > :global {
+  }
+</style>
+
+=== 147 packages/svelte/tests/compiler-errors/samples/css-global-block-declaration/main.svelte	svelte
+<style>
+  /* ok */
+  .x :global {
+    color: red;
+  }
+
+  :global .y {
+    color: red;
+  }
+
+  /* not ok */
+  :global {
+    color: red;
+  }
+</style>
+
+=== 70 packages/svelte/tests/compiler-errors/samples/css-global-block-in-pseudoclass/main.svelte	svelte
+<style>
+  /* invalid */
+  :is(:global) {
+    color: red;
+  }
+</style>
+
+=== 280 packages/svelte/tests/compiler-errors/samples/css-global-block-multiple-1/main.svelte	svelte
+<style>
+  /* valid */
+  /* We gotta allow `:global x, :global y` and the likes because CSS preprocessors might generate that from e.g. `:global { x, y {...} }` */
+  :global .x,
+  :global .y {
+  }
+  .x :global,
+  .y :global {
+  }
+
+  /* invalid */
+  .x :global,
+  .y {
+  }
+</style>
+
+=== 95 packages/svelte/tests/compiler-errors/samples/css-global-block-multiple-2/main.svelte	svelte
+<style>
+  /* invalid */
+  :global,
+  :global .y {
+    z {
+      color: red;
+    }
+  }
+</style>
+
+=== 116 packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-1/main.svelte	svelte
+<style>
+  /* ok */
+  div :global.x {
+    color: red;
+  }
+
+  /* not ok */
+  :global.x {
+    color: red;
+  }
+</style>
+
+=== 220 packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-2/main.svelte	svelte
+<style>
+  /* ok */
+  div :global {
+    &.x {
+      color: red;
+    }
+  }
+  div {
+    :global {
+      &.x {
+        color: red;
+      }
+    }
+  }
+
+  /* not ok */
+  :global {
+    &.x {
+      color: red;
+    }
+  }
+</style>
+
+=== 116 packages/svelte/tests/compiler-errors/samples/css-global-modifier/main.svelte	svelte
+<style>
+  /* ok */
+  div :global.x {
+    color: red;
+  }
+
+  /* not ok */
+  .x:global {
+    color: red;
+  }
+</style>
+
+=== 201 packages/svelte/tests/compiler-errors/samples/css-nesting-selector-root/main.svelte	svelte
+<style>
+  /* valid */
+  :global(&) {
+    color: blue;
+  }
+  :global(& div) {
+    color: blue;
+  }
+  :global(&) div {
+    color: blue;
+  }
+  /* error */
+  :global(div &) {
+    color: blue;
+  }
+</style>
+
+=== 34 packages/svelte/tests/compiler-errors/samples/css/main.svelte	svelte
+<style>
+	this is not css
+</style>
+
+=== 98 packages/svelte/tests/compiler-errors/samples/declaration-tag-trailing-slash/main.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+> 1 | {let x = a /
+    |            ^
+
+=== 128 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-legacy/main.svelte	svelte
+<svelte:options runes={false} />
+
+<script>
+  function ok($) {}
+  function ok2() {
+    let $;
+  }
+
+  // error
+  let $;
+</script>
+
+=== 101 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-runes-2/main.svelte	svelte
+<svelte:options runes />
+
+<script>
+  function ok($) {}
+  function error() {
+    let $;
+  }
+</script>
+
+=== 54 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-runes/main.svelte	svelte
+<svelte:options runes />
+
+<script>
+  let $;
+</script>
+
+=== 37 packages/svelte/tests/compiler-errors/samples/dollar-binding-global/main.svelte	svelte
+<script>
+  console.log($);
+</script>
+
+=== 54 packages/svelte/tests/compiler-errors/samples/dollar-binding-import/main.svelte	svelte
+<script>
+  import { $ } from "./somewhere";
+</script>
+
+=== 110 packages/svelte/tests/compiler-errors/samples/dynamic-element-binding-invalid/main.svelte	svelte
+<script>
+  const tag = "div";
+  let value;
+</script>
+
+<svelte:element this={tag} bind:value></svelte:element>
+
+=== 131 packages/svelte/tests/compiler-errors/samples/each-key-without-as/main.svelte	svelte
+<script>
+  let items = [{ id: 3 }, { id: 2 }, { id: 1 }];
+</script>
+
+{#each items, i (items[i].id)}
+  <p>{items[i].id}</p>
+{/each}
+
+=== 198 packages/svelte/tests/compiler-errors/samples/element-invalid-name/main.svelte	error.txt
+Expected a valid element or component name. Components must have a valid variable name or dot notation expression
+https://svelte.dev/e/tag_invalid_name
+> 1 | <yes[no]></yes[no]>
+    | ^^^^^^^
+  2 |
+
+=== 148 packages/svelte/tests/compiler-errors/samples/else-before-closing-2/main.svelte	error.txt
+Expected token {:then ...} or {:catch ...}
+https://svelte.dev/e/expected_token
+  1 | {#if true}
+  2 | 	{#await p}
+> 3 | {:else}
+    | ^
+  4 | {/if}
+
+=== 190 packages/svelte/tests/compiler-errors/samples/else-before-closing-3/main.svelte	error.txt
+{:...} block is invalid at this position (did you forget to close the preceding element or block?)
+https://svelte.dev/e/block_invalid_continuation_placement
+  1 | <li>
+> 2 | {:else}
+    | ^
+
+=== 220 packages/svelte/tests/compiler-errors/samples/else-before-closing/main.svelte	error.txt
+{:...} block is invalid at this position (did you forget to close the preceding element or block?)
+https://svelte.dev/e/block_invalid_continuation_placement
+  1 | {#if true}
+  2 | 	<li>
+> 3 | {:else}
+    | ^
+  4 | {/if}
+
+=== 228 packages/svelte/tests/compiler-errors/samples/else-if-before-closing-2/main.svelte	error.txt
+{:...} block is invalid at this position (did you forget to close the preceding element or block?)
+https://svelte.dev/e/block_invalid_continuation_placement
+  1 | {#if true}
+  2 | 	<p>
+> 3 | {:else if false}
+    | ^
+  4 | {/if}
+
+=== 159 packages/svelte/tests/compiler-errors/samples/else-if-before-closing/main.svelte	error.txt
+Expected token {:then ...} or {:catch ...}
+https://svelte.dev/e/expected_token
+  1 | {#if true}
+  2 | 	{#await foo}
+> 3 | {:else if false}
+    | ^
+  4 | {/if}
+
+=== 158 packages/svelte/tests/compiler-errors/samples/else-if-without-if/main.svelte	error.txt
+Expected token {:then ...} or {:catch ...}
+https://svelte.dev/e/expected_token
+  1 | {#await foo}
+  2 | {:then bar}
+> 3 | 	{:else if}
+    | 	^
+  4 | {/await}
+
+=== 119 packages/svelte/tests/compiler-errors/samples/empty-attribute-shorthand/main.svelte	error.txt
+Attribute shorthand cannot be empty
+https://svelte.dev/e/attribute_empty_shorthand
+> 1 | <span {}></span>
+    |      ^
+
+=== 131 packages/svelte/tests/compiler-errors/samples/empty-classname-binding/main.svelte	error.txt
+`class:` name cannot be empty
+https://svelte.dev/e/directive_missing_name
+> 1 | <h1 class:={true}>Hello</h1>
+    |    ^^^^^^
+  2 |
+
+=== 118 packages/svelte/tests/compiler-errors/samples/empty-directive-name/main.svelte	error.txt
+`use:` name cannot be empty
+https://svelte.dev/e/directive_missing_name
+> 1 | <h1 use:>Hello</h1>
+    |    ^^^^
+  2 |
+
+=== 45 packages/svelte/tests/compiler-errors/samples/export-not-defined-module/main.svelte	svelte
+<script module>
+  export { blah };
+</script>
+
+=== 257 packages/svelte/tests/compiler-errors/samples/export-state-module/main.svelte	svelte
+<script module>
+  export const object = $state({
+    ok: true,
+  });
+
+  export let primitive = $state("nope");
+
+  export function update_object() {
+    object.ok = !object.ok;
+  }
+
+  export function update_primitive() {
+    primitive = "yep";
+  }
+</script>
+
+=== 88 packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte	error.txt
+Assigning to rvalue
+https://svelte.dev/e/js_parse_error
+> 1 | {42 = nope}
+    | ^
+  2 |
+
+=== 32 packages/svelte/tests/compiler-errors/samples/invalid-arguments-usage/main.svelte	svelte
+<script>
+  arguments;
+</script>
+
+=== 56 packages/svelte/tests/compiler-errors/samples/invalid-snippet-binding/main.svelte	svelte
+{#snippet foo(value)}
+  <input bind:value />
+{/snippet}
+
+=== 87 packages/svelte/tests/compiler-errors/samples/invalid-snippet-mutation/main.svelte	svelte
+{#snippet foo(value)}
+  <button onclick={() => (value += 1)}>click</button>
+{/snippet}
+
+=== 58 packages/svelte/tests/compiler-errors/samples/legacy-no-const-assignment/main.svelte	svelte
+<script>
+  const a = createCounter();
+  a += 1;
+</script>
+
+=== 55 packages/svelte/tests/compiler-errors/samples/legacy-no-const-update/main.svelte	svelte
+<script>
+  const a = createCounter();
+  a++;
+</script>
+
+=== 135 packages/svelte/tests/compiler-errors/samples/malformed-snippet-2/main.svelte	error.txt
+Expected token )
+https://svelte.dev/e/expected_token
+> 1 | {#snippet children(hi{/snippet}
+    |                               ^
+  2 |
+
+=== 125 packages/svelte/tests/compiler-errors/samples/malformed-snippet/main.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+> 1 | {#snippet children()hi{/snippet}
+    |                    ^
+  2 |
+
+=== 192 packages/svelte/tests/compiler-errors/samples/multiple-styles/main.svelte	error.txt
+A component can have a single top-level `<style>` element
+https://svelte.dev/e/style_duplicate
+  3 | <style>
+  4 | 	div {
+> 5 | 		color: red;
+    | 		          ^
+  6 | 	}
+  7 | </style>
+  8 |
+
+=== 171 packages/svelte/tests/compiler-errors/samples/options-children/main.svelte	error.txt
+<svelte:options> cannot have children
+https://svelte.dev/e/svelte_meta_invalid_content
+> 1 | <svelte:options>contents</svelte:options>
+    |                ^^^^^^^^
+  2 |
+
+=== 97 packages/svelte/tests/compiler-errors/samples/raw-mustaches-whitespace/main.svelte	error.txt
+Expected whitespace
+https://svelte.dev/e/expected_whitespace
+> 1 | {@htmlfoo}
+    |      ^
+  2 |
+
+=== 41 packages/svelte/tests/compiler-errors/samples/render-tag-invalid-call/main.svelte	svelte
+{@render snippet.apply(null, [1, 2, 3])}
+
+=== 99 packages/svelte/tests/compiler-errors/samples/runes-before-after-update/main.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import { beforeUpdate, afterUpdate } from "svelte";
+</script>
+
+=== 55 packages/svelte/tests/compiler-errors/samples/runes-bindable-not-called/main.svelte	svelte
+<script>
+  let { a = $bindable } = $props();
+</script>
+
+=== 75 packages/svelte/tests/compiler-errors/samples/runes-duplicate-props/main.svelte	svelte
+<script>
+  const { foo } = $props();
+  const { bar } = $props();
+</script>
+
+=== 87 packages/svelte/tests/compiler-errors/samples/runes-export-let-derived/main.svelte	svelte
+<script>
+  let count = $state(0);
+  export let double = $derived(count * 2);
+</script>
+
+=== 173 packages/svelte/tests/compiler-errors/samples/runes-export-let/main.svelte	svelte
+<script module>
+  export let bar = ""; // check that it doesn't error here already
+</script>
+
+<script>
+  export let foo;
+  let x = $state(); // mark as runes mode
+</script>
+
+=== 279 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-binding-this/main.svelte	svelte
+<script lang="ts">
+  let array: Array<{ id: number; element: HTMLElement | null }> = $state([
+    { id: 1, element: null },
+    { id: 2, element: null },
+    { id: 3, element: null },
+  ]);
+</script>
+
+{#each array as { id, element } (id)}
+  <input bind:this={element} />
+{/each}
+
+=== 103 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-binding/main.svelte	svelte
+<script>
+  let arr = $state([1, 2, 3]);
+</script>
+
+{#each arr as value}
+  <input bind:value />
+{/each}
+
+=== 134 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-mutation/main.svelte	svelte
+<script>
+  let arr = $state([1, 2, 3]);
+</script>
+
+{#each arr as value}
+  <button onclick={() => (value += 1)}>click</button>
+{/each}
+
+=== 52 packages/svelte/tests/compiler-errors/samples/runes-no-const-assignment/main.svelte	svelte
+<script>
+  const a = $state(0);
+  a += 1;
+</script>
+
+=== 49 packages/svelte/tests/compiler-errors/samples/runes-no-const-update/main.svelte	svelte
+<script>
+  const a = $state(0);
+  a++;
+</script>
+
+=== 94 packages/svelte/tests/compiler-errors/samples/runes-no-rune-each/main.svelte	svelte
+<script>
+  let todos = $state([]);
+</script>
+
+{#each todos as $state (todo)}
+  {todo}
+{/each}
+
+=== 52 packages/svelte/tests/compiler-errors/samples/runes-props-illegal-name-1/main.svelte	svelte
+<script>
+  let { $$slots: a } = $props();
+</script>
+
+=== 60 packages/svelte/tests/compiler-errors/samples/runes-props-illegal-name-2/main.svelte	svelte
+<script>
+  let props = $props();
+  props.$$slots;
+</script>
+
+=== 41 packages/svelte/tests/compiler-errors/samples/runes-props-not-called/main.svelte	svelte
+<script>
+  let { a } = $props;
+</script>
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-args/main.svelte	svelte
+<script>
+  const { foo = $bindable(1, 2) } = $props();
+</script>
+
+=== 59 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-placement/main.svelte	svelte
+<script>
+  const { a = $bindable() } = $state();
+</script>
+
+=== 45 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte	svelte
+<script>
+  const foo = $derived();
+</script>
+
+=== 34 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-placement/main.svelte	svelte
+<script>
+  $derived(1);
+</script>
+
+=== 32 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-args/main.svelte	svelte
+<script>
+  $effect();
+</script>
+
+=== 70 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-placement/main.svelte	svelte
+<script>
+  function a() {
+    return $effect(() => {});
+  }
+</script>
+
+=== 30 packages/svelte/tests/compiler-errors/samples/runes-wrong-host-placement/main.svelte	svelte
+<script>
+  $host();
+</script>
+
+=== 48 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-args/main.svelte	svelte
+<script>
+  const { foo } = $props(1);
+</script>
+
+=== 68 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-placement-instance/main.svelte	svelte
+<script>
+  function x() {
+    const { a } = $props();
+  }
+</script>
+
+=== 50 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-args/main.svelte	svelte
+<script>
+  const foo = $state(1, 2, 3);
+</script>
+
+=== 54 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-placement/main.svelte	svelte
+<script>
+  function a(x) {}
+  a($state(1));
+</script>
+
+=== 54 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-raw-args/main.svelte	svelte
+<script>
+  const foo = $state.raw(1, 2, 3);
+</script>
+
+=== 52 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-snapshot-args/main.svelte	svelte
+<script>
+  const foo = $state.snapshot();
+</script>
+
+=== 125 packages/svelte/tests/compiler-errors/samples/script-unclosed-eof/main.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+  1 | <h1>Hello {name}!</h1>
+  2 |
+> 3 | <script>
+    |        ^
+
+=== 142 packages/svelte/tests/compiler-errors/samples/script-unclosed/main.svelte	error.txt
+`<script>` was left open
+https://svelte.dev/e/element_unclosed
+  1 | <script>
+  2 |
+> 3 | <h1>Hello {name}!</h1>
+    |                      ^
+
+=== 16 packages/svelte/tests/compiler-errors/samples/self-reference/main.svelte	svelte
+<svelte:self />
+
+=== 86 packages/svelte/tests/compiler-errors/samples/slot-conflicting-with-render-tag/main.svelte	svelte
+<script>
+  let { children } = $props();
+</script>
+
+{@render children()}
+<slot></slot>
+
+=== 370 packages/svelte/tests/compiler-errors/samples/snippet-children-conflict/main.svelte	svelte
+<!-- ok -->
+<Button>hello</Button>
+<Button>
+  {#snippet children()}hi{/snippet}
+</Button>
+<Button>
+  hello
+  {#snippet foo()}x{/snippet}
+</Button>
+<Button>
+  {#snippet children()}hi{/snippet}
+  {#snippet foo()}x{/snippet}
+</Button>
+<div>
+  hello
+  {#snippet children()}hi{/snippet}
+</div>
+
+<!-- invalid -->
+<Button>
+  hello
+  {#snippet children()}hi{/snippet}
+</Button>
+
+=== 113 packages/svelte/tests/compiler-errors/samples/snippet-invalid-export/main.svelte	svelte
+<script module>
+  export { foo };
+</script>
+
+<script>
+  let x = 42;
+</script>
+
+{#snippet foo()}
+  {x}
+{/snippet}
+
+=== 49 packages/svelte/tests/compiler-errors/samples/snippet-rest-args/main.svelte	svelte
+{#snippet children(...args)}
+  {args}
+{/snippet}
+
+=== 225 packages/svelte/tests/compiler-errors/samples/store-autosub-context-module/main.svelte	svelte
+<script module>
+  // this should be fine (state rune is not treated as a store)
+  const state = $state(0);
+  // this is not
+  const foo = {};
+  const answer = $foo;
+</script>
+
+<script>
+  let state;
+</script>
+
+<p>{answer}</p>
+
+=== 283 packages/svelte/tests/compiler-errors/samples/store-contextual/main.svelte	svelte
+<script>
+  export let todos;
+</script>
+
+{#each todos as todo}
+  <label>
+    <input
+      type="checkbox"
+      on:change={(e) =>
+        todo.update((t) => ({ done: e.target.checked, text: t.text }))}
+    />
+    {$todo.done ? "[done]" : "[todo]"}
+    {$todo.text}
+  </label>
+{/each}
+
+=== 29 packages/svelte/tests/compiler-errors/samples/store-global-disallowed/main.svelte	svelte
+<script>
+  $foo();
+</script>
+
+=== 130 packages/svelte/tests/compiler-errors/samples/store-prevent-user-declarations/main.svelte	svelte
+<script>
+  export let count;
+  let $count;
+</script>
+
+<button on:click={() => count.update((n) => n + 1)}>count {$count}</button>
+
+=== 192 packages/svelte/tests/compiler-errors/samples/store-shadow-scope-2/main.svelte	svelte
+<script>
+  import { writable } from "svelte/store";
+  const user = writable(0);
+  const users = [];
+  $: selected = users.find((user) => user.id == $user);
+
+  $: console.log($user);
+</script>
+
+=== 192 packages/svelte/tests/compiler-errors/samples/store-shadow-scope-3/main.svelte	svelte
+<script>
+  import { writable } from "svelte/store";
+  const user = writable(0);
+  const users = [];
+
+  $: console.log($user);
+  $: selected = users.find((user) => user.id == $user);
+</script>
+
+=== 149 packages/svelte/tests/compiler-errors/samples/store-shadow-scope/main.svelte	svelte
+<script>
+  import { writable } from "svelte/store";
+  const store = writable();
+
+  function foo() {
+    let store = 1;
+    $store = 2;
+  }
+</script>
+
+=== 160 packages/svelte/tests/compiler-errors/samples/store-template-expression-scope/main.svelte	svelte
+<script>
+  import { writable } from "svelte/store";
+  const store = writable();
+</script>
+
+<button
+  on:click={(store) => {
+    $store = Math.random();
+  }}
+/>
+
+=== 122 packages/svelte/tests/compiler-errors/samples/style-unclosed-eof/main.svelte	error.txt
+Expected token </style
+https://svelte.dev/e/expected_token
+  1 | <h1>Hello {name}!</h1>
+  2 |
+> 3 | <style>
+    |       ^
+
+=== 155 packages/svelte/tests/compiler-errors/samples/style-unclosed/main.svelte	error.txt
+Expected a valid CSS identifier
+https://svelte.dev/e/css_expected_identifier
+  1 | <style>
+  2 |
+> 3 | <h1>Hello {name}!</h1>
+    |                      ^
+
+=== 106 packages/svelte/tests/compiler-errors/samples/svelte-internal-import/main.svelte	svelte
+<svelte:options runes={true} />
+
+<script>
+  import { something } from "svelte/internal/client";
+</script>
+
+=== 337 packages/svelte/tests/compiler-errors/samples/svelte-selfdestructive/main.svelte	error.txt
+Valid `<svelte:...>` tag names are svelte:head, svelte:options, svelte:window, svelte:document, svelte:body, svelte:element, svelte:component, svelte:self, svelte:fragment or svelte:boundary
+https://svelte.dev/e/svelte_meta_invalid_tag
+  1 | {#if x}
+> 2 | 	<svelte:selfdestructive x="{x - 1}"/>
+    | 	^^^^^^^^^^^^^^^^^^^^^^
+  3 | {/if}
+
+=== 228 packages/svelte/tests/compiler-errors/samples/then-before-closing/main.svelte	error.txt
+{:...} block is invalid at this position (did you forget to close the preceding element or block?)
+https://svelte.dev/e/block_invalid_continuation_placement
+  1 | {#await true}
+  2 | 	<li>
+> 3 | {:then f}
+    | ^
+  4 | {/await}
+
+=== 194 packages/svelte/tests/compiler-errors/samples/then-without-await/main.svelte	error.txt
+{:...} block is invalid at this position (did you forget to close the preceding element or block?)
+https://svelte.dev/e/block_invalid_continuation_placement
+> 1 | {:then theValue}
+    | ^
+  2 |
+
+=== 124 packages/svelte/tests/compiler-errors/samples/unbalanced-curly-component/main.svelte	svelte
+<svelte:options runes />
+
+<script>
+  import Component from "./Component.svelte";
+</script>
+
+<Component onclick="{true}}" />
+
+=== 91 packages/svelte/tests/compiler-errors/samples/unbalanced-curly-element/main.svelte	svelte
+<svelte:options runes />
+
+<button onclick="{() => console.log('hello')}}"> click </button>
+
+=== 106 packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+> 1 | <Component test={ />
+    |                   ^
+
+=== 78 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-b/main.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+> 1 | <d
+    |  ^
+
+=== 76 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-c/main.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+> 1 | <
+    | ^
+
+=== 106 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-d/main.svelte	error.txt
+Block was left open
+https://svelte.dev/e/block_unclosed
+> 1 | {#if foo}
+    |         ^
+  2 | 	<p>foo</p>
+
+=== 84 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input/main.svelte	error.txt
+`<div>` was left open
+https://svelte.dev/e/element_unclosed
+> 1 | <div>
+    |     ^
+
+=== 165 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag-autoclose-2/main.svelte	error.txt
+`</p>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+  3 | 	<pre>pre tag</pre>
+  4 | </div>
+> 5 | </p>
+    |    ^
+
+=== 236 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag-autoclose/main.svelte	error.txt
+`</p>` attempted to close element that was already automatically closed by `<pre>` (cannot nest `<pre>` inside `<p>`)
+https://svelte.dev/e/element_invalid_closing_tag_autoclosed
+  1 | <p>
+  2 | 	<pre>pre tag</pre>
+> 3 | </p>
+    |    ^
+
+=== 132 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag/main.svelte	error.txt
+`</div>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+> 1 | </div>
+    |      ^
+
+=== 169 packages/svelte/tests/compiler-errors/samples/void-closing/main.svelte	error.txt
+Void elements cannot have children or closing tags
+https://svelte.dev/e/void_element_invalid_content
+> 1 | <input>this is illegal!</input>
+    |                       ^
+
+=== 40 packages/svelte/tests/compiler-errors/samples/window-children/main.svelte	svelte
+<svelte:window>contents</svelte:window>
+
+=== 168 packages/svelte/tests/compiler-errors/samples/window-duplicate/main.svelte	error.txt
+A component can only have one `<svelte:window>` element
+https://svelte.dev/e/svelte_meta_duplicate
+  1 | <svelte:window/>
+> 2 | <svelte:window/>
+    |                ^
+
+=== 170 packages/svelte/tests/compiler-errors/samples/window-inside-block/main.svelte	error.txt
+`<svelte:window>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+  1 | {#if foo}
+> 2 | 	<svelte:window/>
+    | ^
+  3 | {/if}
+
+=== 167 packages/svelte/tests/compiler-errors/samples/window-inside-element/main.svelte	error.txt
+`<svelte:window>` tags cannot be inside elements or blocks
+https://svelte.dev/e/svelte_meta_invalid_placement
+  1 | <div>
+> 2 | 	<svelte:window/>
+    | ^
+  3 | </div>
 
 === 420 packages/svelte/tests/css/samples/animations/input.svelte	svelte
 <h1>test</h1>
@@ -5946,6 +7032,40 @@ Text
   {@render cool?.()}
 </button>
 
+=== 218 packages/svelte/tests/migrate/samples/css-ignore/input.svelte	svelte
+<script>
+  export let name;
+</script>
+
+<div>{name}</div>
+
+<style lang="scss">
+  $font-stack: Helvetica, sans-serif;
+  $primary-color: #333;
+
+  body {
+    font: 100% $font-stack;
+    color: $primary-color;
+  }
+</style>
+
+=== 226 packages/svelte/tests/migrate/samples/css-ignore/output.svelte	svelte
+<script>
+  let { name } = $props();
+</script>
+
+<div>{name}</div>
+
+<style lang="scss">
+  $font-stack: Helvetica, sans-serif;
+  $primary-color: #333;
+
+  body {
+    font: 100% $font-stack;
+    color: $primary-color;
+  }
+</style>
+
 === 471 packages/svelte/tests/migrate/samples/derivations/output.svelte	svelte
 <script>
   let count = 0;
@@ -6617,6 +7737,22 @@ Text
 === 199 packages/svelte/tests/migrate/samples/impossible-migrate-slot-non-identifier/output.svelte	svelte
 <!-- @migration-task Error while migrating Svelte code: This migration would change the name of a slot (dashed-name to dashed_name) making the component unusable -->
 <slot name="dashed-name"></slot>
+
+=== 136 packages/svelte/tests/migrate/samples/impossible-migrate-with-errors/input.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+  1 | <script
+  2 |
+> 3 | unterminated template
+    |                     ^
+
+=== 136 packages/svelte/tests/migrate/samples/impossible-migrate-with-errors/output.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+  3 | <script
+  4 |
+> 5 | unterminated template
+    |                     ^
 
 === 1372 packages/svelte/tests/migrate/samples/is-not-where-has/input.svelte	svelte
 <script>
@@ -7858,6 +8994,36 @@ what if i'm talking about `:has()` in my blog? ```css :has(.is_cool) ```
 <button>{@render children?.()}</button>
 <button>{@render children?.()}</button>
 
+=== 597 packages/svelte/tests/migrate/samples/slots-with-$$props/output.svelte	svelte
+<script>
+  /**
+   * @typedef {Object} Props
+   * @property {import('svelte').Snippet} [children]
+   * @property {import('svelte').Snippet<[any]>} [foo]
+   * @property {import('svelte').Snippet} [bar]
+   */
+
+  /** @type {Props & { [key: string]: any }} */
+  let { ...props } = $props();
+</script>
+
+<button>{@render props.children?.()}</button>
+
+{#if foos}
+  {@render props.foo?.({ foo: foos })}
+{/if}
+
+{#if props.bar}
+  {$$slots}
+  {@render props.bar?.()}
+{/if}
+
+{#if props.children}foo{/if}
+
+{#if props.children}foo{/if}
+
+{@render props.children?.({ header: "something", title: props.cool, id })}
+
 === 252 packages/svelte/tests/migrate/samples/slots/input.svelte	svelte
 <button><slot /></button>
 
@@ -7875,6 +9041,36 @@ what if i'm talking about `:has()` in my blog? ```css :has(.is_cool) ```
 {#if $$slots["default"]}foo{/if}
 
 <slot header="something" title={my_title} {id} />
+
+=== 538 packages/svelte/tests/migrate/samples/slots/output.svelte	svelte
+<script>
+  /**
+   * @typedef {Object} Props
+   * @property {import('svelte').Snippet} [children]
+   * @property {import('svelte').Snippet<[any]>} [foo]
+   * @property {import('svelte').Snippet} [bar]
+   */
+
+  /** @type {Props} */
+  let { children, foo, bar } = $props();
+</script>
+
+<button>{@render children?.()}</button>
+
+{#if foos}
+  {@render foo?.({ foo: foos })}
+{/if}
+
+{#if bar}
+  {$$slots}
+  {@render bar?.()}
+{/if}
+
+{#if children}foo{/if}
+
+{#if children}foo{/if}
+
+{@render children?.({ header: "something", title: my_title, id })}
 
 === 477 packages/svelte/tests/migrate/samples/state-and-derivations-sequence/output.svelte	svelte
 <script>
@@ -8501,12 +9697,74 @@ Hello &amp; World
 === 18 packages/svelte/tests/parser-legacy/samples/if-block/input.svelte	svelte
 {#if foo}bar{/if}
 
+=== 158 packages/svelte/tests/parser-legacy/samples/implicitly-closed-li-block/input.svelte	error.txt
+Unexpected block closing tag
+https://svelte.dev/e/block_unexpected_close
+  3 | 	{#if true}
+  4 | 		<li>b
+> 5 | 	{/if}
+    | 	^
+  6 | 	<li>c
+  7 | </ul>
+  8 |
+
 === 50 packages/svelte/tests/parser-legacy/samples/implicitly-closed-li/input.svelte	svelte
 <ul>
   <li>a</li>
   <li>b</li>
   <li>c</li>
 </ul>
+
+=== 123 packages/svelte/tests/parser-legacy/samples/loose-invalid-block/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | {#if }
+    |     ^
+  2 | {:else if }
+  3 | {:else }
+  4 | {/if}
+
+=== 174 packages/svelte/tests/parser-legacy/samples/loose-invalid-expression/input.svelte	error.txt
+Attribute shorthand cannot be empty
+https://svelte.dev/e/attribute_empty_shorthand
+> 1 | <div {}></div>
+    |     ^
+  2 | <div foo={}></div>
+  3 |
+  4 | <div foo={a.}></div>
+
+=== 198 packages/svelte/tests/parser-legacy/samples/loose-unclosed-block/input.svelte	error.txt
+`</div>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+  1 | <div>
+  2 | 	{#if foo}
+> 3 | </div>
+    |      ^
+  4 |
+  5 | <Comp>
+  6 | 	{#key bar}
+
+=== 151 packages/svelte/tests/parser-legacy/samples/loose-unclosed-open-tag/input.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+  1 | <div>
+  2 | 	<Comp foo={bar}
+> 3 | </div>
+    |  ^
+  4 |
+  5 | <div>
+  6 | 	<span foo={bar}
+
+=== 199 packages/svelte/tests/parser-legacy/samples/loose-unclosed-tag/input.svelte	error.txt
+`</div>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+  1 | <div>
+  2 | 	<Comp>
+> 3 | </div>
+    |      ^
+  4 |
+  5 | <div>
+  6 | 	<Comp foo={bar}
 
 === 20 packages/svelte/tests/parser-legacy/samples/nbsp/input.svelte	svelte
 <span>&nbsp;</span>
@@ -8687,6 +9945,52 @@ Hello &amp; World
   {x}{y}{z.a}
 {/each}
 
+=== 725 packages/svelte/tests/parser-modern/samples/css-nth-syntax/input.svelte	svelte
+<h1>Foo</h1>
+
+<style>
+  /* test that all these are parsed correctly */
+  h1:nth-of-type(2n + 1) {
+    background: red;
+  }
+  h1:nth-child(-n + 3 of li.important) {
+    background: red;
+  }
+  h1:nth-child(1) {
+    background: red;
+  }
+  h1:nth-child(p) {
+    background: red;
+  }
+  h1:nth-child(n + 7) {
+    background: red;
+  }
+  h1:nth-child(even) {
+    background: red;
+  }
+  h1:nth-child(odd) {
+    background: red;
+  }
+  h1:nth-child(n) {
+    background: red;
+  }
+  h1:global(nav) {
+    background: red;
+  }
+  h1:nth-of-type(10n + 1) {
+    background: red;
+  }
+  h1:nth-of-type(-2n + 3) {
+    background: red;
+  }
+  h1:nth-of-type(+12) {
+    background: red;
+  }
+  h1:nth-of-type(+3n) {
+    background: red;
+  }
+</style>
+
 === 402 packages/svelte/tests/parser-modern/samples/css-pseudo-classes/input.svelte	svelte
 <style>
   /* test that all these are parsed correctly */
@@ -8725,6 +10029,16 @@ unknown node type: TemplateLiteral
 {:else if x < 5}
   <p>x is less than 5</p>
 {/if}
+
+=== 160 packages/svelte/tests/parser-modern/samples/loose-declaration-tag/input.svelte	error.txt
+The keyword 'let' is reserved
+https://svelte.dev/e/js_parse_error
+  1 | {#if true}
+> 2 | 	{let }
+    | 	^
+  3 | 	{const x = }
+  4 | 	{let x = a / }
+  5 | {/if}
 
 === 122 packages/svelte/tests/parser-modern/samples/loose-valid-each-as/input.svelte	svelte
 <script lang="ts">
@@ -8804,6 +10118,11 @@ unknown node type: TemplateLiteral
   clicks: {count}
 </button>
 
+=== 71 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/input.svelte	svelte
+<script generics="T extends Record<string, string>">
+	foo {}
+</script>
+
 === 62 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/output.svelte	svelte
 <script generics="T extends Record<string, string>"></script>
 
@@ -8815,6 +10134,28 @@ unknown node type: TemplateLiteral
 
 === 30 packages/svelte/tests/preprocess/samples/attributes-with-equals/output.svelte	svelte
 <style foo="bar=baz"></style>
+
+=== 204 packages/svelte/tests/preprocess/samples/comments/input.svelte	error.txt
+A component can have a single top-level `<style>` element
+https://svelte.dev/e/style_duplicate
+  11 | </style> -->
+  12 |
+> 13 | <!-- <script>
+     |             ^
+  14 | 	one
+  15 | </script> -->
+  16 |
+
+=== 204 packages/svelte/tests/preprocess/samples/comments/output.svelte	error.txt
+A component can have a single top-level `<style>` element
+https://svelte.dev/e/style_duplicate
+  11 | </style> -->
+  12 |
+> 13 | <!-- <script>
+     |             ^
+  14 | 	one
+  15 | </script> -->
+  16 |
 
 === 40 packages/svelte/tests/preprocess/samples/dependencies/input.svelte	svelte
 <style>
@@ -8916,6 +10257,34 @@ unknown node type: TemplateLiteral
 
 <style></style>
 
+=== 272 packages/svelte/tests/preprocess/samples/script-multiple/input.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  1 | <script>
+  2 | 	REPLACEME
+> 3 | </script>
+    |         ^
+  4 | <style>
+  5 | 	SHOULD NOT BE REPLACED
+  6 | </style>
+
+=== 272 packages/svelte/tests/preprocess/samples/script-multiple/output.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  1 | <script>
+  2 | 	replaceme
+> 3 | </script>
+    |         ^
+  4 | <style>
+  5 | 	SHOULD NOT BE REPLACED
+  6 | </style>
+
+=== 115 packages/svelte/tests/preprocess/samples/script-self-closing/input.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+> 1 | <script the-answer="42"/>
+    |                       ^
+
 === 56 packages/svelte/tests/preprocess/samples/script-self-closing/output.svelte	svelte
 <script the-answer="42">
   console.log("42");
@@ -8949,6 +10318,52 @@ unknown node type: TemplateLiteral
   }
 </style>
 
+=== 45 packages/svelte/tests/preprocess/samples/style-attributes-modified-longer/input.svelte	svelte
+foo bar
+
+<style lang="scss">
+BEFORE
+</style>
+
+=== 71 packages/svelte/tests/preprocess/samples/style-attributes-modified-longer/output.svelte	svelte
+foo bar
+
+<style sth="wayyyyyyyyyyyyy looooooonger">
+PROCESSED
+</style>
+
+=== 65 packages/svelte/tests/preprocess/samples/style-attributes-modified/input.svelte	svelte
+foo bar
+
+<style lang="scss" data-foo="bar" bool>
+BEFORE
+</style>
+
+=== 47 packages/svelte/tests/preprocess/samples/style-attributes-modified/output.svelte	svelte
+foo bar
+
+<style sth="else">
+PROCESSED
+</style>
+
+=== 61 packages/svelte/tests/preprocess/samples/style-attributes/input.svelte	svelte
+<style type="text/scss" data-foo="bar" bool>
+BEFORE
+</style>
+
+=== 64 packages/svelte/tests/preprocess/samples/style-attributes/output.svelte	svelte
+<style type="text/scss" data-foo="bar" bool>
+PROCESSED
+</style>
+
+=== 155 packages/svelte/tests/preprocess/samples/style-self-closing/input.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+  1 | <div class='brand-color'>$brand</div>
+  2 |
+> 3 | <style color="red"/>
+    |                  ^
+
 === 96 packages/svelte/tests/preprocess/samples/style-self-closing/output.svelte	svelte
 <div class="brand-color">$brand</div>
 
@@ -8957,6 +10372,9 @@ unknown node type: TemplateLiteral
     color: red;
   }
 </style>
+
+=== 31 packages/svelte/tests/print/samples/animate-directive/input.svelte	svelte
+<div animate:flip>{item}</div>
 
 === 276 packages/svelte/tests/print/samples/attach-tag/input.svelte	svelte
 <script lang="ts">
@@ -9013,6 +10431,9 @@ unknown node type: TemplateLiteral
 {:catch}
   <p>Something went wrong</p>
 {/await}
+
+=== 28 packages/svelte/tests/print/samples/bind-directive/input.svelte	svelte
+<input bind:value={name} />
 
 === 926 packages/svelte/tests/print/samples/block-element-separation/input.svelte	svelte
 <svelte:head><title>Page Title</title></svelte:head>
@@ -16906,6 +18327,14 @@ Valid: {$validity.valid}
 </script>
 
 <Child {store_container} />
+
+=== 40 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-missing-global-script/main.svelte	svelte
+<script>
+  $: $missingGlobal;
+</script>
+
+=== 24 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-missing-global-template/main.svelte	svelte
+<p>{$missingGlobal}</p>
 
 === 265 packages/svelte/tests/runtime-legacy/samples/store-each-binding-deep/main.svelte	svelte
 <script>
@@ -39230,6 +40659,25 @@ value: {value}
 <button tabindex="1">click me</button>
 <button tabindex={foo}>click me</button>
 
+=== 100 packages/svelte/tests/validator/samples/action-on-component/input.svelte	svelte
+<script>
+  import Widget from "./Widget.svelte";
+
+  function foo() {}
+</script>
+
+<Widget use:foo />
+
+=== 138 packages/svelte/tests/validator/samples/animation-duplicate/input.svelte	svelte
+<script>
+  function foo() {}
+  function bar() {}
+</script>
+
+{#each things as thing (thing)}
+  <div animate:foo animate:bar></div>
+{/each}
+
 === 138 packages/svelte/tests/validator/samples/animation-each-with-const/input.svelte	svelte
 <script>
   function flip() {}
@@ -39265,16 +40713,137 @@ value: {value}
   {/each}
 </div>
 
+=== 64 packages/svelte/tests/validator/samples/animation-not-in-each/input.svelte	svelte
+<script>
+  function foo() {}
+</script>
+
+<div animate:foo></div>
+
+=== 124 packages/svelte/tests/validator/samples/animation-not-in-keyed-each/input.svelte	svelte
+<script>
+  function foo() {}
+</script>
+
+{#each things as thing}
+  <div animate:foo></div>
+  <div animate:foo></div>
+{/each}
+
+=== 104 packages/svelte/tests/validator/samples/animation-on-component/input.svelte	svelte
+<script>
+  import Widget from "./Widget.svelte";
+
+  function foo() {}
+</script>
+
+<Widget animate:foo />
+
+=== 132 packages/svelte/tests/validator/samples/animation-siblings/input.svelte	svelte
+<script>
+  function foo() {}
+</script>
+
+{#each things as thing (thing)}
+  <div animate:foo></div>
+  <div animate:foo></div>
+{/each}
+
 === 103 packages/svelte/tests/validator/samples/anonymous-declarations/input.svelte	svelte
 <script>
   import func from "./function.svelte.js";
   import klass from "./class.svelte.js";
 </script>
 
+=== 316 packages/svelte/tests/validator/samples/assignment-to-const-2/input.svelte	svelte
+<script>
+  const immutable = 0;
+
+  const obj1 = { prop: true };
+  const obj2 = { prop: 0 };
+</script>
+
+<!-- should not error -->
+<button on:click={() => (obj1.prop = false)}>click</button>
+<button on:click={() => obj2.prop++}>click</button>
+
+<!-- should error -->
+<button on:click={() => immutable++}>click</button>
+
+=== 311 packages/svelte/tests/validator/samples/assignment-to-const-3/input.svelte	svelte
+<script>
+  const foo = "hello";
+
+  function shouldNotError() {
+    let foo = 0;
+
+    function inner() {
+      foo = 1;
+    }
+  }
+
+  function shouldError() {
+    function inner() {
+      foo = 1;
+    }
+  }
+</script>
+
+<button on:click={shouldNotError}>click</button>
+<button on:click={shouldError}>click</button>
+
+=== 256 packages/svelte/tests/validator/samples/assignment-to-const-4/input.svelte	svelte
+<script>
+  const foo = "hello";
+</script>
+
+<button
+  on:click={() => {
+    let foo = 0;
+
+    function inner() {
+      foo = 1;
+    }
+  }}
+>
+  click
+</button>
+
+<button
+  on:click={() => {
+    function inner() {
+      foo = 1;
+    }
+  }}
+>
+  click
+</button>
+
+=== 84 packages/svelte/tests/validator/samples/assignment-to-const-5/input.svelte	svelte
+<script>
+  const arr = [1, 2];
+  [arr, arr[1]] = [arr[1], arr[0]];
+</script>
+
+{arr}
+
 === 87 packages/svelte/tests/validator/samples/assignment-to-const-6/input.svelte	svelte
 <script>
   const arr = [1, 2];
   [arr[0], arr[1]] = [arr[1], arr[0]];
+</script>
+
+{arr}
+
+=== 135 packages/svelte/tests/validator/samples/assignment-to-const-7/input.svelte	svelte
+<script>
+  const arr = [{ 1: { arr: 2 } }, 2];
+  [
+    {
+      1: { arr },
+    },
+    arr[1],
+  ] = [arr[1], arr[0]];
 </script>
 
 {arr}
@@ -39286,6 +40855,56 @@ value: {value}
 </script>
 
 {arr}
+
+=== 417 packages/svelte/tests/validator/samples/assignment-to-const/input.svelte	svelte
+<script>
+  const immutable = false;
+
+  const obj1 = { prop: true };
+  const obj2 = { prop: 0 };
+
+  function shouldNotError() {
+    obj1.prop = false;
+  }
+
+  function shouldNotError2() {
+    obj2.prop++;
+  }
+
+  function shouldError() {
+    immutable = true;
+  }
+</script>
+
+<button on:click={shouldNotError}>click</button>
+<button on:click={shouldNotError2}>click</button>
+<button on:click={shouldError}>click</button>
+
+=== 180 packages/svelte/tests/validator/samples/attribute-expected-equals/input.svelte	error.txt
+Expected token =
+https://svelte.dev/e/expected_token
+  1 | <script>
+  2 | 	let name = 'world';
+> 3 | </script>
+    |         ^
+  4 |
+  5 | <h1 class"=foo">Hello {name}!</h1>
+  6 |
+
+=== 22 packages/svelte/tests/validator/samples/attribute-invalid-name-2/input.svelte	svelte
+<p 3aa="abc">Test</p>
+
+=== 16 packages/svelte/tests/validator/samples/attribute-invalid-name-3/input.svelte	svelte
+<p a*a>Test</p>
+
+=== 15 packages/svelte/tests/validator/samples/attribute-invalid-name-4/input.svelte	svelte
+<p -a>Test</p>
+
+=== 21 packages/svelte/tests/validator/samples/attribute-invalid-name-5/input.svelte	svelte
+<p a;="abc">Test</p>
+
+=== 14 packages/svelte/tests/validator/samples/attribute-invalid-name/input.svelte	svelte
+<p }>Test</p>
 
 === 528 packages/svelte/tests/validator/samples/attribute-quoted/input.svelte	svelte
 <svelte:options runes />
@@ -39354,6 +40973,57 @@ value: {value}
 <!-- svelte-ignore bidirectional_control_characters -->
 ⁧⁦def⁩⁦abc⁩⁩
 
+=== 83 packages/svelte/tests/validator/samples/bind-group-snippet-parameter/input.svelte	svelte
+{#snippet test(group)}
+  <input type="radio" bind:group={group.name} />
+{/snippet}
+
+=== 339 packages/svelte/tests/validator/samples/bind_group_invalid_expression/input.svelte	svelte
+<script>
+  let values = $state([{ name: "Alpha" }, { name: "Beta" }, { name: "Gamma" }]);
+  let selected = $state(values[1]);
+</script>
+
+{#each values as value}
+  <label>
+    <input
+      type="radio"
+      {value}
+      bind:group={() => selected, (v) => (selected = v)}
+    />
+    {value.name}
+  </label>
+{/each}
+
+<p>{selected.name}</p>
+
+=== 108 packages/svelte/tests/validator/samples/binding-await-catch/input.svelte	svelte
+<script>
+  let promise = 0;
+</script>
+
+{#await promise catch error}
+  <input bind:value={error} />
+{/await}
+
+=== 99 packages/svelte/tests/validator/samples/binding-await-then-2/input.svelte	svelte
+<script>
+  let promise = 0;
+</script>
+
+{#await promise then value}
+  <input bind:value />
+{/await}
+
+=== 99 packages/svelte/tests/validator/samples/binding-await-then/input.svelte	svelte
+<script>
+  let promise = 0;
+</script>
+
+{#await promise then value}
+  <input bind:value />
+{/await}
+
 === 92 packages/svelte/tests/validator/samples/binding-const-field/input.svelte	svelte
 <script>
   const dummy = {
@@ -39362,6 +41032,118 @@ value: {value}
 </script>
 
 <input bind:value={dummy.foo} />
+
+=== 72 packages/svelte/tests/validator/samples/binding-const/input.svelte	svelte
+<script>
+  const dummy = "foo";
+</script>
+
+<input bind:value={dummy} />
+
+=== 68 packages/svelte/tests/validator/samples/binding-dimensions-svg/input.svelte	svelte
+<script>
+  let offsetWidth;
+</script>
+
+<svg bind:offsetWidth></svg>
+
+=== 125 packages/svelte/tests/validator/samples/binding-import-component/input.svelte	svelte
+<script>
+  import Input from "./Input.svelte";
+  import { dummy } from "./dummy.js";
+</script>
+
+<Input bind:value={dummy} />
+
+=== 87 packages/svelte/tests/validator/samples/binding-import-element/input.svelte	svelte
+<script>
+  import { dummy } from "./dummy.js";
+</script>
+
+<input bind:value={dummy} />
+
+=== 60 packages/svelte/tests/validator/samples/binding-input-checked/input.svelte	svelte
+<script>
+  let foo;
+</script>
+
+<input bind:checked={foo} />
+
+=== 63 packages/svelte/tests/validator/samples/binding-input-type-boolean/input.svelte	svelte
+<script>
+  let foo;
+</script>
+
+<input bind:value={foo} type />
+
+=== 54 packages/svelte/tests/validator/samples/binding-invalid-on-element-2/input.svelte	svelte
+<script>
+  let open;
+</script>
+
+<div bind:open></div>
+
+=== 56 packages/svelte/tests/validator/samples/binding-invalid-on-element/input.svelte	svelte
+<script>
+  let value;
+</script>
+
+<div bind:value></div>
+
+=== 67 packages/svelte/tests/validator/samples/binding-invalid-value-global/input.svelte	svelte
+<script>
+  console.log(foo);
+</script>
+
+<input bind:value={foo} />
+
+=== 46 packages/svelte/tests/validator/samples/binding-invalid-value/input.svelte	svelte
+<script></script>
+
+<input bind:value={foo} />
+
+=== 62 packages/svelte/tests/validator/samples/binding-invalid/input.svelte	svelte
+<script>
+  let whatever;
+</script>
+
+<div bind:whatever></div>
+
+=== 81 packages/svelte/tests/validator/samples/binding-let/input.svelte	svelte
+<script>
+  let Foo;
+</script>
+
+<Foo let:bar>
+  <input bind:value={bar} />
+</Foo>
+
+=== 73 packages/svelte/tests/validator/samples/binding-radio-input-checked/input.svelte	svelte
+<script>
+  let foo;
+</script>
+
+<input type="radio" bind:checked={foo} />
+
+=== 292 packages/svelte/tests/validator/samples/binding-select-multiple-dynamic/input.svelte	svelte
+<script>
+  let value;
+  let multiple;
+</script>
+
+<!-- ok -->
+<select bind:this={value} {multiple}>
+  <option>1</option>
+  <option>2</option>
+  <option>3</option>
+</select>
+
+<!-- error -->
+<select bind:value {multiple}>
+  <option>1</option>
+  <option>2</option>
+  <option>3</option>
+</select>
 
 === 91 packages/svelte/tests/validator/samples/binding-this-input-type-dynamic/input.svelte	svelte
 <script>
@@ -39389,6 +41171,23 @@ value: {value}
 </button>
 
 {String(value)}
+
+=== 138 packages/svelte/tests/validator/samples/component-event-modifiers-invalid/input.svelte	svelte
+<script>
+  import Button from "./Button.svelte";
+  const doThat = () => {};
+</script>
+
+<Button on:click|preventDefault={doThat}></Button>
+
+=== 114 packages/svelte/tests/validator/samples/component-invalid-style-directive/input.svelte	svelte
+<script>
+  let name = "world";
+
+  import Child from "Child.svelte";
+</script>
+
+<Child {name} style:color="red" />
 
 === 288 packages/svelte/tests/validator/samples/component-legacy-instantiation/input.svelte	svelte
 <script>
@@ -39424,6 +41223,37 @@ value: {value}
 
 <NS.Foo />
 
+=== 29 packages/svelte/tests/validator/samples/component-slot-default-reserved/input.svelte	svelte
+<slot name="default"></slot>
+
+=== 118 packages/svelte/tests/validator/samples/component-slot-dynamic-attribute/input.svelte	svelte
+<script>
+  import Nested from "./Nested.svelte";
+</script>
+
+<Nested>
+  <button slot={foo}>click me</button>
+</Nested>
+
+=== 25 packages/svelte/tests/validator/samples/component-slot-dynamic/input.svelte	svelte
+<slot name={foo}></slot>
+
+=== 221 packages/svelte/tests/validator/samples/component-slotted-custom-element-2/input.svelte	svelte
+<script>
+  import Nested from "./Nested.svelte";
+  let thing = false;
+</script>
+
+<custom-element>
+  <Nested>
+    {#if thing}
+      <div>
+        <div slot="bar"></div>
+      </div>
+    {/if}
+  </Nested>
+</custom-element>
+
 === 244 packages/svelte/tests/validator/samples/component-slotted-custom-element/input.svelte	svelte
 <script>
   import Nested from "./Nested.svelte";
@@ -39441,10 +41271,74 @@ value: {value}
   </custom-element>
 </Nested>
 
+=== 149 packages/svelte/tests/validator/samples/component-slotted-each-block/input.svelte	svelte
+<script>
+  import Nested from "./Nested.svelte";
+</script>
+
+<Nested>
+  {#each things as thing}
+    <div slot="foo">{thing}</div>
+  {/each}
+</Nested>
+
+=== 135 packages/svelte/tests/validator/samples/component-slotted-if-block/input.svelte	svelte
+<script>
+  import Nested from "./Nested.svelte";
+</script>
+
+<Nested>
+  {#if thing}
+    <div slot="foo">{thing}</div>
+  {/if}
+</Nested>
+
+=== 110 packages/svelte/tests/validator/samples/const-tag-conflict-1/input.svelte	svelte
+<script>
+  export let array;
+</script>
+
+{#each array as item}
+  {@const a = item}
+  {@const a = item}
+{/each}
+
+=== 92 packages/svelte/tests/validator/samples/const-tag-conflict-2/input.svelte	svelte
+<script>
+  export let array;
+</script>
+
+{#each array as item}
+  {@const item = 123}
+{/each}
+
 === 43 packages/svelte/tests/validator/samples/const-tag-inside-key-block/input.svelte	svelte
 {#key "key"}
   {@const foo = "bar"}
 {/key}
+
+=== 58 packages/svelte/tests/validator/samples/const-tag-invalid-rune-usage/input.svelte	svelte
+{#snippet test()}
+  {@const der = $derived(0)}
+{/snippet}
+
+=== 55 packages/svelte/tests/validator/samples/const-tag-placement-1/input.svelte	svelte
+<script>
+  export let a;
+</script>
+
+{@const b = a + 1}
+
+=== 95 packages/svelte/tests/validator/samples/const-tag-placement-2/input.svelte	svelte
+<script>
+  export let a;
+</script>
+
+{#each a as i}
+  <div>
+    {@const b = i}
+  </div>
+{/each}
 
 === 123 packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte	svelte
 <script>
@@ -39456,6 +41350,310 @@ value: {value}
   {x}
   <FlakyComponent />
 </svelte:boundary>
+
+=== 129 packages/svelte/tests/validator/samples/const-tag-readonly-1/input.svelte	svelte
+<script>
+  export let array;
+</script>
+
+{#each array as a}
+  {@const b = a + 1}
+  <button on:click={() => b++}></button>
+{/each}
+
+=== 115 packages/svelte/tests/validator/samples/const-tag-readonly-2/input.svelte	svelte
+<script>
+  export let array;
+</script>
+
+{#each array as a}
+  {@const b = a + 1}
+  <input bind:value={b} />
+{/each}
+
+=== 332 packages/svelte/tests/validator/samples/contenteditable-dynamic/input.svelte	svelte
+<script>
+  export let name;
+
+  let toggle = false;
+</script>
+
+<!-- ok -->
+<editor contenteditable="true" bind:innerHTML={name}></editor>
+<editor contenteditable="" bind:innerHTML={name}></editor>
+<editor contenteditable bind:innerHTML={name}></editor>
+<!-- error -->
+<editor contenteditable={toggle} bind:innerHTML={name}></editor>
+
+=== 81 packages/svelte/tests/validator/samples/contenteditable-missing/input.svelte	svelte
+<script>
+  export let name;
+</script>
+
+<editor bind:textContent={name}></editor>
+
+=== 135 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-1/input.svelte	svelte
+<p><span /></p>
+
+<style>
+  p > span {
+    color: red;
+  }
+  :has(> span) {
+    color: red;
+  }
+  > span {
+    color: red;
+  }
+</style>
+
+=== 108 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-2/input.svelte	svelte
+<p><span /></p>
+<p><span /></p>
+
+<style>
+  p + p {
+    color: red;
+  }
+  + p {
+    color: red;
+  }
+</style>
+
+=== 93 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-3/input.svelte	svelte
+<p><span /></p>
+
+<style>
+  @media screen {
+    > span {
+      color: red;
+    }
+  }
+</style>
+
+=== 62 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-4/input.svelte	svelte
+<p><span /></p>
+
+<style>
+  p > {
+    color: red;
+  }
+</style>
+
+=== 184 packages/svelte/tests/validator/samples/css-invalid-global-placement-2/input.svelte	svelte
+<style>
+  .foo :global(.bar):first-child {
+    color: red;
+  }
+  .foo :global(p):first-child {
+    color: red;
+  }
+  .foo :global(.bar):first-child .baz {
+    color: red;
+  }
+</style>
+
+=== 122 packages/svelte/tests/validator/samples/css-invalid-global-placement-3/input.svelte	svelte
+<style>
+  .foo :global(.bar)::after {
+    color: red;
+  }
+  .foo :global(.bar)::after .baz {
+    color: red;
+  }
+</style>
+
+=== 58 packages/svelte/tests/validator/samples/css-invalid-global-placement-4/input.svelte	svelte
+<style>
+  .foo:global(div) {
+    color: red;
+  }
+</style>
+
+=== 87 packages/svelte/tests/validator/samples/css-invalid-global-placement-5/input.svelte	svelte
+<div class="foo"></div>
+
+<style>
+  .foo:global(div.bar) {
+    color: red;
+  }
+</style>
+
+=== 119 packages/svelte/tests/validator/samples/css-invalid-global-placement-6/input.svelte	svelte
+<style>
+  :global(div):first-child {
+    color: red;
+  }
+  .foo:global(div):first-child {
+    color: red;
+  }
+</style>
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-placement/input.svelte	svelte
+<style>
+  .foo :global(.bar) .baz {
+    color: red;
+  }
+</style>
+
+=== 262 packages/svelte/tests/validator/samples/css-invalid-global-selector-2/input.svelte	svelte
+<div>
+  <h1>hello world</h1>
+</div>
+
+<style>
+  div :global(:is(h1, h2)) {
+    color: red;
+  }
+  div :global(:where(h1, h2)) {
+    color: red;
+  }
+  div :global(h1 ~ :is(h2, h3)) {
+    color: red;
+  }
+  div :global(:is(h1, h2), h3) {
+    color: red;
+  }
+</style>
+
+=== 190 packages/svelte/tests/validator/samples/css-invalid-global-selector-3/input.svelte	svelte
+<div>
+  <h1>hello world</h1>
+</div>
+
+<style>
+  div :global(h1[data-title="Hello, world!"]) {
+    color: red;
+  }
+  div :global(h1[attribute], video[autoplay]) {
+    color: red;
+  }
+</style>
+
+=== 102 packages/svelte/tests/validator/samples/css-invalid-global-selector-4/input.svelte	svelte
+<div>
+  <h1>hello world</h1>
+</div>
+
+<style>
+  div :global(h1, .abc\)) {
+    color: red;
+  }
+</style>
+
+=== 153 packages/svelte/tests/validator/samples/css-invalid-global-selector-5/input.svelte	svelte
+<div>
+  <h1>hello world</h1>
+</div>
+
+<style>
+  :global(h1, h2, h3),
+  div {
+    color: red;
+  }
+  :global(h1, h2, h3) div {
+    color: red;
+  }
+</style>
+
+=== 153 packages/svelte/tests/validator/samples/css-invalid-global-selector-6/input.svelte	svelte
+<div>
+  <h1>hello world</h1>
+</div>
+
+<style>
+  :global(.h1\,h2\,h3)::foo {
+    color: red;
+  }
+  :global(h1, h2, h3)::foo {
+    color: red;
+  }
+</style>
+
+=== 365 packages/svelte/tests/validator/samples/css-invalid-global-selector-list/input.svelte	svelte
+<div>
+  <h1>hello world</h1>
+</div>
+
+<style>
+  ::foo:global([data-state="checked"]) {
+    color: red;
+  }
+  ::foo:global(.foo) {
+    color: red;
+  }
+  ::foo:global(#foo) {
+    color: red;
+  }
+  ::foo:global(::foo) {
+    color: red;
+  }
+  ::foo:global(:foo) {
+    color: red;
+  }
+  :global(h1) {
+    color: red;
+  }
+  ::foo:global(h1) {
+    color: red;
+  }
+</style>
+
+=== 246 packages/svelte/tests/validator/samples/css-invalid-global-selector/input.svelte	svelte
+<div>
+  <h1>hello world</h1>
+</div>
+
+<style>
+  div :global(.h1\,h2\,h3) {
+    color: red;
+  }
+  :global(h1, h2, h3) {
+    color: red;
+  }
+  div,
+  :global(h1, h2, h3) {
+    color: red;
+  }
+  div :global(h1, h2, h3) {
+    color: red;
+  }
+</style>
+
+=== 326 packages/svelte/tests/validator/samples/css-invalid-type-selector-placement/input.svelte	svelte
+<div>
+  <h1 class="bar" id="baz">hello world</h1>
+</div>
+
+<style>
+  :global(.foo):foo {
+    color: red;
+  }
+  :global(.foo)::foo {
+    color: red;
+  }
+  :global(.foo).bar {
+    color: red;
+  }
+  :global(.foo)#baz {
+    color: red;
+  }
+  :global(.foo)[id] {
+    color: red;
+  }
+  :global(.foo)h1 {
+    color: red;
+  }
+</style>
+
+=== 77 packages/svelte/tests/validator/samples/css-mismatched-quotes/input.svelte	svelte
+<div></div>
+
+<style>
+	div {
+		background-image: url("star.gif');
+	}
+</style>
 
 === 102 packages/svelte/tests/validator/samples/custom-element-props-identifier-props-option/input.svelte	svelte
 <svelte:options
@@ -39482,10 +41680,52 @@ value: {value}
   let props = $props();
 </script>
 
+=== 193 packages/svelte/tests/validator/samples/debug-invalid-args/input.svelte	error.txt
+{@debug ...} arguments must be identifiers, not arbitrary expressions
+https://svelte.dev/e/debug_tag_invalid_arguments
+  1 | <p>
+> 2 | 	{@debug a + b}
+    | 	       ^
+  3 | 	{a + b}
+  4 | </p>
+
+=== 57 packages/svelte/tests/validator/samples/declaration-tag-already-declared/input.svelte	svelte
+<script>
+  let foo = "bar";
+</script>
+
+{let foo = "baz"}
+
 === 39 packages/svelte/tests/validator/samples/declaration-tag-invalid-function/input.svelte	svelte
 {#if true}
   {function foo() {}}
 {/if}
+
+=== 255 packages/svelte/tests/validator/samples/declaration-tag-invalid-type-2/input.svelte	error.txt
+Declaration tags must be `let` or `const` declarations
+https://svelte.dev/e/declaration_tag_invalid_type
+  26 | 	{type in foo}
+  27 | 	<!-- ... this one should trigger though -->
+> 28 | 	{type foo = boolean}
+     | 	^^^^^^^^^^^^^^^^^^
+  29 | {/if}
+  30 |
+
+=== 172 packages/svelte/tests/validator/samples/declaration-tag-invalid-type/input.svelte	error.txt
+Declaration tags must be `let` or `const` declarations
+https://svelte.dev/e/declaration_tag_invalid_type
+  1 | {#if true}
+> 2 | 	{var foo = 1}
+    | 	^^^
+  3 | {/if}
+  4 |
+
+=== 69 packages/svelte/tests/validator/samples/declaration-tag-legacy-mode/input.svelte	svelte
+<script>
+  export let name = "world";
+</script>
+
+{const foo = "foo"}
 
 === 116 packages/svelte/tests/validator/samples/declaration-tag-maybe-runes/input.svelte	svelte
 <script>
@@ -39515,6 +41755,147 @@ Usage when no explicit runes/legacy mode should be ok
 >
   a
 </button>
+
+=== 51 packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte	svelte
+<script>
+  export default function () {}
+</script>
+
+=== 45 packages/svelte/tests/validator/samples/default-export-anonymous-function/input.svelte	svelte
+<script>
+  export default class {}
+</script>
+
+=== 77 packages/svelte/tests/validator/samples/default-export-indirect/input.svelte	svelte
+<script module>
+  let answer = 42;
+  export { answer as default };
+</script>
+
+=== 47 packages/svelte/tests/validator/samples/default-export-module/input.svelte	svelte
+<script module>
+  export default 42;
+</script>
+
+=== 40 packages/svelte/tests/validator/samples/default-export/input.svelte	svelte
+<script>
+  export default 42;
+</script>
+
+=== 177 packages/svelte/tests/validator/samples/directive-non-expression/input.svelte	error.txt
+Directive value must be a JavaScript expression enclosed in curly braces
+https://svelte.dev/e/directive_invalid_value
+> 1 | <div on:click="invalid"></div>
+    |               ^
+
+=== 74 packages/svelte/tests/validator/samples/document-binding-invalid-dimensions/input.svelte	svelte
+<script>
+  let foo;
+</script>
+
+<svelte:document bind:clientWidth={foo} />
+
+=== 14 packages/svelte/tests/validator/samples/dollar-dollar-global-in-markup/input.svelte	svelte
+{$$billsyall}
+
+=== 34 packages/svelte/tests/validator/samples/dollar-dollar-global-in-script/input.svelte	svelte
+<script>
+  $$billsyall;
+</script>
+
+=== 4 packages/svelte/tests/validator/samples/dollar-global-in-markup/input.svelte	svelte
+{$}
+
+=== 24 packages/svelte/tests/validator/samples/dollar-global-in-script/input.svelte	svelte
+<script>
+  $;
+</script>
+
+=== 217 packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte	error.txt
+`<svelte:element>` must have a 'this' attribute with a value
+https://svelte.dev/e/svelte_element_missing_this
+  1 | <div>
+> 2 | 	<svelte:element this>foo</svelte:element>
+    | 	               ^^^^
+  3 | </div>
+  4 |
+
+=== 193 packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	error.txt
+`<svelte:element>` must have a 'this' attribute with a value
+https://svelte.dev/e/svelte_element_missing_this
+  1 | <div>
+> 2 | 	<svelte:element>foo</svelte:element>
+    | ^
+  3 | </div>
+  4 |
+
+=== 217 packages/svelte/tests/validator/samples/dynamic-element-this/input.svelte	error.txt
+'this' is a reserved word in JavaScript and cannot be used here
+https://svelte.dev/e/unexpected_reserved_word
+  1 | <div>
+> 2 | 	<svelte:element {this}>foo</svelte:element>
+    | 	                ^
+  3 | </div>
+  4 |
+
+=== 281 packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	error.txt
+Comma is not permitted after the rest element
+https://svelte.dev/e/js_parse_error
+  1 | <script>
+  2 | 	export let animalEntries;
+> 3 | </script>
+    |          ^
+  4 |
+  5 | {#each animalEntries as { animal, features: { ...rest, eyes } } }
+  6 | 	<p {...rest}>{animal} {eyes}</p>
+
+=== 159 packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	error.txt
+Unexpected keyword 'case'
+https://svelte.dev/e/js_parse_error
+> 1 | {#each cases as { case }}
+    |                  ^
+  2 | 	{case.title}
+  3 | {/each}
+  4 |
+
+=== 141 packages/svelte/tests/validator/samples/each-block-invalid-context-destructured/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | {#each cases as [case]}
+    |                 ^
+  2 | 	{case.title}
+  3 | {/each}
+
+=== 195 packages/svelte/tests/validator/samples/each-block-invalid-context/input.svelte	error.txt
+'case' is a reserved word in JavaScript and cannot be used here
+https://svelte.dev/e/unexpected_reserved_word
+> 1 | {#each cases as case}
+    |                ^
+  2 | 	{case.title}
+  3 | {/each}
+
+=== 106 packages/svelte/tests/validator/samples/error-mode-warn/input.svelte	svelte
+<script>
+  const dummy = "foo";
+</script>
+
+<input bind:value={dummy} />
+<input bind:value={undeclared} />
+
+=== 118 packages/svelte/tests/validator/samples/event-attribute/input.svelte	svelte
+<button onclick={() => {}}>ok</button>
+<Button onclick onbar="bar">ok</Button>
+
+<button onclick="foo">not ok</button>
+
+=== 63 packages/svelte/tests/validator/samples/event-modifiers-invalid-nonpassive/input.svelte	svelte
+<div on:touchstart|nonpassive|passive={handleWheel}>oops</div>
+
+=== 62 packages/svelte/tests/validator/samples/event-modifiers-invalid-passive/input.svelte	svelte
+<div on:wheel|passive|preventDefault={handleWheel}>oops</div>
+
+=== 45 packages/svelte/tests/validator/samples/event-modifiers-invalid/input.svelte	svelte
+<button on:click|stop|bad={doThat}></button>
 
 === 72 packages/svelte/tests/validator/samples/export-not-defined-module-with-source/input.svelte	svelte
 <script module>
@@ -39563,8 +41944,38 @@ Usage when no explicit runes/legacy mode should be ok
 <button {onkeydown}>click me</button>
 <button {onkeydown}>click me</button>
 
+=== 152 packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	error.txt
+{@html ...} tag cannot be in attribute value
+https://svelte.dev/e/tag_invalid_placement
+> 1 | <div style="{@html text}"></div>
+    |            ^
+  2 |
+
+=== 151 packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	error.txt
+{@html ...} tag cannot be inside <textarea>
+https://svelte.dev/e/tag_invalid_placement
+  1 | <textarea>
+> 2 | 	{@html fruit}
+    | ^
+  3 | </textarea>
+
 === 104 packages/svelte/tests/validator/samples/if-block-whitespace-legacy/input.svelte	svelte
 <svelte:options runes={false} />
+
+<!-- prettier-ignore -->
+<div>
+	{ #if true}
+		<p>hi</p>
+	{/if}
+</div>
+
+=== 198 packages/svelte/tests/validator/samples/if-block-whitespace-runes/input.svelte	svelte
+<svelte:options runes={true} />
+
+<!-- ok -->
+{#if true}{#if true}{/if}{/if}
+{#if foo}{:else if bar}{/if}
+{#if foo}{:else}{/if}
 
 <!-- prettier-ignore -->
 <div>
@@ -39682,6 +42093,37 @@ Usage when no explicit runes/legacy mode should be ok
 <button foo:bar>click me</button>
 <C foo:bar />
 
+=== 174 packages/svelte/tests/validator/samples/illegal-variable-declaration/input.svelte	svelte
+<script module>
+  import { FOO } from "./dummy.svelte";
+  function ok() {
+    let FOO;
+  }
+</script>
+
+<script>
+  function ok() {
+    let FOO;
+  }
+  let FOO;
+</script>
+
+{FOO}
+
+=== 77 packages/svelte/tests/validator/samples/illegal_spread_element-document/input.svelte	svelte
+<script>
+  let a = {};
+</script>
+
+<svelte:document {...a}></svelte:document>
+
+=== 59 packages/svelte/tests/validator/samples/illegal_spread_element-window/input.svelte	svelte
+<script>
+  let a = {};
+</script>
+
+<svelte:window {...a} />
+
 === 103 packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte	svelte
 <main><div class="hello"></div></main>
 
@@ -39755,6 +42197,28 @@ Usage when no explicit runes/legacy mode should be ok
   })();
 </script>
 
+=== 112 packages/svelte/tests/validator/samples/invalid-empty-css-declaration/input.svelte	svelte
+<div class="foo bar"></div>
+
+<style>
+  .foo {
+    color:;
+  }
+  .bar {
+    font:;
+    color: blue;
+  }
+</style>
+
+=== 70 packages/svelte/tests/validator/samples/invalid-node-placement-2/input.svelte	svelte
+<div>
+  <p>
+    <span>
+      <div>foo</div>
+    </span>
+  </p>
+</div>
+
 === 189 packages/svelte/tests/validator/samples/invalid-node-placement-3/input.svelte	svelte
 <script>
 </script>
@@ -39769,6 +42233,17 @@ Usage when no explicit runes/legacy mode should be ok
   <option value="1">bug</option>
 </select>
 
+=== 98 packages/svelte/tests/validator/samples/invalid-node-placement-4/input.svelte	svelte
+<div>
+  <form>
+    <div>
+      <form>
+        <input />
+      </form>
+    </div>
+  </form>
+</div>
+
 === 101 packages/svelte/tests/validator/samples/invalid-node-placement-5/input.svelte	svelte
 <div>
   <form>
@@ -39780,6 +42255,43 @@ Usage when no explicit runes/legacy mode should be ok
   </form>
 </div>
 
+=== 337 packages/svelte/tests/validator/samples/invalid-node-placement-6/input.svelte	svelte
+<dl>
+  <dt>valid</dt>
+  <dd>
+    <!-- dl resets the validation -->
+    <dl>
+      <dt>valid</dt>
+      <dd>valid</dd>
+    </dl>
+    <!-- custom element resets the validation -->
+    <foo-bar>
+      <dt>valid</dt>
+      <dd>valid</dd>
+    </foo-bar>
+    <!-- other tags don't -->
+    <div>
+      <dt>invalid</dt>
+    </div>
+  </dd>
+</dl>
+
+=== 114 packages/svelte/tests/validator/samples/invalid-node-placement-7/input.svelte	svelte
+<some-table>
+  <!-- No error -->
+  <tbody></tbody>
+</some-table>
+
+<div>
+  <!-- Error -->
+  <tbody></tbody>
+</div>
+
+=== 117 packages/svelte/tests/validator/samples/invalid-node-placement-8/input.svelte	svelte
+<table attr={value} style:x={y} class="I'm not {counted} as text in the table">
+  <tbody>I am {bad}</tbody>
+</table>
+
 === 66 packages/svelte/tests/validator/samples/invalid-node-placement-template/input.svelte	svelte
 <template>
   <tr>
@@ -39787,6 +42299,15 @@ Usage when no explicit runes/legacy mode should be ok
     <td></td>
   </tr>
 </template>
+
+=== 101 packages/svelte/tests/validator/samples/invalid-node-placement/input.svelte	svelte
+<div>
+  <a href="/foo">
+    <div>
+      <p><a href="/foo">{`hello`}</a></p>
+    </div>
+  </a>
+</div>
 
 === 121 packages/svelte/tests/validator/samples/invalid-self-closing-tag/input.svelte	svelte
 <!-- valid -->
@@ -39817,12 +42338,60 @@ Usage when no explicit runes/legacy mode should be ok
   test();
 </script>
 
+=== 252 packages/svelte/tests/validator/samples/let-directive/input.svelte	svelte
+{#if foo}
+  <svelte:self let:x></svelte:self>
+{/if}
+<Component let:x></Component>
+<div let:x></div>
+<!-- strictly speaking this is invalid, but it was never checked in Svelte 3/4 either, and is now deprecated, so don't mind -->
+<svelte:window let:x />
+
+=== 163 packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	error.txt
+{#if ...} block cannot be in attribute value
+https://svelte.dev/e/block_invalid_placement
+> 1 | <div style="{#if condition}a{/if}"></div>
+    |            ^
+  2 |
+
+=== 196 packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	error.txt
+{#each ...} block cannot be inside <textarea>
+https://svelte.dev/e/block_invalid_placement
+  1 | <textarea>
+> 2 | 	{#each fruits as fruit}
+    | ^
+  3 | 		{fruit}
+  4 | 	{/each}
+  5 | </textarea>
+
 === 80 packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte	svelte
 <script module>
   let num = 2;
   let square;
   $: square = num * num;
 </script>
+
+=== 249 packages/svelte/tests/validator/samples/multiple-script-default-context/input.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  1 | <script>
+  2 | 	let foo;
+> 3 | </script>
+    |         ^
+  4 |
+  5 | <script>
+  6 | 	let bar;
+
+=== 263 packages/svelte/tests/validator/samples/multiple-script-module-context/input.svelte	error.txt
+A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element
+https://svelte.dev/e/script_duplicate
+  1 | <script module>
+  2 | 	let foo;
+> 3 | </script>
+    |         ^
+  4 |
+  5 | <script module>
+  6 | 	let bar;
 
 === 61 packages/svelte/tests/validator/samples/multiple-var-same-name/input.svelte	svelte
 <script>
@@ -39842,6 +42411,20 @@ Usage when no explicit runes/legacy mode should be ok
     }
   }
 </script>
+
+=== 243 packages/svelte/tests/validator/samples/namespace-invalid/input.svelte	error.txt
+Value must be "html", "mathml" or "svg", if specified
+https://svelte.dev/e/svelte_options_invalid_attribute_value
+> 1 | <svelte:options namespace="http://www.w3.org/1999/svg"/>
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+
+=== 195 packages/svelte/tests/validator/samples/namespace-non-literal/input.svelte	error.txt
+Value must be "html", "mathml" or "svg", if specified
+https://svelte.dev/e/svelte_options_invalid_attribute_value
+> 1 | <svelte:options namespace={ns}/>
+    |                ^^^^^^^^^^^^^^
+  2 |
 
 === 160 packages/svelte/tests/validator/samples/no-missing-declarations-for-same-node-let-variable/input.svelte	svelte
 <script>
@@ -39882,6 +42465,15 @@ Usage when no explicit runes/legacy mode should be ok
     </tr>
   </tbody>
 </table>
+
+=== 78 packages/svelte/tests/validator/samples/reactive-declaration-cyclical/input.svelte	svelte
+<script>
+  let a = 1;
+  let b = 2;
+
+  $: a = b + 1;
+  $: b = a + 1;
+</script>
 
 === 178 packages/svelte/tests/validator/samples/reassign-derived-private-public-field/input.svelte	svelte
 <script>
@@ -39936,6 +42528,43 @@ Usage when no explicit runes/legacy mode should be ok
   <input bind:value={rest.innerValue} type="text" placeholder={rest.foo} />
   <br />
 {/each}
+
+=== 77 packages/svelte/tests/validator/samples/rune-invalid-spread-derived-by/input.svelte	svelte
+<script>
+  const args = [0];
+  const count = $derived.by(...args);
+</script>
+
+=== 74 packages/svelte/tests/validator/samples/rune-invalid-spread-derived/input.svelte	svelte
+<script>
+  const args = [0];
+  const count = $derived(...args);
+</script>
+
+=== 76 packages/svelte/tests/validator/samples/rune-invalid-spread-state-raw/input.svelte	svelte
+<script>
+  const args = [0];
+  const count = $state.raw(...args);
+</script>
+
+=== 72 packages/svelte/tests/validator/samples/rune-invalid-spread-state/input.svelte	svelte
+<script>
+  const args = [0];
+  const count = $state(...args);
+</script>
+
+=== 237 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings-2/input.svelte	svelte
+<script>
+  let { foo } = $props();
+</script>
+
+<!-- ok -->
+<button onclick={foo}>click me</button>
+<Button on:click={foo}>click me</Button>
+<Button on:click={foo}>click me</Button>
+
+<!-- error -->
+<button on:click={foo}>click me</button>
 
 === 235 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings/input.svelte	svelte
 <script>
@@ -39997,6 +42626,14 @@ Usage when no explicit runes/legacy mode should be ok
 <script context="module">
   let num = 2;
 </script>
+
+=== 199 packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	error.txt
+If the context attribute is supplied, its value must be "module"
+https://svelte.dev/e/script_invalid_context
+> 1 | <script context="nope">
+    |        ^^^^^^^^^^^^^^
+  2 | 	let foo;
+  3 | </script>
 
 === 29 packages/svelte/tests/validator/samples/script-invalid-spread-attribute/input.svelte	svelte
 <script {...wheee}></script>
@@ -40116,6 +42753,9 @@ Usage when no explicit runes/legacy mode should be ok
   {/if}
 </Foo>
 
+=== 30 packages/svelte/tests/validator/samples/slot-attribute-invalid/input.svelte	svelte
+<div slot="foo">invalid</div>
+
 === 248 packages/svelte/tests/validator/samples/slot-warning-ignore/input.svelte	svelte
 <script>
   import Component from "./Component.svelte";
@@ -40146,6 +42786,24 @@ Usage when no explicit runes/legacy mode should be ok
   <!-- svelte-ignore unrelated_warning -->
   <!-- svelte-ignore a11y_no_static_element_interactions -->
   <div slot="foo" on:click>hi!</div>
+</Component>
+
+=== 69 packages/svelte/tests/validator/samples/snippet-already-declared/input.svelte	svelte
+<script>
+  let foo = "bar";
+</script>
+
+{#snippet foo()}baz{/snippet}
+
+=== 144 packages/svelte/tests/validator/samples/snippet-shadowing-prop/input.svelte	svelte
+<script>
+  import Component from "./Component.svelte";
+</script>
+
+<Component title="">
+  {#snippet title()}
+    title
+  {/snippet}
 </Component>
 
 === 59 packages/svelte/tests/validator/samples/snippet-whitespace-ok/input.svelte	svelte
@@ -40220,6 +42878,9 @@ Usage when no explicit runes/legacy mode should be ok
   $state();
 </script>
 
+=== 40 packages/svelte/tests/validator/samples/style-directive-modifiers-invalid/input.svelte	svelte
+<button style:color|bad="red"></button>
+
 === 106 packages/svelte/tests/validator/samples/svelte-component-deprecated/input.svelte	svelte
 <svelte:options runes />
 
@@ -40228,6 +42889,31 @@ Usage when no explicit runes/legacy mode should be ok
 </script>
 
 <svelte:component this={A} />
+
+=== 115 packages/svelte/tests/validator/samples/svelte-fragment-placement-2/input.svelte	svelte
+<script>
+  import Nested from "./Nested.svelte";
+</script>
+
+<svelte:fragment>
+  <div>test</div>
+</svelte:fragment>
+
+=== 163 packages/svelte/tests/validator/samples/svelte-fragment-placement/input.svelte	svelte
+<script>
+  import Nested from "./Nested.svelte";
+</script>
+
+<Nested>
+  <div>
+    <svelte:fragment>
+      <div>test</div>
+    </svelte:fragment>
+  </div>
+</Nested>
+
+=== 30 packages/svelte/tests/validator/samples/svelte-head-attributes/input.svelte	svelte
+<svelte:head x></svelte:head>
 
 === 121 packages/svelte/tests/validator/samples/svelte-ignore-non-reactive-update/input.svelte	svelte
 <svelte:options runes />
@@ -40262,6 +42948,148 @@ Usage when no explicit runes/legacy mode should be ok
 === 43 packages/svelte/tests/validator/samples/tag-hyphen/input.svelte	svelte
 <svelte:options customElement="custom-" />
 
+=== 194 packages/svelte/tests/validator/samples/tag-invalid/input.svelte	error.txt
+Tag name must be lowercase and hyphenated
+https://svelte.dev/e/svelte_options_invalid_tagname
+> 1 | <svelte:options customElement="invalid" />
+    |                ^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+
+=== 392 packages/svelte/tests/validator/samples/tag-non-string/input.svelte	error.txt
+"customElement" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: "open" | "none" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }
+https://svelte.dev/e/svelte_options_invalid_customelement
+> 1 | <svelte:options customElement={42}/>
+    |                ^^^^^^^^^^^^^^^^^^
+  2 |
+
+=== 178 packages/svelte/tests/validator/samples/tag-reserved/input.svelte	error.txt
+Tag name is reserved
+https://svelte.dev/e/svelte_options_reserved_tagname
+> 1 | <svelte:options customElement="font-face" />
+    |                ^^^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
+
+=== 54 packages/svelte/tests/validator/samples/textarea-value-children/input.svelte	svelte
+<textarea value={foo}>
+	some illegal text
+</textarea>
+
+=== 81 packages/svelte/tests/validator/samples/title-no-attributes/input.svelte	svelte
+<svelte:head>
+  <title data-invalid="true">a static title</title>
+</svelte:head>
+
+=== 80 packages/svelte/tests/validator/samples/title-no-children/input.svelte	svelte
+<svelte:head>
+  <title>an <strong>invalid</strong> title</title>
+</svelte:head>
+
+=== 97 packages/svelte/tests/validator/samples/transition-duplicate-in-transition/input.svelte	svelte
+<script>
+  function foo() {}
+  function bar() {}
+</script>
+
+<div in:foo transition:bar>...</div>
+
+=== 89 packages/svelte/tests/validator/samples/transition-duplicate-in/input.svelte	svelte
+<script>
+  function foo() {}
+  function bar() {}
+</script>
+
+<div in:foo in:bar>...</div>
+
+=== 98 packages/svelte/tests/validator/samples/transition-duplicate-out-transition/input.svelte	svelte
+<script>
+  function foo() {}
+  function bar() {}
+</script>
+
+<div out:foo transition:bar>...</div>
+
+=== 91 packages/svelte/tests/validator/samples/transition-duplicate-out/input.svelte	svelte
+<script>
+  function foo() {}
+  function bar() {}
+</script>
+
+<div out:foo out:bar>...</div>
+
+=== 97 packages/svelte/tests/validator/samples/transition-duplicate-transition-in/input.svelte	svelte
+<script>
+  function foo() {}
+  function bar() {}
+</script>
+
+<div transition:foo in:bar>...</div>
+
+=== 98 packages/svelte/tests/validator/samples/transition-duplicate-transition-out/input.svelte	svelte
+<script>
+  function foo() {}
+  function bar() {}
+</script>
+
+<div transition:foo out:bar>...</div>
+
+=== 105 packages/svelte/tests/validator/samples/transition-duplicate-transition/input.svelte	svelte
+<script>
+  function foo() {}
+  function bar() {}
+</script>
+
+<div transition:foo transition:bar>...</div>
+
+=== 99 packages/svelte/tests/validator/samples/transition-on-component/input.svelte	svelte
+<script>
+  import Widget from "./Widget.svelte";
+
+  function foo() {}
+</script>
+
+<Widget in:foo />
+
+=== 67 packages/svelte/tests/validator/samples/ts-unsupported-accessor/input.svelte	svelte
+<script lang="ts">
+  class Foo {
+    accessor y = 1;
+  }
+</script>
+
+=== 53 packages/svelte/tests/validator/samples/ts-unsupported-decorator/input.svelte	svelte
+<script lang="ts">
+  @foo()
+  class Foo {}
+</script>
+
+=== 59 packages/svelte/tests/validator/samples/ts-unsupported-enum/input.svelte	svelte
+<script lang="ts">
+  enum Foo {
+    bar = 1,
+  }
+</script>
+
+=== 86 packages/svelte/tests/validator/samples/ts-unsupported-modifier-readonly/input.svelte	svelte
+<script lang="ts">
+  class Foo {
+    constructor(readonly x: number) {}
+  }
+</script>
+
+=== 85 packages/svelte/tests/validator/samples/ts-unsupported-modifier/input.svelte	svelte
+<script lang="ts">
+  class Foo {
+    constructor(private x: number) {}
+  }
+</script>
+
+=== 97 packages/svelte/tests/validator/samples/ts-unsupported-namespace/input.svelte	svelte
+<script module lang="ts">
+  namespace SomeNamespace {
+    export const foo = true;
+  }
+</script>
+
 === 455 packages/svelte/tests/validator/samples/unknown-code/input.svelte	svelte
 <svelte:options runes={true} />
 
@@ -40287,6 +43115,27 @@ Usage when no explicit runes/legacy mode should be ok
 === 65 packages/svelte/tests/validator/samples/use-the-platform/input.svelte	svelte
 <div className="abc"></div>
 <label htmlFor="i"><input /></label>
+
+=== 72 packages/svelte/tests/validator/samples/window-binding-invalid-dimensions/input.svelte	svelte
+<script>
+  let foo;
+</script>
+
+<svelte:window bind:clientWidth={foo} />
+
+=== 67 packages/svelte/tests/validator/samples/window-binding-invalid-innerwidth/input.svelte	svelte
+<script>
+  let w;
+</script>
+
+<svelte:window bind:innerwidth={w} />
+
+=== 67 packages/svelte/tests/validator/samples/window-binding-invalid/input.svelte	svelte
+<script>
+  let foo;
+</script>
+
+<svelte:window bind:potato={foo} />
 
 === 64 packages/svelte/tests/validator/samples/window-binding-online/input.svelte	svelte
 <script>

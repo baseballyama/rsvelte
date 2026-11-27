@@ -906,6 +906,174 @@ export default function Svelte_ignore_scan($$renderer, $$props) {
 	}
 ]
 
+=== 179 errors/a11y_incorrect_aria_attribute_type_idlist.svelte	js
+import * as $ from 'svelte/internal/server';
+
+export default function A11y_incorrect_aria_attribute_type_idlist($$renderer) {
+	$$renderer.push(`<div aria-labelledby=""></div>`);
+}
+=== 380 errors/a11y_incorrect_aria_attribute_type_idlist.svelte	warnings.json
+[
+	{
+		"code": "a11y_incorrect_aria_attribute_type_idlist",
+		"message": "The value of 'aria-labelledby' must be a space-separated list of strings that represent DOM element IDs\nhttps://svelte.dev/e/a11y_incorrect_aria_attribute_type_idlist",
+		"start": {
+			"line": 1,
+			"column": 5,
+			"character": 5
+		},
+		"end": {
+			"line": 1,
+			"column": 23,
+			"character": 23
+		}
+	}
+]
+
+=== 322 errors/attribute_contenteditable_dynamic.svelte	error.json
+{
+	"code": "attribute_contenteditable_dynamic",
+	"message": "'contenteditable' attribute cannot be dynamic if element uses two-way binding\nhttps://svelte.dev/e/attribute_contenteditable_dynamic",
+	"start": {
+		"line": 6,
+		"column": 5,
+		"character": 79
+	},
+	"end": {
+		"line": 6,
+		"column": 31,
+		"character": 105
+	}
+}
+
+=== 341 errors/attribute_contenteditable_missing.svelte	error.json
+{
+	"code": "attribute_contenteditable_missing",
+	"message": "'contenteditable' attribute is required for textContent, innerHTML and innerText two-way bindings\nhttps://svelte.dev/e/attribute_contenteditable_missing",
+	"start": {
+		"line": 5,
+		"column": 5,
+		"character": 49
+	},
+	"end": {
+		"line": 5,
+		"column": 26,
+		"character": 70
+	}
+}
+
+=== 245 errors/block_invalid_elseif.svelte	error.json
+{
+	"code": "block_invalid_elseif",
+	"message": "'elseif' should be 'else if'\nhttps://svelte.dev/e/block_invalid_elseif",
+	"start": {
+		"line": 7,
+		"column": 1,
+		"character": 58
+	},
+	"end": {
+		"line": 7,
+		"column": 1,
+		"character": 58
+	}
+}
+
+=== 288 errors/inspect_trace_generator.svelte	error.json
+{
+	"code": "inspect_trace_generator",
+	"message": "`$inspect.trace(...)` cannot be used inside a generator function\nhttps://svelte.dev/e/inspect_trace_generator",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 32
+	},
+	"end": {
+		"line": 3,
+		"column": 18,
+		"character": 48
+	}
+}
+
+=== 290 errors/props_invalid_identifier.svelte	error.json
+{
+	"code": "props_invalid_identifier",
+	"message": "`$props()` can only be used with an object destructuring pattern\nhttps://svelte.dev/e/props_invalid_identifier",
+	"start": {
+		"line": 2,
+		"column": 5,
+		"character": 14
+	},
+	"end": {
+		"line": 2,
+		"column": 23,
+		"character": 32
+	}
+}
+
+=== 298 errors/render_tag_invalid_spread_argument.svelte	error.json
+{
+	"code": "render_tag_invalid_spread_argument",
+	"message": "cannot use spread arguments in `{@render ...}` tags\nhttps://svelte.dev/e/render_tag_invalid_spread_argument",
+	"start": {
+		"line": 5,
+		"column": 13,
+		"character": 64
+	},
+	"end": {
+		"line": 5,
+		"column": 20,
+		"character": 71
+	}
+}
+
+=== 306 errors/script_invalid_attribute_value.svelte	error.json
+{
+	"code": "script_invalid_attribute_value",
+	"message": "If the `module` attribute is supplied, it must be a boolean attribute\nhttps://svelte.dev/e/script_invalid_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
+=== 280 errors/script_reserved_attribute.svelte	error.json
+{
+	"code": "script_reserved_attribute",
+	"message": "The `server` attribute is reserved and cannot be used\nhttps://svelte.dev/e/script_reserved_attribute",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 14,
+		"character": 14
+	}
+}
+
+=== 304 errors/svelte_boundary_invalid_attribute_value.svelte	error.json
+{
+	"code": "svelte_boundary_invalid_attribute_value",
+	"message": "Attribute value must be a non-string expression\nhttps://svelte.dev/e/svelte_boundary_invalid_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	},
+	"end": {
+		"line": 1,
+		"column": 33,
+		"character": 33
+	}
+}
+
 === 386 lint-env/no-sveltekit/src/nav.svelte	js
 import * as $ from 'svelte/internal/server';
 import { goto } from '$app/navigation';
@@ -55190,6 +55358,90 @@ export default function _186_props_id_exported($$renderer, $$props) {
 	}
 }
 
+=== 284 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	error.json
+{
+	"code": "legacy_export_invalid",
+	"message": "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 18,
+		"character": 27
+	}
+}
+
+=== 1583 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	js
+import * as $ from 'svelte/internal/server';
+
+function $s($$renderer, $p) {
+	const $c = $p;
+
+	$$renderer.push(`<b>${$.escape($c)}</b>`);
+}
+
+export default function _187_dollar_prefixed_template_bindings($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let o = 1;
+		const pr = Promise.resolve(2);
+
+		$$renderer.push(`<!--[-->`);
+
+		const each_array = $.ensure_array_like([1, 2]);
+
+		for (let $n = 0, $$length = each_array.length; $n < $$length; $n++) {
+			let $i = each_array[$n];
+
+			$$renderer.push(`<!---->${$.escape($i)}${$.escape($n)}`);
+		}
+
+		$$renderer.push(`<!--]--> <!--[-->`);
+
+		const each_array_1 = $.ensure_array_like([{ a: 1 }]);
+
+		for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+			let { a: $a } = each_array_1[$$index_1];
+
+			$$renderer.push(`<!---->${$.escape($a)}`);
+		}
+
+		$$renderer.push(`<!--]--> `);
+		$s($$renderer, o);
+		$$renderer.push(`<!----> <div><!--[-->`);
+
+		const each_array_2 = $.ensure_array_like([3]);
+
+		for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
+			let $d = each_array_2[$$index_2];
+			const $e = $d;
+
+			$$renderer.push(`<!---->${$.escape($e)}`);
+		}
+
+		$$renderer.push(`<!--]--></div> `);
+
+		if (o) {
+			$$renderer.push('<!--[0-->');
+
+			const $f = o;
+
+			$$renderer.push(`1`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> `);
+
+		$.await($$renderer, pr, () => {}, ($v) => {
+			$$renderer.push(`${$.escape($v)}`);
+		});
+
+		$$renderer.push(`<!--]--> ${$.escape([1].map(($m) => $m).join(''))}`);
+	});
+}
 === 744 pattern/issues/3188-boundary-snippet-params.svelte	js
 import * as $ from 'svelte/internal/server';
 

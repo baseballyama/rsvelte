@@ -6566,6 +6566,12 @@ Page B
 
 <p>{secret}</p>
 
+=== 82 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+> 1 | <div
+    |    ^
+
 === 17 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	svelte
 <h1>grouped</h1>
 
