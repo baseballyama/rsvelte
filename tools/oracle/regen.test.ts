@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { formatPack, readPack, writePack } from './pack.ts';
-import { mergePack, select } from './regen.ts';
+import { mergePack, select, updateUnparseable } from './regen.ts';
 
 const entry = (p: string, body: string) => ({ path: p, attributes: ['js'], body });
 
@@ -51,4 +51,36 @@ test('a unit key selects that unit alone, and any other path is a glob', () => {
 		[keys[2], keys[1]],
 	);
 	assert.deepEqual([...select(['t/*'], keys)], []);
+});
+
+test('a run rewrites the unparseable skips it covers and keeps the rest', () => {
+	const before = [
+		'# header',
+		'svelte/s/a.svelte.ts\tts.compile/default\tstale',
+		'svelte/s/b.svelte.ts\tts.compile/default\tkept',
+		'',
+	].join('\n');
+	const after = updateUnparseable(
+		before,
+		(key, task) => task === 'ts.compile/default' && key !== 'svelte/s/b.svelte.ts',
+		[
+			{
+				key: 'svelte/s/c.svelte.ts',
+				task: 'ts.compile/default',
+				ext: 'js',
+				message: 'Unexpected token (1:2)',
+			},
+			{
+				key: 'svelte/s/d.svelte',
+				task: 'svelte.compile/client',
+				ext: 'js',
+				message: 'not recorded',
+			},
+		],
+	);
+	assert.deepEqual(after.split('\n').slice(1), [
+		'svelte/s/b.svelte.ts\tts.compile/default\tkept',
+		"svelte/s/c.svelte.ts\tts.compile/default\tTypeScript's emit does not parse as a module: Unexpected token (1:2) (typescript-emit-unparseable)",
+		'',
+	]);
 });

@@ -10,6 +10,7 @@ mod comments;
 mod javascript;
 mod source_map;
 
+pub(crate) use javascript::Parentheses;
 use javascript::Unparsed;
 use rsvelte_kernel::computation::task::TaskOutput;
 use serde::Deserialize;
@@ -90,6 +91,7 @@ pub(crate) struct Ours<'a> {
 pub(crate) fn verdict(
     official: &[Entry<'_>],
     ours: Option<&Ours<'_>>,
+    parentheses: Parentheses,
 ) -> Result<Option<Verdict>, String> {
     let wrote = ours.is_some_and(|o| !o.output.files.is_empty());
     let rejected = ours.is_some_and(|o| !wrote && o.diagnostics.is_some());
@@ -121,7 +123,7 @@ pub(crate) fn verdict(
         };
         let v = match actual {
             None => Verdict::Missing,
-            Some(actual) => compare(e.attributes, e.body, actual)
+            Some(actual) => compare(e.attributes, e.body, actual, parentheses)
                 .map_err(|why| format!("official {} of {}: {why}", e.attributes, e.path))?,
         };
         worst = worst.min(v);
@@ -312,9 +314,14 @@ const fn same(equal: bool) -> Verdict {
 }
 
 /// `Err` when the official text itself is not what its name says.
-fn compare(name: &str, official: &str, actual: &str) -> Result<Verdict, String> {
+fn compare(
+    name: &str,
+    official: &str,
+    actual: &str,
+    parentheses: Parentheses,
+) -> Result<Verdict, String> {
     match name {
-        "js" => match javascript::same_tree(official, actual) {
+        "js" => match javascript::same_tree(official, actual, parentheses) {
             Ok(equal) => Ok(same(equal)),
             Err(Unparsed::Actual(_)) => Ok(Verdict::Unparseable),
             Err(Unparsed::Expected(e)) => Err(format!("does not parse: {e}")),

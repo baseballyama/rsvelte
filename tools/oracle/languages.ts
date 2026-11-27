@@ -2,6 +2,8 @@
 // claimed file is admitted; tasks (./tasks) decide what is measured on an admitted unit.
 import { compile, compileModule } from 'svelte/compiler';
 import { parse as parseSfc } from '@vue/compiler-sfc';
+import { parseJs } from './canonical.ts';
+import { emit } from './tasks/ts-compile.ts';
 import { vueModule } from './behaviour/official.ts';
 import type { Language } from './types.ts';
 
@@ -70,6 +72,25 @@ const LANGUAGES: Language[] = [
 		ext: '.svelte.ts',
 		matches: (p) => p.endsWith('.svelte.ts'),
 		admit: () => ({ include: true, fields: { mode: 'runes' } }),
+	},
+	{
+		// A plain TypeScript file, whose emit is the subject (ts.compile). TypeScript writes an emit
+		// past a syntax error, and an emit acorn cannot read (an `assert` on an import, a re-export
+		// of a name only a type import declared), neither of which is an answer to compare with.
+		id: 'ts',
+		family: 'svelte',
+		ext: '.ts',
+		matches: (p) => p.endsWith('.ts') && !p.endsWith('.d.ts') && !p.endsWith('.svelte.ts'),
+		admit(src, filename) {
+			const { outputText, diagnostics } = emit(src, filename);
+			if (diagnostics?.length) return { include: false, reason: 'typescript-syntax-error' };
+			try {
+				parseJs(outputText);
+			} catch {
+				return { include: false, reason: 'typescript-emit-unparseable' };
+			}
+			return { include: true, fields: { mode: 'module' } };
+		},
 	},
 	{
 		id: 'vue',

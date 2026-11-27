@@ -1,0 +1,389 @@
+# rsvelte pack 1
+=== 57 example/src/routes/+layout.ts	js
+export const prerender = true;
+export const ssr = false;
+
+=== 146 example/vite.config.ts	js
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+export default defineConfig({
+    plugins: [sveltekit()]
+});
+
+=== 684 playwright.config.ts	js
+import { devices } from '@playwright/test';
+const config = {
+    testDir: 'tests/playwright',
+    forbidOnly: !!process.env.CI,
+    retries: process.env.CI ? 2 : 0,
+    timeout: 5 * 60 * 1000,
+    webServer: {
+        command: 'pnpm run static-serv',
+        port: 3000
+    },
+    use: {
+        trace: 'on',
+        video: 'on'
+    },
+    projects: [
+        {
+            name: 'chromium',
+            use: { ...devices['Desktop Chrome'] }
+        },
+        {
+            name: 'firefox',
+            use: { ...devices['Desktop Firefox'] }
+        },
+        {
+            name: 'webkit',
+            use: { ...devices['Desktop Safari'] }
+        }
+    ]
+};
+export default config;
+
+=== 116 src/lib/index.ts	js
+export { default as Splitpanes } from '$lib/Splitpanes.svelte';
+export { default as Pane } from '$lib/Pane.svelte';
+
+=== 216 src/lib/internal/env.ts	js
+/**
+ * Browser detection utility.
+ *
+ * Uses a standard check rather than SvelteKit's $app/environment
+ * so the package works in non-SvelteKit environments.
+ */
+export const browser = typeof window !== 'undefined';
+
+=== 320 src/lib/internal/utils/array.ts	js
+export function sumPartial(arr, start, end, valueFunction) {
+    let sum = 0;
+    for (let i = start; i < end; i++) {
+        sum += valueFunction(arr[i], i);
+    }
+    return sum;
+}
+export function forEachPartial(arr, start, end, callback) {
+    for (let i = start; i < end; i++) {
+        callback(arr[i], i);
+    }
+}
+
+=== 811 src/lib/internal/utils/functions.ts	js
+/**
+ * Generate a callback that is safe to be called even if `callbackObjectGetter()` is nullish on that moment.
+ *
+ * In the case of the object is nullish, invoking the callback will do nothing.
+ */
+const carefullCallbackGenerator = (callbackObjectGetter, callbackName) => (value) => {
+    const callbackObject = callbackObjectGetter();
+    if (callbackObject !== null) {
+        callbackObject[callbackName](value);
+    }
+};
+/**
+ * This is an source of callbacks that are safe to be called even if the object of `callbackObjectGetter()` is nullish on that moment.
+ *
+ * In the case of the object is nullish, invoking the callbacks will do nothing.
+ */
+export const carefullCallbackSource = (callbackObjectGetter) => 
+//@ts-expect-error unassignable
+carefullCallbackGenerator.bind(null, callbackObjectGetter);
+
+=== 3411 src/lib/internal/utils/position.ts	js
+import { pxToNumber } from './sizing.js';
+import { calcComputedStyle } from './styling.js';
+/**
+ * A legacy-typed safer version of `element.getBoundingClientRect()`,
+ *  that also invites minification capabilities (muliply calls can be forward to here, and it's pure).
+ * */
+export const getElementRect = (element) => 
+/*@__PURE__*/ element.getBoundingClientRect();
+export const getBordersSizeOffsets = (computedStyle, calcEnds = true) => {
+    if (computedStyle.getPropertyValue('box-sizing') === 'border-box') {
+        // In this case, no offset is needed since the box model of this element doesn't include the border.
+        return undefined;
+    }
+    // otherwise
+    const left = pxToNumber(computedStyle.getPropertyValue('border-left-width'));
+    if (left === undefined) {
+        console.error('Splitpanes Error: Fail to parse container `border-left-width`.');
+        return undefined;
+    }
+    // otherwise
+    const top = pxToNumber(computedStyle.getPropertyValue('border-top-width'));
+    if (top === undefined) {
+        console.error('Splitpanes Error: Fail to parse container `border-top-width`.');
+        return undefined;
+    }
+    // otherwise
+    const result = { left, top };
+    if (calcEnds) {
+        const right = pxToNumber(computedStyle.getPropertyValue('border-right-width'));
+        if (right === undefined) {
+            console.error('Splitpanes Error: Fail to parse container `border-right-width`.');
+            return undefined;
+        }
+        // otherwise
+        const bottom = pxToNumber(computedStyle.getPropertyValue('border-bottom-width'));
+        if (bottom === undefined) {
+            console.error('Splitpanes Error: Fail to parse container `border-bottom-width`.');
+            return undefined;
+        }
+        // otherwise
+        const resultExtended = result;
+        resultExtended.right = right;
+        resultExtended.bottom = bottom;
+    }
+    return result;
+};
+/**
+ * Computes the position and the dimensions of the element without the border.
+ *
+ * While `element.getBoundingClientRect()` gives the correct size with the borders, this method method does include the borders.
+ *
+ * Notice that for calculating the width and the height without the border, we must use this function instead of using
+ *  `Element.clientWidth` and `Element.clientHeight`, beacuse they round the sizes of the pixels to be integer.
+ */
+export function elementRectWithoutBorder(element, computedStyle) {
+    if (!computedStyle) {
+        computedStyle = calcComputedStyle(element);
+    }
+    const rect = getElementRect(element);
+    const borderOffsets = getBordersSizeOffsets(computedStyle, true) || {
+        left: 0,
+        top: 0,
+        right: 0,
+        bottom: 0
+    };
+    return {
+        width: rect.width - borderOffsets.left - borderOffsets.right,
+        height: rect.height - borderOffsets.top - borderOffsets.bottom,
+        left: rect.left + borderOffsets.left,
+        top: rect.top + borderOffsets.top
+    };
+}
+/** Get the cursor position relative to some element. */
+export const positionDiff = (to, from) => ({
+    left: to.left - from.left,
+    top: to.top - from.top
+});
+export function getGlobalMousePosition(event) {
+    const eventMouse = event;
+    const eventTouch = event;
+    const { clientX, clientY } = 'ontouchstart' in window && eventTouch.touches ? eventTouch.touches[0] : eventMouse;
+    return { left: clientX, top: clientY };
+}
+
+=== 319 src/lib/internal/utils/sizing.ts	js
+export function pxToNumber(pxString) {
+    if (!pxString?.endsWith('px')) {
+        return undefined;
+    }
+    // otherwise
+    const num = parseFloat(pxString.slice(0, pxString.length - 2));
+    return isNaN(num) ? undefined : num;
+}
+export const getDimensionName = (horizontal) => (horizontal ? 'height' : 'width');
+
+=== 253 src/lib/internal/utils/styling.ts	js
+/**
+ * A wrapper of `window.getComputedStyle()`,
+ *  that also invites minification capabilities (muliply calls can be forward to here, and it's pure).
+ * */
+export const calcComputedStyle = (element) => 
+/*@__PURE__*/ window.getComputedStyle(element);
+
+=== 242 src/routes/pathUtils.ts	js
+import { resolve } from '$app/paths';
+const removeTrailingSlash = (path) => (path.endsWith('/') ? path.slice(0, -1) : path);
+export const pathIsCurrent = (path, currentPage) => resolve(path) === removeTrailingSlash(currentPage.url.pathname);
+
+=== 1640 tests/benchmarks/drag-performance.bench.ts	js
+/**
+ * Performance benchmarks for drag operations
+ *
+ * Run with: pnpm test:bench
+ */
+import { bench, describe } from 'vitest';
+import { sumPartial } from '$lib/internal/utils/array';
+import { positionDiff } from '$lib/internal/utils/position';
+describe('Drag Operation Performance', () => {
+    // Mock pane data
+    const mockPanes = Array.from({ length: 10 }, (_, i) => ({
+        sz: () => 10,
+        index: i
+    }));
+    bench('sumPartial with 10 panes', () => {
+        sumPartial(mockPanes, 0, 10, pane => pane.sz());
+    });
+    bench('sumPartial with 100 panes', () => {
+        const largePanes = Array.from({ length: 100 }, (_, i) => ({
+            sz: () => 1,
+            index: i
+        }));
+        sumPartial(largePanes, 0, 100, pane => pane.sz());
+    });
+    bench('positionDiff calculation', () => {
+        const from = { left: 100, top: 200 };
+        const to = { left: 150, top: 250 };
+        positionDiff(to, from);
+    });
+    bench('1000 position diff calculations', () => {
+        for (let i = 0; i < 1000; i++) {
+            const from = { left: i, top: i };
+            const to = { left: i + 50, top: i + 50 };
+            positionDiff(to, from);
+        }
+    });
+});
+describe('Array Operations Performance', () => {
+    const testArray = Array.from({ length: 1000 }, (_, i) => i);
+    bench('Array.prototype.slice', () => {
+        testArray.slice(100, 200);
+    });
+    bench('sumPartial equivalent range', () => {
+        sumPartial(testArray, 100, 200, val => val);
+    });
+    bench('Native reduce on range', () => {
+        testArray.slice(100, 200).reduce((sum, val) => sum + val, 0);
+    });
+});
+
+=== 2137 tests/playwright/addRemoveSplitter.spec.ts	js
+import { expect, test } from '@playwright/test';
+test('add, remove all and add again works', async ({ page }) => {
+    await page.goto('/');
+    const areaLocator = page.locator('text=Add Remove Panes');
+    await areaLocator.click();
+    const addPaneLocator = page.locator(':has-text("Adding and removing panes programmatically")~div button:has-text("+ ADD PANE")');
+    const removePaneLocator = page.locator(':has-text("Adding and removing panes programmatically")~div button:has-text("- REMOVE PANE")');
+    const splitpanesLocator = page
+        .locator(':has-text("Adding and removing panes programmatically")~div div.splitpanes')
+        .first();
+    const panesLocator = splitpanesLocator.locator('.splitpanes__pane');
+    expect(await removePaneLocator.isEnabled()).toBe(true);
+    expect(await panesLocator.count()).toBe(3);
+    await addPaneLocator.click();
+    expect(await removePaneLocator.isEnabled()).toBe(true);
+    expect(await panesLocator.count()).toBe(4);
+    await removePaneLocator.click();
+    expect(await removePaneLocator.isEnabled()).toBe(true);
+    expect(await panesLocator.count()).toBe(3);
+    await removePaneLocator.click();
+    expect(await removePaneLocator.isEnabled()).toBe(true);
+    expect(await panesLocator.count()).toBe(2);
+    await removePaneLocator.click();
+    expect(await removePaneLocator.isEnabled()).toBe(true);
+    expect(await panesLocator.count()).toBe(1);
+    await removePaneLocator.click();
+    expect(await removePaneLocator.isDisabled()).toBe(true);
+    expect(await panesLocator.count()).toBe(0);
+    await addPaneLocator.click();
+    expect(await removePaneLocator.isEnabled()).toBe(true);
+    expect(await panesLocator.count()).toBe(1);
+    expect(await panesLocator.getAttribute('style')).toBe('width: 100%;');
+    expect((await panesLocator.boundingBox())?.x).toBeGreaterThan(10);
+    await addPaneLocator.click();
+    expect(await removePaneLocator.isEnabled()).toBe(true);
+    expect(await panesLocator.count()).toBe(2);
+    await addPaneLocator.click();
+    expect(await removePaneLocator.isEnabled()).toBe(true);
+    expect(await panesLocator.count()).toBe(3);
+});
+
+=== 1653 tests/unit/array.spec.ts	js
+/**
+ * Unit tests for array utilities
+ */
+import { describe, it, expect } from 'vitest';
+import { sumPartial, forEachPartial } from '$lib/internal/utils/array';
+describe('sumPartial', () => {
+    it('sums values in specified range', () => {
+        const arr = [1, 2, 3, 4, 5];
+        const result = sumPartial(arr, 1, 4, val => val);
+        expect(result).toBe(9); // 2 + 3 + 4
+    });
+    it('applies value function correctly', () => {
+        const arr = [1, 2, 3, 4, 5];
+        const result = sumPartial(arr, 0, 3, val => val * 2);
+        expect(result).toBe(12); // (1*2) + (2*2) + (3*2)
+    });
+    it('returns 0 for empty range', () => {
+        const arr = [1, 2, 3];
+        const result = sumPartial(arr, 2, 2, val => val);
+        expect(result).toBe(0);
+    });
+    it('handles end boundary correctly', () => {
+        const arr = [10, 20, 30];
+        const result = sumPartial(arr, 0, 3, val => val);
+        expect(result).toBe(60);
+    });
+});
+describe('forEachPartial', () => {
+    it('iterates over specified range', () => {
+        const arr = [1, 2, 3, 4, 5];
+        const results = [];
+        forEachPartial(arr, 1, 4, val => results.push(val));
+        expect(results).toEqual([2, 3, 4]);
+    });
+    it('passes index to callback', () => {
+        const arr = ['a', 'b', 'c'];
+        const indices = [];
+        forEachPartial(arr, 0, 3, (_val, idx) => indices.push(idx));
+        expect(indices).toEqual([0, 1, 2]);
+    });
+    it('does not iterate over empty range', () => {
+        const arr = [1, 2, 3];
+        let count = 0;
+        forEachPartial(arr, 1, 1, () => count++);
+        expect(count).toBe(0);
+    });
+});
+
+=== 1428 tests/unit/position.spec.ts	js
+/**
+ * Unit tests for position utilities
+ *
+ * These tests demonstrate the testing pattern for utility functions.
+ * Run with: pnpm test:unit
+ */
+import { describe, it, expect } from 'vitest';
+import { positionDiff } from '$lib/internal/utils/position';
+describe('positionDiff', () => {
+    it('calculates correct difference between two positions', () => {
+        const from = { left: 50, top: 30 };
+        const to = { left: 100, top: 80 };
+        const result = positionDiff(to, from);
+        expect(result).toEqual({
+            left: 50,
+            top: 50
+        });
+    });
+    it('handles negative differences', () => {
+        const from = { left: 100, top: 100 };
+        const to = { left: 50, top: 30 };
+        const result = positionDiff(to, from);
+        expect(result).toEqual({
+            left: -50,
+            top: -70
+        });
+    });
+    it('handles zero difference', () => {
+        const from = { left: 100, top: 100 };
+        const to = { left: 100, top: 100 };
+        const result = positionDiff(to, from);
+        expect(result).toEqual({
+            left: 0,
+            top: 0
+        });
+    });
+    it('handles decimal values', () => {
+        const from = { left: 10.5, top: 20.3 };
+        const to = { left: 15.7, top: 25.9 };
+        const result = positionDiff(to, from);
+        expect(result.left).toBeCloseTo(5.2, 1);
+        expect(result.top).toBeCloseTo(5.6, 1);
+    });
+});
+

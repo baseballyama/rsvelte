@@ -106,11 +106,13 @@ difference and not the projection:
   '{}' but required in type '{ x: number; }'.` there. A `<slot />` that misses a required prop of
   its `$$Slots` gives the same pair, because svelte2tsx writes its props as this call's argument.
 
-  The column of that finding differs too, for a `<slot>` without attributes. The overwrites
+  Where that finding starts differs too, for a `<slot>` without attributes. The overwrites
   svelte2tsx makes of the tag decide where its empty props map, and svelte-check reports at the
-  first of their two braces. That gives column 1 for `<slot />`, column 2 for `<slot/>` and
-  `<slot></slot>`, and column 7 for `<slot  />` and `<slot name="named" />`. The projection maps
-  the braces to the start of the tag, column 1, in `slot_call` in the projection crate's
+  first of their two braces. Counted in characters from `<slot`, that is +0 for `<slot />` and
+  for a slot inside an element, and +1 for `<slot/>`, `<slot></slot>` and
+  `<slot>fallback</slot>`. The offset is +6 for `<slot  />`, for `<slot name="named" />` and
+  for a named slot whose attribute is on the next line, so the finding can start on another
+  line. The projection maps the braces to `<slot`, +0, in `slot_call` in the projection crate's
   [`call.rs`](../typescript_projection/src/lower/call.rs).
 
 - Test: `typecheck_prints_what_typescript_7_prints` and

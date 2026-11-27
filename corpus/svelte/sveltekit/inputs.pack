@@ -9,8 +9,46 @@
 
 <h1>Hello {data.name}</h1>
 
+=== 272 packages/adapter-netlify/test/apps/basic/vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite';
+import type { UserConfig } from 'vite';
+import adapter from '../../../index.js';
+
+const config: UserConfig = {
+	build: {
+		minify: false
+	},
+	plugins: [
+		sveltekit({
+			adapter: adapter()
+		})
+	]
+};
+
+export default config;
+
 === 53 packages/adapter-netlify/test/apps/edge/src/routes/treeshake-server/+page.svelte	svelte	runes	neutral
 <p>this should never appear in the server bundle</p>
+
+=== 293 packages/adapter-netlify/test/apps/edge/vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite';
+import type { UserConfig } from 'vite';
+import adapter from '../../../index.js';
+
+const config: UserConfig = {
+	build: {
+		minify: false
+	},
+	plugins: [
+		sveltekit({
+			adapter: adapter({
+				edge: true
+			})
+		})
+	]
+};
+
+export default config;
 
 === 146 packages/adapter-netlify/test/apps/split/src/routes/+error.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -28,6 +66,134 @@
 
 <a href={resolve('/dynamic/[id]', { id: '1' })}>go to dynamic</a>
 
+=== 393 packages/adapter-netlify/test/apps/split/vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite';
+import type { UserConfig } from 'vite';
+import adapter from '../../../index.js';
+
+const config: UserConfig = {
+	build: {
+		minify: false
+	},
+	plugins: [
+		sveltekit({
+			adapter: adapter({ split: true }),
+			compilerOptions: { experimental: { async: true } },
+			experimental: {
+				remoteFunctions: true
+			}
+		})
+	]
+};
+
+export default config;
+
+=== 1352 packages/adapter-node/src/env.spec.ts	ts	module	-
+import { afterEach, expect, test, describe, vi } from 'vitest';
+import { timeout_env } from '../src/env.js';
+
+vi.hoisted(() => {
+	vi.stubGlobal('ENV_PREFIX', '');
+});
+
+describe('timeout_env', () => {
+	afterEach(() => {
+		vi.unstubAllEnvs();
+	});
+
+	test('parses zero correctly', () => {
+		vi.stubEnv('TIMEOUT', '0');
+
+		const timeout = timeout_env('TIMEOUT');
+		expect(timeout).toBe(0);
+	});
+
+	test('parses positive integers correctly', () => {
+		vi.stubEnv('TIMEOUT', '60');
+
+		const timeout = timeout_env('TIMEOUT');
+		expect(timeout).toBe(60);
+	});
+
+	test('returns the fallback when variable is not set', () => {
+		const timeout = timeout_env('TIMEOUT', 30);
+		expect(timeout).toBe(30);
+	});
+
+	test('returns undefined when variable is not set and no fallback is provided', () => {
+		const timeout = timeout_env('TIMEOUT');
+		expect(timeout).toBeUndefined();
+	});
+
+	test('throws an error for negative integers', () => {
+		vi.stubEnv('TIMEOUT', '-10');
+
+		expect(() => timeout_env('TIMEOUT')).toThrow(
+			'Invalid value for environment variable TIMEOUT: "-10" (should be a non-negative integer)'
+		);
+	});
+
+	test('throws an error for non-integer values', () => {
+		vi.stubEnv('TIMEOUT', 'abc');
+
+		expect(() => timeout_env('TIMEOUT')).toThrow(
+			'Invalid value for environment variable TIMEOUT: "abc" (should be a non-negative integer)'
+		);
+	});
+});
+
+=== 1358 packages/adapter-node/src/utils.spec.ts	ts	module	-
+import { expect, test, describe } from 'vitest';
+import { format_listening_address, parse_as_bytes } from './utils.js';
+
+describe('parse_as_bytes', () => {
+	test.each([
+		['200', 200],
+		['512K', 512 * 1024],
+		['200M', 200 * 1024 * 1024],
+		['1G', 1024 * 1024 * 1024],
+		['Infinity', Infinity],
+		['asdf', NaN]
+	] as const)('parses correctly', (input, expected) => {
+		const actual = parse_as_bytes(input);
+		expect(actual, `Testing input '${input}'`).toBe(expected);
+	});
+});
+
+describe('format_listening_address', () => {
+	test('uses the actual listening port assigned by the server', () => {
+		expect(
+			format_listening_address(false, '0.0.0.0', '0', {
+				address: '0.0.0.0',
+				family: 'IPv4',
+				port: 43521
+			})
+		).toBe('http://0.0.0.0:43521');
+	});
+
+	test('formats IPv6 addresses as valid URLs', () => {
+		expect(
+			format_listening_address(false, '::1', '3000', {
+				address: '::1',
+				family: 'IPv6',
+				port: 3000
+			})
+		).toBe('http://[::1]:3000');
+	});
+
+	test('falls back to configured host and port when the address is unavailable', () => {
+		expect(format_listening_address(false, 'localhost', '3000', null)).toBe(
+			'http://localhost:3000'
+		);
+	});
+
+	test('returns the socket path unchanged', () => {
+		expect(format_listening_address('/tmp/sveltekit.sock', '0.0.0.0', '3000', null)).toBe(
+			'/tmp/sveltekit.sock'
+		);
+	});
+});
+
 === 141 packages/adapter-node/test/apps/basic/src/routes/+page.svelte	svelte	runes	runes
 <script>
 	let toggle = $state(false);
@@ -36,6 +202,16 @@
 <h1>Hello world!</h1>
 
 <button onclick={() => (toggle = !toggle)}>Toggle: {toggle}</button>
+
+=== 149 packages/adapter-static/test/apps/prerendered/src/env.ts	ts	module	-
+import { defineEnvVars } from '@sveltejs/kit/env';
+
+export const variables = defineEnvVars({
+	PUBLIC_ANSWER: {
+		public: true,
+		static: true
+	}
+});
 
 === 215 packages/adapter-static/test/apps/prerendered/src/routes/public-env/+page.svelte	svelte	runes	neutral
 <script>
@@ -48,6 +224,16 @@
 {#if browser}
 	<h2>The dynamic answer is {PUBLIC_ANSWER}</h2>
 {/if}
+
+=== 148 packages/adapter-static/test/apps/spa/src/env.ts	ts	module	-
+import { defineEnvVars } from '@sveltejs/kit/env';
+
+export const variables = defineEnvVars({
+	PUBLIC_VALUE: {
+		public: true,
+		static: true
+	}
+});
 
 === 79 packages/adapter-static/test/apps/spa/src/routes/+error.svelte	svelte	runes	neutral
 <script>
@@ -96,6 +282,21 @@
 	<a href="/deep/nested/route">Deep Nested</a>
 </nav>
 
+=== 93 packages/adapter-vercel/test/apps/basic/src/routes/api/json/+server.ts	ts	module	-
+import { json } from '@sveltejs/kit';
+
+export function GET() {
+	return json({ ok: true });
+}
+
+=== 114 packages/adapter-vercel/test/apps/basic/src/routes/deep/nested/route/+page.server.ts	ts	module	-
+export function load({ url }) {
+	return {
+		depth: url.pathname.split('/').length - 1,
+		path: url.pathname
+	};
+}
+
 === 143 packages/adapter-vercel/test/apps/basic/src/routes/deep/nested/route/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	let { data } = $props();
@@ -105,6 +306,19 @@
 <p id="depth">{data.depth}</p>
 <p id="path">{data.path}</p>
 
+=== 123 packages/adapter-vercel/test/apps/basic/src/routes/isr/+page.server.ts	ts	module	-
+export const config = {
+	isr: {
+		expiration: 60
+	}
+};
+
+export function load() {
+	return {
+		rendered_at: Date.now()
+	};
+}
+
 === 117 packages/adapter-vercel/test/apps/basic/src/routes/isr/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	let { data } = $props();
@@ -112,6 +326,20 @@
 
 <h1>ISR Page</h1>
 <p id="rendered-at">{data.rendered_at}</p>
+
+=== 154 packages/adapter-vercel/test/apps/basic/src/routes/isr/[slug]/+page.server.ts	ts	module	-
+export const config = {
+	isr: {
+		expiration: 60
+	}
+};
+
+export function load({ params }) {
+	return {
+		slug: params.slug,
+		rendered_at: Date.now()
+	};
+}
 
 === 125 packages/adapter-vercel/test/apps/basic/src/routes/isr/[slug]/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -121,12 +349,37 @@
 <h1>ISR: {data.slug}</h1>
 <p id="rendered-at">{data.rendered_at}</p>
 
+=== 111 packages/adapter-vercel/test/apps/basic/src/routes/prerendered/+page.server.ts	ts	module	-
+export const prerender = true;
+
+export function load() {
+	return {
+		message: 'this page is prerendered'
+	};
+}
+
 === 80 packages/adapter-vercel/test/apps/basic/src/routes/prerendered/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	let { data } = $props();
 </script>
 
 <h1>{data.message}</h1>
+
+=== 118 packages/adapter-vercel/test/apps/basic/src/routes/read/+server.ts	ts	module	-
+import { read } from '$app/server';
+import file from './file.txt?url';
+
+export function GET() {
+	return read(file);
+}
+
+=== 96 packages/adapter-vercel/test/apps/basic/src/routes/server-data/+page.server.ts	ts	module	-
+export function load() {
+	return {
+		message: 'loaded on server',
+		timestamp: Date.now()
+	};
+}
 
 === 119 packages/adapter-vercel/test/apps/basic/src/routes/server-data/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -135,6 +388,160 @@
 
 <h1>{data.message}</h1>
 <p id="timestamp">{data.timestamp}</p>
+
+=== 5427 packages/adapter-vercel/test/apps/basic/test/test.ts	ts	module	-
+import { expect, test } from '@playwright/test';
+
+test('basic page renders', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.locator('h1')).toContainText('Hello from SvelteKit on Vercel');
+});
+
+test('server-side data loading works', async ({ page }) => {
+	await page.goto('/server-data');
+	await expect(page.locator('h1')).toContainText('loaded on server');
+	const timestamp = await page.locator('#timestamp').textContent();
+	expect(Number(timestamp)).toBeGreaterThan(0);
+});
+
+test('API routes work', async ({ request }) => {
+	const response = await request.get('/api/json');
+	expect(response.ok()).toBe(true);
+	const data = await response.json();
+	expect(data.ok).toBe(true);
+});
+
+test('$app/server read works', async ({ request }) => {
+	const response = await request.get('/read');
+	expect(response.ok()).toBe(true);
+	const text = await response.text();
+	expect(text).toContain('Hello from $app/server read');
+});
+
+test('ISR route serves cached response', async ({ request }) => {
+	// first request warms the cache
+	const first = await request.get('/isr');
+	expect(first.ok()).toBe(true);
+	const first_html = await first.text();
+	const first_match = first_html.match(/id="rendered-at">(\d+)</);
+	expect(first_match).not.toBeNull();
+	const first_rendered_at = first_match![1];
+
+	// second request should be served from ISR cache (same rendered_at)
+	const second = await request.get('/isr');
+	expect(second.ok()).toBe(true);
+	const second_html = await second.text();
+	const second_match = second_html.match(/id="rendered-at">(\d+)</);
+	expect(second_match).not.toBeNull();
+	const second_rendered_at = second_match![1];
+
+	expect(first_rendered_at).toBe(second_rendered_at);
+});
+
+test('ISR dynamic route serves cached response per slug', async ({ request }) => {
+	// warm the cache for /isr/alpha
+	const first = await request.get('/isr/alpha');
+	expect(first.ok()).toBe(true);
+	const first_html = await first.text();
+	expect(first_html).toContain('ISR: alpha');
+	const first_match = first_html.match(/id="rendered-at">(\d+)</);
+	expect(first_match).not.toBeNull();
+	const alpha_rendered_at = first_match![1];
+
+	// second request to same slug should return cached response
+	const second = await request.get('/isr/alpha');
+	const second_html = await second.text();
+	const second_match = second_html.match(/id="rendered-at">(\d+)</);
+	expect(second_match![1]).toBe(alpha_rendered_at);
+
+	// different slug should be independently rendered
+	const beta = await request.get('/isr/beta');
+	expect(beta.ok()).toBe(true);
+	const beta_html = await beta.text();
+	expect(beta_html).toContain('ISR: beta');
+});
+
+test('prerendered page works', async ({ page }) => {
+	await page.goto('/prerendered');
+	await expect(page.locator('h1')).toContainText('this page is prerendered');
+});
+
+test('prerendered page trailing slash redirects', async ({ request }) => {
+	const response = await request.get('/prerendered/', { maxRedirects: 0 });
+	expect(response.status()).toBe(308);
+	expect(response.headers()['location']).toBe('/prerendered');
+});
+
+test('deeply nested route works', async ({ page }) => {
+	await page.goto('/deep/nested/route');
+	await expect(page.locator('h1')).toContainText('Deep nested route');
+	expect(await page.locator('#depth').textContent()).toBe('3');
+	expect(await page.locator('#path').textContent()).toBe('/deep/nested/route');
+});
+
+test('client-side navigation works (validates __data.json)', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.locator('h1')).toContainText('Hello from SvelteKit on Vercel');
+
+	// click a link to trigger client-side navigation (fetches __data.json)
+	await page.click('a[href="/server-data"]');
+	await expect(page.locator('h1')).toContainText('loaded on server');
+
+	// navigate to another page via client-side nav
+	await page.goBack();
+	await expect(page.locator('h1')).toContainText('Hello from SvelteKit on Vercel');
+
+	await page.click('a[href="/deep/nested/route"]');
+	await expect(page.locator('h1')).toContainText('Deep nested route');
+});
+
+test('client-side navigation to ISR routes works', async ({ page }) => {
+	await page.goto('/');
+
+	await page.click('a[href="/isr/hello"]');
+	await expect(page.locator('h1')).toContainText('ISR: hello');
+});
+
+test('client-side navigation to prerendered routes works', async ({ page }) => {
+	await page.goto('/');
+
+	await page.click('a[href="/prerendered"]');
+	await expect(page.locator('h1')).toContainText('this page is prerendered');
+});
+
+test('missing immutable asset returns 404 with no-store cache-control', async ({ request }) => {
+	// https://github.com/sveltejs/kit/pull/16077 — the 404 must not inherit the
+	// immutable `max-age=31536000` header, otherwise it's cached for a year
+	const response = await request.get('/_app/immutable/chunks/nonexistent.js');
+	expect(response.status()).toBe(404);
+	expect(response.headers()['cache-control']).toBe('no-store');
+});
+
+test('valid immutable asset is still cached immutably', async ({ page, request }) => {
+	await page.goto('/');
+	// immutable assets are preloaded via <link rel="modulepreload">, not <script src>
+	const href = await page
+		.locator('link[rel="modulepreload"][href*="/_app/immutable/"]')
+		.first()
+		.getAttribute('href');
+	expect(href).toBeTruthy();
+	const response = await request.get(href!.replace(/^\.\//, '/'));
+	expect(response.ok()).toBe(true);
+	expect(response.headers()['cache-control']).toBe('public, immutable, max-age=31536000');
+});
+
+=== 217 packages/adapter-vercel/test/apps/basic/vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+import adapter from '../../../index.js';
+
+export default defineConfig({
+	plugins: [
+		sveltekit({
+			adapter: adapter()
+		})
+	]
+});
 
 === 86 packages/adapter-vercel/test/apps/split/src/routes/+page.svelte	svelte	runes	neutral
 <h1>Hello from SvelteKit on Vercel</h1>
@@ -145,6 +552,31 @@
 
 === 89 packages/adapter-vercel/test/apps/split/src/routes/a/+page.svelte	svelte	runes	neutral
 <p>This route will be served by a different function because we use the split config</p>
+
+=== 299 packages/adapter-vercel/test/apps/split/test/test.ts	ts	module	-
+import { expect, test } from '@playwright/test';
+
+test('split functions work', async ({ page }) => {
+	await page.goto('/');
+	await expect(page.locator('h1')).toContainText('Hello from SvelteKit on Vercel');
+	await page.goto('/a');
+	await expect(page.locator('p')).toContainText(/split config/);
+});
+
+=== 239 packages/adapter-vercel/test/apps/split/vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite';
+import { defineConfig } from 'vite';
+import adapter from '../../../index.js';
+
+export default defineConfig({
+	plugins: [
+		sveltekit({
+			adapter: adapter({
+				split: true
+			})
+		})
+	]
+});
 
 === 1445 packages/enhanced-img/test/Input.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -3161,6 +3593,28 @@ export class RenderNode {
 	}
 }
 
+=== 316 packages/kit/test/apps/async/src/env.ts	ts	module	-
+import { defineEnvVars } from '@sveltejs/kit/env';
+
+export const variables = defineEnvVars({
+	PRIVATE_STATIC: {
+		public: false,
+		static: true
+	},
+	PRIVATE_DYNAMIC: {
+		public: false,
+		static: false
+	},
+	PUBLIC_STATIC: {
+		public: true,
+		static: true
+	},
+	PUBLIC_DYNAMIC: {
+		public: true,
+		static: false
+	}
+});
+
 === 539 packages/kit/test/apps/async/src/routes/+error.svelte	svelte	runes	runes
 <script>
 	import { page } from '$app/state';
@@ -3290,6 +3744,119 @@ export class RenderNode {
 	{q.error ? `${q.error.status}: ${q.error.message}` : 'none'}
 </div>
 
+=== 287 packages/kit/test/apps/async/src/routes/remote/error-hydration/data.remote.ts	ts	module	-
+import { query } from '$app/server';
+import { error } from '@sveltejs/kit';
+import * as v from 'valibot';
+
+export const failing = query(() => {
+	error(418, 'teapot');
+});
+
+export const failing_batch = query.batch(v.string(), () => {
+	return () => {
+		error(418, 'batch teapot');
+	};
+});
+
+=== 395 packages/kit/test/apps/async/src/routes/remote/event/data.remote.ts	ts	module	-
+import { getRequestEvent, query } from '$app/server';
+
+export const get_event = query(() => {
+	const event = getRequestEvent();
+	const results: string[] = [];
+
+	for (const property of ['url', 'params', 'route'] as const) {
+		try {
+			results.push(`${property}: ${String(event[property])}`);
+		} catch (error) {
+			results.push((error as Error).message);
+		}
+	}
+
+	return results.join(' | ');
+});
+
+=== 2220 packages/kit/test/apps/async/src/routes/remote/form/[test_name]/form.remote.ts	ts	module	-
+import { form, getRequestEvent, query } from '$app/server';
+import { error, redirect } from '@sveltejs/kit';
+import * as v from 'valibot';
+
+const instances = new Map<
+	string,
+	{ message: string; deferreds: Array<PromiseWithResolvers<void>> }
+>();
+
+export const get_message = query(v.string(), (test_name) => {
+	return instances.get(test_name)?.message || 'initial';
+});
+
+export const set_message = form(
+	v.object({
+		test_name: v.string(),
+		id: v.optional(v.string()),
+		message: v.picklist(
+			['hello', 'goodbye', 'unexpected error', 'expected error', 'redirect', 'backwards'],
+			'message is invalid'
+		),
+		uppercase: v.optional(v.string()),
+		action: v.optional(v.picklist(['normal', 'reverse']))
+	}),
+	async (data) => {
+		if (data.message === 'unexpected error') {
+			throw new Error('oops');
+		}
+
+		if (data.message === 'expected error') {
+			error(500, 'oops');
+		}
+
+		if (data.message === 'redirect') {
+			redirect(303, '/remote');
+		}
+
+		const instance = instances.get(data.test_name) ?? { message: 'initial', deferreds: [] };
+		instances.set(data.test_name, instance);
+
+		if (data.action === 'reverse') {
+			instance.message = data.message.split('').reverse().join('');
+		} else {
+			instance.message = data.uppercase === 'true' ? data.message.toUpperCase() : data.message;
+		}
+
+		get_message(data.test_name).set(instance.message);
+
+		if (getRequestEvent().isRemoteRequest) {
+			const deferred = Promise.withResolvers<void>();
+			instance.deferreds.push(deferred);
+			await deferred.promise;
+		}
+
+		return instance.message + (data.id ? ` (from: ${data.id})` : '');
+	}
+);
+
+export const set_reverse_message = form(
+	v.object({ test_name: v.string(), message: v.string() }),
+	(data) => {
+		const instance = instances.get(data.test_name) ?? { message: 'initial', deferreds: [] };
+		instances.set(data.test_name, instance);
+		instance.message = data.message.split('').reverse().join('');
+		return instance.message;
+	}
+);
+
+export const resolve_deferreds = form(v.object({ test_name: v.string() }), async (data) => {
+	const instance = instances.get(data.test_name);
+	if (!instance) return;
+
+	const { deferreds } = instance;
+	for (const deferred of deferreds) {
+		deferred.resolve();
+	}
+	deferreds.length = 0;
+});
+
 === 1238 packages/kit/test/apps/async/src/routes/remote/form/as-value/Form.svelte	svelte	runes	runes
 <script lang="ts">
 	import { as_value_form, type get_values } from './form.remote';
@@ -3335,6 +3902,72 @@ export class RenderNode {
 	}
 </style>
 
+=== 1678 packages/kit/test/apps/async/src/routes/remote/form/as-value/form.remote.ts	ts	module	-
+import { form, query } from '$app/server';
+import * as v from 'valibot';
+import { per_session } from '../../per-session.js';
+
+const ValueSchema = v.object({
+	id: v.string(),
+	text_field: v.string(),
+	number_field: v.number(),
+	select_field: v.string(),
+	color_field: v.string(),
+	range_field: v.number(),
+	checkbox_field: v.optional(v.boolean(), false),
+
+	hidden: v.object({
+		string: v.string(),
+		number: v.number(),
+		boolean: v.optional(v.boolean(), false)
+	})
+});
+
+const default_values: Array<Omit<v.InferOutput<typeof ValueSchema>, 'hidden'>> = [
+	{
+		id: '1',
+		text_field: 'Example text',
+		number_field: 42,
+		select_field: 'apple',
+		color_field: '#ff0000',
+		range_field: 5,
+		checkbox_field: true
+	},
+	{
+		id: '2',
+		text_field: 'Another example',
+		number_field: 100,
+		select_field: 'banana',
+		color_field: '#ffff00',
+		range_field: 8,
+		checkbox_field: false
+	}
+];
+
+const session = per_session(() => ({
+	values: structuredClone(default_values),
+	hidden_values: {} as { string?: string; number?: number; boolean?: boolean }
+}));
+
+export const get_values = query(() => session().values);
+
+export const as_value_form = form(ValueSchema, async (data) => {
+	const state = session();
+	const element = state.values.find((v) => v.id === data.id);
+	if (element) {
+		element.text_field = data.text_field;
+		element.number_field = data.number_field;
+		element.select_field = data.select_field;
+		element.color_field = data.color_field;
+		element.range_field = data.range_field;
+		element.checkbox_field = data.checkbox_field;
+		await get_values().refresh();
+	}
+	state.hidden_values = data.hidden;
+});
+
+export const get_hidden_values = query(() => session().hidden_values);
+
 === 513 packages/kit/test/apps/async/src/routes/remote/form/file-upload/+page.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { upload } from './form.remote';
@@ -3357,6 +3990,33 @@ export class RenderNode {
 
 <pre>{JSON.stringify(upload.result)}</pre>
 
+=== 462 packages/kit/test/apps/async/src/routes/remote/form/file-upload/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const upload = form(
+	v.object({
+		text: v.string(),
+		file1: v.file(),
+		file2: v.file(),
+		read_files: v.optional(v.boolean())
+	}),
+	async (data) => {
+		if (!data.read_files) {
+			return {
+				text: data.text,
+				file1: data.file1.size,
+				file2: data.file2.size
+			};
+		}
+		return {
+			text: data.text,
+			file1: await data.file1.text(),
+			file2: await data.file2.text()
+		};
+	}
+);
+
 === 379 packages/kit/test/apps/async/src/routes/remote/form/for-duplicate/+page.svelte	svelte	runes	neutral
 <script>
 	import { get_count, increment } from './form.remote.ts';
@@ -3373,6 +4033,20 @@ export class RenderNode {
 >
 	<button type="submit" id="submit">Submit</button>
 </form>
+
+=== 346 packages/kit/test/apps/async/src/routes/remote/form/for-duplicate/form.remote.ts	ts	module	-
+import { form, query } from '$app/server';
+import * as v from 'valibot';
+import { per_session } from '../../per-session.js';
+
+const session = per_session(() => ({ count: 0 }));
+
+export const get_count = query(() => session().count);
+
+export const increment = form(v.object({}), async () => {
+	session().count++;
+	await get_count().refresh();
+});
 
 === 894 packages/kit/test/apps/async/src/routes/remote/form/imperative/+page.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -3453,6 +4127,36 @@ export class RenderNode {
 	<button type="submit">Submit</button>
 </form>
 
+=== 221 packages/kit/test/apps/async/src/routes/remote/form/native-result/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const echo = form(
+	v.object({ message: v.pipe(v.string(), v.minLength(3, 'too short')) }),
+	({ message }) => {
+		return `echo: ${message}`;
+	}
+);
+
+=== 475 packages/kit/test/apps/async/src/routes/remote/form/noop-refresh-non-enhanced/[key]/form.remote.ts	ts	module	-
+import { form, query } from '$app/server';
+import * as v from 'valibot';
+
+let counts = new Map();
+
+export const get_count = query(v.string(), (key) => {
+	return counts.get(key) ?? 0;
+});
+export const increment_count = query(v.string(), (key) => {
+	counts.set(key, (counts.get(key) ?? 0) + 1);
+	return counts.get(key);
+});
+
+export const set = form(v.object({ key: v.string() }), async ({ key }) => {
+	await increment_count(key).refresh();
+	await get_count(key).refresh();
+});
+
 === 750 packages/kit/test/apps/async/src/routes/remote/form/preflight-for/+page.svelte	svelte	runes	neutral
 <script>
 	import { get_value, set_value } from './form.remote.ts';
@@ -3481,6 +4185,47 @@ export class RenderNode {
 
 <p data-preflight-for-pending>form.pending: {form.pending}</p>
 <p data-preflight-for-result>form.result: {form.result}</p>
+
+=== 324 packages/kit/test/apps/async/src/routes/remote/form/preflight-for/form.remote.ts	ts	module	-
+import { form, query } from '$app/server';
+import * as v from 'valibot';
+
+let value = 0;
+
+export const get_value = query(() => {
+	return value;
+});
+
+export const set_value = form(
+	v.object({
+		value: v.pipe(v.number(), v.maxValue(20, 'too big'))
+	}),
+	async (data) => {
+		value = data.value;
+		get_value().refresh();
+	}
+);
+
+=== 415 packages/kit/test/apps/async/src/routes/remote/form/preflight-only/form.remote.ts	ts	module	-
+import { form, query } from '$app/server';
+import * as v from 'valibot';
+
+let data = { a: '', b: '', c: '' };
+
+export const get = query(() => {
+	return data;
+});
+
+export const set = form(
+	v.object({
+		a: v.pipe(v.string(), v.minLength(3, 'a is too short')),
+		b: v.pipe(v.string(), v.minLength(3, 'b is too short')),
+		c: v.pipe(v.string(), v.minLength(3, 'c is too short'))
+	}),
+	async (d) => {
+		data = d;
+	}
+);
 
 === 1215 packages/kit/test/apps/async/src/routes/remote/form/preflight-pending/+page.svelte	svelte	runes	neutral
 <script>
@@ -3529,6 +4274,34 @@ export class RenderNode {
 	<p data-failing-issue>{issue.message}</p>
 {/each}
 
+=== 199 packages/kit/test/apps/async/src/routes/remote/form/preflight-pending/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const create = form(v.object({ name: v.string() }), async (data: { name: string }) => {
+	return 'created: ' + data.name;
+});
+
+=== 334 packages/kit/test/apps/async/src/routes/remote/form/preflight/form.remote.ts	ts	module	-
+import { form, query } from '$app/server';
+import * as v from 'valibot';
+
+let number = 0;
+
+export const get_number = query(() => {
+	return number;
+});
+
+export const set_number = form(
+	v.object({
+		number: v.pipe(v.number(), v.minValue(10, 'too small'))
+	}),
+	async (data) => {
+		number = data.number;
+		get_number().refresh();
+	}
+);
+
 === 466 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/+page.svelte	svelte	runes	neutral
 <script>
 	import { redirectForm } from './form.remote.ts';
@@ -3549,6 +4322,20 @@ export class RenderNode {
 === 21 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/destination/+page.svelte	svelte	runes	neutral
 <h1>destination</h1>
 
+=== 281 packages/kit/test/apps/async/src/routes/remote/form/redirect-target/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import { redirect } from '@sveltejs/kit';
+import { object, optional, string } from 'valibot';
+
+export const redirectForm = form(
+	object({
+		id: optional(string())
+	}),
+	() => {
+		redirect(303, '/remote/form/redirect-target/destination');
+	}
+);
+
 === 207 packages/kit/test/apps/async/src/routes/remote/form/requested/+page.svelte	svelte	runes	neutral
 <script>
 	import { submit } from './form.remote.ts';
@@ -3559,6 +4346,19 @@ export class RenderNode {
 </form>
 
 <p id="form-result">{submit.result?.message ?? 'not submitted'}</p>
+
+=== 390 packages/kit/test/apps/async/src/routes/remote/form/requested/form.remote.ts	ts	module	-
+import { form, query, requested } from '$app/server';
+
+export const get_time = query(() => Date.now());
+
+export const submit = form('unchecked', async () => {
+	// must work on both enhanced and non-enhanced (no-JS) submissions —
+	// in the latter case there are simply no requested refreshes
+	await requested(get_time, 5).refreshAll();
+
+	return { message: 'submitted successfully' };
+});
 
 === 419 packages/kit/test/apps/async/src/routes/remote/form/reset-id/+page.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -3578,6 +4378,19 @@ export class RenderNode {
 {#if reset_id.result?.message}
 	<div id="result">{reset_id.result.message}</div>
 {/if}
+
+=== 237 packages/kit/test/apps/async/src/routes/remote/form/reset-id/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const reset_id = form(
+	v.object({
+		message: v.pipe(v.string(), v.minLength(10, 'too short'))
+	}),
+	({ message }) => {
+		return { success: true, message };
+	}
+);
 
 === 578 packages/kit/test/apps/async/src/routes/remote/form/reset-on-redirect/+page.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -3600,6 +4413,31 @@ export class RenderNode {
 	<button id="redirect-other">Redirect to another page</button>
 </form>
 
+=== 544 packages/kit/test/apps/async/src/routes/remote/form/reset-on-redirect/form.remote.ts	ts	module	-
+import { form, getRequestEvent } from '$app/server';
+import { redirect } from '@sveltejs/kit';
+import * as v from 'valibot';
+
+export const reset_form = form(
+	v.object({
+		action: v.picklist(['return', 'redirect'])
+	}),
+	(data) => {
+		const { url } = getRequestEvent();
+		switch (data.action) {
+			case 'return':
+				return 'hello world';
+			case 'redirect':
+				url.search += 'foo';
+				redirect(303, url.href);
+		}
+	}
+);
+
+export const redirect_form = form(v.object({}), () => {
+	redirect(303, '/remote/form/redirect-target/destination');
+});
+
 === 298 packages/kit/test/apps/async/src/routes/remote/form/select-untouched/+page.svelte	svelte	runes	neutral
 <script>
 	import { myform } from './form.remote.ts';
@@ -3617,6 +4455,18 @@ export class RenderNode {
 	<button>submit</button>
 </form>
 
+=== 199 packages/kit/test/apps/async/src/routes/remote/form/select-untouched/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const myform = form(
+	v.object({
+		message: v.string(),
+		number: v.picklist(['one', 'two', 'three'])
+	}),
+	(_data) => {}
+);
+
 === 354 packages/kit/test/apps/async/src/routes/remote/form/set-ssr/+page.svelte	svelte	runes	neutral
 <script>
 	import { editData } from './form.remote';
@@ -3632,6 +4482,20 @@ export class RenderNode {
 	<input {...form.fields.name.as('text')} />
 	<button type="submit">Submit</button>
 </form>
+
+=== 224 packages/kit/test/apps/async/src/routes/remote/form/set-ssr/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const editData = form(
+	v.object({
+		name: v.optional(v.string()),
+		description: v.optional(v.string())
+	}),
+	async (data) => {
+		return data;
+	}
+);
 
 === 555 packages/kit/test/apps/async/src/routes/remote/form/skip-submit/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -3661,6 +4525,13 @@ export class RenderNode {
 </form>
 
 <p data-pending>{pendings}</p>
+
+=== 115 packages/kit/test/apps/async/src/routes/remote/form/skip-submit/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+
+export const set_message = form(async () => {
+	/** not actually needed */
+});
 
 === 1016 packages/kit/test/apps/async/src/routes/remote/form/snapshot/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -3700,6 +4571,40 @@ export class RenderNode {
 <p id="captured">captured: {captured}</p>
 <p id="live">live: {live}</p>
 
+=== 729 packages/kit/test/apps/async/src/routes/remote/form/snapshot/snapshot.remote.ts	ts	module	-
+import { form, getRequestEvent } from '$app/server';
+import * as v from 'valibot';
+
+const deferreds: Array<PromiseWithResolvers<void>> = [];
+
+export const update = form(
+	v.object({
+		a: v.object({
+			b: v.object({
+				c: v.string()
+			})
+		})
+	}),
+	async (data) => {
+		// hold the submission open until `release` is called, so that the test
+		// can mutate the form state while the submission is in flight
+		if (getRequestEvent().isRemoteRequest) {
+			const deferred = Promise.withResolvers<void>();
+			deferreds.push(deferred);
+			await deferred.promise;
+		}
+
+		return data.a.b.c;
+	}
+);
+
+export const release = form(v.object({}), () => {
+	for (const deferred of deferreds) {
+		deferred.resolve();
+	}
+	deferreds.length = 0;
+});
+
 === 666 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	import { my_form } from './form.remote.ts';
@@ -3723,6 +4628,19 @@ export class RenderNode {
 
 <p id="captured">{captured}</p>
 <p id="result">{my_form.result}</p>
+
+=== 197 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const my_form = form(
+	v.object({
+		quantity: v.optional(v.number())
+	}),
+	async (data) => {
+		return data.quantity;
+	}
+);
 
 === 518 packages/kit/test/apps/async/src/routes/remote/form/submit-field-value/page2/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -3755,6 +4673,20 @@ export class RenderNode {
 </form>
 
 <p id="result">{my_form.result}</p>
+
+=== 215 packages/kit/test/apps/async/src/routes/remote/form/submitter/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const my_form = form(
+	v.object({
+		submitter: v.string()
+	}),
+	async (data) => {
+		console.log('!!!', data);
+		return data.submitter;
+	}
+);
 
 === 110 packages/kit/test/apps/async/src/routes/remote/form/throwing-error-page/+error.svelte	svelte	runes	neutral
 <script>
@@ -3801,6 +4733,47 @@ export class RenderNode {
 	<button id="reset-btn" type="reset">Reset</button>
 </form>
 
+=== 216 packages/kit/test/apps/async/src/routes/remote/form/touched/touched.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const touched_form = form(
+	v.object({
+		name: v.optional(v.string()),
+		age: v.optional(v.number())
+	}),
+	(data) => ({ submitted: data })
+);
+
+=== 718 packages/kit/test/apps/async/src/routes/remote/form/transform/form.remote.ts	ts	module	-
+import { query, command, requested } from '$app/server';
+import * as v from 'valibot';
+import { per_session } from '../../per-session.js';
+
+const session = per_session(() => ({ count: 0 }));
+
+export const get_transformed_data = query(
+	v.pipe(
+		v.number(),
+		v.transform((n) => String(n)) // Transforms number to string
+	),
+	(transformed_value) => {
+		return `Count for ${transformed_value} is ${session().count}`;
+	}
+);
+
+export const update_data = command(async () => {
+	session().count++;
+
+	await requested(get_transformed_data, 1).refreshAll();
+});
+
+export const set_data = command(async () => {
+	for await (const { arg, query } of requested(get_transformed_data, 1)) {
+		query.set(`Set value for ${arg}`);
+	}
+});
+
 === 369 packages/kit/test/apps/async/src/routes/remote/form/underscore/+page.svelte	svelte	runes	neutral
 <script>
 	import { register } from './form.remote.ts';
@@ -3820,6 +4793,35 @@ export class RenderNode {
 		outline: 2px solid red;
 	}
 </style>
+
+=== 233 packages/kit/test/apps/async/src/routes/remote/form/underscore/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const register = form(
+	v.object({
+		username: v.pipe(v.string(), v.minLength(8)),
+		_password: v.pipe(v.string(), v.minLength(8))
+	}),
+	async (data) => {}
+);
+
+=== 458 packages/kit/test/apps/async/src/routes/remote/form/updates-no-invalidate/[key]/form.remote.ts	ts	module	-
+import { form, query } from '$app/server';
+import * as v from 'valibot';
+
+const counts = new Map<string, number>();
+
+export const get_count = query(v.string(), (key) => {
+	return counts.get(key) ?? 0;
+});
+
+// deliberately refreshes nothing — the client's `.updates()` call alone
+// should suppress `invalidateAll`
+export const increment = form(v.object({ key: v.string() }), ({ key }) => {
+	counts.set(key, (counts.get(key) ?? 0) + 1);
+	return 'done';
+});
 
 === 2393 packages/kit/test/apps/async/src/routes/remote/form/validate/+page.svelte	svelte	runes	runes
 <script>
@@ -3926,6 +4928,56 @@ export class RenderNode {
 </button>
 <p id="unmount-error">{unmount_error}</p>
 
+=== 870 packages/kit/test/apps/async/src/routes/remote/form/validate/form.remote.ts	ts	module	-
+import { form } from '$app/server';
+import { error, invalid } from '@sveltejs/kit';
+import * as v from 'valibot';
+
+export const my_form = form(
+	v.object({
+		foo: v.picklist(['a', 'b', 'c']),
+		bar: v.picklist(['d', 'e', 'f']),
+		button: v.literal('submitter')
+	}),
+	async (data, issue) => {
+		// Test imperative validation
+		if (data.foo === 'c') {
+			invalid(issue.foo('Imperative: foo cannot be c'));
+		}
+
+		console.log(data);
+	}
+);
+
+export const my_form_2 = form(
+	v.object({
+		baz: v.picklist(['a', 'b'])
+	}),
+	async ({ baz }) => {
+		if (baz === 'a') error(400, 'Nope');
+	}
+);
+
+export const issue_path_form = form(
+	v.object({
+		nested: v.object({
+			value: v.pipe(v.string(), v.minLength(3))
+		})
+	}),
+	async (data) => {
+		return data;
+	}
+);
+
+export const unmount_form = form(
+	v.object({
+		qux: v.picklist(['a', 'b'])
+	}),
+	async (data) => {
+		return data;
+	}
+);
+
 === 1019 packages/kit/test/apps/async/src/routes/remote/form/value/+page.svelte	svelte	runes	neutral
 <script>
 	import { values } from './value.remote.ts';
@@ -3974,6 +5026,28 @@ export class RenderNode {
 <h2>Array Value</h2>
 <pre id="array-value">{JSON.stringify(values.fields.array.value(), null, '  ')}</pre>
 
+=== 332 packages/kit/test/apps/async/src/routes/remote/form/value/value.remote.ts	ts	module	-
+import { form } from '$app/server';
+import * as v from 'valibot';
+
+export const values = form(
+	v.object({
+		leaf: v.string(),
+		object: v.object({
+			leaf: v.string(),
+			array: v.array(v.string())
+		}),
+		array: v.array(
+			v.object({
+				leaf: v.string()
+			})
+		)
+	}),
+	async (data) => {
+		return { success: true, data };
+	}
+);
+
 === 631 packages/kit/test/apps/async/src/routes/remote/isomorphic-caching/+page.svelte	svelte	runes	runes
 <script>
 	import { get_value, get_call_count } from './isomorphic.remote.js';
@@ -4013,6 +5087,25 @@ export class RenderNode {
 <div id="live-error">
 	{q.error ? `${q.error.status}: ${q.error.message}` : 'none'}
 </div>
+
+=== 520 packages/kit/test/apps/async/src/routes/remote/live-error-seed/[key]/data.remote.ts	ts	module	-
+import { query } from '$app/server';
+import { error } from '@sveltejs/kit';
+import * as v from 'valibot';
+
+const seen = new Set<string>();
+
+export const live_fail = query.live(v.string(), async function* (key) {
+	if (!seen.has(key)) {
+		// first connection (the SSR render) fails...
+		seen.add(key);
+		error(418, 'live teapot');
+	}
+
+	// ...subsequent connections block forever, so the only way the client
+	// can show the error is by consuming the seeded SSR error record
+	yield await new Promise<string>(() => {});
+});
 
 === 331 packages/kit/test/apps/async/src/routes/remote/live-ssr-value/+page.svelte	svelte	runes	neutral
 <script>
@@ -4219,6 +5312,16 @@ export class RenderNode {
 <button id="reveal" onclick={async () => (result = await reveal())}>reveal</button>
 <p id="result">{result}</p>
 
+=== 179 packages/kit/test/apps/async/src/routes/remote/query-non-exported/data.remote.ts	ts	module	-
+import { query } from '$app/server';
+
+const one = query(() => 1);
+const two = query(() => 2);
+
+export const total = query(async () => {
+	return (await one()) + (await two());
+});
+
 === 271 packages/kit/test/apps/async/src/routes/remote/query-redirect/+page.svelte	svelte	runes	neutral
 <!-- TODO can remove this when preloading doesn't eagerly redirect -->
 <a data-sveltekit-preload-data={false} href="/remote/query-redirect/from-page">from page</a>
@@ -4319,6 +5422,22 @@ export class RenderNode {
 
 <button onclick={() => bump(params.key).updates(q)}>bump</button>
 
+=== 460 packages/kit/test/apps/async/src/routes/remote/requested-limit/[key]/data.remote.ts	ts	module	-
+import { command, query, requested } from '$app/server';
+import * as v from 'valibot';
+
+const counts = new Map<string, number>();
+
+export const get_count = query(v.string(), (key) => counts.get(key) ?? 0);
+
+export const bump = command(v.string(), (key) => {
+	counts.set(key, (counts.get(key) ?? 0) + 1);
+
+	// limit 0: every requested refresh is over the limit and must be
+	// rejected with an error record that reaches the client
+	requested(get_count, 0);
+});
+
 === 382 packages/kit/test/apps/async/src/routes/remote/reserved/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	import * as reserved from './reserved.remote';
@@ -4337,6 +5456,27 @@ export class RenderNode {
 
 <button onclick={run} id="reserved-run">run</button>
 
+=== 231 packages/kit/test/apps/async/src/routes/remote/reserved/reserved.remote.ts	ts	module	-
+import { command, query } from '$app/server';
+
+const _delete = command(() => 'deleted');
+const _class = query(() => 'classy');
+const _return = command(() => '42');
+
+export { _delete as delete, _class as class, _return as return };
+
+=== 306 packages/kit/test/apps/async/src/routes/remote/server-action/+page.server.ts	ts	module	-
+import type { Actions } from './$types';
+import { do_something } from './action.remote';
+
+export const actions = {
+	default: async ({ request }) => {
+		const fields = await request.formData();
+		const result = await do_something(fields.get('input') as string);
+		return { result };
+	}
+} satisfies Actions;
+
 === 245 packages/kit/test/apps/async/src/routes/remote/server-action/+page.svelte	svelte	runes	runes
 <script>
 	import { enhance } from '$app/forms';
@@ -4350,6 +5490,14 @@ export class RenderNode {
 	<input type="hidden" name="input" value="hello" />
 	<button>submit</button>
 </form>
+
+=== 163 packages/kit/test/apps/async/src/routes/remote/server-action/action.remote.ts	ts	module	-
+import * as v from 'valibot';
+import { command } from '$app/server';
+
+export const do_something = command(v.string(), (input) => {
+	return `action: ${input}`;
+});
 
 === 373 packages/kit/test/apps/async/src/routes/remote/server-endpoint/+page.svelte	svelte	runes	runes
 <script>
@@ -4376,12 +5524,61 @@ export class RenderNode {
 	post
 </button>
 
+=== 263 packages/kit/test/apps/async/src/routes/remote/server-endpoint/api/+server.ts	ts	module	-
+import { json } from '@sveltejs/kit';
+import { add, get } from '../internal.remote';
+
+export async function GET() {
+	const result = await get();
+	return json({ result });
+}
+
+export async function POST() {
+	const result = await add(1);
+	return json({ result });
+}
+
+=== 168 packages/kit/test/apps/async/src/routes/remote/server-endpoint/internal.remote.ts	ts	module	-
+import { command, query } from '$app/server';
+
+export const get = query(() => {
+	return 'get';
+});
+
+export const add = command('unchecked', () => {
+	return 'post';
+});
+
+=== 161 packages/kit/test/apps/async/src/routes/remote/server-load-command/+page.server.ts	ts	module	-
+import { do_something } from '../server-action/action.remote';
+
+export async function load() {
+	const result = await do_something('test');
+	return { result };
+}
+
 === 67 packages/kit/test/apps/async/src/routes/remote/server-load-command/+page.svelte	svelte	runes	runes
 <script>
 	let { data } = $props();
 </script>
 
 <p>{data.result}</p>
+
+=== 425 packages/kit/test/apps/async/src/routes/remote/sidechannel-store/[key]/data.remote.ts	ts	module	-
+import { command, query } from '$app/server';
+import * as v from 'valibot';
+
+const store = new Map<string, string>();
+
+export const get_value = query(v.string(), (key) => store.get(key) ?? 'initial');
+
+export const update = command(v.string(), (key) => {
+	store.set(key, 'updated');
+
+	// server-initiated single-flight update for a query that has
+	// no active resource on the client
+	void get_value(key).set('updated');
+});
 
 === 502 packages/kit/test/apps/async/src/routes/remote/transport-status/+page.svelte	svelte	runes	neutral
 <script>
@@ -4410,6 +5607,12 @@ export class RenderNode {
 {:else if result.current !== undefined}
 	<p id="value">{result.current}</p>
 {/if}
+
+=== 142 packages/kit/test/apps/async/src/routes/remote/transport/data.remote.ts	ts	module	-
+import { query } from '$app/server';
+import { Foo } from '#lib';
+
+export const greeting = query(() => new Foo('hello from remote function'));
 
 === 4583 packages/kit/test/apps/async/src/routes/remote/validation/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -4656,6 +5859,40 @@ export class RenderNode {
 </script>
 
 <h1>This nested page should not be visible</h1>
+
+=== 479 packages/kit/test/apps/basics/src/env.ts	ts	module	-
+import { defineEnvVars } from '@sveltejs/kit/env';
+
+export const variables = defineEnvVars({
+	PRIVATE_STATIC: {
+		public: false,
+		static: true
+	},
+	PRIVATE_DYNAMIC: {
+		public: false,
+		static: false
+	},
+	PUBLIC_STATIC: {
+		public: true,
+		static: true
+	},
+	PUBLIC_DYNAMIC: {
+		public: true,
+		static: false
+	},
+	PUBLIC_THEME: {
+		public: true,
+		static: false
+	},
+	PUBLIC_PRERENDERING: {
+		public: true,
+		static: false
+	},
+	SOME_JSON: {
+		public: false,
+		static: true
+	}
+});
 
 === 485 packages/kit/test/apps/basics/src/routes/+error.svelte	svelte	runes	neutral
 <script>
@@ -5044,6 +6281,27 @@ export class RenderNode {
 </script>
 
 <p>{browser && document.cookie}</p>
+
+=== 555 packages/kit/test/apps/basics/src/routes/cookies/enhanced/basic/+page.server.ts	ts	module	-
+export const load: import('./$types').PageServerLoad = (event) => {
+	const cookie = event.cookies.get('a');
+	return { cookie };
+};
+
+export const actions: import('./$types').Actions = {
+	setTeapot: (event) => {
+		event.cookies.set('a', 'teapot', { path: '' });
+		return { lastSet: new Date().valueOf() };
+	},
+	setJaneAusten: (event) => {
+		event.cookies.set('a', 'Jane Austen', { path: '' });
+		return { lastSet: new Date().valueOf() };
+	},
+	delete: (event) => {
+		event.cookies.delete('a', { path: '' });
+		return { lastSet: new Date().valueOf() };
+	}
+};
 
 === 518 packages/kit/test/apps/basics/src/routes/cookies/forwarded-in-etag-multiple/+page.svelte	svelte	runes	neutral
 <script>
@@ -5553,6 +6811,34 @@ export class RenderNode {
 
 <h1>{page.error?.message}</h1>
 
+=== 503 packages/kit/test/apps/basics/src/routes/get-request-event/with-message/+page.server.ts	ts	module	-
+import { getRequestEvent } from '$app/server';
+
+export async function load() {
+	const e1 = getRequestEvent();
+	await Promise.resolve();
+	const e2 = getRequestEvent(); // check AsyncLocalStorage works
+
+	if (e1 !== e2) {
+		throw new Error('e1 !== e2');
+	}
+
+	return {
+		message: e1.locals.message
+	};
+}
+
+export const actions = {
+	default: async () => {
+		const { request } = getRequestEvent();
+		const data = await request.formData();
+
+		return {
+			message: `from form: ${data.get('message')}`
+		};
+	}
+};
+
 === 174 packages/kit/test/apps/basics/src/routes/get-request-event/with-message/+page.svelte	svelte	runes	runes
 <script>
 	let { data, form } = $props();
@@ -5583,6 +6869,27 @@ export class RenderNode {
 >
 
 <p>{message}</p>
+
+=== 119 packages/kit/test/apps/basics/src/routes/goto/loadreplace1/+page.ts	ts	module	-
+import { redirect } from '@sveltejs/kit';
+
+export const load = () => {
+	return redirect(302, '/goto/loadreplace2');
+};
+
+=== 119 packages/kit/test/apps/basics/src/routes/goto/loadreplace2/+page.ts	ts	module	-
+import { redirect } from '@sveltejs/kit';
+
+export const load = () => {
+	return redirect(302, '/goto/loadreplace3');
+};
+
+=== 117 packages/kit/test/apps/basics/src/routes/goto/loadreplace3/+page.ts	ts	module	-
+import { redirect } from '@sveltejs/kit';
+
+export const load = () => {
+	return redirect(302, '/goto/testfinish');
+};
 
 === 305 packages/kit/test/apps/basics/src/routes/goto/no-such-route/+page.svelte	svelte	runes	runes
 <script>
@@ -5633,6 +6940,19 @@ export class RenderNode {
 <p>
 	this directory exists to confirm that files with test/spec/stories in the filename are ignored
 </p>
+
+=== 134 packages/kit/test/apps/basics/src/routes/init-hooks/+page.server.ts	ts	module	-
+let did_init_run = 0;
+
+export function _set_from_init() {
+	did_init_run++;
+}
+
+export function load() {
+	return {
+		did_init_run
+	};
+}
 
 === 120 packages/kit/test/apps/basics/src/routes/init-hooks/+page.svelte	svelte	runes	runes
 <script>
@@ -5979,6 +7299,15 @@ navigated
 		</div>
 	{/each}
 </div>
+
+=== 173 packages/kit/test/apps/basics/src/routes/match/const.ts	ts	module	-
+export const testPaths = [
+	'/match/load/foo',
+	'/match/slug/test-slug',
+	'/match/slug/test-slug?from=query',
+	'/match/not-a-real-route-that-exists',
+	'/reroute/basic/a'
+];
 
 === 4 packages/kit/test/apps/basics/src/routes/match/load/foo/+page.svelte	svelte	runes	neutral
 bar
@@ -6401,6 +7730,18 @@ slug
 === 30 packages/kit/test/apps/basics/src/routes/preload-code-on-load/+page.svelte	svelte	runes	neutral
 <h1>preload code on load</h1>
 
+=== 330 packages/kit/test/apps/basics/src/routes/preload-code-on-load/+page.ts	ts	module	-
+import { browser } from '$app/env';
+import { preloadCode } from '$app/navigation';
+
+export async function load() {
+	// #13297: calling `preloadCode` during initial load, before `current.url` is set,
+	// used to throw `Failed to construct 'URL': Invalid base URL`
+	if (browser) {
+		await preloadCode('/preload-code-on-load');
+	}
+}
+
 === 141 packages/kit/test/apps/basics/src/routes/prerendering/+error.svelte	svelte	runes	runes
 <script>
 	import { page } from '$app/state';
@@ -6440,6 +7781,9 @@ slug
 </script>
 
 <p>error: {error}</p>
+
+=== 27 packages/kit/test/apps/basics/src/routes/prerendering/mutative-endpoint/+page.server.ts	ts	module	-
+export const actions = {};
 
 === 37 packages/kit/test/apps/basics/src/routes/prerendering/mutative-endpoint/+page.svelte	svelte	runes	neutral
 <h1>I have a mutative endpoint!</h1>
@@ -6492,11 +7836,27 @@ slug
 === 19 packages/kit/test/apps/basics/src/routes/redirect/in-handle/+page.svelte	svelte	runes	neutral
 <h1>in-handle</h1>
 
+=== 294 packages/kit/test/apps/basics/src/routes/reroute/api/[prerendered]/+server.ts	ts	module	-
+import { text } from '@sveltejs/kit';
+
+// This is inside a route with a route segment to ensure that the route is marked as prerendered
+// as part of reroute resolution even when no `entries` is given.
+export const prerender = true;
+
+export function GET() {
+	return text('/reroute/async/b');
+}
+
 === 172 packages/kit/test/apps/basics/src/routes/reroute/async/+page.svelte	svelte	runes	neutral
 <a href="/reroute/async/a">Go to url that should be rewritten</a>
 <a href="/reroute/async/c"
 	>Go to url that should be rewritten and its reroute api call prerendered</a
 >
+
+=== 163 packages/kit/test/apps/basics/src/routes/reroute/async/+page.ts	ts	module	-
+// through this we test that the crawler during prerendering does not fail on
+// reroute calls that call non-prerendered endpoints.
+export const prerender = true;
 
 === 69 packages/kit/test/apps/basics/src/routes/reroute/async/a/+page.svelte	svelte	runes	neutral
 <h1>Should have been rewritten to <code>/reroute/async/b</code></h1>
@@ -7924,6 +9284,13 @@ Page B
 <pre id="one">{JSON.stringify(data.values)}</pre>
 <pre id="two">{JSON.stringify(to_pojo(page.url.searchParams))}</pre>
 
+=== 117 packages/kit/test/apps/dev-only/src/env.ts	ts	module	-
+import { defineEnvVars } from '@sveltejs/kit/env';
+
+export const variables = defineEnvVars({
+	SHOULD_EXPLODE: {}
+});
+
 === 89 packages/kit/test/apps/dev-only/src/routes/+error.svelte	svelte	runes	neutral
 <script>
 	import { page } from '$app/state';
@@ -8115,6 +9482,11 @@ Page B
 	{page.url.pathname + page.url.search + page.url.hash}
 </p>
 
+=== 186 packages/kit/test/apps/hash-based-routing/src/routes/client-only/+page.ts	ts	module	-
+// Referencing the browser-only API in the universal node helps us test if the
+// app can be built without errors although SSR is not explicitly set to false
+indexedDB.open('toDoList');
+
 === 36 packages/kit/test/apps/hash-based-routing/src/routes/focus/+page.svelte	svelte	runes	neutral
 <a href="#/focus/a#p">click me!</a>
 
@@ -8171,6 +9543,29 @@ Page B
 		color: red;
 	}
 </style>
+
+=== 532 packages/kit/test/apps/options-2/src/env.ts	ts	module	-
+import process from 'node:process';
+import { building } from '$app/env';
+import * as v from 'valibot';
+
+export const variables = {
+	MESSAGE: {
+		public: true,
+		description: 'Public env var loaded from the shared test env directory',
+		static: !process.env.DYNAMIC_PUBLIC_ENV
+	},
+	PRIVATE_EXPLICIT_ENV: {},
+	PRIVATE_STATIC_EXPLICIT_ENV: {
+		static: true
+	},
+	PRIVATE_VALIDATED_DEFAULT_ENV: {
+		schema: v.optional(v.picklist(['foo', 'bar']), 'foo')
+	},
+	RUNTIME_ONLY: {
+		schema: building ? v.optional(v.string()) : v.string()
+	}
+};
 
 === 283 packages/kit/test/apps/options-2/src/routes/+error.svelte	svelte	runes	neutral
 <script>
@@ -8231,6 +9626,23 @@ Page B
 	}
 </style>
 
+=== 246 packages/kit/test/apps/options-2/src/routes/deserialize/+page.ts	ts	module	-
+import { deserialize } from '$app/forms';
+
+export const ssr = false;
+
+export function load() {
+	const result = deserialize(
+		JSON.stringify({
+			type: 'success',
+			status: 200,
+			data: '[{"text":1},"Hello world!"]'
+		})
+	);
+
+	return result;
+}
+
 === 528 packages/kit/test/apps/options-2/src/routes/env/+page.svelte	svelte	runes	runes
 <script>
 	import { browser } from '$app/env';
@@ -8247,6 +9659,16 @@ Page B
 <p data-testid="private-validated-default">
 	private validated default: {data.private_validated_default}
 </p>
+
+=== 209 packages/kit/test/apps/options-2/src/routes/env/import-all/+page.server.ts	ts	module	-
+import * as env from '$app/env/private';
+
+export function load() {
+	return {
+		// we need to do this dance to strip out Symbol keys in Node 18, apparently?
+		env: Object.fromEntries(Object.entries(env))
+	};
+}
 
 === 184 packages/kit/test/apps/options-2/src/routes/env/import-all/+page.svelte	svelte	runes	runes
 <script>
@@ -8382,6 +9804,18 @@ Page B
 		background: url('data:image/svg+xml;charset=UTF-8,<svg xmlns="http://www.w3.org/2000/svg" width="107" height="128" viewBox="0 0 107 128"><title>svelte-logo</title><path d="M94.1566,22.8189c-10.4-14.8851-30.94-19.2971-45.7914-9.8348L22.2825,29.6078A29.9234,29.9234,0,0,0,8.7639,49.6506a31.5136,31.5136,0,0,0,3.1076,20.2318A30.0061,30.0061,0,0,0,7.3953,81.0653a31.8886,31.8886,0,0,0,5.4473,24.1157c10.4022,14.8865,30.9423,19.2966,45.7914,9.8348L84.7167,98.3921A29.9177,29.9177,0,0,0,98.2353,78.3493,31.5263,31.5263,0,0,0,95.13,58.117a30,30,0,0,0,4.4743-11.1824,31.88,31.88,0,0,0-5.4473-24.1157" style="fill:%23ff3e00"/><path d="M45.8171,106.5815A20.7182,20.7182,0,0,1,23.58,98.3389a19.1739,19.1739,0,0,1-3.2766-14.5025,18.1886,18.1886,0,0,1,.6233-2.4357l.4912-1.4978,1.3363.9815a33.6443,33.6443,0,0,0,10.203,5.0978l.9694.2941-.0893.9675a5.8474,5.8474,0,0,0,1.052,3.8781,6.2389,6.2389,0,0,0,6.6952,2.485,5.7449,5.7449,0,0,0,1.6021-.7041L69.27,76.281a5.4306,5.4306,0,0,0,2.4506-3.631,5.7948,5.7948,0,0,0-.9875-4.3712,6.2436,6.2436,0,0,0-6.6978-2.4864,5.7427,5.7427,0,0,0-1.6.7036l-9.9532,6.3449a19.0329,19.0329,0,0,1-5.2965,2.3259,20.7181,20.7181,0,0,1-22.2368-8.2427,19.1725,19.1725,0,0,1-3.2766-14.5024,17.9885,17.9885,0,0,1,8.13-12.0513L55.8833,23.7472a19.0038,19.0038,0,0,1,5.3-2.3287A20.7182,20.7182,0,0,1,83.42,29.6611a19.1739,19.1739,0,0,1,3.2766,14.5025,18.4,18.4,0,0,1-.6233,2.4357l-.4912,1.4978-1.3356-.98a33.6175,33.6175,0,0,0-10.2037-5.1l-.9694-.2942.0893-.9675a5.8588,5.8588,0,0,0-1.052-3.878,6.2389,6.2389,0,0,0-6.6952-2.485,5.7449,5.7449,0,0,0-1.6021.7041L37.73,51.719a5.4218,5.4218,0,0,0-2.4487,3.63,5.7862,5.7862,0,0,0,.9856,4.3717,6.2437,6.2437,0,0,0,6.6978,2.4864,5.7652,5.7652,0,0,0,1.602-.7041l9.9519-6.3425a18.978,18.978,0,0,1,5.2959-2.3278,20.7181,20.7181,0,0,1,22.2368,8.2427,19.1725,19.1725,0,0,1,3.2766,14.5024,17.9977,17.9977,0,0,1-8.13,12.0532L51.1167,104.2528a19.0038,19.0038,0,0,1-5.3,2.3287" style="fill:%23fff"/></svg>');
 	}
 </style>
+
+=== 176 packages/kit/test/apps/options/source/env.ts	ts	module	-
+import { defineEnvVars } from '@sveltejs/kit/env';
+
+export const variables = defineEnvVars({
+	GO_AWAY_PLEASE: {
+		public: true
+	},
+	TOP_SECRET_SHH_PLS: {
+		static: true
+	}
+});
 
 === 107 packages/kit/test/apps/options/source/pages/+page.svelte	svelte	runes	neutral
 <script>
@@ -8648,6 +10082,11 @@ Page B
 === 39 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+error.svelte	svelte	runes	neutral
 <p>This is your custom error page.</p>
 
+=== 39 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+layout.server.ts	ts	module	-
+export function load() {
+	return {};
+}
+
 === 134 packages/kit/test/apps/prerendered-app-error-pages/src/routes/+layout.svelte	svelte	runes	runes
 <script>
 	import { setup } from '../../../../setup.js';
@@ -8706,6 +10145,12 @@ Page B
 === 17 packages/kit/test/build-errors/apps/env-private-service-worker/src/routes/+page.svelte	svelte	runes	neutral
 <h1>Bonjour</h1>
 
+=== 140 packages/kit/test/build-errors/apps/prerender-entry-generator-mismatch/src/routes/[slug]/[notSpecific]/+page.ts	ts	module	-
+/** @type {import('./$types').EntryGenerator} */
+export const entries = () => {
+	return [{ slug: 'whatever', notSpecific: 'specific' }];
+};
+
 === 32 packages/kit/test/build-errors/apps/prerender-entry-generator-mismatch/src/routes/[slug]/specific/+page.svelte	svelte	runes	neutral
 <div>This will be matched</div>
 
@@ -8717,6 +10162,13 @@ Page B
 {#await throws() then value}
 	{value}
 {/await}
+
+=== 131 packages/kit/test/build-errors/apps/prerender-remote-function-error/src/routes/data.remote.ts	ts	module	-
+import { prerender } from '$app/server';
+
+export const throws = prerender(() => {
+	throw new Error('remote function blew up');
+});
 
 === 34 packages/kit/test/build-errors/apps/prerenderable-incorrect-fragment/src/routes/+page.svelte	svelte	runes	neutral
 <a href="foo#missing">missing</a>
@@ -8791,6 +10243,20 @@ Page B
 
 === 4 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	svelte	runes	rejected
 <div
+=== 204 packages/kit/test/prerendering/basics/src/env.ts	ts	module	-
+import { defineEnvVars } from '@sveltejs/kit/env';
+
+export const variables = defineEnvVars({
+	PUBLIC_STATIC: {
+		public: true,
+		static: true
+	},
+	PRIVATE_STATIC: {
+		public: false,
+		static: true
+	}
+});
+
 === 17 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	svelte	runes	neutral
 <h1>grouped</h1>
 
@@ -8918,6 +10384,1094 @@ Page B
 
 <p>{data.message}</p>
 
+=== 1489 packages/kit/test/types/actions.test.ts	ts	module	-
+import * as Kit from '@sveltejs/kit';
+
+// Test: Action types inferred correctly and transformed into a union
+type Actions = {
+	foo: () => Promise<void>;
+	bar: () => Promise<{ success: boolean } | Kit.ActionFailure<{ message: string }>>;
+	baz: () => Kit.ActionFailure<{ foo: string }> | { status: number; data: string };
+};
+
+let form: Kit.AwaitedActions<Actions> = null as any;
+form.message = '';
+form.success = true;
+// @ts-expect-error - cannot both be present at the same time
+form = { message: '', success: true };
+
+// Test: Actions with different return types are transformed into a union that has all types accessible
+type Actions2 = {
+	foo: () => Promise<{ message: string }>;
+	bar: () => Promise<{ success: boolean }>;
+};
+
+let form2: Kit.AwaitedActions<Actions2> = null as any;
+form2.message = '';
+form2.success = true;
+// @ts-expect-error - cannot both be present at the same time
+form2 = { message: '', success: true };
+
+// Test: ActionFailure is correctly infered to be different from the normal return type even if they have the same shape
+type Actions3 = {
+	bar: () => Kit.ActionFailure<{ foo: string }> | { status: number; data: { bar: string } };
+};
+let form3: Kit.AwaitedActions<Actions3> = null as any;
+form3.foo = '';
+form3.status = 200;
+// @ts-expect-error - cannot both be present at the same time
+form3 = { foo: '', status: 200 };
+
+const foo: any = null;
+// @ts-expect-error ActionFailure is not a class and so you can't do instanceof
+foo instanceof Kit.ActionFailure;
+
+=== 2627 packages/kit/test/types/app-error-enhanced/error.test.ts	ts	module	-
+import { error } from '@sveltejs/kit';
+import { type HandleClientError, type HandleServerError } from '@sveltejs/kit/hooks';
+
+const app_error: App.Error = { status: 500, message: 'Unexpected error', additional: true };
+
+declare global {
+	namespace App {
+		interface Error {
+			additional: boolean;
+		}
+	}
+}
+
+// @ts-expect-error App.Error requires status
+const app_error_without_status: App.Error = { message: 'Unexpected error' };
+
+const handle_error_hooks: [
+	HandleServerError,
+	HandleServerError,
+	HandleClientError,
+	HandleClientError
+] = [
+	() => ({ message: 'Unexpected error', additional: true }),
+	// @ts-expect-error App.Error requires additional
+	() => ({ message: 'Unexpected error' }),
+	() => ({ message: 'Unexpected error', additional: true }),
+	// @ts-expect-error App.Error requires
+	() => ({ message: 'Unexpected error' })
+];
+
+// `status` and `message` are optional in the return (they default to those of the
+// caught error), but augmented properties of `App.Error` remain required
+const handle_error_overrides: [HandleServerError, HandleClientError] = [
+	() => ({ additional: true }),
+	() => ({ additional: true })
+];
+
+const handle_error_kinds: HandleServerError = ({ kind, error }) => {
+	if (kind === 'app') {
+		error satisfies App.Error;
+		return error;
+	}
+
+	if (kind === 'framework' || kind === 'validation') {
+		// @ts-expect-error framework and validation errors have no `additional` property
+		error satisfies App.Error;
+		return { ...error, additional: true };
+	}
+
+	return { additional: true };
+};
+
+// `App.Error` is augmented with a REQUIRED `additional` property, so unlike the default
+// case the hook cannot return nothing — it must supply the augmented properties
+const handle_error_without_return: [HandleServerError, HandleClientError] = [
+	// @ts-expect-error handleError must return the required properties of App.Error
+	() => {},
+	// @ts-expect-error handleError must return the required properties of App.Error
+	() => {}
+];
+
+void app_error;
+void app_error_without_status;
+void handle_error_hooks;
+void handle_error_overrides;
+void handle_error_kinds;
+void handle_error_without_return;
+
+function a() {
+	// @ts-expect-error App.Error requires additional
+	error(400, 'Bad request');
+}
+
+function b() {
+	// @ts-expect-error App.Error requires additional
+	error(400, { message: 'Bad request' });
+}
+
+function c() {
+	error(400, 'Bad request', { additional: true });
+}
+
+function d() {
+	// @ts-expect-error
+	error(400, { message: 'Bad request' });
+}
+
+function e() {
+	error(400, { message: 'Bad request', additional: true });
+}
+
+function f() {
+	// @ts-expect-error
+	error(400);
+}
+
+a;
+b;
+c;
+d;
+e;
+f;
+
+=== 1419 packages/kit/test/types/env.test.ts	ts	module	-
+import { defineEnvVars } from '@sveltejs/kit/env';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
+
+const callable_schema = Object.assign((value: string | undefined) => String(value), {
+	'~standard': {
+		version: 1 as const,
+		vendor: 'test',
+		validate: (value: unknown) => ({ value: String(value) })
+	}
+});
+
+const variables = defineEnvVars({
+	PORT: {
+		schema: (value) => (value === undefined ? 3000 : Number(value) || undefined)
+	},
+	NAME: {
+		schema: {
+			'~standard': {
+				version: 1,
+				vendor: 'test',
+				validate: (value) => ({ value: String(value) })
+			}
+		}
+	},
+	CALLABLE: {
+		schema: callable_schema
+	},
+	PLAIN: {}
+});
+
+// function schemas are normalized to standard schemas, mirroring the generated env.d.ts types
+variables.PORT.schema satisfies StandardSchemaV1<string | undefined, number | undefined>;
+type PortOutput = StandardSchemaV1.InferOutput<typeof variables.PORT.schema>;
+
+3000 satisfies PortOutput;
+
+// returning `undefined` is valid, so it stays in the inferred output
+undefined satisfies PortOutput;
+
+// standard schema configs keep their type
+variables.NAME.schema satisfies StandardSchemaV1<string | undefined, string>;
+
+// callable standard schemas (e.g. ArkType) are not treated as function validators
+variables.CALLABLE.schema satisfies StandardSchemaV1<unknown, string>;
+variables.CALLABLE.schema satisfies (value: string | undefined) => string;
+
+void variables.PLAIN;
+
+=== 2853 packages/kit/test/types/error.test.ts	ts	module	-
+import { error } from '@sveltejs/kit';
+import { type HandleClientError, type HandleServerError } from '@sveltejs/kit/hooks';
+import type { StandardSchemaV1 } from '@standard-schema/spec';
+
+declare global {
+	namespace App {
+		interface Error {
+			description?: string;
+		}
+	}
+}
+
+const app_error: App.Error = { status: 500, message: 'Unexpected error' };
+
+// @ts-expect-error App.Error requires status
+const app_error_without_status: App.Error = { message: 'Unexpected error' };
+
+const handle_error_hooks: [HandleServerError, HandleClientError] = [
+	({ kind, error, issues }) => {
+		if (kind === 'app') {
+			error satisfies App.Error;
+			issues satisfies undefined;
+			return error;
+		}
+
+		if (kind === 'framework') {
+			error satisfies { status: number; message: string };
+			issues satisfies undefined;
+			return error;
+		}
+
+		if (kind === 'validation') {
+			error satisfies { status: number; message: string };
+			issues satisfies Array<import('@standard-schema/spec').StandardSchemaV1.Issue>;
+			return error;
+		}
+
+		error satisfies unknown;
+		issues satisfies undefined;
+		return { message: 'Unexpected error' };
+	},
+	() => ({ message: 'Unexpected error' })
+];
+
+// `status` and `message` are optional in the return — they are only returned to
+// override the defaults inherited from the caught error
+interface CustomIssue extends StandardSchemaV1.Issue {
+	code: string;
+}
+
+const handle_custom_validation_error: HandleServerError<CustomIssue> = ({ kind, issues }) => {
+	if (kind === 'validation') {
+		issues[0].code satisfies string;
+	}
+};
+
+const handle_client_error: HandleClientError = ({ kind }) => {
+	// @ts-expect-error validation errors are handled on the server
+	kind satisfies 'validation';
+};
+
+const handle_error_overrides: [HandleServerError, HandleServerError, HandleClientError] = [
+	() => ({}),
+	() => ({ status: 404 }),
+	() => ({})
+];
+
+// with the default `App.Error`, returning nothing is valid — every property of the
+// return type is optional, so `void` and `{}` mean the same thing
+const handle_error_without_return: [HandleServerError, HandleClientError, HandleServerError] = [
+	() => {},
+	() => {},
+	async () => {}
+];
+
+void app_error;
+void app_error_without_status;
+void handle_error_hooks;
+void handle_custom_validation_error;
+void handle_client_error;
+void handle_error_overrides;
+void handle_error_without_return;
+
+function a() {
+	error(400, 'Bad request');
+}
+
+function b() {
+	error(400, { message: 'Bad request' });
+}
+
+function c() {
+	// @ts-expect-error
+	error(400, 'Bad request', { cause: new Error('cause') });
+}
+
+function d() {
+	error(400, { message: 'Bad request' });
+}
+
+function e() {
+	// @ts-expect-error
+	error(400, { message: 'Bad request', cause: new Error('cause') });
+}
+
+function f() {
+	error(400);
+}
+
+function g() {
+	error(400, 'Bad request', { description: 'Invalid request data' });
+}
+
+a;
+b;
+c;
+d;
+e;
+f;
+g;
+
+=== 426 packages/kit/test/types/load.test.ts	ts	module	-
+import * as Kit from '@sveltejs/kit';
+
+// Test: Return types inferred correctly and transformed into a union
+type LoadReturn1 =
+	| { success: true; message?: undefined }
+	| { success?: undefined; message: string };
+
+let result1: Kit.LoadProperties<LoadReturn1> = null as any;
+result1.message = '';
+result1.success = true;
+// @ts-expect-error - cannot both be present at the same time
+result1 = { message: '', success: true };
+
+=== 18481 packages/kit/test/types/remote.test.ts	ts	module	-
+import { query, prerender, command, form, requested } from '$app/server';
+import type {
+	RemoteForm,
+	RemoteFormEnhanceCallback,
+	RemoteFormEnhanceInstance,
+	RemoteFormFields,
+	RemoteFormInvalidField,
+	RemoteFormInput,
+	RemoteLiveQueryRequestedEntry,
+	RemoteLiveQueryFunction,
+	RemoteLiveQueryRequestedResult,
+	RemotePrerenderFunction,
+	RemoteQueryRequestedResult,
+	RemoteQueryFunction
+} from '$app/server';
+import { StandardSchemaV1 } from '@standard-schema/spec';
+import { invalid, isValidationError } from '@sveltejs/kit';
+import type { ValidationError } from '@sveltejs/kit';
+
+const schema: StandardSchemaV1<string> = null as any;
+const schema2: StandardSchemaV1<string, number> = null as any;
+const schema3: StandardSchemaV1<string | undefined, number> = null as any;
+
+function exported_type_tests(error: unknown) {
+	const field: RemoteFormInvalidField<{ name: string }> = null as any;
+	const entry: RemoteLiveQueryRequestedEntry<void, string> = null as any;
+	const query_result: RemoteQueryRequestedResult<void, string> = null as any;
+	const live_result: RemoteLiveQueryRequestedResult<void, string> = null as any;
+	field.name('Invalid name');
+	entry.query;
+	query_result.refreshAll();
+	live_result.reconnectAll();
+
+	if (isValidationError(error)) {
+		const validation_error: ValidationError = error;
+		validation_error.issues;
+	}
+}
+void exported_type_tests;
+
+function query_tests() {
+	const no_args: RemoteQueryFunction<void, string> = query(() => 'Hello world');
+	void no_args();
+	// @ts-expect-error
+	void no_args('');
+
+	const one_arg: RemoteQueryFunction<number, string> = query('unchecked', (a: number) =>
+		a.toString()
+	);
+	void one_arg(1);
+	// @ts-expect-error
+	void one_arg('1');
+	// @ts-expect-error
+	void one_arg();
+
+	async function query_without_args() {
+		const q = query(() => 'Hello world');
+		const result: string = await q();
+		result;
+		// @ts-expect-error
+		const wrong: number = await q();
+		wrong;
+		// @ts-expect-error
+		void q(1);
+		// @ts-expect-error
+		query((_: string) => 'hi');
+	}
+	void query_without_args();
+
+	async function query_with_optional_arg() {
+		const q = query(schema3, () => 'Hello world');
+		void q();
+		void q('hi');
+		// @ts-expect-error
+		void q(1);
+
+		const q2 = query('unchecked', (a?: string) => a);
+		void q2();
+		void q2('hi');
+		// @ts-expect-error
+		void q2(1);
+	}
+	void query_with_optional_arg();
+
+	async function query_unsafe() {
+		const q = query('unchecked', (a: number) => a);
+		const result: number = await q(1);
+		result;
+		// @ts-expect-error
+		void q(1, 2, 3);
+		// @ts-expect-error
+		void q('1', '2');
+	}
+	void query_unsafe();
+
+	async function query_schema_input_only() {
+		const q = query(schema, (a) => a);
+		const result: string = await q('1');
+		result;
+	}
+	void query_schema_input_only();
+
+	async function query_schema_input_and_output() {
+		const q = query(schema2, (a) => a);
+		const result: number = await q('1');
+		result;
+	}
+	void query_schema_input_and_output();
+}
+query_tests();
+
+function live_query_tests() {
+	const no_args: RemoteLiveQueryFunction<void, string> = query.live(async function* () {
+		yield 'hello';
+	});
+	void no_args();
+	// @ts-expect-error
+	void no_args('');
+
+	const one_arg: RemoteLiveQueryFunction<number, string> = query.live(
+		'unchecked',
+		async function* (a: number) {
+			yield a.toString();
+		}
+	);
+	void one_arg(1);
+	// @ts-expect-error
+	void one_arg('1');
+	// @ts-expect-error
+	void one_arg();
+
+	async function live_without_args() {
+		const q = query.live(async function* () {
+			yield 'Hello world';
+		});
+
+		const result: string = await q();
+		result;
+
+		for await (const value of q()) {
+			const _: string = value;
+			_;
+			break;
+		}
+
+		q().connected === true;
+		q().done === false;
+		q().reconnect();
+		// @ts-expect-error
+		q().refresh();
+		// @ts-expect-error
+		q().set('x');
+		// @ts-expect-error
+		q().fail(new Error('x'));
+	}
+	void live_without_args();
+
+	async function live_with_schema() {
+		const q: RemoteLiveQueryFunction<string, string> = query.live(schema, async function* (a) {
+			yield a;
+		});
+
+		const result: string = await q('x');
+		result;
+		// @ts-expect-error
+		void q(123);
+	}
+	void live_with_schema();
+}
+live_query_tests();
+
+function prerender_tests() {
+	const no_args: RemotePrerenderFunction<void, string> = prerender(() => 'Hello world');
+	void no_args();
+	// @ts-expect-error
+	void no_args('');
+	const one_arg: RemotePrerenderFunction<number, string> = prerender('unchecked', (a: number) =>
+		a.toString()
+	);
+	void one_arg(1);
+	// @ts-expect-error
+	void one_arg('1');
+	// @ts-expect-error
+	void one_arg();
+
+	async function prerender_without_args() {
+		const q = prerender(() => 'Hello world');
+		const result: string = await q();
+		result;
+		// @ts-expect-error
+		const wrong: number = await q();
+		wrong;
+		// @ts-expect-error
+		void q(1);
+		// @ts-expect-error
+		query((_: string) => 'hi');
+	}
+	void prerender_without_args();
+
+	async function prerender_unsafe() {
+		const q = prerender('unchecked', (a: number) => a);
+		const result: number = await q(1);
+		result;
+		// @ts-expect-error
+		void q(1, 2, 3);
+		// @ts-expect-error
+		void q('1', '2');
+	}
+	void prerender_unsafe();
+
+	async function prerender_with_optional_arg() {
+		const q = prerender(schema3, () => 'Hello world');
+		void q();
+		void q('hi');
+		// @ts-expect-error
+		void q(1);
+
+		const q2 = prerender('unchecked', (a?: string) => a);
+		void q2();
+		void q2('hi');
+		// @ts-expect-error
+		void q2(1);
+	}
+	void prerender_with_optional_arg();
+
+	async function prerender_schema() {
+		const q = prerender(schema, (a) => a);
+		const result: string = await q('1');
+		result;
+	}
+	void prerender_schema();
+
+	function prerender_schema_entries() {
+		const q = prerender(schema, (a) => a, { inputs: () => ['1'] });
+		q;
+		// @ts-expect-error
+		const q2 = prerender(schema, (a) => a, { inputs: () => [1] });
+		q2;
+	}
+	prerender_schema_entries();
+}
+prerender_tests();
+
+function command_tests() {
+	async function command_without_args() {
+		const q = query(() => '');
+		const lq = query.live(async function* () {
+			yield '';
+		});
+		const cmd = command(() => 'Hello world');
+		const result: string = await cmd();
+		result;
+		const result2: string = await cmd().updates(
+			q,
+			lq,
+			q(),
+			lq(),
+			q().withOverride(() => '')
+		);
+		result2;
+		// @ts-expect-error
+		const wrong: number = await cmd();
+		wrong;
+
+		for (const { arg, query: bound } of requested(q, 5)) {
+			const arg_output: void = arg;
+			arg_output;
+			void bound.refresh();
+		}
+
+		for await (const { arg, query: bound } of requested(q, 5)) {
+			const arg_output: void = arg;
+			arg_output;
+			void bound.refresh();
+		}
+
+		for (const { arg, query: bound } of requested(q, 1)) {
+			const arg_output: void = arg;
+			arg_output;
+			void bound.refresh();
+		}
+
+		// @ts-expect-error — `limit` is required
+		requested(q);
+
+		const refreshes = requested(q, 5);
+		const refreshed: Promise<void> = refreshes.refreshAll();
+		refreshed;
+
+		const reconnects = requested(lq, 5);
+		const reconnected: Promise<void> = reconnects.reconnectAll();
+		reconnected;
+	}
+	void command_without_args();
+
+	async function requested_validated_type_tracks_schema_output() {
+		// schema2 declares InferInput = string, InferOutput = number, so `arg`
+		// in `requested(...)` must be `number` (the post-validation / post-transform
+		// value), NOT the pre-validation `string`.
+		const q = query(schema2, (a) => a);
+		for (const { arg, query: bound } of requested(q, 5)) {
+			const arg_output: number = arg;
+			arg_output;
+			void bound.refresh();
+			// @ts-expect-error — `arg` is number, not string
+			const wrong: string = arg;
+			wrong;
+		}
+
+		// `'unchecked'` queries: `arg` is the caller's Input type
+		const unchecked = query('unchecked', (a: number) => a);
+		for (const { arg } of requested(unchecked, 5)) {
+			const arg_output: number = arg;
+			arg_output;
+		}
+
+		// Queries without arguments: `arg` is `void`
+		const no_arg = query(() => 'hi');
+		for (const { arg } of requested(no_arg, 5)) {
+			const arg_output: void = arg;
+			arg_output;
+		}
+	}
+	void requested_validated_type_tracks_schema_output();
+
+	async function command_with_optional_arg() {
+		const q = command(schema3, () => 'Hello world');
+		void q();
+		void q('hi');
+		// @ts-expect-error
+		void q(1);
+
+		const q2 = command('unchecked', (a?: string) => a);
+		void q2();
+		void q2('hi');
+		// @ts-expect-error
+		void q2(1);
+	}
+	void command_with_optional_arg();
+
+	async function command_unsafe() {
+		const cmd = command('unchecked', (a: string) => a);
+		const result: string = await cmd('test');
+		result;
+		// @ts-expect-error
+		void cmd(1);
+		// @ts-expect-error
+		void cmd('1', 2);
+	}
+	void command_unsafe();
+
+	async function command_schema() {
+		const cmd = command(schema, (a) => a);
+		const result: string = await cmd('foo');
+		result;
+		// @ts-expect-error
+		void cmd(123);
+	}
+	void command_schema();
+}
+command_tests();
+
+function form_tests() {
+	const q = query(() => '');
+	const f = form('unchecked', (data: { input: string }, issue) => {
+		data.input;
+		if (Math.random() > 0.5) {
+			invalid(
+				'foo',
+				issue.input('bar'),
+				// @ts-expect-error
+				issue.nonexistent.prop('baz')
+			);
+		}
+		return { success: true };
+	});
+
+	f.result?.success === true;
+
+	const submit: RemoteFormEnhanceCallback<{ input: string }, { success: boolean }> = async (
+		form
+	) => {
+		const result: { success: boolean } | undefined = form.result;
+		result;
+		// @ts-expect-error
+		form.enhance(() => {});
+		const x: boolean = await form.submit();
+		x;
+	};
+
+	f.enhance(submit);
+
+	f.enhance(async (form) => {
+		const result: RemoteFormEnhanceInstance<{ input: string }, { success: boolean }> = form;
+		result;
+		const x: boolean = await form.submit();
+		x;
+		const y: boolean = await form.submit().updates(
+			q,
+			q(),
+			q().withOverride(() => '')
+		);
+		y;
+		const element: HTMLFormElement = form.element;
+		element;
+		// @ts-expect-error
+		form.enhance(() => {});
+	});
+
+	const element: HTMLFormElement | null = f.element;
+	element;
+
+	const f2 = form(
+		null as any as StandardSchemaV1<{ a: string; nested: { prop: string } }>,
+		(data, issue) => {
+			data.a === '';
+			data.nested.prop === '';
+			// @ts-expect-error
+			data.nested.nonexistent;
+			// @ts-expect-error
+			data.nonexistent;
+			// @ts-expect-error
+			data.a === 123;
+			if (Math.random() > 0.5) {
+				invalid(
+					'foo',
+					issue.nested.prop('bar'),
+					// @ts-expect-error
+					issue.nonexistent.prop('baz')
+				);
+			}
+			return { success: true };
+		}
+	);
+	// @ts-expect-error
+	f2.fields.as('text');
+	f2.fields.a.issues();
+	f2.fields.nested.prop.issues();
+	// @ts-expect-error
+	f2.fields.nonexistent.issues();
+	f2.fields.a.value();
+	f2.fields.nested.prop.value();
+	// @ts-expect-error
+	f2.fields.nonexistent.value();
+	// @ts-expect-error
+	f2.fields.array[0].array.as('text');
+
+	// all schema properties optional
+	const f3 = form(
+		null as any as StandardSchemaV1<{ a?: string; b?: number; nested?: { prop?: string } }>,
+		(data, issue) => {
+			data.a === '';
+			data.nested?.prop === '';
+			// @ts-expect-error
+			data.nested.prop === '';
+			// @ts-expect-error
+			data.nested.nonexistent;
+			// @ts-expect-error
+			data.nonexistent;
+			// @ts-expect-error
+			data.a === 123;
+			if (Math.random() > 0.5) {
+				invalid(
+					'foo',
+					issue.nested.prop('bar'),
+					// @ts-expect-error
+					issue.nonexistent.prop('baz')
+				);
+			}
+			return { success: true };
+		}
+	);
+	// @ts-expect-error
+	f3.fields.as('text');
+	f3.fields.a.issues();
+	f3.fields.a.value();
+	f3.fields.a.as('text', undefined);
+	// @ts-expect-error
+	f3.fields.b.as('number', '');
+	f3.fields.nested.prop.issues();
+	f3.fields.nested.prop.value();
+	// @ts-expect-error
+	f3.fields.nonexistent.as('text');
+
+	// index signature schema
+	const f4 = form(null as any as StandardSchemaV1<Record<string, any>>, (data) => {
+		data.a === '';
+		data.nested?.prop === '';
+		return { success: true };
+	});
+	// @ts-expect-error
+	f4.fields.as('text');
+	f4.fields.a.issues();
+	f4.fields.a.value();
+	f4.fields.nested.prop.issues();
+	f4.fields.nested.prop.value();
+
+	// schema with union types
+	const f5 = form(
+		null as any as StandardSchemaV1<{ foo: 'a' | 'b'; bar: 'c' | 'd' }>,
+		(data, issue) => {
+			data.foo === 'a';
+			data.bar === 'c';
+			// @ts-expect-error
+			data.foo === 'e';
+			if (Math.random() > 0.5) {
+				invalid(
+					'foo',
+					issue.bar('bar'),
+					// @ts-expect-error
+					issue.nonexistent.prop('baz')
+				);
+			}
+			return { success: true };
+		}
+	);
+	// @ts-expect-error
+	f5.fields.as('text');
+	f5.fields.foo.issues();
+	f5.fields.bar.issues();
+	f5.fields.foo.value();
+	f5.fields.bar.value() === 'c';
+	// @ts-expect-error
+	f5.fields.foo.value() === 'e';
+	// @ts-expect-error
+	f5.fields.nonexistent.as('text');
+
+	// schema with arrays
+	const f6 = form(
+		null as any as StandardSchemaV1<{ array: Array<{ array: string[]; prop: string }> }>,
+		(data, issue) => {
+			data.array[0].prop === 'a';
+			data.array[0].array[0] === 'a';
+			// @ts-expect-error
+			data.array[0].array[0] === 1;
+			if (Math.random() > 0.5) {
+				invalid(
+					'foo',
+					issue.array[0].prop('bar'),
+					// @ts-expect-error
+					issue.nonexistent.prop('baz')
+				);
+			}
+			return { success: true };
+		}
+	);
+	// @ts-expect-error
+	f6.fields.as('text');
+	// @ts-expect-error
+	f6.field('array[0].array');
+	f6.fields.array.issues();
+	f6.fields.array[0].prop.issues();
+	f6.fields.array[0].array.issues();
+	// @ts-expect-error
+	f6.fields.nonexistent.issues();
+	f6.fields.array[0].prop.value();
+	f6.fields.array[0].array.value();
+	// @ts-expect-error
+	f6.fields.array[0].array.as('text');
+
+	// any
+	const f7 = form(null as any, (data, issue) => {
+		data.a === '';
+		data.nested?.prop === '';
+		if (Math.random() > 0.5) {
+			invalid('foo', issue.nested.prop('bar'));
+		}
+		return { success: true };
+	});
+	// @ts-expect-error
+	f7.fields.as('text');
+	f7.fields.a.issues();
+	f7.fields.a.value();
+	f7.fields.nested.prop.issues();
+	f7.fields.nested.prop.value();
+
+	// no schema
+	const f8 = form(() => {
+		invalid('foo');
+	});
+	f8.fields.issues();
+	f8.fields.allIssues();
+	// @ts-expect-error
+	f8.fields.x;
+	// @ts-expect-error
+	f6.input!['array[0].prop'] = 123;
+
+	// schema with optional array fields (e.g. Zod's `.default([])` produces an input
+	// type where the property is optional, so its value type is `string[] | undefined`).
+	// Regression test for #15722.
+	const f_optional_arrays = form(
+		null as any as StandardSchemaV1<{
+			strings?: string[];
+			files?: File[];
+			objects?: Array<{ prop: string }>;
+			nested?: { strings?: string[] };
+		}>,
+		(data) => {
+			data.strings?.[0] === 'a';
+			data.files?.[0] instanceof File;
+			data.objects?.[0].prop === 'a';
+			return { success: true };
+		}
+	);
+	// `.as()` should be available on optional string[] / File[] fields
+	f_optional_arrays.fields.strings.as('checkbox', 'value');
+	f_optional_arrays.fields.strings.as('select multiple');
+	f_optional_arrays.fields.files.as('file multiple');
+	// indexed access gives back a typed field
+	f_optional_arrays.fields.strings[0].as('text');
+	f_optional_arrays.fields.files[0].as('file');
+	// optional array of objects still exposes container methods and per-item fields
+	f_optional_arrays.fields.objects.allIssues();
+	f_optional_arrays.fields.objects[0].prop.as('text');
+	// nested optional array inside optional parent also works
+	f_optional_arrays.fields.nested.strings.as('checkbox', 'value');
+	f_optional_arrays.fields.nested.strings[0].as('text');
+	// @ts-expect-error
+	f_optional_arrays.fields.strings.as('number');
+	// @ts-expect-error
+	f_optional_arrays.fields.files.as('text');
+
+	// doesn't use data
+	const f9 = form(() => Promise.resolve({ success: true }));
+	f9.result?.success === true;
+
+	// generic form
+	function f10<
+		Schema extends StandardSchemaV1<RemoteFormInput, unknown>,
+		Form extends RemoteForm<StandardSchemaV1.InferInput<Schema>, unknown>
+	>(data: StandardSchemaV1.InferInput<Schema>, form: Form) {
+		form.fields.set(data);
+		form.fields.allIssues();
+	}
+	void f10;
+
+	const f11 = form(
+		null as any as StandardSchemaV1<{
+			differing: { type: 'a'; propA: string } | { type: 'b'; propB?: string };
+		}>,
+		(data) => {
+			data.differing.type === 'a' || data.differing.type === 'b';
+			if (data.differing.type === 'a') {
+				data.differing.propA === '';
+				// @ts-expect-error
+				data.differing.propB;
+			} else {
+				data.differing.propB === '';
+				// @ts-expect-error
+				data.differing.propA;
+			}
+			return { success: true };
+		}
+	);
+	f11.fields.differing.issues();
+	f11.fields.differing.value().type === 'a' || f11.fields.differing.value().type === 'b';
+	const f11_field = f11.fields.differing.value();
+	if (f11_field.type === 'a') {
+		f11_field.propA === '';
+		// @ts-expect-error
+		f11_field.propB;
+	}
+	f11.fields.differing.propA.value();
+	f11.fields.differing.propB.issues();
+	// @ts-expect-error
+	f11.fields.differing.propC.value();
+	f11.fields.differing.set({ type: 'a', propA: 'test' });
+	f11.fields.differing.set({ type: 'b', propB: 'test' });
+	f11.fields.differing.set({ type: 'b' });
+	// @ts-expect-error
+	f11.fields.differing.set({ type: 'b', propA: 'test' });
+	// @ts-expect-error
+	f11.fields.differing.set({ type: 'a', propB: 'test' });
+	// test that you can narrow yourself if you want to
+	const f11_field2 = f11.fields.differing as RemoteFormFields<{ type: 'a'; propA: string }>;
+	f11_field2.propA;
+	// @ts-expect-error
+	f11_field2.propB;
+
+	// non-optional booleans
+	form(
+		// @ts-expect-error
+		null as unknown as StandardSchemaV1<{
+			a: boolean;
+		}>,
+		() => {}
+	);
+	form(
+		// @ts-expect-error
+		null as unknown as StandardSchemaV1<{
+			a: boolean[];
+		}>,
+		() => {}
+	);
+	form(
+		// @ts-expect-error
+		null as unknown as StandardSchemaV1<{
+			nested?: { a: boolean };
+			b?: boolean;
+		}>,
+		() => {}
+	);
+	form(
+		null as unknown as StandardSchemaV1<{
+			a?: boolean;
+		}>,
+		() => {}
+	);
+}
+form_tests();
+
+function boolean_tests() {
+	const q = query(() => 'Hello world');
+	const result = q();
+
+	if (!result.ready) {
+		result.current === undefined;
+		// @ts-expect-error
+		result.current.length;
+		// @ts-expect-error
+		result.current?.length;
+	} else {
+		result.current === 'a';
+		result.current.length;
+		// @ts-expect-error
+		result.current === true;
+	}
+
+	if (result.loading) {
+		result.current === undefined;
+		result.current?.length;
+		// @ts-expect-error
+		result.current.length;
+		// @ts-expect-error
+		result.current === true;
+	}
+
+	if (result.error) {
+		result.current === 'a';
+		result.current?.length;
+		// @ts-expect-error
+		result.current.length;
+		// @ts-expect-error
+		result.current === true;
+	}
+}
+boolean_tests();
+
+=== 141 packages/kit/test/types/request-event.test.ts	ts	module	-
+import { RequestEvent } from '@sveltejs/kit';
+
+declare const event: RequestEvent;
+
+// @ts-expect-error readonly
+event.url = new URL('nope');
+
 === 221 packages/package/test/fixtures/emitTypes-false/expected/Test.svelte	svelte	runes	neutral
 <script>
 	import { createEventDispatcher } from 'svelte';
@@ -8934,6 +11488,9 @@ Page B
 
 === 23 packages/package/test/fixtures/javascript/expected/internal/runes.svelte.js	svelte-module-js	runes	-
 export const x = true;
+
+=== 26 packages/package/test/fixtures/preserve-output/src/lib/index.ts	ts	module	-
+export const foo = 'bar';
 
 === 197 packages/package/test/fixtures/svelte-3-types/expected/Test.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -8956,6 +11513,9 @@ dispatch('event', true);
 
 <slot {astring} />
 
+=== 49 packages/package/test/fixtures/svelte-3-types/src/lib/index.ts	ts	module	-
+export { default as Test } from './Test.svelte';
+
 === 46 packages/package/test/fixtures/tsconfig-specified/src/lib/runes.svelte.ts	svelte-module-ts	runes	-
 // a comment to delete
 export const x = true;
@@ -8975,6 +11535,19 @@ export const x = true;
 
 {foo}
 
+=== 226 packages/package/test/fixtures/typescript-svelte-config/vite.config.ts	ts	module	-
+import { defineConfig } from 'vite';
+import { sveltekit } from '@sveltejs/kit/vite';
+import preprocess from 'svelte-preprocess';
+
+export default defineConfig({
+	plugins: [
+		sveltekit({
+			preprocess: preprocess()
+		})
+	]
+});
+
 === 175 packages/package/test/fixtures/typescript-ts-extension-rewrites/expected/Demo.svelte	svelte	runes	neutral
 <script lang="ts">import { helper } from './helper.js';
 	import { helper2 } from './helper2.js';
@@ -8993,6 +11566,37 @@ export const x = true;
 {helper()}{helper2()}
 
 <pre>import.meta.glob('./helper*.ts')</pre>
+
+=== 32 packages/package/test/fixtures/typescript-ts-extension-rewrites/src/lib/helper.ts	ts	module	-
+export const helper = () => '';
+
+=== 33 packages/package/test/fixtures/typescript-ts-extension-rewrites/src/lib/helper2.ts	ts	module	-
+export const helper2 = () => '';
+
+=== 753 packages/package/test/fixtures/typescript-ts-extension-rewrites/src/lib/index.ts	ts	module	-
+import { helper } from '#lib/helper.ts';
+import { helper2 } from './helper2.ts';
+
+import.meta.glob('./helper*.ts');
+import.meta.glob(["./helper*.ts", '!./helper2.ts'], { eager: true });
+import.meta.glob(`../lib/*.ts`);
+import.meta.glob('./it\'s.ts');
+import.meta.glob("./escaped\u002ets");
+
+const pattern = './helper*.ts';
+import.meta.glob(pattern);
+import.meta.glob(['./helper*.ts', pattern]);
+import.meta.glob?.('./optional-call.ts');
+import.meta?.glob('./optional-access.ts');
+import.meta['glob']('./element-access.ts');
+
+const text = "import.meta.glob('./helper*.ts')";
+const glob = { glob: (_pattern: string) => text };
+glob.glob('./helper*.ts');
+
+// import.meta.glob('./helper*.ts') must remain unchanged in comments.
+
+export { helper, helper2 };
 
 === 40 packages/package/test/watch/expected/post-error.svelte	svelte	runes	neutral
 <button on:click={foo}>click me</button>

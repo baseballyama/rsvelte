@@ -133,6 +133,160 @@
 	/>
 </svg>
 
+=== 1592 docs/src/lib/navigation.ts	ts	module	-
+import { defineNavigation } from "@svecodocs/kit";
+import ChalkboardTeacher from "phosphor-svelte/lib/ChalkboardTeacher";
+import RocketLaunch from "phosphor-svelte/lib/RocketLaunch";
+import NoteBlank from "phosphor-svelte/lib/NoteBlank";
+import Tag from "phosphor-svelte/lib/Tag";
+import { getAllDocs } from "./utils.js";
+
+const allDocs = getAllDocs();
+
+const components = allDocs
+	.filter((doc) => doc.section === "Components")
+	.map((doc) => ({
+		title: doc.title,
+		href: `/docs/${doc.slug}`,
+	}));
+const states = allDocs
+	.filter((doc) => doc.section === "States")
+	.map((doc) => ({
+		title: doc.title,
+		href: `/docs/${doc.slug}`,
+	}));
+const utilities = allDocs
+	.filter((doc) => doc.section === "Utilities")
+	.map((doc) => ({
+		title: doc.title,
+		href: `/docs/${doc.slug}`,
+	}));
+
+const testing = allDocs
+	.filter((doc) => doc.section === "Testing")
+	.map((doc) => ({
+		title: doc.title,
+		href: `/docs/${doc.slug}`,
+	}));
+
+export const navigation = defineNavigation({
+	anchors: [
+		{
+			title: "Introduction",
+			href: "/docs",
+			icon: ChalkboardTeacher,
+		},
+		{
+			title: "Getting Started",
+			href: "/docs/getting-started",
+			icon: RocketLaunch,
+		},
+		{
+			title: "Mode vs Theme",
+			href: "/docs/mode-vs-theme",
+			icon: NoteBlank,
+		},
+		{
+			title: "Releases",
+			href: "https://github.com/svecosystem/mode-watcher/releases",
+			icon: Tag,
+		},
+	],
+	sections: [
+		{
+			title: "Components",
+			items: components,
+		},
+		{
+			title: "States",
+			items: states,
+		},
+		{
+			title: "Utilities",
+			items: utilities,
+		},
+		{
+			title: "Testing",
+			items: testing,
+		},
+	],
+});
+
+=== 711 docs/src/lib/site-config.ts	ts	module	-
+import { defineSiteConfig } from "@svecodocs/kit";
+
+export const siteConfig = defineSiteConfig({
+	name: "Mode Watcher",
+	url: "https://mode-watcher.sveco.dev",
+	ogImage: {
+		url: "https://mode-watcher.sveco.dev/og.png",
+		height: "630",
+		width: "1200",
+	},
+	description: "Simple light/dark mode and theme management for Svelte apps.",
+	author: "Huntabyte",
+	keywords: [
+		"svelte",
+		"sveltekit",
+		"dark mode",
+		"themes",
+		"light mode",
+		"theme switcher",
+		"theme toggle",
+		"mode watcher",
+	],
+	license: {
+		name: "MIT",
+		url: "https://github.com/svecosystem/mode-watcher/blob/main/LICENSE",
+	},
+	links: {
+		x: "https://x.com/huntabyte",
+		github: "https://github.com/svecosystem/mode-watcher",
+	},
+});
+
+=== 1038 docs/src/lib/utils.ts	ts	module	-
+import { docs, type Doc } from "$content/index.js";
+import { error } from "@sveltejs/kit";
+import type { Component } from "svelte";
+
+export function getDocMetadata(slug: string = "index") {
+	return docs.find((doc) => doc.slug === slug);
+}
+
+export function getAllDocs() {
+	return docs;
+}
+
+function slugFromPath(path: string) {
+	return path.replace("/src/content/", "").replace(".md", "");
+}
+
+export type DocResolver = () => Promise<{ default: Component; metadata: Doc }>;
+
+export async function getDoc(slug: string = "index") {
+	const modules = import.meta.glob("/src/content/**/*.md");
+
+	let match: { path?: string; resolver?: DocResolver } = {};
+
+	for (const [path, resolver] of Object.entries(modules)) {
+		if (slugFromPath(path) === slug) {
+			match = { path, resolver: resolver as unknown as DocResolver };
+			break;
+		}
+	}
+	const doc = await match?.resolver?.();
+	const metadata = getDocMetadata(slug);
+	if (!doc || !metadata) {
+		error(404, "Could not find the document.");
+	}
+
+	return {
+		component: doc.default,
+		metadata,
+	};
+}
+
 === 564 docs/src/routes/(docs)/+layout.svelte	svelte	runes	runes
 <script lang="ts">
 	import { DocsLayout } from "@svecodocs/kit";
@@ -161,9 +315,30 @@
 
 <DocPage component={data.component} {...data.metadata} />
 
+=== 89 docs/src/routes/(docs)/docs/+page.ts	ts	module	-
+import { getDoc } from "$lib/utils";
+
+export async function load() {
+	return getDoc();
+}
+
+=== 110 docs/src/routes/(docs)/docs/[...slug]/+page.ts	ts	module	-
+import { getDoc } from "$lib/utils";
+
+export async function load({ params }) {
+	return getDoc(params.slug);
+}
+
 === 131 docs/src/routes/(landing)/+page.svelte	svelte	runes	neutral
 <h1>Welcome to SvelteKit</h1>
 <p>Visit <a href="https://svelte.dev/docs/kit">svelte.dev/docs/kit</a> to read the documentation</p>
+
+=== 95 docs/src/routes/(landing)/+page.ts	ts	module	-
+import { redirect } from "@sveltejs/kit";
+
+export function load() {
+	redirect(302, "/docs");
+}
 
 === 238 docs/src/routes/+layout.svelte	svelte	runes	runes
 <script lang="ts">
@@ -177,6 +352,170 @@
 </script>
 
 {@render children?.()}
+
+=== 374 docs/vite.config.ts	ts	module	-
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vite";
+import tailwindcss from "@tailwindcss/vite";
+import { resolve } from "node:path";
+
+const __dirname = new URL(".", import.meta.url).pathname;
+
+export default defineConfig({
+	plugins: [sveltekit(), tailwindcss()],
+	server: {
+		fs: {
+			allow: [resolve(__dirname, "./.velite")],
+		},
+	},
+});
+
+=== 270 packages/mode-watcher/playwright.config.ts	ts	module	-
+import type { PlaywrightTestConfig } from "@playwright/test";
+
+const config: PlaywrightTestConfig = {
+	webServer: {
+		command: "pnpm run build && pnpm run preview",
+		port: 4173,
+	},
+	testDir: "tests",
+	testMatch: /(.+\.)?(test|spec)\.[jt]s/,
+};
+
+export default config;
+
+=== 3158 packages/mode-watcher/scripts/setupTest.ts	ts	module	-
+// setupTest.ts
+import "@testing-library/svelte/vitest";
+import "@testing-library/jest-dom/vitest";
+import "vitest-localstorage-mock";
+import * as matchers from "@testing-library/jest-dom/matchers";
+import { expect, vi } from "vitest";
+import type { Navigation, Page } from "@sveltejs/kit";
+import { readable } from "svelte/store";
+import { configure } from "@testing-library/dom";
+import type * as environment from "$app/environment";
+import type * as navigation from "$app/navigation";
+import type * as stores from "$app/stores";
+
+// @ts-expect-error - this works
+expect.extend(matchers);
+
+configure({
+	asyncUtilTimeout: 1500,
+});
+
+// Mock SvelteKit runtime module $app/environment
+vi.mock("$app/environment", (): typeof environment => ({
+	browser: false,
+	dev: true,
+	building: false,
+	version: "any",
+}));
+
+// Mock SvelteKit runtime module $app/navigation
+vi.mock("$app/navigation", (): typeof navigation => ({
+	afterNavigate: () => {},
+	beforeNavigate: () => {},
+	disableScrollHandling: () => {},
+	goto: () => Promise.resolve(),
+	invalidate: () => Promise.resolve(),
+	invalidateAll: () => Promise.resolve(),
+	preloadData: () =>
+		Promise.resolve({
+			data: {},
+			type: "loaded",
+			status: 200,
+		}),
+	preloadCode: () => Promise.resolve(),
+	onNavigate: () => {},
+	pushState: () => {},
+	replaceState: () => {},
+}));
+
+// Mock SvelteKit runtime module $app/stores
+vi.mock("$app/stores", (): typeof stores => {
+	const getStores: typeof stores.getStores = () => {
+		const navigating = readable<Navigation | null>(null);
+		const page = readable<Page>({
+			url: new URL("http://localhost"),
+			params: {},
+			route: {
+				id: null,
+			},
+			status: 200,
+			error: null,
+			data: {},
+			form: undefined,
+			state: {},
+		});
+		const updated = { subscribe: readable(false).subscribe, check: async () => false };
+
+		return { navigating, page, updated };
+	};
+
+	const page: typeof stores.page = {
+		subscribe(fn) {
+			return getStores().page.subscribe(fn);
+		},
+	};
+	const navigating: typeof stores.navigating = {
+		subscribe(fn) {
+			return getStores().navigating.subscribe(fn);
+		},
+	};
+	const updated: typeof stores.updated = {
+		subscribe(fn) {
+			return getStores().updated.subscribe(fn);
+		},
+		check: async () => false,
+	};
+
+	return {
+		getStores,
+		navigating,
+		page,
+		updated,
+	};
+});
+
+export const mediaQueryState = {
+	matches: false,
+};
+
+const listeners: ((event: unknown) => void)[] = [];
+
+Object.defineProperty(window, "matchMedia", {
+	writable: true,
+	value: vi.fn().mockImplementation((query) => ({
+		matches: mediaQueryState.matches,
+		media: query,
+		onchange: null,
+		addListener: vi.fn(),
+		removeListener: vi.fn(),
+		addEventListener: vi.fn((type, callback) => {
+			if (type === "change") {
+				listeners.push(callback);
+			}
+		}),
+		removeEventListener: vi.fn((type, callback) => {
+			const index = listeners.indexOf(callback);
+			if (index !== -1) {
+				listeners.splice(index, 1);
+			}
+		}),
+		dispatchEvent: vi.fn((event) => {
+			if (event.type === "change") {
+				for (const callback of listeners) {
+					callback({
+						matches: mediaQueryState.matches,
+						media: "(prefers-color-scheme: light)",
+					});
+				}
+			}
+		}),
+	})),
+});
 
 === 889 packages/mode-watcher/src/lib/components/mode-watcher-full.svelte	svelte	runes	runes
 <script lang="ts">
@@ -329,6 +668,36 @@
 	<ModeWatcherFull {trueNonce} {initConfig} themeColors={themeColors.current} />
 {/if}
 
+=== 731 packages/mode-watcher/src/lib/index.ts	ts	module	-
+import {
+	generateSetInitialModeExpression,
+	createInitialModeExpression,
+	resetMode,
+	setMode,
+	setTheme,
+	toggleMode,
+} from "./mode.js";
+import { modeStorageKey, themeStorageKey } from "./storage-keys.svelte.js";
+import { mode, theme } from "./states.svelte.js";
+import { userPrefersMode, systemPrefersMode } from "./mode-states.svelte.js";
+
+export {
+	generateSetInitialModeExpression,
+	createInitialModeExpression,
+	setMode,
+	toggleMode,
+	resetMode,
+	modeStorageKey,
+	userPrefersMode,
+	systemPrefersMode,
+	mode,
+	theme,
+	setTheme,
+	themeStorageKey,
+};
+export type { SystemModeValue, UserPrefersMode, SystemPrefersMode } from "./mode-states.svelte.js";
+export { default as ModeWatcher } from "./components/mode-watcher.svelte";
+
 === 2474 packages/mode-watcher/src/lib/mode-states.svelte.ts	svelte-module-ts	runes	-
 import { PersistedState, watch } from "runed";
 import { isBrowser, noopStorage } from "./utils.js";
@@ -427,6 +796,117 @@ export const userPrefersMode = new UserPrefersMode();
  * Readable store that represents the system's preferred mode (`"dark"`, `"light"` or `undefined`)
  */
 export const systemPrefersMode = new SystemPrefersMode();
+
+=== 2994 packages/mode-watcher/src/lib/mode.ts	ts	module	-
+import { userPrefersMode } from "./mode-states.svelte.js";
+import { customTheme } from "./theme-state.svelte.js";
+import { derivedMode } from "./states.svelte.js";
+import type { Mode, ThemeColors } from "./types.js";
+
+/** Toggle between light and dark mode */
+export function toggleMode(): void {
+	userPrefersMode.current = derivedMode.current === "dark" ? "light" : "dark";
+}
+
+/** Set the mode to light or dark */
+export function setMode(mode: Mode): void {
+	userPrefersMode.current = mode;
+}
+
+/** Reset the mode to operating system preference */
+export function resetMode(): void {
+	userPrefersMode.current = "system";
+}
+
+/** Set the theme to a custom value */
+export function setTheme(newTheme: string): void {
+	customTheme.current = newTheme;
+}
+
+export function defineConfig(config: SetInitialModeArgs) {
+	return config;
+}
+
+type SetInitialModeArgs = {
+	defaultMode?: Mode;
+	themeColors?: ThemeColors;
+	darkClassNames?: string[];
+	lightClassNames?: string[];
+	defaultTheme?: string;
+	modeStorageKey?: string;
+	themeStorageKey?: string;
+};
+
+/** Used to set the mode on initial page load to prevent FOUC */
+export function setInitialMode({
+	defaultMode = "system",
+	themeColors,
+	darkClassNames = ["dark"],
+	lightClassNames = [],
+	defaultTheme = "",
+	modeStorageKey = "mode-watcher-mode",
+	themeStorageKey = "mode-watcher-theme",
+}: SetInitialModeArgs) {
+	const rootEl = document.documentElement;
+	const mode = localStorage.getItem(modeStorageKey) ?? defaultMode;
+	const theme = localStorage.getItem(themeStorageKey) ?? defaultTheme;
+	const light =
+		mode === "light" ||
+		(mode === "system" && window.matchMedia("(prefers-color-scheme: light)").matches);
+	if (light) {
+		if (darkClassNames.length) rootEl.classList.remove(...darkClassNames.filter(Boolean));
+		if (lightClassNames.length) rootEl.classList.add(...lightClassNames.filter(Boolean));
+	} else {
+		if (lightClassNames.length) rootEl.classList.remove(...lightClassNames.filter(Boolean));
+		if (darkClassNames.length) rootEl.classList.add(...darkClassNames.filter(Boolean));
+	}
+	rootEl.style.colorScheme = light ? "light" : "dark";
+
+	if (themeColors) {
+		const themeMetaEl = document.querySelector('meta[name="theme-color"]');
+		if (themeMetaEl) {
+			themeMetaEl.setAttribute(
+				"content",
+				mode === "light" ? themeColors.light : themeColors.dark
+			);
+		}
+	}
+
+	if (theme) {
+		rootEl.setAttribute("data-theme", theme);
+		localStorage.setItem(themeStorageKey, theme);
+	}
+
+	localStorage.setItem(modeStorageKey, mode);
+}
+
+/**
+ * A type-safe way to generate the source expression used to set the initial mode and avoid FOUC.
+ */
+export function createInitialModeExpression(config: SetInitialModeArgs = {}): string {
+	return `(${setInitialMode.toString()})(${JSON.stringify(config)});`;
+}
+
+/**
+ * A type-safe way to generate the source expression used to set the initial mode and avoid FOUC.
+ *
+ * @deprecated Use `createInitialModeExpression` instead.
+ */
+export const generateSetInitialModeExpression = createInitialModeExpression;
+
+=== 331 packages/mode-watcher/src/lib/modes.ts	ts	module	-
+import type { Mode } from "./types.js";
+
+/**
+ * the modes that are supported, used for validation & type
+ * derivation
+ */
+export const modes = ["dark", "light", "system"] as const;
+
+export function isValidMode(value: unknown): value is Mode {
+	if (typeof value !== "string") return false;
+	return modes.includes(value as Mode);
+}
 
 === 3437 packages/mode-watcher/src/lib/states.svelte.ts	svelte-module-ts	runes	-
 import { box } from "svelte-toolbelt";
@@ -628,6 +1108,215 @@ class CustomTheme {
  */
 export const customTheme = new CustomTheme();
 
+=== 2251 packages/mode-watcher/src/lib/types.ts	ts	module	-
+import type { modes } from "./modes.js";
+
+export type Mode = (typeof modes)[number];
+export type ThemeColors = { dark: string; light: string } | undefined;
+
+export type ModeWatcherProps = {
+	/**
+	 * Whether to automatically track operating system preferences
+	 * and update the mode accordingly.
+	 *
+	 * @default `true`
+	 */
+	track?: boolean;
+
+	/**
+	 * The default mode to use instead of the user's preference.
+	 *
+	 * @default `"system"`
+	 */
+	defaultMode?: Mode;
+
+	/**
+	 * The default theme to use, which will be applied to the root `html` element
+	 * and can be managed with the `setTheme` function.
+	 *
+	 * @example
+	 * ```html
+	 * <html data-theme="your-custom-theme"></html>
+	 * ```
+	 *
+	 * @default `undefined`
+	 */
+	defaultTheme?: string;
+
+	/**
+	 * The theme colors to use for each mode.
+	 */
+	themeColors?: ThemeColors;
+
+	/**
+	 * Whether to disable transitions when updating the mode.
+	 */
+	disableTransitions?: boolean;
+
+	/**
+	 * The classname to add to the root `html` element when the mode is dark.
+	 *
+	 * @default `["dark"]`
+	 */
+	darkClassNames?: string[];
+
+	/**
+	 * The classname to add to the root `html` element when the mode is light.
+	 *
+	 * @default `[]`
+	 */
+	lightClassNames?: string[];
+
+	/**
+	 * Optionally provide a custom local storage key to use for storing the mode.
+	 *
+	 * @default `'mode-watcher-mode'`
+	 */
+	modeStorageKey?: string;
+
+	/**
+	 * Optionally provide a custom local storage key to use for storing the theme.
+	 *
+	 * @default `'mode-watcher-theme'`
+	 */
+	themeStorageKey?: string;
+
+	/**
+	 * An optional nonce to use for the injected script tag to allow-list mode-watcher
+	 * if you are using a Content Security Policy.
+	 *
+	 * @default `undefined`
+	 */
+	nonce?: string;
+
+	/**
+	 * Whether to disable the injected script tag that sets the initial mode.
+	 * Set this if you are manually injecting the script using a hook.
+	 *
+	 * @default `false`
+	 */
+	disableHeadScriptInjection?: boolean;
+
+	/**
+	 * Whether to run the mode changes synchronously instead of using
+	 * an animation frame. If true, will have an impact on blocking performance
+	 * due to blocking the main thread.
+	 *
+	 * Only applicable if `disableTransitions` is set to `true`.
+	 *
+	 * @default `false`
+	 */
+	synchronousModeChanges?: boolean;
+};
+
+=== 384 packages/mode-watcher/src/lib/utils.ts	ts	module	-
+/**
+ * Sanitizes an array of classnames by removing any empty strings.
+ */
+export function sanitizeClassNames(classNames: string[]): string[] {
+	return classNames.filter((className) => className.length > 0);
+}
+
+export const noopStorage = {
+	getItem: (_key: string) => null,
+	setItem: (_key: string, _value: string) => {},
+};
+
+export const isBrowser = typeof document !== "undefined";
+
+=== 2431 packages/mode-watcher/src/lib/without-transition.ts	ts	module	-
+// Original Source: https://reemus.dev/article/disable-css-transition-color-scheme-change#heading-ultimate-solution-for-changing-color-scheme-without-transitions
+
+let timeoutAction: number;
+let timeoutEnable: number;
+/**
+ * Whether this is the first time the function has been
+ * called, which will be true for the initial load, where
+ * we shouldn't need to disable any transitions, as there
+ * is nothing to transition from.
+ */
+let hasLoaded = false;
+let styleElement: HTMLStyleElement | null = null;
+
+// Create reusable style element
+function getStyleElement() {
+	if (styleElement) return styleElement;
+
+	styleElement = document.createElement("style");
+	styleElement.appendChild(
+		document.createTextNode(`* {
+		-webkit-transition: none !important;
+		-moz-transition: none !important;
+		-o-transition: none !important;
+		-ms-transition: none !important;
+		transition: none !important;
+	}`)
+	);
+	return styleElement;
+}
+
+// Perform a task without any css transitions
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function withoutTransition(action: () => any, synchronous = false) {
+	if (typeof document === "undefined") return;
+
+	// Skip transition disabling on initial load
+	if (!hasLoaded) {
+		hasLoaded = true;
+		action();
+		return;
+	}
+
+	// In test environments, run synchronously to avoid timing issues
+	const isTest =
+		(typeof process !== "undefined" && process.env?.NODE_ENV === "test") ||
+		(typeof window !== "undefined" &&
+			(window as unknown as { __vitest_worker__?: boolean }).__vitest_worker__);
+
+	if (isTest) {
+		action();
+		return;
+	}
+
+	clearTimeout(timeoutAction);
+	clearTimeout(timeoutEnable);
+
+	const style = getStyleElement();
+	const disable = () => document.head.appendChild(style);
+	const enable = () => {
+		if (style.parentNode) {
+			document.head.removeChild(style);
+		}
+	};
+
+	function executeAction() {
+		action();
+		// defer enable to ensure action completes
+		window.requestAnimationFrame(enable);
+	}
+
+	// Use requestAnimationFrame for better performance
+	if (typeof window.requestAnimationFrame !== "undefined") {
+		disable();
+		if (synchronous) {
+			executeAction();
+		} else {
+			// defer action to next frame to avoid blocking
+			window.requestAnimationFrame(() => {
+				executeAction();
+			});
+		}
+		return;
+	}
+
+	// Fallback for older browsers
+	disable();
+	timeoutAction = window.setTimeout(() => {
+		action();
+		timeoutEnable = window.setTimeout(enable, 16);
+	}, 16);
+}
+
 === 255 packages/mode-watcher/src/routes/+layout.svelte	svelte	runes	runes
 <script lang="ts">
 	import "../app.postcss";
@@ -765,4 +1454,448 @@ export const customTheme = new CustomTheme();
 <button onclick={() => setMode("light")} data-testid="light">light</button>
 <button onclick={() => setMode("dark")} data-testid="dark">dark</button>
 <button onclick={() => resetMode()} data-testid="reset">reset</button>
+
+=== 14478 packages/mode-watcher/src/tests/mode.spec.ts	ts	module	-
+import { render } from "@testing-library/svelte/svelte5";
+import { afterEach, describe, expect, it } from "vitest";
+import { userEvent } from "@testing-library/user-event";
+import { tick } from "svelte";
+import { mediaQueryState } from "../../scripts/setupTest.js";
+import Mode from "./Mode.svelte";
+import StealthMode from "./StealthMode.svelte";
+import type { ModeWatcherProps } from "$lib/types.js";
+
+function setup(props: Partial<ModeWatcherProps> = {}) {
+	const user = userEvent.setup();
+	const returned = render(Mode, { props });
+	const theme = returned.getByTestId("theme");
+	const mode = returned.getByTestId("mode");
+	const themeStorageKey = returned.getByTestId("theme-storage-key");
+	const modeStorageKey = returned.getByTestId("mode-storage-key");
+	const rootEl = returned.container.parentElement?.parentElement as HTMLElement;
+	const themeDracula = returned.getByTestId("theme-dracula");
+	const themeRetro = returned.getByTestId("theme-retro");
+	const themeClear = returned.getByTestId("theme-clear");
+	return {
+		user,
+		theme,
+		mode,
+		themeStorageKey,
+		modeStorageKey,
+		rootEl,
+		themeDracula,
+		themeRetro,
+		themeClear,
+		...returned,
+	};
+}
+
+describe("mode-watcher", () => {
+	afterEach(() => {
+		localStorage.clear();
+	});
+
+	it("renders mode", async () => {
+		const { rootEl } = setup();
+		const classes = getClasses(rootEl);
+		expect(classes).toContain("dark");
+	});
+
+	it("toggles the mode", async () => {
+		const { getByTestId, user, rootEl } = setup();
+
+		const classes = getClasses(rootEl);
+		const colorScheme = getColorScheme(rootEl);
+		const themeColor = getThemeColor(rootEl);
+		expect(classes).toContain("dark");
+		expect(colorScheme).toBe("dark");
+		expect(themeColor).toBe("black");
+		const toggle = getByTestId("toggle");
+		await user.click(toggle);
+		const classes2 = getClasses(rootEl);
+		const colorScheme2 = getColorScheme(rootEl);
+		const themeColor2 = getThemeColor(rootEl);
+		expect(classes2).not.toContain("dark");
+		expect(colorScheme2).toBe("light");
+		expect(themeColor2).toBe("white");
+		await user.click(toggle);
+		const classes3 = getClasses(rootEl);
+		const colorScheme3 = getColorScheme(rootEl);
+		const themeColor3 = getThemeColor(rootEl);
+		expect(classes3).toContain("dark");
+		expect(colorScheme3).toBe("dark");
+		expect(themeColor3).toBe("black");
+	});
+
+	it("allows the user to set the mode", async () => {
+		const { getByTestId, user, rootEl } = setup();
+		const classes = getClasses(rootEl);
+		const colorScheme = getColorScheme(rootEl);
+		const themeColor = getThemeColor(rootEl);
+		expect(classes).toContain("dark");
+		expect(colorScheme).toBe("dark");
+		expect(themeColor).toBe("black");
+		const light = getByTestId("light");
+		await user.click(light);
+		const classes2 = getClasses(rootEl);
+		const colorScheme2 = getColorScheme(rootEl);
+		const themeColor2 = getThemeColor(rootEl);
+		expect(classes2).not.toContain("dark");
+		expect(colorScheme2).toBe("light");
+		expect(themeColor2).toBe("white");
+
+		const dark = getByTestId("dark");
+		await user.click(dark);
+		const classes3 = getClasses(rootEl);
+		const colorScheme3 = getColorScheme(rootEl);
+		const themeColor3 = getThemeColor(rootEl);
+		expect(classes3).toContain("dark");
+		expect(colorScheme3).toBe("dark");
+		expect(themeColor3).toBe("black");
+	});
+
+	it("keeps the mode store in sync with current mode", async () => {
+		const { getByTestId, user, rootEl } = setup();
+		const light = getByTestId("light");
+		const dark = getByTestId("dark");
+		const mode = getByTestId("mode");
+		const classes = getClasses(rootEl);
+		const colorScheme = getColorScheme(rootEl);
+		const themeColor = getThemeColor(rootEl);
+		expect(classes).toContain("dark");
+		expect(colorScheme).toBe("dark");
+		expect(themeColor).toBe("black");
+		expect(mode.textContent).toBe("dark");
+
+		await user.click(light);
+		const classes2 = getClasses(rootEl);
+		const colorScheme2 = getColorScheme(rootEl);
+		const themeColor2 = getThemeColor(rootEl);
+		expect(classes2).not.toContain("dark");
+		expect(colorScheme2).toBe("light");
+		expect(themeColor2).toBe("white");
+		expect(mode.textContent).toBe("light");
+
+		await user.click(dark);
+		const classes3 = getClasses(rootEl);
+		const colorScheme3 = getColorScheme(rootEl);
+		const themeColor3 = getThemeColor(rootEl);
+		expect(classes3).toContain("dark");
+		expect(colorScheme3).toBe("dark");
+		expect(themeColor3).toBe("black");
+		expect(mode.textContent).toBe("dark");
+	});
+
+	it("resets the mode to system preferences", async () => {
+		const { getByTestId, user, rootEl } = setup();
+		const light = getByTestId("light");
+		const reset = getByTestId("reset");
+		const mode = getByTestId("mode");
+		const classes = getClasses(rootEl);
+		const colorScheme = getColorScheme(rootEl);
+		const themeColor = getThemeColor(rootEl);
+		expect(classes).toContain("dark");
+		expect(colorScheme).toBe("dark");
+		expect(themeColor).toBe("black");
+		expect(mode.textContent).toBe("dark");
+
+		await user.click(light);
+		const classes2 = getClasses(rootEl);
+		const colorScheme2 = getColorScheme(rootEl);
+		const themeColor2 = getThemeColor(rootEl);
+		expect(classes2).not.toContain("dark");
+		expect(colorScheme2).toBe("light");
+		expect(themeColor2).toBe("white");
+		expect(mode.textContent).toBe("light");
+
+		await user.click(reset);
+		const classes3 = getClasses(rootEl);
+		const colorScheme3 = getColorScheme(rootEl);
+		const themeColor3 = getThemeColor(rootEl);
+		expect(classes3).toContain("dark");
+		expect(colorScheme3).toBe("dark");
+		expect(themeColor3).toBe("black");
+		expect(mode.textContent).toBe("dark");
+	});
+
+	// need to mock Svelte's media query somehow
+	it.skip("tracks changes to system preferences", async () => {
+		const { getByTestId, rootEl } = setup();
+		const mode = getByTestId("mode");
+		const classes = getClasses(rootEl);
+		const colorScheme = getColorScheme(rootEl);
+		const themeColor = getThemeColor(rootEl);
+		expect(classes).toContain("dark");
+		expect(colorScheme).toBe("dark");
+		expect(themeColor).toBe("black");
+		expect(mode.textContent).toBe("dark");
+
+		mediaQueryState.matches = true;
+		const changeEvent = new Event("change");
+		window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+		await tick();
+		const classes2 = getClasses(rootEl);
+		const colorScheme2 = getColorScheme(rootEl);
+		const themeColor2 = getThemeColor(rootEl);
+		expect(classes2).not.toContain("dark");
+		expect(colorScheme2).toBe("light");
+		expect(themeColor2).toBe("white");
+		expect(mode.textContent).toBe("light");
+
+		mediaQueryState.matches = false;
+		window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+		await tick();
+		const classes3 = getClasses(rootEl);
+		const colorScheme3 = getColorScheme(rootEl);
+		const themeColor3 = getThemeColor(rootEl);
+		expect(classes3).toContain("dark");
+		expect(colorScheme3).toBe("dark");
+		expect(themeColor3).toBe("black");
+		expect(mode.textContent).toBe("dark");
+	});
+
+	// need to mock Svelte's media query somehow
+	it.skip("stops tracking changes to system preferences when user sets a mode", async () => {
+		const { getByTestId, user, rootEl } = setup();
+		const light = getByTestId("light");
+		const reset = getByTestId("reset");
+		const mode = getByTestId("mode");
+		const classes = getClasses(rootEl);
+		const colorScheme = getColorScheme(rootEl);
+		const themeColor = getThemeColor(rootEl);
+		expect(classes).toContain("dark");
+		expect(colorScheme).toBe("dark");
+		expect(themeColor).toBe("black");
+		expect(mode.textContent).toBe("dark");
+
+		mediaQueryState.matches = true;
+		const changeEvent = new Event("change");
+		window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+		await tick();
+		const classes2 = getClasses(rootEl);
+		const colorScheme2 = getColorScheme(rootEl);
+		const themeColor2 = getThemeColor(rootEl);
+		expect(classes2).not.toContain("dark");
+		expect(colorScheme2).toBe("light");
+		expect(themeColor2).toBe("white");
+		expect(mode.textContent).toBe("light");
+
+		mediaQueryState.matches = false;
+		window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+		await tick();
+		const classes3 = getClasses(rootEl);
+		const colorScheme3 = getColorScheme(rootEl);
+		const themeColor3 = getThemeColor(rootEl);
+		expect(classes3).toContain("dark");
+		expect(colorScheme3).toBe("dark");
+		expect(themeColor3).toBe("black");
+		expect(mode.textContent).toBe("dark");
+
+		await user.click(light);
+		const classes4 = getClasses(rootEl);
+		const colorScheme4 = getColorScheme(rootEl);
+		const themeColor4 = getThemeColor(rootEl);
+		expect(classes4).not.toContain("dark");
+		expect(colorScheme4).toBe("light");
+		expect(themeColor4).toBe("white");
+		expect(mode.textContent).toBe("light");
+
+		mediaQueryState.matches = true;
+		window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+		await tick();
+		const classes5 = getClasses(rootEl);
+		const colorScheme5 = getColorScheme(rootEl);
+		const themeColor5 = getThemeColor(rootEl);
+		expect(classes5).not.toContain("dark");
+		expect(colorScheme5).toBe("light");
+		expect(themeColor5).toBe("white");
+		expect(mode.textContent).toBe("light");
+
+		mediaQueryState.matches = false;
+		window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+		await tick();
+		const classes6 = getClasses(rootEl);
+		const colorScheme6 = getColorScheme(rootEl);
+		const themeColor6 = getThemeColor(rootEl);
+		expect(classes6).not.toContain("dark");
+		expect(colorScheme6).toBe("light");
+		expect(themeColor6).toBe("white");
+		expect(mode.textContent).toBe("light");
+
+		await user.click(reset);
+		const classes7 = getClasses(rootEl);
+		const colorScheme7 = getColorScheme(rootEl);
+		const themeColor7 = getThemeColor(rootEl);
+		expect(classes7).toContain("dark");
+		expect(colorScheme7).toBe("dark");
+		expect(themeColor7).toBe("black");
+		expect(mode.textContent).toBe("dark");
+	});
+
+	// need to mock Svelte's media query
+	it.skip("does not track changes to system preference when track prop is set to false", async () => {
+		const { container, getByTestId } = render(Mode, { track: false });
+		const rootEl = container.parentElement?.parentElement as HTMLElement;
+		const mode = getByTestId("mode");
+		const classes = getClasses(rootEl);
+		const colorScheme = getColorScheme(rootEl);
+		const themeColor = getThemeColor(rootEl);
+		expect(classes).toContain("dark");
+		expect(colorScheme).toBe("dark");
+		expect(themeColor).toBe("black");
+		expect(mode.textContent).toBe("dark");
+
+		mediaQueryState.matches = true;
+		const changeEvent = new Event("change");
+		window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+		await tick();
+		const classes2 = getClasses(rootEl);
+		const colorScheme2 = getColorScheme(rootEl);
+		const themeColor2 = getThemeColor(rootEl);
+		expect(classes2).toContain("dark");
+		expect(colorScheme2).toBe("dark");
+		expect(themeColor2).toBe("black");
+		expect(mode.textContent).toBe("dark");
+
+		mediaQueryState.matches = false;
+		window.matchMedia("(prefers-color-scheme: light)").dispatchEvent(changeEvent);
+		await tick();
+		const classes3 = getClasses(rootEl);
+		const colorScheme3 = getColorScheme(rootEl);
+		const themeColor3 = getThemeColor(rootEl);
+		expect(classes3).toContain("dark");
+		expect(colorScheme3).toBe("dark");
+		expect(themeColor3).toBe("black");
+		expect(mode.textContent).toBe("dark");
+	});
+
+	it("also works when $mode is not used in the current page", async () => {
+		const user = userEvent.setup();
+		const { container, getByTestId } = render(StealthMode);
+		const rootEl = container.parentElement?.parentElement as HTMLElement;
+
+		const classes = getClasses(rootEl);
+		const colorScheme = getColorScheme(rootEl);
+		const themeColor = getThemeColor(rootEl);
+		expect(classes).toContain("dark");
+		expect(colorScheme).toBe("dark");
+		expect(themeColor).toBe("black");
+		const toggle = getByTestId("toggle");
+		await user.click(toggle);
+		const classes2 = getClasses(rootEl);
+		const colorScheme2 = getColorScheme(rootEl);
+		const themeColor2 = getThemeColor(rootEl);
+		expect(classes2).not.toContain("dark");
+		expect(colorScheme2).toBe("light");
+		expect(themeColor2).toBe("white");
+		await user.click(toggle);
+		const classes3 = getClasses(rootEl);
+		const colorScheme3 = getColorScheme(rootEl);
+		const themeColor3 = getThemeColor(rootEl);
+		expect(classes3).toContain("dark");
+		expect(colorScheme3).toBe("dark");
+		expect(themeColor3).toBe("black");
+	});
+
+	it("allows the user to apply custom classnames to the root html element", async () => {
+		const { getByTestId, user, rootEl } = setup({
+			darkClassNames: ["custom-d-class"],
+			lightClassNames: ["custom-l-class"],
+		});
+
+		const classes = getClasses(rootEl);
+		expect(classes).toContain("custom-d-class");
+		const toggle = getByTestId("toggle");
+		await user.click(toggle);
+		const classes2 = getClasses(rootEl);
+		expect(classes2).toContain("custom-l-class");
+	});
+
+	it("allows the user to set a custom theme via the `defaultTheme` prop", async () => {
+		const { theme, rootEl } = setup({
+			defaultTheme: "dracula",
+		});
+		expect(rootEl).toHaveAttribute("data-theme", "dracula");
+		expect(theme).toHaveTextContent("dracula");
+	});
+
+	it("allows the user to programmatically change the theme", async () => {
+		const { themeDracula, theme, rootEl, user } = setup({
+			defaultTheme: "money",
+		});
+		expect(rootEl).toHaveAttribute("data-theme", "money");
+		await user.click(themeDracula);
+		expect(rootEl).toHaveAttribute("data-theme", "dracula");
+		expect(theme).toHaveTextContent("dracula");
+	});
+
+	it("allows the user to programmatically clear the theme", async () => {
+		const { themeClear, rootEl, user } = setup({
+			defaultTheme: "money",
+		});
+		expect(rootEl).toHaveAttribute("data-theme", "money");
+		await user.click(themeClear);
+		expect(rootEl).toHaveAttribute("data-theme", "");
+		expect(rootEl).not.toHaveAttribute("data-theme", "money");
+	});
+});
+
+function getClasses(element: HTMLElement | null): string[] {
+	if (element === null) return [];
+	const classes = element.className.split(" ").filter((c) => c.length > 0);
+	return classes;
+}
+
+function getColorScheme(element: HTMLElement | null) {
+	if (element === null) return "";
+	return element.style.colorScheme;
+}
+
+function getThemeColor(element: HTMLElement | null) {
+	if (element === null) return "";
+
+	const themeMetaEl = element.querySelector('meta[name="theme-color"]');
+	if (themeMetaEl === null) return "";
+
+	const content = themeMetaEl.getAttribute("content");
+	if (content === null) return "";
+
+	return content;
+}
+
+=== 1006 packages/mode-watcher/vite.config.ts	ts	module	-
+import process from "node:process";
+import { sveltekit } from "@sveltejs/kit/vite";
+import { defineConfig } from "vitest/config";
+import { svelteTesting } from "@testing-library/svelte/vite";
+import type { Plugin } from "vite";
+
+const vitestBrowserConditionPlugin: Plugin = {
+	name: "vite-plugin-vitest-browser-condition",
+	//@ts-expect-error - this works
+	config({ resolve }: { resolve: { conditions: string[] } }) {
+		if (process.env.VITEST) {
+			resolve.conditions.unshift("browser");
+		}
+	},
+};
+
+export default defineConfig({
+	plugins: [vitestBrowserConditionPlugin, sveltekit(), svelteTesting()],
+	test: {
+		include: ["src/**/*.{test,spec}.{js,ts}"],
+		// jest like globals
+		globals: true,
+		environment: "jsdom",
+		// in-source testing
+		includeSource: ["src/**/*.{js,ts,svelte}"],
+		// Add @testing-library/jest-dom matchers & mocks of SvelteKit modules
+		setupFiles: ["./scripts/setupTest.ts"],
+		// Exclude files in v8
+		coverage: {
+			exclude: ["setupTest.ts"],
+		},
+		mockReset: false,
+	},
+});
 

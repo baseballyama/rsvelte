@@ -11,6 +11,7 @@ corpus/
 │   ├── sources.json          source repositories: URL, commit, license (written by hand)
 │   ├── units.toml            the hand-written part of units: skips, and the behaviour tasks' props
 │   │                         and steps (no corpus unit uses them today)
+│   ├── unparseable.txt       skips regen writes where a task's oracle JavaScript does not parse
 │   ├── readers.toml          tasks that compare one file of another task's output
 │   ├── tsconfig.json         the project configuration of both type checkers
 │   ├── oracles.json          versions of the official tools, and the rules the linter ran
@@ -48,6 +49,12 @@ client until `units.toml` skips `svelte.compile.warnings` as well. A pack holds 
 while any task that reads the pack applies. After adding a skip, run
 `oracle regen --task <task> --path <unit key>`. The corpus test fails on an entry that no reader
 of its pack applies to.
+
+Oracle JavaScript that does not parse fails the regen, unless the task sets `unparseable`
+(`types.ts`): regen then writes no entry for the unit and skips it in `unparseable.txt` with the
+task's reason, the parser's message and a tag. ts.compile does, since `transpileModule` writes
+what it can of a file it reports errors for. Every regen rewrites the lines of the units and tasks
+it ran.
 
 No task compares a legacy component, since Svelte 4 legacy mode is a non-goal: one in legacy
 mode that uses syntax runes mode rejects (`export let`, `$:`, `$$props`, `$$restProps` or

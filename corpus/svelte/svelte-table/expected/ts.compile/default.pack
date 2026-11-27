@@ -1,0 +1,17 @@
+# rsvelte pack 1
+=== 141 example/example7.ts	js
+import Example from "./Example7.svelte";
+const example = new Example({
+    target: document.body,
+    props: {},
+});
+export default example;
+
+=== 141 example/example8.ts	js
+import Example from "./Example8.svelte";
+const example = new Example({
+    target: document.body,
+    props: {},
+});
+export default example;
+

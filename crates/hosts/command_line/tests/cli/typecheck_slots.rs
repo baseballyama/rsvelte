@@ -460,9 +460,10 @@ fn typecheck_hides_what_the_slot_function_reads_of_a_nested_slots_interface() {
 
 /// A slot that misses a required prop reports at its start tag. svelte-check 4.7.8 reports these
 /// lines, with TypeScript 6's TS2345 where TypeScript 7 reports TS2741 (`DIVERGENCES.md`, "The
-/// TypeScript 7 checker"). Without attributes, the props' braces map to the tag here: svelte-check
-/// reports `<slot/>` and `<slot></slot>` at column 2, and `<slot  />` and
-/// `<slot name="named" />` at column 7.
+/// TypeScript 7 checker"). Without attributes, the props' braces map to `<slot` here, where
+/// svelte-check reports `<slot/>`, `<slot></slot>` and `<slot>fallback</slot>` one character after
+/// it, and `<slot  />`, `<slot name="named" />` and a named slot whose attribute is on the next
+/// line six characters after it.
 #[test]
 fn typecheck_reports_a_missing_slot_prop_at_the_slot_tag() {
     let tags = [
@@ -474,11 +475,13 @@ fn typecheck_reports_a_missing_slot_prop_at_the_slot_tag() {
         "<slot b={1} />",
         "<slot name=\"named\" b={1}></slot>",
         "<div><slot /></div>",
+        "<slot>fallback</slot>",
+        "<slot\n  name=\"named\"\n/>",
     ];
     let components: Vec<(String, String)> = (tags.iter().enumerate())
         .map(|(i, tag)| {
             (
-                format!("src/V{}.svelte", i + 1),
+                format!("src/V{:02}.svelte", i + 1),
                 format!(
                     "<script lang=\"ts\">\n  type $$Slots = {{ default: {{ x: number }}; named: \
                      {{ x: number }} }};\n</script>\n{tag}\n"
@@ -496,11 +499,12 @@ fn typecheck_reports_a_missing_slot_prop_at_the_slot_tag() {
     assert_eq!(
         check(&files),
         format!(
-            "src/V1.svelte(4,1): {missing}\nsrc/V2.svelte(4,1): {missing}\n\
-             src/V3.svelte(4,1): {missing}\nsrc/V4.svelte(4,1): {missing}\n\
-             src/V5.svelte(4,1): {missing}\nsrc/V6.svelte(4,7): {unknown}\n\
-             src/V7.svelte(4,20): {unknown}\nsrc/V8.svelte(4,6): {missing}\n\
-             \nFound 8 errors in 8 files.\n"
+            "src/V01.svelte(4,1): {missing}\nsrc/V02.svelte(4,1): {missing}\n\
+             src/V03.svelte(4,1): {missing}\nsrc/V04.svelte(4,1): {missing}\n\
+             src/V05.svelte(4,1): {missing}\nsrc/V06.svelte(4,7): {unknown}\n\
+             src/V07.svelte(4,20): {unknown}\nsrc/V08.svelte(4,6): {missing}\n\
+             src/V09.svelte(4,1): {missing}\nsrc/V10.svelte(4,1): {missing}\n\
+             \nFound 10 errors in 10 files.\n"
         )
         .native(),
     );

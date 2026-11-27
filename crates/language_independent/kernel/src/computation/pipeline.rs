@@ -246,11 +246,33 @@ pub fn run_each(
     options: &RunOptions<'_>,
     sink: &(dyn Fn(usize, DocumentResult) + Sync),
 ) -> Result<(), RunError> {
+    run_each_per_document(reg, docs, options, &|_| None, sink)
+}
+
+/// [`run_each`], where document `i` runs only the tasks among `options.tasks` that `tasks_of(i)`
+/// names, or all of them when it is `None`, as in [`run_per_document`].
+///
+/// # Errors
+///
+/// [`RunError`] if plugins are invalid or a selected task is unknown; nothing runs then.
+///
+/// # Panics
+///
+/// If a worker thread pool of `options.threads` threads cannot be built.
+pub fn run_each_per_document<'t>(
+    reg: &Registry,
+    docs: &[Document],
+    options: &RunOptions<'_>,
+    tasks_of: &(dyn Fn(usize) -> Option<&'t [&'t str]> + Sync),
+    sink: &(dyn Fn(usize, DocumentResult) + Sync),
+) -> Result<(), RunError> {
     let (tasks, finish_tasks) = selected(reg, options)?;
     in_pool(options.threads, || {
         let waiting = std::sync::Mutex::new(Vec::new());
         map_documents(docs, options.threads, |i, d| {
-            let r = run_document(reg, d, (&tasks, &finish_tasks), &|_| true, options.sharing);
+            let own = tasks_of(i);
+            let wanted = |task: &str| own.is_none_or(|own| own.contains(&task));
+            let r = run_document(reg, d, (&tasks, &finish_tasks), &wanted, options.sharing);
             if r.parts.is_empty() {
                 sink(i, r);
             } else {
@@ -285,10 +307,11 @@ pub fn run(
     docs: &[Document],
     options: &RunOptions<'_>,
 ) -> Result<Vec<DocumentResult>, RunError> {
-    run_per_document(reg, docs, options, &|_| options.tasks)
+    run_per_document(reg, docs, options, &|_| None)
 }
 
-/// [`run`], where document `i` runs only the tasks among `options.tasks` that `tasks_of(i)` names.
+/// [`run`], where document `i` runs only the tasks among `options.tasks` that `tasks_of(i)` names,
+/// or all of them when it is `None`.
 ///
 /// One run then serves commands that read different files, and shares what their tasks derive
 /// from a document they both read. A finish task's project is the documents that run it.
@@ -304,7 +327,7 @@ pub fn run_per_document<'t>(
     reg: &Registry,
     docs: &[Document],
     options: &RunOptions<'_>,
-    tasks_of: &(dyn Fn(usize) -> &'t [&'t str] + Sync),
+    tasks_of: &(dyn Fn(usize) -> Option<&'t [&'t str]> + Sync),
 ) -> Result<Vec<DocumentResult>, RunError> {
     let (tasks, finish_tasks) = selected(reg, options)?;
     // Ordered collection avoids the per-output locks a sink would need.
@@ -312,8 +335,7 @@ pub fn run_per_document<'t>(
     in_pool(options.threads, || {
         results = map_documents(docs, options.threads, |i, d| {
             let own = tasks_of(i);
-            // Empty names every task, as `options.tasks` does.
-            let wanted = |task: &str| own.is_empty() || own.contains(&task);
+            let wanted = |task: &str| own.is_none_or(|own| own.contains(&task));
             run_document(reg, d, (&tasks, &finish_tasks), &wanted, options.sharing)
         });
         run_finish_tasks(&finish_tasks, &mut results);

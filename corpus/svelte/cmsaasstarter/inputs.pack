@@ -1,4 +1,694 @@
 # rsvelte pack 1
+=== 2985 src/DatabaseDefinitions.ts	ts	module	-
+export type Json =
+  | string
+  | number
+  | boolean
+  | null
+  | { [key: string]: Json | undefined }
+  | Json[]
+
+export interface Database {
+  public: {
+    Tables: {
+      contact_requests: {
+        Row: {
+          company_name: string | null
+          email: string | null
+          first_name: string | null
+          id: string
+          last_name: string | null
+          message_body: string | null
+          phone: string | null
+          updated_at: Date | null
+        }
+        Insert: {
+          company_name?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          message_body?: string | null
+          phone?: string | null
+          updated_at?: Date | null
+        }
+        Update: {
+          company_name?: string | null
+          email?: string | null
+          first_name?: string | null
+          id?: string
+          last_name?: string | null
+          message_body?: string | null
+          phone?: string | null
+          updated_at?: Date | null
+        }
+        Relationships: []
+      }
+      profiles: {
+        Row: {
+          avatar_url: string | null
+          full_name: string | null
+          id: string
+          updated_at: string | null
+          company_name: string | null
+          website: string | null
+          unsubscribed: boolean
+        }
+        Insert: {
+          avatar_url?: string | null
+          full_name?: string | null
+          id: string
+          updated_at?: Date | null
+          company_name?: string | null
+          website?: string | null
+          unsubscribed: boolean
+        }
+        Update: {
+          avatar_url?: string | null
+          full_name?: string | null
+          id?: string
+          updated_at?: string | null
+          company_name?: string | null
+          website?: string | null
+          unsubscribed: boolean
+        }
+        Relationships: [
+          {
+            foreignKeyName: "profiles_id_fkey"
+            columns: ["id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stripe_customers: {
+        Row: {
+          stripe_customer_id: string
+          updated_at: Date | null
+          user_id: string
+        }
+        Insert: {
+          stripe_customer_id: string
+          updated_at?: Date | null
+          user_id: string
+        }
+        Update: {
+          stripe_customer_id?: string
+          updated_at?: Date | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "stripe_customers_user_id_fkey"
+            columns: ["user_id"]
+            referencedRelation: "users"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
+    }
+  }
+}
+
+=== 331 src/config.ts	ts	module	-
+export const WebsiteName: string = "SaaS Starter"
+export const WebsiteBaseUrl: string = "https://saasstarter.work"
+export const WebsiteDescription: string =
+  "Open source, fast, and free to host SaaS template. Built with SvelteKit, Supabase, Stripe, Tailwind, DaisyUI, and Postgres"
+export const CreateProfileStep: boolean = true
+
+=== 3321 src/hooks.server.ts	ts	module	-
+// src/hooks.server.ts
+import { PRIVATE_SUPABASE_SERVICE_ROLE } from "$env/static/private"
+import {
+  PUBLIC_SUPABASE_ANON_KEY,
+  PUBLIC_SUPABASE_URL,
+} from "$env/static/public"
+import { createServerClient } from "@supabase/ssr"
+import { createClient, type AMREntry } from "@supabase/supabase-js"
+import type { Handle } from "@sveltejs/kit"
+import { sequence } from "@sveltejs/kit/hooks"
+
+export const supabase: Handle = async ({ event, resolve }) => {
+  event.locals.supabase = createServerClient(
+    PUBLIC_SUPABASE_URL,
+    PUBLIC_SUPABASE_ANON_KEY,
+    {
+      cookies: {
+        getAll: () => event.cookies.getAll(),
+        /**
+         * SvelteKit's cookies API requires `path` to be explicitly set in
+         * the cookie options. Setting `path` to `/` replicates previous/
+         * standard behavior.
+         */
+        setAll: (
+          cookiesToSet: {
+            name: string
+            value: string
+            options: Record<string, unknown>
+          }[],
+        ) => {
+          cookiesToSet.forEach(({ name, value, options }) => {
+            event.cookies.set(name, value, { ...options, path: "/" })
+          })
+        },
+      },
+    },
+  )
+
+  event.locals.supabaseServiceRole = createClient(
+    PUBLIC_SUPABASE_URL,
+    PRIVATE_SUPABASE_SERVICE_ROLE,
+    { auth: { persistSession: false } },
+  )
+
+  // https://github.com/supabase/auth-js/issues/888#issuecomment-2189298518
+  if ("suppressGetSessionWarning" in event.locals.supabase.auth) {
+    // @ts-expect-error - suppressGetSessionWarning is not part of the official API
+    event.locals.supabase.auth.suppressGetSessionWarning = true
+  } else {
+    console.warn(
+      "SupabaseAuthClient#suppressGetSessionWarning was removed. See https://github.com/supabase/auth-js/issues/888.",
+    )
+  }
+
+  /**
+   * Unlike `supabase.auth.getSession()`, which returns the session _without_
+   * validating the JWT, this function also calls `getUser()` to validate the
+   * JWT before returning the session.
+   */
+  event.locals.safeGetSession = async () => {
+    const {
+      data: { session },
+    } = await event.locals.supabase.auth.getSession()
+    if (!session) {
+      return { session: null, user: null, amr: null }
+    }
+
+    const {
+      data: { user },
+      error: userError,
+    } = await event.locals.supabase.auth.getUser()
+    if (userError) {
+      // JWT validation has failed
+      return { session: null, user: null, amr: null }
+    }
+
+    const { data: aal, error: amrError } =
+      await event.locals.supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+    if (amrError) {
+      return { session, user, amr: null }
+    }
+
+    return {
+      session,
+      user,
+      amr: aal.currentAuthenticationMethods as AMREntry[],
+    }
+  }
+
+  return resolve(event, {
+    filterSerializedResponseHeaders(name) {
+      return name === "content-range" || name === "x-supabase-api-version"
+    },
+  })
+}
+
+// Not called for prerendered marketing pages so generally okay to call on ever server request
+// Next-page CSR will mean relatively minimal calls to this hook
+const authGuard: Handle = async ({ event, resolve }) => {
+  const { session, user } = await event.locals.safeGetSession()
+  event.locals.session = session
+  event.locals.user = user
+
+  return resolve(event)
+}
+
+export const handle: Handle = sequence(supabase, authGuard)
+
+=== 148 src/index.test.ts	ts	module	-
+import { describe, it, expect } from "vitest"
+
+describe("sum test", () => {
+  it("adds 1 + 2 to equal 3", () => {
+    expect(1 + 2).toBe(3)
+  })
+})
+
+=== 2277 src/lib/build_index.ts	ts	module	-
+import path from "path"
+import fs from "fs"
+import { glob } from "glob"
+import { convert } from "html-to-text"
+import JSDOM from "jsdom"
+import Fuse from "fuse.js"
+
+const excludePaths = ["/search"]
+
+export async function buildSearchIndex() {
+  const indexData = []
+
+  // iterate all files with html extension in ./svelte-kit/output/prerendered/pages
+  const fileRoot = path.resolve(".")
+  const pagesPath = path.join(fileRoot, ".svelte-kit/output/prerendered/pages")
+
+  const allFiles = glob.sync(path.join(pagesPath, "**/*.html"))
+  for (const file of allFiles) {
+    try {
+      const webPath = file
+        .replace(pagesPath, "")
+        .replace("/index.html", "")
+        .replace(".html", "")
+
+      // check if path is excluded
+      if (excludePaths.includes(webPath)) {
+        continue
+      }
+
+      // read the file
+      const data = fs.readFileSync(file, "utf8")
+      const plaintext = convert(data, {
+        selectors: [
+          { selector: "a", options: { ignoreHref: true, linkBrackets: false } },
+          { selector: "img", format: "skip" },
+        ],
+      })
+      const dom = new JSDOM.JSDOM(data)
+      const title =
+        dom.window.document.querySelector("title")?.textContent ||
+        "Page " + webPath
+      const description =
+        dom.window.document
+          .querySelector('meta[name="description"]')
+          ?.getAttribute("content") || ""
+      indexData.push({
+        title,
+        description,
+        body: plaintext,
+        path: webPath,
+      })
+    } catch (e) {
+      console.log("Blog search indexing error", file, e)
+    }
+  }
+
+  const index = Fuse.createIndex(["title", "description", "body"], indexData)
+  const jsonIndex = index.toJSON()
+  const data = { index: jsonIndex, indexData, buildTime: Date.now() }
+  return data
+}
+
+// Build search index into the output directory, for use in the build process (see vite.config.js)
+export async function buildAndCacheSearchIndex() {
+  const data = await buildSearchIndex()
+
+  const dir = path.resolve("./.svelte-kit/output/client/search")
+  if (!fs.existsSync(dir)) {
+    fs.mkdirSync(dir, { recursive: true })
+  }
+
+  fs.writeFileSync(
+    path.resolve("./.svelte-kit/output/client/search/api.json"),
+    JSON.stringify(data),
+  )
+  console.log("Search index built")
+}
+
+=== 1300 src/lib/load_helpers.ts	ts	module	-
+import { isBrowser } from "@supabase/ssr"
+import type { Session, SupabaseClient } from "@supabase/supabase-js"
+import type { Database } from "../DatabaseDefinitions.js"
+
+export const load_helper = async (
+  server_session: Session | null,
+  supabase: SupabaseClient<Database>,
+) => {
+  // on server populated on server by LayoutData, using authGuard hook
+  let session = server_session
+  if (isBrowser()) {
+    // Only call getSession in browser where it's safe.
+    const getSessionResponse = await supabase.auth.getSession()
+    session = getSessionResponse.data.session
+  }
+  if (!session) {
+    return {
+      session: null,
+      user: null,
+    }
+  }
+
+  // https://github.com/supabase/auth-js/issues/888#issuecomment-2189298518
+  if ("suppressGetSessionWarning" in supabase.auth) {
+    // @ts-expect-error - suppressGetSessionWarning is not part of the official API
+    supabase.auth.suppressGetSessionWarning = true
+  } else {
+    console.warn(
+      "SupabaseAuthClient#suppressGetSessionWarning was removed. See https://github.com/supabase/auth-js/issues/888.",
+    )
+  }
+  const {
+    data: { user },
+    error: userError,
+  } = await supabase.auth.getUser()
+  if (userError || !user) {
+    return {
+      session: null,
+      user: null,
+    }
+  }
+
+  return {
+    session,
+    user,
+  }
+}
+
+=== 3971 src/lib/mailer.test.ts	ts	module	-
+import { vi, describe, it, expect, beforeEach } from "vitest"
+
+vi.mock("@supabase/supabase-js")
+vi.mock("$env/dynamic/private")
+vi.mock("resend")
+
+import { createClient, type User } from "@supabase/supabase-js"
+import { Resend } from "resend"
+import * as mailer from "./mailer"
+
+describe("mailer", () => {
+  const mockSend = vi.fn().mockResolvedValue({ id: "mock-email-id" })
+
+  const mockSupabaseClient = {
+    auth: {
+      admin: {
+        getUserById: vi.fn(),
+      },
+    },
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn(),
+  }
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    const { env } = await import("$env/dynamic/private")
+    env.PRIVATE_RESEND_API_KEY = "mock_resend_api_key"
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    ;(createClient as any).mockReturnValue(mockSupabaseClient)
+
+    vi.mocked(Resend).mockImplementation(
+      () =>
+        ({
+          emails: {
+            send: mockSend,
+          },
+        }) as unknown as Resend,
+    )
+  })
+
+  describe("sendUserEmail", () => {
+    const mockUser = { id: "user123", email: "user@example.com" }
+
+    it("sends welcome email", async () => {
+      mockSupabaseClient.auth.admin.getUserById.mockResolvedValue({
+        data: { user: { email_confirmed_at: new Date().toISOString() } },
+        error: null,
+      })
+
+      mockSupabaseClient.single.mockResolvedValue({
+        data: { unsubscribed: false },
+        error: null,
+      })
+
+      await mailer.sendUserEmail({
+        user: mockUser as User,
+        subject: "Test",
+        from_email: "test@example.com",
+        template_name: "welcome_email",
+        template_properties: {
+          companyName: "Test Company",
+          WebsiteBaseUrl: "https://test.com",
+        },
+      })
+
+      expect(mockSend).toHaveBeenCalled()
+      const email = mockSend.mock.calls[0][0]
+      expect(email.to).toEqual(["user@example.com"])
+    })
+
+    it("should not send email if user is unsubscribed", async () => {
+      const originalConsoleLog = console.log
+      console.log = vi.fn()
+
+      mockSupabaseClient.auth.admin.getUserById.mockResolvedValue({
+        data: { user: { email_confirmed_at: new Date().toISOString() } },
+        error: null,
+      })
+
+      mockSupabaseClient.single.mockResolvedValue({
+        data: { unsubscribed: true },
+        error: null,
+      })
+
+      await mailer.sendUserEmail({
+        user: mockUser as User,
+        subject: "Test",
+        from_email: "test@example.com",
+        template_name: "welcome_email",
+        template_properties: {},
+      })
+
+      expect(mockSend).not.toHaveBeenCalled()
+
+      expect(console.log).toHaveBeenCalledWith(
+        "User unsubscribed. Aborting email. ",
+        mockUser.id,
+        mockUser.email,
+      )
+
+      console.log = originalConsoleLog
+    })
+  })
+
+  describe("sendTemplatedEmail", () => {
+    it("sends templated email", async () => {
+      await mailer.sendTemplatedEmail({
+        subject: "Test subject",
+        from_email: "from@example.com",
+        to_emails: ["to@example.com"],
+        template_name: "welcome_email",
+        template_properties: {
+          companyName: "Test Company",
+          WebsiteBaseUrl: "https://test.com",
+        },
+      })
+
+      expect(mockSend).toHaveBeenCalled()
+      const email = mockSend.mock.calls[0][0]
+      expect(email.from).toEqual("from@example.com")
+      expect(email.to).toEqual(["to@example.com"])
+      expect(email.subject).toEqual("Test subject")
+      expect(email.text).toContain("This is a quick sample of a welcome email")
+      expect(email.html).toContain("This is a quick sample of a welcome email")
+      expect(email.html).toContain("<html")
+      expect(email.html).toContain("https://test.com")
+      expect(email.html).toContain("Test Company")
+      expect(email.text).toContain("https://test.com")
+      expect(email.text).toContain("Test Company")
+    })
+  })
+})
+
+=== 4538 src/lib/mailer.ts	ts	module	-
+import { Resend } from "resend"
+import { env } from "$env/dynamic/private"
+import { PRIVATE_SUPABASE_SERVICE_ROLE } from "$env/static/private"
+import { PUBLIC_SUPABASE_URL } from "$env/static/public"
+import { createClient, type User } from "@supabase/supabase-js"
+import type { Database } from "../DatabaseDefinitions"
+import handlebars from "handlebars"
+
+// Sends an email to the admin email address.
+// Does not throw errors, but logs them.
+export const sendAdminEmail = async ({
+  subject,
+  body,
+}: {
+  subject: string
+  body: string
+}) => {
+  // Check admin email is setup
+  if (!env.PRIVATE_ADMIN_EMAIL) {
+    return
+  }
+
+  try {
+    const resend = new Resend(env.PRIVATE_RESEND_API_KEY)
+    const resp = await resend.emails.send({
+      from: env.PRIVATE_FROM_ADMIN_EMAIL || env.PRIVATE_ADMIN_EMAIL,
+      to: [env.PRIVATE_ADMIN_EMAIL],
+      subject: "ADMIN_MAIL: " + subject,
+      text: body,
+    })
+
+    if (resp.error) {
+      console.log("Failed to send admin email, error:", resp.error)
+    }
+  } catch (e) {
+    console.log("Failed to send admin email, error:", e)
+  }
+}
+
+export const sendUserEmail = async ({
+  user,
+  subject,
+  from_email,
+  template_name,
+  template_properties,
+}: {
+  user: User
+  subject: string
+  from_email: string
+  template_name: string
+  template_properties: Record<string, string>
+}) => {
+  const email = user.email
+  if (!email) {
+    console.log("No email for user. Aborting email. ", user.id)
+    return
+  }
+
+  // Check if the user email is verified using the full user object from service role
+  // Oauth uses email_verified, and email auth uses email_confirmed_at
+  const serverSupabase = createClient<Database>(
+    PUBLIC_SUPABASE_URL,
+    PRIVATE_SUPABASE_SERVICE_ROLE,
+    { auth: { persistSession: false } },
+  )
+  const { data: serviceUserData } = await serverSupabase.auth.admin.getUserById(
+    user.id,
+  )
+  const emailVerified =
+    serviceUserData.user?.email_confirmed_at ||
+    serviceUserData.user?.user_metadata?.email_verified
+
+  if (!emailVerified) {
+    console.log("User email not verified. Aborting email. ", user.id, email)
+    return
+  }
+
+  // Fetch user profile to check unsubscribed status
+  const { data: profile, error: profileError } = await serverSupabase
+    .from("profiles")
+    .select("unsubscribed")
+    .eq("id", user.id)
+    .single()
+
+  if (profileError) {
+    console.log("Error fetching user profile. Aborting email. ", user.id, email)
+    return
+  }
+
+  if (profile?.unsubscribed) {
+    console.log("User unsubscribed. Aborting email. ", user.id, email)
+    return
+  }
+
+  await sendTemplatedEmail({
+    subject,
+    to_emails: [email],
+    from_email,
+    template_name,
+    template_properties,
+  })
+}
+
+export const sendTemplatedEmail = async ({
+  subject,
+  to_emails,
+  from_email,
+  template_name,
+  template_properties,
+}: {
+  subject: string
+  to_emails: string[]
+  from_email: string
+  template_name: string
+  template_properties: Record<string, string>
+}) => {
+  if (!env.PRIVATE_RESEND_API_KEY) {
+    // email not configured.  Emails are optional so no error is thrown
+    return
+  }
+
+  let plaintextBody: string | undefined = undefined
+  try {
+    const textTemplate = await import(
+      `./emails/${template_name}_text.hbs?raw`
+    ).then((mod) => mod.default)
+    const template = handlebars.compile(textTemplate)
+    plaintextBody = template(template_properties)
+  } catch {
+    // ignore, plaintextBody is optional
+    plaintextBody = undefined
+  }
+
+  let htmlBody: string | undefined = undefined
+  try {
+    const htmlTemplate = await import(
+      `./emails/${template_name}_html.hbs?raw`
+    ).then((mod) => mod.default)
+    const template = handlebars.compile(htmlTemplate)
+    htmlBody = template(template_properties)
+  } catch {
+    // ignore, htmlBody is optional
+    htmlBody = undefined
+  }
+
+  if (!plaintextBody && !htmlBody) {
+    console.log(
+      "No email body: requires plaintextBody or htmlBody. Template: ",
+      template_name,
+    )
+    return
+  }
+
+  try {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    const email: any = {
+      from: from_email,
+      to: to_emails,
+      subject: subject,
+    }
+    if (plaintextBody) {
+      email.text = plaintextBody
+    }
+    if (htmlBody) {
+      email.html = htmlBody
+    }
+    const resend = new Resend(env.PRIVATE_RESEND_API_KEY)
+    const resp = await resend.emails.send(email)
+
+    if (resp.error) {
+      console.log("Failed to send email, error:", resp.error)
+    }
+  } catch (e) {
+    console.log("Failed to send email, error:", e)
+  }
+}
+
 === 8759 src/routes/(admin)/account/(menu)/+layout.svelte	svelte	runes	runes
 <script lang="ts">
   import "../../../../app.css"
@@ -149,6 +839,19 @@
   </div>
 </div>
 
+=== 272 src/routes/(admin)/account/(menu)/+page.server.ts	ts	module	-
+import { redirect } from "@sveltejs/kit"
+
+export const actions = {
+  signout: async ({ locals: { supabase, safeGetSession } }) => {
+    const { session } = await safeGetSession()
+    if (session) {
+      await supabase.auth.signOut()
+      redirect(303, "/")
+    }
+  },
+}
+
 === 2838 src/routes/(admin)/account/(menu)/+page.svelte	svelte	runes	neutral
 <script lang="ts">
   import { getContext } from "svelte"
@@ -239,6 +942,54 @@
   </div>
 </div>
 
+=== 1178 src/routes/(admin)/account/(menu)/billing/+page.server.ts	ts	module	-
+import { error, redirect } from "@sveltejs/kit"
+import {
+  fetchSubscription,
+  getOrCreateCustomerId,
+} from "../../subscription_helpers.server"
+import type { PageServerLoad } from "./$types"
+
+export const load: PageServerLoad = async ({
+  locals: { safeGetSession, supabaseServiceRole },
+}) => {
+  const { session, user } = await safeGetSession()
+  if (!session || !user?.id) {
+    redirect(303, "/login")
+  }
+
+  const { error: idError, customerId } = await getOrCreateCustomerId({
+    supabaseServiceRole,
+    user,
+  })
+  if (idError || !customerId) {
+    console.error("Error creating customer id", idError)
+    error(500, {
+      message: "Unknown error. If issue persists, please contact us.",
+    })
+  }
+
+  const {
+    primarySubscription,
+    hasEverHadSubscription,
+    error: fetchErr,
+  } = await fetchSubscription({
+    customerId,
+  })
+  if (fetchErr) {
+    console.error("Error fetching subscription", fetchErr)
+    error(500, {
+      message: "Unknown error. If issue persists, please contact us.",
+    })
+  }
+
+  return {
+    isActiveCustomer: !!primarySubscription,
+    hasEverHadSubscription,
+    currentPlanId: primarySubscription?.appSubscription?.id,
+  }
+}
+
 === 1516 src/routes/(admin)/account/(menu)/billing/+page.svelte	svelte	runes	runes
 <script lang="ts">
   import { getContext } from "svelte"
@@ -297,6 +1048,49 @@
     editLink="/account/billing/manage"
   />
 {/if}
+
+=== 1292 src/routes/(admin)/account/(menu)/billing/manage/+page.server.ts	ts	module	-
+import { PRIVATE_STRIPE_API_KEY } from "$env/static/private"
+import { error, redirect } from "@sveltejs/kit"
+import Stripe from "stripe"
+import { getOrCreateCustomerId } from "../../../subscription_helpers.server"
+import type { PageServerLoad } from "./$types"
+const stripe = new Stripe(PRIVATE_STRIPE_API_KEY, { apiVersion: "2023-08-16" })
+
+export const load: PageServerLoad = async ({
+  url,
+  locals: { safeGetSession, supabaseServiceRole },
+}) => {
+  const { session, user } = await safeGetSession()
+  if (!session) {
+    redirect(303, "/login")
+  }
+
+  const { error: idError, customerId } = await getOrCreateCustomerId({
+    supabaseServiceRole,
+    user,
+  })
+  if (idError || !customerId) {
+    console.error("Error creating customer id", idError)
+    error(500, {
+      message: "Unknown error (PCID). If issue persists, please contact us.",
+    })
+  }
+
+  let portalLink
+  try {
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: customerId,
+      return_url: `${url.origin}/account/billing`,
+    })
+    portalLink = portalSession?.url
+  } catch (e) {
+    console.error("Error creating billing portal session", e)
+    error(500, "Unknown error (PSE). If issue persists, please contact us.")
+  }
+
+  redirect(303, portalLink ?? "/account/billing")
+}
 
 === 1840 src/routes/(admin)/account/(menu)/settings/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -860,6 +1654,21 @@
   </div>
 </div>
 
+=== 242 src/routes/(admin)/account/+layout.server.ts	ts	module	-
+import type { LayoutServerLoad } from "./$types"
+
+export const load: LayoutServerLoad = async ({
+  locals: { session },
+  cookies,
+}) => {
+  // Session here is from authGuard hook
+
+  return {
+    session,
+    cookies: cookies.getAll(),
+  }
+}
+
 === 512 src/routes/(admin)/account/+layout.svelte	svelte	runes	runes
 <script lang="ts">
   import { invalidate } from "$app/navigation"
@@ -882,6 +1691,561 @@
 </script>
 
 {@render children?.()}
+
+=== 1916 src/routes/(admin)/account/+layout.ts	ts	module	-
+import {
+  PUBLIC_SUPABASE_ANON_KEY,
+  PUBLIC_SUPABASE_URL,
+} from "$env/static/public"
+import {
+  createBrowserClient,
+  createServerClient,
+  isBrowser,
+} from "@supabase/ssr"
+import { redirect } from "@sveltejs/kit"
+import type { Database } from "../../../DatabaseDefinitions.js"
+import { CreateProfileStep } from "../../../config"
+import { load_helper } from "$lib/load_helpers"
+
+export const load = async ({ fetch, data, depends, url }) => {
+  depends("supabase:auth")
+
+  const supabase = isBrowser()
+    ? createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+        global: {
+          fetch,
+        },
+      })
+    : createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+        global: {
+          fetch,
+        },
+        cookies: {
+          getAll() {
+            return data.cookies
+          },
+        },
+      })
+
+  const { session, user } = await load_helper(data.session, supabase)
+  if (!session || !user) {
+    redirect(303, "/login")
+  }
+
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select(`*`)
+    .eq("id", user.id)
+    .single()
+
+  const { data: aal } = await supabase.auth.mfa.getAuthenticatorAssuranceLevel()
+
+  const createProfilePath = "/account/create_profile"
+  const signOutPath = "/account/sign_out"
+  if (
+    profile &&
+    !_hasFullProfile(profile) &&
+    url.pathname !== createProfilePath &&
+    url.pathname !== signOutPath &&
+    CreateProfileStep
+  ) {
+    redirect(303, createProfilePath)
+  }
+
+  return {
+    supabase,
+    session,
+    profile,
+    user,
+    amr: aal?.currentAuthenticationMethods,
+  }
+}
+
+export const _hasFullProfile = (
+  profile: Database["public"]["Tables"]["profiles"]["Row"] | null,
+) => {
+  if (!profile) {
+    return false
+  }
+  if (!profile.full_name) {
+    return false
+  }
+  if (!profile.company_name) {
+    return false
+  }
+  if (!profile.website) {
+    return false
+  }
+
+  return true
+}
+
+=== 11061 src/routes/(admin)/account/api/+page.server.ts	ts	module	-
+import { fail, redirect } from "@sveltejs/kit"
+import { sendAdminEmail, sendUserEmail } from "$lib/mailer"
+import { WebsiteBaseUrl } from "../../../../config"
+
+export const actions = {
+  toggleEmailSubscription: async ({ locals: { supabase, safeGetSession } }) => {
+    const { session } = await safeGetSession()
+
+    if (!session) {
+      redirect(303, "/login")
+    }
+
+    const { data: currentProfile } = await supabase
+      .from("profiles")
+      .select("unsubscribed")
+      .eq("id", session.user.id)
+      .single()
+
+    const newUnsubscribedStatus = !currentProfile?.unsubscribed
+
+    const { error } = await supabase
+      .from("profiles")
+      .update({ unsubscribed: newUnsubscribedStatus })
+      .eq("id", session.user.id)
+
+    if (error) {
+      console.error("Error updating subscription status", error)
+      return fail(500, { message: "Failed to update subscription status" })
+    }
+
+    return {
+      unsubscribed: newUnsubscribedStatus,
+    }
+  },
+  updateEmail: async ({ request, locals: { supabase, safeGetSession } }) => {
+    const { session } = await safeGetSession()
+    if (!session) {
+      redirect(303, "/login")
+    }
+
+    const formData = await request.formData()
+    const email = formData.get("email") as string
+
+    let validationError
+    if (!email || email === "") {
+      validationError = "An email address is required"
+    }
+    // Dead simple check -- there's no standard here (which is followed),
+    // and lots of errors will be missed until we actually email to verify, so
+    // just do that
+    else if (!email.includes("@")) {
+      validationError = "A valid email address is required"
+    }
+    if (validationError) {
+      return fail(400, {
+        errorMessage: validationError,
+        errorFields: ["email"],
+        email,
+      })
+    }
+
+    // Supabase does not change the email until the user verifies both
+    // if 'Secure email change' is enabled in the Supabase dashboard
+    const { error } = await supabase.auth.updateUser({ email: email })
+
+    if (error) {
+      console.error("Error updating email", error)
+      return fail(500, {
+        errorMessage: "Unknown error. If this persists please contact us.",
+        email,
+      })
+    }
+
+    return {
+      email,
+    }
+  },
+  updatePassword: async ({ request, locals: { supabase, safeGetSession } }) => {
+    const { session, user, amr } = await safeGetSession()
+    if (!session) {
+      redirect(303, "/login")
+    }
+
+    const formData = await request.formData()
+    const newPassword1 = formData.get("newPassword1") as string
+    const newPassword2 = formData.get("newPassword2") as string
+    const currentPassword = formData.get("currentPassword") as string
+
+    // Can check if we're a "password recovery" session by checking session amr
+    // let currentPassword take priority if provided (user can use either form)
+    const recoveryAmr = amr?.find((x) => x.method === "recovery")
+    const isRecoverySession = recoveryAmr && !currentPassword
+
+    // if this is password recovery session, check timestamp of recovery session
+    if (isRecoverySession) {
+      const timeSinceLogin = Date.now() - recoveryAmr.timestamp * 1000
+      if (timeSinceLogin > 1000 * 60 * 15) {
+        // 15 mins in milliseconds
+        return fail(400, {
+          errorMessage:
+            'Recovery code expired. Please log out, then use "Forgot Password" on the sign in page to reset your password. Codes are valid for 15 minutes.',
+          errorFields: [],
+          newPassword1,
+          newPassword2,
+          currentPassword: "",
+        })
+      }
+    }
+
+    let validationError
+    const errorFields = []
+    if (!newPassword1) {
+      validationError = "You must type a new password"
+      errorFields.push("newPassword1")
+    }
+    if (!newPassword2) {
+      validationError = "You must type the new password twice"
+      errorFields.push("newPassword2")
+    }
+    if (newPassword1.length < 6) {
+      validationError = "The new password must be at least 6 charaters long"
+      errorFields.push("newPassword1")
+    }
+    if (newPassword1.length > 72) {
+      validationError = "The new password can be at most 72 charaters long"
+      errorFields.push("newPassword1")
+    }
+    if (newPassword1 != newPassword2) {
+      validationError = "The passwords don't match"
+      errorFields.push("newPassword1")
+      errorFields.push("newPassword2")
+    }
+    if (!currentPassword && !isRecoverySession) {
+      validationError =
+        "You must include your current password. If you forgot it, sign out then use 'forgot password' on the sign in page."
+      errorFields.push("currentPassword")
+    }
+    if (validationError) {
+      return fail(400, {
+        errorMessage: validationError,
+        errorFields: [...new Set(errorFields)], // unique values
+        newPassword1,
+        newPassword2,
+        currentPassword,
+      })
+    }
+
+    // Check current password is correct before updating, but only if they didn't log in with "recover" link
+    // Note: to make this truly enforced you need to contact supabase. See: https://www.reddit.com/r/Supabase/comments/12iw7o1/updating_password_in_supabase_seems_insecure/
+    // However, having the UI accessible route still verify password is still helpful, and needed once you get the setting above enabled
+    if (!isRecoverySession) {
+      const { error } = await supabase.auth.signInWithPassword({
+        email: user?.email || "",
+        password: currentPassword,
+      })
+      if (error) {
+        // The user was logged out because of bad password. Redirect to error page explaining.
+        redirect(303, "/login/current_password_error")
+      }
+    }
+
+    const { error } = await supabase.auth.updateUser({
+      password: newPassword1,
+    })
+    if (error) {
+      console.error("Error updating password", error)
+      return fail(500, {
+        errorMessage: "Unknown error. If this persists please contact us.",
+        newPassword1,
+        newPassword2,
+        currentPassword,
+      })
+    }
+
+    return {
+      newPassword1,
+      newPassword2,
+      currentPassword,
+    }
+  },
+  deleteAccount: async ({
+    request,
+    locals: { supabase, supabaseServiceRole, safeGetSession },
+  }) => {
+    const { session, user } = await safeGetSession()
+    if (!session || !user?.id) {
+      redirect(303, "/login")
+    }
+
+    const formData = await request.formData()
+    const currentPassword = formData.get("currentPassword") as string
+
+    if (!currentPassword) {
+      return fail(400, {
+        errorMessage:
+          "You must provide your current password to delete your account. If you forgot it, sign out then use 'forgot password' on the sign in page.",
+        errorFields: ["currentPassword"],
+        currentPassword,
+      })
+    }
+
+    // Check current password is correct before deleting account
+    const { error: pwError } = await supabase.auth.signInWithPassword({
+      email: user?.email || "",
+      password: currentPassword,
+    })
+    if (pwError) {
+      // The user was logged out because of bad password. Redirect to error page explaining.
+      redirect(303, "/login/current_password_error")
+    }
+
+    const { error } = await supabaseServiceRole.auth.admin.deleteUser(
+      user.id,
+      true,
+    )
+    if (error) {
+      console.error("Error deleting user", error)
+      return fail(500, {
+        errorMessage: "Unknown error. If this persists please contact us.",
+        currentPassword,
+      })
+    }
+
+    await supabase.auth.signOut()
+    redirect(303, "/")
+  },
+  updateProfile: async ({ request, locals: { supabase, safeGetSession } }) => {
+    const { session, user } = await safeGetSession()
+    if (!session || !user?.id) {
+      redirect(303, "/login")
+    }
+
+    const formData = await request.formData()
+    const fullName = formData.get("fullName") as string
+    const companyName = formData.get("companyName") as string
+    const website = formData.get("website") as string
+
+    let validationError
+    const fieldMaxTextLength = 50
+    const errorFields = []
+    if (!fullName) {
+      validationError = "Name is required"
+      errorFields.push("fullName")
+    } else if (fullName.length > fieldMaxTextLength) {
+      validationError = `Name must be less than ${fieldMaxTextLength} characters`
+      errorFields.push("fullName")
+    }
+    if (!companyName) {
+      validationError =
+        "Company name is required. If this is a hobby project or personal app, please put your name."
+      errorFields.push("companyName")
+    } else if (companyName.length > fieldMaxTextLength) {
+      validationError = `Company name must be less than ${fieldMaxTextLength} characters`
+      errorFields.push("companyName")
+    }
+    if (!website) {
+      validationError =
+        "Company website is required. An app store URL is a good alternative if you don't have a website."
+      errorFields.push("website")
+    } else if (website.length > fieldMaxTextLength) {
+      validationError = `Company website must be less than ${fieldMaxTextLength} characters`
+      errorFields.push("website")
+    }
+    if (validationError) {
+      return fail(400, {
+        errorMessage: validationError,
+        errorFields,
+        fullName,
+        companyName,
+        website,
+      })
+    }
+
+    // To check if created or updated, check if priorProfile exists
+    const { data: priorProfile, error: priorProfileError } = await supabase
+      .from("profiles")
+      .select(`*`)
+      .eq("id", session?.user.id)
+      .single()
+
+    const { error } = await supabase
+      .from("profiles")
+      .upsert({
+        id: user.id,
+        full_name: fullName,
+        company_name: companyName,
+        website: website,
+        updated_at: new Date(),
+        unsubscribed: priorProfile?.unsubscribed ?? false,
+      })
+      .select()
+
+    if (error) {
+      console.error("Error updating profile", error)
+      return fail(500, {
+        errorMessage: "Unknown error. If this persists please contact us.",
+        fullName,
+        companyName,
+        website,
+      })
+    }
+
+    // If the profile was just created, send an email to the user and admin
+    const newProfile =
+      priorProfile?.updated_at === null && priorProfileError === null
+    if (newProfile) {
+      await sendAdminEmail({
+        subject: "Profile Created",
+        body: `Profile created by ${session.user.email}\nFull name: ${fullName}\nCompany name: ${companyName}\nWebsite: ${website}`,
+      })
+
+      // Send welcome email
+      await sendUserEmail({
+        user: session.user,
+        subject: "Welcome!",
+        from_email: "no-reply@saasstarter.work",
+        template_name: "welcome_email",
+        template_properties: {
+          companyName: "SaaS Starter",
+          WebsiteBaseUrl: WebsiteBaseUrl,
+        },
+      })
+    }
+
+    return {
+      fullName,
+      companyName,
+      website,
+    }
+  },
+  signout: async ({ locals: { supabase, safeGetSession } }) => {
+    const { session } = await safeGetSession()
+    if (session) {
+      await supabase.auth.signOut()
+      redirect(303, "/")
+    } else {
+      redirect(303, "/")
+    }
+  },
+}
+
+=== 4243 src/routes/(admin)/account/api/page.server.test.ts	ts	module	-
+import { describe, it, expect, vi, beforeEach } from "vitest"
+import { actions } from "./+page.server"
+import { fail, redirect } from "@sveltejs/kit"
+
+vi.mock("@sveltejs/kit", async () => {
+  const actual = await vi.importActual("@sveltejs/kit")
+  return {
+    ...actual,
+    fail: vi.fn(),
+    redirect: vi.fn().mockImplementation(() => {
+      throw new Error("Redirect error")
+    }),
+  }
+})
+
+describe("toggleEmailSubscription", () => {
+  const mockSupabase = {
+    from: vi.fn().mockReturnThis(),
+    select: vi.fn().mockReturnThis(),
+    eq: vi.fn().mockReturnThis(),
+    single: vi.fn().mockResolvedValue({ data: null }),
+    update: vi.fn().mockReturnThis(),
+  }
+
+  const mockSafeGetSession = vi.fn()
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  it("should redirect if no session", async () => {
+    mockSafeGetSession.mockResolvedValue({ session: null })
+
+    await expect(
+      actions.toggleEmailSubscription({
+        locals: {
+          supabase: mockSupabase,
+          safeGetSession: mockSafeGetSession,
+        },
+      } as any),
+    ).rejects.toThrow("Redirect")
+
+    expect(redirect).toHaveBeenCalledWith(303, "/login")
+  })
+
+  it("should toggle subscription status from false to true", async () => {
+    const mockSession = { user: { id: "user123" } }
+    mockSafeGetSession.mockResolvedValue({ session: mockSession })
+
+    // Mock the first query to get the current status
+    mockSupabase.single.mockResolvedValueOnce({ data: { unsubscribed: false } })
+
+    // Mock the update query
+    const mockUpdateChain = {
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    }
+
+    mockSupabase.update.mockReturnValue(mockUpdateChain)
+
+    const result = await actions.toggleEmailSubscription({
+      locals: { supabase: mockSupabase, safeGetSession: mockSafeGetSession },
+    } as any)
+
+    expect(mockSupabase.from).toHaveBeenCalledWith("profiles")
+    expect(mockSupabase.select).toHaveBeenCalledWith("unsubscribed")
+    expect(mockSupabase.eq).toHaveBeenCalledWith("id", "user123")
+    expect(mockSupabase.single).toHaveBeenCalled()
+    expect(mockSupabase.update).toHaveBeenCalledWith({ unsubscribed: true })
+    expect(mockUpdateChain.eq).toHaveBeenCalledWith("id", "user123")
+    expect(result).toEqual({ unsubscribed: true })
+  })
+
+  it("should toggle subscription status from true to false", async () => {
+    const mockSession = { user: { id: "user123" } }
+    mockSafeGetSession.mockResolvedValue({ session: mockSession })
+
+    // Mock the first query to get the current status
+    mockSupabase.single.mockResolvedValueOnce({ data: { unsubscribed: true } })
+
+    // Mock the update query
+    const mockUpdateChain = {
+      eq: vi.fn().mockResolvedValue({ error: null }),
+    }
+
+    mockSupabase.update.mockReturnValue(mockUpdateChain)
+
+    const result = await actions.toggleEmailSubscription({
+      locals: { supabase: mockSupabase, safeGetSession: mockSafeGetSession },
+    } as any)
+
+    expect(mockSupabase.from).toHaveBeenCalledWith("profiles")
+    expect(mockSupabase.select).toHaveBeenCalledWith("unsubscribed")
+    expect(mockSupabase.eq).toHaveBeenCalledWith("id", "user123")
+    expect(mockSupabase.single).toHaveBeenCalled()
+    expect(mockSupabase.update).toHaveBeenCalledWith({ unsubscribed: false })
+    expect(mockUpdateChain.eq).toHaveBeenCalledWith("id", "user123")
+    expect(result).toEqual({ unsubscribed: false })
+  })
+
+  it("should return fail response if update operation fails", async () => {
+    const mockSession = { user: { id: "user123" } }
+    mockSafeGetSession.mockResolvedValue({ session: mockSession })
+
+    // Mock the first query to get the current status
+    mockSupabase.single.mockResolvedValueOnce({ data: { unsubscribed: false } })
+
+    // Mock the update query to return an error
+    const mockUpdateChain = {
+      eq: vi.fn().mockResolvedValue({ error: new Error("Update failed") }),
+    }
+
+    mockSupabase.update.mockReturnValue(mockUpdateChain)
+
+    await actions.toggleEmailSubscription({
+      locals: { supabase: mockSupabase, safeGetSession: mockSafeGetSession },
+    } as any)
+
+    // Check if fail was called with the correct arguments
+    expect(fail).toHaveBeenCalledWith(500, {
+      message: "Failed to update subscription status",
+    })
+  })
+})
 
 === 3745 src/routes/(admin)/account/create_profile/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -1020,6 +2384,21 @@
   </div>
 </div>
 
+=== 336 src/routes/(admin)/account/create_profile/+page.ts	ts	module	-
+import { _hasFullProfile } from "../+layout.js"
+import { redirect } from "@sveltejs/kit"
+
+export async function load({ parent }) {
+  const data = await parent()
+
+  // They completed their profile! Redirect to "Select a Plan" screen.
+  if (_hasFullProfile(data?.profile)) {
+    redirect(303, "/account/select_plan")
+  }
+
+  return data
+}
+
 === 613 src/routes/(admin)/account/select_plan/+page.svelte	svelte	runes	neutral
 <script lang="ts">
   import PricingModule from "../../../(marketing)/pricing/pricing_module.svelte"
@@ -1067,6 +2446,206 @@
 </script>
 
 <h1 class="text-2xl font-bold m-6 mx-auto my-auto">{message}</h1>
+
+=== 1824 src/routes/(admin)/account/subscribe/[slug]/+page.server.ts	ts	module	-
+import { PRIVATE_STRIPE_API_KEY } from "$env/static/private"
+import { error, redirect } from "@sveltejs/kit"
+import Stripe from "stripe"
+import {
+  fetchSubscription,
+  getOrCreateCustomerId,
+} from "../../subscription_helpers.server"
+import type { PageServerLoad } from "./$types"
+const stripe = new Stripe(PRIVATE_STRIPE_API_KEY, { apiVersion: "2023-08-16" })
+
+export const load: PageServerLoad = async ({
+  params,
+  url,
+  locals: { safeGetSession, supabaseServiceRole },
+}) => {
+  const { session, user } = await safeGetSession()
+  if (!session) {
+    redirect(303, "/login")
+  }
+
+  if (params.slug === "free_plan") {
+    // plan with no stripe_price_id. Redirect to account home
+    redirect(303, "/account")
+  }
+
+  const { error: idError, customerId } = await getOrCreateCustomerId({
+    supabaseServiceRole,
+    user,
+  })
+  if (idError || !customerId) {
+    console.error("Error creating customer id", idError)
+    error(500, {
+      message: "Unknown error. If issue persists, please contact us.",
+    })
+  }
+
+  const { primarySubscription } = await fetchSubscription({
+    customerId,
+  })
+  if (primarySubscription) {
+    // User already has plan, we shouldn't let them buy another
+    redirect(303, "/account/billing")
+  }
+
+  let checkoutUrl
+  try {
+    const stripeSession = await stripe.checkout.sessions.create({
+      line_items: [
+        {
+          price: params.slug,
+          quantity: 1,
+        },
+      ],
+      customer: customerId,
+      mode: "subscription",
+      success_url: `${url.origin}/account`,
+      cancel_url: `${url.origin}/account/billing`,
+    })
+    checkoutUrl = stripeSession.url
+  } catch (e) {
+    console.error("Error creating checkout session", e)
+    error(500, "Unknown Error (SSE): If issue persists please contact us.")
+  }
+
+  redirect(303, checkoutUrl ?? "/pricing")
+}
+
+=== 3484 src/routes/(admin)/account/subscription_helpers.server.ts	ts	module	-
+import type { SupabaseClient, User } from "@supabase/supabase-js"
+import type { Database } from "../../../DatabaseDefinitions"
+
+import { PRIVATE_STRIPE_API_KEY } from "$env/static/private"
+import Stripe from "stripe"
+import { pricingPlans } from "../../(marketing)/pricing/pricing_plans"
+const stripe = new Stripe(PRIVATE_STRIPE_API_KEY, { apiVersion: "2023-08-16" })
+
+export const getOrCreateCustomerId = async ({
+  supabaseServiceRole,
+  user,
+}: {
+  supabaseServiceRole: SupabaseClient<Database>
+  user: User
+}) => {
+  const { data: dbCustomer, error } = await supabaseServiceRole
+    .from("stripe_customers")
+    .select("stripe_customer_id")
+    .eq("user_id", user.id)
+    .single()
+
+  if (error && error.code != "PGRST116") {
+    // PGRST116 == no rows
+    return { error: error }
+  }
+
+  if (dbCustomer?.stripe_customer_id) {
+    return { customerId: dbCustomer.stripe_customer_id }
+  }
+
+  // Fetch data needed to create customer
+  const { data: profile, error: profileError } = await supabaseServiceRole
+    .from("profiles")
+    .select(`full_name, website, company_name`)
+    .eq("id", user.id)
+    .single()
+  if (profileError) {
+    return { error: profileError }
+  }
+
+  // Create a stripe customer
+  let customer
+  try {
+    customer = await stripe.customers.create({
+      email: user.email,
+      name: profile.full_name ?? "",
+      metadata: {
+        user_id: user.id,
+        company_name: profile.company_name ?? "",
+        website: profile.website ?? "",
+      },
+    })
+  } catch (e) {
+    return { error: e }
+  }
+
+  if (!customer.id) {
+    return { error: "Unknown stripe user creation error" }
+  }
+
+  // insert instead of upsert so we never over-write. PK ensures later attempts error.
+  const { error: insertError } = await supabaseServiceRole
+    .from("stripe_customers")
+    .insert({
+      user_id: user.id,
+      stripe_customer_id: customer.id,
+      updated_at: new Date(),
+    })
+
+  if (insertError) {
+    return { error: insertError }
+  }
+
+  return { customerId: customer.id }
+}
+
+export const fetchSubscription = async ({
+  customerId,
+}: {
+  customerId: string
+}) => {
+  // Fetch user's subscriptions
+  let stripeSubscriptions
+  try {
+    stripeSubscriptions = await stripe.subscriptions.list({
+      customer: customerId,
+      limit: 100,
+      status: "all",
+    })
+  } catch (e) {
+    return { error: e }
+  }
+
+  // find "primary". The user may have several old ones, we want an active one (including trials, and past_due in grace period).
+  const primaryStripeSubscription = stripeSubscriptions.data.find((x) => {
+    return (
+      x.status === "active" ||
+      x.status === "trialing" ||
+      x.status === "past_due"
+    )
+  })
+  let appSubscription = null
+  if (primaryStripeSubscription) {
+    const productId =
+      primaryStripeSubscription?.items?.data?.[0]?.price.product ?? ""
+    appSubscription = pricingPlans.find((x) => {
+      return x.stripe_product_id === productId
+    })
+    if (!appSubscription) {
+      return {
+        error:
+          "Stripe subscription does not have matching app subscription in pricing_plans.ts (via product id match)",
+      }
+    }
+  }
+  let primarySubscription = null
+  if (primaryStripeSubscription && appSubscription) {
+    primarySubscription = {
+      stripeSubscription: primaryStripeSubscription,
+      appSubscription: appSubscription,
+    }
+  }
+
+  const hasEverHadSubscription = stripeSubscriptions.data.length > 0
+
+  return {
+    primarySubscription,
+    hasEverHadSubscription,
+  }
+}
 
 === 4124 src/routes/(marketing)/+layout.svelte	svelte	runes	runes
 <script lang="ts">
@@ -1814,6 +3393,179 @@ npm install
   {/each}
 </div>
 
+=== 1445 src/routes/(marketing)/blog/posts.ts	ts	module	-
+export const blogInfo = {
+  name: "SaaS Starter Blog",
+  description: "A sample blog",
+}
+
+export type BlogPost = {
+  link: string
+  date: string // date is a string 'YYYY-MM-DD'
+  title: string
+  description: string
+  parsedDate?: Date // Optional because it's added dynamically
+}
+
+// Update this list with the actual blog post list
+// Create a page in the "(posts)" directory for each entry
+const blogPosts: BlogPost[] = [
+  {
+    title: "How we built a beautiful 41kb SaaS website with this template",
+    description: "How to use this template you to bootstrap your own site.",
+    link: "/blog/how_we_built_our_41kb_saas_website",
+    date: "2024-03-10",
+  },
+  {
+    title: "Example Blog Post 2",
+    description: "Even more example content!",
+    link: "/blog/awesome_post",
+    date: "2022-9-23",
+  },
+  {
+    title: "Example Blog Post",
+    description: "A sample blog post, showing our blog engine",
+    link: "/blog/example_blog_post",
+    date: "2023-03-13",
+  },
+]
+
+// Parse post dates from strings to Date objects
+for (const post of blogPosts) {
+  if (!post.parsedDate) {
+    const dateParts = post.date.split("-")
+    post.parsedDate = new Date(
+      parseInt(dateParts[0]),
+      parseInt(dateParts[1]) - 1,
+      parseInt(dateParts[2]),
+    ) // Note: months are 0-based
+  }
+}
+
+export const sortedBlogPosts = blogPosts.sort(
+  (a: BlogPost, b: BlogPost) =>
+    (b.parsedDate?.getTime() ?? 0) - (a.parsedDate?.getTime() ?? 0),
+)
+
+=== 1150 src/routes/(marketing)/blog/rss.xml/+server.ts	ts	module	-
+import { sortedBlogPosts, blogInfo } from "../posts"
+
+const encodeXML = (str: string) =>
+  str
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&apos;")
+
+/** @type {import('./$types').RequestHandler} */
+export function GET({ url }) {
+  const headers = {
+    "Cache-Control": "max-age=0, s-maxage=3600",
+    "Content-Type": "application/xml",
+  }
+
+  let body = `<rss version="2.0" xmlns:atom="http://www.w3.org/2005/Atom"> 
+  <channel>
+    <title>${encodeXML(blogInfo.name)}</title>
+    <link>${url.origin}/blog</link>
+    <description>${encodeXML(blogInfo.description)}</description>
+    <atom:link href="${url.origin}/blog/rss.xml" rel="self" type="application/rss+xml" />`
+  for (const post of sortedBlogPosts) {
+    body += `
+    <item>
+      <title>${encodeXML(post.title)}</title>
+      <description>${encodeXML(post.description)}</description>
+      <link>${url.origin + post.link}/</link>
+      <pubDate>${post.parsedDate?.toUTCString()}</pubDate>
+    </item>\n`
+  }
+  body += `  </channel>\n</rss>\n`
+  return new Response(body, {
+    headers: headers,
+  })
+}
+
+=== 2433 src/routes/(marketing)/contact_us/+page.server.ts	ts	module	-
+import { fail } from "@sveltejs/kit"
+import { sendAdminEmail } from "$lib/mailer.js"
+
+/** @type {import('./$types').Actions} */
+export const actions = {
+  submitContactUs: async ({ request, locals: { supabaseServiceRole } }) => {
+    const formData = await request.formData()
+    const errors: { [fieldName: string]: string } = {}
+
+    const firstName = formData.get("first_name")?.toString() ?? ""
+    if (firstName.length < 2) {
+      errors["first_name"] = "First name is required"
+    }
+    if (firstName.length > 500) {
+      errors["first_name"] = "First name too long"
+    }
+
+    const lastName = formData.get("last_name")?.toString() ?? ""
+    if (lastName.length < 2) {
+      errors["last_name"] = "Last name is required"
+    }
+    if (lastName.length > 500) {
+      errors["last_name"] = "Last name too long"
+    }
+
+    const email = formData.get("email")?.toString() ?? ""
+    if (email.length < 6) {
+      errors["email"] = "Email is required"
+    } else if (email.length > 500) {
+      errors["email"] = "Email too long"
+    } else if (!email.includes("@") || !email.includes(".")) {
+      errors["email"] = "Invalid email"
+    }
+
+    const company = formData.get("company")?.toString() ?? ""
+    if (company.length > 500) {
+      errors["company"] = "Company too long"
+    }
+
+    const phone = formData.get("phone")?.toString() ?? ""
+    if (phone.length > 100) {
+      errors["phone"] = "Phone number too long"
+    }
+
+    const message = formData.get("message")?.toString() ?? ""
+    if (message.length > 2000) {
+      errors["message"] = "Message too long (" + message.length + " of 2000)"
+    }
+
+    if (Object.keys(errors).length > 0) {
+      return fail(400, { errors })
+    }
+
+    // Save to database
+    const { error: insertError } = await supabaseServiceRole
+      .from("contact_requests")
+      .insert({
+        first_name: firstName,
+        last_name: lastName,
+        email,
+        company_name: company,
+        phone,
+        message_body: message,
+        updated_at: new Date(),
+      })
+
+    if (insertError) {
+      console.error("Error saving contact request", insertError)
+      return fail(500, { errors: { _: "Error saving" } })
+    }
+
+    // Send email to admin
+    await sendAdminEmail({
+      subject: "New contact request",
+      body: `New contact request from ${firstName} ${lastName}.\n\nEmail: ${email}\n\nPhone: ${phone}\n\nCompany: ${company}\n\nMessage: ${message}`,
+    })
+  },
+}
+
 === 5016 src/routes/(marketing)/contact_us/+page.svelte	svelte	runes	runes
 <script lang="ts">
   import { enhance, applyAction } from "$app/forms"
@@ -1980,6 +3732,21 @@ npm install
   </div>
 </div>
 
+=== 228 src/routes/(marketing)/login/+layout.server.ts	ts	module	-
+import type { LayoutServerLoad } from "./$types"
+
+export const load: LayoutServerLoad = async ({
+  locals: { session },
+  cookies,
+  url,
+}) => {
+  return {
+    url: url.origin,
+    cookies: cookies.getAll(),
+    session,
+  }
+}
+
 === 617 src/routes/(marketing)/login/+layout.svelte	svelte	runes	runes
 <script lang="ts">
   interface Props {
@@ -2007,6 +3774,50 @@ npm install
     </div>
   </div>
 </div>
+
+=== 962 src/routes/(marketing)/login/+layout.ts	ts	module	-
+import {
+  PUBLIC_SUPABASE_ANON_KEY,
+  PUBLIC_SUPABASE_URL,
+} from "$env/static/public"
+import {
+  createBrowserClient,
+  createServerClient,
+  isBrowser,
+} from "@supabase/ssr"
+import { redirect } from "@sveltejs/kit"
+import { load_helper } from "$lib/load_helpers.js"
+
+export const load = async ({ fetch, data, depends }) => {
+  depends("supabase:auth")
+
+  const supabase = isBrowser()
+    ? createBrowserClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+        global: {
+          fetch,
+        },
+      })
+    : createServerClient(PUBLIC_SUPABASE_URL, PUBLIC_SUPABASE_ANON_KEY, {
+        global: {
+          fetch,
+        },
+        cookies: {
+          getAll() {
+            return data.cookies
+          },
+        },
+      })
+
+  // Redirect if already logged in
+  const { session, user } = await load_helper(data.session, supabase)
+  if (session && user) {
+    redirect(303, "/account")
+  }
+
+  const url = data.url
+
+  return { supabase, url }
+}
 
 === 395 src/routes/(marketing)/login/+page.svelte	svelte	runes	neutral
 <svelte:head>
@@ -2047,6 +3858,9 @@ npm install
   >.
 </p>
 
+=== 25 src/routes/(marketing)/login/forgot_password/+page.server.ts	ts	module	-
+export const ssr = false
+
 === 724 src/routes/(marketing)/login/forgot_password/+page.svelte	svelte	runes	runes
 <script lang="ts">
   import { Auth } from "@supabase/auth-ui-svelte"
@@ -2074,6 +3888,38 @@ npm install
   Remember your password? <a class="underline" href="/login/sign_in">Sign in</a
   >.
 </div>
+
+=== 836 src/routes/(marketing)/login/login_config.ts	ts	module	-
+import { ThemeSupa } from "@supabase/auth-ui-shared"
+import type { Provider } from "@supabase/supabase-js"
+
+export const oauthProviders = ["github"] as Provider[]
+
+// use the css variables from DaisyUI to style Supabase auth template
+export const sharedAppearance = {
+  theme: ThemeSupa,
+  variables: {
+    default: {
+      colors: {
+        brand: "oklch(var(--p))",
+        brandAccent: "oklch(var(--ac))",
+        inputText: "oklch(var(--n))",
+        brandButtonText: "oklch(var(--pc))",
+        messageText: "oklch(var(--b))",
+        dividerBackground: "oklch(var(--n))",
+        inputLabelText: "oklch(var(--n))",
+        defaultButtonText: "oklch(var(--n))",
+        anchorTextColor: "oklch(var(--p))",
+      },
+      fontSizes: {
+        baseInputSize: "16px",
+      },
+    },
+  },
+  className: {
+    button: "authBtn",
+  },
+}
 
 === 1927 src/routes/(marketing)/login/sign_in/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -2457,6 +4303,51 @@ npm install
   {/each}
 </div>
 
+=== 1213 src/routes/(marketing)/pricing/pricing_plans.ts	ts	module	-
+export const defaultPlanId = "free"
+
+export const pricingPlans = [
+  {
+    id: "free",
+    name: "Free",
+    description: "A free plan to get you started!",
+    price: "$0",
+    priceIntervalName: "per month",
+    stripe_price_id: null,
+    features: ["MIT Licence", "Fast Performance", "Stripe Integration"],
+  },
+  {
+    id: "pro",
+    name: "Pro",
+    description:
+      "A plan to test the purchase experience. Try buying this with the test credit card 4242424242424242.",
+    price: "$5",
+    priceIntervalName: "per month",
+    stripe_price_id: "price_1NkdZCHMjzZ8mGZnRSjUm4yA",
+    stripe_product_id: "prod_OXj1CcemGMWOlU",
+    features: [
+      "Everything in Free",
+      "Support us with fake money",
+      "Test the purchase experience",
+    ],
+  },
+  {
+    id: "enterprise",
+    name: "Enterprise",
+    description:
+      "A plan to test the upgrade experience. Try buying this with the test credit card 4242424242424242.",
+    price: "$15",
+    priceIntervalName: "per month",
+    stripe_price_id: "price_1Nkda2HMjzZ8mGZn4sKvbDAV",
+    stripe_product_id: "prod_OXj20YNpHYOXi7",
+    features: [
+      "Everything in Pro",
+      "Try the 'upgrade plan' UX",
+      "Still actually free!",
+    ],
+  },
+]
+
 === 4558 src/routes/(marketing)/search/+page.svelte	svelte	runes	runes
 <script lang="ts">
   import { page } from "$app/stores"
@@ -2615,6 +4506,38 @@ npm install
   <div></div>
 </div>
 
+=== 494 src/routes/(marketing)/search/api.json/+server.ts	ts	module	-
+import { dev } from "$app/environment"
+import { error } from "@sveltejs/kit"
+
+export async function GET() {
+  // only build search index in dev mode. It will be pre-built in production (see vite.config.js)
+  if (dev) {
+    const { buildSearchIndex } = await import("$lib/build_index")
+    const searchData = await buildSearchIndex()
+    return new Response(JSON.stringify(searchData), {
+      headers: { "Content-Type": "application/json" },
+    })
+  }
+  error(404, "Search index not found")
+}
+
+=== 394 src/routes/(marketing)/sitemap.xml/+server.ts	ts	module	-
+import type { RequestHandler } from "@sveltejs/kit"
+import * as sitemap from "super-sitemap"
+import { WebsiteBaseUrl } from "../../../config"
+
+export const prerender = true
+
+export const GET: RequestHandler = async () => {
+  return await sitemap.response({
+    origin: WebsiteBaseUrl,
+    excludeRoutePatterns: [
+      ".*\\(admin\\).*", // i.e. exclude routes within admin group
+    ],
+  })
+}
+
 === 446 src/routes/+error.svelte	svelte	runes	neutral
 <script>
   import "../app.css"
@@ -2660,4 +4583,30 @@ npm install
   ></div>
 {/if}
 {@render children?.()}
+
+=== 656 vite.config.ts	ts	module	-
+import { sveltekit } from "@sveltejs/kit/vite"
+import { defineConfig } from "vitest/config"
+import { buildAndCacheSearchIndex } from "./src/lib/build_index"
+
+export default defineConfig({
+  plugins: [
+    sveltekit(),
+    {
+      name: "vite-build-search-index",
+      writeBundle: {
+        order: "post",
+        sequential: false,
+        handler: async () => {
+          console.log("Building search index...")
+          await buildAndCacheSearchIndex()
+        },
+      },
+    },
+  ],
+  test: {
+    include: ["src/**/*.{test,spec}.{js,ts}"],
+    globals: true, /// allows to skip import of test functions like `describe`, `it`, `expect`, etc.
+  },
+})
 

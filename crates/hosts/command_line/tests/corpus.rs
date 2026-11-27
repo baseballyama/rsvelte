@@ -382,6 +382,7 @@ fn main() -> ExitCode {
     let coverage = Arc::new(Coverage::default());
     let mut registry = Registry::new();
     rsvelte_svelte_compile::register(&mut registry);
+    rsvelte_typescript_compile::register(&mut registry);
     rsvelte_svelte_format::register(&mut registry);
     rsvelte_svelte_lint::register_with_configuration(&mut registry, oracle_lint_configuration());
     // The oracle lints each unit outside any SvelteKit project, with a `svelte.config.js` of
@@ -500,8 +501,27 @@ fn compared(conformance: rsvelte_corpus::Conformance) -> rsvelte_corpus::Conform
             "svelte.compileModule.comments/server",
             "svelte.compileModule/server",
         )
+        .compare_with_parentheses("ts.compile/default")
+        .compare_comments("ts.compile.comments/default", "ts.compile/default")
         .compare_source_map("svelte.compile.sourcemap/client", "svelte.compile/client")
         .compare_source_map("svelte.compile.sourcemap/server", "svelte.compile/server")
         .also_run("test.svelte.coverage")
         .out_of_scope("test.svelte.legacy")
+        // Where rsvelte's tasks run wider than the official ones (`tools/oracle/tasks/`); a
+        // check's languages are those its project holds.
+        .applies_to("svelte.lint/default", svelte_project)
+        .applies_to("svelte.check/default", svelte_project)
+        .applies_to("ts.compile/default", |u| {
+            // TypeScript emits nothing for a declaration file.
+            u.language == "ts"
+                || (u.language == "svelte-module-ts" && !u.path.ends_with(".d.svelte.ts"))
+        })
+}
+
+/// A component or a `.svelte.(js|ts)` module, a Svelte project's own units.
+fn svelte_project(unit: rsvelte_corpus::Unit<'_>) -> bool {
+    matches!(
+        unit.language,
+        "svelte" | "svelte-module-js" | "svelte-module-ts"
+    )
 }
