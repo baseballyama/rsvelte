@@ -29,53 +29,73 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(CloseParen)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(CloseParen))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(InArray)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(InArray))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(Group)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(Group))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(SpaceBeforeSemicolon)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(SpaceBeforeSemicolon))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(NoBracket)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(NoBracket))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(Block)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(Block))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(Class)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(Class))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(Escape)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(Escape))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(Quantifier)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(Quantifier))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
     {
-      __rsvelte_component(TrailingSemicolon)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(TrailingSemicolon))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
   };

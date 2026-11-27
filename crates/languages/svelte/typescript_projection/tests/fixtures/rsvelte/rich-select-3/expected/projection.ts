@@ -30,7 +30,9 @@ function $$render() {
         "class": c,
       });
       {
-        __rsvelte_component(Option)(__rsvelte_internals(), {});
+        new (__rsvelte_component(Option))(__rsvelte_internals(), {
+          props: {},
+        });
       }
     }
     {

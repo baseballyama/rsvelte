@@ -34,8 +34,10 @@ function $$render() {
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
-        "value": e,
+      const __rsvelte_element0 = new (__rsvelte_component_0)(__rsvelte_internals(), {
+        props: {
+          "value": e,
+        },
       });
       () => {
         // @ts-ignore

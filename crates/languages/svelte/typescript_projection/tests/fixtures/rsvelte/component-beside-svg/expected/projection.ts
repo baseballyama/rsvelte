@@ -11,19 +11,25 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {});
+      new (__rsvelte_component(C))(__rsvelte_internals(), {
+        props: {},
+      });
     }
     {
       svelteHTML.createElement("svg", {});
       {
-        __rsvelte_component(C)(__rsvelte_internals(), {});
+        new (__rsvelte_component(C))(__rsvelte_internals(), {
+          props: {},
+        });
       }
       {
         svelteHTML.createElement("g", {});
       }
     }
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {});
+      new (__rsvelte_component(C))(__rsvelte_internals(), {
+        props: {},
+      });
     }
   };
   return (/** @type {typeof __rsvelte_export_isomorphic<{ [x: string]: never }, {}, string>} */ (__rsvelte_export_isomorphic))()(__rsvelte_any_event({}), {});

@@ -14,21 +14,23 @@ function $$render() {
   async () => {
     {
       const __rsvelte_component_0 = __rsvelte_component(List);
-      const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
-        item: (value) => {
-          async () => {
-            {
-              svelteHTML.createElement("span", {});
-              value;
-            }
-          };
-          return __rsvelte_snippet_return;
-        },
-        children: (value) => {
-          async () => {
-            __rsvelte_ensure_snippet(children?.(value));
-          };
-          return __rsvelte_snippet_return;
+      const __rsvelte_element0 = new (__rsvelte_component_0)(__rsvelte_internals(), {
+        props: {
+          item: (value) => {
+            async () => {
+              {
+                svelteHTML.createElement("span", {});
+                value;
+              }
+            };
+            return __rsvelte_snippet_return;
+          },
+          children: (value) => {
+            async () => {
+              __rsvelte_ensure_snippet(children?.(value));
+            };
+            return __rsvelte_snippet_return;
+          },
         },
       });
       const { item, children } = __rsvelte_component_props(__rsvelte_component_0);
@@ -36,15 +38,17 @@ function $$render() {
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(List);
-      const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
-        children: __rsvelte_children,
-        header: () => {
-          async () => {
-            {
-              svelteHTML.createElement("h1", {});
-            }
-          };
-          return __rsvelte_snippet_return;
+      const __rsvelte_element0 = new (__rsvelte_component_0)(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+          header: () => {
+            async () => {
+              {
+                svelteHTML.createElement("h1", {});
+              }
+            };
+            return __rsvelte_snippet_return;
+          },
         },
       });
       const { header } = __rsvelte_component_props(__rsvelte_component_0);

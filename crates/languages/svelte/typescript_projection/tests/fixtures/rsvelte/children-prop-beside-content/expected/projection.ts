@@ -9,9 +9,11 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(A)(__rsvelte_internals(), {
-        children: __rsvelte_children,
-        "children": "foo",
+      new (__rsvelte_component(A))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+          "children": "foo",
+        },
       });
       {
         svelteHTML.createElement("p", {});
@@ -20,10 +22,12 @@ function $$render() {
       A;
     }
     {
-      __rsvelte_component(A)(__rsvelte_internals(), {
-        children: __rsvelte_children,
-        "children": 2,
-        "position": "apart",
+      new (__rsvelte_component(A))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+          "children": 2,
+          "position": "apart",
+        },
       });
       {
         svelteHTML.createElement("b", {});
@@ -31,9 +35,11 @@ function $$render() {
       A;
     }
     {
-      __rsvelte_component(A)(__rsvelte_internals(), {
-        children: __rsvelte_children,
-        "children": x,
+      new (__rsvelte_component(A))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+          "children": x,
+        },
       });
       A;
     }

@@ -51,19 +51,25 @@ function $$render() {
       ((v) => (el = v))(__rsvelte_element0);
     }
     {
-      a = __rsvelte_bind_this(__rsvelte_component(Foo))(__rsvelte_internals(), {
-        "x": 1,
+      a = new (__rsvelte_bind_this(__rsvelte_component(Foo)))(__rsvelte_internals(), {
+        props: {
+          "x": 1,
+        },
       });
     }
     {
-      a = __rsvelte_bind_this(__rsvelte_component(C))(__rsvelte_internals(), {});
+      a = new (__rsvelte_bind_this(__rsvelte_component(C)))(__rsvelte_internals(), {
+        props: {},
+      });
     }
     {
       for (let n of __rsvelte_each([1, 2])) {
         let i = 1;
         (n);
         {
-          refs[i] = __rsvelte_bind_this(__rsvelte_component(Foo))(__rsvelte_internals(), {});
+          refs[i] = new (__rsvelte_bind_this(__rsvelte_component(Foo)))(__rsvelte_internals(), {
+            props: {},
+          });
         }
       }
     }

@@ -27,8 +27,10 @@ function $$render() {
   }, false);
   async () => {
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {
-        children: __rsvelte_children,
+      new (__rsvelte_component(C))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+        },
       });
       {
         svelteHTML.createElement("rect", {

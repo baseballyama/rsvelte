@@ -21,7 +21,9 @@ function $$render() {
       });
       if (value) {
         {
-          __rsvelte_component(__rsvelte_any_component)(__rsvelte_internals(), {});
+          new (__rsvelte_component(__rsvelte_any_component))(__rsvelte_internals(), {
+            props: {},
+          });
         }
       }
     }

@@ -14,8 +14,10 @@ function $$render() {
 
   async () => {
     {
-      bound = __rsvelte_bind_this(__rsvelte_component(Component))(__rsvelte_internals(), {
-        "value": "x",
+      bound = new (__rsvelte_bind_this(__rsvelte_component(Component)))(__rsvelte_internals(), {
+        props: {
+          "value": "x",
+        },
       });
     }
   };

@@ -13,12 +13,14 @@ function $$render() {
   async () => {
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
-        children: __rsvelte_children,
-        foo: () => {
-          async () => {
-          };
-          return __rsvelte_snippet_return;
+      const __rsvelte_element0 = new (__rsvelte_bind_this(__rsvelte_component_0))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+          foo: () => {
+            async () => {
+            };
+            return __rsvelte_snippet_return;
+          },
         },
       });
       const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
@@ -34,8 +36,10 @@ function $$render() {
       {
         const {} = $$_C0.$$slot_def["1"];
         {
-          __rsvelte_component(C)(__rsvelte_internals(), {
-            "a": x,
+          new (__rsvelte_component(C))(__rsvelte_internals(), {
+            props: {
+              "a": x,
+            },
           });
         }
       }
@@ -50,7 +54,9 @@ function $$render() {
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {});
+      const __rsvelte_element0 = new (__rsvelte_bind_this(__rsvelte_component_0))(__rsvelte_internals(), {
+        props: {},
+      });
       const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       {
         const {} = $$_C0.$$slot_def["b"];
@@ -77,8 +83,10 @@ function $$render() {
       C;
     }
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {
-        children: __rsvelte_children,
+      new (__rsvelte_component(C))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+        },
       });
       {
         svelteHTML.createElement("svelte:fragment", {});

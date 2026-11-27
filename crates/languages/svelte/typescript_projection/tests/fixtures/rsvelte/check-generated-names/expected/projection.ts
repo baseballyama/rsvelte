@@ -12,9 +12,11 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(Foo)(__rsvelte_internals(), {
-        children: __rsvelte_children,
-        "a": 1,
+      new (__rsvelte_component(Foo))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+          "a": 1,
+        },
       });
       Foo;
     }

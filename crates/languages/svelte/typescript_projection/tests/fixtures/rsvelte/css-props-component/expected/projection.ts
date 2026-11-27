@@ -18,35 +18,41 @@ function $$render() {
   }, false);
   async () => {
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {
-        ...(__sveltets_2_cssProp({
-          "--color": color,
-        })),
-        ...(__sveltets_2_cssProp({
-          "--size": "2px",
-        })),
-        "a": 1,
+      new (__rsvelte_component(C))(__rsvelte_internals(), {
+        props: {
+          ...(__sveltets_2_cssProp({
+            "--color": color,
+          })),
+          ...(__sveltets_2_cssProp({
+            "--size": "2px",
+          })),
+          "a": 1,
+        },
       });
     }
     {
       svelteHTML.createElement("svg", {});
       {
-        __rsvelte_component(C)(__rsvelte_internals(), {
-          ...(__sveltets_2_cssProp({
-            "--fill": "blue",
-          })),
-          ...(__sveltets_2_cssProp({
-            "--w": n,
-          })),
+        new (__rsvelte_component(C))(__rsvelte_internals(), {
+          props: {
+            ...(__sveltets_2_cssProp({
+              "--fill": "blue",
+            })),
+            ...(__sveltets_2_cssProp({
+              "--w": n,
+            })),
+          },
         });
       }
     }
     {
-      __rsvelte_component(Dyn)(__rsvelte_internals(), {
-        children: __rsvelte_children,
-        ...(__sveltets_2_cssProp({
-          "--x": "1",
-        })),
+      new (__rsvelte_component(Dyn))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+          ...(__sveltets_2_cssProp({
+            "--x": "1",
+          })),
+        },
       });
       {
         svelteHTML.createElement("p", {});
@@ -54,10 +60,12 @@ function $$render() {
       Dyn;
     }
     {
-      __rsvelte_component(Dyn)(__rsvelte_internals(), {
-        ...(__sveltets_2_cssProp({
-          "--y": n,
-        })),
+      new (__rsvelte_component(Dyn))(__rsvelte_internals(), {
+        props: {
+          ...(__sveltets_2_cssProp({
+            "--y": n,
+          })),
+        },
       });
     }
   };

@@ -16,7 +16,9 @@ function $$render() {
       svelteHTML.createElement(tag, {});
     }
     {
-      __rsvelte_component(C)(__rsvelte_internals(), {});
+      new (__rsvelte_component(C))(__rsvelte_internals(), {
+        props: {},
+      });
     }
   };
   return (/** @type {typeof __rsvelte_export_component<globalThis.Record<string, never>, {}, "">} */ (__rsvelte_export_component))();

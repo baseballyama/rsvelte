@@ -200,25 +200,14 @@ itself give TS2552 for the same read in a `.ts` file. That holds at the top leve
 `async` arrow in a function, as the projection has it. svelte2tsx writes the same projection with
 svelte-check's options. The cause is not found.
 
-## A component whose value has no component shape
+## A component tag that ends in an astral character
 
-svelte2tsx constructs a component with `new $$_P0C({ target, props })`. rsvelte calls it with
-`__rsvelte_component(P)(internals, props)`, so that a generic component infers its generics from the
-props (`component_call` in the projection crate's
-[`call.rs`](../typescript_projection/src/lower/call.rs)). For `null` or `undefined`, both give
-`never`. Then svelte-check 4.7.8 reports TS2351 `This expression is not constructable.` at the tag's
-name. rsvelte reports TS2349 `This expression is not callable.` there. For
-`<svelte:component this={P}>`, svelte-check reports it one column after the start of `P`, and
-rsvelte at the start.
+For `<P.𝒜 />` with a `null` value, svelte-check 4.7.8 reports TS2351 `This expression is not
+constructable.` at column 5, the second UTF-16 unit of `𝒜`, which is no character position. rsvelte
+reports it at column 4, the start of `𝒜`.
 
-A function that returns no object, such as `() => 1`, is `never` in svelte2tsx too, and svelte-check
-reports the same TS2351. rsvelte calls the function itself: `() => 1` gets TS2554 `Expected 0
-arguments, but got 2.` and `(a, b) => {}` gets nothing. Upstream's test reads the props, the exports
-and the bindings off `Component<…>`. That test also turns some generic components of the projection
-into `never`, such as one with `generics="T, Key = T extends Map<infer K, unknown> ? K : keyof T"`.
-
-- Test: `typecheck_reports_a_value_that_is_no_component_at_its_tag` in the command line crate's
-  `tests/cli/typecheck_component_values.rs`.
+- Test: `typecheck_reports_a_tag_that_ends_in_an_astral_character_at_its_start` in the command line
+  crate's `tests/cli/typecheck_component_values.rs`.
 
 ## The script of a component svelte2tsx rejects
 

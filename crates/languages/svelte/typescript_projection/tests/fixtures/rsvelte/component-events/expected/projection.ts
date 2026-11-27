@@ -16,8 +16,10 @@ function $$render() {
   async () => {
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {
-        "a": n,
+      const __rsvelte_element0 = new (__rsvelte_bind_this(__rsvelte_component_0))(__rsvelte_internals(), {
+        props: {
+          "a": n,
+        },
       });
       const $$_C0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       $$_C0.$on("click", f);
@@ -29,7 +31,9 @@ function $$render() {
     }
     {
       const __rsvelte_component_0 = __rsvelte_component(C);
-      const __rsvelte_element0 = __rsvelte_bind_this(__rsvelte_component_0)(__rsvelte_internals(), {});
+      const __rsvelte_element0 = new (__rsvelte_bind_this(__rsvelte_component_0))(__rsvelte_internals(), {
+        props: {},
+      });
       const $$_tnenopmoc_etlevs0 = __rsvelte_constructed(__rsvelte_component_0, __rsvelte_element0);
       $$_tnenopmoc_etlevs0.$on("click", f);
     }

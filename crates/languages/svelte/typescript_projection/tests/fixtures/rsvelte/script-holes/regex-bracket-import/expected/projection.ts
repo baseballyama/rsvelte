@@ -11,8 +11,10 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(R1)(__rsvelte_internals(), {
-        "n": "x",
+      new (__rsvelte_component(R1))(__rsvelte_internals(), {
+        props: {
+          "n": "x",
+        },
       });
     }
   };

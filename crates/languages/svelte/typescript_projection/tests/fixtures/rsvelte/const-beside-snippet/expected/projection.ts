@@ -11,14 +11,16 @@ function $$render() {
   async () => {
     {
       const __rsvelte_component_0 = __rsvelte_component(Component);
-      const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
-        children: __rsvelte_children,
-        prop: () => {
-          async () => {
-            const foo = items[0];
-            foo;
-          };
-          return __rsvelte_snippet_return;
+      const __rsvelte_element0 = new (__rsvelte_component_0)(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+          prop: () => {
+            async () => {
+              const foo = items[0];
+              foo;
+            };
+            return __rsvelte_snippet_return;
+          },
         },
       });
       const { prop } = __rsvelte_component_props(__rsvelte_component_0);
@@ -26,12 +28,14 @@ function $$render() {
       foo;
       {
         const __rsvelte_component_0 = __rsvelte_component(Component);
-        const __rsvelte_element0 = __rsvelte_component_0(__rsvelte_internals(), {
-          prop: () => {
-            async () => {
-              foo;
-            };
-            return __rsvelte_snippet_return;
+        const __rsvelte_element0 = new (__rsvelte_component_0)(__rsvelte_internals(), {
+          props: {
+            prop: () => {
+              async () => {
+                foo;
+              };
+              return __rsvelte_snippet_return;
+            },
           },
         });
         const { prop } = __rsvelte_component_props(__rsvelte_component_0);

@@ -13,29 +13,37 @@ function $$render() {
 
   async () => {
     {
-      __rsvelte_component(Comp)(__rsvelte_internals(), {
-        children: __rsvelte_children,
+      new (__rsvelte_component(Comp))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+        },
       });
       __sveltets_2_ensureType(String, Number, 1);
       Comp;
     }
     {
-      __rsvelte_component(Comp)(__rsvelte_internals(), {
-        children: __rsvelte_children,
+      new (__rsvelte_component(Comp))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+        },
       });
       __sveltets_2_ensureTransition(f(__rsvelte_any_node, ({ d: 's' })));
       Comp;
     }
     {
-      __rsvelte_component(Comp)(__rsvelte_internals(), {
-        children: __rsvelte_children,
+      new (__rsvelte_component(Comp))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+        },
       });
       __sveltets_2_ensureTransition(f(__rsvelte_any_node));
       Comp;
     }
     {
-      __rsvelte_component(Comp)(__rsvelte_internals(), {
-        children: __rsvelte_children,
+      new (__rsvelte_component(Comp))(__rsvelte_internals(), {
+        props: {
+          children: __rsvelte_children,
+        },
       });
       __sveltets_2_ensureAnimation(g(__rsvelte_any_node, __sveltets_2_AnimationMove, ({ d: 's' })));
       Comp;
