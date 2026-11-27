@@ -2,7 +2,7 @@
 
 use std::collections::BTreeMap;
 
-/// What [`Conformance::applies_to`] reads of a unit.
+/// What [`super::Conformance::applies_to`] reads of a unit.
 #[derive(Debug, Clone, Copy)]
 pub struct Unit<'a> {
     /// The first attribute of its `inputs.pack` entry.
