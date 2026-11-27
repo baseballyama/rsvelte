@@ -274,6 +274,8 @@ impl Builder<'_> {
         }
         let arguments = self.tree.list(&[]);
         let callee = self.tree.push(Node::Call { callee, arguments });
+        // svelte2tsx makes this function once, between its ignore comments.
+        let callee = self.tree.push(Node::IgnoredRange(callee));
         let arguments = self.tree.list(&[name, properties]);
         Ok(self.tree.push(Node::Call { callee, arguments }))
     }

@@ -428,3 +428,32 @@ fn typecheck_reports_a_let_whose_name_ends_in_an_astral_character_at_its_start()
             .native()
     );
 }
+
+/// svelte2tsx makes the slot function that reads `$$Slots` between its ignore comments, so a
+/// `$$Slots` declared inside a function, which the top level does not see, reports nothing. The
+/// slot's name is outside them. svelte-check 4.7.8 reports this one line.
+#[test]
+fn typecheck_hides_what_the_slot_function_reads_of_a_nested_slots_interface() {
+    let nested = |slot: &str| {
+        format!(
+            "<script lang=\"ts\">\n  function setup() {{\n    interface $$Slots {{\n      \
+             default: {{}};\n    }}\n  }}\n</script>\n\n{slot}\n"
+        )
+    };
+    let report = check(&[
+        ("src/Nested.svelte", &nested("<slot name=\"named\" />")),
+        ("src/NestedValid.svelte", &nested("<slot />")),
+        (
+            "src/TopLevel.svelte",
+            "<script lang=\"ts\">\n  interface $$Slots {\n    default: {};\n  }\n</script>\n\n\
+             <slot name=\"named\" />\n",
+        ),
+    ]);
+    assert_eq!(
+        report,
+        "src/TopLevel.svelte(7,13): error TS2345: Argument of type '\"named\"' is not assignable \
+         to parameter of type '\"default\"'.\n\
+         \nFound 1 error in 1 file.\n"
+            .native(),
+    );
+}
