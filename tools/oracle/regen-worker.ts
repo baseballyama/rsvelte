@@ -19,11 +19,20 @@ export interface Job {
 	to: number;
 }
 
+/** Oracle JavaScript that does not parse. */
+export interface Unparseable {
+	key: string;
+	/** `<task>/<variant>`. */
+	task: string;
+	ext: string;
+	message: string;
+}
+
 export interface JobResult extends Job {
 	units: number;
 	errors: number;
 	entries: Entry[];
-	unparseable: string[];
+	unparseable: Unparseable[];
 }
 
 /** An oracle that throws on a unit has refused it; the message is the expected output. */
@@ -55,7 +64,7 @@ async function run(job: Job): Promise<JobResult> {
 		}
 	}
 	const entries: Entry[] = [];
-	const unparseable: string[] = [];
+	const unparseable: Unparseable[] = [];
 	let errors = 0;
 	for (const unit of units) {
 		const artifacts = results.get(unit.path);
@@ -70,18 +79,25 @@ async function run(job: Job): Promise<JobResult> {
 		}
 		// A unit kept only for a reader is never compared as code, so its code may not parse.
 		const compared = applies(task, variant.id, unit);
+		let skipped = false;
 		for (const art of Object.values(artifacts)) {
 			if (compared && (art.compare === 'js-ast' || art.compare === 'js-ast-parens')) {
 				try {
 					parseJs(art.text);
 				} catch (e) {
-					unparseable.push(
-						`${job.task}/${job.variant} ${unitKey(unit)} (${art.ext}): ${(e as Error).message}`,
-					);
+					unparseable.push({
+						key: unitKey(unit),
+						task: `${job.task}/${job.variant}`,
+						ext: art.ext,
+						message: (e as Error).message,
+					});
+					skipped ||= task.unparseable !== undefined;
 				}
 			}
-			entries.push({ path: unit.path, attributes: [art.ext], body: art.text });
 		}
+		if (skipped) continue;
+		for (const art of Object.values(artifacts))
+			entries.push({ path: unit.path, attributes: [art.ext], body: art.text });
 	}
 	return { ...job, units: units.length, errors, entries, unparseable };
 }

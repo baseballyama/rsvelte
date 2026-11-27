@@ -30,5 +30,9 @@ const task: Task = {
 	run: (unit, src) => ({
 		js: { text: emit(src, unit.path).outputText, ext: 'js', compare: 'js-ast-parens' },
 	}),
+	unparseable: {
+		reason: "TypeScript's emit does not parse as a module",
+		tag: 'typescript-emit-unparseable',
+	},
 };
 export default task;

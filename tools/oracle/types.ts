@@ -85,6 +85,12 @@ export interface Task {
 	 * implementation's `actual/<task>/<variant>.js`, given as a path (a behaviour trace of emitted code).
 	 */
 	observe?: { ext: string; derive(unit: Unit, variant: Variant, file: string): Promise<Observed> };
+	/**
+	 * For a task whose oracle may write JavaScript that does not parse: regen then skips the unit in
+	 * unparseable.txt, with `reason`, the parser's message and `tag`, and writes no entry for it.
+	 * Without it, such output fails the regen.
+	 */
+	unparseable?: { reason: string; tag: string };
 }
 
 /** An observed artifact, or why the emitted code could not be observed. */
