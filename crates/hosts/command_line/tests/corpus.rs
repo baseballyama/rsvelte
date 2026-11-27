@@ -171,7 +171,7 @@ impl Task for CountCoverage {
             .expect("Svelte provides its TypeScript view")
         {
             Ok(TypeScriptDocument::Checked { .. }) => count(&self.0.prepared),
-            Ok(TypeScriptDocument::Unchecked) => count(&self.0.unchecked),
+            Ok(TypeScriptDocument::Unchecked { .. }) => count(&self.0.unchecked),
             Ok(TypeScriptDocument::Rejected { .. }) => count(&self.0.thrown),
             Err(_) => count(&self.0.unsupported),
         };

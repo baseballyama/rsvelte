@@ -11,6 +11,7 @@ fn a_thrown_stand_in_is_a_module_where_typescript_reads_the_script_as_one() {
         ("let g4 = 1; export\n", false, false),
         ("let g5 = 1; import\n", false, false),
         ("let g6 = 1; const a = import.meta;\n", true, true),
+        ("let g = 1; const a = import.meta; let = ;\n", true, false),
         ("let g7 = 1; export = 1 + ;\n", true, false),
         ("let g8 = 1; ( export const q = 1 );\n", true, false),
         (

@@ -236,7 +236,7 @@ impl Tsc {
             check,
         } = listed;
         // Where no document is mapped, the listing's project is the tsconfig's own.
-        let unmapped = req.mapped_files.iter().all(Option::is_none) && javascript.is_empty();
+        let unmapped = req.mapped_extensions().is_empty() && javascript.is_empty();
         let open = Some(open);
         if let Some(own) = known.filter(|_| unmapped && base.is_some()) {
             return Ok((session, Left { open, check }, own));
