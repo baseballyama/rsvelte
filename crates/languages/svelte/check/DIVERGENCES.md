@@ -227,3 +227,22 @@ A bare trailing `export` or `import` is such a script, and so is an `import` ins
   `typecheck_reads_a_rejected_component_as_its_script` and
   `typecheck_declares_no_global_for_a_rejected_component_s_script` in the command line crate's
   `tests/cli/typecheck_rejected.rs`.
+
+## A named import of a JavaScript component without `allowJs`
+
+Without `allowJs`, svelte-check 4.7.8 reads a JavaScript component as a `.js` file that TypeScript
+does not load. Each import of it reports TS7016, and every name it imports is `any`. rsvelte reports
+the same TS7016 and types the default import as `any` (`untyped.rs` in the TypeScript check
+crate's `src/check/run/`). A named or namespace import keeps the types of the component's generated
+text. So a use of such a name can report an error that svelte-check does not, and an import of a
+name the component does not export reports TS2614 or TS2339.
+
+rsvelte cannot make these names `any` from outside. TypeScript 7 loads and types every file a
+content mapper maps, whatever the extension of its generated text, and `allowJs` does not change
+that. The rule is
+[`ResolvedUsingExtraExtensions`](https://github.com/microsoft/TypeScript/blob/6161772c1370bdd4a82f808e6823bd755eb1870d/tsc/internal/module/util.go#L161-L163)
+at the pinned build of TypeScript 7. Item 185 of the
+[upstream bug list](https://github.com/baseballyama/rsvelte/issues/4939) records it.
+
+- Test: `typecheck_types_a_named_import_of_a_javascript_component` in the command line crate's
+  `tests/cli/typecheck_untyped.rs`.
