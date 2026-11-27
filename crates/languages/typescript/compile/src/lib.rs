@@ -14,6 +14,7 @@ pub mod build;
 pub mod features;
 pub mod original_text;
 pub mod print;
+pub mod prologue;
 pub mod strip;
 
 /// TypeScript's emit of a `.ts` file [`features::first_erasure_feature`] found nothing to refuse
@@ -22,6 +23,8 @@ pub mod strip;
 pub fn emit(program: &Program<'_>) -> String {
     let allocator = Allocator::default();
     let mut program = program.clone_in(&allocator);
+    // Before the types go: an `import type` still makes the file a module.
+    prologue::ensure_use_strict(&allocator, &mut program);
     Strip::new(&allocator).visit_program(&mut program);
     OriginalText::new(&allocator).visit_program(&mut program);
     print::print(&program)
