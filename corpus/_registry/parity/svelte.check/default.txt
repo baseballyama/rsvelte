@@ -1,4 +1,4 @@
-# svelte.check/default: 35133 match
+# svelte.check/default: 35335 match
 svelte/appwrite-console/src/lib/commandCenter/panels/buckets.svelte	mismatch
 svelte/appwrite-console/src/lib/commandCenter/panels/databases.svelte	mismatch
 svelte/appwrite-console/src/lib/commandCenter/panels/files.svelte	mismatch
@@ -18,6 +18,40 @@ svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview
 svelte/date-picker-svelte/src/routes/+page.svelte	mismatch
 svelte/date-picker-svelte/src/routes/DemoDateInput.svelte	mismatch
 svelte/date-picker-svelte/src/routes/DemoDatePicker.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator01-input.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator01-output.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union01-input.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union01-output.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union02-input.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union02-output.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/bool-slot01-input.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-animations-transitions-typechecks/input.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/coffeescript-ignore/input.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/ignores-unused-label/input.svelte	refused
+svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element-error/input.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte	js-equivalent
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/completions-in-reactive-statement.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions3.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions2.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/mustache.svelte	js-equivalent
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service/different-ts-service.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/editing-animation/input.svelte	js-equivalent
+svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/editing-if/input.svelte	js-equivalent
+svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/ts-in-template.v5/input.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/sourcemaps/samples/import-equal/input.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/$store-export-type/input.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/editing-mustache/input.svelte	js-equivalent
+svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes/+page.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-export-arrow-function/input.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-export-boolean/input.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-export-doc/input.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-export-has-type/input.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-multiple-export/input.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-best-effort-types.v5/input.svelte	mismatch
+svelte/language-tools/packages/svelte2tsx/test/svelte2tsx/samples/ts-typed-export-with-default/input.svelte	mismatch
 svelte/networking-toolbox/src/lib/components/global/GlobalSearch.svelte	mismatch
 svelte/rsvelte-mutants/animotion/bind-sum/bind_invalid_expression/115e576d493188f9.svelte	refused
 svelte/rsvelte-mutants/animotion/bind-sum/bind_invalid_expression/1aebddc9b32ae8b0.svelte	refused
@@ -407,6 +441,10 @@ svelte/rsvelte/pattern/issues/3201-template-strict-param-clash.svelte	js-equival
 svelte/rsvelte/pattern/issues/3201-template-strict-proto.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/3201-template-strict-with.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/3220-assign-rvalue-member.svelte	js-equivalent
+svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-generics06-complex-type-output.svelte	mismatch
+svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store01-input.svelte	mismatch
+svelte/svelte-eslint-parser/tests/fixtures/parser/ast/ts-store01-type-output.svelte	mismatch
+svelte/svelte-eslint-parser/tests/fixtures/parser/error/shorthand01-input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/compiler-errors/samples/declaration-tag-trailing-slash/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte	js-equivalent
 svelte/svelte/packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	mismatch

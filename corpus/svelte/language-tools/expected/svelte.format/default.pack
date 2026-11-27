@@ -286,6 +286,24 @@
 
 {$noStoreModule}
 
+=== 295 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-animations-transitions-typechecks/input.svelte	svelte
+<script lang="ts">
+  import { draw } from "svelte/transition";
+  import { flip } from "svelte/animate";
+
+  function action(node: HTMLInputElement) {
+    node;
+  }
+</script>
+
+<div transition:draw></div>
+<path transition:draw></path>
+
+<p animate:flip></p>
+
+<p use:action></p>
+<input use:action />
+
 === 620 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	svelte
 <script lang="ts">
   function action(node: any) {
@@ -466,6 +484,38 @@
 <div>
   {hi}
 </div>
+
+=== 447 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/coffeescript-ignore/input.svelte	svelte
+<script lang="coffee">
+# Assignment:
+number   = 42
+opposite = true
+
+# Conditions:
+number = -42 if opposite
+
+# Functions:
+square = (x) -> x * x
+
+# Arrays:
+list = [1, 2, 3, 4, 5]
+
+# Objects:
+math =
+  root:   Math.sqrt
+  square: square
+  cube:   (x) -> x * square x
+
+# Splats:
+race = (winner, runners...) ->
+  print winner, runners
+
+# Existence:
+alert "I knew it!" if elvis?
+
+# Array comprehensions:
+cubes = (math.cube num for num in list)
+</script>
 
 === 10 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte	svelte
 <p>hi</p>
@@ -1048,6 +1098,13 @@
   baz;
 </script>
 
+=== 161 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/parser-error/input.svelte	error.txt
+A component can have a single top-level `<style>` element
+https://svelte.dev/e/style_duplicate
+  1 | <style></style>
+> 2 | <style></style>
+    |               ^
+
 === 182 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/nested/input.svelte	svelte
 <script lang="ts">
   import { hi } from "hi2";
@@ -1097,6 +1154,23 @@
 +if('typeof a === "number"')
   A(a='{a.toFixed(2)}')
 </template>
+
+=== 157 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/ignores-unused-label/input.svelte	svelte
+<script type="ts">
+  export let x = 0;
+
+  let x2: number;
+
+  $: x2 = x * x;
+
+  $: {
+    x2 = x * x;
+  }
+
+  $: sqrt = x * x;
+</script>
+
+<p>{x2} == {sqrt}</p>
 
 === 115 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte	svelte
 <script>
@@ -1213,6 +1287,16 @@
 <!-- error -->
 <div style:wrong />
 <div style:wrong />
+
+=== 205 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element-error/input.svelte	error.txt
+`<svelte:element>` must have a 'this' attribute with a value
+https://svelte.dev/e/svelte_element_missing_this
+  2 | </script>
+  3 |
+> 4 | <!-- error -->
+    |              ^
+  5 | <svelte:element />
+  6 |
 
 === 714 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	svelte
 <script lang="ts">
@@ -1452,6 +1536,17 @@
   {hi}
 {/key}
 
+=== 168 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/parser-error/input.svelte	error.txt
+Expected token }
+https://svelte.dev/e/expected_token
+   5 | </script>
+   6 |
+>  7 | {#if 'hi'}
+     |    ^
+   8 |     <div></div>
+   9 | {:else}
+  10 |     <div></div>
+
 === 114 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/script/input.svelte	svelte
 <script lang="ts">
   import {} from "svelte";
@@ -1609,6 +1704,21 @@
 <FixAllImported />
 <FixAllImported2 />
 
+=== 130 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | <button onclick={(e: Event) => {}}></button>
+    |                   ^
+
+=== 103 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-add-lang-ts.svelte	svelte
+<script context="module"></script>
+
+<script>
+  function a(b: number) {
+    return b + 1;
+  }
+</script>
+
 === 74 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	svelte
 <script context="module">
   // @ts-check
@@ -1622,6 +1732,19 @@
 </script>
 
 <Empty />
+
+=== 145 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-const-reassign.svelte	svelte
+<script lang="ts">
+  const hi = 1;
+
+  hi = 1;
+</script>
+
+{#if hi == 1}
+  {@const hi2 = hi}
+
+  <button on:click={() => (hi2 = 2)}></button>
+{/if}
 
 === 69 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component.svelte	svelte
 <script lang="ts">
@@ -1668,6 +1791,12 @@
 <FixAllImported />
 <FixAllImported2 />
 
+=== 62 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-store.svelte	svelte
+<script lang="ts">
+  $someOtherStore;
+  $someStore;
+</script>
+
 === 282 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeactions.svelte	svelte
 <script lang="ts">
   import { C } from "blubb";
@@ -1686,6 +1815,17 @@
 <Empty />
 <button on:click={(e) => handleClick(e)} />
 
+=== 124 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-add-async.svelte	svelte
+<script>
+    {
+        await Promise.resolve()
+    }
+
+    function test() {
+        await Promise.resolve()
+    }
+</script>
+
 === 64 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-missing-function-element.svelte	svelte
 <script lang="ts">
 </script>
@@ -1701,6 +1841,17 @@
   import { someStore as someOtherStore3 } from "./importing/a";
 </script>
 
+=== 163 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-error.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+  2 |   import {c} from './c';
+  3 |   const a = true;
+> 4 | </script>
+    | ^
+  5 |
+  6 | {c}
+  7 | <
+
 === 133 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-group.svelte	svelte
 <script>
   import {} from "svelte";
@@ -1715,6 +1866,21 @@
   // @ts-ignore
   import {} from "./somepng.png";
 </script>
+
+=== 262 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-module-store.svelte	svelte
+<script context="module">
+  import { _ } from "svelte-i18n";
+</script>
+
+<script>
+  import { _ } from "svelte-i18n";
+  import { _d } from "svelte-i18n";
+  import { _e } from "svelte-i18n1";
+</script>
+
+<p>{$_("test")}</p>
+<p>{$_d("test")}</p>
+<p>{$_e("test")}</p>
 
 === 135 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-snippet.svelte	svelte
 <script lang="ts" module>
@@ -1787,6 +1953,52 @@
   import {} from "./";
 </script>
 
+=== 68 packages/language-server/test/plugins/typescript/testfiles/completions/completions-auto-optional-chain.svelte	svelte
+<script lang="ts">
+    let a: string | undefined;
+
+    a.
+</script>
+
+=== 317 packages/language-server/test/plugins/typescript/testfiles/completions/completions-in-reactive-statement.svelte	svelte
+<script lang="ts">
+    import { writable } from "svelte/store";
+
+    const prop = { abc: true };
+
+    function fun() { return prop; }
+    const variable = prop;
+    const store = writable(prop);
+
+    $: fun().;
+    $: variable.;
+    $: $store.;
+
+    $: a = fun().;
+    $: b = variable.;
+    $: c = $store.;
+</script>
+
+=== 61 packages/language-server/test/plugins/typescript/testfiles/completions/completions.svelte	svelte
+<script>
+class A { b() { return true; } } new A().
+</script>
+
+=== 99 packages/language-server/test/plugins/typescript/testfiles/completions/completionsstyle.svelte	svelte
+<script>
+  class c {
+    b() {
+      return true;
+    }
+  }
+</script>
+
+<style>
+.bla {
+c
+}
+</style>
+
 === 186 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion-ts-def.svelte	svelte
 <script>
   import { ComponentDef, ComponentDef2 } from "./ComponentDef";
@@ -1841,6 +2053,23 @@
   let { a }: { a: string } = $props();
 </script>
 
+=== 78 packages/language-server/test/plugins/typescript/testfiles/completions/custom-element-tag.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+> 1 | <c
+    |  ^
+
+=== 145 packages/language-server/test/plugins/typescript/testfiles/completions/editingCompletion.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+  1 | <script>
+  2 |     let b = { c: 1 };
+> 3 | </script>
+    |   ^
+  4 |
+  5 | {b.}
+  6 |
+
 === 25 packages/language-server/test/plugins/typescript/testfiles/completions/element-events-completion.svelte	svelte
 <button on:tou></button>
 
@@ -1862,6 +2091,11 @@
   Scn;
 </script>
 
+=== 29 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-store.svelte	svelte
+<script>
+  $store;
+</script>
+
 === 106 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-text.svelte	svelte
 <script lang="ts">
   let abc = "";
@@ -1873,6 +2107,11 @@ a
 <Comp>a a</Comp>
 <Comp></Comp>
 
+=== 56 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions.svelte	svelte
+<script>
+import {} from '../completions/' blu
+</script>
+
 === 26 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions1.svelte	svelte
 <script>
   blu;
@@ -1883,6 +2122,34 @@ a
   import {} from "../../testfiles/";
   blu;
 </script>
+
+=== 57 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions3.svelte	svelte
+<script>
+import {} from '../../testfiles/' blu
+</script>
+
+=== 119 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions4.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+  1 | <script>
+> 2 | </script>
+    |       ^
+  3 | <Import
+
+=== 88 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions5.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+> 1 | <Import
+    |       ^
+
+=== 177 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions6.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+  1 | <script>
+> 2 | import ImportedFile from '../imported-file.svelte';
+    |       ^
+  3 | </script>
+  4 | <Import
 
 === 106 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions7.svelte	svelte
 <script context="module">
@@ -1912,6 +2179,24 @@ a
   onMoun;
 </script>
 
+=== 98 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions_unclose-tag.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+  1 | <Com />
+> 2 | <E
+    |  ^
+  3 |
+
+=== 44 packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions.svelte	svelte
+<script lang="ts">
+    import blu
+</script>
+
+=== 46 packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions2.svelte	svelte
+<script lang="ts">
+    import {blu}
+</script>
+
 === 75 packages/language-server/test/plugins/typescript/testfiles/completions/jsdoc-completions.svelte	svelte
 <script>
   /***/
@@ -1920,6 +2205,26 @@ a
   /***/
   function abc(parameter1) {}
 </script>
+
+=== 156 packages/language-server/test/plugins/typescript/testfiles/completions/mustache.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+  1 | <script>
+> 2 |     let a = 1;
+    |    ^
+  3 |     let b = { b: 1 };
+  4 | </script>
+  5 | {a?.}
+
+=== 198 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced-v5.svelte	error.txt
+Unexpected end of input
+https://svelte.dev/e/unexpected_eof
+  1 | <script lang="ts">
+  2 |     import * as Components from './ComponentDef'
+> 3 | </script>
+    |          ^
+  4 |
+  5 | <Components.
 
 === 578 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced.svelte	svelte
 <script lang="ts">
@@ -2053,6 +2358,11 @@ a
   import { bar } from "../shared-ts-file";
   foo;
   bar;
+</script>
+
+=== 55 packages/language-server/test/plugins/typescript/testfiles/diagnostics/shared-comp.svelte	svelte
+<script context="module">
+  export const fo;
 </script>
 
 === 74 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport.svelte	svelte
@@ -2608,6 +2918,15 @@ a
   dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 {:else if asd}dddddd{/if}
 
+=== 166 packages/svelte-vscode/test/grammar/samples/interpolation-comments/input.svelte	error.txt
+Unexpected block closing tag
+https://svelte.dev/e/block_unexpected_close
+   8 | {/* A leading block comment */ value ? 'yes' : 'no'}
+   9 |
+> 10 | {/
+     | ^
+  11 |
+
 === 18 packages/svelte-vscode/test/grammar/samples/key-block/input.svelte	svelte
 {#key hi}
 
@@ -2668,6 +2987,15 @@ a
 
 <script lang="ts"></script>
 
+=== 77 packages/svelte-vscode/test/grammar/samples/store/input.svelte	svelte
+<script>
+  import "./$types";
+  import "$lib/foo";
+  $bar;
+</script>
+
+{$bar}
+
 === 94 packages/svelte-vscode/test/grammar/samples/style-directive/input.svelte	svelte
 <div style:position></div>
 
@@ -2690,6 +3018,11 @@ a
 === 45 packages/svelte-vscode/test/grammar/samples/style-props/input.svelte	svelte
 <Component --rail-color="black"></Component>
 
+=== 38 packages/svelte-vscode/test/grammar/samples/style-sass/input.svelte	svelte
+<style lang="sass">
+    .abc
+</style>
+
 === 42 packages/svelte-vscode/test/grammar/samples/style-scss/input.svelte	svelte
 <style lang="scss">
   .abc {
@@ -2698,6 +3031,11 @@ a
 
 === 38 packages/svelte-vscode/test/grammar/samples/style-src/input.svelte	svelte
 <style src="../external.css"></style>
+
+=== 40 packages/svelte-vscode/test/grammar/samples/style-stylus/input.svelte	svelte
+<style lang="stylus">
+    .abc
+</style>
 
 === 36 packages/svelte-vscode/test/grammar/samples/style/input.svelte	svelte
 <style>
@@ -2730,6 +3068,20 @@ a
   <div>{foo}</div>
 {/snippet}
 
+=== 217 packages/svelte2tsx/test/emitDts/samples/javascript-libRoot/src/lib/Test.svelte	svelte
+<script>
+  import { createEventDispatcher } from "svelte";
+  /**
+   * @type {string}
+   */
+  export const astring;
+
+  const dispatch = createEventDispatcher();
+  dispatch("event", true);
+</script>
+
+<slot {astring} />
+
 === 133 packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte	svelte
 <script lang="ts">
   let { foo, bar = $bindable() }: { foo: string; bar?: number } = $props();
@@ -2741,6 +3093,17 @@ a
 <div on:click>
   <slot />
 </div>
+
+=== 203 packages/svelte2tsx/test/emitDts/samples/svelte3/src/Test.svelte	svelte
+<script lang="ts">
+  import { createEventDispatcher } from "svelte";
+  export const astring: string;
+
+  const dispatch = createEventDispatcher();
+  dispatch("event", true);
+</script>
+
+<slot {astring} />
 
 === 189 packages/svelte2tsx/test/emitDts/samples/typescript-imports-outside-lib-root.v5/src/Component.svelte	svelte
 <script lang="ts">
@@ -2802,6 +3165,14 @@ a
 === 26 packages/svelte2tsx/test/htmlx2jsx/samples/action-svelte-body/input.svelte	svelte
 <svelte:body use:blink />
 
+=== 29 packages/svelte2tsx/test/htmlx2jsx/samples/animation-bare/input.svelte	svelte
+<h1 animate:blink>Hello</h1>
+
+=== 168 packages/svelte2tsx/test/htmlx2jsx/samples/animation-params/input.svelte	svelte
+<h1 animate:blink={{ y: 50, duration: 500 }}>Hello</h1>
+<h1 animate:blink={{ y: 50, duration: 500 }}>Hello</h1>
+<h1 animate:blink={{ y: 50, duration: 500 }}>Hello</h1>
+
 === 123 packages/svelte2tsx/test/htmlx2jsx/samples/attachments.v5/input.svelte	svelte
 <div {@attach x}></div>
 <div {@attach (node) => {}}></div>
@@ -2827,6 +3198,10 @@ a
 === 91 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-foreign-ns/input.svelte	svelte
 <SomeComponent attrName="text" attrCase="text" />
 <someelement attrName="text" attrCase />
+
+=== 60 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-invalid-jsx-name/input.svelte	svelte
+<Hello |-wtf="foo"></Hello>
+<div --custom-prop="foo"></div>
 
 === 272 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-multiline/input.svelte	svelte
 <Comp
@@ -3022,6 +3397,13 @@ display: block"
   <h1>Promise Resolved</h1>
 {/await}
 
+=== 145 packages/svelte2tsx/test/htmlx2jsx/samples/binding-bare/input.svelte	svelte
+<input type="text" bind:value />
+<input type="checkbox" bind:checked />
+
+<Input type="text" bind:value />
+<Input type="checkbox" bind:checked />
+
 === 250 packages/svelte2tsx/test/htmlx2jsx/samples/binding-get-set.v5/input.svelte	svelte
 <input bind:value={get, set} />
 <input bind:value={() => v, (new_v) => (v = new_v)} />
@@ -3031,6 +3413,32 @@ display: block"
 
 <Input bind:value={get, set} />
 <Input bind:value={() => v, (new_v) => (v = new_v)} />
+
+=== 96 packages/svelte2tsx/test/htmlx2jsx/samples/binding-group-bare/input.svelte	svelte
+<input type="radio" bind:group value="Plain" />
+<input type="radio" value="Plain" bind:group />
+
+=== 59 packages/svelte2tsx/test/htmlx2jsx/samples/binding-group/input.svelte	svelte
+<input type="radio" bind:group={tortilla} value="Plain" />
+
+=== 238 packages/svelte2tsx/test/htmlx2jsx/samples/binding-oneway/input.svelte	svelte
+<div
+  type="text"
+  bind:clientWidth={width}
+  bind:clientHeight={height}
+  bind:offsetWidth
+  bind:offsetHeight
+/>
+
+<video
+  src={clip}
+  bind:duration
+  bind:buffered
+  bind:seekable
+  bind:seeking
+  bind:played
+  bind:ended
+></video>
 
 === 61 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-component/input.svelte	svelte
 <Component type="radio" bind:this={element} value="Plain" />
@@ -3055,6 +3463,16 @@ display: block"
 
 === 57 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this/input.svelte	svelte
 <input type="radio" bind:this={element} value="Plain" />
+
+=== 287 packages/svelte2tsx/test/htmlx2jsx/samples/binding/input.svelte	svelte
+<input type="text" bind:value={test} />
+<input type="text" bind:value={test} />
+<input type="text" bind:value={test} />
+
+<Input type="text" bind:value={test} />
+<Input type="text" bind:value={test} />
+<Input type="text" bind:value={test} />
+<Input type="text" bind:value={test}></Input>
 
 === 91 packages/svelte2tsx/test/htmlx2jsx/samples/blocks-without-whitespace-inbetween/input.svelte	svelte
 {#if name == "world"}!{/if}{#each x as y}!{/each}{#await x then y}!{/await}{#if bla}*{/if}
@@ -3202,6 +3620,15 @@ display: block"
 {@debug myfile, someOtherFile}
 {@debug myfile, someOtherFile, someThirdFile}
 
+=== 236 packages/svelte2tsx/test/htmlx2jsx/samples/directive-quoted/input.svelte	svelte
+<h1 on:click={() => console.log("click")}>Hello</h1>
+<Component on:click={test} />
+<img use:action={thing} />
+<img transition:fade={params} />
+<img class:thing={classthing} />
+<img animate:thing={params} />
+<img bind:thing={binding} />
+
 === 80 packages/svelte2tsx/test/htmlx2jsx/samples/doctype/input.svelte	svelte
 <!DOCTYPE html>
 <html lang="en">
@@ -3255,6 +3682,178 @@ display: block"
 {#each { length: 5 }, index}
   {index}
 {/each}
+
+=== 117 packages/svelte2tsx/test/htmlx2jsx/samples/editing-action/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | <div use:action={opt.}></div>
+    |                     ^
+
+=== 176 packages/svelte2tsx/test/htmlx2jsx/samples/editing-animation/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+  1 | {#each list as item (item)}
+> 2 | 	<li animate:flip={opt?.}>{item}</li>
+    | 	                      ^
+  3 | {/each}
+
+=== 143 packages/svelte2tsx/test/htmlx2jsx/samples/editing-await/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | {#await Promise.}
+    |                ^
+  2 |     
+  3 | {:then value} 
+  4 |     
+
+=== 181 packages/svelte2tsx/test/htmlx2jsx/samples/editing-binding/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | <input bind:group={obj.}>
+    |                       ^
+  2 | <input bind:value={obj.}>
+  3 | <Input bind:value={obj.} />
+
+=== 127 packages/svelte2tsx/test/htmlx2jsx/samples/editing-bracket/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | {someRecord[anotherRecord.]}
+    |                          ^
+  2 |
+
+=== 115 packages/svelte2tsx/test/htmlx2jsx/samples/editing-class-directive/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | <div class:abc={obj.}></div>
+    |                    ^
+
+=== 156 packages/svelte2tsx/test/htmlx2jsx/samples/editing-const/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+  1 | {#each [''] as str}
+> 2 |     {@const lower = str.}
+    |                        ^
+  3 | {/each}
+
+=== 139 packages/svelte2tsx/test/htmlx2jsx/samples/editing-empty-expression.v5/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | <div>{}</div>
+    |      ^
+  2 |
+  3 | <div attr={}></div>
+  4 | <div {}></div>
+
+=== 170 packages/svelte2tsx/test/htmlx2jsx/samples/editing-event-handler/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | <div on:click={handlers.}></div>
+    |                        ^
+  2 |
+  3 | <Component on:click={handlers.} />
+
+=== 88 packages/svelte2tsx/test/htmlx2jsx/samples/editing-html-block/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | {@html ''.}
+    |          ^
+
+=== 124 packages/svelte2tsx/test/htmlx2jsx/samples/editing-if/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | {#if ''?.}
+    |         ^
+  2 |
+  3 | {:else if ''.}
+  4 |     
+
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/editing-key/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | {#key ''.}
+    |         ^
+  2 |     
+  3 | {/key}
+
+=== 124 packages/svelte2tsx/test/htmlx2jsx/samples/editing-mustache/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | {abc.   }
+    |        ^
+  2 | {abc?. }
+  3 | {abc ?}
+  4 | {a+}
+
+=== 149 packages/svelte2tsx/test/htmlx2jsx/samples/editing-parentheses/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | {console.log(''.)}
+    |                ^
+  2 |
+  3 | {#await Promise.resolve(''.)}
+  4 |
+
+=== 151 packages/svelte2tsx/test/htmlx2jsx/samples/editing-props/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | <label id={''.}></label>
+    |              ^
+  2 |
+  3 | <Component hi={''?.}></Component>
+
+=== 129 packages/svelte2tsx/test/htmlx2jsx/samples/editing-style-directive/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | <div style:display={styles.}></div>
+    |                           ^
+
+=== 133 packages/svelte2tsx/test/htmlx2jsx/samples/editing-transition/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | <div transition:fade={option.}></div>
+    |                             ^
+
+=== 214 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-block.v5/input.svelte	error.txt
+`</div>` attempted to close an element that was not open
+https://svelte.dev/e/element_invalid_closing_tag
+  1 | <div>
+  2 |     {#if foo}
+> 3 | </div>
+    |      ^
+  4 |
+  5 | <div>
+  6 |     {#each array as item}
+
+=== 121 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-component-no-attr.v5/input.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+  5 | <div>
+  6 |     <Comp
+> 7 | </div>
+    |  ^
+  8 |
+  9 | <Comp
+
+=== 121 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-element-no-attr.v5/input.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+  5 | <div>
+  6 |     <span
+> 7 | </div>
+    |  ^
+  8 |
+  9 | <span
+
+=== 149 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-tag.v5/input.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+  1 | <div>
+  2 |     <Comp a={b}
+> 3 | </div>
+    |  ^
+  4 |
+  5 | <div>
+  6 |     <span a={b}
 
 === 15 packages/svelte2tsx/test/htmlx2jsx/samples/element-only/input.svelte	svelte
 <h1>Hello</h1>
@@ -3770,6 +4369,17 @@ display: block"
   {/if}
 {/if}
 
+=== 109 packages/svelte2tsx/test/htmlx2jsx/samples/key-block/input.svelte	svelte
+{#key value}
+  <p>hello</p>
+{/key}
+{#key $store}
+  <p>hello</p>
+{/key}
+{#key expr.obj}
+  <p>hello</p>
+{/key}
+
 === 70 packages/svelte2tsx/test/htmlx2jsx/samples/mustache-tag-object-literal/input.svelte	svelte
 {{
   toString() {
@@ -3959,6 +4569,25 @@ display: block"
 === 3 packages/svelte2tsx/test/htmlx2jsx/samples/tokens-not-allowed-in-jsx/input.svelte	svelte
 }>
 
+=== 459 packages/svelte2tsx/test/htmlx2jsx/samples/transition-animate-fallbacks/input.svelte	svelte
+<!-- transitions -->
+<h1 transition:blur>Hello</h1>
+<h1 transition:fade>Hello</h1>
+<h1 transition:fly>Hello</h1>
+<h1 transition:slide>Hello</h1>
+<h1 transition:scale>Hello</h1>
+<h1 transition:draw>Hello</h1>
+<!-- also for in/out transitions -->
+<h1 in:blur>Hello</h1>
+<h1 out:blur>Hello</h1>
+<!-- animate -->
+<h1 animate:flip>Hello</h1>
+<!-- not others -->
+<h1 transition:foo>Hello</h1>
+<h1 in:foo>Hello</h1>
+<h1 out:foo>Hello</h1>
+<h1 animate:foo>Hello</h1>
+
 === 81 packages/svelte2tsx/test/htmlx2jsx/samples/transition-bare/input.svelte	svelte
 <h1 transition:blink>Hello</h1>
 <h1 in:blink>Hello</h1>
@@ -3976,6 +4605,73 @@ display: block"
 <h1 out:blink={{ y: 50, duration: 500 }}>Hello</h1>
 <h1 out:blink={{ y: 50, duration: 500 }}>Hello</h1>
 
+=== 963 packages/svelte2tsx/test/htmlx2jsx/samples/ts-in-template.v5/input.svelte	svelte
+<script lang="ts"></script>
+
+{#if foo as true}
+  if
+{:else if bar as false}
+  else if
+{/if}
+
+{#each items as [""] as item: string, i (item)}
+  {item as string}
+{/each}
+
+{#await foo as Promise<void>}
+  waiting
+{:then result: any}
+  result
+{:catch error: any}
+  error
+{/await}
+
+{#key item as string}
+  key
+{/key}
+
+{#snippet foo(bar: string)}
+  snippet
+{/snippet}
+
+{#snippet foo2(bar: string)}
+  snippet
+{/snippet}
+
+{#snippet foo3(bar: string | number)}
+  snippet
+{/snippet}
+
+{#snippet foo4(bar: string | number, baz: (str: string) => void)}
+  snippet
+{/snippet}
+
+{#snippet foo5(bar: { baz: string })}
+  snippet
+{/snippet}
+
+{#snippet foo6(bar?: string)}
+  snippet
+{/snippet}
+
+{#snippet foo7(bar, baz = "")}
+  snippet
+{/snippet}
+
+{@render foo(bar as string)}
+
+<button
+  onclick={(e: Event) => {
+    e as any;
+  }}
+>
+  click
+</button>
+<Component attr={attr as boolean} />
+<label id={ok!}></label>
+<Component bind:this={x as any} />
+<div bind:clientWidth={x as any} />
+
 === 125 packages/svelte2tsx/test/htmlx2jsx/samples/void-elements/input.svelte	svelte
 <area />
 <base />
@@ -3991,6 +4687,52 @@ display: block"
 <source />
 <track />
 <wbr />
+
+=== 218 packages/svelte2tsx/test/sourcemaps/samples/action-directive/input.svelte	svelte
+<element use:action />
+
+<element use:action />
+
+<element use:action.nested.method={foo} />
+
+<element use:action={$foo} />
+
+<element use:action={{ foo }} />
+
+<element
+  use:action={{
+    ...leet,
+    foo: $bar,
+  }}
+/>
+
+=== 172 packages/svelte2tsx/test/sourcemaps/samples/await-block/input.svelte	svelte
+{#await promise then value}
+  <element foo={value.bar} />
+{/await}
+
+{#await promise}
+  <element />
+{:then}
+  <element />
+{/await}
+
+{#await $promise}
+  <element />
+{/await}
+
+=== 157 packages/svelte2tsx/test/sourcemaps/samples/component-props/input.svelte	svelte
+<Component foo />
+
+<Component foo="leet" bar />
+
+<Component {...bar} />
+
+<Component {...bar} />
+
+<Component bind:foo={bar} />
+
+<Component bind:this={bar} />
 
 === 513 packages/svelte2tsx/test/sourcemaps/samples/each-block/input.svelte	svelte
 {#each items as item}
@@ -4019,6 +4761,46 @@ display: block"
   <p>No tasks today!</p>
 {/each}
 
+=== 149 packages/svelte2tsx/test/sourcemaps/samples/element-attributes/input.svelte	svelte
+<element foo />
+
+<element foo />
+
+<element foo="leet" />
+
+<element {foo} bar />
+
+<element {foo} />
+
+<element bind:foo />
+
+<element bind:foo={bar} />
+
+=== 111 packages/svelte2tsx/test/sourcemaps/samples/event-binding/input.svelte	svelte
+<Component on:click={$check ? method1 : method2} />
+<button on:click={$check ? method1 : method2}>Bla</button>
+
+=== 140 packages/svelte2tsx/test/sourcemaps/samples/if-block/input.svelte	svelte
+{#if foo}
+  <element />
+{/if}
+
+{#if $foo}<element />{/if}
+
+{#if foo}
+  <element />
+{:else if bar}
+  <element />
+{:else}
+  <element />
+{/if}
+
+=== 60 packages/svelte2tsx/test/sourcemaps/samples/import-equal/input.svelte	svelte
+<script>
+    import A
+    import C = require('');
+</script>
+
 === 32 packages/svelte2tsx/test/sourcemaps/samples/property-shorthand/input.svelte	svelte
 <button {count}>button</button>
 
@@ -4038,6 +4820,23 @@ display: block"
 <slot {foo} name="bar" {baz} leet>fallback</slot>
 
 <slot {foo} name="bar" {baz} leet>fallback</slot>
+
+=== 287 packages/svelte2tsx/test/svelte2tsx/samples/$store-as-directive/input.svelte	svelte
+<script>
+  const transitionStore = null;
+  const animateStore = null;
+  const inStore = null;
+  const outStore = null;
+  const actionStore = null;
+</script>
+
+<div
+  transition:$transitionStore={{ y: 100 }}
+  use:$actionStore
+  in:$inStore
+  out:$outStore
+  animate:$animateStore
+></div>
 
 === 314 packages/svelte2tsx/test/svelte2tsx/samples/$store-assign/input.svelte	svelte
 <script lang="ts">
@@ -4059,6 +4858,51 @@ display: block"
   (($store.a = true), ($store.b = false));
 </script>
 
+=== 162 packages/svelte2tsx/test/svelte2tsx/samples/$store-export-type/input.svelte	svelte
+<script>
+  import type { Writable } from "svelte/store";
+
+  export let store: Writable<string[]> | null = null;
+
+  if ($store) {
+    $store.length;
+  }
+</script>
+
+=== 69 packages/svelte2tsx/test/svelte2tsx/samples/$store-index/input.svelte	svelte
+{someRecordOrArr[$store]}
+{someObject["$store"]}
+{someObject.$store}
+
+=== 290 packages/svelte2tsx/test/svelte2tsx/samples/$store-inside-block-without-braces/input.svelte	svelte
+<script>
+  const store1 = "";
+
+  if (store1) $store1;
+  else if (store1) $store1;
+  else $store;
+  if (store1) $store1 = 1;
+  if (store1) $store1.x = 1;
+
+  for (let i = 0; i < 1; i++) $store1;
+
+  for (const a of b) $store1;
+
+  for (const a in b) $store1;
+
+  while (true) $store1;
+</script>
+
+=== 103 packages/svelte2tsx/test/svelte2tsx/samples/$store-nested-declaration/input.svelte	svelte
+<script>
+  function x(tr) {
+    for (let notAStore of tr.effects) {
+    }
+  }
+
+  $notAStore;
+</script>
+
 === 118 packages/svelte2tsx/test/svelte2tsx/samples/$store-no-instance-only-module-script/input.svelte	svelte
 <script context="module">
   import { store1 } from "./somewhere";
@@ -4073,6 +4917,16 @@ display: block"
   let store = null;
   const foo = { $store };
   const bar = { $store: $store };
+</script>
+
+=== 27 packages/svelte2tsx/test/svelte2tsx/samples/ast-offset-none/input.svelte	svelte
+<script>
+  $var;
+</script>
+
+=== 27 packages/svelte2tsx/test/svelte2tsx/samples/ast-offset-some/input.svelte	svelte
+<script>
+  $var;
 </script>
 
 === 107 packages/svelte2tsx/test/svelte2tsx/samples/attributes-foreign-ns/input.svelte	svelte
@@ -4090,6 +4944,22 @@ display: block"
 {:then data}
   {data}
 {/await}
+
+=== 266 packages/svelte2tsx/test/svelte2tsx/samples/binding-assignment-$store/input.svelte	svelte
+<div bind:offsetHeight={$compile_options} />
+<div bind:offsetHeight={$compile_options.foo} />
+<div bind:this={$compile_options} />
+<div bind:this={$compile_options.foo} />
+<div bind:noAssignment={$compile_options} />
+<div bind:noAssignment={$compile_options.foo} />
+
+=== 97 packages/svelte2tsx/test/svelte2tsx/samples/binding-group-store/input.svelte	svelte
+<input
+  id="dom-input"
+  type="radio"
+  bind:group={$compile_options.generate}
+  value="dom"
+/>
 
 === 2556 packages/svelte2tsx/test/svelte2tsx/samples/circle-drawer-example/input.svelte	svelte
 <!--
@@ -4230,6 +5100,54 @@ radius of the selected circle.
 
 <!-- <script src="/lib/jodit.es2018.min.js">
 </script> -->
+
+=== 819 packages/svelte2tsx/test/svelte2tsx/samples/comments-in-attributes.v5/input.svelte	svelte
+<script>
+  let x = $state();
+</script>
+
+<div
+  // comment
+  foo="bar"
+  x
+  // comment same line
+  /* another comment */
+  baz="qux"
+  // event handler comment
+  on:click={handler}
+  // action comment
+  use:action={params}
+  // transition comment
+  transition:fade
+  // animation comment
+  animate:flip
+  // attachment comment
+  {@attach attachment}
+  // binding comment
+  bind:this={element}
+  // spread comment
+  {...spread_props}
+  trailing // trailing comment same line
+></div>
+
+<Component
+  // comment
+  foo="bar"
+  /* another comment */
+  baz="qux"
+  // event handler comment
+  on:click={handler}
+  // attachment comment
+  {@attach attachment}
+  // binding comment
+  bind:prop={bound_prop}
+  // spread comment
+  {...spread_props}
+  // let comment
+  let:item
+  trailing
+  // trailing comment newline
+></Component>
 
 === 73 packages/svelte2tsx/test/svelte2tsx/samples/component-default-slot/input.svelte	svelte
 <script>
@@ -4436,6 +5354,22 @@ radius of the selected circle.
 
 <div><Test let:t>xx</Test></div>
 
+=== 197 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-object-key/input.svelte	svelte
+{#each items as item}
+  <slot
+    a={item}
+    b={{ item }}
+    c={{ item: "abc" }.item}
+    d={{ item: item }}
+    e={$item}
+    f={$item}
+    {...g}
+    {...item}
+  >
+    Hello
+  </slot>
+{/each}
+
 === 62 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-var-shadowing/input.svelte	svelte
 {#each items as items}
   <slot a={items}>Hello</slot>
@@ -4482,10 +5416,30 @@ type Type = 'type'
   {n}
 {/await}
 
+=== 156 packages/svelte2tsx/test/svelte2tsx/samples/custom-css-properties-with-$store/input.svelte	svelte
+<Component
+  --custom-css-property1={$jo}
+  --custom-css-property2="hi{$jo}hi"
+  --custom-css-property3="hi{$jo}hi"
+  --custom-css-property4="hi{$jo}hi"
+/>
+
+=== 95 packages/svelte2tsx/test/svelte2tsx/samples/debug-block/input.svelte	svelte
+{@debug myfile}
+{@debug $myfile, someOtherFile}
+{@debug myfile, $someOtherFile, someThirdFile}
+
 === 55 packages/svelte2tsx/test/svelte2tsx/samples/doctype-script/input.svelte	svelte
 <script>
   const regex = /<!DOCTYPE html>/i;
 </script>
+
+=== 82 packages/svelte2tsx/test/svelte2tsx/samples/editing-mustache/input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+> 1 | {a?.}
+    |    ^
+  2 |
 
 === 166 packages/svelte2tsx/test/svelte2tsx/samples/event-and-forwarded-event/input.svelte	svelte
 <script>
@@ -4738,6 +5692,58 @@ type Type = 'type'
 
 {@render iconSnippet()}
 
+=== 381 packages/svelte2tsx/test/svelte2tsx/samples/nested-$-variables-script/input.svelte	svelte
+<script>
+  let top1 = someStore();
+  let top2 = someStore();
+  let topLevelGet = $top1;
+  topLevelGet = $top2;
+
+  function test(top1) {
+    let passedGet = $top1;
+  }
+
+  function test2($top1) {
+    let paramShadowed = $top1;
+  }
+
+  function test3() {
+    let $top2 = "hi";
+    let letshadowed = $top2;
+  }
+
+  const test4 = ({ a, b: { $top1: $top2 } }) => $top2 && $top1;
+</script>
+
+=== 593 packages/svelte2tsx/test/svelte2tsx/samples/nested-$-variables-template/input.svelte	svelte
+<h1
+  on:click={() => {
+    // TODO: this is invalid Svelte right now, stores have to be top level
+    // it's therefore okay to not append "let top1$/top2$ = __svelte_store_get(..)"
+    let top1 = someStore();
+    let top2 = someStore();
+    let topLevelGet = $top1;
+    topLevelGet = $top2;
+
+    function test(top1) {
+      let passedGet = $top1;
+    }
+
+    function test2($top1) {
+      let paramShadowed = $top1;
+    }
+
+    function test3() {
+      let $top2 = "hi";
+      let letshadowed = $top2;
+    }
+
+    const test4 = ({ a, b: { $top1: $top2 } }) => $top2 && $top1;
+  }}
+>
+  Hi
+</h1>
+
 === 85 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-destructured.v5/input.svelte	svelte
 <script>
   let { props } = $props();
@@ -4773,6 +5779,28 @@ type Type = 'type'
 
 {id}
 {props}
+
+=== 278 packages/svelte2tsx/test/svelte2tsx/samples/reactive-$store-destructuring/input.svelte	svelte
+<script>
+  $: ({ count } = $data);
+  $: ({ count2 } = $data);
+  let count3;
+  $: ({ count3 } = $data);
+  let bla4;
+  $: ({ bla4, bla5 } = $data);
+
+  $: [count] = $data;
+  $: [count2] = $data;
+  let count3;
+  $: [count3] = $data;
+  let bla4;
+  $: [bla4, bla5] = $data;
+</script>
+
+=== 45 packages/svelte2tsx/test/svelte2tsx/samples/reactive-store-set/input.svelte	svelte
+<script>
+  $: $store = $store + 1;
+</script>
 
 === 134 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports-runes.v5/input.svelte	svelte
 <svelte:options runes />
@@ -4941,6 +5969,9 @@ type Type = 'type'
 === 15 packages/svelte2tsx/test/svelte2tsx/samples/single-element/input.svelte	svelte
 <h1>hello</h1>
 
+=== 32 packages/svelte2tsx/test/svelte2tsx/samples/slot-bind-this/input.svelte	svelte
+<slot name="s" bind:this={s} />
+
 === 87 packages/svelte2tsx/test/svelte2tsx/samples/snippet-instance-script.v5/input.svelte	svelte
 <script>
   let foo = true;
@@ -5082,6 +6113,19 @@ type Type = 'type'
   let a = $derived(1);
 </script>
 
+=== 245 packages/svelte2tsx/test/svelte2tsx/samples/store-destructuring/input.svelte	svelte
+<script>
+  const store = fromSomewhere();
+  const { store1, store2, noStore } = fromSomewhere();
+  const [store3, store4, noStore] = fromSomewhere();
+</script>
+
+<p>{$store}</p>
+<p>{$store1}</p>
+<p>{$store2}</p>
+<p>{$store3}</p>
+<p>{$store4}</p>
+
 === 219 packages/svelte2tsx/test/svelte2tsx/samples/store-from-module/input.svelte	svelte
 <script context="module">
   import { store1, store2 } from "./store";
@@ -5144,6 +6188,9 @@ type Type = 'type'
 
 {state}
 {derived}
+
+=== 17 packages/svelte2tsx/test/svelte2tsx/samples/stores-mustache/input.svelte	svelte
+<Me f="{$s} " />
 
 === 66 packages/svelte2tsx/test/svelte2tsx/samples/style-after-selfclosing-iframe/input.svelte	svelte
 <iframe src="" />
@@ -5243,6 +6290,17 @@ type Type = 'type'
   export const snapshot = {};
 </script>
 
+=== 158 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes/+page.svelte	svelte
+<script>
+  export let data;
+  export let form;
+  export const snapshot = {};
+
+  export let nope;
+  export let form = {};
+  export let data: number;
+</script>
+
 === 184 packages/svelte2tsx/test/svelte2tsx/samples/ts-$$Props-interface-only-props/input.svelte	svelte
 <script lang="ts">
   type $$Props = {
@@ -5298,6 +6356,264 @@ type Type = 'type'
 </script>
 
 <button on:click={() => dispatch("btn", "")}></button>
+
+=== 473 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed/input.svelte	svelte
+<script>
+  import { createEventDispatcher, abc } from "svelte";
+
+  const notDispatch = abc();
+  const bla = "bye";
+  const dispatch = createEventDispatcher<{
+    /**
+     * A DOC
+     */
+    hi: boolean;
+    /**
+     * not this
+     */
+    /**
+     * ANOTHER DOC
+     */
+    [bla]: boolean;
+    // not this
+    btn: string;
+  }>();
+
+  dispatch("hi", true);
+
+  function bye() {
+    dispatch(bla, false);
+  }
+</script>
+
+<button on:click={() => dispatch("btn", "")}></button>
+
+=== 363 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatchers-same-event/input.svelte	svelte
+<script>
+  import { createEventDispatcher, abc } from "svelte";
+
+  const notDispatch = abc();
+  const dispatch1 = createEventDispatcher<{
+    /**
+     * A DOC
+     */
+    hi: boolean;
+  }>();
+  const dispatch2 = createEventDispatcher<{ hi: string }>();
+  const dispatch3 = createEventDispatcher();
+
+  dispatch3("bye", true);
+</script>
+
+<button on:click></button>
+
+=== 364 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatchers/input.svelte	svelte
+<script>
+  import { createEventDispatcher, abc } from "svelte";
+
+  const notDispatch = abc();
+  const dispatch1 = createEventDispatcher<{
+    /**
+     * A DOC
+     */
+    hi: boolean;
+  }>();
+  const dispatch2 = createEventDispatcher<{ btn: string }>();
+  const dispatch3 = createEventDispatcher();
+
+  dispatch3("bye", true);
+</script>
+
+<button on:click></button>
+
+=== 102 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-arrow-function/input.svelte	svelte
+<script>
+  export let f = (a: number, b: number) => {
+    let c = a + b;
+    return c;
+  };
+</script>
+
+=== 234 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-boolean/input.svelte	svelte
+<script>
+  export let bla = false;
+  export let blubb = true;
+  export let bla1: boolean = false;
+  export let blubb1: boolean = true;
+  export let a1 = true,
+    a2 = false,
+    b1: boolean = true,
+    b2: boolean = false;
+</script>
+
+=== 101 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-const/input.svelte	svelte
+<script>
+  export const name: string = "world";
+  export const SOME = 1,
+    CONSTANT = 2;
+</script>
+
+=== 165 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-doc/input.svelte	svelte
+<script>
+  /**
+   * DOCS!
+   */
+  export let a: string;
+  /**
+   * MORE DOCS!
+   */
+  export let b = 1;
+  export let c;
+
+  // not this one
+  export let d;
+</script>
+
+=== 79 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-has-type/input.svelte	svelte
+<script>
+  interface A {}
+  export let a: A;
+  export let b: A = {};
+</script>
+
+=== 60 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-interface/input.svelte	svelte
+<script context="module">
+  export interface A {}
+</script>
+
+=== 569 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list-runes-false/input.svelte	svelte
+<svelte:options runes={false} />
+
+<script>
+  let name1: string = "world";
+  let name2: string;
+  let name3: string = "",
+    name4: string;
+
+  let rename1: string = "";
+  let rename2: string;
+
+  class Foo {}
+  function bar() {}
+  const baz: string = "";
+
+  class RenameFoo {}
+  function renamebar() {}
+  const renamebaz: string = "";
+
+  export {
+    name1,
+    name2,
+    name3,
+    name4,
+    rename1 as renamed1,
+    rename2 as renamed2,
+    Foo,
+    bar,
+    baz,
+    RenameFoo as RenamedFoo,
+    renamebar as renamedbar,
+    renamebaz as renamedbaz,
+  };
+</script>
+
+=== 561 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list-runes.v5/input.svelte	svelte
+<svelte:options runes />
+
+<script>
+  let name1: string = "world";
+  let name2: string;
+  let name3: string = "",
+    name4: string;
+
+  let rename1: string = "";
+  let rename2: string;
+
+  class Foo {}
+  function bar() {}
+  const baz: string = "";
+
+  class RenameFoo {}
+  function renamebar() {}
+  const renamebaz: string = "";
+
+  export {
+    name1,
+    name2,
+    name3,
+    name4,
+    rename1 as renamed1,
+    rename2 as renamed2,
+    Foo,
+    bar,
+    baz,
+    RenameFoo as RenamedFoo,
+    renamebar as renamedbar,
+    renamebaz as renamedbaz,
+  };
+</script>
+
+=== 535 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list/input.svelte	svelte
+<script>
+  let name1: string = "world";
+  let name2: string;
+  let name3: string = "",
+    name4: string;
+
+  let rename1: string = "";
+  let rename2: string;
+
+  class Foo {}
+  function bar() {}
+  const baz: string = "";
+
+  class RenameFoo {}
+  function renamebar() {}
+  const renamebaz: string = "";
+
+  export {
+    name1,
+    name2,
+    name3,
+    name4,
+    rename1 as renamed1,
+    rename2 as renamed2,
+    Foo,
+    bar,
+    baz,
+    RenameFoo as RenamedFoo,
+    renamebar as renamedbar,
+    renamebaz as renamedbaz,
+  };
+</script>
+
+=== 133 packages/svelte2tsx/test/svelte2tsx/samples/ts-multiple-export/input.svelte	svelte
+<script>
+  export let number1: number;
+  export let number2: number;
+</script>
+
+<h1>{number1} + {number2} = {number1 + number2}</h1>
+
+=== 267 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-best-effort-types.v5/input.svelte	svelte
+<script>
+  let {
+    a,
+    b = true,
+    c = 1,
+    d = "",
+    e = null,
+    f = {},
+    g = foo,
+    h = null as Bar,
+    i = null as any as Baz,
+    j = [],
+    k = undefined,
+    l = $bindable(),
+    m = $bindable(1),
+    n = () => {},
+  } = $props();
+</script>
 
 === 98 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-bindable.v5/input.svelte	svelte
 <script lang="ts">
@@ -5486,6 +6802,19 @@ type Type = 'type'
   let { Abc }: A = $props();
 </script>
 
+=== 135 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-14.v5/input.svelte	svelte
+<script module>
+  enum A {}
+</script>
+
+<script lang="ts">
+  interface A {
+    Abc: number;
+  }
+
+  let { Abc }: A = $props();
+</script>
+
 === 162 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-15.v5/input.svelte	svelte
 <script module>
 </script>
@@ -5590,6 +6919,12 @@ type Type = 'type'
   let y = $derived(x * 2);
 </script>
 
+=== 118 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune-unchanged.v5/+page.svelte	svelte
+<script>
+  export const snapshot: any = {};
+  let { form, data }: { form: boolean; data: true } = $props();
+</script>
+
 === 82 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune.v5/+page.svelte	svelte
 <script>
   export const snapshot = {};
@@ -5605,12 +6940,26 @@ type Type = 'type'
   let a = <HTMLInputElement>document.querySelector("#id");
 </script>
 
+=== 65 packages/svelte2tsx/test/svelte2tsx/samples/ts-typed-export-with-default/input.svelte	svelte
+<script>
+  export let name: string | number = "world";
+</script>
+
 === 125 packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	svelte
 <script lang="ts">
   import { writable } from "svelte/store";
   const foo = writable(1);
   type Foo = typeof $foo;
 </script>
+
+=== 126 packages/svelte2tsx/test/svelte2tsx/samples/unclosed-tag-containing-tag.v5/input.svelte	error.txt
+`<div>` was left open
+https://svelte.dev/e/element_unclosed
+> 1 | <div>
+    |     ^
+  2 | 	<p></p>
+  3 | 	
+  4 | 	<div></div>
 
 === 162 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots-script/input.svelte	svelte
 <script>
@@ -5703,6 +7052,13 @@ type Type = 'type'
 <button on:click={() => -$count}>add</button>
 <button on:click={() => ~$count}>add</button>
 
+=== 92 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store/input.svelte	svelte
+<script>
+  $b = $b.concat(5);
+</script>
+
+<h1 on:click={() => ($b = $b.concat(5))}>{$b}</h1>
+
 === 166 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components-let-forward/input.svelte	svelte
 {#if true}
   <svelte:self let:prop>
@@ -5712,4 +7068,21 @@ type Type = 'type'
 <svelte:component this={testComponent} let:prop>
   <slot {prop} />
 </svelte:component>
+
+=== 344 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components/input.svelte	svelte
+<svelte:options />
+
+{#if true}
+  <svelte:self prop1={1} />
+{/if}
+<svelte:component this={testComponent} propa={5}>
+  <h1>content</h1>
+</svelte:component>
+<svelte:window on:click={(e) => {}} />
+<svelte:body on:click={(e) => {}} />
+<svelte:head>
+  <h1>Hi</h1>
+</svelte:head>
+<svelte:fragment />
+<svelte:document foo="bar" on:click={(e) => {}} />
 

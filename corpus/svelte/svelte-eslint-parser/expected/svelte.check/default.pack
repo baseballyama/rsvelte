@@ -118,6 +118,34 @@
 	}
 ]
 
+=== 373 tests/fixtures/integrations/type-info-tests/$derived2-input.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'foo' does not exist on type 'never'.",
+		"start": {
+			"line": 3,
+			"character": 31
+		},
+		"end": {
+			"line": 3,
+			"character": 34
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'foo' does not exist on type 'never'.",
+		"start": {
+			"line": 3,
+			"character": 42
+		},
+		"end": {
+			"line": 3,
+			"character": 45
+		}
+	}
+]
+
 === 3 tests/fixtures/integrations/type-info-tests/$props-input.svelte	json
 []
 
@@ -337,6 +365,9 @@
 === 3 tests/fixtures/parser/ast/docs/template-syntax/04-comments/01-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/04-comments/02-input.svelte	json
+[]
+
 === 3 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/01-input.svelte	json
 []
 
@@ -397,6 +428,12 @@
 === 3 tests/fixtures/parser/ast/docs/template-syntax/10-at-debug/03-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/10.1-at-const/01-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/01-input.svelte	json
+[]
+
 === 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/02-input.svelte	json
 []
 
@@ -410,6 +447,42 @@
 []
 
 === 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/06-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/01-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/02-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/03-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/04-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/05-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/06-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/07-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/08-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/09-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/10-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/11-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/01-input.svelte	json
 []
 
 === 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/02-input.svelte	json
@@ -466,6 +539,9 @@
 === 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/08-in-fn-out-fn/02-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/01-input.svelte	json
+[]
+
 === 3 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/02-input.svelte	json
 []
 
@@ -487,7 +563,19 @@
 === 3 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/03-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/01-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/02-input.svelte	json
+[]
+
 === 3 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/03-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/03-bind-property/01-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/03-bind-property/02-input.svelte	json
 []
 
 === 3 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/01-input.svelte	json
@@ -529,7 +617,13 @@
 === 3 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/01-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/02-input.svelte	json
+[]
+
 === 3 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/03-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/04-input.svelte	json
 []
 
 === 3 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/01-input.svelte	json
@@ -550,8 +644,40 @@
 === 3 tests/fixtures/parser/ast/docs/template-syntax/18-svelte-head/02-input.svelte	json
 []
 
+=== 240 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/01-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "`<svelte:options>` unknown attribute 'option'\nhttps://svelte.dev/e/svelte_options_unknown_attribute",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 30
+		}
+	}
+]
+
 === 3 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-input.svelte	json
 []
+
+=== 254 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-old-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "\"tag\" option is deprecated — use \"customElement\" instead\nhttps://svelte.dev/e/svelte_options_deprecated_tag",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 39
+		}
+	}
+]
 
 === 3 tests/fixtures/parser/ast/docs/template-syntax/20-svelte-fragment/01-input.svelte	json
 []
@@ -615,6 +741,9 @@
 === 3 tests/fixtures/parser/ast/if-block01-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/ast/illegal/dot-in-bind01-input.svelte	json
+[]
+
 === 3 tests/fixtures/parser/ast/issue327-eslint-plugin-svelte-input.svelte	json
 []
 
@@ -636,6 +765,9 @@
 === 3 tests/fixtures/parser/ast/nesting-script-tag01-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/ast/newline-in-blocks-input.svelte	json
+[]
+
 === 3 tests/fixtures/parser/ast/postcss-input.svelte	json
 []
 
@@ -645,13 +777,51 @@
 === 3 tests/fixtures/parser/ast/props04-input.svelte	json
 []
 
+=== 191 tests/fixtures/parser/ast/pug/each/each01-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+		"start": {
+			"line": 6,
+			"character": 8
+		},
+		"end": {
+			"line": 6,
+			"character": 8
+		}
+	}
+]
+
 === 3 tests/fixtures/parser/ast/pug/each/self-closing-template-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/sass-input.svelte	json
 []
 
 === 3 tests/fixtures/parser/ast/script-in-style-input.svelte	json
 []
 
 === 3 tests/fixtures/parser/ast/script-tag-input.svelte	json
+[]
+
+=== 193 tests/fixtures/parser/ast/self-closing-style01-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 0,
+			"character": 34
+		},
+		"end": {
+			"line": 0,
+			"character": 34
+		}
+	}
+]
+
+=== 3 tests/fixtures/parser/ast/space-in-blocks-input.svelte	json
 []
 
 === 3 tests/fixtures/parser/ast/store-bindings-input.svelte	json
@@ -675,7 +845,29 @@
 === 3 tests/fixtures/parser/ast/style01-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/ast/style02-input.svelte	json
+[]
+
 === 3 tests/fixtures/parser/ast/svelte5/$bindable-used-input.svelte	json
+[]
+
+=== 223 tests/fixtures/parser/ast/svelte5/$derived-in-template-with-ts01-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module './MyComponent.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 1,
+			"character": 28
+		},
+		"end": {
+			"line": 1,
+			"character": 50
+		}
+	}
+]
+
+=== 3 tests/fixtures/parser/ast/svelte5/$derived-in-template-without-ts01-input.svelte	json
 []
 
 === 3 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-runes-input.svelte	json
@@ -795,7 +987,13 @@
 === 3 tests/fixtures/parser/ast/svelte5/docs/old-vs-new/06-autoscroll-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-frozen-input.svelte	json
+[]
+
 === 3 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-is-input.svelte	json
 []
 
 === 3 tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	json
@@ -1053,6 +1251,58 @@
 
 === 3 tests/fixtures/parser/ast/svelte5/ts-$props02-type-output.svelte	json
 []
+
+=== 763 tests/fixtures/parser/ast/svelte5/ts-$state-flozen01-input.svelte	json
+[
+	{
+		"code": 2339,
+		"message": "Property 'frozen' does not exist on type 'typeof $state'.",
+		"start": {
+			"line": 1,
+			"character": 23
+		},
+		"end": {
+			"line": 1,
+			"character": 29
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'frozen' does not exist on type 'typeof $state'.",
+		"start": {
+			"line": 2,
+			"character": 22
+		},
+		"end": {
+			"line": 2,
+			"character": 28
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 19
+		},
+		"end": {
+			"line": 14,
+			"character": 20
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'b' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 22
+		},
+		"end": {
+			"line": 14,
+			"character": 23
+		}
+	}
+]
 
 === 3 tests/fixtures/parser/ast/svelte5/ts-$state01-input.svelte	json
 []
@@ -1483,6 +1733,22 @@
 === 3 tests/fixtures/parser/ast/ts-event06-type-output.svelte	json
 []
 
+=== 195 tests/fixtures/parser/ast/ts-generics06-complex-type-output.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 1,
+			"character": 111
+		},
+		"end": {
+			"line": 1,
+			"character": 111
+		}
+	}
+]
+
 === 225 tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	json
 [
 	{
@@ -1590,6 +1856,86 @@
 === 3 tests/fixtures/parser/ast/ts-slot-binding01-type-output.svelte	json
 []
 
+=== 966 tests/fixtures/parser/ast/ts-store01-input.svelte	json
+[
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable '$b'.",
+		"start": {
+			"line": 4,
+			"character": 7
+		},
+		"end": {
+			"line": 4,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name '$unknown'.",
+		"start": {
+			"line": 13,
+			"character": 1
+		},
+		"end": {
+			"line": 13,
+			"character": 9
+		}
+	},
+	{
+		"code": 2769,
+		"message": "Cannot use 'c' as a store. 'c' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.",
+		"start": {
+			"line": 12,
+			"character": 1
+		},
+		"end": {
+			"line": 12,
+			"character": 3
+		}
+	}
+]
+
+=== 966 tests/fixtures/parser/ast/ts-store01-type-output.svelte	json
+[
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable '$b'.",
+		"start": {
+			"line": 4,
+			"character": 7
+		},
+		"end": {
+			"line": 4,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name '$unknown'.",
+		"start": {
+			"line": 13,
+			"character": 1
+		},
+		"end": {
+			"line": 13,
+			"character": 9
+		}
+	},
+	{
+		"code": 2769,
+		"message": "Cannot use 'c' as a store. 'c' needs to be an object with a subscribe method on it.\n\nNo overload matches this call.\n  Overload 1 of 2, '(store: SvelteStore<any>): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.\n  Overload 2 of 2, '(store: SvelteStore<any> | null | undefined): any', gave the following error.\n    Argument of type 'string' is not assignable to parameter of type 'SvelteStore<any>'.",
+		"start": {
+			"line": 12,
+			"character": 1
+		},
+		"end": {
+			"line": 12,
+			"character": 3
+		}
+	}
+]
+
 === 620 tests/fixtures/parser/ast/ts-store02-input.svelte	json
 [
 	{
@@ -1666,6 +2012,70 @@
 		"end": {
 			"line": 7,
 			"character": 17
+		}
+	}
+]
+
+=== 875 tests/fixtures/parser/ast/ts-tokens-bug-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module '$lib/Button.svelte' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 23
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name '$store'.",
+		"start": {
+			"line": 4,
+			"character": 16
+		},
+		"end": {
+			"line": 4,
+			"character": 22
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'index'.",
+		"start": {
+			"line": 4,
+			"character": 34
+		},
+		"end": {
+			"line": 4,
+			"character": 39
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'index'.",
+		"start": {
+			"line": 5,
+			"character": 5
+		},
+		"end": {
+			"line": 5,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'tab'.",
+		"start": {
+			"line": 5,
+			"character": 13
+		},
+		"end": {
+			"line": 5,
+			"character": 16
 		}
 	}
 ]
@@ -1994,8 +2404,51 @@
 === 3 tests/fixtures/parser/error/directive-use-with-expr02-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/error/dot-in-bind02-input.svelte	json
+[]
+
 === 3 tests/fixtures/parser/error/name01-input.svelte	json
 []
+
+=== 480 tests/fixtures/parser/error/shorthand01-input.svelte	json
+[
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 7,
+			"character": 19
+		},
+		"end": {
+			"line": 7,
+			"character": 20
+		}
+	},
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 25
+		}
+	},
+	{
+		"code": 1128,
+		"message": "Declaration or statement expected.",
+		"start": {
+			"line": 7,
+			"character": 24
+		},
+		"end": {
+			"line": 7,
+			"character": 25
+		}
+	}
+]
 
 === 3 tests/fixtures/parser/error/shorthand02-input.svelte	json
 []
@@ -2018,6 +2471,25 @@
 === 3 tests/fixtures/parser/style-context/one-line-css-input.svelte	json
 []
 
+=== 3 tests/fixtures/parser/style-context/parse-error-input.svelte	json
+[]
+
+=== 191 tests/fixtures/parser/style-context/self-closing-style-element-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+		"start": {
+			"line": 6,
+			"character": 7
+		},
+		"end": {
+			"line": 6,
+			"character": 7
+		}
+	}
+]
+
 === 3 tests/fixtures/parser/style-context/simple-css-input.svelte	json
 []
 
@@ -2025,6 +2497,9 @@
 []
 
 === 3 tests/fixtures/parser/style-context/simple-scss-input.svelte	json
+[]
+
+=== 3 tests/fixtures/parser/style-context/unknown-lang-input.svelte	json
 []
 
 === 3 tests/fixtures/parser/style-context/unrelated-style-attr-input.svelte	json

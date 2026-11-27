@@ -472,6 +472,22 @@ export default function $derived_input($$anchor) {
 	}
 ]
 
+=== 340 tests/fixtures/integrations/type-info-tests/$derived2-input.svelte	error.json
+{
+	"code": "derived_invalid_export",
+	"message": "Cannot export derived state from a module. To expose the current derived value, export a function returning its value\nhttps://svelte.dev/e/derived_invalid_export",
+	"start": {
+		"line": 4,
+		"column": 2,
+		"character": 81
+	},
+	"end": {
+		"line": 4,
+		"column": 55,
+		"character": 134
+	}
+}
+
 === 369 tests/fixtures/integrations/type-info-tests/$props-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -1836,6 +1852,22 @@ export default function _1_input($$anchor) {
 
 	$.append($$anchor, h1);
 }
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/04-comments/02-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 2,
+		"column": 19,
+		"character": 57
+	},
+	"end": {
+		"line": 2,
+		"column": 23,
+		"character": 61
+	}
+}
+
 === 1241 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -2486,6 +2518,38 @@ export default function _3_input($$anchor) {
 		debugger;
 	});
 }
+=== 412 tests/fixtures/parser/ast/docs/template-syntax/10.1-at-const/01-input.svelte	error.json
+{
+	"code": "const_tag_invalid_placement",
+	"message": "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 30,
+		"character": 30
+	}
+}
+
+=== 374 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/01-input.svelte	error.json
+{
+	"code": "event_handler_invalid_modifier",
+	"message": "Valid event modifiers are preventDefault, stopPropagation, stopImmediatePropagation, capture, once, passive, nonpassive, self or trusted\nhttps://svelte.dev/e/event_handler_invalid_modifier",
+	"start": {
+		"line": 2,
+		"column": 5,
+		"character": 36
+	},
+	"end": {
+		"line": 2,
+		"column": 37,
+		"character": 68
+	}
+}
+
 === 485 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/02-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -2691,6 +2755,198 @@ export default function _6_input($$anchor) {
 		}
 	}
 ]
+
+=== 249 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/01-input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:property` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	},
+	"end": {
+		"line": 1,
+		"column": 29,
+		"character": 29
+	}
+}
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/02-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/03-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 2,
+		"column": 19,
+		"character": 49
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 54
+	}
+}
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/04-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 33,
+		"character": 33
+	},
+	"end": {
+		"line": 1,
+		"column": 36,
+		"character": 36
+	}
+}
+
+=== 245 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/05-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 4,
+		"column": 6,
+		"character": 91
+	},
+	"end": {
+		"line": 4,
+		"column": 11,
+		"character": 96
+	}
+}
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/06-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 20,
+		"character": 20
+	},
+	"end": {
+		"line": 1,
+		"column": 28,
+		"character": 28
+	}
+}
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/07-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 29,
+		"character": 29
+	},
+	"end": {
+		"line": 1,
+		"column": 37,
+		"character": 37
+	}
+}
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/08-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 29,
+		"character": 29
+	},
+	"end": {
+		"line": 1,
+		"column": 37,
+		"character": 37
+	}
+}
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/09-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 44,
+		"character": 44
+	},
+	"end": {
+		"line": 1,
+		"column": 48,
+		"character": 48
+	}
+}
+
+=== 245 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/10-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 3,
+		"column": 6,
+		"character": 25
+	},
+	"end": {
+		"line": 3,
+		"column": 14,
+		"character": 33
+	}
+}
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/11-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 2,
+		"column": 19,
+		"character": 24
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 29
+	}
+}
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/01-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	},
+	"end": {
+		"line": 1,
+		"column": 27,
+		"character": 27
+	}
+}
 
 === 2019 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/02-input.svelte	js
 import 'svelte/internal/init-operations';
@@ -3553,6 +3809,22 @@ export default function _2_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
+=== 335 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/01-input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 10,
+		"column": 5,
+		"character": 219
+	},
+	"end": {
+		"line": 10,
+		"column": 17,
+		"character": 231
+	}
+}
+
 === 559 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/02-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -3699,6 +3971,38 @@ export default function _3_input($$anchor, $$props) {
 		}
 	});
 }
+=== 245 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/01-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 2,
+		"column": 7,
+		"character": 15
+	},
+	"end": {
+		"line": 2,
+		"column": 12,
+		"character": 20
+	}
+}
+
+=== 247 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/02-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 3,
+		"column": 6,
+		"character": 100
+	},
+	"end": {
+		"line": 3,
+		"column": 11,
+		"character": 105
+	}
+}
+
 === 111 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/03-input.svelte	css
 
 	/* (unused) .potato-slider-rail {
@@ -3741,6 +4045,38 @@ export default function _3_input($$anchor) {
 		}
 	}
 ]
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/03-bind-property/01-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	},
+	"end": {
+		"line": 1,
+		"column": 31,
+		"character": 31
+	}
+}
+
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/03-bind-property/02-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 20,
+		"character": 20
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
 
 === 282 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/01-input.svelte	js
 import 'svelte/internal/init-operations';
@@ -4397,6 +4733,22 @@ import * as $ from 'svelte/internal/client';
 export default function _1_input($$anchor) {
 	$.event('event', $.window, handler);
 }
+=== 247 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/02-input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:prop` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 15,
+		"character": 15
+	},
+	"end": {
+		"line": 1,
+		"column": 32,
+		"character": 32
+	}
+}
+
 === 301 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/03-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -4409,6 +4761,22 @@ export default function _3_input($$anchor) {
 
 	$.event('keydown', $.window, handleKeydown);
 }
+=== 246 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/04-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 29,
+		"character": 29
+	},
+	"end": {
+		"line": 1,
+		"column": 30,
+		"character": 30
+	}
+}
+
 === 217 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -4469,6 +4837,22 @@ export default function _2_input($$anchor) {
 		$.append($$anchor, link);
 	});
 }
+=== 288 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/01-input.svelte	error.json
+{
+	"code": "svelte_options_unknown_attribute",
+	"message": "`<svelte:options>` unknown attribute 'option'\nhttps://svelte.dev/e/svelte_options_unknown_attribute",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 30,
+		"character": 30
+	}
+}
+
 === 286 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -4494,6 +4878,22 @@ customElements.define('my-custom-element', $.create_custom_element(_2_input, {},
 		}
 	}
 ]
+
+=== 299 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-old-input.svelte	error.json
+{
+	"code": "svelte_options_deprecated_tag",
+	"message": "\"tag\" option is deprecated — use \"customElement\" instead\nhttps://svelte.dev/e/svelte_options_deprecated_tag",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 39,
+		"character": 39
+	}
+}
 
 === 1100 tests/fixtures/parser/ast/docs/template-syntax/20-svelte-fragment/01-input.svelte	js
 import 'svelte/internal/init-operations';
@@ -4937,6 +5337,22 @@ export default function If_block01_input($$anchor) {
 
 	$.append($$anchor, fragment);
 }
+=== 271 tests/fixtures/parser/ast/illegal/dot-in-bind01-input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:va.lue` is not a valid binding. Did you mean 'value'?\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 4,
+		"column": 7,
+		"character": 41
+	},
+	"end": {
+		"line": 4,
+		"column": 28,
+		"character": 62
+	}
+}
+
 === 388 tests/fixtures/parser/ast/issue327-eslint-plugin-svelte-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -5181,6 +5597,22 @@ export default function Nesting_script_tag01_input($$anchor) {
 
 	$.append($$anchor, div);
 }
+=== 295 tests/fixtures/parser/ast/newline-in-blocks-input.svelte	error.json
+{
+	"code": "block_unexpected_character",
+	"message": "Expected a `#` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
+	"start": {
+		"line": 2,
+		"column": 0,
+		"character": 13
+	},
+	"end": {
+		"line": 3,
+		"column": 3,
+		"character": 18
+	}
+}
+
 === 76 tests/fixtures/parser/ast/postcss-input.svelte	css
 
   /* (unused) body {
@@ -5256,6 +5688,22 @@ export default function Props04_input($$anchor, $$props) {
 
 	return $.pop($$exports);
 }
+=== 223 tests/fixtures/parser/ast/pug/each/each01-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 7,
+		"column": 8,
+		"character": 111
+	},
+	"end": {
+		"line": 7,
+		"column": 8,
+		"character": 111
+	}
+}
+
 === 354 tests/fixtures/parser/ast/pug/each/self-closing-template-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -5287,6 +5735,22 @@ export default function Self_closing_template_input($$anchor) {
 		}
 	}
 ]
+
+=== 254 tests/fixtures/parser/ast/sass-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 2,
+		"column": 0,
+		"character": 20
+	},
+	"end": {
+		"line": 2,
+		"column": 0,
+		"character": 20
+	}
+}
 
 === 56 tests/fixtures/parser/ast/script-in-style-input.svelte	css
 
@@ -5330,6 +5794,38 @@ export default function Script_tag_input($$anchor) {
 
 	$.append($$anchor, head);
 }
+=== 223 tests/fixtures/parser/ast/self-closing-style01-input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 34,
+		"character": 34
+	},
+	"end": {
+		"line": 1,
+		"column": 34,
+		"character": 34
+	}
+}
+
+=== 299 tests/fixtures/parser/ast/space-in-blocks-input.svelte	error.json
+{
+	"code": "block_unexpected_character",
+	"message": "Expected a `@` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
+	"start": {
+		"line": 22,
+		"column": 0,
+		"character": 407
+	},
+	"end": {
+		"line": 22,
+		"column": 5,
+		"character": 412
+	}
+}
+
 === 940 tests/fixtures/parser/ast/store-bindings-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -5597,6 +6093,22 @@ export default function Style01_input($$anchor) {
 	}
 ]
 
+=== 254 tests/fixtures/parser/ast/style02-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 8,
+		"character": 34
+	},
+	"end": {
+		"line": 3,
+		"column": 8,
+		"character": 34
+	}
+}
+
 === 486 tests/fixtures/parser/ast/svelte5/$bindable-used-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -5621,6 +6133,38 @@ export default function $bindable_used_input($$anchor, $$props) {
 }
 
 $.delegate(['click']);
+=== 403 tests/fixtures/parser/ast/svelte5/$derived-in-template-with-ts01-input.svelte	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$derived(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 5,
+		"column": 25,
+		"character": 107
+	},
+	"end": {
+		"line": 5,
+		"column": 36,
+		"character": 118
+	}
+}
+
+=== 402 tests/fixtures/parser/ast/svelte5/$derived-in-template-without-ts01-input.svelte	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$derived(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 5,
+		"column": 25,
+		"character": 97
+	},
+	"end": {
+		"line": 5,
+		"column": 36,
+		"character": 108
+	}
+}
+
 === 562 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-runes-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -6396,6 +6940,22 @@ export default function _6_autoscroll_input($$anchor, $$props) {
 	}
 ]
 
+=== 238 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-frozen-input.svelte	error.json
+{
+	"code": "rune_renamed",
+	"message": "`$state.frozen` is now `$state.raw`\nhttps://svelte.dev/e/rune_renamed",
+	"start": {
+		"line": 2,
+		"column": 16,
+		"character": 25
+	},
+	"end": {
+		"line": 2,
+		"column": 40,
+		"character": 49
+	}
+}
+
 === 469 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -6429,6 +6989,22 @@ export default function _1_$state_input($$anchor) {
 		}
 	}
 ]
+
+=== 242 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-is-input.svelte	error.json
+{
+	"code": "rune_removed",
+	"message": "The `$state.is` rune has been removed\nhttps://svelte.dev/e/rune_removed",
+	"start": {
+		"line": 8,
+		"column": 14,
+		"character": 155
+	},
+	"end": {
+		"line": 8,
+		"column": 37,
+		"character": 178
+	}
+}
 
 === 715 tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	js
 import 'svelte/internal/init-operations';
@@ -8587,6 +9163,22 @@ export default function Ts_$props02_type_output($$anchor, $$props) {
 	$.append($$anchor, text);
 	// name: string, name: string, name: string, $props(): { name: string; }
 }
+=== 238 tests/fixtures/parser/ast/svelte5/ts-$state-flozen01-input.svelte	error.json
+{
+	"code": "rune_renamed",
+	"message": "`$state.frozen` is now `$state.raw`\nhttps://svelte.dev/e/rune_renamed",
+	"start": {
+		"line": 2,
+		"column": 16,
+		"character": 35
+	},
+	"end": {
+		"line": 2,
+		"column": 40,
+		"character": 59
+	}
+}
+
 === 491 tests/fixtures/parser/ast/svelte5/ts-$state01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -10681,6 +11273,22 @@ export default function Ts_event06_type_output($$anchor) {
 		}
 	});
 }
+=== 227 tests/fixtures/parser/ast/ts-generics06-complex-type-output.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 2,
+		"column": 111,
+		"character": 140
+	},
+	"end": {
+		"line": 2,
+		"column": 111,
+		"character": 140
+	}
+}
+
 === 1738 tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -11611,6 +12219,38 @@ export default function Ts_slot_binding01_type_output($$anchor) {
 		$$slots: { default: true }
 	});
 }
+=== 291 tests/fixtures/parser/ast/ts-store01-input.svelte	error.json
+{
+	"code": "dollar_prefix_invalid",
+	"message": "The $ prefix is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_prefix_invalid",
+	"start": {
+		"line": 5,
+		"column": 7,
+		"character": 114
+	},
+	"end": {
+		"line": 5,
+		"column": 9,
+		"character": 116
+	}
+}
+
+=== 291 tests/fixtures/parser/ast/ts-store01-type-output.svelte	error.json
+{
+	"code": "dollar_prefix_invalid",
+	"message": "The $ prefix is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_prefix_invalid",
+	"start": {
+		"line": 5,
+		"column": 7,
+		"character": 414
+	},
+	"end": {
+		"line": 5,
+		"column": 9,
+		"character": 416
+	}
+}
+
 === 620 tests/fixtures/parser/ast/ts-store02-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -11785,6 +12425,22 @@ export default function Ts_store03_type_output($$anchor, $$props) {
 
 	return $$pop;
 }
+=== 338 tests/fixtures/parser/ast/ts-tokens-bug-input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 5,
+		"column": 16,
+		"character": 171
+	},
+	"end": {
+		"line": 5,
+		"column": 22,
+		"character": 177
+	}
+}
+
 === 528 tests/fixtures/parser/ast/ts-use01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -18682,6 +19338,22 @@ export default function Directive_use_with_expr02_input($$anchor) {
 	}
 ]
 
+=== 271 tests/fixtures/parser/error/dot-in-bind02-input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:va.lue` is not a valid binding. Did you mean 'value'?\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 3,
+		"column": 7,
+		"character": 26
+	},
+	"end": {
+		"line": 3,
+		"column": 18,
+		"character": 37
+	}
+}
+
 === 391 tests/fixtures/parser/error/name01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -18699,6 +19371,22 @@ export default function Name01_input($$anchor) {
 	$.transition(3, h1, () => max-width);
 	$.append($$anchor, h1);
 }
+=== 248 tests/fixtures/parser/error/shorthand01-input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 8,
+		"column": 16,
+		"character": 129
+	},
+	"end": {
+		"line": 8,
+		"column": 25,
+		"character": 138
+	}
+}
+
 === 411 tests/fixtures/parser/error/shorthand02-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -19088,6 +19776,38 @@ export default function One_line_css_input($$anchor) {
 
 	$.append($$anchor, span);
 }
+=== 256 tests/fixtures/parser/style-context/parse-error-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 7,
+		"column": 2,
+		"character": 120
+	},
+	"end": {
+		"line": 7,
+		"column": 2,
+		"character": 120
+	}
+}
+
+=== 221 tests/fixtures/parser/style-context/self-closing-style-element-input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 7,
+		"column": 7,
+		"character": 52
+	},
+	"end": {
+		"line": 7,
+		"column": 7,
+		"character": 52
+	}
+}
+
 === 98 tests/fixtures/parser/style-context/simple-css-input.svelte	css
 
   .myClass.svelte-ryq88m {
@@ -19175,6 +19895,22 @@ export default function Simple_scss_input($$anchor) {
 
 	$.append($$anchor, div);
 }
+=== 256 tests/fixtures/parser/style-context/unknown-lang-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 7,
+		"column": 2,
+		"character": 140
+	},
+	"end": {
+		"line": 7,
+		"column": 2,
+		"character": 140
+	}
+}
+
 === 98 tests/fixtures/parser/style-context/unrelated-style-attr-input.svelte	css
 
   .myClass.svelte-q2zymc {

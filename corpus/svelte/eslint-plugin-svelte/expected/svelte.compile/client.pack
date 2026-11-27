@@ -7120,6 +7120,38 @@ export default function Declaration_tag_output($$anchor) {
 
 	$.append($$anchor, fragment);
 }
+=== 299 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/each01-input.svelte	error.json
+{
+	"code": "block_unexpected_character",
+	"message": "Expected a `#` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
+	"start": {
+		"line": 22,
+		"column": 0,
+		"character": 453
+	},
+	"end": {
+		"line": 23,
+		"column": 3,
+		"character": 458
+	}
+}
+
+=== 299 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/each01-output.svelte	error.json
+{
+	"code": "block_unexpected_character",
+	"message": "Expected a `#` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
+	"start": {
+		"line": 22,
+		"column": 2,
+		"character": 473
+	},
+	"end": {
+		"line": 23,
+		"column": 3,
+		"character": 478
+	}
+}
+
 === 288 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/html-text02-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -7468,6 +7500,38 @@ export default function Script_do_while01_output($$anchor) {
 		a++;
 	} while (a);
 }
+=== 278 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export01-input.svelte	error.json
+{
+	"code": "module_illegal_default_export",
+	"message": "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
+	"start": {
+		"line": 13,
+		"column": 0,
+		"character": 98
+	},
+	"end": {
+		"line": 15,
+		"column": 1,
+		"character": 114
+	}
+}
+
+=== 279 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export01-output.svelte	error.json
+{
+	"code": "module_illegal_default_export",
+	"message": "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
+	"start": {
+		"line": 13,
+		"column": 2,
+		"character": 136
+	},
+	"end": {
+		"line": 15,
+		"column": 5,
+		"character": 160
+	}
+}
+
 === 189 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export02-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -8928,6 +8992,38 @@ export default function Ts_accessor_property03_output($$anchor) {
 		foo;
 	}
 }
+=== 311 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property04-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "This member cannot have an 'override' modifier because its containing class does not extend another class.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 4,
+		"column": 0,
+		"character": 56
+	},
+	"end": {
+		"line": 4,
+		"column": 0,
+		"character": 56
+	}
+}
+
+=== 311 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property04-output.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "This member cannot have an 'override' modifier because its containing class does not extend another class.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 4,
+		"column": 4,
+		"character": 62
+	},
+	"end": {
+		"line": 4,
+		"column": 4,
+		"character": 62
+	}
+}
+
 === 236 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property05-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -9116,6 +9212,102 @@ export default function Ts_satisfies_operators01_output($$anchor) {
 	var a = {};
 	var b = {};
 }
+=== 263 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class01-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Abstract methods can only appear within an abstract class.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 7,
+		"column": 0,
+		"character": 63
+	},
+	"end": {
+		"line": 7,
+		"column": 0,
+		"character": 63
+	}
+}
+
+=== 263 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class01-output.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Abstract methods can only appear within an abstract class.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 7,
+		"column": 4,
+		"character": 77
+	},
+	"end": {
+		"line": 7,
+		"column": 4,
+		"character": 77
+	}
+}
+
+=== 257 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class02-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "'protected' modifier must precede 'readonly' modifier.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 9,
+		"character": 9
+	},
+	"end": {
+		"line": 1,
+		"column": 9,
+		"character": 9
+	}
+}
+
+=== 261 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class02-output.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "'protected' modifier must precede 'readonly' modifier.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	},
+	"end": {
+		"line": 1,
+		"column": 13,
+		"character": 13
+	}
+}
+
+=== 276 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class03-input.svelte	error.json
+{
+	"code": "module_illegal_default_export",
+	"message": "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
+	"start": {
+		"line": 6,
+		"column": 0,
+		"character": 71
+	},
+	"end": {
+		"line": 8,
+		"column": 1,
+		"character": 128
+	}
+}
+
+=== 276 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class03-output.svelte	error.json
+{
+	"code": "module_illegal_default_export",
+	"message": "A component cannot have a default export\nhttps://svelte.dev/e/module_illegal_default_export",
+	"start": {
+		"line": 6,
+		"column": 2,
+		"character": 77
+	},
+	"end": {
+		"line": 8,
+		"column": 3,
+		"character": 140
+	}
+}
+
 === 195 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-conditional-type01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -9128,6 +9320,134 @@ import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function Ts_conditional_type01_output($$anchor) {}
+=== 706 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-d-ts-eslint-input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 915,
+		"column": 7,
+		"character": 33315
+	},
+	"end": {
+		"line": 961,
+		"column": 1,
+		"character": 34716
+	}
+}
+
+=== 706 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-d-ts-eslint-output.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like namespaces with non-type nodes are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 915,
+		"column": 9,
+		"character": 31833
+	},
+	"end": {
+		"line": 961,
+		"column": 3,
+		"character": 33170
+	}
+}
+
+=== 257 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator01-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'Greeter' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 123,
+		"column": 6,
+		"character": 639
+	},
+	"end": {
+		"line": 123,
+		"column": 6,
+		"character": 639
+	}
+}
+
+=== 259 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator01-output.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'Greeter' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 123,
+		"column": 8,
+		"character": 1237
+	},
+	"end": {
+		"line": 123,
+		"column": 8,
+		"character": 1237
+	}
+}
+
+=== 266 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator02-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Leading decorators must be attached to a class declaration.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 11,
+		"column": 0,
+		"character": 60
+	},
+	"end": {
+		"line": 11,
+		"column": 0,
+		"character": 60
+	}
+}
+
+=== 266 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator02-output.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Leading decorators must be attached to a class declaration.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 11,
+		"column": 4,
+		"character": 84
+	},
+	"end": {
+		"line": 11,
+		"column": 4,
+		"character": 84
+	}
+}
+
+=== 671 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-enum01-input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 44
+	},
+	"end": {
+		"line": 9,
+		"column": 1,
+		"character": 60
+	}
+}
+
+=== 671 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-enum01-output.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 46
+	},
+	"end": {
+		"line": 9,
+		"column": 3,
+		"character": 82
+	}
+}
+
 === 208 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -9312,6 +9632,38 @@ import * as $ from 'svelte/internal/client';
 export default function Ts_type_annotation01_output($$anchor) {
 	const A = {};
 }
+=== 249 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation02-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'x' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 34,
+		"column": 0,
+		"character": 149
+	},
+	"end": {
+		"line": 34,
+		"column": 0,
+		"character": 149
+	}
+}
+
+=== 249 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation02-output.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'x' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 34,
+		"column": 4,
+		"character": 293
+	},
+	"end": {
+		"line": 34,
+		"column": 4,
+		"character": 293
+	}
+}
+
 === 259 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -9334,6 +9686,38 @@ export default function Ts_type_annotation03_output($$anchor) {
 	var [foo, bar] = arr;
 	var { foo, bar } = obj;
 }
+=== 249 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export01-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'Foo' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 11,
+		"column": 0,
+		"character": 85
+	},
+	"end": {
+		"line": 11,
+		"column": 0,
+		"character": 85
+	}
+}
+
+=== 251 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export01-output.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'Foo' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 11,
+		"column": 6,
+		"character": 117
+	},
+	"end": {
+		"line": 11,
+		"column": 6,
+		"character": 117
+	}
+}
+
 === 202 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export02-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -9422,6 +9806,102 @@ import 'svelte/internal/disclose-version';
 import * as $ from 'svelte/internal/client';
 
 export default function Ts_types02_output($$anchor) {}
+=== 223 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types03-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 10,
+		"column": 1,
+		"character": 73
+	},
+	"end": {
+		"line": 10,
+		"column": 1,
+		"character": 73
+	}
+}
+
+=== 223 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types03-output.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 10,
+		"column": 5,
+		"character": 97
+	},
+	"end": {
+		"line": 10,
+		"column": 5,
+		"character": 97
+	}
+}
+
+=== 244 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union01-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "type 'T' has already been declared.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 36,
+		"column": 5,
+		"character": 162
+	},
+	"end": {
+		"line": 36,
+		"column": 5,
+		"character": 162
+	}
+}
+
+=== 244 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union01-output.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "type 'T' has already been declared.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 36,
+		"column": 7,
+		"character": 278
+	},
+	"end": {
+		"line": 36,
+		"column": 7,
+		"character": 278
+	}
+}
+
+=== 244 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union02-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "type 'T' has already been declared.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 36,
+		"column": 5,
+		"character": 179
+	},
+	"end": {
+		"line": 36,
+		"column": 5,
+		"character": 179
+	}
+}
+
+=== 244 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union02-output.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "type 'T' has already been declared.\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 36,
+		"column": 7,
+		"character": 295
+	},
+	"end": {
+		"line": 36,
+		"column": 7,
+		"character": 295
+	}
+}
+
 === 347 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/inline-style-tag-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -10831,6 +11311,22 @@ export default function Test01_output($$anchor) {
 	}
 ]
 
+=== 295 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always/snippet-render01-output.svelte	error.json
+{
+	"code": "block_unexpected_character",
+	"message": "Expected a `#` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
+	"start": {
+		"line": 2,
+		"column": 0,
+		"character": 25
+	},
+	"end": {
+		"line": 2,
+		"column": 5,
+		"character": 30
+	}
+}
+
 === 5590 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always/test01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -11157,6 +11653,22 @@ export default function Test01_input($$anchor) {
 	}
 ]
 
+=== 299 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always/test01-output.svelte	error.json
+{
+	"code": "block_unexpected_character",
+	"message": "Expected a `@` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
+	"start": {
+		"line": 22,
+		"column": 0,
+		"character": 404
+	},
+	"end": {
+		"line": 22,
+		"column": 5,
+		"character": 409
+	}
+}
+
 === 392 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/declaration-tag-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -11187,6 +11699,22 @@ export default function Declaration_tag_output($$anchor) {
 
 	$.append($$anchor, fragment);
 }
+=== 299 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/test01-input.svelte	error.json
+{
+	"code": "block_unexpected_character",
+	"message": "Expected a `@` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
+	"start": {
+		"line": 24,
+		"column": 0,
+		"character": 435
+	},
+	"end": {
+		"line": 24,
+		"column": 5,
+		"character": 440
+	}
+}
+
 === 5580 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/test01-output.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -11510,6 +12038,22 @@ export default function Test01_output($$anchor) {
 		}
 	}
 ]
+
+=== 299 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/valid/always/test01-input.svelte	error.json
+{
+	"code": "block_unexpected_character",
+	"message": "Expected a `@` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character",
+	"start": {
+		"line": 24,
+		"column": 0,
+		"character": 435
+	},
+	"end": {
+		"line": 24,
+		"column": 5,
+		"character": 440
+	}
+}
 
 === 1056 packages/eslint-plugin-svelte/tests/fixtures/rules/no-add-event-listener/invalid/test01-input.svelte	js
 import 'svelte/internal/init-operations';
@@ -15380,6 +15924,38 @@ export default function Test01_input($$anchor) {
 	}
 ]
 
+=== 264 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/bool-slot01-input.svelte	error.json
+{
+	"code": "slot_element_invalid_name",
+	"message": "slot attribute must be a static value\nhttps://svelte.dev/e/slot_element_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 10,
+		"character": 10
+	}
+}
+
+=== 264 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/literal-slot01-input.svelte	error.json
+{
+	"code": "slot_element_invalid_name",
+	"message": "slot attribute must be a static value\nhttps://svelte.dev/e/slot_element_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	}
+}
+
 === 339 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/literal-slot01-output.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -15409,6 +15985,22 @@ export default function Literal_slot01_output($$anchor, $$props) {
 		}
 	}
 ]
+
+=== 265 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/multi-report01-input.svelte	error.json
+{
+	"code": "slot_element_invalid_name",
+	"message": "slot attribute must be a static value\nhttps://svelte.dev/e/slot_element_invalid_name",
+	"start": {
+		"line": 6,
+		"column": 6,
+		"character": 64
+	},
+	"end": {
+		"line": 6,
+		"column": 22,
+		"character": 80
+	}
+}
 
 === 568 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/multi-report01-output.svelte	js
 import 'svelte/internal/init-operations';
@@ -15479,6 +16071,38 @@ export default function Multi_report01_output($$anchor, $$props) {
 		}
 	}
 ]
+
+=== 265 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/recursive-loop01-input.svelte	error.json
+{
+	"code": "slot_element_invalid_name",
+	"message": "slot attribute must be a static value\nhttps://svelte.dev/e/slot_element_invalid_name",
+	"start": {
+		"line": 6,
+		"column": 6,
+		"character": 70
+	},
+	"end": {
+		"line": 6,
+		"column": 22,
+		"character": 86
+	}
+}
+
+=== 265 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/var-slot01-input.svelte	error.json
+{
+	"code": "slot_element_invalid_name",
+	"message": "slot attribute must be a static value\nhttps://svelte.dev/e/slot_element_invalid_name",
+	"start": {
+		"line": 5,
+		"column": 6,
+		"character": 60
+	},
+	"end": {
+		"line": 5,
+		"column": 22,
+		"character": 76
+	}
+}
 
 === 446 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/var-slot01-output.svelte	js
 import 'svelte/internal/init-operations';
@@ -16082,6 +16706,22 @@ export default function Test01_input($$anchor, $$props) {
 
 	$.pop();
 }
+=== 398 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inspect/invalid/test01-input.svelte	error.json
+{
+	"code": "state_invalid_placement",
+	"message": "`$state(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 26
+	},
+	"end": {
+		"line": 3,
+		"column": 11,
+		"character": 35
+	}
+}
+
 === 195 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inspect/valid/test01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -19236,6 +19876,22 @@ export default function Value01_input($$anchor) {
 	}
 ]
 
+=== 297 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/valid/bind01-input.svelte	error.json
+{
+	"code": "bind_invalid_expression",
+	"message": "Can only bind to an Identifier or MemberExpression or a `{get, set}` pair\nhttps://svelte.dev/e/bind_invalid_expression",
+	"start": {
+		"line": 4,
+		"column": 7,
+		"character": 27
+	},
+	"end": {
+		"line": 4,
+		"column": 22,
+		"character": 42
+	}
+}
+
 === 493 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/valid/function01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -19896,6 +20552,22 @@ export default function Object_input($$anchor) {
 	}
 ]
 
+=== 551 packages/eslint-plugin-svelte/tests/fixtures/rules/no-restricted-html-elements/valid/array-input.svelte	error.json
+{
+	"code": "node_invalid_placement",
+	"message": "`<tr>` cannot be a child of `<table>`. `<table>` only allows these children: `<caption>`, `<colgroup>`, `<tbody>`, `<thead>`, `<tfoot>`, `<style>`, `<script>`, `<template>`. The browser will 'repair' the HTML (by moving, removing, or inserting elements) which breaks Svelte's assumptions about the structure of your components.\nhttps://svelte.dev/e/node_invalid_placement",
+	"start": {
+		"line": 9,
+		"column": 1,
+		"character": 261
+	},
+	"end": {
+		"line": 12,
+		"column": 6,
+		"character": 320
+	}
+}
+
 === 371 packages/eslint-plugin-svelte/tests/fixtures/rules/no-shorthand-style-property-overrides/invalid/ternary01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -20010,6 +20682,54 @@ export default function Test02_input($$anchor) {
 	$.set_style(div_1, '', {}, { 'background-repeat': 'repeat' });
 	$.append($$anchor, fragment);
 }
+=== 250 packages/eslint-plugin-svelte/tests/fixtures/rules/no-spaces-around-equal-signs-in-attribute/invalid/test01-input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:test` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 13,
+		"column": 5,
+		"character": 218
+	},
+	"end": {
+		"line": 13,
+		"column": 23,
+		"character": 236
+	}
+}
+
+=== 250 packages/eslint-plugin-svelte/tests/fixtures/rules/no-spaces-around-equal-signs-in-attribute/invalid/test01-output.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:test` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 11,
+		"column": 5,
+		"character": 192
+	},
+	"end": {
+		"line": 11,
+		"column": 22,
+		"character": 209
+	}
+}
+
+=== 247 packages/eslint-plugin-svelte/tests/fixtures/rules/no-spaces-around-equal-signs-in-attribute/valid/test-01-input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:test` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 25,
+		"character": 25
+	},
+	"end": {
+		"line": 1,
+		"column": 42,
+		"character": 42
+	}
+}
+
 === 194 packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal04-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -21914,6 +22634,22 @@ export default function General_sibling_combinator01_input($$anchor) {
 	$.next(2);
 	$.append($$anchor, fragment);
 }
+=== 256 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/invalid-style01-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 2,
+		"character": 121
+	},
+	"end": {
+		"line": 8,
+		"column": 2,
+		"character": 121
+	}
+}
+
 === 211 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/multiple-class-names01-input.svelte	css
 
 	.div-class.svelte-uu1fa6 {
@@ -22047,6 +22783,22 @@ export default function Selector_list01_input($$anchor) {
 	$.next(2);
 	$.append($$anchor, fragment);
 }
+=== 256 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/unknown-lang01-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 2,
+		"character": 141
+	},
+	"end": {
+		"line": 8,
+		"column": 2,
+		"character": 141
+	}
+}
+
 === 102 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/used-class-name01-input.svelte	css
 
 	.div-class.svelte-12o95au {
@@ -22145,6 +22897,22 @@ export default function Builtin_types_unused_input($$anchor, $$props) {
 		}
 	}
 ]
+
+=== 716 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/class-props-unused-input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like accessibility modifiers on constructor parameters are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 4,
+		"column": 3,
+		"character": 51
+	},
+	"end": {
+		"line": 4,
+		"column": 22,
+		"character": 70
+	}
+}
 
 === 277 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/custom-config-combination-input.svelte	js
 import 'svelte/internal/init-operations';
@@ -25483,6 +26251,38 @@ export default function Script_comment01_input($$anchor, $$props) {
 	}
 ]
 
+=== 258 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang04-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 11,
+		"character": 128
+	},
+	"end": {
+		"line": 8,
+		"column": 11,
+		"character": 128
+	}
+}
+
+=== 258 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang06-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 11,
+		"character": 130
+	},
+	"end": {
+		"line": 8,
+		"column": 11,
+		"character": 130
+	}
+}
+
 === 129 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/transform-test-input.svelte	css
 
 	.foo.svelte-1irutuz {
@@ -25596,6 +26396,22 @@ export default function Element_ignore01_svelte4_input($$anchor) {
 		}
 	}
 ]
+
+=== 309 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/has-error-svelte4-input.svelte	error.json
+{
+	"code": "slot_element_invalid_name_default",
+	"message": "`default` is a reserved word — it cannot be used as a slot name\nhttps://svelte.dev/e/slot_element_invalid_name_default",
+	"start": {
+		"line": 5,
+		"column": 6,
+		"character": 36
+	},
+	"end": {
+		"line": 5,
+		"column": 20,
+		"character": 50
+	}
+}
 
 === 303 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/html-comment-input.svelte	js
 import 'svelte/internal/init-operations';
@@ -25767,6 +26583,54 @@ export default function Script_comment_input($$anchor) {
 	// svelte-ignore state_referenced_locally
 	console.log($.get(doubled));
 }
+=== 258 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang04-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 11,
+		"character": 128
+	},
+	"end": {
+		"line": 8,
+		"column": 11,
+		"character": 128
+	}
+}
+
+=== 258 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang06-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 11,
+		"character": 130
+	},
+	"end": {
+		"line": 8,
+		"column": 11,
+		"character": 130
+	}
+}
+
+=== 258 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang07-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 11,
+		"character": 131
+	},
+	"end": {
+		"line": 8,
+		"column": 11,
+		"character": 131
+	}
+}
+
 === 363 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore-comma-separated-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -29774,6 +30638,22 @@ foo.baz: ${$store().foo.baz ?? ''}`));
 	$.pop();
 	$$cleanup();
 }
+=== 328 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/module-input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$foo` is an illegal variable name. To reference a global variable called `$foo`, use `globalThis.$foo`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 4,
+		"column": 1,
+		"character": 38
+	},
+	"end": {
+		"line": 4,
+		"column": 5,
+		"character": 42
+	}
+}
+
 === 858 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/runes-with-store01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -29806,6 +30686,38 @@ export default function Runes_with_store01_input($$anchor, $$props) {
 	$.pop();
 	$$cleanup();
 }
+=== 328 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/test01-input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$foo` is an illegal variable name. To reference a global variable called `$foo`, use `globalThis.$foo`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 4,
+		"column": 1,
+		"character": 21
+	},
+	"end": {
+		"line": 4,
+		"column": 5,
+		"character": 25
+	}
+}
+
+=== 326 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/test02-input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$foo` is an illegal variable name. To reference a global variable called `$foo`, use `globalThis.$foo`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	}
+}
+
 === 802 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/valid/builtin-vars01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -29871,6 +30783,22 @@ export default function Builtin_vars01_input($$anchor, $$props) {
 		}
 	}
 ]
+
+=== 328 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/valid/test01-input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$foo` is an illegal variable name. To reference a global variable called `$foo`, use `globalThis.$foo`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 45
+	},
+	"end": {
+		"line": 5,
+		"column": 6,
+		"character": 49
+	}
+}
 
 === 329 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/complex-test01-input.svelte	js
 import 'svelte/internal/init-operations';
@@ -34687,6 +35615,38 @@ export default function Svelte_component01_output($$anchor, $$props) {
 	}
 ]
 
+=== 291 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-element01-input.svelte	error.json
+{
+	"code": "bind_invalid_target",
+	"message": "`bind:value` can only be used with `<input>`, `<textarea>`, `<select>`\nhttps://svelte.dev/e/bind_invalid_target",
+	"start": {
+		"line": 14,
+		"column": 29,
+		"character": 436
+	},
+	"end": {
+		"line": 14,
+		"column": 39,
+		"character": 446
+	}
+}
+
+=== 291 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-element01-output.svelte	error.json
+{
+	"code": "bind_invalid_target",
+	"message": "`bind:value` can only be used with `<input>`, `<textarea>`, `<select>`\nhttps://svelte.dev/e/bind_invalid_target",
+	"start": {
+		"line": 14,
+		"column": 30,
+		"character": 446
+	},
+	"end": {
+		"line": 14,
+		"column": 40,
+		"character": 456
+	}
+}
+
 === 565 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/switch01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -37444,6 +38404,118 @@ export default function Class_test_output($$anchor) {
 	}
 ]
 
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01-input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 35,
+		"column": 1,
+		"character": 599
+	},
+	"end": {
+		"line": 35,
+		"column": 13,
+		"character": 611
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 36,
+		"column": 1,
+		"character": 611
+	},
+	"end": {
+		"line": 36,
+		"column": 13,
+		"character": 623
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix1-input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 35,
+		"column": 1,
+		"character": 578
+	},
+	"end": {
+		"line": 35,
+		"column": 13,
+		"character": 590
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix1-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 36,
+		"column": 1,
+		"character": 603
+	},
+	"end": {
+		"line": 36,
+		"column": 13,
+		"character": 615
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix2-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 37,
+		"column": 1,
+		"character": 618
+	},
+	"end": {
+		"line": 37,
+		"column": 13,
+		"character": 630
+	}
+}
+
+=== 278 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix3-output.svelte	error.json
+{
+	"code": "transition_conflict",
+	"message": "Cannot use `transition:` alongside existing `in:` directive\nhttps://svelte.dev/e/transition_conflict",
+	"start": {
+		"line": 37,
+		"column": 1,
+		"character": 618
+	},
+	"end": {
+		"line": 37,
+		"column": 6,
+		"character": 623
+	}
+}
+
+=== 278 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix4-output.svelte	error.json
+{
+	"code": "transition_conflict",
+	"message": "Cannot use `transition:` alongside existing `in:` directive\nhttps://svelte.dev/e/transition_conflict",
+	"start": {
+		"line": 37,
+		"column": 1,
+		"character": 618
+	},
+	"end": {
+		"line": 37,
+		"column": 6,
+		"character": 623
+	}
+}
+
 === 371 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/in-out-test-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -38414,6 +39486,150 @@ export default function Ignore_no_order_with_spread_test_output($$anchor) {
 	}
 ]
 
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01-input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 21,
+		"column": 1,
+		"character": 373
+	},
+	"end": {
+		"line": 21,
+		"column": 13,
+		"character": 385
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 21,
+		"column": 1,
+		"character": 373
+	},
+	"end": {
+		"line": 21,
+		"column": 13,
+		"character": 385
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix1-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 21,
+		"column": 1,
+		"character": 373
+	},
+	"end": {
+		"line": 21,
+		"column": 13,
+		"character": 385
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix2-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 21,
+		"column": 1,
+		"character": 373
+	},
+	"end": {
+		"line": 21,
+		"column": 13,
+		"character": 385
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix3-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 21,
+		"column": 1,
+		"character": 373
+	},
+	"end": {
+		"line": 21,
+		"column": 13,
+		"character": 385
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix4-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 20,
+		"column": 1,
+		"character": 356
+	},
+	"end": {
+		"line": 20,
+		"column": 13,
+		"character": 368
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix5-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 20,
+		"column": 1,
+		"character": 356
+	},
+	"end": {
+		"line": 20,
+		"column": 13,
+		"character": 368
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix6-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 20,
+		"column": 1,
+		"character": 356
+	},
+	"end": {
+		"line": 20,
+		"column": 13,
+		"character": 368
+	}
+}
+
+=== 335 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix7-output.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 20,
+		"column": 1,
+		"character": 356
+	},
+	"end": {
+		"line": 20,
+		"column": 13,
+		"character": 368
+	}
+}
+
 === 429 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/alphabetical-test-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -38626,6 +39842,22 @@ export default function Class_test_input($$anchor) {
 		}
 	}
 ]
+
+=== 278 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/default-test01-input.svelte	error.json
+{
+	"code": "transition_conflict",
+	"message": "Cannot use `transition:` alongside existing `in:` directive\nhttps://svelte.dev/e/transition_conflict",
+	"start": {
+		"line": 37,
+		"column": 1,
+		"character": 618
+	},
+	"end": {
+		"line": 37,
+		"column": 6,
+		"character": 623
+	}
+}
 
 === 673 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/ignore-spread-test-input.svelte	js
 import 'svelte/internal/init-operations';
@@ -39427,6 +40659,38 @@ export default function A11y_svelte4_input($$anchor) {
 	}
 ]
 
+=== 671 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/ts/enum01-input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 21
+	},
+	"end": {
+		"line": 5,
+		"column": 3,
+		"character": 87
+	}
+}
+
+=== 223 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/babel/babel-function-bind01-input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 4,
+		"column": 17,
+		"character": 64
+	},
+	"end": {
+		"line": 4,
+		"column": 17,
+		"character": 64
+	}
+}
+
 === 194 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/babel/class01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -39565,6 +40829,22 @@ customElements.define('my-component', $.create_custom_element(Svelte_options_cus
 		}
 	}
 ]
+
+=== 299 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/svelte3-options-custom-element-input.svelte	error.json
+{
+	"code": "svelte_options_deprecated_tag",
+	"message": "\"tag\" option is deprecated — use \"customElement\" instead\nhttps://svelte.dev/e/svelte_options_deprecated_tag",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 34,
+		"character": 34
+	}
+}
 
 === 410 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/test01-input.svelte	js
 import 'svelte/internal/init-operations';
@@ -40300,6 +41580,22 @@ export default function _page($$anchor) {
 	$.template_effect(() => $.set_text(text, `${data ?? ''}, ${errors ?? ''}`));
 	$.append($$anchor, text);
 }
+=== 256 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-style-parse/invalid/invalid-scss01-input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 2,
+		"character": 133
+	},
+	"end": {
+		"line": 8,
+		"column": 2,
+		"character": 133
+	}
+}
+
 === 370 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-style-parse/valid/no-style01-input.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';

@@ -3516,22 +3516,6 @@
 === 3 rsvelte_language_server/tsgo_overlay/tests/a_svelte_module_specifier_maps_back_without_the_appended_tsx/91c2308d28b6a966.svelte	json
 []
 
-=== 162 rsvelte_language_server/tsgo_overlay/tests/an_unparseable_shadow_still_finds_the_render_return_type_slot/204de4961e65fda8.svelte	json
-[
-	{
-		"code": 1003,
-		"message": "Identifier expected.",
-		"start": {
-			"line": 0,
-			"character": 49
-		},
-		"end": {
-			"line": 0,
-			"character": 50
-		}
-	}
-]
-
 === 3 rsvelte_language_server/tsgo_overlay/tests/build_is_diskless_and_discovers_project_components/0a99dcc3a96bfd76.svelte	json
 []
 
@@ -14706,9 +14690,6 @@
 []
 
 === 3 rsvelte_projection/svelte2tsx_slots_reflection_2161/nested_object_shorthand_resolves_values_only/42adfdcd4abf6d23.svelte	json
-[]
-
-=== 3 rsvelte_projection/svelte2tsx_slots_reflection_2161/object_key_is_never_substituted/5a210d59b14880c1.svelte	json
 []
 
 === 3 rsvelte_projection/svelte2tsx_slots_reflection_2161/string_literals_are_not_substituted/063b0c5c6a77f7e9.svelte	json

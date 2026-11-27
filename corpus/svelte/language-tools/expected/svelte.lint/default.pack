@@ -261,6 +261,13 @@
 9:1 9:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 13:13 14:1 svelte/valid-compile "Empty block\nhttps://svelte.dev/e/block_empty(block_empty)"
 
+=== 512 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-animations-transitions-typechecks/input.svelte	lint.txt
+1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+5:25 5:41 no-undef "'HTMLInputElement' is not defined."
+6:1 6:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
+11:22 11:30 svelte/html-self-closing "Require self-closing on SVG elements."
+13:4 13:16 svelte/valid-compile "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement(animation_invalid_placement)"
+
 === 3812 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	lint.txt
 1:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -447,6 +454,9 @@
 === 117 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/checkjs/no-script-tag/input.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:6 2:8 no-undef "'hi' is not defined."
+
+=== 44 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/coffeescript-ignore/input.svelte	lint.txt
+2:0 - - "Parsing error: Invalid character."
 
 === 0 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte	lint.txt
 
@@ -929,6 +939,9 @@
 === 89 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/node16/other.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
+=== 121 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/parser-error/input.svelte	lint.txt
+2:0 - - "Parsing error: A component can have a single top-level `<style>` element\nhttps://svelte.dev/e/style_duplicate"
+
 === 539 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/nested/input.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -960,6 +973,10 @@
 11:45 11:74 svelte/max-attributes-per-line "'untyped' should be on a new line."
 12:47 12:78 svelte/max-attributes-per-line "'untyped' should be on a new line."
 13:47 13:78 svelte/max-attributes-per-line "'untyped' should be on a new line."
+
+=== 260 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/ignores-unused-label/input.svelte	lint.txt
+2:3 3:1 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
+6:6 6:8 no-useless-assignment "The value assigned to 'x2' is not used in subsequent statements."
 
 === 105 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte	lint.txt
 3:5 3:6 no-unused-labels "'x:' is defined but never used."
@@ -1049,6 +1066,9 @@
 18:6 18:25 svelte/shorthand-directive "Expected shorthand directive."
 18:12 18:17 svelte/no-unknown-style-directive-property "Unexpected unknown style directive property 'wrong'."
 18:26 18:28 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 136 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element-error/input.svelte	lint.txt
+5:0 - - "Parsing error: `<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this"
 
 === 1697 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	lint.txt
 1:1 14:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1258,6 +1278,9 @@
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:6 8:8 no-undef "'hi' is not defined."
 
+=== 80 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/parser-error/input.svelte	lint.txt
+11:4 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
+
 === 456 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/script/input.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -1387,6 +1410,16 @@
 1:2 1:16 no-undef "'FixAllImported' is not defined."
 2:2 2:17 no-undef "'FixAllImported2' is not defined."
 
+=== 80 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte	lint.txt
+1:19 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 467 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-add-lang-ts.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:14 2:15 no-unused-vars "'a' is defined but never used."
+3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:9 7:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+
 === 474 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	lint.txt
 1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -1399,6 +1432,19 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:11 2:16 no-unused-vars "'EMpty' is defined but never used."
 5:2 5:7 no-undef "'Empty' is not defined."
+
+=== 918 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-const-reassign.svelte	lint.txt
+1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:11 2:13 no-useless-assignment "The value assigned to 'hi' is not used in subsequent statements."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:5 4:7 no-const-assign "'hi' is constant."
+4:5 4:11 svelte/valid-compile "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment(constant_assignment)"
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+8:5 8:22 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
+8:13 8:16 no-unused-vars "'hi2' is assigned a value but never used."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:5 10:38 svelte/button-has-type "Missing an explicit type attribute for button."
 
 === 196 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1435,6 +1481,14 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
+=== 588 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-store.svelte	lint.txt
+1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 2:20 no-undef "'$someOtherStore' is not defined."
+2:5 2:20 svelte/valid-compile "`$someOtherStore` is an illegal variable name. To reference a global variable called `$someOtherStore`, use `globalThis.$someOtherStore`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:5 3:15 no-undef "'$someStore' is not defined."
+
 === 2131 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeactions.svelte	lint.txt
 1:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -1461,6 +1515,16 @@
 14:24 14:35 no-undef "'handleClick' is not defined."
 14:40 14:42 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
+=== 660 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-add-async.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:14 6:18 no-unused-vars "'test' is defined but never used."
+7:1 7:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+7:9 7:8 svelte/valid-compile "Cannot use keyword 'await' outside an async function\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
 === 973 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-missing-function-element.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:1 5:34 svelte/button-has-type "Missing an explicit type attribute for button."
@@ -1481,6 +1545,9 @@
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:27 6:42 no-unused-vars "'someOtherStore3' is defined but never used."
 
+=== 86 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-error.svelte	lint.txt
+7:1 - - "Parsing error: Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof"
+
 === 231 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-group.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -1490,6 +1557,9 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 130 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-module-store.svelte	lint.txt
+6:12 6:13 svelte/valid-compile "`_` has already been declared\nhttps://svelte.dev/e/declaration_duplicate(declaration_duplicate)"
 
 === 543 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-snippet.svelte	lint.txt
 1:1 2:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1531,6 +1601,20 @@
 
 === 77 packages/language-server/test/plugins/typescript/testfiles/completions/UpperCase/dirCasing.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 46 packages/language-server/test/plugins/typescript/testfiles/completions/completions-auto-optional-chain.svelte	lint.txt
+4:6 - - "Parsing error: Identifier expected."
+
+=== 48 packages/language-server/test/plugins/typescript/testfiles/completions/completions-in-reactive-statement.svelte	lint.txt
+10:13 - - "Parsing error: Identifier expected."
+
+=== 47 packages/language-server/test/plugins/typescript/testfiles/completions/completions.svelte	lint.txt
+1:49 - - "Parsing error: Identifier expected."
+
+=== 382 packages/language-server/test/plugins/typescript/testfiles/completions/completionsstyle.svelte	lint.txt
+1:15 1:16 no-unused-vars "'c' is defined but never used."
+2:1 6:9 svelte/valid-style-parse "Error parsing style element. Error message: \"packages/language-server/test/plugins/typescript/testfiles/completions/completionsstyle.svelte:3:1: Unknown word c\""
+4:1 5:1 svelte/valid-compile "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration(css_empty_declaration)"
 
 === 338 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion-ts-def.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -1576,6 +1660,12 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:11 2:12 no-unused-vars "'a' is assigned a value but never used."
 
+=== 86 packages/language-server/test/plugins/typescript/testfiles/completions/custom-element-tag.svelte	lint.txt
+1:2 - - "Parsing error: Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof"
+
+=== 79 packages/language-server/test/plugins/typescript/testfiles/completions/editingCompletion.svelte	lint.txt
+5:3 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
 === 509 packages/language-server/test/plugins/typescript/testfiles/completions/element-events-completion.svelte	lint.txt
 1:1 1:16 svelte/button-has-type "Missing an explicit type attribute for button."
 1:1 1:25 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
@@ -1595,6 +1685,11 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:5 2:8 no-undef "'Scn' is not defined."
 
+=== 337 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-store.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 2:11 no-undef "'$store' is not defined."
+2:5 2:11 svelte/valid-compile "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+
 === 566 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-text.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:7 2:10 no-unused-vars "'abc' is assigned a value but never used."
@@ -1605,6 +1700,9 @@
 11:2 11:6 no-undef "'Comp' is not defined."
 11:6 11:14 svelte/html-self-closing "Require self-closing on Svelte custom components."
 
+=== 40 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions.svelte	lint.txt
+1:41 - - "Parsing error: ';' expected."
+
 === 118 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions1.svelte	lint.txt
 2:1 2:4 no-undef "'blu' is not defined."
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -1613,6 +1711,18 @@
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 3:1 3:4 no-undef "'blu' is not defined."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+
+=== 40 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions3.svelte	lint.txt
+1:42 - - "Parsing error: ';' expected."
+
+=== 86 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions4.svelte	lint.txt
+3:7 - - "Parsing error: Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof"
+
+=== 86 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions5.svelte	lint.txt
+1:7 - - "Parsing error: Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof"
+
+=== 86 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions6.svelte	lint.txt
+4:7 - - "Parsing error: Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof"
 
 === 445 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions7.svelte	lint.txt
 1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
@@ -1634,6 +1744,15 @@
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 6:2 6:8 no-undef "'onMoun' is not defined."
 
+=== 86 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions_unclose-tag.svelte	lint.txt
+2:2 - - "Parsing error: Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof"
+
+=== 39 packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions.svelte	lint.txt
+3:9 - - "Parsing error: '=' expected."
+
+=== 42 packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions2.svelte	lint.txt
+3:9 - - "Parsing error: 'from' expected."
+
 === 569 packages/language-server/test/plugins/typescript/testfiles/completions/jsdoc-completions.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -1643,6 +1762,12 @@
 6:14 6:17 no-unused-vars "'abc' is defined but never used."
 6:18 6:28 no-unused-vars "'parameter1' is defined but never used."
 8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 79 packages/language-server/test/plugins/typescript/testfiles/completions/mustache.svelte	lint.txt
+5:4 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 87 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced-v5.svelte	lint.txt
+5:12 - - "Parsing error: Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof"
 
 === 2050 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -1753,6 +1878,10 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 180 packages/language-server/test/plugins/typescript/testfiles/diagnostics/shared-comp.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:20 2:20 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
 
 === 89 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -2214,6 +2343,9 @@
 11:11 11:14 svelte/no-dupe-else-if-blocks "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the `{#if}` / `{:else if}` chain."
 11:11 11:14 no-undef "'asd' is not defined."
 
+=== 100 packages/svelte-vscode/test/grammar/samples/interpolation-comments/input.svelte	lint.txt
+10:1 - - "Parsing error: Unexpected block closing tag\nhttps://svelte.dev/e/block_unexpected_close"
+
 === 131 packages/svelte-vscode/test/grammar/samples/key-block/input.svelte	lint.txt
 1:7 1:9 no-undef "'hi' is not defined."
 1:10 3:1 svelte/valid-compile "Empty block\nhttps://svelte.dev/e/block_empty(block_empty)"
@@ -2299,6 +2431,14 @@
 1:41 1:42 no-unused-vars "'a' is defined but never used."
 2:1 2:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
+=== 523 packages/svelte-vscode/test/grammar/samples/store/input.svelte	lint.txt
+2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+4:1 4:5 no-undef "'$bar' is not defined."
+4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+4:1 4:5 svelte/valid-compile "`$bar` is an illegal variable name. To reference a global variable called `$bar`, use `globalThis.$bar`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+7:2 7:6 no-undef "'$bar' is not defined."
+
 === 371 packages/svelte-vscode/test/grammar/samples/style-directive/input.svelte	lint.txt
 1:6 1:31 svelte/no-inline-styles "Found disallowed style directive."
 1:6 1:31 svelte/shorthand-directive "Expected shorthand directive."
@@ -2319,11 +2459,19 @@
 1:2 1:11 no-undef "'Component' is not defined."
 1:32 1:45 svelte/html-self-closing "Require self-closing on Svelte custom components."
 
+=== 172 packages/svelte-vscode/test/grammar/samples/style-sass/input.svelte	lint.txt
+1:1 3:9 svelte/valid-style-parse "Found unsupported style element language \"sass\""
+1:1 3:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
+
 === 186 packages/svelte-vscode/test/grammar/samples/style-scss/input.svelte	lint.txt
 1:1 3:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 2:5 2:9 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
 === 0 packages/svelte-vscode/test/grammar/samples/style-src/input.svelte	lint.txt
+
+=== 174 packages/svelte-vscode/test/grammar/samples/style-stylus/input.svelte	lint.txt
+1:1 3:9 svelte/valid-style-parse "Found unsupported style element language \"stylus\""
+1:1 3:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
 === 230 packages/svelte-vscode/test/grammar/samples/style/input.svelte	lint.txt
 2:5 2:15 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -2347,6 +2495,15 @@
 9:11 9:21 no-unused-vars "'hoistable2' is defined but never used."
 10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
+=== 567 packages/svelte2tsx/test/emitDts/samples/javascript-libRoot/src/lib/Test.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:25 6:25 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+12:17 12:19 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
 === 312 packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -2360,6 +2517,15 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:5 2:13 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:11 2:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 577 packages/svelte2tsx/test/emitDts/samples/svelte3/src/Test.svelte	lint.txt
+1:1 7:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:33 3:25 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+9:17 9:19 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
 === 65 packages/svelte2tsx/test/emitDts/samples/typescript-custom-tsconfig/src/runes.svelte.ts	lint.txt
 6:1 6:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
@@ -2431,6 +2597,18 @@
 === 45 packages/svelte2tsx/test/htmlx2jsx/samples/action-svelte-body/input.svelte	lint.txt
 1:18 1:23 no-undef "'blink' is not defined."
 
+=== 256 packages/svelte2tsx/test/htmlx2jsx/samples/animation-bare/input.svelte	lint.txt
+1:5 1:18 svelte/valid-compile "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement(animation_invalid_placement)"
+1:13 1:18 no-undef "'blink' is not defined."
+
+=== 490 packages/svelte2tsx/test/htmlx2jsx/samples/animation-params/input.svelte	lint.txt
+1:5 1:43 svelte/valid-compile "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement(animation_invalid_placement)"
+1:13 1:18 no-undef "'blink' is not defined."
+2:13 2:18 no-undef "'blink' is not defined."
+2:19 2:45 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+3:13 3:18 no-undef "'blink' is not defined."
+3:19 3:45 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+
 === 462 packages/svelte2tsx/test/htmlx2jsx/samples/attachments.v5/input.svelte	lint.txt
 1:15 1:16 no-undef "'x' is not defined."
 2:16 2:20 no-unused-vars "'node' is defined but never used."
@@ -2465,6 +2643,11 @@
 2:30 2:38 svelte/max-attributes-per-line "'attrCase' should be on a new line."
 2:30 2:38 svelte/sort-attributes "Attribute 'attrCase' should go before 'attrName'."
 2:39 2:41 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 277 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-invalid-jsx-name/input.svelte	lint.txt
+1:2 1:7 no-undef "'Hello' is not defined."
+1:19 1:28 svelte/html-self-closing "Require self-closing on Svelte custom components."
+2:6 2:25 svelte/valid-compile "'--custom-prop' is not a valid attribute name\nhttps://svelte.dev/e/attribute_invalid_name(attribute_invalid_name)"
 
 === 3029 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-multiline/input.svelte	lint.txt
 1:2 1:6 no-undef "'Comp' is not defined."
@@ -2677,6 +2860,22 @@
 1:9 1:20 no-undef "'somePromise' is not defined."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
+=== 985 packages/svelte2tsx/test/htmlx2jsx/samples/binding-bare/input.svelte	lint.txt
+1:20 1:30 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+1:25 1:30 no-undef "'value' is not defined."
+1:25 1:30 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+1:30 1:32 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+2:24 2:36 svelte/max-attributes-per-line "'bind:checked' should be on a new line."
+2:29 2:36 no-undef "'checked' is not defined."
+2:36 2:37 svelte/html-self-closing "Require self-closing on HTML void elements."
+4:2 4:7 no-undef "'Input' is not defined."
+4:20 4:30 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+4:25 4:30 no-undef "'value' is not defined."
+4:30 4:32 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+5:2 5:7 no-undef "'Input' is not defined."
+5:24 5:36 svelte/max-attributes-per-line "'bind:checked' should be on a new line."
+5:29 5:36 no-undef "'checked' is not defined."
+
 === 1126 packages/svelte2tsx/test/htmlx2jsx/samples/binding-get-set.v5/input.svelte	lint.txt
 1:20 1:23 no-undef "'get' is not defined."
 1:25 1:28 no-undef "'set' is not defined."
@@ -2694,6 +2893,56 @@
 8:2 8:7 no-undef "'Input' is not defined."
 8:26 8:27 no-undef "'v' is not defined."
 8:38 8:39 no-undef "'v' is not defined."
+
+=== 628 packages/svelte2tsx/test/htmlx2jsx/samples/binding-group-bare/input.svelte	lint.txt
+1:21 1:31 svelte/max-attributes-per-line "'bind:group' should be on a new line."
+1:26 1:31 no-undef "'group' is not defined."
+1:26 1:31 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+1:32 1:45 svelte/sort-attributes "Attribute 'value' should go before 'bind:group'."
+1:45 1:47 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+2:21 2:34 svelte/max-attributes-per-line "'value' should be on a new line."
+2:40 2:45 no-undef "'group' is not defined."
+2:45 2:46 svelte/html-self-closing "Require self-closing on HTML void elements."
+
+=== 429 packages/svelte2tsx/test/htmlx2jsx/samples/binding-group/input.svelte	lint.txt
+1:21 1:42 svelte/max-attributes-per-line "'bind:group' should be on a new line."
+1:33 1:41 no-undef "'tortilla' is not defined."
+1:33 1:41 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+1:43 1:56 svelte/sort-attributes "Attribute 'value' should go before 'bind:group'."
+1:56 1:58 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
+=== 2084 packages/svelte2tsx/test/htmlx2jsx/samples/binding-oneway/input.svelte	lint.txt
+1:6 1:17 svelte/first-attribute-linebreak "Expected a linebreak before this attribute."
+1:17 1:18 svelte/no-trailing-spaces "Trailing spaces not allowed."
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:23 2:28 no-undef "'width' is not defined."
+2:23 2:28 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+2:29 2:30 svelte/no-trailing-spaces "Trailing spaces not allowed."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:24 3:30 no-undef "'height' is not defined."
+3:31 3:32 svelte/no-trailing-spaces "Trailing spaces not allowed."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:5 4:35 svelte/shorthand-directive "Expected shorthand directive."
+4:23 4:34 no-undef "'offsetWidth' is not defined."
+4:35 4:36 svelte/no-trailing-spaces "Trailing spaces not allowed."
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:5 5:37 svelte/shorthand-directive "Expected shorthand directive."
+5:24 5:36 no-undef "'offsetHeight' is not defined."
+6:1 6:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+9:10 9:14 no-undef "'clip' is not defined."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:10 10:18 no-undef "'duration' is not defined."
+11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:10 11:18 no-undef "'buffered' is not defined."
+12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+12:10 12:18 no-undef "'seekable' is not defined."
+13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:10 13:17 no-undef "'seeking' is not defined."
+14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:10 14:16 no-undef "'played' is not defined."
+15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:10 15:15 no-undef "'ended' is not defined."
 
 === 347 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-component/input.svelte	lint.txt
 1:2 1:11 no-undef "'Component' is not defined."
@@ -2731,6 +2980,38 @@
 1:21 1:40 svelte/sort-attributes "Attribute 'bind:this' should go before 'type'."
 1:32 1:39 no-undef "'element' is not defined."
 1:54 1:56 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
+=== 2088 packages/svelte2tsx/test/htmlx2jsx/samples/binding/input.svelte	lint.txt
+1:20 1:37 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+1:32 1:36 no-undef "'test' is not defined."
+1:32 1:36 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+1:37 1:39 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+2:20 2:39 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+2:31 2:39 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+2:33 2:37 no-undef "'test' is not defined."
+2:39 2:41 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+3:20 3:39 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+3:31 3:39 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+3:33 3:37 no-undef "'test' is not defined."
+3:39 3:41 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+5:2 5:7 no-undef "'Input' is not defined."
+5:20 5:37 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+5:32 5:36 no-undef "'test' is not defined."
+5:37 5:39 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+6:2 6:7 no-undef "'Input' is not defined."
+6:20 6:39 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+6:31 6:39 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+6:33 6:37 no-undef "'test' is not defined."
+6:39 6:41 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+7:2 7:7 no-undef "'Input' is not defined."
+7:20 7:39 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+7:31 7:39 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+7:33 7:37 no-undef "'test' is not defined."
+7:39 7:41 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+8:2 8:7 no-undef "'Input' is not defined."
+8:20 8:37 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+8:32 8:36 no-undef "'test' is not defined."
+8:37 8:46 svelte/html-self-closing "Require self-closing on Svelte custom components."
 
 === 349 packages/svelte2tsx/test/htmlx2jsx/samples/blocks-without-whitespace-inbetween/input.svelte	lint.txt
 1:6 1:10 no-undef "'name' is not defined."
@@ -2855,6 +3136,30 @@
 3:32 3:45 no-undef "'someThirdFile' is not defined."
 3:45 3:50 svelte/mustache-spacing "Expected no space before '}', but found."
 
+=== 1422 packages/svelte2tsx/test/htmlx2jsx/samples/directive-quoted/input.svelte	lint.txt
+1:14 1:42 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+1:20 1:27 no-undef "'console' is not defined."
+2:2 2:11 no-undef "'Component' is not defined."
+2:21 2:29 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+2:23 2:27 no-undef "'test' is not defined."
+2:29 2:31 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+3:10 3:16 no-undef "'action' is not defined."
+3:17 3:26 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+3:19 3:24 no-undef "'thing' is not defined."
+4:17 4:23 no-undef "'action' is not defined."
+4:17 4:21 no-undef "'fade' is not defined."
+4:22 4:32 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+4:24 4:30 no-undef "'params' is not defined."
+5:1 5:35 svelte/no-unused-class-name "Unused class \"thing\"."
+5:18 5:32 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+5:20 5:30 no-undef "'classthing' is not defined."
+6:6 6:30 svelte/valid-compile "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement(animation_invalid_placement)"
+6:14 6:19 no-undef "'thing' is not defined."
+6:20 6:30 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+6:22 6:28 no-undef "'params' is not defined."
+7:17 7:28 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+7:19 7:26 no-undef "'binding' is not defined."
+
 === 262 packages/svelte2tsx/test/htmlx2jsx/samples/doctype/input.svelte	lint.txt
 3:1 5:8 svelte/no-raw-special-elements "Special body element is deprecated in v5, use svelte:body instead."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -2897,6 +3202,69 @@
 === 154 packages/svelte2tsx/test/htmlx2jsx/samples/each-block-without-as.v5/input.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-action/input.svelte	lint.txt
+1:21 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-animation/input.svelte	lint.txt
+2:24 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-await/input.svelte	lint.txt
+1:16 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-binding/input.svelte	lint.txt
+1:23 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-bracket/input.svelte	lint.txt
+1:26 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-class-directive/input.svelte	lint.txt
+1:20 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-const/input.svelte	lint.txt
+2:24 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 79 packages/svelte2tsx/test/htmlx2jsx/samples/editing-empty-expression.v5/input.svelte	lint.txt
+1:6 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-event-handler/input.svelte	lint.txt
+1:24 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-html-block/input.svelte	lint.txt
+1:10 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 79 packages/svelte2tsx/test/htmlx2jsx/samples/editing-if/input.svelte	lint.txt
+1:9 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 79 packages/svelte2tsx/test/htmlx2jsx/samples/editing-key/input.svelte	lint.txt
+1:9 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 79 packages/svelte2tsx/test/htmlx2jsx/samples/editing-mustache/input.svelte	lint.txt
+1:8 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-parentheses/input.svelte	lint.txt
+1:16 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-props/input.svelte	lint.txt
+1:14 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-style-directive/input.svelte	lint.txt
+1:27 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 80 packages/svelte2tsx/test/htmlx2jsx/samples/editing-transition/input.svelte	lint.txt
+1:29 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
+=== 132 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-block.v5/input.svelte	lint.txt
+3:0 - - "Parsing error: `</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag"
+
+=== 79 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-component-no-attr.v5/input.svelte	lint.txt
+7:2 - - "Parsing error: Expected token >\nhttps://svelte.dev/e/expected_token"
+
+=== 79 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-element-no-attr.v5/input.svelte	lint.txt
+7:2 - - "Parsing error: Expected token >\nhttps://svelte.dev/e/expected_token"
+
+=== 79 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-tag.v5/input.svelte	lint.txt
+3:2 - - "Parsing error: Expected token >\nhttps://svelte.dev/e/expected_token"
 
 === 0 packages/svelte2tsx/test/htmlx2jsx/samples/element-only/input.svelte	lint.txt
 
@@ -3605,6 +3973,15 @@
 20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
+=== 578 packages/svelte2tsx/test/htmlx2jsx/samples/key-block/input.svelte	lint.txt
+1:7 1:12 no-undef "'value' is not defined."
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:7 4:13 no-undef "'$store' is not defined."
+4:7 4:13 svelte/valid-compile "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:7 7:11 no-undef "'expr' is not defined."
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
 === 304 packages/svelte2tsx/test/htmlx2jsx/samples/mustache-tag-object-literal/input.svelte	lint.txt
 1:1 3:3 svelte/no-object-in-text-mustaches "Unexpected object in text mustache interpolation."
 1:3 1:4 svelte/no-trailing-spaces "Trailing spaces not allowed."
@@ -3794,6 +4171,22 @@
 
 === 0 packages/svelte2tsx/test/htmlx2jsx/samples/tokens-not-allowed-in-jsx/input.svelte	lint.txt
 
+=== 790 packages/svelte2tsx/test/htmlx2jsx/samples/transition-animate-fallbacks/input.svelte	lint.txt
+2:16 2:20 no-undef "'blur' is not defined."
+3:16 3:20 no-undef "'fade' is not defined."
+4:16 4:19 no-undef "'fly' is not defined."
+5:16 5:21 no-undef "'slide' is not defined."
+6:16 6:21 no-undef "'scale' is not defined."
+7:16 7:20 no-undef "'draw' is not defined."
+9:8 9:12 no-undef "'blur' is not defined."
+10:9 10:13 no-undef "'blur' is not defined."
+12:5 12:17 svelte/valid-compile "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement(animation_invalid_placement)"
+12:13 12:17 no-undef "'flip' is not defined."
+14:16 14:19 no-undef "'foo' is not defined."
+15:8 15:11 no-undef "'foo' is not defined."
+16:9 16:12 no-undef "'foo' is not defined."
+17:13 17:16 no-undef "'foo' is not defined."
+
 === 133 packages/svelte2tsx/test/htmlx2jsx/samples/transition-bare/input.svelte	lint.txt
 1:16 1:21 no-undef "'blink' is not defined."
 2:8 2:13 no-undef "'blink' is not defined."
@@ -3813,6 +4206,56 @@
 5:9 5:14 no-undef "'blink' is not defined."
 5:15 5:41 svelte/html-quotes "Unexpected to be enclosed by any quotes."
 
+=== 3173 packages/svelte2tsx/test/htmlx2jsx/samples/ts-in-template.v5/input.svelte	lint.txt
+1:1 1:28 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:11 5:14 no-undef "'bar' is not defined."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+9:8 9:13 no-undef "'items' is not defined."
+9:34 9:35 no-unused-vars "'i' is defined but never used."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:8 15:14 no-unused-vars "'result' is defined but never used."
+16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+17:9 17:14 no-unused-vars "'error' is defined but never used."
+18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+21:7 21:11 no-undef "'item' is not defined."
+22:1 22:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+25:15 25:26 no-unused-vars "'bar' is defined but never used."
+26:1 26:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+29:11 29:15 no-unused-vars "'foo2' is defined but never used."
+29:16 29:28 no-unused-vars "'bar' is defined but never used."
+30:1 30:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+33:11 33:15 no-unused-vars "'foo3' is defined but never used."
+33:16 33:40 no-unused-vars "'bar' is defined but never used."
+34:1 34:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+37:11 37:15 no-unused-vars "'foo4' is defined but never used."
+37:16 37:40 no-unused-vars "'bar' is defined but never used."
+37:42 37:71 no-unused-vars "'baz' is defined but never used."
+37:53 37:64 no-unused-vars "'str' is defined but never used."
+38:1 38:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+41:11 41:15 no-unused-vars "'foo5' is defined but never used."
+41:16 41:34 no-unused-vars "'bar' is defined but never used."
+42:1 42:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+45:11 45:15 no-unused-vars "'foo6' is defined but never used."
+45:16 45:28 no-unused-vars "'bar' is defined but never used."
+46:1 46:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+49:11 49:15 no-unused-vars "'foo7' is defined but never used."
+49:16 49:19 no-unused-vars "'bar' is defined but never used."
+49:21 49:24 no-unused-vars "'baz' is assigned a value but never used."
+50:1 50:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+53:14 53:17 no-undef "'bar' is not defined."
+55:1 55:44 svelte/button-has-type "Missing an explicit type attribute for button."
+55:22 55:27 no-undef "'Event' is not defined."
+56:2 56:11 no-undef "'Component' is not defined."
+56:18 56:22 no-undef "'attr' is not defined."
+57:12 57:14 no-undef "'ok' is not defined."
+58:2 58:11 no-undef "'Component' is not defined."
+58:23 58:24 no-undef "'x' is not defined."
+59:24 59:25 no-undef "'x' is not defined."
+59:24 59:25 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+59:34 59:36 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
 === 1438 packages/svelte2tsx/test/htmlx2jsx/samples/void-elements/input.svelte	lint.txt
 1:1 1:7 svelte/valid-compile "`<area>` element should have an alt, aria-label or aria-labelledby attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
 1:6 1:7 svelte/html-self-closing "Require self-closing on HTML void elements."
@@ -3830,6 +4273,93 @@
 12:8 12:9 svelte/html-self-closing "Require self-closing on HTML void elements."
 13:7 13:8 svelte/html-self-closing "Require self-closing on HTML void elements."
 14:5 14:6 svelte/html-self-closing "Require self-closing on HTML void elements."
+
+=== 3288 packages/svelte2tsx/test/sourcemaps/samples/action-directive/input.svelte	lint.txt
+1:1 1:22 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+1:14 1:20 no-undef "'action' is not defined."
+1:20 1:22 svelte/html-self-closing "Disallow self-closing on HTML elements."
+1:20 1:22 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+3:1 5:3 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:2 4:12 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+4:6 4:12 no-undef "'action' is not defined."
+4:12 4:13 svelte/no-trailing-spaces "Trailing spaces not allowed."
+5:1 5:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+7:1 7:42 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+7:14 7:20 no-undef "'action' is not defined."
+7:36 7:39 no-undef "'foo' is not defined."
+7:40 7:42 svelte/html-self-closing "Disallow self-closing on HTML elements."
+7:40 7:42 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+9:1 11:3 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+9:9 9:10 svelte/no-trailing-spaces "Trailing spaces not allowed."
+10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:2 10:19 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+10:6 10:12 no-undef "'action' is not defined."
+10:9 10:15 no-undef "'action' is not defined."
+10:14 10:18 no-undef "'$foo' is not defined."
+10:14 10:18 svelte/valid-compile "`$foo` is an illegal variable name. To reference a global variable called `$foo`, use `globalThis.$foo`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+11:1 11:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+13:1 15:3 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:2 14:22 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+14:6 14:12 no-undef "'action' is not defined."
+14:9 14:15 no-undef "'action' is not defined."
+14:16 14:19 no-undef "'foo' is not defined."
+15:1 15:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+17:1 22:3 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+18:1 18:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+18:6 18:12 no-undef "'action' is not defined."
+18:9 18:15 no-undef "'action' is not defined."
+18:15 18:16 svelte/no-trailing-spaces "Trailing spaces not allowed."
+19:1 19:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+19:6 19:10 no-undef "'leet' is not defined."
+20:1 20:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+20:8 20:12 no-undef "'$bar' is not defined."
+21:1 21:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+22:1 22:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+22:22 22:28 no-undef "'action' is not defined."
+
+=== 1548 packages/svelte2tsx/test/sourcemaps/samples/await-block/input.svelte	lint.txt
+1:9 1:16 no-undef "'promise' is not defined."
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 2:31 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+2:29 2:31 svelte/html-self-closing "Disallow self-closing on HTML elements."
+2:29 2:31 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+5:9 5:16 no-undef "'promise' is not defined."
+6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:2 6:13 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+6:11 6:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
+8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:2 8:13 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+8:11 8:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
+11:9 11:17 no-undef "'$promise' is not defined."
+11:9 11:17 svelte/valid-compile "`$promise` is an illegal variable name. To reference a global variable called `$promise`, use `globalThis.$promise`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:2 12:13 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+12:11 12:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 1416 packages/svelte2tsx/test/sourcemaps/samples/component-props/input.svelte	lint.txt
+1:2 1:11 no-undef "'Component' is not defined."
+3:2 3:11 no-undef "'Component' is not defined."
+3:22 3:25 svelte/max-attributes-per-line "'bar' should be on a new line."
+3:22 3:25 svelte/sort-attributes "Attribute 'bar' should go before 'foo'."
+3:25 3:27 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+4:1 4:2 svelte/no-trailing-spaces "Trailing spaces not allowed."
+5:2 5:11 no-undef "'Component' is not defined."
+5:16 5:19 no-undef "'bar' is not defined."
+7:2 7:11 no-undef "'Component' is not defined."
+8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:2 8:10 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+8:6 8:9 no-undef "'bar' is not defined."
+11:2 11:11 no-undef "'Component' is not defined."
+12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:2 12:16 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+12:12 12:15 no-undef "'bar' is not defined."
+12:12 12:15 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+15:2 15:11 no-undef "'Component' is not defined."
+16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+16:2 16:17 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+16:13 16:16 no-undef "'bar' is not defined."
 
 === 1465 packages/svelte2tsx/test/sourcemaps/samples/each-block/input.svelte	lint.txt
 1:1 1:22 svelte/require-each-key "Each block should have a key"
@@ -3854,6 +4384,90 @@
 21:8 21:13 no-undef "'todos' is not defined."
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 24:1 24:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 3509 packages/svelte2tsx/test/sourcemaps/samples/element-attributes/input.svelte	lint.txt
+1:1 1:15 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+1:13 1:15 svelte/html-self-closing "Disallow self-closing on HTML elements."
+1:13 1:15 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+3:1 5:3 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+3:9 3:10 svelte/no-trailing-spaces "Trailing spaces not allowed."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:5 4:8 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+5:1 5:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+7:1 9:3 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+7:9 7:10 svelte/no-trailing-spaces "Trailing spaces not allowed."
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+8:5 8:15 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+8:15 8:16 svelte/no-trailing-spaces "Trailing spaces not allowed."
+9:1 9:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+11:1 13:3 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+11:9 11:10 svelte/no-trailing-spaces "Trailing spaces not allowed."
+12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:2 12:7 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+12:3 12:6 no-undef "'foo' is not defined."
+12:7 12:10 svelte/max-attributes-per-line "'bar' should be on a new line."
+12:7 12:10 svelte/sort-attributes "Attribute 'bar' should go before 'foo'."
+13:1 13:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+15:1 17:3 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+15:9 15:10 svelte/no-trailing-spaces "Trailing spaces not allowed."
+16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:5 16:10 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+16:6 16:9 no-undef "'foo' is not defined."
+16:10 16:11 svelte/no-trailing-spaces "Trailing spaces not allowed."
+17:1 17:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+19:1 21:3 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+19:9 19:10 svelte/no-trailing-spaces "Trailing spaces not allowed."
+20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+20:5 20:13 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+20:5 20:13 svelte/valid-compile "`bind:foo` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name(bind_invalid_name)"
+20:10 20:13 no-undef "'foo' is not defined."
+20:13 20:14 svelte/no-trailing-spaces "Trailing spaces not allowed."
+21:1 21:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+23:1 25:3 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+23:9 23:10 svelte/no-trailing-spaces "Trailing spaces not allowed."
+24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+24:5 24:19 svelte/first-attribute-linebreak "Expected no linebreak before this attribute."
+24:15 24:18 no-undef "'bar' is not defined."
+25:1 25:3 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 714 packages/svelte2tsx/test/sourcemaps/samples/event-binding/input.svelte	lint.txt
+1:2 1:11 no-undef "'Component' is not defined."
+1:22 1:28 no-undef "'$check' is not defined."
+1:22 1:28 svelte/valid-compile "`$check` is an illegal variable name. To reference a global variable called `$check`, use `globalThis.$check`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+1:31 1:38 no-undef "'method1' is not defined."
+1:41 1:48 no-undef "'method2' is not defined."
+2:1 2:48 svelte/button-has-type "Missing an explicit type attribute for button."
+2:19 2:25 no-undef "'$check' is not defined."
+2:28 2:35 no-undef "'method1' is not defined."
+2:38 2:45 no-undef "'method2' is not defined."
+2:46 2:48 svelte/html-closing-bracket-spacing "Expected no space before '>', but found."
+
+=== 1948 packages/svelte2tsx/test/sourcemaps/samples/if-block/input.svelte	lint.txt
+1:6 1:9 no-undef "'foo' is not defined."
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:2 2:13 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+2:11 2:13 svelte/html-self-closing "Disallow self-closing on HTML elements."
+5:6 5:10 no-undef "'$foo' is not defined."
+5:6 5:10 svelte/valid-compile "`$foo` is an illegal variable name. To reference a global variable called `$foo`, use `globalThis.$foo`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+5:11 5:22 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+5:20 5:22 svelte/html-self-closing "Disallow self-closing on HTML elements."
+7:6 7:9 no-undef "'foo' is not defined."
+8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:2 8:12 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+8:10 8:12 svelte/html-self-closing "Disallow self-closing on HTML elements."
+8:10 8:12 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+9:11 9:14 no-undef "'bar' is not defined."
+10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:2 10:12 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+10:10 10:12 svelte/html-self-closing "Disallow self-closing on HTML elements."
+10:10 10:12 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:2 12:12 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
+12:10 12:12 svelte/html-self-closing "Disallow self-closing on HTML elements."
+12:10 12:12 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
+=== 39 packages/svelte2tsx/test/sourcemaps/samples/import-equal/input.svelte	lint.txt
+3:4 - - "Parsing error: '=' expected."
 
 === 126 packages/svelte2tsx/test/sourcemaps/samples/property-shorthand/input.svelte	lint.txt
 1:1 1:17 svelte/button-has-type "Missing an explicit type attribute for button."
@@ -3891,6 +4505,21 @@
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 10:6 10:6 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
+=== 1135 packages/svelte2tsx/test/svelte2tsx/samples/$store-as-directive/input.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:5 9:6 svelte/no-trailing-spaces "Trailing spaces not allowed."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:5 11:21 svelte/sort-attributes "Attribute 'use:$actionStore' should go before 'transition:$transitionStore'."
+12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+12:5 12:16 svelte/valid-compile "Cannot use `transition:` alongside existing `in:` directive\nhttps://svelte.dev/e/transition_conflict(transition_conflict)"
+13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
 === 1280 packages/svelte2tsx/test/svelte2tsx/samples/$store-assign/input.svelte	lint.txt
 1:1 22:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -3910,6 +4539,63 @@
 20:1 20:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
+=== 679 packages/svelte2tsx/test/svelte2tsx/samples/$store-export-type/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:1 3:5 svelte/no-trailing-spaces "Trailing spaces not allowed."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:5 4:56 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
+5:1 5:5 svelte/no-trailing-spaces "Trailing spaces not allowed."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:1 7:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 414 packages/svelte2tsx/test/svelte2tsx/samples/$store-index/input.svelte	lint.txt
+1:2 1:17 no-undef "'someRecordOrArr' is not defined."
+1:18 1:24 no-undef "'$store' is not defined."
+1:18 1:24 svelte/valid-compile "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+2:2 2:12 no-undef "'someObject' is not defined."
+3:2 3:12 no-undef "'someObject' is not defined."
+
+=== 2118 packages/svelte2tsx/test/svelte2tsx/samples/$store-inside-block-without-braces/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:14 6:20 no-dupe-else-if "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the if-else-if chain."
+7:1 7:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+9:1 9:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+9:9 9:15 no-undef "'$store' is not defined."
+9:9 9:15 svelte/valid-compile "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:1 11:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:1 13:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:1 16:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:16 18:17 no-unused-vars "'a' is assigned a value but never used."
+18:21 18:22 no-undef "'b' is not defined."
+19:1 19:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+21:16 21:17 no-unused-vars "'a' is assigned a value but never used."
+21:21 21:22 no-undef "'b' is not defined."
+22:1 22:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+25:1 25:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+
+=== 847 packages/svelte2tsx/test/svelte2tsx/samples/$store-nested-declaration/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:14 2:15 no-unused-vars "'x' is defined but never used."
+3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+3:18 3:27 no-unused-vars "'notAStore' is assigned a value but never used."
+3:18 3:27 svelte/prefer-const "'notAStore' is never reassigned. Use 'const' instead."
+3:43 3:45 no-empty "Empty block statement."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:5 6:15 no-undef "'$notAStore' is not defined."
+6:5 6:15 svelte/valid-compile "`$notAStore` is an illegal variable name. To reference a global variable called `$notAStore`, use `globalThis.$notAStore`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+
 === 332 packages/svelte2tsx/test/svelte2tsx/samples/$store-no-instance-only-module-script/input.svelte	lint.txt
 1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -3924,6 +4610,14 @@
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:11 4:14 no-unused-vars "'bar' is assigned a value but never used."
 
+=== 252 packages/svelte2tsx/test/svelte2tsx/samples/ast-offset-none/input.svelte	lint.txt
+1:9 1:13 no-undef "'$var' is not defined."
+1:9 1:13 svelte/valid-compile "`$var` is an illegal variable name. To reference a global variable called `$var`, use `globalThis.$var`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+
+=== 254 packages/svelte2tsx/test/svelte2tsx/samples/ast-offset-some/input.svelte	lint.txt
+1:12 1:16 no-undef "'$var' is not defined."
+1:12 1:16 svelte/valid-compile "`$var` is an illegal variable name. To reference a global variable called `$var`, use `globalThis.$var`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+
 === 418 packages/svelte2tsx/test/svelte2tsx/samples/attributes-foreign-ns/input.svelte	lint.txt
 1:1 1:66 svelte/no-raw-special-elements "Special element element is deprecated in v5, use svelte:element instead."
 1:24 1:50 svelte/max-attributes-per-line "'someOtherAttribute' should be on a new line."
@@ -3937,6 +4631,32 @@
 3:50 3:58 svelte/require-store-callbacks-use-set-param "Store callbacks must use `set` param."
 7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 1440 packages/svelte2tsx/test/svelte2tsx/samples/binding-assignment-$store/input.svelte	lint.txt
+1:25 1:41 no-undef "'$compile_options' is not defined."
+1:25 1:41 svelte/valid-compile "`$compile_options` is an illegal variable name. To reference a global variable called `$compile_options`, use `globalThis.$compile_options`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+1:43 1:45 svelte/html-self-closing "Disallow self-closing on HTML elements."
+2:25 2:41 no-undef "'$compile_options' is not defined."
+2:25 2:45 svelte/prefer-destructured-store-props "Destructure foo from $compile_options for better change tracking & fewer redraws"
+2:47 2:49 svelte/html-self-closing "Disallow self-closing on HTML elements."
+3:17 3:33 no-undef "'$compile_options' is not defined."
+3:35 3:37 svelte/html-self-closing "Disallow self-closing on HTML elements."
+4:17 4:33 no-undef "'$compile_options' is not defined."
+4:17 4:37 svelte/prefer-destructured-store-props "Destructure foo from $compile_options for better change tracking & fewer redraws"
+4:39 4:41 svelte/html-self-closing "Disallow self-closing on HTML elements."
+5:25 5:41 no-undef "'$compile_options' is not defined."
+5:43 5:45 svelte/html-self-closing "Disallow self-closing on HTML elements."
+6:25 6:41 no-undef "'$compile_options' is not defined."
+6:25 6:45 svelte/prefer-destructured-store-props "Destructure foo from $compile_options for better change tracking & fewer redraws"
+6:47 6:49 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 679 packages/svelte2tsx/test/svelte2tsx/samples/binding-group-store/input.svelte	lint.txt
+1:23 1:35 svelte/max-attributes-per-line "'type' should be on a new line."
+1:48 1:64 no-undef "'$compile_options' is not defined."
+1:48 1:73 svelte/prefer-destructured-store-props "Destructure generate from $compile_options for better change tracking & fewer redraws"
+1:48 1:64 svelte/valid-compile "`$compile_options` is an illegal variable name. To reference a global variable called `$compile_options`, use `globalThis.$compile_options`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+1:75 1:86 svelte/sort-attributes "Attribute 'value' should go before 'bind:group'."
+1:86 1:87 svelte/html-self-closing "Require self-closing on HTML void elements."
 
 === 10387 packages/svelte2tsx/test/svelte2tsx/samples/circle-drawer-example/input.svelte	lint.txt
 10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -4040,6 +4760,67 @@
 
 === 77 packages/svelte2tsx/test/svelte2tsx/samples/commented-out-script/input.svelte	lint.txt
 2:1 2:3 svelte/indent "Expected indentation of 0 spaces but found 2 spaces."
+
+=== 4397 packages/svelte2tsx/test/svelte2tsx/samples/comments-in-attributes.v5/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:9 2:10 no-unused-vars "'x' is assigned a value but never used."
+2:9 2:10 svelte/prefer-const "'x' is never reassigned. Use 'const' instead."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:5 10:14 svelte/sort-attributes "Attribute 'baz' should go before 'foo'."
+11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+12:15 12:22 no-undef "'handler' is not defined."
+13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:9 14:15 no-undef "'action' is not defined."
+14:17 14:23 no-undef "'params' is not defined."
+15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:22 16:2 no-undef "'action' is not defined."
+16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:16 16:20 no-undef "'fade' is not defined."
+17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:5 18:17 svelte/valid-compile "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement(animation_invalid_placement)"
+18:13 18:17 no-undef "'flip' is not defined."
+20:5 20:25 svelte/sort-attributes "Attribute '@attach' should go before 'foo'."
+20:14 20:24 no-undef "'attachment' is not defined."
+21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+22:1 22:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+22:5 22:24 svelte/sort-attributes "Attribute 'bind:this' should go before 'foo'."
+22:16 22:23 no-undef "'element' is not defined."
+23:1 23:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+24:1 24:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+24:9 24:21 no-undef "'spread_props' is not defined."
+25:1 25:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+28:2 28:11 no-undef "'Component' is not defined."
+29:1 29:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+30:1 30:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+31:1 31:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+32:1 32:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+32:5 32:14 svelte/sort-attributes "Attribute 'baz' should go before 'foo'."
+33:1 33:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+34:1 34:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+34:15 34:22 no-undef "'handler' is not defined."
+36:5 36:25 svelte/sort-attributes "Attribute '@attach' should go before 'foo'."
+36:14 36:24 no-undef "'attachment' is not defined."
+37:1 37:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+38:1 38:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+38:16 38:26 no-undef "'bound_prop' is not defined."
+39:1 39:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+40:1 40:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+40:9 40:21 no-undef "'spread_props' is not defined."
+41:1 41:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+42:1 42:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+42:9 42:13 no-unused-vars "'item' is defined but never used."
+43:1 43:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+43:5 43:13 svelte/sort-attributes "Attribute 'trailing' should go before 'let:item'."
+43:13 45:1 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but 2 line breaks found."
+44:1 44:5 svelte/indent "Expected indentation of 0 spaces but found 4 spaces."
+45:1 45:14 svelte/html-self-closing "Require self-closing on Svelte custom components."
 
 === 422 packages/svelte2tsx/test/svelte2tsx/samples/component-default-slot/input.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4265,6 +5046,17 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 5:16 5:17 no-unused-vars "'t' is defined but never used."
 
+=== 669 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-object-key/input.svelte	lint.txt
+1:1 1:22 svelte/require-each-key "Each block should have a key"
+1:8 1:13 no-undef "'items' is not defined."
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:20 2:32 svelte/max-attributes-per-line "'b' should be on a new line."
+2:80 2:85 no-undef "'$item' is not defined."
+2:80 2:85 svelte/valid-compile "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription(store_invalid_scoped_subscription)"
+2:89 2:98 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+2:91 2:96 no-undef "'$item' is not defined."
+2:103 2:104 no-undef "'g' is not defined."
+
 === 376 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-var-shadowing/input.svelte	lint.txt
 1:1 1:23 svelte/require-each-key "Each block should have a key"
 1:8 1:13 no-undef "'items' is not defined."
@@ -4283,9 +5075,39 @@
 1:18 1:26 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 1:24 1:26 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
+=== 761 packages/svelte2tsx/test/svelte2tsx/samples/custom-css-properties-with-$store/input.svelte	lint.txt
+1:2 1:11 no-undef "'Component' is not defined."
+1:11 1:12 svelte/no-trailing-spaces "Trailing spaces not allowed."
+2:27 2:30 no-undef "'$jo' is not defined."
+2:27 2:30 svelte/valid-compile "`$jo` is an illegal variable name. To reference a global variable called `$jo`, use `globalThis.$jo`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+3:30 3:33 no-undef "'$jo' is not defined."
+4:26 4:37 svelte/html-quotes "Expected to be enclosed by double quotes."
+4:30 4:33 no-undef "'$jo' is not defined."
+5:26 5:35 svelte/html-quotes "Expected to be enclosed by double quotes."
+5:29 5:32 no-undef "'$jo' is not defined."
+5:35 5:36 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
+
+=== 909 packages/svelte2tsx/test/svelte2tsx/samples/debug-block/input.svelte	lint.txt
+1:1 1:16 svelte/no-at-debug-tags "Unexpected `{@debug}`."
+1:9 1:15 no-undef "'myfile' is not defined."
+2:1 2:36 svelte/no-at-debug-tags "Unexpected `{@debug}`."
+2:9 2:16 no-undef "'$myfile' is not defined."
+2:9 2:16 svelte/valid-compile "`$myfile` is an illegal variable name. To reference a global variable called `$myfile`, use `globalThis.$myfile`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+2:21 2:34 no-undef "'someOtherFile' is not defined."
+2:34 2:36 svelte/mustache-spacing "Expected no space before '}', but found."
+3:1 3:51 svelte/no-at-debug-tags "Unexpected `{@debug}`."
+3:9 3:15 no-undef "'myfile' is not defined."
+3:17 3:31 no-undef "'$someOtherFile' is not defined."
+3:33 3:46 no-undef "'someThirdFile' is not defined."
+3:46 3:51 svelte/mustache-spacing "Expected no space before '}', but found."
+3:51 3:52 svelte/no-trailing-spaces "Trailing spaces not allowed."
+
 === 148 packages/svelte2tsx/test/svelte2tsx/samples/doctype-script/input.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:11 2:16 no-unused-vars "'regex' is assigned a value but never used."
+
+=== 79 packages/svelte2tsx/test/svelte2tsx/samples/editing-mustache/input.svelte	lint.txt
+1:4 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
 
 === 488 packages/svelte2tsx/test/svelte2tsx/samples/event-and-forwarded-event/input.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4463,6 +5285,85 @@
 === 77 packages/svelte2tsx/test/svelte2tsx/samples/module-snippet-component-instance-reference.v5/input.svelte	lint.txt
 2:1 2:3 svelte/indent "Expected indentation of 0 spaces but found 2 spaces."
 
+=== 2358 packages/svelte2tsx/test/svelte2tsx/samples/nested-$-variables-script/input.svelte	lint.txt
+2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:5 2:9 svelte/prefer-const "'top1' is never reassigned. Use 'const' instead."
+2:12 2:21 no-undef "'someStore' is not defined."
+3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+3:5 3:9 svelte/prefer-const "'top2' is never reassigned. Use 'const' instead."
+3:12 3:21 no-undef "'someStore' is not defined."
+4:1 4:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+5:1 5:12 no-unused-vars "'topLevelGet' is assigned a value but never used."
+5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+7:1 7:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+7:10 7:14 no-unused-vars "'test' is defined but never used."
+7:15 7:19 no-unused-vars "'top1' is defined but never used."
+8:9 8:18 no-unused-vars "'passedGet' is assigned a value but never used."
+8:9 8:18 svelte/prefer-const "'passedGet' is never reassigned. Use 'const' instead."
+8:21 8:26 svelte/valid-compile "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription(store_invalid_scoped_subscription)"
+9:1 9:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+11:1 11:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+11:10 11:15 no-unused-vars "'test2' is defined but never used."
+12:9 12:22 no-unused-vars "'paramShadowed' is assigned a value but never used."
+12:9 12:22 svelte/prefer-const "'paramShadowed' is never reassigned. Use 'const' instead."
+13:1 13:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+15:1 15:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+15:10 15:15 no-unused-vars "'test3' is defined but never used."
+16:9 16:14 svelte/prefer-const "'$top2' is never reassigned. Use 'const' instead."
+17:9 17:20 no-unused-vars "'letshadowed' is assigned a value but never used."
+17:9 17:20 svelte/prefer-const "'letshadowed' is never reassigned. Use 'const' instead."
+18:1 18:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+20:1 20:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+20:7 20:12 no-unused-vars "'test4' is assigned a value but never used."
+20:17 20:18 no-unused-vars "'a' is defined but never used."
+
+=== 3447 packages/svelte2tsx/test/svelte2tsx/samples/nested-$-variables-template/input.svelte	lint.txt
+1:5 25:3 svelte/first-attribute-linebreak "Expected a linebreak before this attribute."
+1:14 1:16 svelte/mustache-spacing "Expected no space after '{', but found."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:75 3:76 svelte/no-trailing-spaces "Trailing spaces not allowed."
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:9 5:13 no-unused-vars "'top1' is assigned a value but never used."
+5:9 5:13 svelte/prefer-const "'top1' is never reassigned. Use 'const' instead."
+5:16 5:25 no-undef "'someStore' is not defined."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:9 6:13 no-unused-vars "'top2' is assigned a value but never used."
+6:9 6:13 svelte/prefer-const "'top2' is never reassigned. Use 'const' instead."
+6:16 6:25 no-undef "'someStore' is not defined."
+7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:23 7:28 no-undef "'$top1' is not defined."
+7:23 7:28 svelte/valid-compile "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription(store_invalid_scoped_subscription)"
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+8:5 8:16 no-unused-vars "'topLevelGet' is assigned a value but never used."
+8:19 8:24 no-undef "'$top2' is not defined."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:14 10:18 no-unused-vars "'test' is defined but never used."
+10:19 10:23 no-unused-vars "'top1' is defined but never used."
+11:1 11:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+11:13 11:22 no-unused-vars "'passedGet' is assigned a value but never used."
+11:13 11:22 svelte/prefer-const "'passedGet' is never reassigned. Use 'const' instead."
+11:25 11:30 no-undef "'$top1' is not defined."
+12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:14 14:19 no-unused-vars "'test2' is defined but never used."
+15:1 15:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+15:13 15:26 no-unused-vars "'paramShadowed' is assigned a value but never used."
+15:13 15:26 svelte/prefer-const "'paramShadowed' is never reassigned. Use 'const' instead."
+16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:14 18:19 no-unused-vars "'test3' is defined but never used."
+19:1 19:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+19:13 19:18 svelte/prefer-const "'$top2' is never reassigned. Use 'const' instead."
+20:1 20:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+20:13 20:24 no-unused-vars "'letshadowed' is assigned a value but never used."
+20:13 20:24 svelte/prefer-const "'letshadowed' is never reassigned. Use 'const' instead."
+21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+23:1 23:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+23:11 23:16 no-unused-vars "'test4' is assigned a value but never used."
+23:21 23:22 no-unused-vars "'a' is defined but never used."
+23:59 23:64 no-undef "'$top1' is not defined."
+25:3 25:3 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
+
 === 162 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-destructured.v5/input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -4479,6 +5380,27 @@
 === 162 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id.v5/input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 857 packages/svelte2tsx/test/svelte2tsx/samples/reactive-$store-destructuring/input.svelte	lint.txt
+2:19 2:24 no-undef "'$data' is not defined."
+3:20 3:25 no-undef "'$data' is not defined."
+5:20 5:25 no-undef "'$data' is not defined."
+7:24 7:29 no-undef "'$data' is not defined."
+9:9 9:14 no-unused-vars "'count' is assigned a value but never used."
+9:19 9:24 no-undef "'$data' is not defined."
+10:9 10:15 no-unused-vars "'count2' is assigned a value but never used."
+10:20 10:25 no-undef "'$data' is not defined."
+11:7 11:7 svelte/valid-compile "Identifier 'count3' has already been declared\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+12:9 12:15 no-unused-vars "'count3' is assigned a value but never used."
+12:20 12:25 no-undef "'$data' is not defined."
+14:9 14:13 no-unused-vars "'bla4' is assigned a value but never used."
+14:15 14:19 no-unused-vars "'bla5' is assigned a value but never used."
+14:24 14:29 no-undef "'$data' is not defined."
+
+=== 394 packages/svelte2tsx/test/svelte2tsx/samples/reactive-store-set/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:8 2:14 svelte/valid-compile "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+2:8 2:14 no-useless-assignment "The value assigned to '$store' is not used in subsequent statements."
 
 === 231 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports-runes.v5/input.svelte	lint.txt
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4607,6 +5529,13 @@
 
 === 0 packages/svelte2tsx/test/svelte2tsx/samples/single-element/input.svelte	lint.txt
 
+=== 467 packages/svelte2tsx/test/svelte2tsx/samples/slot-bind-this/input.svelte	lint.txt
+1:16 1:29 svelte/max-attributes-per-line "'bind:this' should be on a new line."
+1:16 1:29 svelte/sort-attributes "Attribute 'bind:this' should go before 'name'."
+1:16 1:29 svelte/valid-compile "`<slot>` can only receive attributes and (optionally) let directives\nhttps://svelte.dev/e/slot_element_invalid_attribute(slot_element_invalid_attribute)"
+1:27 1:28 no-undef "'s' is not defined."
+1:30 1:32 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
 === 310 packages/svelte2tsx/test/svelte2tsx/samples/snippet-instance-script.v5/input.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:9 2:12 svelte/prefer-const "'foo' is never reassigned. Use 'const' instead."
@@ -4693,6 +5622,16 @@
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:9 4:10 no-unused-vars "'a' is assigned a value but never used."
 
+=== 596 packages/svelte2tsx/test/svelte2tsx/samples/store-destructuring/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:19 2:32 no-undef "'fromSomewhere' is not defined."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:41 3:54 no-undef "'fromSomewhere' is not defined."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:29 4:36 no-unused-vars "'noStore' is assigned a value but never used."
+4:29 4:29 svelte/valid-compile "Identifier 'noStore' has already been declared\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+4:41 4:54 no-undef "'fromSomewhere' is not defined."
+
 === 659 packages/svelte2tsx/test/svelte2tsx/samples/store-from-module/input.svelte	lint.txt
 1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4737,6 +5676,12 @@
 5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 374 packages/svelte2tsx/test/svelte2tsx/samples/stores-mustache/input.svelte	lint.txt
+1:2 1:4 no-undef "'Me' is not defined."
+1:9 1:11 no-undef "'$s' is not defined."
+1:9 1:11 svelte/valid-compile "`$s` is an illegal variable name. To reference a global variable called `$s`, use `globalThis.$s`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+1:14 1:16 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
 
 === 690 packages/svelte2tsx/test/svelte2tsx/samples/style-after-selfclosing-iframe/input.svelte	lint.txt
 1:1 1:18 svelte/valid-compile "`<iframe>` element should have a title attribute\nhttps://svelte.dev/e/a11y_missing_attribute(a11y_missing_attribute)"
@@ -4810,6 +5755,15 @@
 2:23 2:29 no-unused-vars "'params' is assigned a value but never used."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 
+=== 592 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes/+page.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:16 7:16 svelte/valid-compile "Identifier 'form' has already been declared\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
 === 770 packages/svelte2tsx/test/svelte2tsx/samples/ts-$$Props-interface-only-props/input.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -4859,6 +5813,166 @@
 20:1 20:46 svelte/button-has-type "Missing an explicit type attribute for button."
 20:1 20:55 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
 20:9 20:45 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
+
+=== 1353 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:11 4:22 no-unused-vars "'notDispatch' is assigned a value but never used."
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:17 10:18 svelte/no-trailing-spaces "Trailing spaces not allowed."
+21:1 21:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+23:1 23:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+23:14 23:17 no-unused-vars "'bye' is defined but never used."
+24:1 24:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+25:1 25:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+28:1 28:46 svelte/button-has-type "Missing an explicit type attribute for button."
+28:1 28:55 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
+28:9 28:45 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
+
+=== 1297 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatchers-same-event/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:11 4:22 no-unused-vars "'notDispatch' is assigned a value but never used."
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:11 5:20 no-unused-vars "'dispatch1' is assigned a value but never used."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:11 11:20 no-unused-vars "'dispatch2' is assigned a value but never used."
+12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+17:1 17:18 svelte/button-has-type "Missing an explicit type attribute for button."
+17:1 17:27 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
+17:9 17:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
+
+=== 1297 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatchers/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:11 4:22 no-unused-vars "'notDispatch' is assigned a value but never used."
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:11 5:20 no-unused-vars "'dispatch1' is assigned a value but never used."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:11 11:20 no-unused-vars "'dispatch2' is assigned a value but never used."
+12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+17:1 17:18 svelte/button-has-type "Missing an explicit type attribute for button."
+17:1 17:27 svelte/valid-compile "Buttons and links should either contain text or have an `aria-label`, `aria-labelledby` or `title` attribute\nhttps://svelte.dev/e/a11y_consider_explicit_label(a11y_consider_explicit_label)"
+17:9 17:17 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
+
+=== 549 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-arrow-function/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 6:1 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
+3:1 3:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
+3:11 3:12 svelte/prefer-const "'c' is never reassigned. Use 'const' instead."
+4:1 4:7 svelte/indent "Expected indentation of 4 spaces but found 6 spaces."
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 549 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-boolean/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 2:28 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 154 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-const/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 709 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-doc/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:5 5:26 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 395 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-has-type/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:5 3:21 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 255 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-interface/input.svelte	lint.txt
+1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 2701 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list-runes-false/input.svelte	lint.txt
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:9 3:14 svelte/valid-compile "Component has unused export property 'name1'. If it is for external reference only, please consider using `export const name1`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:9 4:14 svelte/valid-compile "Component has unused export property 'name2'. If it is for external reference only, please consider using `export const name2`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:9 5:14 svelte/valid-compile "Component has unused export property 'name3'. If it is for external reference only, please consider using `export const name3`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+5:29 5:34 svelte/valid-compile "Component has unused export property 'name4'. If it is for external reference only, please consider using `export const name4`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:9 7:16 svelte/valid-compile "Component has unused export property 'rename1'. If it is for external reference only, please consider using `export const rename1`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+8:9 8:16 svelte/valid-compile "Component has unused export property 'rename2'. If it is for external reference only, please consider using `export const rename2`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:11 10:14 svelte/valid-compile "Component has unused export property 'Foo'. If it is for external reference only, please consider using `export const Foo`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:11 14:20 svelte/valid-compile "Component has unused export property 'RenameFoo'. If it is for external reference only, please consider using `export const RenameFoo`\nhttps://svelte.dev/e/export_let_unused(export_let_unused)"
+15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 938 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list-runes.v5/input.svelte	lint.txt
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+12:1 12:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+16:1 16:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+18:1 18:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 936 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+9:1 9:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+11:1 11:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:1 13:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+14:1 14:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+15:1 15:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+17:1 17:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 317 packages/svelte2tsx/test/svelte2tsx/samples/ts-multiple-export/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 3:1 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 1087 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-best-effort-types.v5/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:11 2:12 no-unused-vars "'a' is assigned a value but never used."
+2:14 2:15 no-unused-vars "'b' is assigned a value but never used."
+2:24 2:25 no-unused-vars "'c' is assigned a value but never used."
+2:31 2:32 no-unused-vars "'d' is assigned a value but never used."
+2:39 2:40 no-unused-vars "'e' is assigned a value but never used."
+2:49 2:50 no-unused-vars "'f' is assigned a value but never used."
+2:57 2:58 no-unused-vars "'g' is assigned a value but never used."
+2:61 2:64 no-undef "'foo' is not defined."
+2:66 2:67 no-unused-vars "'h' is assigned a value but never used."
+2:78 2:81 no-undef "'Bar' is not defined."
+2:83 2:84 no-unused-vars "'i' is assigned a value but never used."
+2:102 2:105 no-undef "'Baz' is not defined."
+2:107 2:108 no-unused-vars "'j' is assigned a value but never used."
+2:115 2:116 no-unused-vars "'k' is assigned a value but never used."
+2:165 2:166 no-unused-vars "'n' is assigned a value but never used."
+2:191 2:192 svelte/no-trailing-spaces "Trailing spaces not allowed."
 
 === 300 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-bindable.v5/input.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -5013,6 +6127,15 @@
 12:1 12:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 12:6 12:9 no-unused-vars "'Abc' is assigned a value but never used."
 
+=== 546 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-14.v5/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:1 12:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+7:1 7:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+9:1 9:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+11:1 11:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+11:6 11:9 no-unused-vars "'Abc' is assigned a value but never used."
+
 === 469 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-15.v5/input.svelte	lint.txt
 4:1 11:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 5:1 5:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
@@ -5114,11 +6237,21 @@
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 4:9 4:10 no-unused-vars "'y' is assigned a value but never used."
 
+=== 294 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune-unchanged.v5/+page.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+3:11 3:15 no-unused-vars "'form' is assigned a value but never used."
+3:17 3:21 no-unused-vars "'data' is assigned a value but never used."
+
 === 294 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune.v5/+page.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 3:11 3:15 no-unused-vars "'form' is assigned a value but never used."
 3:17 3:21 no-unused-vars "'data' is assigned a value but never used."
+
+=== 240 packages/svelte2tsx/test/svelte2tsx/samples/ts-typed-export-with-default/input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:5 3:1 svelte/valid-compile "Cannot use `export let` in runes mode — use `$props()` instead\nhttps://svelte.dev/e/legacy_export_invalid(legacy_export_invalid)"
 
 === 391 packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -5126,6 +6259,9 @@
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:7 4:10 no-unused-vars "'Foo' is defined but never used."
+
+=== 86 packages/svelte2tsx/test/svelte2tsx/samples/unclosed-tag-containing-tag.v5/input.svelte	lint.txt
+1:0 - - "Parsing error: `<div>` was left open\nhttps://svelte.dev/e/element_unclosed"
 
 === 1196 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots-script/input.svelte	lint.txt
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
@@ -5226,6 +6362,15 @@
 13:1 13:34 svelte/button-has-type "Missing an explicit type attribute for button."
 13:9 13:33 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 
+=== 533 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store/input.svelte	lint.txt
+1:9 1:11 no-undef "'$b' is not defined."
+1:9 1:11 svelte/valid-compile "`$b` is an illegal variable name. To reference a global variable called `$b`, use `globalThis.$b`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+1:12 1:14 no-undef "'$b' is not defined."
+2:21 2:23 no-undef "'$b' is not defined."
+2:24 2:26 no-undef "'$b' is not defined."
+2:24 2:33 svelte/prefer-destructured-store-props "Destructure concat from $b for better change tracking & fewer redraws"
+2:39 2:41 no-undef "'$b' is not defined."
+
 === 1299 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components-let-forward/input.svelte	lint.txt
 2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
 2:1 4:15 svelte/valid-compile "`<svelte:self>` is deprecated — use self-imports (e.g. `import Self from './Self.svelte'`) instead\nhttps://svelte.dev/e/svelte_self_deprecated(svelte_self_deprecated)"
@@ -5238,4 +6383,16 @@
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 7:5 7:20 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 7:18 7:20 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
+=== 804 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components/input.svelte	lint.txt
+2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+4:25 4:38 no-undef "'testComponent' is not defined."
+4:40 4:49 svelte/max-attributes-per-line "'propa' should be on a new line."
+5:1 5:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+7:26 7:27 no-unused-vars "'e' is defined but never used."
+8:24 8:25 no-unused-vars "'e' is defined but never used."
+10:1 10:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+13:1 13:20 svelte/valid-compile "`<svelte:fragment>` must be the direct child of a component\nhttps://svelte.dev/e/svelte_fragment_invalid_placement(svelte_fragment_invalid_placement)"
+14:28 14:46 svelte/max-attributes-per-line "'on:click' should be on a new line."
+14:38 14:39 no-unused-vars "'e' is defined but never used."
 

@@ -2812,6 +2812,164 @@ a
   <p>{format(doubled)} ({label})</p>
 {/each}
 
+=== 784 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/each01-input.svelte	svelte
+<!-- prettier-ignore -->
+<script>
+  let cats = [
+    { id: 'J---aiyznGQ', name: 'Keyboard Cat' },
+    { id: 'z_AbfPXTKms', name: 'Maru' },
+    { id: 'OUtn3pvWmpg', name: 'Henri The Existential Cat' }
+  ];
+</script>
+
+<h1>The Famous Cats of YouTube</h1>
+
+<!-- prettier-ignore -->
+<ul>
+{#each cats as { id, name }, i}
+<li><a target="_blank" href="https://www.youtube.com/watch?v={id}">
+{i + 1}: {name}
+</a></li>
+{/each}
+</ul>
+<!-- prettier-ignore -->
+<ul>
+{
+#each
+cats
+as
+{
+id,
+name
+}
+,
+i
+}
+<li><a target="_blank" href="https://www.youtube.com/watch?v={id}">
+{i + 1}: {name}
+</a></li>
+{
+/each
+}
+{
+#each
+cats
+as
+c
+,
+index
+(
+c
+.
+id
+)
+}
+{
+c
+}
+{
+index
+}
+{
+/each
+}
+{
+#each
+cats
+as
+cat
+}
+{cat.name}
+{
+:else
+}
+...
+{
+/each
+}
+</ul>
+
+<!--tests/fixtures/rules/indent/invalid/each01-input.svelte-->
+
+=== 1048 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/each01-output.svelte	svelte
+<!-- prettier-ignore -->
+<script>
+  let cats = [
+    { id: 'J---aiyznGQ', name: 'Keyboard Cat' },
+    { id: 'z_AbfPXTKms', name: 'Maru' },
+    { id: 'OUtn3pvWmpg', name: 'Henri The Existential Cat' }
+  ];
+</script>
+
+<h1>The Famous Cats of YouTube</h1>
+
+<!-- prettier-ignore -->
+<ul>
+  {#each cats as { id, name }, i}
+    <li><a target="_blank" href="https://www.youtube.com/watch?v={id}">
+      {i + 1}: {name}
+    </a></li>
+  {/each}
+</ul>
+<!-- prettier-ignore -->
+<ul>
+  {
+    #each
+      cats
+      as
+      {
+        id,
+        name
+      }
+      ,
+      i
+  }
+    <li><a target="_blank" href="https://www.youtube.com/watch?v={id}">
+      {i + 1}: {name}
+    </a></li>
+  {
+    /each
+  }
+  {
+    #each
+      cats
+      as
+      c
+      ,
+      index
+      (
+        c
+          .
+          id
+      )
+  }
+    {
+      c
+    }
+    {
+      index
+    }
+  {
+    /each
+  }
+  {
+    #each
+      cats
+      as
+      cat
+  }
+    {cat.name}
+  {
+    :else
+  }
+    ...
+  {
+    /each
+  }
+</ul>
+
+<!--tests/fixtures/rules/indent/invalid/each01-input.svelte-->
+
 === 51 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/html-text02-input.svelte	svelte
 <!-- prettier-ignore -->
 <div>
@@ -3651,6 +3809,112 @@ a
 </script>
 
 <!--tests/fixtures/rules/indent/invalid/script-do-while01-input.svelte-->
+
+=== 315 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export01-input.svelte	svelte
+<!-- prettier-ignore -->
+<script context="module">
+export
+*
+from
+"mod"
+export
+*
+as
+foo
+from
+"mod"
+export
+default
+A
+export
+var
+v
+=
+1
+;
+let a, b
+export
+{
+a
+,
+b
+}
+export
+{
+a1
+,
+b1
+}
+from
+"mod"
+export
+{
+a1
+as
+a2
+,
+b1
+as
+b2
+}
+from
+"mod"
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/script-export01-input.svelte-->
+
+=== 485 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export01-output.svelte	svelte
+<!-- prettier-ignore -->
+<script context="module">
+  export
+    *
+  from
+    "mod"
+  export
+    *
+      as
+      foo
+  from
+    "mod"
+  export
+    default
+    A
+  export
+    var
+      v
+        =
+        1
+    ;
+  let a, b
+  export
+  {
+    a
+    ,
+    b
+  }
+  export
+  {
+    a1
+    ,
+    b1
+  }
+  from
+    "mod"
+  export
+  {
+    a1
+      as
+      a2
+    ,
+    b1
+      as
+      b2
+  }
+  from
+    "mod"
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/script-export01-input.svelte-->
 
 === 141 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export02-input.svelte	svelte
 <!-- prettier-ignore -->
@@ -5578,6 +5842,30 @@ number
   }
 </script>
 
+=== 96 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property04-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+class Foo {
+override accessor
+foo
+=
+2
+;
+}
+</script>
+
+=== 124 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property04-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  class Foo {
+    override accessor
+    foo
+      =
+      2
+    ;
+  }
+</script>
+
 === 89 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property05-input.svelte	svelte
 <!-- prettier-ignore -->
 <script lang="ts">
@@ -5886,6 +6174,240 @@ var b =
     {} satisfies Bar
 </script>
 
+=== 425 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class01-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+abstract
+class
+C
+{
+abstract f
+:
+boolean
+abstract fn
+(
+a
+)
+:
+boolean
+}
+
+class Foo {
+constructor
+(
+protected a
+: 
+string
+,
+protected readonly b
+: 
+string
+,
+protected c
+:
+number
+=
+30
+,
+protected readonly d
+:
+boolean 
+= 
+false
+) 
+{
+}
+}
+
+class Foo {
+prop
+:
+number;
+opt
+?
+:
+number;
+opt2
+?
+:
+number
+=
+42;
+}
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-class01-input.svelte-->
+
+=== 773 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class01-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  abstract
+  class
+    C
+  {
+    abstract f
+      :
+      boolean
+    abstract fn
+      (
+        a
+      )
+        :
+        boolean
+  }
+
+  class Foo {
+    constructor
+      (
+        protected a
+          : 
+          string
+        ,
+        protected readonly b
+          : 
+          string
+        ,
+        protected c
+          :
+          number
+          =
+          30
+        ,
+        protected readonly d
+          :
+          boolean 
+          = 
+          false
+      ) 
+    {
+    }
+  }
+
+  class Foo {
+    prop
+      :
+      number;
+    opt
+      ?
+      :
+      number;
+    opt2
+      ?
+      :
+      number
+      =
+      42;
+  }
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-class01-input.svelte-->
+
+=== 295 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class02-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+class A {
+a: number
+=
+1
+;
+public b
+:
+CustomType<
+T
+>
+=
+'s'
+;
+readonly protected c
+:
+{
+key: string;
+[
+name
+in
+CustomType
+]: undefined;
+[
+key:
+string
+]:
+string
+;
+}
+=
+i
+;
+}
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-class02-input.svelte-->
+
+=== 517 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class02-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  class A {
+    a: number
+      =
+      1
+    ;
+    public b
+      :
+      CustomType<
+        T
+      >
+      =
+      's'
+    ;
+    readonly protected c
+      :
+      {
+        key: string;
+        [
+          name
+            in
+            CustomType
+        ]: undefined;
+        [
+          key:
+            string
+        ]:
+          string
+        ;
+      }
+      =
+      i
+    ;
+  }
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-class02-input.svelte-->
+
+=== 210 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class03-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+import {D} from "foo";
+
+@D
+export default class C extends E {
+private foo = "str";
+}
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-class03-input.svelte-->
+
+=== 222 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class03-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  import {D} from "foo";
+
+  @D
+  export default class C extends E {
+    private foo = "str";
+  }
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-class03-input.svelte-->
+
 === 202 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-conditional-type01-input.svelte	svelte
 <!-- prettier-ignore -->
 <script lang="ts">
@@ -5913,6 +6435,2560 @@ J;
 </script>
 
 <!--tests/fixtures/rules/indent/invalid/ts/ts-conditional-type01-input.svelte-->
+
+=== 36024 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-d-ts-eslint-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+// Type definitions for eslint 7.2
+// Project: https://eslint.org
+// Definitions by: Pierre-Marie Dartus <https://github.com/pmdartus>
+//                 Jed Fox <https://github.com/j-f1>
+//                 Saad Quadri <https://github.com/saadq>
+//                 Jason Kwok <https://github.com/JasonHK>
+//                 Brad Zacher <https://github.com/bradzacher>
+//                 JounQin <https://github.com/JounQin>
+// Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+/// <reference path="helpers.d.ts" />
+/// <reference path="lib/rules/index.d.ts" />
+
+import { JSONSchema4 } from "json-schema";
+import * as ESTree from "estree";
+
+export namespace AST {
+    type TokenType =
+        | "Boolean"
+        | "Null"
+        | "Identifier"
+        | "Keyword"
+        | "Punctuator"
+        | "JSXIdentifier"
+        | "JSXText"
+        | "Numeric"
+        | "String"
+        | "RegularExpression";
+
+    interface Token {
+        type: TokenType;
+        value: string;
+        range: Range;
+        loc: SourceLocation;
+    }
+
+    interface SourceLocation {
+        start: ESTree.Position;
+        end: ESTree.Position;
+    }
+
+    type Range = [number, number];
+
+    interface Program extends ESTree.Program {
+        comments: ESTree.Comment[];
+        tokens: Token[];
+        loc: SourceLocation;
+        range: Range;
+    }
+}
+
+export namespace Scope {
+    interface ScopeManager {
+        scopes: Scope[];
+        globalScope: Scope | null;
+
+        acquire(node: ESTree.Node, inner?: boolean): Scope | null;
+
+        getDeclaredVariables(node: ESTree.Node): Variable[];
+    }
+
+    interface Scope {
+        type:
+            | "block"
+            | "catch"
+            | "class"
+            | "for"
+            | "function"
+            | "function-expression-name"
+            | "global"
+            | "module"
+            | "switch"
+            | "with"
+            | "TDZ";
+        isStrict: boolean;
+        upper: Scope | null;
+        childScopes: Scope[];
+        variableScope: Scope;
+        block: ESTree.Node;
+        variables: Variable[];
+        set: Map<string, Variable>;
+        references: Reference[];
+        through: Reference[];
+        functionExpressionScope: boolean;
+    }
+
+    interface Variable {
+        name: string;
+        identifiers: ESTree.Identifier[];
+        references: Reference[];
+        defs: Definition[];
+    }
+
+    interface Reference {
+        identifier: ESTree.Identifier;
+        from: Scope;
+        resolved: Variable | null;
+        writeExpr: ESTree.Node | null;
+        init: boolean;
+
+        isWrite(): boolean;
+
+        isRead(): boolean;
+
+        isWriteOnly(): boolean;
+
+        isReadOnly(): boolean;
+
+        isReadWrite(): boolean;
+    }
+
+    type DefinitionType =
+        | { type: "CatchClause"; node: ESTree.CatchClause; parent: null }
+        | { type: "ClassName"; node: ESTree.ClassDeclaration | ESTree.ClassExpression; parent: null }
+        | { type: "FunctionName"; node: ESTree.FunctionDeclaration | ESTree.FunctionExpression; parent: null }
+        | { type: "ImplicitGlobalVariable"; node: ESTree.Program; parent: null }
+        | {
+              type: "ImportBinding";
+              node: ESTree.ImportSpecifier | ESTree.ImportDefaultSpecifier | ESTree.ImportNamespaceSpecifier;
+              parent: ESTree.ImportDeclaration;
+          }
+        | {
+              type: "Parameter";
+              node: ESTree.FunctionDeclaration | ESTree.FunctionExpression | ESTree.ArrowFunctionExpression;
+              parent: null;
+          }
+        | { type: "TDZ"; node: any; parent: null }
+        | { type: "Variable"; node: ESTree.VariableDeclarator; parent: ESTree.VariableDeclaration };
+
+    type Definition = DefinitionType & { name: ESTree.Identifier };
+}
+
+//#region SourceCode
+
+export class SourceCode {
+    text: string;
+    ast: AST.Program;
+    lines: string[];
+    hasBOM: boolean;
+    parserServices: SourceCode.ParserServices;
+    scopeManager: Scope.ScopeManager;
+    visitorKeys: SourceCode.VisitorKeys;
+
+    constructor(text: string, ast: AST.Program);
+    constructor(config: SourceCode.Config);
+
+    static splitLines(text: string): string[];
+
+    getText(node?: ESTree.Node, beforeCount?: number, afterCount?: number): string;
+
+    getLines(): string[];
+
+    getAllComments(): ESTree.Comment[];
+
+    getComments(node: ESTree.Node): { leading: ESTree.Comment[]; trailing: ESTree.Comment[] };
+
+    getJSDocComment(node: ESTree.Node): ESTree.Comment | null;
+
+    getNodeByRangeIndex(index: number): ESTree.Node | null;
+
+    isSpaceBetweenTokens(first: AST.Token, second: AST.Token): boolean;
+
+    getLocFromIndex(index: number): ESTree.Position;
+
+    getIndexFromLoc(location: ESTree.Position): number;
+
+    // Inherited methods from TokenStore
+    // ---------------------------------
+
+    getTokenByRangeStart(offset: number, options?: { includeComments: false }): AST.Token | null;
+    getTokenByRangeStart(offset: number, options: { includeComments: boolean }): AST.Token | ESTree.Comment | null;
+
+    getFirstToken: SourceCode.UnaryNodeCursorWithSkipOptions;
+
+    getFirstTokens: SourceCode.UnaryNodeCursorWithCountOptions;
+
+    getLastToken: SourceCode.UnaryNodeCursorWithSkipOptions;
+
+    getLastTokens: SourceCode.UnaryNodeCursorWithCountOptions;
+
+    getTokenBefore: SourceCode.UnaryCursorWithSkipOptions;
+
+    getTokensBefore: SourceCode.UnaryCursorWithCountOptions;
+
+    getTokenAfter: SourceCode.UnaryCursorWithSkipOptions;
+
+    getTokensAfter: SourceCode.UnaryCursorWithCountOptions;
+
+    getFirstTokenBetween: SourceCode.BinaryCursorWithSkipOptions;
+
+    getFirstTokensBetween: SourceCode.BinaryCursorWithCountOptions;
+
+    getLastTokenBetween: SourceCode.BinaryCursorWithSkipOptions;
+
+    getLastTokensBetween: SourceCode.BinaryCursorWithCountOptions;
+
+    getTokensBetween: SourceCode.BinaryCursorWithCountOptions;
+
+    getTokens: ((node: ESTree.Node, beforeCount?: number, afterCount?: number) => AST.Token[]) &
+        SourceCode.UnaryNodeCursorWithCountOptions;
+
+    commentsExistBetween(
+        left: ESTree.Node | AST.Token | ESTree.Comment,
+        right: ESTree.Node | AST.Token | ESTree.Comment,
+    ): boolean;
+
+    getCommentsBefore(nodeOrToken: ESTree.Node | AST.Token): ESTree.Comment[];
+
+    getCommentsAfter(nodeOrToken: ESTree.Node | AST.Token): ESTree.Comment[];
+
+    getCommentsInside(node: ESTree.Node): ESTree.Comment[];
+}
+
+export namespace SourceCode {
+    interface Config {
+        text: string;
+        ast: AST.Program;
+        parserServices?: ParserServices;
+        scopeManager?: Scope.ScopeManager;
+        visitorKeys?: VisitorKeys;
+    }
+
+    type ParserServices = any;
+
+    interface VisitorKeys {
+        [nodeType: string]: string[];
+    }
+
+    interface UnaryNodeCursorWithSkipOptions {
+        <T extends AST.Token>(
+            node: ESTree.Node,
+            options:
+                | ((token: AST.Token) => token is T)
+                | { filter: (token: AST.Token) => token is T; includeComments?: false; skip?: number },
+        ): T | null;
+        <T extends AST.Token | ESTree.Comment>(
+            node: ESTree.Node,
+            options: {
+                filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+                includeComments: boolean;
+                skip?: number;
+            },
+        ): T | null;
+        (
+            node: ESTree.Node,
+            options?:
+                | { filter?: (token: AST.Token) => boolean; includeComments?: false; skip?: number }
+                | ((token: AST.Token) => boolean)
+                | number,
+        ): AST.Token | null;
+        (
+            node: ESTree.Node,
+            options: {
+                filter?: (token: AST.Token | ESTree.Comment) => boolean;
+                includeComments: boolean;
+                skip?: number;
+            },
+        ): AST.Token | ESTree.Comment | null;
+    }
+
+    interface UnaryNodeCursorWithCountOptions {
+        <T extends AST.Token>(
+            node: ESTree.Node,
+            options:
+                | ((token: AST.Token) => token is T)
+                | { filter: (token: AST.Token) => token is T; includeComments?: false; count?: number },
+        ): T[];
+        <T extends AST.Token | ESTree.Comment>(
+            node: ESTree.Node,
+            options: {
+                filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+                includeComments: boolean;
+                count?: number;
+            },
+        ): T[];
+        (
+            node: ESTree.Node,
+            options?:
+                | { filter?: (token: AST.Token) => boolean; includeComments?: false; count?: number }
+                | ((token: AST.Token) => boolean)
+                | number,
+        ): AST.Token[];
+        (
+            node: ESTree.Node,
+            options: {
+                filter?: (token: AST.Token | ESTree.Comment) => boolean;
+                includeComments: boolean;
+                count?: number;
+            },
+        ): Array<AST.Token | ESTree.Comment>;
+    }
+
+    interface UnaryCursorWithSkipOptions {
+        <T extends AST.Token>(
+            node: ESTree.Node | AST.Token | ESTree.Comment,
+            options:
+                | ((token: AST.Token) => token is T)
+                | { filter: (token: AST.Token) => token is T; includeComments?: false; skip?: number },
+        ): T | null;
+        <T extends AST.Token | ESTree.Comment>(
+            node: ESTree.Node | AST.Token | ESTree.Comment,
+            options: {
+                filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+                includeComments: boolean;
+                skip?: number;
+            },
+        ): T | null;
+        (
+            node: ESTree.Node | AST.Token | ESTree.Comment,
+            options?:
+                | { filter?: (token: AST.Token) => boolean; includeComments?: false; skip?: number }
+                | ((token: AST.Token) => boolean)
+                | number,
+        ): AST.Token | null;
+        (
+            node: ESTree.Node | AST.Token | ESTree.Comment,
+            options: {
+                filter?: (token: AST.Token | ESTree.Comment) => boolean;
+                includeComments: boolean;
+                skip?: number;
+            },
+        ): AST.Token | ESTree.Comment | null;
+    }
+
+    interface UnaryCursorWithCountOptions {
+        <T extends AST.Token>(
+            node: ESTree.Node | AST.Token | ESTree.Comment,
+            options:
+                | ((token: AST.Token) => token is T)
+                | { filter: (token: AST.Token) => token is T; includeComments?: false; count?: number },
+        ): T[];
+        <T extends AST.Token | ESTree.Comment>(
+            node: ESTree.Node | AST.Token | ESTree.Comment,
+            options: {
+                filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+                includeComments: boolean;
+                count?: number;
+            },
+        ): T[];
+        (
+            node: ESTree.Node | AST.Token | ESTree.Comment,
+            options?:
+                | { filter?: (token: AST.Token) => boolean; includeComments?: false; count?: number }
+                | ((token: AST.Token) => boolean)
+                | number,
+        ): AST.Token[];
+        (
+            node: ESTree.Node | AST.Token | ESTree.Comment,
+            options: {
+                filter?: (token: AST.Token | ESTree.Comment) => boolean;
+                includeComments: boolean;
+                count?: number;
+            },
+        ): Array<AST.Token | ESTree.Comment>;
+    }
+
+    interface BinaryCursorWithSkipOptions {
+        <T extends AST.Token>(
+            left: ESTree.Node | AST.Token | ESTree.Comment,
+            right: ESTree.Node | AST.Token | ESTree.Comment,
+            options:
+                | ((token: AST.Token) => token is T)
+                | { filter: (token: AST.Token) => token is T; includeComments?: false; skip?: number },
+        ): T | null;
+        <T extends AST.Token | ESTree.Comment>(
+            left: ESTree.Node | AST.Token | ESTree.Comment,
+            right: ESTree.Node | AST.Token | ESTree.Comment,
+            options: {
+                filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+                includeComments: boolean;
+                skip?: number;
+            },
+        ): T | null;
+        (
+            left: ESTree.Node | AST.Token | ESTree.Comment,
+            right: ESTree.Node | AST.Token | ESTree.Comment,
+            options?:
+                | { filter?: (token: AST.Token) => boolean; includeComments?: false; skip?: number }
+                | ((token: AST.Token) => boolean)
+                | number,
+        ): AST.Token | null;
+        (
+            left: ESTree.Node | AST.Token | ESTree.Comment,
+            right: ESTree.Node | AST.Token | ESTree.Comment,
+            options: {
+                filter?: (token: AST.Token | ESTree.Comment) => boolean;
+                includeComments: boolean;
+                skip?: number;
+            },
+        ): AST.Token | ESTree.Comment | null;
+    }
+
+    interface BinaryCursorWithCountOptions {
+        <T extends AST.Token>(
+            left: ESTree.Node | AST.Token | ESTree.Comment,
+            right: ESTree.Node | AST.Token | ESTree.Comment,
+            options:
+                | ((token: AST.Token) => token is T)
+                | { filter: (token: AST.Token) => token is T; includeComments?: false; count?: number },
+        ): T[];
+        <T extends AST.Token | ESTree.Comment>(
+            left: ESTree.Node | AST.Token | ESTree.Comment,
+            right: ESTree.Node | AST.Token | ESTree.Comment,
+            options: {
+                filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+                includeComments: boolean;
+                count?: number;
+            },
+        ): T[];
+        (
+            left: ESTree.Node | AST.Token | ESTree.Comment,
+            right: ESTree.Node | AST.Token | ESTree.Comment,
+            options?:
+                | { filter?: (token: AST.Token) => boolean; includeComments?: false; count?: number }
+                | ((token: AST.Token) => boolean)
+                | number,
+        ): AST.Token[];
+        (
+            left: ESTree.Node | AST.Token | ESTree.Comment,
+            right: ESTree.Node | AST.Token | ESTree.Comment,
+            options: {
+                filter?: (token: AST.Token | ESTree.Comment) => boolean;
+                includeComments: boolean;
+                count?: number;
+            },
+        ): Array<AST.Token | ESTree.Comment>;
+    }
+}
+
+//#endregion
+
+export namespace Rule {
+    interface RuleModule {
+        create(context: RuleContext): RuleListener;
+        meta?: RuleMetaData;
+    }
+
+    type NodeTypes = ESTree.Node["type"];
+    interface NodeListener {
+        ArrayExpression?: (node: ESTree.ArrayExpression & NodeParentExtension) => void;
+        ArrayPattern?: (node: ESTree.ArrayPattern & NodeParentExtension) => void;
+        ArrowFunctionExpression?: (node: ESTree.ArrowFunctionExpression & NodeParentExtension) => void;
+        AssignmentExpression?: (node: ESTree.AssignmentExpression & NodeParentExtension) => void;
+        AssignmentPattern?: (node: ESTree.AssignmentPattern & NodeParentExtension) => void;
+        AwaitExpression?: (node: ESTree.AwaitExpression & NodeParentExtension) => void;
+        BinaryExpression?: (node: ESTree.BinaryExpression & NodeParentExtension) => void;
+        BlockStatement?: (node: ESTree.BlockStatement & NodeParentExtension) => void;
+        BreakStatement?: (node: ESTree.BreakStatement & NodeParentExtension) => void;
+        CallExpression?: (node: ESTree.CallExpression & NodeParentExtension) => void;
+        CatchClause?: (node: ESTree.CatchClause & NodeParentExtension) => void;
+        ChainExpression?: (node: ESTree.ChainExpression & NodeParentExtension) => void;
+        ClassBody?: (node: ESTree.ClassBody & NodeParentExtension) => void;
+        ClassDeclaration?: (node: ESTree.ClassDeclaration & NodeParentExtension) => void;
+        ClassExpression?: (node: ESTree.ClassExpression & NodeParentExtension) => void;
+        ConditionalExpression?: (node: ESTree.ConditionalExpression & NodeParentExtension) => void;
+        ContinueStatement?: (node: ESTree.ContinueStatement & NodeParentExtension) => void;
+        DebuggerStatement?: (node: ESTree.DebuggerStatement & NodeParentExtension) => void;
+        DoWhileStatement?: (node: ESTree.DoWhileStatement & NodeParentExtension) => void;
+        EmptyStatement?: (node: ESTree.EmptyStatement & NodeParentExtension) => void;
+        ExportAllDeclaration?: (node: ESTree.ExportAllDeclaration & NodeParentExtension) => void;
+        ExportDefaultDeclaration?: (node: ESTree.ExportDefaultDeclaration & NodeParentExtension) => void;
+        ExportNamedDeclaration?: (node: ESTree.ExportNamedDeclaration & NodeParentExtension) => void;
+        ExportSpecifier?: (node: ESTree.ExportSpecifier & NodeParentExtension) => void;
+        ExpressionStatement?: (node: ESTree.ExpressionStatement & NodeParentExtension) => void;
+        ForInStatement?: (node: ESTree.ForInStatement & NodeParentExtension) => void;
+        ForOfStatement?: (node: ESTree.ForOfStatement & NodeParentExtension) => void;
+        ForStatement?: (node: ESTree.ForStatement & NodeParentExtension) => void;
+        FunctionDeclaration?: (node: ESTree.FunctionDeclaration & NodeParentExtension) => void;
+        FunctionExpression?: (node: ESTree.FunctionExpression & NodeParentExtension) => void;
+        Identifier?: (node: ESTree.Identifier & NodeParentExtension) => void;
+        IfStatement?: (node: ESTree.IfStatement & NodeParentExtension) => void;
+        ImportDeclaration?: (node: ESTree.ImportDeclaration & NodeParentExtension) => void;
+        ImportDefaultSpecifier?: (node: ESTree.ImportDefaultSpecifier & NodeParentExtension) => void;
+        ImportExpression?: (node: ESTree.ImportExpression & NodeParentExtension) => void;
+        ImportNamespaceSpecifier?: (node: ESTree.ImportNamespaceSpecifier & NodeParentExtension) => void;
+        ImportSpecifier?: (node: ESTree.ImportSpecifier & NodeParentExtension) => void;
+        LabeledStatement?: (node: ESTree.LabeledStatement & NodeParentExtension) => void;
+        Literal?: (node: ESTree.Literal & NodeParentExtension) => void;
+        LogicalExpression?: (node: ESTree.LogicalExpression & NodeParentExtension) => void;
+        MemberExpression?: (node: ESTree.MemberExpression & NodeParentExtension) => void;
+        MetaProperty?: (node: ESTree.MetaProperty & NodeParentExtension) => void;
+        MethodDefinition?: (node: ESTree.MethodDefinition & NodeParentExtension) => void;
+        NewExpression?: (node: ESTree.NewExpression & NodeParentExtension) => void;
+        ObjectExpression?: (node: ESTree.ObjectExpression & NodeParentExtension) => void;
+        ObjectPattern?: (node: ESTree.ObjectPattern & NodeParentExtension) => void;
+        Program?: (node: ESTree.Program) => void;
+        Property?: (node: ESTree.Property & NodeParentExtension) => void;
+        RestElement?: (node: ESTree.RestElement & NodeParentExtension) => void;
+        ReturnStatement?: (node: ESTree.ReturnStatement & NodeParentExtension) => void;
+        SequenceExpression?: (node: ESTree.SequenceExpression & NodeParentExtension) => void;
+        SpreadElement?: (node: ESTree.SpreadElement & NodeParentExtension) => void;
+        Super?: (node: ESTree.Super & NodeParentExtension) => void;
+        SwitchCase?: (node: ESTree.SwitchCase & NodeParentExtension) => void;
+        SwitchStatement?: (node: ESTree.SwitchStatement & NodeParentExtension) => void;
+        TaggedTemplateExpression?: (node: ESTree.TaggedTemplateExpression & NodeParentExtension) => void;
+        TemplateElement?: (node: ESTree.TemplateElement & NodeParentExtension) => void;
+        TemplateLiteral?: (node: ESTree.TemplateLiteral & NodeParentExtension) => void;
+        ThisExpression?: (node: ESTree.ThisExpression & NodeParentExtension) => void;
+        ThrowStatement?: (node: ESTree.ThrowStatement & NodeParentExtension) => void;
+        TryStatement?: (node: ESTree.TryStatement & NodeParentExtension) => void;
+        UnaryExpression?: (node: ESTree.UnaryExpression & NodeParentExtension) => void;
+        UpdateExpression?: (node: ESTree.UpdateExpression & NodeParentExtension) => void;
+        VariableDeclaration?: (node: ESTree.VariableDeclaration & NodeParentExtension) => void;
+        VariableDeclarator?: (node: ESTree.VariableDeclarator & NodeParentExtension) => void;
+        WhileStatement?: (node: ESTree.WhileStatement & NodeParentExtension) => void;
+        WithStatement?: (node: ESTree.WithStatement & NodeParentExtension) => void;
+        YieldExpression?: (node: ESTree.YieldExpression & NodeParentExtension) => void;
+    }
+
+    interface NodeParentExtension {
+        parent: Node;
+    }
+    type Node = ESTree.Node & NodeParentExtension;
+
+    interface RuleListener extends NodeListener {
+        onCodePathStart?(codePath: CodePath, node: Node): void;
+
+        onCodePathEnd?(codePath: CodePath, node: Node): void;
+
+        onCodePathSegmentStart?(segment: CodePathSegment, node: Node): void;
+
+        onCodePathSegmentEnd?(segment: CodePathSegment, node: Node): void;
+
+        onCodePathSegmentLoop?(fromSegment: CodePathSegment, toSegment: CodePathSegment, node: Node): void;
+
+        [key: string]:
+            | ((codePath: CodePath, node: Node) => void)
+            | ((segment: CodePathSegment, node: Node) => void)
+            | ((fromSegment: CodePathSegment, toSegment: CodePathSegment, node: Node) => void)
+            | ((node: Node) => void)
+            | NodeListener[keyof NodeListener]
+            | undefined;
+    }
+
+    interface CodePath {
+        id: string;
+        initialSegment: CodePathSegment;
+        finalSegments: CodePathSegment[];
+        returnedSegments: CodePathSegment[];
+        thrownSegments: CodePathSegment[];
+        currentSegments: CodePathSegment[];
+        upper: CodePath | null;
+        childCodePaths: CodePath[];
+    }
+
+    interface CodePathSegment {
+        id: string;
+        nextSegments: CodePathSegment[];
+        prevSegments: CodePathSegment[];
+        reachable: boolean;
+    }
+
+    interface RuleMetaData {
+        docs?: {
+            /** provides the short description of the rule in the [rules index](https://eslint.org/docs/rules/) */
+            description?: string;
+            /** specifies the heading under which the rule is listed in the [rules index](https://eslint.org/docs/rules/) */
+            category?: string;
+            /** is whether the `"extends": "eslint:recommended"` property in a [configuration file](https://eslint.org/docs/user-guide/configuring#extending-configuration-files) enables the rule */
+            recommended?: boolean;
+            /** specifies the URL at which the full documentation can be accessed */
+            url?: string;
+            /** specifies whether rules can return suggestions (defaults to false if omitted) */
+            suggestion?: boolean;
+        };
+        messages?: { [messageId: string]: string };
+        fixable?: "code" | "whitespace";
+        schema?: JSONSchema4 | JSONSchema4[];
+        deprecated?: boolean;
+        type?: "problem" | "suggestion" | "layout";
+    }
+
+    interface RuleContext {
+        id: string;
+        options: any[];
+        settings: { [name: string]: any };
+        parserPath: string;
+        parserOptions: Linter.ParserOptions;
+        parserServices: SourceCode.ParserServices;
+
+        getAncestors(): ESTree.Node[];
+
+        getDeclaredVariables(node: ESTree.Node): Scope.Variable[];
+
+        getFilename(): string;
+
+        getCwd(): string;
+
+        getScope(): Scope.Scope;
+
+        getSourceCode(): SourceCode;
+
+        markVariableAsUsed(name: string): boolean;
+
+        report(descriptor: ReportDescriptor): void;
+    }
+
+    interface ReportDescriptorOptionsBase {
+        data?: { [key: string]: string };
+
+        fix?: null | ((fixer: RuleFixer) => null | Fix | IterableIterator<Fix> | Fix[]);
+    }
+
+    type SuggestionDescriptorMessage = { desc: string } | { messageId: string };
+    type SuggestionReportDescriptor = SuggestionDescriptorMessage & ReportDescriptorOptionsBase;
+
+    interface ReportDescriptorOptions extends ReportDescriptorOptionsBase {
+        suggest?: SuggestionReportDescriptor[] | null;
+    }
+
+    type ReportDescriptor = ReportDescriptorMessage & ReportDescriptorLocation & ReportDescriptorOptions;
+    type ReportDescriptorMessage = { message: string } | { messageId: string };
+    type ReportDescriptorLocation =
+        | { node: ESTree.Node }
+        | { loc: AST.SourceLocation | { line: number; column: number } };
+
+    interface RuleFixer {
+        insertTextAfter(nodeOrToken: ESTree.Node | AST.Token, text: string): Fix;
+
+        insertTextAfterRange(range: AST.Range, text: string): Fix;
+
+        insertTextBefore(nodeOrToken: ESTree.Node | AST.Token, text: string): Fix;
+
+        insertTextBeforeRange(range: AST.Range, text: string): Fix;
+
+        remove(nodeOrToken: ESTree.Node | AST.Token): Fix;
+
+        removeRange(range: AST.Range): Fix;
+
+        replaceText(nodeOrToken: ESTree.Node | AST.Token, text: string): Fix;
+
+        replaceTextRange(range: AST.Range, text: string): Fix;
+    }
+
+    interface Fix {
+        range: AST.Range;
+        text: string;
+    }
+}
+
+//#region Linter
+
+export class Linter {
+    static version: string;
+
+    version: string;
+
+    constructor(options?: { cwd?: string });
+
+    verify(code: SourceCode | string, config: Linter.Config, filename?: string): Linter.LintMessage[];
+    verify(code: SourceCode | string, config: Linter.Config, options: Linter.LintOptions): Linter.LintMessage[];
+
+    verifyAndFix(code: string, config: Linter.Config, filename?: string): Linter.FixReport;
+    verifyAndFix(code: string, config: Linter.Config, options: Linter.FixOptions): Linter.FixReport;
+
+    getSourceCode(): SourceCode;
+
+    defineRule(name: string, rule: Rule.RuleModule): void;
+
+    defineRules(rules: { [name: string]: Rule.RuleModule }): void;
+
+    getRules(): Map<string, Rule.RuleModule>;
+
+    defineParser(name: string, parser: Linter.ParserModule): void;
+}
+
+export namespace Linter {
+    type Severity = 0 | 1 | 2;
+
+    type RuleLevel = Severity | "off" | "warn" | "error";
+    type RuleLevelAndOptions<Options extends any[] = any[]> = Prepend<Partial<Options>, RuleLevel>;
+
+    type RuleEntry<Options extends any[] = any[]> = RuleLevel | RuleLevelAndOptions<Options>;
+
+    interface RulesRecord {
+        [rule: string]: RuleEntry;
+    }
+
+    interface HasRules<Rules extends RulesRecord = RulesRecord> {
+        rules?: Partial<Rules>;
+    }
+
+    interface BaseConfig<Rules extends RulesRecord = RulesRecord> extends HasRules<Rules> {
+        $schema?: string;
+        env?: { [name: string]: boolean };
+        extends?: string | string[];
+        globals?: { [name: string]: boolean | "readonly" | "readable" | "writable" | "writeable" };
+        noInlineConfig?: boolean;
+        overrides?: ConfigOverride[];
+        parser?: string;
+        parserOptions?: ParserOptions;
+        plugins?: string[];
+        processor?: string;
+        reportUnusedDisableDirectives?: boolean;
+        settings?: { [name: string]: any };
+    }
+
+    interface ConfigOverride<Rules extends RulesRecord = RulesRecord> extends BaseConfig<Rules> {
+        excludedFiles?: string | string[];
+        files: string | string[];
+    }
+
+    // https://github.com/eslint/eslint/blob/v6.8.0/conf/config-schema.js
+    interface Config<Rules extends RulesRecord = RulesRecord> extends BaseConfig<Rules> {
+        ignorePatterns?: string | string[];
+        root?: boolean;
+    }
+
+    interface ParserOptions {
+        ecmaVersion?: 3 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021;
+        sourceType?: "script" | "module";
+        ecmaFeatures?: {
+            globalReturn?: boolean;
+            impliedStrict?: boolean;
+            jsx?: boolean;
+            experimentalObjectRestSpread?: boolean;
+            [key: string]: any;
+        };
+        [key: string]: any;
+    }
+
+    interface LintOptions {
+        filename?: string;
+        preprocess?: (code: string) => string[];
+        postprocess?: (problemLists: LintMessage[][]) => LintMessage[];
+        filterCodeBlock?: boolean;
+        disableFixes?: boolean;
+        allowInlineConfig?: boolean;
+        reportUnusedDisableDirectives?: boolean;
+    }
+
+    interface LintSuggestion {
+        desc: string;
+        fix: Rule.Fix;
+        messageId?: string;
+    }
+
+    interface LintMessage {
+        column: number;
+        line: number;
+        endColumn?: number;
+        endLine?: number;
+        ruleId: string | null;
+        message: string;
+        messageId?: string;
+        nodeType?: string;
+        fatal?: true;
+        severity: Severity;
+        fix?: Rule.Fix;
+        /** @deprecated Use `linter.getSourceCode()` */
+        source?: string | null;
+        suggestions?: LintSuggestion[];
+    }
+
+    interface FixOptions extends LintOptions {
+        fix?: boolean;
+    }
+
+    interface FixReport {
+        fixed: boolean;
+        output: string;
+        messages: LintMessage[];
+    }
+
+    type ParserModule =
+        | {
+              parse(text: string, options?: any): AST.Program;
+          }
+        | {
+              parseForESLint(text: string, options?: any): ESLintParseResult;
+          };
+
+    interface ESLintParseResult {
+        ast: AST.Program;
+        parserServices?: SourceCode.ParserServices;
+        scopeManager?: Scope.ScopeManager;
+        visitorKeys?: SourceCode.VisitorKeys;
+    }
+
+    interface ProcessorFile {
+        text: string;
+        filename: string;
+    }
+
+    // https://eslint.org/docs/developer-guide/working-with-plugins#processors-in-plugins
+    interface Processor<T extends string | ProcessorFile = string | ProcessorFile> {
+        supportsAutofix?: boolean;
+        preprocess?(text: string, filename: string): T[];
+        postprocess?(messages: LintMessage[][], filename: string): LintMessage[];
+    }
+}
+
+//#endregion
+
+//#region ESLint
+
+export class ESLint {
+    static version: string;
+
+    static outputFixes(results: ESLint.LintResult[]): Promise<void>;
+
+    static getErrorResults(results: ESLint.LintResult[]): ESLint.LintResult[];
+
+    constructor(options?: ESLint.Options);
+
+    lintFiles(patterns: string | string[]): Promise<ESLint.LintResult[]>;
+
+    lintText(code: string, options?: { filePath?: string; warnIgnored?: boolean }): Promise<ESLint.LintResult[]>;
+
+    calculateConfigForFile(filePath: string): Promise<any>;
+
+    isPathIgnored(filePath: string): Promise<boolean>;
+
+    loadFormatter(nameOrPath?: string): Promise<ESLint.Formatter>;
+}
+
+export namespace ESLint {
+    interface Options {
+        // File enumeration
+        cwd?: string;
+        errorOnUnmatchedPattern?: boolean;
+        extensions?: string[];
+        globInputPaths?: boolean;
+        ignore?: boolean;
+        ignorePath?: string;
+
+        // Linting
+        allowInlineConfig?: boolean;
+        baseConfig?: Linter.Config;
+        overrideConfig?: Linter.Config;
+        overrideConfigFile?: string;
+        plugins?: Record<string, any>;
+        reportUnusedDisableDirectives?: Linter.RuleLevel;
+        resolvePluginsRelativeTo?: string;
+        rulePaths?: string[];
+        useEslintrc?: boolean;
+
+        // Autofix
+        fix?: boolean | ((message: Linter.LintMessage) => boolean);
+        fixTypes?: Array<Rule.RuleMetaData["type"]>;
+
+        // Cache-related
+        cache?: boolean;
+        cacheLocation?: string;
+        cacheStrategy?: "content" | "metadata";
+    }
+
+    interface LintResult {
+        filePath: string;
+        messages: Linter.LintMessage[];
+        errorCount: number;
+        warningCount: number;
+        fixableErrorCount: number;
+        fixableWarningCount: number;
+        output?: string;
+        source?: string;
+        usedDeprecatedRules: DeprecatedRuleUse[];
+    }
+
+    interface LintResultData {
+        rulesMeta: {
+            [ruleId: string]: Rule.RuleMetaData;
+        };
+    }
+
+    interface DeprecatedRuleUse {
+        ruleId: string;
+        replacedBy: string[];
+    }
+
+    interface Formatter {
+        format(results: LintResult[], data?: LintResultData): string;
+    }
+
+    // Docs reference the type by this name
+    type EditInfo = Rule.Fix;
+}
+
+//#endregion
+
+//#region CLIEngine
+
+/** @deprecated Deprecated in favor of `ESLint` */
+export class CLIEngine {
+    static version: string;
+
+    constructor(options: CLIEngine.Options);
+
+    executeOnFiles(patterns: string[]): CLIEngine.LintReport;
+
+    resolveFileGlobPatterns(patterns: string[]): string[];
+
+    getConfigForFile(filePath: string): Linter.Config;
+
+    executeOnText(text: string, filename?: string): CLIEngine.LintReport;
+
+    addPlugin(name: string, pluginObject: any): void;
+
+    isPathIgnored(filePath: string): boolean;
+
+    getFormatter(format?: string): CLIEngine.Formatter;
+
+    getRules(): Map<string, Rule.RuleModule>;
+
+    static getErrorResults(results: CLIEngine.LintResult[]): CLIEngine.LintResult[];
+
+    static getFormatter(format?: string): CLIEngine.Formatter;
+
+    static outputFixes(report: CLIEngine.LintReport): void;
+}
+
+/** @deprecated Deprecated in favor of `ESLint` */
+export namespace CLIEngine {
+    class Options {
+        allowInlineConfig?: boolean;
+        baseConfig?: false | { [name: string]: any };
+        cache?: boolean;
+        cacheFile?: string;
+        cacheLocation?: string;
+        cacheStrategy?: "content" | "metadata";
+        configFile?: string;
+        cwd?: string;
+        envs?: string[];
+        errorOnUnmatchedPattern?: boolean;
+        extensions?: string[];
+        fix?: boolean;
+        globals?: string[];
+        ignore?: boolean;
+        ignorePath?: string;
+        ignorePattern?: string | string[];
+        useEslintrc?: boolean;
+        parser?: string;
+        parserOptions?: Linter.ParserOptions;
+        plugins?: string[];
+        resolvePluginsRelativeTo?: string;
+        rules?: {
+            [name: string]: Linter.RuleLevel | Linter.RuleLevelAndOptions;
+        };
+        rulePaths?: string[];
+        reportUnusedDisableDirectives?: boolean;
+    }
+
+    type LintResult = ESLint.LintResult;
+
+    type LintResultData = ESLint.LintResultData;
+
+    interface LintReport {
+        results: LintResult[];
+        errorCount: number;
+        warningCount: number;
+        fixableErrorCount: number;
+        fixableWarningCount: number;
+        usedDeprecatedRules: DeprecatedRuleUse[];
+    }
+
+    type DeprecatedRuleUse = ESLint.DeprecatedRuleUse;
+
+    type Formatter = (results: LintResult[], data?: LintResultData) => string;
+}
+
+//#endregion
+
+//#region RuleTester
+
+export class RuleTester {
+    constructor(config?: any);
+
+    run(
+        name: string,
+        rule: Rule.RuleModule,
+        tests: {
+            valid?: Array<string | RuleTester.ValidTestCase>;
+            invalid?: RuleTester.InvalidTestCase[];
+        },
+    ): void;
+}
+
+export namespace RuleTester {
+    interface ValidTestCase {
+        code: string;
+        options?: any;
+        filename?: string;
+        parserOptions?: Linter.ParserOptions;
+        settings?: { [name: string]: any };
+        parser?: string;
+        globals?: { [name: string]: boolean };
+    }
+
+    interface SuggestionOutput {
+        messageId?: string;
+        desc?: string;
+        data?: Record<string, unknown>;
+        output: string;
+    }
+
+    interface InvalidTestCase extends ValidTestCase {
+        errors: number | Array<TestCaseError | string>;
+        output?: string | null;
+    }
+
+    interface TestCaseError {
+        message?: string | RegExp;
+        messageId?: string;
+        type?: string;
+        data?: any;
+        line?: number;
+        column?: number;
+        endLine?: number;
+        endColumn?: number;
+        suggestions?: SuggestionOutput[];
+    }
+}
+
+//#endregion
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-d-ts-eslint-input.svelte-->
+
+=== 34428 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-d-ts-eslint-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  // Type definitions for eslint 7.2
+// Project: https://eslint.org
+// Definitions by: Pierre-Marie Dartus <https://github.com/pmdartus>
+//                 Jed Fox <https://github.com/j-f1>
+//                 Saad Quadri <https://github.com/saadq>
+//                 Jason Kwok <https://github.com/JasonHK>
+//                 Brad Zacher <https://github.com/bradzacher>
+//                 JounQin <https://github.com/JounQin>
+// Definitions: https://github.com/DefinitelyTyped/DefinitelyTyped
+
+/// <reference path="helpers.d.ts" />
+/// <reference path="lib/rules/index.d.ts" />
+
+  import { JSONSchema4 } from "json-schema";
+  import * as ESTree from "estree";
+
+  export namespace AST {
+    type TokenType =
+      | "Boolean"
+      | "Null"
+      | "Identifier"
+      | "Keyword"
+      | "Punctuator"
+      | "JSXIdentifier"
+      | "JSXText"
+      | "Numeric"
+      | "String"
+      | "RegularExpression";
+
+    interface Token {
+      type: TokenType;
+      value: string;
+      range: Range;
+      loc: SourceLocation;
+    }
+
+    interface SourceLocation {
+      start: ESTree.Position;
+      end: ESTree.Position;
+    }
+
+    type Range = [number, number];
+
+    interface Program extends ESTree.Program {
+      comments: ESTree.Comment[];
+      tokens: Token[];
+      loc: SourceLocation;
+      range: Range;
+    }
+  }
+
+  export namespace Scope {
+    interface ScopeManager {
+      scopes: Scope[];
+      globalScope: Scope | null;
+
+      acquire(node: ESTree.Node, inner?: boolean): Scope | null;
+
+      getDeclaredVariables(node: ESTree.Node): Variable[];
+    }
+
+    interface Scope {
+      type:
+        | "block"
+        | "catch"
+        | "class"
+        | "for"
+        | "function"
+        | "function-expression-name"
+        | "global"
+        | "module"
+        | "switch"
+        | "with"
+        | "TDZ";
+      isStrict: boolean;
+      upper: Scope | null;
+      childScopes: Scope[];
+      variableScope: Scope;
+      block: ESTree.Node;
+      variables: Variable[];
+      set: Map<string, Variable>;
+      references: Reference[];
+      through: Reference[];
+      functionExpressionScope: boolean;
+    }
+
+    interface Variable {
+      name: string;
+      identifiers: ESTree.Identifier[];
+      references: Reference[];
+      defs: Definition[];
+    }
+
+    interface Reference {
+      identifier: ESTree.Identifier;
+      from: Scope;
+      resolved: Variable | null;
+      writeExpr: ESTree.Node | null;
+      init: boolean;
+
+      isWrite(): boolean;
+
+      isRead(): boolean;
+
+      isWriteOnly(): boolean;
+
+      isReadOnly(): boolean;
+
+      isReadWrite(): boolean;
+    }
+
+    type DefinitionType =
+      | { type: "CatchClause"; node: ESTree.CatchClause; parent: null }
+      | { type: "ClassName"; node: ESTree.ClassDeclaration | ESTree.ClassExpression; parent: null }
+      | { type: "FunctionName"; node: ESTree.FunctionDeclaration | ESTree.FunctionExpression; parent: null }
+      | { type: "ImplicitGlobalVariable"; node: ESTree.Program; parent: null }
+      | {
+        type: "ImportBinding";
+        node: ESTree.ImportSpecifier | ESTree.ImportDefaultSpecifier | ESTree.ImportNamespaceSpecifier;
+        parent: ESTree.ImportDeclaration;
+      }
+      | {
+        type: "Parameter";
+        node: ESTree.FunctionDeclaration | ESTree.FunctionExpression | ESTree.ArrowFunctionExpression;
+        parent: null;
+      }
+      | { type: "TDZ"; node: any; parent: null }
+      | { type: "Variable"; node: ESTree.VariableDeclarator; parent: ESTree.VariableDeclaration };
+
+    type Definition = DefinitionType & { name: ESTree.Identifier };
+  }
+
+  //#region SourceCode
+
+  export class SourceCode {
+    text: string;
+    ast: AST.Program;
+    lines: string[];
+    hasBOM: boolean;
+    parserServices: SourceCode.ParserServices;
+    scopeManager: Scope.ScopeManager;
+    visitorKeys: SourceCode.VisitorKeys;
+
+    constructor(text: string, ast: AST.Program);
+    constructor(config: SourceCode.Config);
+
+    static splitLines(text: string): string[];
+
+    getText(node?: ESTree.Node, beforeCount?: number, afterCount?: number): string;
+
+    getLines(): string[];
+
+    getAllComments(): ESTree.Comment[];
+
+    getComments(node: ESTree.Node): { leading: ESTree.Comment[]; trailing: ESTree.Comment[] };
+
+    getJSDocComment(node: ESTree.Node): ESTree.Comment | null;
+
+    getNodeByRangeIndex(index: number): ESTree.Node | null;
+
+    isSpaceBetweenTokens(first: AST.Token, second: AST.Token): boolean;
+
+    getLocFromIndex(index: number): ESTree.Position;
+
+    getIndexFromLoc(location: ESTree.Position): number;
+
+    // Inherited methods from TokenStore
+    // ---------------------------------
+
+    getTokenByRangeStart(offset: number, options?: { includeComments: false }): AST.Token | null;
+    getTokenByRangeStart(offset: number, options: { includeComments: boolean }): AST.Token | ESTree.Comment | null;
+
+    getFirstToken: SourceCode.UnaryNodeCursorWithSkipOptions;
+
+    getFirstTokens: SourceCode.UnaryNodeCursorWithCountOptions;
+
+    getLastToken: SourceCode.UnaryNodeCursorWithSkipOptions;
+
+    getLastTokens: SourceCode.UnaryNodeCursorWithCountOptions;
+
+    getTokenBefore: SourceCode.UnaryCursorWithSkipOptions;
+
+    getTokensBefore: SourceCode.UnaryCursorWithCountOptions;
+
+    getTokenAfter: SourceCode.UnaryCursorWithSkipOptions;
+
+    getTokensAfter: SourceCode.UnaryCursorWithCountOptions;
+
+    getFirstTokenBetween: SourceCode.BinaryCursorWithSkipOptions;
+
+    getFirstTokensBetween: SourceCode.BinaryCursorWithCountOptions;
+
+    getLastTokenBetween: SourceCode.BinaryCursorWithSkipOptions;
+
+    getLastTokensBetween: SourceCode.BinaryCursorWithCountOptions;
+
+    getTokensBetween: SourceCode.BinaryCursorWithCountOptions;
+
+    getTokens: ((node: ESTree.Node, beforeCount?: number, afterCount?: number) => AST.Token[]) &
+      SourceCode.UnaryNodeCursorWithCountOptions;
+
+    commentsExistBetween(
+      left: ESTree.Node | AST.Token | ESTree.Comment,
+      right: ESTree.Node | AST.Token | ESTree.Comment,
+    ): boolean;
+
+    getCommentsBefore(nodeOrToken: ESTree.Node | AST.Token): ESTree.Comment[];
+
+    getCommentsAfter(nodeOrToken: ESTree.Node | AST.Token): ESTree.Comment[];
+
+    getCommentsInside(node: ESTree.Node): ESTree.Comment[];
+  }
+
+  export namespace SourceCode {
+    interface Config {
+      text: string;
+      ast: AST.Program;
+      parserServices?: ParserServices;
+      scopeManager?: Scope.ScopeManager;
+      visitorKeys?: VisitorKeys;
+    }
+
+    type ParserServices = any;
+
+    interface VisitorKeys {
+      [nodeType: string]: string[];
+    }
+
+    interface UnaryNodeCursorWithSkipOptions {
+      <T extends AST.Token>(
+        node: ESTree.Node,
+        options:
+          | ((token: AST.Token) => token is T)
+          | { filter: (token: AST.Token) => token is T; includeComments?: false; skip?: number },
+      ): T | null;
+      <T extends AST.Token | ESTree.Comment>(
+        node: ESTree.Node,
+        options: {
+          filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+          includeComments: boolean;
+          skip?: number;
+        },
+      ): T | null;
+      (
+        node: ESTree.Node,
+        options?:
+          | { filter?: (token: AST.Token) => boolean; includeComments?: false; skip?: number }
+          | ((token: AST.Token) => boolean)
+          | number,
+      ): AST.Token | null;
+      (
+        node: ESTree.Node,
+        options: {
+          filter?: (token: AST.Token | ESTree.Comment) => boolean;
+          includeComments: boolean;
+          skip?: number;
+        },
+      ): AST.Token | ESTree.Comment | null;
+    }
+
+    interface UnaryNodeCursorWithCountOptions {
+      <T extends AST.Token>(
+        node: ESTree.Node,
+        options:
+          | ((token: AST.Token) => token is T)
+          | { filter: (token: AST.Token) => token is T; includeComments?: false; count?: number },
+      ): T[];
+      <T extends AST.Token | ESTree.Comment>(
+        node: ESTree.Node,
+        options: {
+          filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+          includeComments: boolean;
+          count?: number;
+        },
+      ): T[];
+      (
+        node: ESTree.Node,
+        options?:
+          | { filter?: (token: AST.Token) => boolean; includeComments?: false; count?: number }
+          | ((token: AST.Token) => boolean)
+          | number,
+      ): AST.Token[];
+      (
+        node: ESTree.Node,
+        options: {
+          filter?: (token: AST.Token | ESTree.Comment) => boolean;
+          includeComments: boolean;
+          count?: number;
+        },
+      ): Array<AST.Token | ESTree.Comment>;
+    }
+
+    interface UnaryCursorWithSkipOptions {
+      <T extends AST.Token>(
+        node: ESTree.Node | AST.Token | ESTree.Comment,
+        options:
+          | ((token: AST.Token) => token is T)
+          | { filter: (token: AST.Token) => token is T; includeComments?: false; skip?: number },
+      ): T | null;
+      <T extends AST.Token | ESTree.Comment>(
+        node: ESTree.Node | AST.Token | ESTree.Comment,
+        options: {
+          filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+          includeComments: boolean;
+          skip?: number;
+        },
+      ): T | null;
+      (
+        node: ESTree.Node | AST.Token | ESTree.Comment,
+        options?:
+          | { filter?: (token: AST.Token) => boolean; includeComments?: false; skip?: number }
+          | ((token: AST.Token) => boolean)
+          | number,
+      ): AST.Token | null;
+      (
+        node: ESTree.Node | AST.Token | ESTree.Comment,
+        options: {
+          filter?: (token: AST.Token | ESTree.Comment) => boolean;
+          includeComments: boolean;
+          skip?: number;
+        },
+      ): AST.Token | ESTree.Comment | null;
+    }
+
+    interface UnaryCursorWithCountOptions {
+      <T extends AST.Token>(
+        node: ESTree.Node | AST.Token | ESTree.Comment,
+        options:
+          | ((token: AST.Token) => token is T)
+          | { filter: (token: AST.Token) => token is T; includeComments?: false; count?: number },
+      ): T[];
+      <T extends AST.Token | ESTree.Comment>(
+        node: ESTree.Node | AST.Token | ESTree.Comment,
+        options: {
+          filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+          includeComments: boolean;
+          count?: number;
+        },
+      ): T[];
+      (
+        node: ESTree.Node | AST.Token | ESTree.Comment,
+        options?:
+          | { filter?: (token: AST.Token) => boolean; includeComments?: false; count?: number }
+          | ((token: AST.Token) => boolean)
+          | number,
+      ): AST.Token[];
+      (
+        node: ESTree.Node | AST.Token | ESTree.Comment,
+        options: {
+          filter?: (token: AST.Token | ESTree.Comment) => boolean;
+          includeComments: boolean;
+          count?: number;
+        },
+      ): Array<AST.Token | ESTree.Comment>;
+    }
+
+    interface BinaryCursorWithSkipOptions {
+      <T extends AST.Token>(
+        left: ESTree.Node | AST.Token | ESTree.Comment,
+        right: ESTree.Node | AST.Token | ESTree.Comment,
+        options:
+          | ((token: AST.Token) => token is T)
+          | { filter: (token: AST.Token) => token is T; includeComments?: false; skip?: number },
+      ): T | null;
+      <T extends AST.Token | ESTree.Comment>(
+        left: ESTree.Node | AST.Token | ESTree.Comment,
+        right: ESTree.Node | AST.Token | ESTree.Comment,
+        options: {
+          filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+          includeComments: boolean;
+          skip?: number;
+        },
+      ): T | null;
+      (
+        left: ESTree.Node | AST.Token | ESTree.Comment,
+        right: ESTree.Node | AST.Token | ESTree.Comment,
+        options?:
+          | { filter?: (token: AST.Token) => boolean; includeComments?: false; skip?: number }
+          | ((token: AST.Token) => boolean)
+          | number,
+      ): AST.Token | null;
+      (
+        left: ESTree.Node | AST.Token | ESTree.Comment,
+        right: ESTree.Node | AST.Token | ESTree.Comment,
+        options: {
+          filter?: (token: AST.Token | ESTree.Comment) => boolean;
+          includeComments: boolean;
+          skip?: number;
+        },
+      ): AST.Token | ESTree.Comment | null;
+    }
+
+    interface BinaryCursorWithCountOptions {
+      <T extends AST.Token>(
+        left: ESTree.Node | AST.Token | ESTree.Comment,
+        right: ESTree.Node | AST.Token | ESTree.Comment,
+        options:
+          | ((token: AST.Token) => token is T)
+          | { filter: (token: AST.Token) => token is T; includeComments?: false; count?: number },
+      ): T[];
+      <T extends AST.Token | ESTree.Comment>(
+        left: ESTree.Node | AST.Token | ESTree.Comment,
+        right: ESTree.Node | AST.Token | ESTree.Comment,
+        options: {
+          filter: (tokenOrComment: AST.Token | ESTree.Comment) => tokenOrComment is T;
+          includeComments: boolean;
+          count?: number;
+        },
+      ): T[];
+      (
+        left: ESTree.Node | AST.Token | ESTree.Comment,
+        right: ESTree.Node | AST.Token | ESTree.Comment,
+        options?:
+          | { filter?: (token: AST.Token) => boolean; includeComments?: false; count?: number }
+          | ((token: AST.Token) => boolean)
+          | number,
+      ): AST.Token[];
+      (
+        left: ESTree.Node | AST.Token | ESTree.Comment,
+        right: ESTree.Node | AST.Token | ESTree.Comment,
+        options: {
+          filter?: (token: AST.Token | ESTree.Comment) => boolean;
+          includeComments: boolean;
+          count?: number;
+        },
+      ): Array<AST.Token | ESTree.Comment>;
+    }
+  }
+
+  //#endregion
+
+  export namespace Rule {
+    interface RuleModule {
+      create(context: RuleContext): RuleListener;
+      meta?: RuleMetaData;
+    }
+
+    type NodeTypes = ESTree.Node["type"];
+    interface NodeListener {
+      ArrayExpression?: (node: ESTree.ArrayExpression & NodeParentExtension) => void;
+      ArrayPattern?: (node: ESTree.ArrayPattern & NodeParentExtension) => void;
+      ArrowFunctionExpression?: (node: ESTree.ArrowFunctionExpression & NodeParentExtension) => void;
+      AssignmentExpression?: (node: ESTree.AssignmentExpression & NodeParentExtension) => void;
+      AssignmentPattern?: (node: ESTree.AssignmentPattern & NodeParentExtension) => void;
+      AwaitExpression?: (node: ESTree.AwaitExpression & NodeParentExtension) => void;
+      BinaryExpression?: (node: ESTree.BinaryExpression & NodeParentExtension) => void;
+      BlockStatement?: (node: ESTree.BlockStatement & NodeParentExtension) => void;
+      BreakStatement?: (node: ESTree.BreakStatement & NodeParentExtension) => void;
+      CallExpression?: (node: ESTree.CallExpression & NodeParentExtension) => void;
+      CatchClause?: (node: ESTree.CatchClause & NodeParentExtension) => void;
+      ChainExpression?: (node: ESTree.ChainExpression & NodeParentExtension) => void;
+      ClassBody?: (node: ESTree.ClassBody & NodeParentExtension) => void;
+      ClassDeclaration?: (node: ESTree.ClassDeclaration & NodeParentExtension) => void;
+      ClassExpression?: (node: ESTree.ClassExpression & NodeParentExtension) => void;
+      ConditionalExpression?: (node: ESTree.ConditionalExpression & NodeParentExtension) => void;
+      ContinueStatement?: (node: ESTree.ContinueStatement & NodeParentExtension) => void;
+      DebuggerStatement?: (node: ESTree.DebuggerStatement & NodeParentExtension) => void;
+      DoWhileStatement?: (node: ESTree.DoWhileStatement & NodeParentExtension) => void;
+      EmptyStatement?: (node: ESTree.EmptyStatement & NodeParentExtension) => void;
+      ExportAllDeclaration?: (node: ESTree.ExportAllDeclaration & NodeParentExtension) => void;
+      ExportDefaultDeclaration?: (node: ESTree.ExportDefaultDeclaration & NodeParentExtension) => void;
+      ExportNamedDeclaration?: (node: ESTree.ExportNamedDeclaration & NodeParentExtension) => void;
+      ExportSpecifier?: (node: ESTree.ExportSpecifier & NodeParentExtension) => void;
+      ExpressionStatement?: (node: ESTree.ExpressionStatement & NodeParentExtension) => void;
+      ForInStatement?: (node: ESTree.ForInStatement & NodeParentExtension) => void;
+      ForOfStatement?: (node: ESTree.ForOfStatement & NodeParentExtension) => void;
+      ForStatement?: (node: ESTree.ForStatement & NodeParentExtension) => void;
+      FunctionDeclaration?: (node: ESTree.FunctionDeclaration & NodeParentExtension) => void;
+      FunctionExpression?: (node: ESTree.FunctionExpression & NodeParentExtension) => void;
+      Identifier?: (node: ESTree.Identifier & NodeParentExtension) => void;
+      IfStatement?: (node: ESTree.IfStatement & NodeParentExtension) => void;
+      ImportDeclaration?: (node: ESTree.ImportDeclaration & NodeParentExtension) => void;
+      ImportDefaultSpecifier?: (node: ESTree.ImportDefaultSpecifier & NodeParentExtension) => void;
+      ImportExpression?: (node: ESTree.ImportExpression & NodeParentExtension) => void;
+      ImportNamespaceSpecifier?: (node: ESTree.ImportNamespaceSpecifier & NodeParentExtension) => void;
+      ImportSpecifier?: (node: ESTree.ImportSpecifier & NodeParentExtension) => void;
+      LabeledStatement?: (node: ESTree.LabeledStatement & NodeParentExtension) => void;
+      Literal?: (node: ESTree.Literal & NodeParentExtension) => void;
+      LogicalExpression?: (node: ESTree.LogicalExpression & NodeParentExtension) => void;
+      MemberExpression?: (node: ESTree.MemberExpression & NodeParentExtension) => void;
+      MetaProperty?: (node: ESTree.MetaProperty & NodeParentExtension) => void;
+      MethodDefinition?: (node: ESTree.MethodDefinition & NodeParentExtension) => void;
+      NewExpression?: (node: ESTree.NewExpression & NodeParentExtension) => void;
+      ObjectExpression?: (node: ESTree.ObjectExpression & NodeParentExtension) => void;
+      ObjectPattern?: (node: ESTree.ObjectPattern & NodeParentExtension) => void;
+      Program?: (node: ESTree.Program) => void;
+      Property?: (node: ESTree.Property & NodeParentExtension) => void;
+      RestElement?: (node: ESTree.RestElement & NodeParentExtension) => void;
+      ReturnStatement?: (node: ESTree.ReturnStatement & NodeParentExtension) => void;
+      SequenceExpression?: (node: ESTree.SequenceExpression & NodeParentExtension) => void;
+      SpreadElement?: (node: ESTree.SpreadElement & NodeParentExtension) => void;
+      Super?: (node: ESTree.Super & NodeParentExtension) => void;
+      SwitchCase?: (node: ESTree.SwitchCase & NodeParentExtension) => void;
+      SwitchStatement?: (node: ESTree.SwitchStatement & NodeParentExtension) => void;
+      TaggedTemplateExpression?: (node: ESTree.TaggedTemplateExpression & NodeParentExtension) => void;
+      TemplateElement?: (node: ESTree.TemplateElement & NodeParentExtension) => void;
+      TemplateLiteral?: (node: ESTree.TemplateLiteral & NodeParentExtension) => void;
+      ThisExpression?: (node: ESTree.ThisExpression & NodeParentExtension) => void;
+      ThrowStatement?: (node: ESTree.ThrowStatement & NodeParentExtension) => void;
+      TryStatement?: (node: ESTree.TryStatement & NodeParentExtension) => void;
+      UnaryExpression?: (node: ESTree.UnaryExpression & NodeParentExtension) => void;
+      UpdateExpression?: (node: ESTree.UpdateExpression & NodeParentExtension) => void;
+      VariableDeclaration?: (node: ESTree.VariableDeclaration & NodeParentExtension) => void;
+      VariableDeclarator?: (node: ESTree.VariableDeclarator & NodeParentExtension) => void;
+      WhileStatement?: (node: ESTree.WhileStatement & NodeParentExtension) => void;
+      WithStatement?: (node: ESTree.WithStatement & NodeParentExtension) => void;
+      YieldExpression?: (node: ESTree.YieldExpression & NodeParentExtension) => void;
+    }
+
+    interface NodeParentExtension {
+      parent: Node;
+    }
+    type Node = ESTree.Node & NodeParentExtension;
+
+    interface RuleListener extends NodeListener {
+      onCodePathStart?(codePath: CodePath, node: Node): void;
+
+      onCodePathEnd?(codePath: CodePath, node: Node): void;
+
+      onCodePathSegmentStart?(segment: CodePathSegment, node: Node): void;
+
+      onCodePathSegmentEnd?(segment: CodePathSegment, node: Node): void;
+
+      onCodePathSegmentLoop?(fromSegment: CodePathSegment, toSegment: CodePathSegment, node: Node): void;
+
+      [key: string]:
+        | ((codePath: CodePath, node: Node) => void)
+        | ((segment: CodePathSegment, node: Node) => void)
+        | ((fromSegment: CodePathSegment, toSegment: CodePathSegment, node: Node) => void)
+        | ((node: Node) => void)
+        | NodeListener[keyof NodeListener]
+        | undefined;
+    }
+
+    interface CodePath {
+      id: string;
+      initialSegment: CodePathSegment;
+      finalSegments: CodePathSegment[];
+      returnedSegments: CodePathSegment[];
+      thrownSegments: CodePathSegment[];
+      currentSegments: CodePathSegment[];
+      upper: CodePath | null;
+      childCodePaths: CodePath[];
+    }
+
+    interface CodePathSegment {
+      id: string;
+      nextSegments: CodePathSegment[];
+      prevSegments: CodePathSegment[];
+      reachable: boolean;
+    }
+
+    interface RuleMetaData {
+      docs?: {
+        /** provides the short description of the rule in the [rules index](https://eslint.org/docs/rules/) */
+        description?: string;
+        /** specifies the heading under which the rule is listed in the [rules index](https://eslint.org/docs/rules/) */
+        category?: string;
+        /** is whether the `"extends": "eslint:recommended"` property in a [configuration file](https://eslint.org/docs/user-guide/configuring#extending-configuration-files) enables the rule */
+        recommended?: boolean;
+        /** specifies the URL at which the full documentation can be accessed */
+        url?: string;
+        /** specifies whether rules can return suggestions (defaults to false if omitted) */
+        suggestion?: boolean;
+      };
+      messages?: { [messageId: string]: string };
+      fixable?: "code" | "whitespace";
+      schema?: JSONSchema4 | JSONSchema4[];
+      deprecated?: boolean;
+      type?: "problem" | "suggestion" | "layout";
+    }
+
+    interface RuleContext {
+      id: string;
+      options: any[];
+      settings: { [name: string]: any };
+      parserPath: string;
+      parserOptions: Linter.ParserOptions;
+      parserServices: SourceCode.ParserServices;
+
+      getAncestors(): ESTree.Node[];
+
+      getDeclaredVariables(node: ESTree.Node): Scope.Variable[];
+
+      getFilename(): string;
+
+      getCwd(): string;
+
+      getScope(): Scope.Scope;
+
+      getSourceCode(): SourceCode;
+
+      markVariableAsUsed(name: string): boolean;
+
+      report(descriptor: ReportDescriptor): void;
+    }
+
+    interface ReportDescriptorOptionsBase {
+      data?: { [key: string]: string };
+
+      fix?: null | ((fixer: RuleFixer) => null | Fix | IterableIterator<Fix> | Fix[]);
+    }
+
+    type SuggestionDescriptorMessage = { desc: string } | { messageId: string };
+    type SuggestionReportDescriptor = SuggestionDescriptorMessage & ReportDescriptorOptionsBase;
+
+    interface ReportDescriptorOptions extends ReportDescriptorOptionsBase {
+      suggest?: SuggestionReportDescriptor[] | null;
+    }
+
+    type ReportDescriptor = ReportDescriptorMessage & ReportDescriptorLocation & ReportDescriptorOptions;
+    type ReportDescriptorMessage = { message: string } | { messageId: string };
+    type ReportDescriptorLocation =
+      | { node: ESTree.Node }
+      | { loc: AST.SourceLocation | { line: number; column: number } };
+
+    interface RuleFixer {
+      insertTextAfter(nodeOrToken: ESTree.Node | AST.Token, text: string): Fix;
+
+      insertTextAfterRange(range: AST.Range, text: string): Fix;
+
+      insertTextBefore(nodeOrToken: ESTree.Node | AST.Token, text: string): Fix;
+
+      insertTextBeforeRange(range: AST.Range, text: string): Fix;
+
+      remove(nodeOrToken: ESTree.Node | AST.Token): Fix;
+
+      removeRange(range: AST.Range): Fix;
+
+      replaceText(nodeOrToken: ESTree.Node | AST.Token, text: string): Fix;
+
+      replaceTextRange(range: AST.Range, text: string): Fix;
+    }
+
+    interface Fix {
+      range: AST.Range;
+      text: string;
+    }
+  }
+
+  //#region Linter
+
+  export class Linter {
+    static version: string;
+
+    version: string;
+
+    constructor(options?: { cwd?: string });
+
+    verify(code: SourceCode | string, config: Linter.Config, filename?: string): Linter.LintMessage[];
+    verify(code: SourceCode | string, config: Linter.Config, options: Linter.LintOptions): Linter.LintMessage[];
+
+    verifyAndFix(code: string, config: Linter.Config, filename?: string): Linter.FixReport;
+    verifyAndFix(code: string, config: Linter.Config, options: Linter.FixOptions): Linter.FixReport;
+
+    getSourceCode(): SourceCode;
+
+    defineRule(name: string, rule: Rule.RuleModule): void;
+
+    defineRules(rules: { [name: string]: Rule.RuleModule }): void;
+
+    getRules(): Map<string, Rule.RuleModule>;
+
+    defineParser(name: string, parser: Linter.ParserModule): void;
+  }
+
+  export namespace Linter {
+    type Severity = 0 | 1 | 2;
+
+    type RuleLevel = Severity | "off" | "warn" | "error";
+    type RuleLevelAndOptions<Options extends any[] = any[]> = Prepend<Partial<Options>, RuleLevel>;
+
+    type RuleEntry<Options extends any[] = any[]> = RuleLevel | RuleLevelAndOptions<Options>;
+
+    interface RulesRecord {
+      [rule: string]: RuleEntry;
+    }
+
+    interface HasRules<Rules extends RulesRecord = RulesRecord> {
+      rules?: Partial<Rules>;
+    }
+
+    interface BaseConfig<Rules extends RulesRecord = RulesRecord> extends HasRules<Rules> {
+      $schema?: string;
+      env?: { [name: string]: boolean };
+      extends?: string | string[];
+      globals?: { [name: string]: boolean | "readonly" | "readable" | "writable" | "writeable" };
+      noInlineConfig?: boolean;
+      overrides?: ConfigOverride[];
+      parser?: string;
+      parserOptions?: ParserOptions;
+      plugins?: string[];
+      processor?: string;
+      reportUnusedDisableDirectives?: boolean;
+      settings?: { [name: string]: any };
+    }
+
+    interface ConfigOverride<Rules extends RulesRecord = RulesRecord> extends BaseConfig<Rules> {
+      excludedFiles?: string | string[];
+      files: string | string[];
+    }
+
+    // https://github.com/eslint/eslint/blob/v6.8.0/conf/config-schema.js
+    interface Config<Rules extends RulesRecord = RulesRecord> extends BaseConfig<Rules> {
+      ignorePatterns?: string | string[];
+      root?: boolean;
+    }
+
+    interface ParserOptions {
+      ecmaVersion?: 3 | 5 | 6 | 7 | 8 | 9 | 10 | 11 | 12 | 2015 | 2016 | 2017 | 2018 | 2019 | 2020 | 2021;
+      sourceType?: "script" | "module";
+      ecmaFeatures?: {
+        globalReturn?: boolean;
+        impliedStrict?: boolean;
+        jsx?: boolean;
+        experimentalObjectRestSpread?: boolean;
+        [key: string]: any;
+      };
+      [key: string]: any;
+    }
+
+    interface LintOptions {
+      filename?: string;
+      preprocess?: (code: string) => string[];
+      postprocess?: (problemLists: LintMessage[][]) => LintMessage[];
+      filterCodeBlock?: boolean;
+      disableFixes?: boolean;
+      allowInlineConfig?: boolean;
+      reportUnusedDisableDirectives?: boolean;
+    }
+
+    interface LintSuggestion {
+      desc: string;
+      fix: Rule.Fix;
+      messageId?: string;
+    }
+
+    interface LintMessage {
+      column: number;
+      line: number;
+      endColumn?: number;
+      endLine?: number;
+      ruleId: string | null;
+      message: string;
+      messageId?: string;
+      nodeType?: string;
+      fatal?: true;
+      severity: Severity;
+      fix?: Rule.Fix;
+      /** @deprecated Use `linter.getSourceCode()` */
+      source?: string | null;
+      suggestions?: LintSuggestion[];
+    }
+
+    interface FixOptions extends LintOptions {
+      fix?: boolean;
+    }
+
+    interface FixReport {
+      fixed: boolean;
+      output: string;
+      messages: LintMessage[];
+    }
+
+    type ParserModule =
+      | {
+        parse(text: string, options?: any): AST.Program;
+      }
+      | {
+        parseForESLint(text: string, options?: any): ESLintParseResult;
+      };
+
+    interface ESLintParseResult {
+      ast: AST.Program;
+      parserServices?: SourceCode.ParserServices;
+      scopeManager?: Scope.ScopeManager;
+      visitorKeys?: SourceCode.VisitorKeys;
+    }
+
+    interface ProcessorFile {
+      text: string;
+      filename: string;
+    }
+
+    // https://eslint.org/docs/developer-guide/working-with-plugins#processors-in-plugins
+    interface Processor<T extends string | ProcessorFile = string | ProcessorFile> {
+      supportsAutofix?: boolean;
+      preprocess?(text: string, filename: string): T[];
+      postprocess?(messages: LintMessage[][], filename: string): LintMessage[];
+    }
+  }
+
+  //#endregion
+
+//#region ESLint
+
+  export class ESLint {
+    static version: string;
+
+    static outputFixes(results: ESLint.LintResult[]): Promise<void>;
+
+    static getErrorResults(results: ESLint.LintResult[]): ESLint.LintResult[];
+
+    constructor(options?: ESLint.Options);
+
+    lintFiles(patterns: string | string[]): Promise<ESLint.LintResult[]>;
+
+    lintText(code: string, options?: { filePath?: string; warnIgnored?: boolean }): Promise<ESLint.LintResult[]>;
+
+    calculateConfigForFile(filePath: string): Promise<any>;
+
+    isPathIgnored(filePath: string): Promise<boolean>;
+
+    loadFormatter(nameOrPath?: string): Promise<ESLint.Formatter>;
+  }
+
+  export namespace ESLint {
+    interface Options {
+      // File enumeration
+      cwd?: string;
+      errorOnUnmatchedPattern?: boolean;
+      extensions?: string[];
+      globInputPaths?: boolean;
+      ignore?: boolean;
+      ignorePath?: string;
+
+      // Linting
+      allowInlineConfig?: boolean;
+      baseConfig?: Linter.Config;
+      overrideConfig?: Linter.Config;
+      overrideConfigFile?: string;
+      plugins?: Record<string, any>;
+      reportUnusedDisableDirectives?: Linter.RuleLevel;
+      resolvePluginsRelativeTo?: string;
+      rulePaths?: string[];
+      useEslintrc?: boolean;
+
+      // Autofix
+      fix?: boolean | ((message: Linter.LintMessage) => boolean);
+      fixTypes?: Array<Rule.RuleMetaData["type"]>;
+
+      // Cache-related
+      cache?: boolean;
+      cacheLocation?: string;
+      cacheStrategy?: "content" | "metadata";
+    }
+
+    interface LintResult {
+      filePath: string;
+      messages: Linter.LintMessage[];
+      errorCount: number;
+      warningCount: number;
+      fixableErrorCount: number;
+      fixableWarningCount: number;
+      output?: string;
+      source?: string;
+      usedDeprecatedRules: DeprecatedRuleUse[];
+    }
+
+    interface LintResultData {
+      rulesMeta: {
+        [ruleId: string]: Rule.RuleMetaData;
+      };
+    }
+
+    interface DeprecatedRuleUse {
+      ruleId: string;
+      replacedBy: string[];
+    }
+
+    interface Formatter {
+      format(results: LintResult[], data?: LintResultData): string;
+    }
+
+    // Docs reference the type by this name
+    type EditInfo = Rule.Fix;
+  }
+
+  //#endregion
+
+//#region CLIEngine
+
+/** @deprecated Deprecated in favor of `ESLint` */
+  export class CLIEngine {
+    static version: string;
+
+    constructor(options: CLIEngine.Options);
+
+    executeOnFiles(patterns: string[]): CLIEngine.LintReport;
+
+    resolveFileGlobPatterns(patterns: string[]): string[];
+
+    getConfigForFile(filePath: string): Linter.Config;
+
+    executeOnText(text: string, filename?: string): CLIEngine.LintReport;
+
+    addPlugin(name: string, pluginObject: any): void;
+
+    isPathIgnored(filePath: string): boolean;
+
+    getFormatter(format?: string): CLIEngine.Formatter;
+
+    getRules(): Map<string, Rule.RuleModule>;
+
+    static getErrorResults(results: CLIEngine.LintResult[]): CLIEngine.LintResult[];
+
+    static getFormatter(format?: string): CLIEngine.Formatter;
+
+    static outputFixes(report: CLIEngine.LintReport): void;
+  }
+
+  /** @deprecated Deprecated in favor of `ESLint` */
+  export namespace CLIEngine {
+    class Options {
+      allowInlineConfig?: boolean;
+      baseConfig?: false | { [name: string]: any };
+      cache?: boolean;
+      cacheFile?: string;
+      cacheLocation?: string;
+      cacheStrategy?: "content" | "metadata";
+      configFile?: string;
+      cwd?: string;
+      envs?: string[];
+      errorOnUnmatchedPattern?: boolean;
+      extensions?: string[];
+      fix?: boolean;
+      globals?: string[];
+      ignore?: boolean;
+      ignorePath?: string;
+      ignorePattern?: string | string[];
+      useEslintrc?: boolean;
+      parser?: string;
+      parserOptions?: Linter.ParserOptions;
+      plugins?: string[];
+      resolvePluginsRelativeTo?: string;
+      rules?: {
+        [name: string]: Linter.RuleLevel | Linter.RuleLevelAndOptions;
+      };
+      rulePaths?: string[];
+      reportUnusedDisableDirectives?: boolean;
+    }
+
+    type LintResult = ESLint.LintResult;
+
+    type LintResultData = ESLint.LintResultData;
+
+    interface LintReport {
+      results: LintResult[];
+      errorCount: number;
+      warningCount: number;
+      fixableErrorCount: number;
+      fixableWarningCount: number;
+      usedDeprecatedRules: DeprecatedRuleUse[];
+    }
+
+    type DeprecatedRuleUse = ESLint.DeprecatedRuleUse;
+
+    type Formatter = (results: LintResult[], data?: LintResultData) => string;
+  }
+
+  //#endregion
+
+//#region RuleTester
+
+  export class RuleTester {
+    constructor(config?: any);
+
+    run(
+      name: string,
+      rule: Rule.RuleModule,
+      tests: {
+        valid?: Array<string | RuleTester.ValidTestCase>;
+        invalid?: RuleTester.InvalidTestCase[];
+      },
+    ): void;
+  }
+
+  export namespace RuleTester {
+    interface ValidTestCase {
+      code: string;
+      options?: any;
+      filename?: string;
+      parserOptions?: Linter.ParserOptions;
+      settings?: { [name: string]: any };
+      parser?: string;
+      globals?: { [name: string]: boolean };
+    }
+
+    interface SuggestionOutput {
+      messageId?: string;
+      desc?: string;
+      data?: Record<string, unknown>;
+      output: string;
+    }
+
+    interface InvalidTestCase extends ValidTestCase {
+      errors: number | Array<TestCaseError | string>;
+      output?: string | null;
+    }
+
+    interface TestCaseError {
+      message?: string | RegExp;
+      messageId?: string;
+      type?: string;
+      data?: any;
+      line?: number;
+      column?: number;
+      endLine?: number;
+      endColumn?: number;
+      suggestions?: SuggestionOutput[];
+    }
+  }
+
+//#endregion
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-d-ts-eslint-input.svelte-->
+
+=== 1533 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator01-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+class
+ExampleClass
+{
+@first
+(
+)
+@second
+(
+)
+method
+(
+)
+{
+}
+}
+
+@sealed
+class
+BugReport
+{
+type
+=
+"report"
+;
+title
+:
+string
+;
+
+constructor
+(
+t
+:
+string
+)
+{
+this
+.
+title
+=
+t
+;
+}
+}
+
+class
+Greeter
+{
+greeting
+:
+string
+;
+constructor
+(
+message
+:
+string
+)
+{
+this
+.
+greeting
+=
+message
+;
+}
+
+@
+enumerable
+(
+false
+)
+greet
+(
+)
+{
+return "Hello, "
++
+this
+.
+greeting
+;
+}
+}
+
+class Point {
+private _x: number;
+private _y: number;
+constructor(x: number, y: number) {
+this._x = x;
+this._y = y;
+}
+
+@
+configurable
+(
+false
+)
+get
+x
+(
+)
+{
+return this._x;
+}
+
+@
+configurable
+(
+false
+)
+get
+y
+(
+)
+{
+return this._y;
+}
+}
+
+class Greeter {
+@
+format
+(
+"Hello, %s"
+)
+greeting
+:
+string
+;
+constructor(message: string) {
+this.greeting = message;
+}
+greet() {
+let formatString = getFormat(this, "greeting");
+return formatString.replace("%s", this.greeting);
+}
+}
+
+class BugReport {
+type = "report";
+title: string;
+
+constructor(t: string) {
+this.title = t;
+}
+
+@
+validate
+print
+(
+@
+required
+verbose
+:
+boolean
+) {
+if (verbose) {
+return `type: ${this.type}\ntitle: ${this.title}`;
+} else {
+return this.title;
+}
+}
+}
+
+class Line {
+private _start: Point;
+private _end: Point;
+@
+validate
+@
+Reflect
+.
+metadata(
+"design:type"
+,
+Point
+)
+set start(value: Point) {
+this._start = value;
+}
+get start() {
+return this._start;
+}
+@
+validate
+@
+Reflect
+.
+metadata(
+"design:type"
+,
+Point
+)
+set
+end(value: Point) {
+this._end = value;
+}
+get end() {
+return this._end;
+}
+}
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-decorator01-input.svelte-->
+
+=== 2535 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator01-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  class
+    ExampleClass
+  {
+    @first
+      (
+      )
+    @second
+      (
+      )
+    method
+      (
+      )
+    {
+    }
+  }
+
+  @sealed
+  class
+    BugReport
+  {
+    type
+      =
+      "report"
+    ;
+    title
+      :
+      string
+    ;
+
+    constructor
+      (
+        t
+          :
+          string
+      )
+    {
+      this
+        .
+        title
+        =
+        t
+      ;
+    }
+  }
+
+  class
+    Greeter
+  {
+    greeting
+      :
+      string
+    ;
+    constructor
+      (
+        message
+          :
+          string
+      )
+    {
+      this
+        .
+        greeting
+        =
+        message
+      ;
+    }
+
+    @
+    enumerable
+      (
+        false
+      )
+    greet
+      (
+      )
+    {
+      return "Hello, "
+        +
+        this
+          .
+          greeting
+      ;
+    }
+  }
+
+  class Point {
+    private _x: number;
+    private _y: number;
+    constructor(x: number, y: number) {
+      this._x = x;
+      this._y = y;
+    }
+
+    @
+    configurable
+      (
+        false
+      )
+    get
+    x
+      (
+      )
+    {
+      return this._x;
+    }
+
+    @
+    configurable
+      (
+        false
+      )
+    get
+    y
+      (
+      )
+    {
+      return this._y;
+    }
+  }
+
+  class Greeter {
+    @
+    format
+      (
+        "Hello, %s"
+      )
+    greeting
+      :
+      string
+    ;
+    constructor(message: string) {
+      this.greeting = message;
+    }
+    greet() {
+      let formatString = getFormat(this, "greeting");
+      return formatString.replace("%s", this.greeting);
+    }
+  }
+
+  class BugReport {
+    type = "report";
+    title: string;
+
+    constructor(t: string) {
+      this.title = t;
+    }
+
+    @
+    validate
+    print
+      (
+        @
+        required
+        verbose
+          :
+          boolean
+      ) {
+      if (verbose) {
+        return `type: ${this.type}\ntitle: ${this.title}`;
+      } else {
+        return this.title;
+      }
+    }
+  }
+
+  class Line {
+    private _start: Point;
+    private _end: Point;
+    @
+    validate
+    @
+    Reflect
+      .
+      metadata(
+        "design:type"
+        ,
+        Point
+      )
+    set start(value: Point) {
+      this._start = value;
+    }
+    get start() {
+      return this._start;
+    }
+    @
+    validate
+    @
+    Reflect
+      .
+      metadata(
+        "design:type"
+        ,
+        Point
+      )
+    set
+    end(value: Point) {
+      this._end = value;
+    }
+    get end() {
+      return this._end;
+    }
+  }
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-decorator01-input.svelte-->
+
+=== 169 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator02-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+@
+(
+d
+)
+@
+(
+d
+)
+.d
+export class Foo {
+}
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-decorator02-input.svelte-->
+
+=== 197 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator02-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  @
+  (
+    d
+  )
+  @
+  (
+    d
+  )
+    .d
+  export class Foo {
+  }
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-decorator02-input.svelte-->
+
+=== 233 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-enum01-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+enum
+A
+{
+a
+,
+b
+}
+
+const
+enum
+B
+{
+a
+=
+1
+,
+// [ Computed property names are not allowed in enums.
+b
+// ]
+=
+2
+}
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-enum01-input.svelte-->
+
+=== 313 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-enum01-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  enum
+    A
+  {
+    a
+    ,
+    b
+  }
+
+  const
+  enum
+    B
+  {
+    a
+      =
+      1
+    ,
+    // [ Computed property names are not allowed in enums.
+    b
+      // ]
+      =
+      2
+  }
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-enum01-input.svelte-->
 
 === 218 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-input.svelte	svelte
 <!-- prettier-ignore -->
@@ -6492,6 +9568,96 @@ E
 
 <!--tests/fixtures/rules/indent/invalid/ts/ts-type-annotation01-input.svelte-->
 
+=== 259 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation02-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+type T
+=
+{
+a
+:
+number
+b
+?
+:
+string
+c
+?
+d
+}
+const o
+:
+A[
+] = []
+
+const v
+=
+b!
+
+let
+x
+=
+10 as
+const
+;
+
+let
+x
+=
+<
+const
+>
+10
+;
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-type-annotation02-input.svelte-->
+
+=== 439 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation02-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  type T
+    =
+    {
+      a
+        :
+        number
+      b
+        ?
+        :
+        string
+      c
+        ?
+      d
+    }
+  const o
+    :
+    A[
+    ] = []
+
+  const v
+    =
+    b!
+
+  let
+    x
+      =
+      10 as
+        const
+  ;
+
+  let
+    x
+      =
+      <
+        const
+      >
+        10
+  ;
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-type-annotation02-input.svelte-->
+
 === 282 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-input.svelte	svelte
 <!-- prettier-ignore -->
 <script lang="ts">
@@ -6595,6 +9761,50 @@ number
 </script>
 
 <!--tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-input.svelte-->
+
+=== 224 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export01-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+import
+type
+Foo
+from
+'foo'
+import
+type
+{
+Foo
+}
+from
+'foo';
+
+export
+type Foo = {}
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export01-input.svelte-->
+
+=== 272 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export01-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  import
+    type
+    Foo
+  from
+    'foo'
+  import
+    type
+    {
+      Foo
+    }
+  from
+    'foo';
+
+  export
+    type Foo = {}
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export01-input.svelte-->
 
 === 229 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export02-input.svelte	svelte
 <!-- prettier-ignore -->
@@ -7082,6 +10292,324 @@ T
 
 <!--tests/fixtures/rules/indent/invalid/ts/ts-types02-input.svelte-->
 
+=== 262 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types03-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+type T
+=
+U
+|
+null
+
+type V =
+T!
+
+type A =
+import
+(
+'foo'
+)
+.
+B<
+T
+>
+;
+importFn
+(
+'foo'
+)
+.
+B
+
+function
+foo
+(
+arg
+:
+readonly
+string[
+]
+)
+;
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-types03-input.svelte-->
+
+=== 420 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types03-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  type T
+    =
+    U
+    |
+    null
+
+  type V =
+    T!
+
+  type A =
+    import
+      (
+        'foo'
+      )
+      .
+      B<
+        T
+      >
+  ;
+  importFn
+    (
+      'foo'
+    )
+    .
+    B
+
+  function
+    foo
+    (
+      arg
+        :
+        readonly
+          string[
+          ]
+    )
+;
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-types03-input.svelte-->
+
+=== 323 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union01-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+type A =
+| a
+| b
+| c
+| d
+
+
+type T =
+a
+|
+b
+type U =
+|
+a
+|
+b
+type V =
+a
+&
+b
+type W =
+&
+a
+&
+b
+type X =
+&
+(
+a
+|
+b
+)
+
+type T =
+a
+| b
+type U =
+| a
+| b
+type V =
+a
+& b
+type W =
+& a
+& b
+type X =
+&
+(
+a
+| b
+)
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-union01-input.svelte-->
+
+=== 503 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union01-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  type A =
+    | a
+    | b
+    | c
+    | d
+
+
+  type T =
+    a
+    |
+    b
+  type U =
+    |
+    a
+    |
+    b
+  type V =
+    a
+    &
+    b
+  type W =
+    &
+    a
+    &
+    b
+  type X =
+    &
+    (
+      a
+      |
+      b
+    )
+
+  type T =
+    a
+    | b
+  type U =
+    | a
+    | b
+  type V =
+    a
+    & b
+  type W =
+    & a
+    & b
+  type X =
+    &
+    (
+      a
+      | b
+    )
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-union01-input.svelte-->
+
+=== 356 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union02-input.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+type A = | a
+| b
+| c
+| d
+
+
+type T =a
+|
+b
+|
+c
+type U = | c
+|
+a
+|
+b
+type V = c &
+a
+&
+b
+type W = & c
+&
+a
+&
+b
+type X = c
+&
+(
+a
+|
+b
+)
+
+type T = c |
+a
+| b
+type U = | c
+| a
+| b
+type V = c
+& a
+& b
+type W = c
+& a
+& b
+type X = c
+&
+(
+a
+| b
+)
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-union01-input.svelte-->
+
+=== 536 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union02-output.svelte	svelte
+<!-- prettier-ignore -->
+<script lang="ts">
+  type A = | a
+    | b
+    | c
+    | d
+
+
+  type T =a
+    |
+    b
+    |
+    c
+  type U = | c
+    |
+    a
+    |
+    b
+  type V = c &
+    a
+    &
+    b
+  type W = & c
+    &
+    a
+    &
+    b
+  type X = c
+    &
+    (
+      a
+      |
+      b
+    )
+
+  type T = c |
+    a
+    | b
+  type U = | c
+    | a
+    | b
+  type V = c
+    & a
+    & b
+  type W = c
+    & a
+    & b
+  type X = c
+    &
+    (
+      a
+      | b
+    )
+</script>
+
+<!--tests/fixtures/rules/indent/invalid/ts/ts-union01-input.svelte-->
+
 === 95 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/inline-style-tag-input.svelte	svelte
 <svg>
   <style>
@@ -7498,6 +11026,12 @@ on:click={click}
 
 {#key expression}...{/key}
 
+=== 73 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always/snippet-render01-output.svelte	svelte
+<!-- prettier-ignore -->
+{ #snippet foo() }
+{ /snippet }
+{@render foo()}
+
 === 1264 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always/test01-input.svelte	svelte
 <script>
   import A from "A.svelte";
@@ -7550,6 +11084,58 @@ on:click={click}
 
 <!--tests/fixtures/rules/mustache-spacing/invalid/always/test01-input.svelte-->
 
+=== 1272 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always/test01-output.svelte	svelte
+<script>
+  import A from "A.svelte";
+
+  const foo = "foo";
+  let text = "";
+  let value = "";
+  let input;
+  const myClass = "my-class";
+  const id = "id";
+  const attrs = {};
+  const bar = "<div></div>";
+  const o1 = 1,
+    o2 = 2;
+  const expression = true;
+  const list = [];
+</script>
+
+{foo}
+<input bind:value={text} this={input} class="foo {myClass}" />
+<input bind:value {id} />
+<input {...attrs} />
+{@html bar}
+{@debug o1}
+{@debug o1, o2}
+
+{#if expression}...{/if}
+{#if expression}...{:else if expression}...{/if}
+{#if expression}...{:else}...{/if}
+{#if expression}{:else}{/if}
+
+{#each list as item}...{/each}
+{#each list as item, index}...{/each}
+{#each list as item (item.key)}...{/each}
+{#each list as item, index (item.key)}...{/each}
+{#each list as item}...{:else}...{/each}
+
+{#await expression}...{:then name}...{:catch name}...{/await}
+{#await expression}...{:then name}...{/await}
+{#await expression then name}...{/await}
+<!-- prettier-ignore -->
+{ #await expression catch name }...{ /await }
+{#await expression then}...{/await}
+<!-- prettier-ignore -->
+{ #await expression catch }...{ /await }
+
+{#await expression}...{:then}...{:catch}...{/await}
+
+{#key expression}...{/key}
+
+<!--tests/fixtures/rules/mustache-spacing/invalid/always/test01-input.svelte-->
+
 === 67 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/declaration-tag-input.svelte	svelte
 {#each boxes as box}
   {let area = box.width * box.height}
@@ -7559,6 +11145,58 @@ on:click={click}
 {#each boxes as box}
   {let area = box.width * box.height}
 {/each}
+
+=== 1346 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/test01-input.svelte	svelte
+<script>
+  import A from "A.svelte";
+
+  const foo = "foo";
+  let text = "";
+  let value = "";
+  let input;
+  const myClass = "my-class";
+  const id = "id";
+  const attrs = {};
+  const bar = "<div></div>";
+  const o1 = 1,
+    o2 = 2;
+  const expression = true;
+  const list = [];
+</script>
+
+<!-- prettier-ignore -->
+<div>
+{ foo }
+<input bind:value={ text } this={ input } class="foo { myClass }" />
+<input bind:value { id } />
+<input { ...attrs } />
+{ @html bar }
+{ @debug o1 }
+{ @debug o1, o2 }
+
+{ #if expression }...{ /if }
+{ #if expression }...{ :else if expression }...{ /if }
+{ #if expression }...{ :else }...{ /if }
+{ #if expression }{ :else }{ /if }
+
+{ #each list as item }...{ /each }
+{ #each list as item, index }...{ /each }
+{ #each list as item (item.key) }...{ /each }
+{ #each list as item, index (item.key) }...{ /each }
+{ #each list as item }...{ :else }...{ /each }
+
+{ #await expression }...{ :then name }...{ :catch name }...{ /await }
+{ #await expression }...{ :then name }...{ /await }
+{ #await expression then name }...{ /await }
+{ #await expression catch name }...{ /await }
+{ #await expression then }...{ /await }
+{ #await expression catch }...{ /await }
+{ #await expression }...{ :then}...{ :catch}...{ /await }
+
+{ #key expression }...{ /key }
+</div>
+
+<!--tests/fixtures/rules/mustache-spacing/invalid/test01-input.svelte-->
 
 === 1244 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/test01-output.svelte	svelte
 <script>
@@ -7611,6 +11249,56 @@ on:click={click}
 </div>
 
 <!--tests/fixtures/rules/mustache-spacing/invalid/test01-input.svelte-->
+
+=== 1272 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/valid/always/test01-input.svelte	svelte
+<script>
+  import A from "A.svelte";
+
+  const foo = "foo";
+  let text = "";
+  let value = "";
+  let input;
+  const myClass = "my-class";
+  const id = "id";
+  const attrs = {};
+  const bar = "<div></div>";
+  const o1 = 1,
+    o2 = 2;
+  const expression = true;
+  const list = [];
+</script>
+
+<!-- prettier-ignore -->
+<div>
+{ foo }
+<input bind:value={ text } this={ input } class="foo { myClass }" />
+<input bind:value { id } />
+<input { ...attrs } />
+{ @html bar }
+{ @debug o1 }
+{ @debug o1, o2 }
+
+{ #if expression }...{ /if }
+{ #if expression }...{ :else if expression }...{ /if }
+{ #if expression }...{ :else }...{ /if }
+{ #if expression }{ :else }{ /if }
+
+{ #each list as item }...{ /each }
+{ #each list as item, index }...{ /each }
+{ #each list as item (item.key) }...{ /each }
+{ #each list as item, index (item.key) }...{ /each }
+{ #each list as item }...{ :else }...{ /each }
+
+{ #await expression }...{ :then name }...{ :catch name }...{ /await }
+{ #await expression }...{ :then name }...{ /await }
+{ #await expression then name }...{ /await }
+{ #await expression catch name }...{ /await }
+{ #await expression then }...{ /await }
+{ #await expression catch }...{ /await }
+{ #await expression }...{ :then}...{ :catch}...{ /await }
+
+{ #key expression }...{ /key }
+</div>
 
 === 221 packages/eslint-plugin-svelte/tests/fixtures/rules/no-add-event-listener/invalid/typescript01-input.svelte	svelte
 <script lang="ts">
@@ -8331,8 +12019,24 @@ on:click={click}
 <div use:clickOutside use:clickOutside={param} />
 <div use:clickOutside={foo} use:clickOutside={bar} />
 
+=== 14 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/bool-slot01-input.svelte	svelte
+<slot name />
+
+=== 23 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/literal-slot01-input.svelte	svelte
+<slot name={"name"} />
+
 === 21 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/literal-slot01-output.svelte	svelte
 <slot name="name" />
+
+=== 138 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/multi-report01-input.svelte	svelte
+<script>
+  const x = "x";
+  const SLOT_NAME = x;
+</script>
+
+<slot name={SLOT_NAME} />
+<slot name={SLOT_NAME} />
+<slot name={SLOT_NAME} />
 
 === 114 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/multi-report01-output.svelte	svelte
 <script>
@@ -8343,6 +12047,21 @@ on:click={click}
 <slot name="x" />
 <slot name="x" />
 <slot name="x" />
+
+=== 92 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/recursive-loop01-input.svelte	svelte
+<script>
+  const f = SLOT_NAME;
+  const SLOT_NAME = f;
+</script>
+
+<slot name={SLOT_NAME} />
+
+=== 81 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/var-slot01-input.svelte	svelte
+<script>
+  export const SLOT_NAME = "name";
+</script>
+
+<slot name={SLOT_NAME} />
 
 === 76 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/var-slot01-output.svelte	svelte
 <script>
@@ -8579,6 +12298,18 @@ on:click={click}
       fn = function () {};
     }
   }
+</script>
+
+=== 116 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inspect/invalid/test01-input.svelte	svelte
+<script>
+  $inspect(1);
+  $state(0);
+
+  const a = $inspect(1);
+
+  const _ = () => {
+    $inspect(1);
+  };
 </script>
 
 === 42 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inspect/valid/test01-input.svelte	svelte
@@ -9873,6 +13604,12 @@ on:click={click}
 <button on:click={b} />
 <button on:click={c} />
 
+=== 46 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/valid/bind01-input.svelte	svelte
+<script>
+</script>
+
+<input bind:value={""} />
+
 === 114 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/valid/function01-input.svelte	svelte
 <script>
   let a = "hello!";
@@ -10031,6 +13768,31 @@ on:click={click}
   <h6>Minor Subtitle - H6</h6>
 </div>
 
+=== 631 packages/eslint-plugin-svelte/tests/fixtures/rules/no-restricted-html-elements/valid/array-input.svelte	svelte
+<div style="font-size: 2em; font-weight: bold;">This is a title</div>
+<div style="font-size: 1.5em; font-weight: bold;">This is a subtitle</div>
+<p>This is a paragraph. Some sample text goes here.</p>
+<ul>
+  <li>This is</li>
+  <li>a list item</li>
+</ul>
+<table>
+  <tr>
+    <td>Table Cell 1</td>
+    <td>Table Cell 2</td>
+  </tr>
+  <tr>
+    <td>Table Cell 3</td>
+    <td>Table Cell 4</td>
+  </tr>
+</table>
+<a href="https://example.com">This is a hyperlink to example.com</a>
+<form>
+  <label for="fname">First name:</label><br />
+  <input type="text" id="fname" name="fname" /><br />
+  <input type="submit" value="Submit" />
+</form>
+
 === 159 packages/eslint-plugin-svelte/tests/fixtures/rules/no-shorthand-style-property-overrides/invalid/ternary01-input.svelte	svelte
 <script>
   let red = "red";
@@ -10110,6 +13872,48 @@ on:click={click}
 
 <div style:background-repeat="repeat" not-style="background: green">...</div>
 <div style:background-repeat="repeat" not-style="background: {red}">...</div>
+
+=== 352 packages/eslint-plugin-svelte/tests/fixtures/rules/no-spaces-around-equal-signs-in-attribute/invalid/test01-input.svelte	svelte
+<!-- prettier-ignore -->
+<div>
+  <p class = "h"></p>
+  <p class ="e"></p>
+  <p class=   "l"></p>
+  <p class=
+       "l"></p>
+  <p class
+       = "o"></p>
+  <p class= "="></p>
+  <p class= a></p>
+  <p class= a></p>
+  <p bind:test= {value} bind:test2  = {value} />
+  <p style:width ="10px" />
+  <!-- prettier-ignore -->
+  <p this = {expression} />
+</div>
+
+=== 319 packages/eslint-plugin-svelte/tests/fixtures/rules/no-spaces-around-equal-signs-in-attribute/invalid/test01-output.svelte	svelte
+<!-- prettier-ignore -->
+<div>
+  <p class="h"></p>
+  <p class="e"></p>
+  <p class="l"></p>
+  <p class="l"></p>
+  <p class="o"></p>
+  <p class="="></p>
+  <p class=a></p>
+  <p class=a></p>
+  <p bind:test={value} bind:test2={value} />
+  <p style:width="10px" />
+  <!-- prettier-ignore -->
+  <p this={expression} />
+</div>
+
+=== 148 packages/eslint-plugin-svelte/tests/fixtures/rules/no-spaces-around-equal-signs-in-attribute/valid/test-01-input.svelte	svelte
+<p class="test" style="" bind:test={value} />
+<p class="test2" style style:width="10px" />
+<!-- prettier-ignore -->
+<p class=p this={expression} />
 
 === 54 packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal04-input.svelte	svelte
 <script>
@@ -11328,6 +15132,26 @@ on:click={click}
   }
 </style>
 
+=== 375 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/invalid-style01-input.svelte	svelte
+<div class="container">
+  <div class="div-class">Hello</div>
+
+  <span class="span-class">World!</span>
+</div>
+
+<style>
+  // This syntax is intentionally invalid CSS - this is to be used to test resiliency against invalid input
+  .container {
+    class .div-class/35
+      # Weird comment
+      color: red;
+
+    .span-class begin
+      font-weight: bold;
+    end
+  }
+</style>
+
 === 292 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/multiple-class-names01-input.svelte	svelte
 <div class="div-class div-class-two">Hello</div>
 
@@ -11418,6 +15242,26 @@ on:click={click}
   }
 </style>
 
+=== 406 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/unknown-lang01-input.svelte	svelte
+<div class="container">
+  <div class="div-class">Hello</div>
+
+  <span class="span-class">World!</span>
+</div>
+
+<style lang="invalid-lang">
+  // This syntax is intentionally invalid CSS - this is to be used to test resiliency against unknown style languages.
+  .container {
+    class .div-class/35
+      # Weird comment
+      color: red;
+
+    .span-class begin
+      font-weight: bold;
+    end
+  }
+</style>
+
 === 172 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/used-class-name01-input.svelte	svelte
 <div class="div-class">Hello</div>
 
@@ -11466,6 +15310,26 @@ on:click={click}
 
   const props: Props = $props();
   console.log(props.date.getTime());
+</script>
+
+=== 272 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/class-props-unused-input.svelte	svelte
+<script lang="ts">
+  class User {
+    constructor(
+      public name: string,
+      public age: number,
+    ) {}
+  }
+
+  type Props = {
+    user: User;
+    data: {
+      value: string;
+    };
+  };
+
+  const props: Props = $props();
+  console.log(props.user.name);
 </script>
 
 === 271 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/custom-config-combination-input.svelte	svelte
@@ -12512,6 +16376,21 @@ on:click={click}
   }
 </style>
 
+=== 206 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang04-input.svelte	svelte
+<div class="foo">
+  <div class="bar" />
+</div>
+
+<!-- svelte-ignore css-unused-selector -->
+<style lang="sass">
+  .foo
+    height: 20px
+    width: 20px
+    .bar
+      height: 10px
+      width: 10px
+</style>
+
 === 224 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang05-input.svelte	svelte
 <div class="foo">
   <div class="bar" />
@@ -12527,6 +16406,21 @@ on:click={click}
       width: 10px;
     }
   }
+</style>
+
+=== 208 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang06-input.svelte	svelte
+<div class="foo">
+  <div class="bar" />
+</div>
+
+<!-- svelte-ignore css-unused-selector -->
+<style lang="stylus">
+  .foo
+    height: 20px
+    width: 20px
+    .bar
+      height: 10px
+      width: 10px
 </style>
 
 === 512 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/transform-test-input.svelte	svelte
@@ -12596,6 +16490,16 @@ on:click={click}
 <span tabindex="0">
   <span class="element"></span>
 </span>
+
+=== 112 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/has-error-svelte4-input.svelte	svelte
+<script>
+  let foo;
+</script>
+
+<slot name="default" />
+
+<!-- svelte-ignore a11y-autofocus -->
+<img src="foo" />
 
 === 89 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/html-comment-input.svelte	svelte
 <!-- svelte-ignore a11y_autofocus a11y_missing_attribute -->
@@ -12677,6 +16581,21 @@ on:click={click}
   }
 </style>
 
+=== 206 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang04-input.svelte	svelte
+<div class="foo">
+  <div class="bar" />
+</div>
+
+<!-- svelte-ignore css-unused-selector -->
+<style lang="sass">
+  .foo
+    height: 20px
+    width: 20px
+    .foo
+      height: 10px
+      width: 10px
+</style>
+
 === 224 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang05-input.svelte	svelte
 <div class="foo">
   <div class="bar" />
@@ -12692,6 +16611,36 @@ on:click={click}
       width: 10px;
     }
   }
+</style>
+
+=== 208 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang06-input.svelte	svelte
+<div class="foo">
+  <div class="bar" />
+</div>
+
+<!-- svelte-ignore css-unused-selector -->
+<style lang="stylus">
+  .foo
+    height: 20px
+    width: 20px
+    .foo
+      height: 10px
+      width: 10px
+</style>
+
+=== 209 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang07-input.svelte	svelte
+<div class="foo">
+  <div class="bar" />
+</div>
+
+<!-- svelte-ignore css-unused-selector -->
+<style lang="unknown">
+  .foo
+    height: 20px
+    width: 20px
+    .foo
+      height: 10px
+      width: 10px
 </style>
 
 === 181 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore-comma-separated-input.svelte	svelte
@@ -13645,6 +17594,12 @@ undefined: {$store.undefined}
 foo.bar: {$store.foo.bar}
 foo.baz: {$store.foo.baz}
 
+=== 48 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/module-input.svelte	svelte
+<script context="module">
+</script>
+
+{$foo.bar}
+
 === 299 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/runes-with-store01-input.svelte	svelte
 <script>
   import store from "./store.js";
@@ -13657,6 +17612,25 @@ foo.baz: {$store.foo.baz}
 <p>Doubled: {doubled}</p>
 <p>Store value: {$store.foo}</p>
 
+=== 115 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/test01-input.svelte	svelte
+<script>
+</script>
+
+{$foo.bar}
+
+{$foo[baz]}
+
+<!-- eslint-disable-next-line dot-notation -- tests -->
+{$foo["qux"]}
+
+=== 95 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/test02-input.svelte	svelte
+{$foo.bar}
+
+{$foo[bar]}
+
+<!-- eslint-disable-next-line dot-notation -- tests -->
+{$foo["bar"]}
+
 === 116 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/valid/builtin-vars01-input.svelte	svelte
 <div>
   <slot name="title" />
@@ -13665,6 +17639,14 @@ foo.baz: {$store.foo.baz}
     <slot name="description" />
   {/if}
 </div>
+
+=== 73 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/valid/test01-input.svelte	svelte
+{foo$.bar}
+{f$oo.bar}
+
+{#each list as baz}
+  {$foo[`bar${baz}`]}
+{/each}
 
 === 38 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/complex-test01-input.svelte	svelte
 <div style="color: {r}e{d}">...</div>
@@ -15428,6 +19410,38 @@ foo.baz: {$store.foo.baz}
 <svelte:component this={$component} --my-style-var={$store} />
 <svelte:component this={$component} {...$store} />
 
+=== 455 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-element01-input.svelte	svelte
+<script>
+  import { writable } from "svelte/store";
+  let store = writable("hello");
+  let value = writable("hello");
+  let div = writable("div");
+  let input = writable("input");
+</script>
+
+<svelte:element this={div} prop="Hello {store}" />
+<svelte:element this={div} prop={store} />
+<svelte:element this={div} {store} />
+<svelte:element this={div} {...store} />
+<svelte:element this={div} bind:this={store} />
+<svelte:element this={input} bind:value />
+
+=== 465 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-element01-output.svelte	svelte
+<script>
+  import { writable } from "svelte/store";
+  let store = writable("hello");
+  let value = writable("hello");
+  let div = writable("div");
+  let input = writable("input");
+</script>
+
+<svelte:element this={$div} prop="Hello {$store}" />
+<svelte:element this={$div} prop={$store} />
+<svelte:element this={$div} {store} />
+<svelte:element this={$div} {...$store} />
+<svelte:element this={$div} bind:this={$store} />
+<svelte:element this={$input} bind:value />
+
 === 386 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/switch01-input.svelte	svelte
 <script>
   import { writable } from "svelte/store";
@@ -16228,6 +20242,309 @@ foo.baz: {$store.foo.baz}
 <div class="foo" class:a class:b />
 <div class="foo" class:a class:b />
 
+=== 752 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01-input.svelte	svelte
+<script>
+  import component from "./foo";
+  let style = { color: "red" };
+  let componentValue;
+  let metaData = {};
+  let foo;
+  let color = "red";
+  let disable = false;
+  let inputValue;
+  let abc, def;
+  function fn() {}
+  function handleChange() {}
+  function action() {}
+</script>
+
+<!-- prettier-ignore -->
+<svelte:component
+  bind:value={componentValue}
+  this={component}
+  on:changeValue={handleChange}
+  {def}
+  data-foo
+  {abc}
+  bind:metaData
+  --style-props={color}
+/>
+<input
+  id="foo"
+  bind:this={foo}
+  style:color
+  style="width: 150px;"
+  class="my-input"
+  class:enable={!disable}
+  class:disable
+  animate:name
+  use:action
+  transition:fn
+  bind:value={inputValue}
+  in:fn
+  out:fn
+/>
+<slot name="content" {def} {abc} data-foo />
+
+=== 752 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01-output.svelte	svelte
+<script>
+  import component from "./foo";
+  let style = { color: "red" };
+  let componentValue;
+  let metaData = {};
+  let foo;
+  let color = "red";
+  let disable = false;
+  let inputValue;
+  let abc, def;
+  function fn() {}
+  function handleChange() {}
+  function action() {}
+</script>
+
+<!-- prettier-ignore -->
+<svelte:component
+  this={component}
+  bind:value={componentValue}
+  on:changeValue={handleChange}
+  {def}
+  data-foo
+  {abc}
+  bind:metaData
+  --style-props={color}
+/>
+<input
+  bind:this={foo}
+  id="foo"
+  style:color
+  style="width: 150px;"
+  class="my-input"
+  class:disable
+  class:enable={!disable}
+  use:action
+  animate:name
+  transition:fn
+  bind:value={inputValue}
+  in:fn
+  out:fn
+/>
+<slot name="content" {abc} {def} data-foo />
+
+=== 727 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix1-input.svelte	svelte
+<script>
+  import component from "./foo";
+  let style = { color: "red" };
+  let componentValue;
+  let metaData = {};
+  let foo;
+  let color = "red";
+  let disable = false;
+  let inputValue;
+  let abc, def;
+  function fn() {}
+  function handleChange() {}
+  function action() {}
+</script>
+
+<svelte:component
+  this={component}
+  bind:value={componentValue}
+  on:changeValue={handleChange}
+  {def}
+  data-foo
+  {abc}
+  bind:metaData
+  --style-props={color}
+/>
+<input
+  bind:this={foo}
+  id="foo"
+  style:color
+  style="width: 150px;"
+  class="my-input"
+  class:disable
+  class:enable={!disable}
+  use:action
+  animate:name
+  transition:fn
+  bind:value={inputValue}
+  in:fn
+  out:fn
+/>
+<slot name="content" {abc} {def} data-foo />
+
+=== 727 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix1-output.svelte	svelte
+<script>
+  import component from "./foo";
+  let style = { color: "red" };
+  let componentValue;
+  let metaData = {};
+  let foo;
+  let color = "red";
+  let disable = false;
+  let inputValue;
+  let abc, def;
+  function fn() {}
+  function handleChange() {}
+  function action() {}
+</script>
+
+<svelte:component
+  this={component}
+  {def}
+  bind:value={componentValue}
+  on:changeValue={handleChange}
+  data-foo
+  {abc}
+  bind:metaData
+  --style-props={color}
+/>
+<input
+  bind:this={foo}
+  id="foo"
+  style:color
+  style="width: 150px;"
+  class="my-input"
+  class:disable
+  class:enable={!disable}
+  bind:value={inputValue}
+  use:action
+  animate:name
+  transition:fn
+  in:fn
+  out:fn
+/>
+<slot name="content" {abc} data-foo {def} />
+
+=== 727 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix2-output.svelte	svelte
+<script>
+  import component from "./foo";
+  let style = { color: "red" };
+  let componentValue;
+  let metaData = {};
+  let foo;
+  let color = "red";
+  let disable = false;
+  let inputValue;
+  let abc, def;
+  function fn() {}
+  function handleChange() {}
+  function action() {}
+</script>
+
+<svelte:component
+  this={component}
+  data-foo
+  {def}
+  bind:value={componentValue}
+  on:changeValue={handleChange}
+  {abc}
+  bind:metaData
+  --style-props={color}
+/>
+<input
+  bind:this={foo}
+  id="foo"
+  style:color
+  style="width: 150px;"
+  class="my-input"
+  class:disable
+  class:enable={!disable}
+  bind:value={inputValue}
+  use:action
+  transition:fn
+  animate:name
+  in:fn
+  out:fn
+/>
+<slot name="content" {abc} data-foo {def} />
+
+=== 727 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix3-output.svelte	svelte
+<script>
+  import component from "./foo";
+  let style = { color: "red" };
+  let componentValue;
+  let metaData = {};
+  let foo;
+  let color = "red";
+  let disable = false;
+  let inputValue;
+  let abc, def;
+  function fn() {}
+  function handleChange() {}
+  function action() {}
+</script>
+
+<svelte:component
+  this={component}
+  {abc}
+  data-foo
+  {def}
+  bind:value={componentValue}
+  on:changeValue={handleChange}
+  bind:metaData
+  --style-props={color}
+/>
+<input
+  bind:this={foo}
+  id="foo"
+  style:color
+  style="width: 150px;"
+  class="my-input"
+  class:disable
+  class:enable={!disable}
+  bind:value={inputValue}
+  use:action
+  transition:fn
+  in:fn
+  animate:name
+  out:fn
+/>
+<slot name="content" {abc} data-foo {def} />
+
+=== 727 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix4-output.svelte	svelte
+<script>
+  import component from "./foo";
+  let style = { color: "red" };
+  let componentValue;
+  let metaData = {};
+  let foo;
+  let color = "red";
+  let disable = false;
+  let inputValue;
+  let abc, def;
+  function fn() {}
+  function handleChange() {}
+  function action() {}
+</script>
+
+<svelte:component
+  this={component}
+  --style-props={color}
+  {abc}
+  data-foo
+  {def}
+  bind:value={componentValue}
+  on:changeValue={handleChange}
+  bind:metaData
+/>
+<input
+  bind:this={foo}
+  id="foo"
+  style:color
+  style="width: 150px;"
+  class="my-input"
+  class:disable
+  class:enable={!disable}
+  bind:value={inputValue}
+  use:action
+  transition:fn
+  in:fn
+  out:fn
+  animate:name
+/>
+<slot name="content" {abc} data-foo {def} />
+
 === 75 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/in-out-test-input.svelte	svelte
 <script>
   function a() {}
@@ -16408,6 +20725,258 @@ foo.baz: {$store.foo.baz}
 <div c {...attrs} b a />
 <div h g f e order-b d {...attrs} c order-a order-c b a />
 
+=== 471 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01-input.svelte	svelte
+<script>
+  import MyComponent from "./MyComponent.svelte";
+  let data, comp, abc, def;
+  let foo, bar;
+  let src;
+  const color = "red";
+  function name() {}
+  function fn() {}
+</script>
+
+<MyComponent bind:data bind:this={comp} {abc} {def} data-foo />
+<input
+  class:bar
+  class="my-block"
+  id="foo"
+  bind:this={foo}
+  value="abc"
+  style:color
+  style="width: 30px;"
+  data-value="x"
+  animate:name
+  in:fn
+  out:fn
+  transition:fn
+/>
+<img alt="bar" {src} id="bar" />
+
+=== 471 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01-output.svelte	svelte
+<script>
+  import MyComponent from "./MyComponent.svelte";
+  let data, comp, abc, def;
+  let foo, bar;
+  let src;
+  const color = "red";
+  function name() {}
+  function fn() {}
+</script>
+
+<MyComponent bind:this={comp} bind:data {abc} {def} data-foo />
+<input
+  class="my-block"
+  class:bar
+  id="foo"
+  value="abc"
+  bind:this={foo}
+  style:color
+  style="width: 30px;"
+  data-value="x"
+  animate:name
+  in:fn
+  out:fn
+  transition:fn
+/>
+<img {src} alt="bar" id="bar" />
+
+=== 471 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix1-output.svelte	svelte
+<script>
+  import MyComponent from "./MyComponent.svelte";
+  let data, comp, abc, def;
+  let foo, bar;
+  let src;
+  const color = "red";
+  function name() {}
+  function fn() {}
+</script>
+
+<MyComponent data-foo bind:this={comp} bind:data {abc} {def} />
+<input
+  id="foo"
+  class="my-block"
+  class:bar
+  value="abc"
+  style:color
+  bind:this={foo}
+  style="width: 30px;"
+  data-value="x"
+  animate:name
+  in:fn
+  out:fn
+  transition:fn
+/>
+<img id="bar" {src} alt="bar" />
+
+=== 471 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix2-output.svelte	svelte
+<script>
+  import MyComponent from "./MyComponent.svelte";
+  let data, comp, abc, def;
+  let foo, bar;
+  let src;
+  const color = "red";
+  function name() {}
+  function fn() {}
+</script>
+
+<MyComponent data-foo bind:this={comp} bind:data {abc} {def} />
+<input
+  id="foo"
+  class="my-block"
+  class:bar
+  value="abc"
+  style="width: 30px;"
+  style:color
+  bind:this={foo}
+  data-value="x"
+  animate:name
+  in:fn
+  out:fn
+  transition:fn
+/>
+<img id="bar" {src} alt="bar" />
+
+=== 471 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix3-output.svelte	svelte
+<script>
+  import MyComponent from "./MyComponent.svelte";
+  let data, comp, abc, def;
+  let foo, bar;
+  let src;
+  const color = "red";
+  function name() {}
+  function fn() {}
+</script>
+
+<MyComponent data-foo bind:this={comp} bind:data {abc} {def} />
+<input
+  id="foo"
+  class="my-block"
+  class:bar
+  value="abc"
+  data-value="x"
+  style="width: 30px;"
+  style:color
+  bind:this={foo}
+  animate:name
+  in:fn
+  out:fn
+  transition:fn
+/>
+<img id="bar" {src} alt="bar" />
+
+=== 471 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix4-output.svelte	svelte
+<script>
+  import MyComponent from "./MyComponent.svelte";
+  let data, comp, abc, def;
+  let foo, bar;
+  let src;
+  const color = "red";
+  function name() {}
+  function fn() {}
+</script>
+
+<MyComponent data-foo bind:this={comp} bind:data {abc} {def} />
+<input
+  id="foo"
+  class="my-block"
+  class:bar
+  value="abc"
+  data-value="x"
+  style="width: 30px;"
+  style:color
+  animate:name
+  bind:this={foo}
+  in:fn
+  out:fn
+  transition:fn
+/>
+<img id="bar" {src} alt="bar" />
+
+=== 471 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix5-output.svelte	svelte
+<script>
+  import MyComponent from "./MyComponent.svelte";
+  let data, comp, abc, def;
+  let foo, bar;
+  let src;
+  const color = "red";
+  function name() {}
+  function fn() {}
+</script>
+
+<MyComponent data-foo bind:this={comp} bind:data {abc} {def} />
+<input
+  id="foo"
+  class="my-block"
+  class:bar
+  value="abc"
+  data-value="x"
+  style="width: 30px;"
+  style:color
+  animate:name
+  in:fn
+  bind:this={foo}
+  out:fn
+  transition:fn
+/>
+<img id="bar" {src} alt="bar" />
+
+=== 471 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix6-output.svelte	svelte
+<script>
+  import MyComponent from "./MyComponent.svelte";
+  let data, comp, abc, def;
+  let foo, bar;
+  let src;
+  const color = "red";
+  function name() {}
+  function fn() {}
+</script>
+
+<MyComponent data-foo bind:this={comp} bind:data {abc} {def} />
+<input
+  id="foo"
+  class="my-block"
+  class:bar
+  value="abc"
+  data-value="x"
+  style="width: 30px;"
+  style:color
+  animate:name
+  transition:fn
+  in:fn
+  bind:this={foo}
+  out:fn
+/>
+<img id="bar" {src} alt="bar" />
+
+=== 471 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix7-output.svelte	svelte
+<script>
+  import MyComponent from "./MyComponent.svelte";
+  let data, comp, abc, def;
+  let foo, bar;
+  let src;
+  const color = "red";
+  function name() {}
+  function fn() {}
+</script>
+
+<MyComponent data-foo bind:this={comp} bind:data {abc} {def} />
+<input
+  id="foo"
+  class="my-block"
+  class:bar
+  value="abc"
+  data-value="x"
+  style="width: 30px;"
+  style:color
+  animate:name
+  transition:fn
+  in:fn
+  out:fn
+  bind:this={foo}
+/>
+<img id="bar" {src} alt="bar" />
+
 === 86 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/alphabetical-test-input.svelte	svelte
 <div c-foo b-foo a-foo />
 <div a-b a-a a-c />
@@ -16434,6 +21003,49 @@ foo.baz: {$store.foo.baz}
 </script>
 
 <div class="foo" class:a class:b />
+
+=== 718 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/default-test01-input.svelte	svelte
+<script>
+  import component from "./foo";
+  let style = { color: "red" };
+  let componentValue;
+  let metaData = {};
+  let foo;
+  let color = "red";
+  let disable = false;
+  let inputValue;
+  let abc, def;
+  function fn() {}
+  function handleChange() {}
+  function action() {}
+</script>
+
+<svelte:component
+  this={component}
+  --style-props={color}
+  {abc}
+  data-foo
+  {def}
+  bind:value={componentValue}
+  on:changeValue={handleChange}
+  bind:metaData
+/>
+<input
+  bind:this={foo}
+  id="foo"
+  style="width: 150px;"
+  style:color
+  class="my-input"
+  class:disable
+  class:enable={!disable}
+  bind:value={inputValue}
+  use:action
+  transition:fn
+  in:fn
+  out:fn
+  animate:name
+/>
+<slot name="content" {abc} {def} />
 
 === 159 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/ignore-spread-test-input.svelte	svelte
 <script>
@@ -16609,6 +21221,21 @@ comment
 
 <img {src} autofocus />
 
+=== 98 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/ts/enum01-input.svelte	svelte
+<script lang="ts">
+  enum $E {
+    a = "tutorial/image.gif",
+    b = "Rick Astley",
+  }
+</script>
+
+=== 83 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/babel/babel-function-bind01-input.svelte	svelte
+<script>
+  function func() {}
+  const obj = {};
+  const foo = obj::func;
+</script>
+
 === 32 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/babel/class01-input.svelte	svelte
 <script>
   class A {}
@@ -16670,6 +21297,13 @@ comment
 
 === 48 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/svelte-options-custom-element-input.svelte	svelte
 <svelte:options customElement="my-component" />
+
+=== 200 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/svelte3-options-custom-element-input.svelte	error.txt
+"tag" option is deprecated — use "customElement" instead
+https://svelte.dev/e/svelte_options_deprecated_tag
+> 1 | <svelte:options tag="my-component" />
+    |                ^^^^^^^^^^^^^^^^^^
+  2 |
 
 === 117 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/test01-input.svelte	svelte
 <script>
@@ -16993,6 +21627,26 @@ comment
 </script>
 
 {data}, {errors}
+
+=== 387 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-style-parse/invalid/invalid-scss01-input.svelte	svelte
+<div class="container">
+  <div class="div-class">Hello</div>
+
+  <span class="span-class">World!</span>
+</div>
+
+<style lang="scss">
+  // This syntax is intentionally invalid CSS - this is to be used to test resiliency against invalid input
+  .container {
+    class .div-class/35
+      # Weird comment
+      color: red;
+
+    .span-class begin
+      font-weight: bold;
+    end
+  }
+</style>
 
 === 87 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-style-parse/valid/no-style01-input.svelte	svelte
 <a href="https://svelte.dev">Hello</a>

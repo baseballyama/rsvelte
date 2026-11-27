@@ -484,6 +484,12 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/declaration-tag-output.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/each01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/each01-output.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/html-text02-input.svelte	json
 []
 
@@ -561,6 +567,38 @@
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-do-while01-output.svelte	json
 []
+
+=== 188 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export01-input.svelte	json
+[
+	{
+		"code": 2528,
+		"message": "A module cannot have multiple default exports.",
+		"start": {
+			"line": 14,
+			"character": 0
+		},
+		"end": {
+			"line": 14,
+			"character": 1
+		}
+	}
+]
+
+=== 188 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export01-output.svelte	json
+[
+	{
+		"code": 2528,
+		"message": "A module cannot have multiple default exports.",
+		"start": {
+			"line": 14,
+			"character": 4
+		},
+		"end": {
+			"line": 14,
+			"character": 5
+		}
+	}
+]
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/script-export02-input.svelte	json
 []
@@ -848,6 +886,62 @@
 		"end": {
 			"line": 4,
 			"character": 7
+		}
+	}
+]
+
+=== 438 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property04-input.svelte	json
+[
+	{
+		"code": 4112,
+		"message": "This member cannot have an 'override' modifier because its containing class 'Foo' does not extend another class.",
+		"start": {
+			"line": 3,
+			"character": 9
+		},
+		"end": {
+			"line": 3,
+			"character": 17
+		}
+	},
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 9
+		},
+		"end": {
+			"line": 3,
+			"character": 17
+		}
+	}
+]
+
+=== 440 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-accessor-property04-output.svelte	json
+[
+	{
+		"code": 4112,
+		"message": "This member cannot have an 'override' modifier because its containing class 'Foo' does not extend another class.",
+		"start": {
+			"line": 3,
+			"character": 13
+		},
+		"end": {
+			"line": 3,
+			"character": 21
+		}
+	},
+	{
+		"code": 7008,
+		"message": "Member 'accessor' implicitly has an 'any' type.",
+		"start": {
+			"line": 3,
+			"character": 13
+		},
+		"end": {
+			"line": 3,
+			"character": 21
 		}
 	}
 ]
@@ -1152,6 +1246,390 @@
 	}
 ]
 
+=== 1299 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class01-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'abstract'.",
+		"start": {
+			"line": 2,
+			"character": 0
+		},
+		"end": {
+			"line": 2,
+			"character": 8
+		}
+	},
+	{
+		"code": 1253,
+		"message": "Abstract properties can only appear within an abstract class.",
+		"start": {
+			"line": 6,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"character": 8
+		}
+	},
+	{
+		"code": 1244,
+		"message": "Abstract methods can only appear within an abstract class.",
+		"start": {
+			"line": 9,
+			"character": 0
+		},
+		"end": {
+			"line": 9,
+			"character": 8
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 0
+		},
+		"end": {
+			"line": 11,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Foo'.",
+		"start": {
+			"line": 17,
+			"character": 6
+		},
+		"end": {
+			"line": 17,
+			"character": 9
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Foo'.",
+		"start": {
+			"line": 44,
+			"character": 6
+		},
+		"end": {
+			"line": 44,
+			"character": 9
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'prop' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 45,
+			"character": 0
+		},
+		"end": {
+			"line": 45,
+			"character": 4
+		}
+	}
+]
+
+=== 1304 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class01-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'abstract'.",
+		"start": {
+			"line": 2,
+			"character": 2
+		},
+		"end": {
+			"line": 2,
+			"character": 10
+		}
+	},
+	{
+		"code": 1253,
+		"message": "Abstract properties can only appear within an abstract class.",
+		"start": {
+			"line": 6,
+			"character": 4
+		},
+		"end": {
+			"line": 6,
+			"character": 12
+		}
+	},
+	{
+		"code": 1244,
+		"message": "Abstract methods can only appear within an abstract class.",
+		"start": {
+			"line": 9,
+			"character": 4
+		},
+		"end": {
+			"line": 9,
+			"character": 12
+		}
+	},
+	{
+		"code": 7006,
+		"message": "Parameter 'a' implicitly has an 'any' type.",
+		"start": {
+			"line": 11,
+			"character": 8
+		},
+		"end": {
+			"line": 11,
+			"character": 9
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Foo'.",
+		"start": {
+			"line": 17,
+			"character": 8
+		},
+		"end": {
+			"line": 17,
+			"character": 11
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Foo'.",
+		"start": {
+			"line": 44,
+			"character": 8
+		},
+		"end": {
+			"line": 44,
+			"character": 11
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'prop' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 45,
+			"character": 4
+		},
+		"end": {
+			"line": 45,
+			"character": 8
+		}
+	}
+]
+
+=== 876 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class02-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'CustomType'.",
+		"start": {
+			"line": 9,
+			"character": 0
+		},
+		"end": {
+			"line": 9,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 10,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 1
+		}
+	},
+	{
+		"code": 1029,
+		"message": "'protected' modifier must precede 'readonly' modifier.",
+		"start": {
+			"line": 15,
+			"character": 9
+		},
+		"end": {
+			"line": 15,
+			"character": 18
+		}
+	},
+	{
+		"code": 7061,
+		"message": "A mapped type may not declare properties or methods.",
+		"start": {
+			"line": 18,
+			"character": 0
+		},
+		"end": {
+			"line": 18,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'i'.",
+		"start": {
+			"line": 32,
+			"character": 0
+		},
+		"end": {
+			"line": 32,
+			"character": 1
+		}
+	}
+]
+
+=== 878 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class02-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'CustomType'.",
+		"start": {
+			"line": 9,
+			"character": 6
+		},
+		"end": {
+			"line": 9,
+			"character": 16
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'T'.",
+		"start": {
+			"line": 10,
+			"character": 8
+		},
+		"end": {
+			"line": 10,
+			"character": 9
+		}
+	},
+	{
+		"code": 1029,
+		"message": "'protected' modifier must precede 'readonly' modifier.",
+		"start": {
+			"line": 15,
+			"character": 13
+		},
+		"end": {
+			"line": 15,
+			"character": 22
+		}
+	},
+	{
+		"code": 7061,
+		"message": "A mapped type may not declare properties or methods.",
+		"start": {
+			"line": 18,
+			"character": 8
+		},
+		"end": {
+			"line": 18,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'i'.",
+		"start": {
+			"line": 32,
+			"character": 6
+		},
+		"end": {
+			"line": 32,
+			"character": 7
+		}
+	}
+]
+
+=== 618 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class03-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 16
+		},
+		"end": {
+			"line": 2,
+			"character": 21
+		}
+	},
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 5,
+			"character": 7
+		},
+		"end": {
+			"line": 5,
+			"character": 14
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 5,
+			"character": 31
+		},
+		"end": {
+			"line": 5,
+			"character": 32
+		}
+	}
+]
+
+=== 618 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-class03-output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 18
+		},
+		"end": {
+			"line": 2,
+			"character": 23
+		}
+	},
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 5,
+			"character": 9
+		},
+		"end": {
+			"line": 5,
+			"character": 16
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'E'.",
+		"start": {
+			"line": 5,
+			"character": 33
+		},
+		"end": {
+			"line": 5,
+			"character": 34
+		}
+	}
+]
+
 === 1590 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-conditional-type01-input.svelte	json
 [
 	{
@@ -1399,6 +1877,6492 @@
 		}
 	}
 ]
+
+=== 49419 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-d-ts-eslint-input.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'json-schema' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 28
+		},
+		"end": {
+			"line": 15,
+			"character": 41
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'estree' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 24
+		},
+		"end": {
+			"line": 16,
+			"character": 32
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 18,
+			"character": 0
+		},
+		"end": {
+			"line": 18,
+			"character": 6
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 53,
+			"character": 0
+		},
+		"end": {
+			"line": 53,
+			"character": 6
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'text' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 137,
+			"character": 4
+		},
+		"end": {
+			"line": 137,
+			"character": 8
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Program'.",
+		"start": {
+			"line": 138,
+			"character": 13
+		},
+		"end": {
+			"line": 138,
+			"character": 20
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'lines' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 139,
+			"character": 4
+		},
+		"end": {
+			"line": 139,
+			"character": 9
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'hasBOM' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 140,
+			"character": 4
+		},
+		"end": {
+			"line": 140,
+			"character": 10
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'ParserServices'.",
+		"start": {
+			"line": 141,
+			"character": 31
+		},
+		"end": {
+			"line": 141,
+			"character": 45
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Scope' has no exported member 'ScopeManager'.",
+		"start": {
+			"line": 142,
+			"character": 24
+		},
+		"end": {
+			"line": 142,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'VisitorKeys'.",
+		"start": {
+			"line": 143,
+			"character": 28
+		},
+		"end": {
+			"line": 143,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Program'.",
+		"start": {
+			"line": 145,
+			"character": 39
+		},
+		"end": {
+			"line": 145,
+			"character": 46
+		}
+	},
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 146,
+			"character": 4
+		},
+		"end": {
+			"line": 146,
+			"character": 15
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'Config'.",
+		"start": {
+			"line": 146,
+			"character": 35
+		},
+		"end": {
+			"line": 146,
+			"character": 41
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 148,
+			"character": 11
+		},
+		"end": {
+			"line": 148,
+			"character": 21
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 150,
+			"character": 4
+		},
+		"end": {
+			"line": 150,
+			"character": 11
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 152,
+			"character": 4
+		},
+		"end": {
+			"line": 152,
+			"character": 12
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 154,
+			"character": 4
+		},
+		"end": {
+			"line": 154,
+			"character": 18
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 156,
+			"character": 4
+		},
+		"end": {
+			"line": 156,
+			"character": 15
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 158,
+			"character": 4
+		},
+		"end": {
+			"line": 158,
+			"character": 19
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 160,
+			"character": 4
+		},
+		"end": {
+			"line": 160,
+			"character": 23
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 162,
+			"character": 4
+		},
+		"end": {
+			"line": 162,
+			"character": 24
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 162,
+			"character": 36
+		},
+		"end": {
+			"line": 162,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 162,
+			"character": 55
+		},
+		"end": {
+			"line": 162,
+			"character": 60
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 164,
+			"character": 4
+		},
+		"end": {
+			"line": 164,
+			"character": 19
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 166,
+			"character": 4
+		},
+		"end": {
+			"line": 166,
+			"character": 19
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 171,
+			"character": 84
+		},
+		"end": {
+			"line": 171,
+			"character": 89
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 172,
+			"character": 4
+		},
+		"end": {
+			"line": 172,
+			"character": 24
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 172,
+			"character": 85
+		},
+		"end": {
+			"line": 172,
+			"character": 90
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryNodeCursorWithSkipOptions'.",
+		"start": {
+			"line": 174,
+			"character": 30
+		},
+		"end": {
+			"line": 174,
+			"character": 60
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryNodeCursorWithCountOptions'.",
+		"start": {
+			"line": 176,
+			"character": 31
+		},
+		"end": {
+			"line": 176,
+			"character": 62
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryNodeCursorWithSkipOptions'.",
+		"start": {
+			"line": 178,
+			"character": 29
+		},
+		"end": {
+			"line": 178,
+			"character": 59
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryNodeCursorWithCountOptions'.",
+		"start": {
+			"line": 180,
+			"character": 30
+		},
+		"end": {
+			"line": 180,
+			"character": 61
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryCursorWithSkipOptions'.",
+		"start": {
+			"line": 182,
+			"character": 31
+		},
+		"end": {
+			"line": 182,
+			"character": 57
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryCursorWithCountOptions'.",
+		"start": {
+			"line": 184,
+			"character": 32
+		},
+		"end": {
+			"line": 184,
+			"character": 59
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryCursorWithSkipOptions'.",
+		"start": {
+			"line": 186,
+			"character": 30
+		},
+		"end": {
+			"line": 186,
+			"character": 56
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryCursorWithCountOptions'.",
+		"start": {
+			"line": 188,
+			"character": 31
+		},
+		"end": {
+			"line": 188,
+			"character": 58
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'BinaryCursorWithSkipOptions'.",
+		"start": {
+			"line": 190,
+			"character": 37
+		},
+		"end": {
+			"line": 190,
+			"character": 64
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'BinaryCursorWithCountOptions'.",
+		"start": {
+			"line": 192,
+			"character": 38
+		},
+		"end": {
+			"line": 192,
+			"character": 66
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'BinaryCursorWithSkipOptions'.",
+		"start": {
+			"line": 194,
+			"character": 36
+		},
+		"end": {
+			"line": 194,
+			"character": 63
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'BinaryCursorWithCountOptions'.",
+		"start": {
+			"line": 196,
+			"character": 37
+		},
+		"end": {
+			"line": 196,
+			"character": 65
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'BinaryCursorWithCountOptions'.",
+		"start": {
+			"line": 198,
+			"character": 33
+		},
+		"end": {
+			"line": 198,
+			"character": 61
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 200,
+			"character": 86
+		},
+		"end": {
+			"line": 200,
+			"character": 91
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryNodeCursorWithCountOptions'.",
+		"start": {
+			"line": 201,
+			"character": 19
+		},
+		"end": {
+			"line": 201,
+			"character": 50
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 203,
+			"character": 4
+		},
+		"end": {
+			"line": 203,
+			"character": 24
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 204,
+			"character": 32
+		},
+		"end": {
+			"line": 204,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 205,
+			"character": 33
+		},
+		"end": {
+			"line": 205,
+			"character": 38
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 208,
+			"character": 4
+		},
+		"end": {
+			"line": 208,
+			"character": 21
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 208,
+			"character": 53
+		},
+		"end": {
+			"line": 208,
+			"character": 58
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 210,
+			"character": 4
+		},
+		"end": {
+			"line": 210,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 210,
+			"character": 52
+		},
+		"end": {
+			"line": 210,
+			"character": 57
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 212,
+			"character": 4
+		},
+		"end": {
+			"line": 212,
+			"character": 21
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 215,
+			"character": 0
+		},
+		"end": {
+			"line": 215,
+			"character": 6
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Program'.",
+		"start": {
+			"line": 218,
+			"character": 17
+		},
+		"end": {
+			"line": 218,
+			"character": 24
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Scope' has no exported member 'ScopeManager'.",
+		"start": {
+			"line": 220,
+			"character": 29
+		},
+		"end": {
+			"line": 220,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 231,
+			"character": 23
+		},
+		"end": {
+			"line": 231,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 234,
+			"character": 31
+		},
+		"end": {
+			"line": 234,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 235,
+			"character": 40
+		},
+		"end": {
+			"line": 235,
+			"character": 45
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 237,
+			"character": 23
+		},
+		"end": {
+			"line": 237,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 240,
+			"character": 45
+		},
+		"end": {
+			"line": 240,
+			"character": 50
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 248,
+			"character": 41
+		},
+		"end": {
+			"line": 248,
+			"character": 46
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 249,
+			"character": 31
+		},
+		"end": {
+			"line": 249,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 251,
+			"character": 15
+		},
+		"end": {
+			"line": 251,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 255,
+			"character": 37
+		},
+		"end": {
+			"line": 255,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 259,
+			"character": 15
+		},
+		"end": {
+			"line": 259,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 263,
+			"character": 23
+		},
+		"end": {
+			"line": 263,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 266,
+			"character": 31
+		},
+		"end": {
+			"line": 266,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 267,
+			"character": 40
+		},
+		"end": {
+			"line": 267,
+			"character": 45
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 269,
+			"character": 23
+		},
+		"end": {
+			"line": 269,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 272,
+			"character": 45
+		},
+		"end": {
+			"line": 272,
+			"character": 50
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 280,
+			"character": 41
+		},
+		"end": {
+			"line": 280,
+			"character": 46
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 281,
+			"character": 31
+		},
+		"end": {
+			"line": 281,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 283,
+			"character": 15
+		},
+		"end": {
+			"line": 283,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 287,
+			"character": 37
+		},
+		"end": {
+			"line": 287,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 291,
+			"character": 21
+		},
+		"end": {
+			"line": 291,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 295,
+			"character": 23
+		},
+		"end": {
+			"line": 295,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 296,
+			"character": 36
+		},
+		"end": {
+			"line": 296,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 298,
+			"character": 31
+		},
+		"end": {
+			"line": 298,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 299,
+			"character": 40
+		},
+		"end": {
+			"line": 299,
+			"character": 45
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 301,
+			"character": 23
+		},
+		"end": {
+			"line": 301,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 302,
+			"character": 36
+		},
+		"end": {
+			"line": 302,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 304,
+			"character": 45
+		},
+		"end": {
+			"line": 304,
+			"character": 50
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 310,
+			"character": 36
+		},
+		"end": {
+			"line": 310,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 312,
+			"character": 41
+		},
+		"end": {
+			"line": 312,
+			"character": 46
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 313,
+			"character": 31
+		},
+		"end": {
+			"line": 313,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 315,
+			"character": 15
+		},
+		"end": {
+			"line": 315,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 317,
+			"character": 36
+		},
+		"end": {
+			"line": 317,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 319,
+			"character": 37
+		},
+		"end": {
+			"line": 319,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 323,
+			"character": 15
+		},
+		"end": {
+			"line": 323,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 327,
+			"character": 23
+		},
+		"end": {
+			"line": 327,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 328,
+			"character": 36
+		},
+		"end": {
+			"line": 328,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 330,
+			"character": 31
+		},
+		"end": {
+			"line": 330,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 331,
+			"character": 40
+		},
+		"end": {
+			"line": 331,
+			"character": 45
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 333,
+			"character": 23
+		},
+		"end": {
+			"line": 333,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 334,
+			"character": 36
+		},
+		"end": {
+			"line": 334,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 336,
+			"character": 45
+		},
+		"end": {
+			"line": 336,
+			"character": 50
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 342,
+			"character": 36
+		},
+		"end": {
+			"line": 342,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 344,
+			"character": 41
+		},
+		"end": {
+			"line": 344,
+			"character": 46
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 345,
+			"character": 31
+		},
+		"end": {
+			"line": 345,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 347,
+			"character": 15
+		},
+		"end": {
+			"line": 347,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 349,
+			"character": 36
+		},
+		"end": {
+			"line": 349,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 351,
+			"character": 37
+		},
+		"end": {
+			"line": 351,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 355,
+			"character": 21
+		},
+		"end": {
+			"line": 355,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 359,
+			"character": 23
+		},
+		"end": {
+			"line": 359,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 360,
+			"character": 36
+		},
+		"end": {
+			"line": 360,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 361,
+			"character": 37
+		},
+		"end": {
+			"line": 361,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 363,
+			"character": 31
+		},
+		"end": {
+			"line": 363,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 364,
+			"character": 40
+		},
+		"end": {
+			"line": 364,
+			"character": 45
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 366,
+			"character": 23
+		},
+		"end": {
+			"line": 366,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 367,
+			"character": 36
+		},
+		"end": {
+			"line": 367,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 368,
+			"character": 37
+		},
+		"end": {
+			"line": 368,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 370,
+			"character": 45
+		},
+		"end": {
+			"line": 370,
+			"character": 50
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 376,
+			"character": 36
+		},
+		"end": {
+			"line": 376,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 377,
+			"character": 37
+		},
+		"end": {
+			"line": 377,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 379,
+			"character": 41
+		},
+		"end": {
+			"line": 379,
+			"character": 46
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 380,
+			"character": 31
+		},
+		"end": {
+			"line": 380,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 382,
+			"character": 15
+		},
+		"end": {
+			"line": 382,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 384,
+			"character": 36
+		},
+		"end": {
+			"line": 384,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 385,
+			"character": 37
+		},
+		"end": {
+			"line": 385,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 387,
+			"character": 37
+		},
+		"end": {
+			"line": 387,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 391,
+			"character": 15
+		},
+		"end": {
+			"line": 391,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 395,
+			"character": 23
+		},
+		"end": {
+			"line": 395,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 396,
+			"character": 36
+		},
+		"end": {
+			"line": 396,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 397,
+			"character": 37
+		},
+		"end": {
+			"line": 397,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 399,
+			"character": 31
+		},
+		"end": {
+			"line": 399,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 400,
+			"character": 40
+		},
+		"end": {
+			"line": 400,
+			"character": 45
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 402,
+			"character": 23
+		},
+		"end": {
+			"line": 402,
+			"character": 28
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 403,
+			"character": 36
+		},
+		"end": {
+			"line": 403,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 404,
+			"character": 37
+		},
+		"end": {
+			"line": 404,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 406,
+			"character": 45
+		},
+		"end": {
+			"line": 406,
+			"character": 50
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 412,
+			"character": 36
+		},
+		"end": {
+			"line": 412,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 413,
+			"character": 37
+		},
+		"end": {
+			"line": 413,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 415,
+			"character": 41
+		},
+		"end": {
+			"line": 415,
+			"character": 46
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 416,
+			"character": 31
+		},
+		"end": {
+			"line": 416,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 418,
+			"character": 15
+		},
+		"end": {
+			"line": 418,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 420,
+			"character": 36
+		},
+		"end": {
+			"line": 420,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 421,
+			"character": 37
+		},
+		"end": {
+			"line": 421,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 423,
+			"character": 37
+		},
+		"end": {
+			"line": 423,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 427,
+			"character": 21
+		},
+		"end": {
+			"line": 427,
+			"character": 26
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 433,
+			"character": 0
+		},
+		"end": {
+			"line": 433,
+			"character": 6
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'ParserOptions'.",
+		"start": {
+			"line": 579,
+			"character": 30
+		},
+		"end": {
+			"line": 579,
+			"character": 43
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'ParserServices'.",
+		"start": {
+			"line": 580,
+			"character": 35
+		},
+		"end": {
+			"line": 580,
+			"character": 49
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Scope' has no exported member 'Variable'.",
+		"start": {
+			"line": 584,
+			"character": 55
+		},
+		"end": {
+			"line": 584,
+			"character": 63
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Scope' has no exported member 'Scope'.",
+		"start": {
+			"line": 590,
+			"character": 26
+		},
+		"end": {
+			"line": 590,
+			"character": 31
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'SourceLocation'.",
+		"start": {
+			"line": 616,
+			"character": 21
+		},
+		"end": {
+			"line": 616,
+			"character": 35
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 619,
+			"character": 55
+		},
+		"end": {
+			"line": 619,
+			"character": 60
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Range'.",
+		"start": {
+			"line": 621,
+			"character": 40
+		},
+		"end": {
+			"line": 621,
+			"character": 45
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 623,
+			"character": 56
+		},
+		"end": {
+			"line": 623,
+			"character": 61
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Range'.",
+		"start": {
+			"line": 625,
+			"character": 41
+		},
+		"end": {
+			"line": 625,
+			"character": 46
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 627,
+			"character": 46
+		},
+		"end": {
+			"line": 627,
+			"character": 51
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Range'.",
+		"start": {
+			"line": 629,
+			"character": 31
+		},
+		"end": {
+			"line": 629,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 631,
+			"character": 51
+		},
+		"end": {
+			"line": 631,
+			"character": 56
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Range'.",
+		"start": {
+			"line": 633,
+			"character": 36
+		},
+		"end": {
+			"line": 633,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Range'.",
+		"start": {
+			"line": 637,
+			"character": 19
+		},
+		"end": {
+			"line": 637,
+			"character": 24
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'version' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 647,
+			"character": 4
+		},
+		"end": {
+			"line": 647,
+			"character": 11
+		}
+	},
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 649,
+			"character": 4
+		},
+		"end": {
+			"line": 649,
+			"character": 15
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 651,
+			"character": 53
+		},
+		"end": {
+			"line": 651,
+			"character": 59
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'LintMessage'.",
+		"start": {
+			"line": 651,
+			"character": 88
+		},
+		"end": {
+			"line": 651,
+			"character": 99
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 652,
+			"character": 4
+		},
+		"end": {
+			"line": 652,
+			"character": 10
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 652,
+			"character": 53
+		},
+		"end": {
+			"line": 652,
+			"character": 59
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'LintOptions'.",
+		"start": {
+			"line": 652,
+			"character": 77
+		},
+		"end": {
+			"line": 652,
+			"character": 88
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'LintMessage'.",
+		"start": {
+			"line": 652,
+			"character": 98
+		},
+		"end": {
+			"line": 652,
+			"character": 109
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 654,
+			"character": 46
+		},
+		"end": {
+			"line": 654,
+			"character": 52
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'FixReport'.",
+		"start": {
+			"line": 654,
+			"character": 81
+		},
+		"end": {
+			"line": 654,
+			"character": 90
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 655,
+			"character": 4
+		},
+		"end": {
+			"line": 655,
+			"character": 16
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 655,
+			"character": 46
+		},
+		"end": {
+			"line": 655,
+			"character": 52
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'FixOptions'.",
+		"start": {
+			"line": 655,
+			"character": 70
+		},
+		"end": {
+			"line": 655,
+			"character": 80
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'FixReport'.",
+		"start": {
+			"line": 655,
+			"character": 90
+		},
+		"end": {
+			"line": 655,
+			"character": 99
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 657,
+			"character": 4
+		},
+		"end": {
+			"line": 657,
+			"character": 17
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 659,
+			"character": 4
+		},
+		"end": {
+			"line": 659,
+			"character": 14
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleModule'.",
+		"start": {
+			"line": 659,
+			"character": 40
+		},
+		"end": {
+			"line": 659,
+			"character": 50
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 661,
+			"character": 4
+		},
+		"end": {
+			"line": 661,
+			"character": 15
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleModule'.",
+		"start": {
+			"line": 661,
+			"character": 46
+		},
+		"end": {
+			"line": 661,
+			"character": 56
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 663,
+			"character": 4
+		},
+		"end": {
+			"line": 663,
+			"character": 12
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleModule'.",
+		"start": {
+			"line": 663,
+			"character": 33
+		},
+		"end": {
+			"line": 663,
+			"character": 43
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 665,
+			"character": 4
+		},
+		"end": {
+			"line": 665,
+			"character": 16
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'ParserModule'.",
+		"start": {
+			"line": 665,
+			"character": 46
+		},
+		"end": {
+			"line": 665,
+			"character": 58
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 668,
+			"character": 0
+		},
+		"end": {
+			"line": 668,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Prepend'.",
+		"start": {
+			"line": 672,
+			"character": 62
+		},
+		"end": {
+			"line": 672,
+			"character": 69
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'Fix'.",
+		"start": {
+			"line": 735,
+			"character": 18
+		},
+		"end": {
+			"line": 735,
+			"character": 21
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'Fix'.",
+		"start": {
+			"line": 750,
+			"character": 19
+		},
+		"end": {
+			"line": 750,
+			"character": 22
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Program'.",
+		"start": {
+			"line": 768,
+			"character": 54
+		},
+		"end": {
+			"line": 768,
+			"character": 61
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Program'.",
+		"start": {
+			"line": 775,
+			"character": 17
+		},
+		"end": {
+			"line": 775,
+			"character": 24
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'ParserServices'.",
+		"start": {
+			"line": 776,
+			"character": 36
+		},
+		"end": {
+			"line": 776,
+			"character": 50
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Scope' has no exported member 'ScopeManager'.",
+		"start": {
+			"line": 777,
+			"character": 29
+		},
+		"end": {
+			"line": 777,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'VisitorKeys'.",
+		"start": {
+			"line": 778,
+			"character": 33
+		},
+		"end": {
+			"line": 778,
+			"character": 44
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 801,
+			"character": 11
+		},
+		"end": {
+			"line": 801,
+			"character": 22
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 801,
+			"character": 39
+		},
+		"end": {
+			"line": 801,
+			"character": 49
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 803,
+			"character": 11
+		},
+		"end": {
+			"line": 803,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 803,
+			"character": 43
+		},
+		"end": {
+			"line": 803,
+			"character": 53
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 803,
+			"character": 65
+		},
+		"end": {
+			"line": 803,
+			"character": 75
+		}
+	},
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 805,
+			"character": 4
+		},
+		"end": {
+			"line": 805,
+			"character": 15
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'Options'.",
+		"start": {
+			"line": 805,
+			"character": 33
+		},
+		"end": {
+			"line": 805,
+			"character": 40
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 807,
+			"character": 4
+		},
+		"end": {
+			"line": 807,
+			"character": 13
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 807,
+			"character": 59
+		},
+		"end": {
+			"line": 807,
+			"character": 69
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 809,
+			"character": 4
+		},
+		"end": {
+			"line": 809,
+			"character": 12
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 809,
+			"character": 99
+		},
+		"end": {
+			"line": 809,
+			"character": 109
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 811,
+			"character": 4
+		},
+		"end": {
+			"line": 811,
+			"character": 26
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 813,
+			"character": 4
+		},
+		"end": {
+			"line": 813,
+			"character": 17
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 815,
+			"character": 4
+		},
+		"end": {
+			"line": 815,
+			"character": 17
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'Formatter'.",
+		"start": {
+			"line": 815,
+			"character": 55
+		},
+		"end": {
+			"line": 815,
+			"character": 64
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 818,
+			"character": 0
+		},
+		"end": {
+			"line": 818,
+			"character": 6
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 830,
+			"character": 28
+		},
+		"end": {
+			"line": 830,
+			"character": 34
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 831,
+			"character": 32
+		},
+		"end": {
+			"line": 831,
+			"character": 38
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'RuleLevel'.",
+		"start": {
+			"line": 834,
+			"character": 47
+		},
+		"end": {
+			"line": 834,
+			"character": 56
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'LintMessage'.",
+		"start": {
+			"line": 840,
+			"character": 42
+		},
+		"end": {
+			"line": 840,
+			"character": 53
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleMetaData'.",
+		"start": {
+			"line": 841,
+			"character": 30
+		},
+		"end": {
+			"line": 841,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'LintMessage'.",
+		"start": {
+			"line": 851,
+			"character": 25
+		},
+		"end": {
+			"line": 851,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleMetaData'.",
+		"start": {
+			"line": 863,
+			"character": 35
+		},
+		"end": {
+			"line": 863,
+			"character": 47
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'Fix'.",
+		"start": {
+			"line": 877,
+			"character": 25
+		},
+		"end": {
+			"line": 877,
+			"character": 28
+		}
+	},
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 888,
+			"character": 4
+		},
+		"end": {
+			"line": 888,
+			"character": 15
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'Options'.",
+		"start": {
+			"line": 888,
+			"character": 35
+		},
+		"end": {
+			"line": 888,
+			"character": 42
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 890,
+			"character": 4
+		},
+		"end": {
+			"line": 890,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'LintReport'.",
+		"start": {
+			"line": 890,
+			"character": 50
+		},
+		"end": {
+			"line": 890,
+			"character": 60
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 892,
+			"character": 4
+		},
+		"end": {
+			"line": 892,
+			"character": 27
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 894,
+			"character": 4
+		},
+		"end": {
+			"line": 894,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 894,
+			"character": 47
+		},
+		"end": {
+			"line": 894,
+			"character": 53
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 896,
+			"character": 4
+		},
+		"end": {
+			"line": 896,
+			"character": 17
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'LintReport'.",
+		"start": {
+			"line": 896,
+			"character": 62
+		},
+		"end": {
+			"line": 896,
+			"character": 72
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 898,
+			"character": 4
+		},
+		"end": {
+			"line": 898,
+			"character": 13
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 900,
+			"character": 4
+		},
+		"end": {
+			"line": 900,
+			"character": 17
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 902,
+			"character": 4
+		},
+		"end": {
+			"line": 902,
+			"character": 16
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'Formatter'.",
+		"start": {
+			"line": 902,
+			"character": 45
+		},
+		"end": {
+			"line": 902,
+			"character": 54
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 904,
+			"character": 4
+		},
+		"end": {
+			"line": 904,
+			"character": 12
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleModule'.",
+		"start": {
+			"line": 904,
+			"character": 33
+		},
+		"end": {
+			"line": 904,
+			"character": 43
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 906,
+			"character": 11
+		},
+		"end": {
+			"line": 906,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'LintResult'.",
+		"start": {
+			"line": 906,
+			"character": 46
+		},
+		"end": {
+			"line": 906,
+			"character": 56
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'LintResult'.",
+		"start": {
+			"line": 906,
+			"character": 71
+		},
+		"end": {
+			"line": 906,
+			"character": 81
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 908,
+			"character": 11
+		},
+		"end": {
+			"line": 908,
+			"character": 23
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'Formatter'.",
+		"start": {
+			"line": 908,
+			"character": 52
+		},
+		"end": {
+			"line": 908,
+			"character": 61
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 910,
+			"character": 11
+		},
+		"end": {
+			"line": 910,
+			"character": 22
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'LintReport'.",
+		"start": {
+			"line": 910,
+			"character": 41
+		},
+		"end": {
+			"line": 910,
+			"character": 51
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 914,
+			"character": 0
+		},
+		"end": {
+			"line": 914,
+			"character": 6
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'ParserOptions'.",
+		"start": {
+			"line": 934,
+			"character": 31
+		},
+		"end": {
+			"line": 934,
+			"character": 44
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'RuleLevel'.",
+		"start": {
+			"line": 938,
+			"character": 35
+		},
+		"end": {
+			"line": 938,
+			"character": 44
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'RuleLevelAndOptions'.",
+		"start": {
+			"line": 938,
+			"character": 54
+		},
+		"end": {
+			"line": 938,
+			"character": 73
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 944,
+			"character": 29
+		},
+		"end": {
+			"line": 944,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResultData'.",
+		"start": {
+			"line": 946,
+			"character": 33
+		},
+		"end": {
+			"line": 946,
+			"character": 47
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'DeprecatedRuleUse'.",
+		"start": {
+			"line": 957,
+			"character": 36
+		},
+		"end": {
+			"line": 957,
+			"character": 53
+		}
+	},
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 967,
+			"character": 4
+		},
+		"end": {
+			"line": 967,
+			"character": 15
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 969,
+			"character": 4
+		},
+		"end": {
+			"line": 969,
+			"character": 7
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleModule'.",
+		"start": {
+			"line": 971,
+			"character": 19
+		},
+		"end": {
+			"line": 971,
+			"character": 29
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'RuleTester' has no exported member 'ValidTestCase'.",
+		"start": {
+			"line": 973,
+			"character": 46
+		},
+		"end": {
+			"line": 973,
+			"character": 59
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'RuleTester' has no exported member 'InvalidTestCase'.",
+		"start": {
+			"line": 974,
+			"character": 33
+		},
+		"end": {
+			"line": 974,
+			"character": 48
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 979,
+			"character": 0
+		},
+		"end": {
+			"line": 979,
+			"character": 6
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'ParserOptions'.",
+		"start": {
+			"line": 984,
+			"character": 31
+		},
+		"end": {
+			"line": 984,
+			"character": 44
+		}
+	}
+]
+
+=== 49419 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-d-ts-eslint-output.svelte	json
+[
+	{
+		"code": 2307,
+		"message": "Cannot find module 'json-schema' or its corresponding type declarations.",
+		"start": {
+			"line": 15,
+			"character": 30
+		},
+		"end": {
+			"line": 15,
+			"character": 43
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'estree' or its corresponding type declarations.",
+		"start": {
+			"line": 16,
+			"character": 26
+		},
+		"end": {
+			"line": 16,
+			"character": 34
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 18,
+			"character": 2
+		},
+		"end": {
+			"line": 18,
+			"character": 8
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 53,
+			"character": 2
+		},
+		"end": {
+			"line": 53,
+			"character": 8
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'text' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 137,
+			"character": 4
+		},
+		"end": {
+			"line": 137,
+			"character": 8
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Program'.",
+		"start": {
+			"line": 138,
+			"character": 13
+		},
+		"end": {
+			"line": 138,
+			"character": 20
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'lines' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 139,
+			"character": 4
+		},
+		"end": {
+			"line": 139,
+			"character": 9
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'hasBOM' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 140,
+			"character": 4
+		},
+		"end": {
+			"line": 140,
+			"character": 10
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'ParserServices'.",
+		"start": {
+			"line": 141,
+			"character": 31
+		},
+		"end": {
+			"line": 141,
+			"character": 45
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Scope' has no exported member 'ScopeManager'.",
+		"start": {
+			"line": 142,
+			"character": 24
+		},
+		"end": {
+			"line": 142,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'VisitorKeys'.",
+		"start": {
+			"line": 143,
+			"character": 28
+		},
+		"end": {
+			"line": 143,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Program'.",
+		"start": {
+			"line": 145,
+			"character": 39
+		},
+		"end": {
+			"line": 145,
+			"character": 46
+		}
+	},
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 146,
+			"character": 4
+		},
+		"end": {
+			"line": 146,
+			"character": 15
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'Config'.",
+		"start": {
+			"line": 146,
+			"character": 35
+		},
+		"end": {
+			"line": 146,
+			"character": 41
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 148,
+			"character": 11
+		},
+		"end": {
+			"line": 148,
+			"character": 21
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 150,
+			"character": 4
+		},
+		"end": {
+			"line": 150,
+			"character": 11
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 152,
+			"character": 4
+		},
+		"end": {
+			"line": 152,
+			"character": 12
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 154,
+			"character": 4
+		},
+		"end": {
+			"line": 154,
+			"character": 18
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 156,
+			"character": 4
+		},
+		"end": {
+			"line": 156,
+			"character": 15
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 158,
+			"character": 4
+		},
+		"end": {
+			"line": 158,
+			"character": 19
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 160,
+			"character": 4
+		},
+		"end": {
+			"line": 160,
+			"character": 23
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 162,
+			"character": 4
+		},
+		"end": {
+			"line": 162,
+			"character": 24
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 162,
+			"character": 36
+		},
+		"end": {
+			"line": 162,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 162,
+			"character": 55
+		},
+		"end": {
+			"line": 162,
+			"character": 60
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 164,
+			"character": 4
+		},
+		"end": {
+			"line": 164,
+			"character": 19
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 166,
+			"character": 4
+		},
+		"end": {
+			"line": 166,
+			"character": 19
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 171,
+			"character": 84
+		},
+		"end": {
+			"line": 171,
+			"character": 89
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 172,
+			"character": 4
+		},
+		"end": {
+			"line": 172,
+			"character": 24
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 172,
+			"character": 85
+		},
+		"end": {
+			"line": 172,
+			"character": 90
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryNodeCursorWithSkipOptions'.",
+		"start": {
+			"line": 174,
+			"character": 30
+		},
+		"end": {
+			"line": 174,
+			"character": 60
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryNodeCursorWithCountOptions'.",
+		"start": {
+			"line": 176,
+			"character": 31
+		},
+		"end": {
+			"line": 176,
+			"character": 62
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryNodeCursorWithSkipOptions'.",
+		"start": {
+			"line": 178,
+			"character": 29
+		},
+		"end": {
+			"line": 178,
+			"character": 59
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryNodeCursorWithCountOptions'.",
+		"start": {
+			"line": 180,
+			"character": 30
+		},
+		"end": {
+			"line": 180,
+			"character": 61
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryCursorWithSkipOptions'.",
+		"start": {
+			"line": 182,
+			"character": 31
+		},
+		"end": {
+			"line": 182,
+			"character": 57
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryCursorWithCountOptions'.",
+		"start": {
+			"line": 184,
+			"character": 32
+		},
+		"end": {
+			"line": 184,
+			"character": 59
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryCursorWithSkipOptions'.",
+		"start": {
+			"line": 186,
+			"character": 30
+		},
+		"end": {
+			"line": 186,
+			"character": 56
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryCursorWithCountOptions'.",
+		"start": {
+			"line": 188,
+			"character": 31
+		},
+		"end": {
+			"line": 188,
+			"character": 58
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'BinaryCursorWithSkipOptions'.",
+		"start": {
+			"line": 190,
+			"character": 37
+		},
+		"end": {
+			"line": 190,
+			"character": 64
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'BinaryCursorWithCountOptions'.",
+		"start": {
+			"line": 192,
+			"character": 38
+		},
+		"end": {
+			"line": 192,
+			"character": 66
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'BinaryCursorWithSkipOptions'.",
+		"start": {
+			"line": 194,
+			"character": 36
+		},
+		"end": {
+			"line": 194,
+			"character": 63
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'BinaryCursorWithCountOptions'.",
+		"start": {
+			"line": 196,
+			"character": 37
+		},
+		"end": {
+			"line": 196,
+			"character": 65
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'BinaryCursorWithCountOptions'.",
+		"start": {
+			"line": 198,
+			"character": 33
+		},
+		"end": {
+			"line": 198,
+			"character": 61
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 200,
+			"character": 86
+		},
+		"end": {
+			"line": 200,
+			"character": 91
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'UnaryNodeCursorWithCountOptions'.",
+		"start": {
+			"line": 201,
+			"character": 17
+		},
+		"end": {
+			"line": 201,
+			"character": 48
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 203,
+			"character": 4
+		},
+		"end": {
+			"line": 203,
+			"character": 24
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 204,
+			"character": 30
+		},
+		"end": {
+			"line": 204,
+			"character": 35
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 205,
+			"character": 31
+		},
+		"end": {
+			"line": 205,
+			"character": 36
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 208,
+			"character": 4
+		},
+		"end": {
+			"line": 208,
+			"character": 21
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 208,
+			"character": 53
+		},
+		"end": {
+			"line": 208,
+			"character": 58
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 210,
+			"character": 4
+		},
+		"end": {
+			"line": 210,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 210,
+			"character": 52
+		},
+		"end": {
+			"line": 210,
+			"character": 57
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 212,
+			"character": 4
+		},
+		"end": {
+			"line": 212,
+			"character": 21
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 215,
+			"character": 2
+		},
+		"end": {
+			"line": 215,
+			"character": 8
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Program'.",
+		"start": {
+			"line": 218,
+			"character": 15
+		},
+		"end": {
+			"line": 218,
+			"character": 22
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Scope' has no exported member 'ScopeManager'.",
+		"start": {
+			"line": 220,
+			"character": 27
+		},
+		"end": {
+			"line": 220,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 231,
+			"character": 21
+		},
+		"end": {
+			"line": 231,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 234,
+			"character": 25
+		},
+		"end": {
+			"line": 234,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 235,
+			"character": 34
+		},
+		"end": {
+			"line": 235,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 237,
+			"character": 21
+		},
+		"end": {
+			"line": 237,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 240,
+			"character": 39
+		},
+		"end": {
+			"line": 240,
+			"character": 44
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 248,
+			"character": 35
+		},
+		"end": {
+			"line": 248,
+			"character": 40
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 249,
+			"character": 25
+		},
+		"end": {
+			"line": 249,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 251,
+			"character": 13
+		},
+		"end": {
+			"line": 251,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 255,
+			"character": 31
+		},
+		"end": {
+			"line": 255,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 259,
+			"character": 13
+		},
+		"end": {
+			"line": 259,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 263,
+			"character": 21
+		},
+		"end": {
+			"line": 263,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 266,
+			"character": 25
+		},
+		"end": {
+			"line": 266,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 267,
+			"character": 34
+		},
+		"end": {
+			"line": 267,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 269,
+			"character": 21
+		},
+		"end": {
+			"line": 269,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 272,
+			"character": 39
+		},
+		"end": {
+			"line": 272,
+			"character": 44
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 280,
+			"character": 35
+		},
+		"end": {
+			"line": 280,
+			"character": 40
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 281,
+			"character": 25
+		},
+		"end": {
+			"line": 281,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 283,
+			"character": 13
+		},
+		"end": {
+			"line": 283,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 287,
+			"character": 31
+		},
+		"end": {
+			"line": 287,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 291,
+			"character": 19
+		},
+		"end": {
+			"line": 291,
+			"character": 24
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 295,
+			"character": 21
+		},
+		"end": {
+			"line": 295,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 296,
+			"character": 32
+		},
+		"end": {
+			"line": 296,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 298,
+			"character": 25
+		},
+		"end": {
+			"line": 298,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 299,
+			"character": 34
+		},
+		"end": {
+			"line": 299,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 301,
+			"character": 21
+		},
+		"end": {
+			"line": 301,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 302,
+			"character": 32
+		},
+		"end": {
+			"line": 302,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 304,
+			"character": 39
+		},
+		"end": {
+			"line": 304,
+			"character": 44
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 310,
+			"character": 32
+		},
+		"end": {
+			"line": 310,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 312,
+			"character": 35
+		},
+		"end": {
+			"line": 312,
+			"character": 40
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 313,
+			"character": 25
+		},
+		"end": {
+			"line": 313,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 315,
+			"character": 13
+		},
+		"end": {
+			"line": 315,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 317,
+			"character": 32
+		},
+		"end": {
+			"line": 317,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 319,
+			"character": 31
+		},
+		"end": {
+			"line": 319,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 323,
+			"character": 13
+		},
+		"end": {
+			"line": 323,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 327,
+			"character": 21
+		},
+		"end": {
+			"line": 327,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 328,
+			"character": 32
+		},
+		"end": {
+			"line": 328,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 330,
+			"character": 25
+		},
+		"end": {
+			"line": 330,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 331,
+			"character": 34
+		},
+		"end": {
+			"line": 331,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 333,
+			"character": 21
+		},
+		"end": {
+			"line": 333,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 334,
+			"character": 32
+		},
+		"end": {
+			"line": 334,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 336,
+			"character": 39
+		},
+		"end": {
+			"line": 336,
+			"character": 44
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 342,
+			"character": 32
+		},
+		"end": {
+			"line": 342,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 344,
+			"character": 35
+		},
+		"end": {
+			"line": 344,
+			"character": 40
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 345,
+			"character": 25
+		},
+		"end": {
+			"line": 345,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 347,
+			"character": 13
+		},
+		"end": {
+			"line": 347,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 349,
+			"character": 32
+		},
+		"end": {
+			"line": 349,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 351,
+			"character": 31
+		},
+		"end": {
+			"line": 351,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 355,
+			"character": 19
+		},
+		"end": {
+			"line": 355,
+			"character": 24
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 359,
+			"character": 21
+		},
+		"end": {
+			"line": 359,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 360,
+			"character": 32
+		},
+		"end": {
+			"line": 360,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 361,
+			"character": 33
+		},
+		"end": {
+			"line": 361,
+			"character": 38
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 363,
+			"character": 25
+		},
+		"end": {
+			"line": 363,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 364,
+			"character": 34
+		},
+		"end": {
+			"line": 364,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 366,
+			"character": 21
+		},
+		"end": {
+			"line": 366,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 367,
+			"character": 32
+		},
+		"end": {
+			"line": 367,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 368,
+			"character": 33
+		},
+		"end": {
+			"line": 368,
+			"character": 38
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 370,
+			"character": 39
+		},
+		"end": {
+			"line": 370,
+			"character": 44
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 376,
+			"character": 32
+		},
+		"end": {
+			"line": 376,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 377,
+			"character": 33
+		},
+		"end": {
+			"line": 377,
+			"character": 38
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 379,
+			"character": 35
+		},
+		"end": {
+			"line": 379,
+			"character": 40
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 380,
+			"character": 25
+		},
+		"end": {
+			"line": 380,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 382,
+			"character": 13
+		},
+		"end": {
+			"line": 382,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 384,
+			"character": 32
+		},
+		"end": {
+			"line": 384,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 385,
+			"character": 33
+		},
+		"end": {
+			"line": 385,
+			"character": 38
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 387,
+			"character": 31
+		},
+		"end": {
+			"line": 387,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 391,
+			"character": 13
+		},
+		"end": {
+			"line": 391,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 395,
+			"character": 21
+		},
+		"end": {
+			"line": 395,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 396,
+			"character": 32
+		},
+		"end": {
+			"line": 396,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 397,
+			"character": 33
+		},
+		"end": {
+			"line": 397,
+			"character": 38
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 399,
+			"character": 25
+		},
+		"end": {
+			"line": 399,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 400,
+			"character": 34
+		},
+		"end": {
+			"line": 400,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 402,
+			"character": 21
+		},
+		"end": {
+			"line": 402,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 403,
+			"character": 32
+		},
+		"end": {
+			"line": 403,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 404,
+			"character": 33
+		},
+		"end": {
+			"line": 404,
+			"character": 38
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 406,
+			"character": 39
+		},
+		"end": {
+			"line": 406,
+			"character": 44
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 412,
+			"character": 32
+		},
+		"end": {
+			"line": 412,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 413,
+			"character": 33
+		},
+		"end": {
+			"line": 413,
+			"character": 38
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 415,
+			"character": 35
+		},
+		"end": {
+			"line": 415,
+			"character": 40
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 416,
+			"character": 25
+		},
+		"end": {
+			"line": 416,
+			"character": 30
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 418,
+			"character": 13
+		},
+		"end": {
+			"line": 418,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 420,
+			"character": 32
+		},
+		"end": {
+			"line": 420,
+			"character": 37
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 421,
+			"character": 33
+		},
+		"end": {
+			"line": 421,
+			"character": 38
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 423,
+			"character": 31
+		},
+		"end": {
+			"line": 423,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 427,
+			"character": 19
+		},
+		"end": {
+			"line": 427,
+			"character": 24
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 433,
+			"character": 2
+		},
+		"end": {
+			"line": 433,
+			"character": 8
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'ParserOptions'.",
+		"start": {
+			"line": 579,
+			"character": 28
+		},
+		"end": {
+			"line": 579,
+			"character": 41
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'ParserServices'.",
+		"start": {
+			"line": 580,
+			"character": 33
+		},
+		"end": {
+			"line": 580,
+			"character": 47
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Scope' has no exported member 'Variable'.",
+		"start": {
+			"line": 584,
+			"character": 53
+		},
+		"end": {
+			"line": 584,
+			"character": 61
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Scope' has no exported member 'Scope'.",
+		"start": {
+			"line": 590,
+			"character": 24
+		},
+		"end": {
+			"line": 590,
+			"character": 29
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'SourceLocation'.",
+		"start": {
+			"line": 616,
+			"character": 19
+		},
+		"end": {
+			"line": 616,
+			"character": 33
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 619,
+			"character": 53
+		},
+		"end": {
+			"line": 619,
+			"character": 58
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Range'.",
+		"start": {
+			"line": 621,
+			"character": 38
+		},
+		"end": {
+			"line": 621,
+			"character": 43
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 623,
+			"character": 54
+		},
+		"end": {
+			"line": 623,
+			"character": 59
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Range'.",
+		"start": {
+			"line": 625,
+			"character": 39
+		},
+		"end": {
+			"line": 625,
+			"character": 44
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 627,
+			"character": 44
+		},
+		"end": {
+			"line": 627,
+			"character": 49
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Range'.",
+		"start": {
+			"line": 629,
+			"character": 29
+		},
+		"end": {
+			"line": 629,
+			"character": 34
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Token'.",
+		"start": {
+			"line": 631,
+			"character": 49
+		},
+		"end": {
+			"line": 631,
+			"character": 54
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Range'.",
+		"start": {
+			"line": 633,
+			"character": 34
+		},
+		"end": {
+			"line": 633,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Range'.",
+		"start": {
+			"line": 637,
+			"character": 17
+		},
+		"end": {
+			"line": 637,
+			"character": 22
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property 'version' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 647,
+			"character": 4
+		},
+		"end": {
+			"line": 647,
+			"character": 11
+		}
+	},
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 649,
+			"character": 4
+		},
+		"end": {
+			"line": 649,
+			"character": 15
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 651,
+			"character": 53
+		},
+		"end": {
+			"line": 651,
+			"character": 59
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'LintMessage'.",
+		"start": {
+			"line": 651,
+			"character": 88
+		},
+		"end": {
+			"line": 651,
+			"character": 99
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 652,
+			"character": 4
+		},
+		"end": {
+			"line": 652,
+			"character": 10
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 652,
+			"character": 53
+		},
+		"end": {
+			"line": 652,
+			"character": 59
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'LintOptions'.",
+		"start": {
+			"line": 652,
+			"character": 77
+		},
+		"end": {
+			"line": 652,
+			"character": 88
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'LintMessage'.",
+		"start": {
+			"line": 652,
+			"character": 98
+		},
+		"end": {
+			"line": 652,
+			"character": 109
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 654,
+			"character": 46
+		},
+		"end": {
+			"line": 654,
+			"character": 52
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'FixReport'.",
+		"start": {
+			"line": 654,
+			"character": 81
+		},
+		"end": {
+			"line": 654,
+			"character": 90
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 655,
+			"character": 4
+		},
+		"end": {
+			"line": 655,
+			"character": 16
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 655,
+			"character": 46
+		},
+		"end": {
+			"line": 655,
+			"character": 52
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'FixOptions'.",
+		"start": {
+			"line": 655,
+			"character": 70
+		},
+		"end": {
+			"line": 655,
+			"character": 80
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'FixReport'.",
+		"start": {
+			"line": 655,
+			"character": 90
+		},
+		"end": {
+			"line": 655,
+			"character": 99
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 657,
+			"character": 4
+		},
+		"end": {
+			"line": 657,
+			"character": 17
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 659,
+			"character": 4
+		},
+		"end": {
+			"line": 659,
+			"character": 14
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleModule'.",
+		"start": {
+			"line": 659,
+			"character": 40
+		},
+		"end": {
+			"line": 659,
+			"character": 50
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 661,
+			"character": 4
+		},
+		"end": {
+			"line": 661,
+			"character": 15
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleModule'.",
+		"start": {
+			"line": 661,
+			"character": 46
+		},
+		"end": {
+			"line": 661,
+			"character": 56
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 663,
+			"character": 4
+		},
+		"end": {
+			"line": 663,
+			"character": 12
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleModule'.",
+		"start": {
+			"line": 663,
+			"character": 33
+		},
+		"end": {
+			"line": 663,
+			"character": 43
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 665,
+			"character": 4
+		},
+		"end": {
+			"line": 665,
+			"character": 16
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'ParserModule'.",
+		"start": {
+			"line": 665,
+			"character": 46
+		},
+		"end": {
+			"line": 665,
+			"character": 58
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 668,
+			"character": 2
+		},
+		"end": {
+			"line": 668,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'Prepend'.",
+		"start": {
+			"line": 672,
+			"character": 62
+		},
+		"end": {
+			"line": 672,
+			"character": 69
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'Fix'.",
+		"start": {
+			"line": 735,
+			"character": 16
+		},
+		"end": {
+			"line": 735,
+			"character": 19
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'Fix'.",
+		"start": {
+			"line": 750,
+			"character": 17
+		},
+		"end": {
+			"line": 750,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Program'.",
+		"start": {
+			"line": 768,
+			"character": 48
+		},
+		"end": {
+			"line": 768,
+			"character": 55
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'AST' has no exported member 'Program'.",
+		"start": {
+			"line": 775,
+			"character": 15
+		},
+		"end": {
+			"line": 775,
+			"character": 22
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'ParserServices'.",
+		"start": {
+			"line": 776,
+			"character": 34
+		},
+		"end": {
+			"line": 776,
+			"character": 48
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Scope' has no exported member 'ScopeManager'.",
+		"start": {
+			"line": 777,
+			"character": 27
+		},
+		"end": {
+			"line": 777,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'SourceCode' has no exported member 'VisitorKeys'.",
+		"start": {
+			"line": 778,
+			"character": 31
+		},
+		"end": {
+			"line": 778,
+			"character": 42
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 801,
+			"character": 11
+		},
+		"end": {
+			"line": 801,
+			"character": 22
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 801,
+			"character": 39
+		},
+		"end": {
+			"line": 801,
+			"character": 49
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 803,
+			"character": 11
+		},
+		"end": {
+			"line": 803,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 803,
+			"character": 43
+		},
+		"end": {
+			"line": 803,
+			"character": 53
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 803,
+			"character": 65
+		},
+		"end": {
+			"line": 803,
+			"character": 75
+		}
+	},
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 805,
+			"character": 4
+		},
+		"end": {
+			"line": 805,
+			"character": 15
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'Options'.",
+		"start": {
+			"line": 805,
+			"character": 33
+		},
+		"end": {
+			"line": 805,
+			"character": 40
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 807,
+			"character": 4
+		},
+		"end": {
+			"line": 807,
+			"character": 13
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 807,
+			"character": 59
+		},
+		"end": {
+			"line": 807,
+			"character": 69
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 809,
+			"character": 4
+		},
+		"end": {
+			"line": 809,
+			"character": 12
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 809,
+			"character": 99
+		},
+		"end": {
+			"line": 809,
+			"character": 109
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 811,
+			"character": 4
+		},
+		"end": {
+			"line": 811,
+			"character": 26
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 813,
+			"character": 4
+		},
+		"end": {
+			"line": 813,
+			"character": 17
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 815,
+			"character": 4
+		},
+		"end": {
+			"line": 815,
+			"character": 17
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'Formatter'.",
+		"start": {
+			"line": 815,
+			"character": 55
+		},
+		"end": {
+			"line": 815,
+			"character": 64
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 818,
+			"character": 2
+		},
+		"end": {
+			"line": 818,
+			"character": 8
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 830,
+			"character": 26
+		},
+		"end": {
+			"line": 830,
+			"character": 32
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 831,
+			"character": 30
+		},
+		"end": {
+			"line": 831,
+			"character": 36
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'RuleLevel'.",
+		"start": {
+			"line": 834,
+			"character": 45
+		},
+		"end": {
+			"line": 834,
+			"character": 54
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'LintMessage'.",
+		"start": {
+			"line": 840,
+			"character": 40
+		},
+		"end": {
+			"line": 840,
+			"character": 51
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleMetaData'.",
+		"start": {
+			"line": 841,
+			"character": 28
+		},
+		"end": {
+			"line": 841,
+			"character": 40
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'LintMessage'.",
+		"start": {
+			"line": 851,
+			"character": 23
+		},
+		"end": {
+			"line": 851,
+			"character": 34
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleMetaData'.",
+		"start": {
+			"line": 863,
+			"character": 31
+		},
+		"end": {
+			"line": 863,
+			"character": 43
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'Fix'.",
+		"start": {
+			"line": 877,
+			"character": 25
+		},
+		"end": {
+			"line": 877,
+			"character": 28
+		}
+	},
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 888,
+			"character": 4
+		},
+		"end": {
+			"line": 888,
+			"character": 15
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'Options'.",
+		"start": {
+			"line": 888,
+			"character": 35
+		},
+		"end": {
+			"line": 888,
+			"character": 42
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 890,
+			"character": 4
+		},
+		"end": {
+			"line": 890,
+			"character": 18
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'LintReport'.",
+		"start": {
+			"line": 890,
+			"character": 50
+		},
+		"end": {
+			"line": 890,
+			"character": 60
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 892,
+			"character": 4
+		},
+		"end": {
+			"line": 892,
+			"character": 27
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 894,
+			"character": 4
+		},
+		"end": {
+			"line": 894,
+			"character": 20
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'Config'.",
+		"start": {
+			"line": 894,
+			"character": 47
+		},
+		"end": {
+			"line": 894,
+			"character": 53
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 896,
+			"character": 4
+		},
+		"end": {
+			"line": 896,
+			"character": 17
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'LintReport'.",
+		"start": {
+			"line": 896,
+			"character": 62
+		},
+		"end": {
+			"line": 896,
+			"character": 72
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 898,
+			"character": 4
+		},
+		"end": {
+			"line": 898,
+			"character": 13
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 900,
+			"character": 4
+		},
+		"end": {
+			"line": 900,
+			"character": 17
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 902,
+			"character": 4
+		},
+		"end": {
+			"line": 902,
+			"character": 16
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'Formatter'.",
+		"start": {
+			"line": 902,
+			"character": 45
+		},
+		"end": {
+			"line": 902,
+			"character": 54
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 904,
+			"character": 4
+		},
+		"end": {
+			"line": 904,
+			"character": 12
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleModule'.",
+		"start": {
+			"line": 904,
+			"character": 33
+		},
+		"end": {
+			"line": 904,
+			"character": 43
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 906,
+			"character": 11
+		},
+		"end": {
+			"line": 906,
+			"character": 26
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'LintResult'.",
+		"start": {
+			"line": 906,
+			"character": 46
+		},
+		"end": {
+			"line": 906,
+			"character": 56
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'LintResult'.",
+		"start": {
+			"line": 906,
+			"character": 71
+		},
+		"end": {
+			"line": 906,
+			"character": 81
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 908,
+			"character": 11
+		},
+		"end": {
+			"line": 908,
+			"character": 23
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'Formatter'.",
+		"start": {
+			"line": 908,
+			"character": 52
+		},
+		"end": {
+			"line": 908,
+			"character": 61
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 910,
+			"character": 11
+		},
+		"end": {
+			"line": 910,
+			"character": 22
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'CLIEngine' has no exported member 'LintReport'.",
+		"start": {
+			"line": 910,
+			"character": 41
+		},
+		"end": {
+			"line": 910,
+			"character": 51
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 914,
+			"character": 2
+		},
+		"end": {
+			"line": 914,
+			"character": 8
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'ParserOptions'.",
+		"start": {
+			"line": 934,
+			"character": 29
+		},
+		"end": {
+			"line": 934,
+			"character": 42
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'RuleLevel'.",
+		"start": {
+			"line": 938,
+			"character": 31
+		},
+		"end": {
+			"line": 938,
+			"character": 40
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'RuleLevelAndOptions'.",
+		"start": {
+			"line": 938,
+			"character": 50
+		},
+		"end": {
+			"line": 938,
+			"character": 69
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResult'.",
+		"start": {
+			"line": 944,
+			"character": 29
+		},
+		"end": {
+			"line": 944,
+			"character": 39
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'LintResultData'.",
+		"start": {
+			"line": 946,
+			"character": 33
+		},
+		"end": {
+			"line": 946,
+			"character": 47
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'ESLint' has no exported member 'DeprecatedRuleUse'.",
+		"start": {
+			"line": 957,
+			"character": 36
+		},
+		"end": {
+			"line": 957,
+			"character": 53
+		}
+	},
+	{
+		"code": 2390,
+		"message": "Constructor implementation is missing.",
+		"start": {
+			"line": 967,
+			"character": 4
+		},
+		"end": {
+			"line": 967,
+			"character": 15
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 969,
+			"character": 4
+		},
+		"end": {
+			"line": 969,
+			"character": 7
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Rule' has no exported member 'RuleModule'.",
+		"start": {
+			"line": 971,
+			"character": 17
+		},
+		"end": {
+			"line": 971,
+			"character": 27
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'RuleTester' has no exported member 'ValidTestCase'.",
+		"start": {
+			"line": 973,
+			"character": 42
+		},
+		"end": {
+			"line": 973,
+			"character": 55
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'RuleTester' has no exported member 'InvalidTestCase'.",
+		"start": {
+			"line": 974,
+			"character": 29
+		},
+		"end": {
+			"line": 974,
+			"character": 44
+		}
+	},
+	{
+		"code": 1235,
+		"message": "A namespace declaration is only allowed at the top level of a namespace or module.",
+		"start": {
+			"line": 979,
+			"character": 2
+		},
+		"end": {
+			"line": 979,
+			"character": 8
+		}
+	},
+	{
+		"code": 2694,
+		"message": "Namespace 'Linter' has no exported member 'ParserOptions'.",
+		"start": {
+			"line": 984,
+			"character": 29
+		},
+		"end": {
+			"line": 984,
+			"character": 42
+		}
+	}
+]
+
+=== 3574 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator01-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'first'.",
+		"start": {
+			"line": 5,
+			"character": 1
+		},
+		"end": {
+			"line": 5,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'second'.",
+		"start": {
+			"line": 8,
+			"character": 1
+		},
+		"end": {
+			"line": 8,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'sealed'.",
+		"start": {
+			"line": 18,
+			"character": 1
+		},
+		"end": {
+			"line": 18,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'BugReport'.",
+		"start": {
+			"line": 20,
+			"character": 0
+		},
+		"end": {
+			"line": 20,
+			"character": 9
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Greeter'.",
+		"start": {
+			"line": 48,
+			"character": 0
+		},
+		"end": {
+			"line": 48,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'enumerable'.",
+		"start": {
+			"line": 70,
+			"character": 0
+		},
+		"end": {
+			"line": 70,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'configurable'.",
+		"start": {
+			"line": 96,
+			"character": 0
+		},
+		"end": {
+			"line": 96,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'configurable'.",
+		"start": {
+			"line": 109,
+			"character": 0
+		},
+		"end": {
+			"line": 109,
+			"character": 12
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Greeter'.",
+		"start": {
+			"line": 122,
+			"character": 6
+		},
+		"end": {
+			"line": 122,
+			"character": 13
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'format'.",
+		"start": {
+			"line": 124,
+			"character": 0
+		},
+		"end": {
+			"line": 124,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'getFormat'.",
+		"start": {
+			"line": 136,
+			"character": 19
+		},
+		"end": {
+			"line": 136,
+			"character": 28
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'BugReport'.",
+		"start": {
+			"line": 141,
+			"character": 6
+		},
+		"end": {
+			"line": 141,
+			"character": 15
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'validate'.",
+		"start": {
+			"line": 150,
+			"character": 0
+		},
+		"end": {
+			"line": 150,
+			"character": 8
+		}
+	},
+	{
+		"code": 1206,
+		"message": "Decorators are not valid here.",
+		"start": {
+			"line": 153,
+			"character": 0
+		},
+		"end": {
+			"line": 153,
+			"character": 1
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property '_start' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 168,
+			"character": 8
+		},
+		"end": {
+			"line": 168,
+			"character": 14
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property '_end' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 169,
+			"character": 8
+		},
+		"end": {
+			"line": 169,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'validate'.",
+		"start": {
+			"line": 171,
+			"character": 0
+		},
+		"end": {
+			"line": 171,
+			"character": 8
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'metadata' does not exist on type 'typeof Reflect'.",
+		"start": {
+			"line": 175,
+			"character": 0
+		},
+		"end": {
+			"line": 175,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'validate'.",
+		"start": {
+			"line": 187,
+			"character": 0
+		},
+		"end": {
+			"line": 187,
+			"character": 8
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'metadata' does not exist on type 'typeof Reflect'.",
+		"start": {
+			"line": 191,
+			"character": 0
+		},
+		"end": {
+			"line": 191,
+			"character": 8
+		}
+	}
+]
+
+=== 3586 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator01-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'first'.",
+		"start": {
+			"line": 5,
+			"character": 5
+		},
+		"end": {
+			"line": 5,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'second'.",
+		"start": {
+			"line": 8,
+			"character": 5
+		},
+		"end": {
+			"line": 8,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'sealed'.",
+		"start": {
+			"line": 18,
+			"character": 3
+		},
+		"end": {
+			"line": 18,
+			"character": 9
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'BugReport'.",
+		"start": {
+			"line": 20,
+			"character": 4
+		},
+		"end": {
+			"line": 20,
+			"character": 13
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Greeter'.",
+		"start": {
+			"line": 48,
+			"character": 4
+		},
+		"end": {
+			"line": 48,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'enumerable'.",
+		"start": {
+			"line": 70,
+			"character": 4
+		},
+		"end": {
+			"line": 70,
+			"character": 14
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'configurable'.",
+		"start": {
+			"line": 96,
+			"character": 4
+		},
+		"end": {
+			"line": 96,
+			"character": 16
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'configurable'.",
+		"start": {
+			"line": 109,
+			"character": 4
+		},
+		"end": {
+			"line": 109,
+			"character": 16
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Greeter'.",
+		"start": {
+			"line": 122,
+			"character": 8
+		},
+		"end": {
+			"line": 122,
+			"character": 15
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'format'.",
+		"start": {
+			"line": 124,
+			"character": 4
+		},
+		"end": {
+			"line": 124,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'getFormat'.",
+		"start": {
+			"line": 136,
+			"character": 25
+		},
+		"end": {
+			"line": 136,
+			"character": 34
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'BugReport'.",
+		"start": {
+			"line": 141,
+			"character": 8
+		},
+		"end": {
+			"line": 141,
+			"character": 17
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'validate'.",
+		"start": {
+			"line": 150,
+			"character": 4
+		},
+		"end": {
+			"line": 150,
+			"character": 12
+		}
+	},
+	{
+		"code": 1206,
+		"message": "Decorators are not valid here.",
+		"start": {
+			"line": 153,
+			"character": 8
+		},
+		"end": {
+			"line": 153,
+			"character": 9
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property '_start' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 168,
+			"character": 12
+		},
+		"end": {
+			"line": 168,
+			"character": 18
+		}
+	},
+	{
+		"code": 2564,
+		"message": "Property '_end' has no initializer and is not definitely assigned in the constructor.",
+		"start": {
+			"line": 169,
+			"character": 12
+		},
+		"end": {
+			"line": 169,
+			"character": 16
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'validate'.",
+		"start": {
+			"line": 171,
+			"character": 4
+		},
+		"end": {
+			"line": 171,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'metadata' does not exist on type 'typeof Reflect'.",
+		"start": {
+			"line": 175,
+			"character": 6
+		},
+		"end": {
+			"line": 175,
+			"character": 14
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'validate'.",
+		"start": {
+			"line": 187,
+			"character": 4
+		},
+		"end": {
+			"line": 187,
+			"character": 12
+		}
+	},
+	{
+		"code": 2339,
+		"message": "Property 'metadata' does not exist on type 'typeof Reflect'.",
+		"start": {
+			"line": 191,
+			"character": 6
+		},
+		"end": {
+			"line": 191,
+			"character": 14
+		}
+	}
+]
+
+=== 526 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator02-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'd'.",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 1
+		}
+	},
+	{
+		"code": 1497,
+		"message": "Expression must be enclosed in parentheses to be used as a decorator.",
+		"start": {
+			"line": 7,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 2
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'd'.",
+		"start": {
+			"line": 8,
+			"character": 0
+		},
+		"end": {
+			"line": 8,
+			"character": 1
+		}
+	}
+]
+
+=== 526 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-decorator02-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'd'.",
+		"start": {
+			"line": 4,
+			"character": 4
+		},
+		"end": {
+			"line": 4,
+			"character": 5
+		}
+	},
+	{
+		"code": 1497,
+		"message": "Expression must be enclosed in parentheses to be used as a decorator.",
+		"start": {
+			"line": 7,
+			"character": 2
+		},
+		"end": {
+			"line": 10,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'd'.",
+		"start": {
+			"line": 8,
+			"character": 4
+		},
+		"end": {
+			"line": 8,
+			"character": 5
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-enum01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-enum01-output.svelte	json
+[]
 
 === 254 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-function02-input.svelte	json
 [
@@ -1788,6 +8752,158 @@
 	}
 ]
 
+=== 1045 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation02-input.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 12,
+			"character": 0
+		},
+		"end": {
+			"line": 12,
+			"character": 1
+		}
+	},
+	{
+		"code": 7008,
+		"message": "Member 'd' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 0
+		},
+		"end": {
+			"line": 14,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'A'.",
+		"start": {
+			"line": 18,
+			"character": 0
+		},
+		"end": {
+			"line": 18,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 23,
+			"character": 0
+		},
+		"end": {
+			"line": 23,
+			"character": 1
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'x'.",
+		"start": {
+			"line": 26,
+			"character": 0
+		},
+		"end": {
+			"line": 26,
+			"character": 1
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'x'.",
+		"start": {
+			"line": 33,
+			"character": 0
+		},
+		"end": {
+			"line": 33,
+			"character": 1
+		}
+	}
+]
+
+=== 1045 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation02-output.svelte	json
+[
+	{
+		"code": 7008,
+		"message": "Member 'c' implicitly has an 'any' type.",
+		"start": {
+			"line": 12,
+			"character": 6
+		},
+		"end": {
+			"line": 12,
+			"character": 7
+		}
+	},
+	{
+		"code": 7008,
+		"message": "Member 'd' implicitly has an 'any' type.",
+		"start": {
+			"line": 14,
+			"character": 6
+		},
+		"end": {
+			"line": 14,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'A'.",
+		"start": {
+			"line": 18,
+			"character": 4
+		},
+		"end": {
+			"line": 18,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 23,
+			"character": 4
+		},
+		"end": {
+			"line": 23,
+			"character": 5
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'x'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 5
+		}
+	},
+	{
+		"code": 2451,
+		"message": "Cannot redeclare block-scoped variable 'x'.",
+		"start": {
+			"line": 33,
+			"character": 4
+		},
+		"end": {
+			"line": 33,
+			"character": 5
+		}
+	}
+]
+
 === 786 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-annotation03-input.svelte	json
 [
 	{
@@ -1888,6 +9004,134 @@
 		"end": {
 			"line": 46,
 			"character": 11
+		}
+	}
+]
+
+=== 990 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export01-input.svelte	json
+[
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Foo'.",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 3
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 0
+		},
+		"end": {
+			"line": 6,
+			"character": 5
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Foo'.",
+		"start": {
+			"line": 10,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 3
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 0
+		},
+		"end": {
+			"line": 13,
+			"character": 5
+		}
+	},
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 15,
+			"character": 0
+		},
+		"end": {
+			"line": 15,
+			"character": 6
+		}
+	}
+]
+
+=== 990 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-type-only-import-export01-output.svelte	json
+[
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Foo'.",
+		"start": {
+			"line": 4,
+			"character": 4
+		},
+		"end": {
+			"line": 4,
+			"character": 7
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 6,
+			"character": 4
+		},
+		"end": {
+			"line": 6,
+			"character": 9
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'Foo'.",
+		"start": {
+			"line": 10,
+			"character": 6
+		},
+		"end": {
+			"line": 10,
+			"character": 9
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 13,
+			"character": 4
+		},
+		"end": {
+			"line": 13,
+			"character": 9
+		}
+	},
+	{
+		"code": 1184,
+		"message": "Modifiers cannot appear here.\nIf this is a declare statement, move it into <script context=\"module\">..</script>",
+		"start": {
+			"line": 15,
+			"character": 2
+		},
+		"end": {
+			"line": 15,
+			"character": 8
 		}
 	}
 ]
@@ -2436,6 +9680,2046 @@
 	}
 ]
 
+=== 1191 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types03-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'U'.",
+		"start": {
+			"line": 4,
+			"character": 0
+		},
+		"end": {
+			"line": 4,
+			"character": 1
+		}
+	},
+	{
+		"code": 17019,
+		"message": "'!' at the end of a type is not valid TypeScript syntax. Did you mean to write 'any'?",
+		"start": {
+			"line": 9,
+			"character": 0
+		},
+		"end": {
+			"line": 9,
+			"character": 2
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 0
+		},
+		"end": {
+			"line": 14,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'importFn'.",
+		"start": {
+			"line": 21,
+			"character": 0
+		},
+		"end": {
+			"line": 21,
+			"character": 8
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 29,
+			"character": 0
+		},
+		"end": {
+			"line": 29,
+			"character": 3
+		}
+	},
+	{
+		"code": 7010,
+		"message": "'foo', which lacks return-type annotation, implicitly has an 'any' return type.",
+		"start": {
+			"line": 29,
+			"character": 0
+		},
+		"end": {
+			"line": 29,
+			"character": 3
+		}
+	}
+]
+
+=== 1193 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-types03-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'U'.",
+		"start": {
+			"line": 4,
+			"character": 4
+		},
+		"end": {
+			"line": 4,
+			"character": 5
+		}
+	},
+	{
+		"code": 17019,
+		"message": "'!' at the end of a type is not valid TypeScript syntax. Did you mean to write 'any'?",
+		"start": {
+			"line": 9,
+			"character": 4
+		},
+		"end": {
+			"line": 9,
+			"character": 6
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module 'foo' or its corresponding type declarations.",
+		"start": {
+			"line": 14,
+			"character": 8
+		},
+		"end": {
+			"line": 14,
+			"character": 13
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'importFn'.",
+		"start": {
+			"line": 21,
+			"character": 2
+		},
+		"end": {
+			"line": 21,
+			"character": 10
+		}
+	},
+	{
+		"code": 2391,
+		"message": "Function implementation is missing or not immediately following the declaration.",
+		"start": {
+			"line": 29,
+			"character": 4
+		},
+		"end": {
+			"line": 29,
+			"character": 7
+		}
+	},
+	{
+		"code": 7010,
+		"message": "'foo', which lacks return-type annotation, implicitly has an 'any' return type.",
+		"start": {
+			"line": 29,
+			"character": 4
+		},
+		"end": {
+			"line": 29,
+			"character": 7
+		}
+	}
+]
+
+=== 5473 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union01-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 3,
+			"character": 2
+		},
+		"end": {
+			"line": 3,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 4,
+			"character": 2
+		},
+		"end": {
+			"line": 4,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 5,
+			"character": 2
+		},
+		"end": {
+			"line": 5,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'd'.",
+		"start": {
+			"line": 6,
+			"character": 2
+		},
+		"end": {
+			"line": 6,
+			"character": 3
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'T'.",
+		"start": {
+			"line": 9,
+			"character": 5
+		},
+		"end": {
+			"line": 9,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 10,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 12,
+			"character": 0
+		},
+		"end": {
+			"line": 12,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'U'.",
+		"start": {
+			"line": 13,
+			"character": 5
+		},
+		"end": {
+			"line": 13,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 15,
+			"character": 0
+		},
+		"end": {
+			"line": 15,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 17,
+			"character": 0
+		},
+		"end": {
+			"line": 17,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'V'.",
+		"start": {
+			"line": 18,
+			"character": 5
+		},
+		"end": {
+			"line": 18,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 19,
+			"character": 0
+		},
+		"end": {
+			"line": 19,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 21,
+			"character": 0
+		},
+		"end": {
+			"line": 21,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'W'.",
+		"start": {
+			"line": 22,
+			"character": 5
+		},
+		"end": {
+			"line": 22,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 24,
+			"character": 0
+		},
+		"end": {
+			"line": 24,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 26,
+			"character": 0
+		},
+		"end": {
+			"line": 26,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'X'.",
+		"start": {
+			"line": 27,
+			"character": 5
+		},
+		"end": {
+			"line": 27,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 30,
+			"character": 0
+		},
+		"end": {
+			"line": 30,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 32,
+			"character": 0
+		},
+		"end": {
+			"line": 32,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'T'.",
+		"start": {
+			"line": 35,
+			"character": 5
+		},
+		"end": {
+			"line": 35,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 36,
+			"character": 0
+		},
+		"end": {
+			"line": 36,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 37,
+			"character": 2
+		},
+		"end": {
+			"line": 37,
+			"character": 3
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'U'.",
+		"start": {
+			"line": 38,
+			"character": 5
+		},
+		"end": {
+			"line": 38,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 39,
+			"character": 2
+		},
+		"end": {
+			"line": 39,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 40,
+			"character": 2
+		},
+		"end": {
+			"line": 40,
+			"character": 3
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'V'.",
+		"start": {
+			"line": 41,
+			"character": 5
+		},
+		"end": {
+			"line": 41,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 42,
+			"character": 0
+		},
+		"end": {
+			"line": 42,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 43,
+			"character": 2
+		},
+		"end": {
+			"line": 43,
+			"character": 3
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'W'.",
+		"start": {
+			"line": 44,
+			"character": 5
+		},
+		"end": {
+			"line": 44,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 45,
+			"character": 2
+		},
+		"end": {
+			"line": 45,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 46,
+			"character": 2
+		},
+		"end": {
+			"line": 46,
+			"character": 3
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'X'.",
+		"start": {
+			"line": 47,
+			"character": 5
+		},
+		"end": {
+			"line": 47,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 50,
+			"character": 0
+		},
+		"end": {
+			"line": 50,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 51,
+			"character": 2
+		},
+		"end": {
+			"line": 51,
+			"character": 3
+		}
+	}
+]
+
+=== 5473 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union01-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 3,
+			"character": 6
+		},
+		"end": {
+			"line": 3,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 4,
+			"character": 6
+		},
+		"end": {
+			"line": 4,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 5,
+			"character": 6
+		},
+		"end": {
+			"line": 5,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'd'.",
+		"start": {
+			"line": 6,
+			"character": 6
+		},
+		"end": {
+			"line": 6,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'T'.",
+		"start": {
+			"line": 9,
+			"character": 7
+		},
+		"end": {
+			"line": 9,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 10,
+			"character": 4
+		},
+		"end": {
+			"line": 10,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 12,
+			"character": 4
+		},
+		"end": {
+			"line": 12,
+			"character": 5
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'U'.",
+		"start": {
+			"line": 13,
+			"character": 7
+		},
+		"end": {
+			"line": 13,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 15,
+			"character": 4
+		},
+		"end": {
+			"line": 15,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 17,
+			"character": 4
+		},
+		"end": {
+			"line": 17,
+			"character": 5
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'V'.",
+		"start": {
+			"line": 18,
+			"character": 7
+		},
+		"end": {
+			"line": 18,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 19,
+			"character": 4
+		},
+		"end": {
+			"line": 19,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 5
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'W'.",
+		"start": {
+			"line": 22,
+			"character": 7
+		},
+		"end": {
+			"line": 22,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 24,
+			"character": 4
+		},
+		"end": {
+			"line": 24,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 5
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'X'.",
+		"start": {
+			"line": 27,
+			"character": 7
+		},
+		"end": {
+			"line": 27,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 30,
+			"character": 6
+		},
+		"end": {
+			"line": 30,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 32,
+			"character": 6
+		},
+		"end": {
+			"line": 32,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'T'.",
+		"start": {
+			"line": 35,
+			"character": 7
+		},
+		"end": {
+			"line": 35,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 36,
+			"character": 4
+		},
+		"end": {
+			"line": 36,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 37,
+			"character": 6
+		},
+		"end": {
+			"line": 37,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'U'.",
+		"start": {
+			"line": 38,
+			"character": 7
+		},
+		"end": {
+			"line": 38,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 39,
+			"character": 6
+		},
+		"end": {
+			"line": 39,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 40,
+			"character": 6
+		},
+		"end": {
+			"line": 40,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'V'.",
+		"start": {
+			"line": 41,
+			"character": 7
+		},
+		"end": {
+			"line": 41,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 42,
+			"character": 4
+		},
+		"end": {
+			"line": 42,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 43,
+			"character": 6
+		},
+		"end": {
+			"line": 43,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'W'.",
+		"start": {
+			"line": 44,
+			"character": 7
+		},
+		"end": {
+			"line": 44,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 45,
+			"character": 6
+		},
+		"end": {
+			"line": 45,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 46,
+			"character": 6
+		},
+		"end": {
+			"line": 46,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'X'.",
+		"start": {
+			"line": 47,
+			"character": 7
+		},
+		"end": {
+			"line": 47,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 50,
+			"character": 6
+		},
+		"end": {
+			"line": 50,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 51,
+			"character": 8
+		},
+		"end": {
+			"line": 51,
+			"character": 9
+		}
+	}
+]
+
+=== 7085 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union02-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 2,
+			"character": 11
+		},
+		"end": {
+			"line": 2,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 3,
+			"character": 2
+		},
+		"end": {
+			"line": 3,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 4,
+			"character": 2
+		},
+		"end": {
+			"line": 4,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'd'.",
+		"start": {
+			"line": 5,
+			"character": 2
+		},
+		"end": {
+			"line": 5,
+			"character": 3
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'T'.",
+		"start": {
+			"line": 8,
+			"character": 5
+		},
+		"end": {
+			"line": 8,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 8,
+			"character": 8
+		},
+		"end": {
+			"line": 8,
+			"character": 9
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 10,
+			"character": 0
+		},
+		"end": {
+			"line": 10,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 12,
+			"character": 0
+		},
+		"end": {
+			"line": 12,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'U'.",
+		"start": {
+			"line": 13,
+			"character": 5
+		},
+		"end": {
+			"line": 13,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 13,
+			"character": 11
+		},
+		"end": {
+			"line": 13,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 15,
+			"character": 0
+		},
+		"end": {
+			"line": 15,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 17,
+			"character": 0
+		},
+		"end": {
+			"line": 17,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'V'.",
+		"start": {
+			"line": 18,
+			"character": 5
+		},
+		"end": {
+			"line": 18,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 18,
+			"character": 9
+		},
+		"end": {
+			"line": 18,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 19,
+			"character": 0
+		},
+		"end": {
+			"line": 19,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 21,
+			"character": 0
+		},
+		"end": {
+			"line": 21,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'W'.",
+		"start": {
+			"line": 22,
+			"character": 5
+		},
+		"end": {
+			"line": 22,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 22,
+			"character": 11
+		},
+		"end": {
+			"line": 22,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 24,
+			"character": 0
+		},
+		"end": {
+			"line": 24,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 26,
+			"character": 0
+		},
+		"end": {
+			"line": 26,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'X'.",
+		"start": {
+			"line": 27,
+			"character": 5
+		},
+		"end": {
+			"line": 27,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 27,
+			"character": 9
+		},
+		"end": {
+			"line": 27,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 30,
+			"character": 0
+		},
+		"end": {
+			"line": 30,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 32,
+			"character": 0
+		},
+		"end": {
+			"line": 32,
+			"character": 1
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'T'.",
+		"start": {
+			"line": 35,
+			"character": 5
+		},
+		"end": {
+			"line": 35,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 35,
+			"character": 9
+		},
+		"end": {
+			"line": 35,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 36,
+			"character": 0
+		},
+		"end": {
+			"line": 36,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 37,
+			"character": 2
+		},
+		"end": {
+			"line": 37,
+			"character": 3
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'U'.",
+		"start": {
+			"line": 38,
+			"character": 5
+		},
+		"end": {
+			"line": 38,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 38,
+			"character": 11
+		},
+		"end": {
+			"line": 38,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 39,
+			"character": 2
+		},
+		"end": {
+			"line": 39,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 40,
+			"character": 2
+		},
+		"end": {
+			"line": 40,
+			"character": 3
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'V'.",
+		"start": {
+			"line": 41,
+			"character": 5
+		},
+		"end": {
+			"line": 41,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 41,
+			"character": 9
+		},
+		"end": {
+			"line": 41,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 42,
+			"character": 2
+		},
+		"end": {
+			"line": 42,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 43,
+			"character": 2
+		},
+		"end": {
+			"line": 43,
+			"character": 3
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'W'.",
+		"start": {
+			"line": 44,
+			"character": 5
+		},
+		"end": {
+			"line": 44,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 44,
+			"character": 9
+		},
+		"end": {
+			"line": 44,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 45,
+			"character": 2
+		},
+		"end": {
+			"line": 45,
+			"character": 3
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 46,
+			"character": 2
+		},
+		"end": {
+			"line": 46,
+			"character": 3
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'X'.",
+		"start": {
+			"line": 47,
+			"character": 5
+		},
+		"end": {
+			"line": 47,
+			"character": 6
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 47,
+			"character": 9
+		},
+		"end": {
+			"line": 47,
+			"character": 10
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 50,
+			"character": 0
+		},
+		"end": {
+			"line": 50,
+			"character": 1
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 51,
+			"character": 2
+		},
+		"end": {
+			"line": 51,
+			"character": 3
+		}
+	}
+]
+
+=== 7093 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-union02-output.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 2,
+			"character": 13
+		},
+		"end": {
+			"line": 2,
+			"character": 14
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 3,
+			"character": 6
+		},
+		"end": {
+			"line": 3,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 4,
+			"character": 6
+		},
+		"end": {
+			"line": 4,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'd'.",
+		"start": {
+			"line": 5,
+			"character": 6
+		},
+		"end": {
+			"line": 5,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'T'.",
+		"start": {
+			"line": 8,
+			"character": 7
+		},
+		"end": {
+			"line": 8,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 8,
+			"character": 10
+		},
+		"end": {
+			"line": 8,
+			"character": 11
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 10,
+			"character": 4
+		},
+		"end": {
+			"line": 10,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 12,
+			"character": 4
+		},
+		"end": {
+			"line": 12,
+			"character": 5
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'U'.",
+		"start": {
+			"line": 13,
+			"character": 7
+		},
+		"end": {
+			"line": 13,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 13,
+			"character": 13
+		},
+		"end": {
+			"line": 13,
+			"character": 14
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 15,
+			"character": 4
+		},
+		"end": {
+			"line": 15,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 17,
+			"character": 4
+		},
+		"end": {
+			"line": 17,
+			"character": 5
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'V'.",
+		"start": {
+			"line": 18,
+			"character": 7
+		},
+		"end": {
+			"line": 18,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 18,
+			"character": 11
+		},
+		"end": {
+			"line": 18,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 19,
+			"character": 4
+		},
+		"end": {
+			"line": 19,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 21,
+			"character": 4
+		},
+		"end": {
+			"line": 21,
+			"character": 5
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'W'.",
+		"start": {
+			"line": 22,
+			"character": 7
+		},
+		"end": {
+			"line": 22,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 22,
+			"character": 13
+		},
+		"end": {
+			"line": 22,
+			"character": 14
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 24,
+			"character": 4
+		},
+		"end": {
+			"line": 24,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 26,
+			"character": 4
+		},
+		"end": {
+			"line": 26,
+			"character": 5
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'X'.",
+		"start": {
+			"line": 27,
+			"character": 7
+		},
+		"end": {
+			"line": 27,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 27,
+			"character": 11
+		},
+		"end": {
+			"line": 27,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 30,
+			"character": 6
+		},
+		"end": {
+			"line": 30,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 32,
+			"character": 6
+		},
+		"end": {
+			"line": 32,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'T'.",
+		"start": {
+			"line": 35,
+			"character": 7
+		},
+		"end": {
+			"line": 35,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 35,
+			"character": 11
+		},
+		"end": {
+			"line": 35,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 36,
+			"character": 4
+		},
+		"end": {
+			"line": 36,
+			"character": 5
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 37,
+			"character": 6
+		},
+		"end": {
+			"line": 37,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'U'.",
+		"start": {
+			"line": 38,
+			"character": 7
+		},
+		"end": {
+			"line": 38,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 38,
+			"character": 13
+		},
+		"end": {
+			"line": 38,
+			"character": 14
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 39,
+			"character": 6
+		},
+		"end": {
+			"line": 39,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 40,
+			"character": 6
+		},
+		"end": {
+			"line": 40,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'V'.",
+		"start": {
+			"line": 41,
+			"character": 7
+		},
+		"end": {
+			"line": 41,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 41,
+			"character": 11
+		},
+		"end": {
+			"line": 41,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 42,
+			"character": 6
+		},
+		"end": {
+			"line": 42,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 43,
+			"character": 6
+		},
+		"end": {
+			"line": 43,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'W'.",
+		"start": {
+			"line": 44,
+			"character": 7
+		},
+		"end": {
+			"line": 44,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 44,
+			"character": 11
+		},
+		"end": {
+			"line": 44,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 45,
+			"character": 6
+		},
+		"end": {
+			"line": 45,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 46,
+			"character": 6
+		},
+		"end": {
+			"line": 46,
+			"character": 7
+		}
+	},
+	{
+		"code": 2300,
+		"message": "Duplicate identifier 'X'.",
+		"start": {
+			"line": 47,
+			"character": 7
+		},
+		"end": {
+			"line": 47,
+			"character": 8
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'c'.",
+		"start": {
+			"line": 47,
+			"character": 11
+		},
+		"end": {
+			"line": 47,
+			"character": 12
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'a'.",
+		"start": {
+			"line": 50,
+			"character": 6
+		},
+		"end": {
+			"line": 50,
+			"character": 7
+		}
+	},
+	{
+		"code": 2304,
+		"message": "Cannot find name 'b'.",
+		"start": {
+			"line": 51,
+			"character": 8
+		},
+		"end": {
+			"line": 51,
+			"character": 9
+		}
+	}
+]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/indent/valid/inline-style-tag-input.svelte	json
 []
 
@@ -2505,7 +11789,13 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always-after-expression/test01-output.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always/snippet-render01-output.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/always/test01-output.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/declaration-tag-input.svelte	json
@@ -2514,7 +11804,13 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/declaration-tag-output.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/test01-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/mustache-spacing/valid/always/test01-input.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-add-event-listener/invalid/test01-input.svelte	json
@@ -2697,10 +11993,38 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dupe-use-directives/valid/test01-input.svelte	json
 []
 
+=== 189 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/bool-slot01-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "Cannot read properties of undefined (reading 'raw')",
+		"start": {
+			"line": 0,
+			"character": 0
+		},
+		"end": {
+			"line": 0,
+			"character": 0
+		}
+	}
+]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/literal-slot01-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/literal-slot01-output.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/multi-report01-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/multi-report01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/recursive-loop01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/var-slot01-input.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-dynamic-slot-name/invalid/var-slot01-output.svelte	json
@@ -2788,6 +12112,9 @@
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inner-declarations/valid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inspect/invalid/test01-input.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-inspect/valid/test01-input.svelte	json
@@ -3518,6 +12845,9 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/invalid/value01-input.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/valid/bind01-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-not-function-handler/valid/function01-input.svelte	json
 []
 
@@ -3579,6 +12909,9 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-restricted-html-elements/invalid/object-input.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-restricted-html-elements/valid/array-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-shorthand-style-property-overrides/invalid/ternary01-input.svelte	json
 []
 
@@ -3592,6 +12925,15 @@
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-shorthand-style-property-overrides/valid/test02-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-spaces-around-equal-signs-in-attribute/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-spaces-around-equal-signs-in-attribute/invalid/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-spaces-around-equal-signs-in-attribute/valid/test-01-input.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-svelte-internal/invalid/no-svelte-internal06-input.svelte	json
@@ -3842,6 +13184,9 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/general-sibling-combinator01-input.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/invalid-style01-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/multiple-class-names01-input.svelte	json
 []
 
@@ -3860,6 +13205,9 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/selector-list01-input.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/unknown-lang01-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-class-name/valid/used-class-name01-input.svelte	json
 []
 
@@ -3871,6 +13219,22 @@
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/builtin-types-unused-input.svelte	json
 []
+
+=== 165 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/class-props-unused-input.svelte	json
+[
+	{
+		"code": 2304,
+		"message": "Cannot find name 'User'.",
+		"start": {
+			"line": 9,
+			"character": 8
+		},
+		"end": {
+			"line": 9,
+			"character": 12
+		}
+	}
+]
 
 === 217 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/custom-config-combination-input.svelte	json
 [
@@ -4438,7 +13802,13 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang03-input.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang04-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang05-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/style-lang06-input.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/invalid/transform-test-input.svelte	json
@@ -4451,6 +13821,9 @@
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/element-ignore01-svelte4-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/has-error-svelte4-input.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/html-comment-input.svelte	json
@@ -4499,7 +13872,16 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang03-input.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang04-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang05-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang06-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/style-lang07-input.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-svelte-ignore/valid/svelte-ignore-comma-separated-input.svelte	json
@@ -4751,10 +14133,22 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/member01-input.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/module-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/runes-with-store01-input.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/invalid/test02-input.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/valid/builtin-vars01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-destructured-store-props/valid/test01-input.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/prefer-style-directive/invalid/complex-test01-input.svelte	json
@@ -5245,6 +14639,12 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-component01-output.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-element01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/svelte-element01-output.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/require-store-reactive-access/invalid/switch01-input.svelte	json
 []
 
@@ -5544,6 +14944,27 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/class-test-output.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix1-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix1-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix2-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix3-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/default-test01fix4-output.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/default/in-out-test-input.svelte	json
 []
 
@@ -5604,6 +15025,33 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/ignore-no-order-with-spread-test-output.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix1-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix2-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix3-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix4-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix5-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix6-output.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/invalid/order/test01fix7-output.svelte	json
+[]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/alphabetical-test-input.svelte	json
 []
 
@@ -5611,6 +15059,9 @@
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/class-test-input.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/default-test01-input.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/sort-attributes/valid/default/ignore-spread-test-input.svelte	json
@@ -5667,6 +15118,37 @@
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/svelte-config-custom-warn/a11y-svelte4-input.svelte	json
 []
 
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/invalid/ts/enum01-input.svelte	json
+[]
+
+=== 324 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/babel/babel-function-bind01-input.svelte	json
+[
+	{
+		"code": 1005,
+		"message": "',' expected.",
+		"start": {
+			"line": 3,
+			"character": 17
+		},
+		"end": {
+			"line": 3,
+			"character": 18
+		}
+	},
+	{
+		"code": 1134,
+		"message": "Variable declaration expected.",
+		"start": {
+			"line": 3,
+			"character": 18
+		},
+		"end": {
+			"line": 3,
+			"character": 19
+		}
+	}
+]
+
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/babel/class01-input.svelte	json
 []
 
@@ -5687,6 +15169,22 @@
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/svelte-options-custom-element-input.svelte	json
 []
+
+=== 254 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/svelte3-options-custom-element-input.svelte	json
+[
+	{
+		"code": -1,
+		"message": "\"tag\" option is deprecated — use \"customElement\" instead\nhttps://svelte.dev/e/svelte_options_deprecated_tag",
+		"start": {
+			"line": 0,
+			"character": 16
+		},
+		"end": {
+			"line": 0,
+			"character": 34
+		}
+	}
+]
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/test01-input.svelte	json
 []
@@ -5815,6 +15313,9 @@
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-prop-names-in-kit-pages/valid/test004-2/+page.svelte	json
+[]
+
+=== 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-style-parse/invalid/invalid-scss01-input.svelte	json
 []
 
 === 3 packages/eslint-plugin-svelte/tests/fixtures/rules/valid-style-parse/valid/no-style01-input.svelte	json

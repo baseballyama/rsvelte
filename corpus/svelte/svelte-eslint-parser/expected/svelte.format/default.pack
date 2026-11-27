@@ -317,6 +317,23 @@
 <input title={z} bind:value={x} />
 {foo()}
 
+=== 257 tests/fixtures/integrations/type-info-tests/$derived2-input.svelte	svelte
+<script lang="ts">
+  type Info = { foo: number };
+  let i: Info | null = null;
+  export const d = $derived(i?.foo ? fn(i.foo) : null);
+
+  setTimeout(() => {
+    i = { foo: 42 };
+  }, 10);
+
+  function fn(a: number): number {
+    return a;
+  }
+</script>
+
+{d}
+
 === 86 tests/fixtures/integrations/type-info-tests/$props-input.svelte	svelte
 <script lang="ts">
   const { x }: { x: number } = $props();
@@ -664,6 +681,10 @@
 <!-- this is a comment! -->
 <h1>Hello world</h1>
 
+=== 76 tests/fixtures/parser/ast/docs/template-syntax/04-comments/02-input.svelte	svelte
+<!-- svelte-ignore a11y-autofocus -->
+<input bind:value={name} autofocus />
+
 === 109 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/01-input.svelte	svelte
 {#if expression}...{/if}
 {#if expression}...{:else if expression}...{/if}
@@ -799,6 +820,13 @@
 {@debug user}
 {@debug user1, user2, user3}
 
+=== 31 tests/fixtures/parser/ast/docs/template-syntax/10.1-at-const/01-input.svelte	svelte
+{@const variable = assignment}
+
+=== 72 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/01-input.svelte	svelte
+<div on:eventname={handler} />
+<div on:eventname|modifiers={handler} />
+
 === 149 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/02-input.svelte	svelte
 <script>
   let count = 0;
@@ -839,6 +867,86 @@
 </script>
 
 <button on:click={increment} on:click={track}>Click me!</button>
+
+=== 33 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/01-input.svelte	svelte
+<div bind:property={variable} />
+
+=== 114 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/02-input.svelte	svelte
+<input bind:value={name} />
+<textarea bind:value={text}></textarea>
+
+<input type="checkbox" bind:checked={yes} />
+
+=== 72 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/03-input.svelte	svelte
+<!-- These are equivalent -->
+<input bind:value />
+<input bind:value />
+
+=== 81 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/04-input.svelte	svelte
+<input type="number" bind:value={num} />
+<input type="range" bind:value={num} />
+
+=== 146 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/05-input.svelte	svelte
+<label for="avatar">Upload a picture:</label>
+<input
+  accept="image/png, image/jpeg"
+  bind:files
+  id="avatar"
+  name="avatar"
+  type="file"
+/>
+
+=== 134 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/06-input.svelte	svelte
+<select bind:value={selected}>
+  <option value={a}>a</option>
+  <option value={b}>b</option>
+  <option value={c}>c</option>
+</select>
+
+=== 220 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/07-input.svelte	svelte
+<select multiple bind:value={fillings}>
+  <option value="Rice">Rice</option>
+  <option value="Beans">Beans</option>
+  <option value="Cheese">Cheese</option>
+  <option value="Guac (extra)">Guac (extra)</option>
+</select>
+
+=== 157 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/08-input.svelte	svelte
+<select multiple bind:value={fillings}>
+  <option>Rice</option>
+  <option>Beans</option>
+  <option>Cheese</option>
+  <option>Guac (extra)</option>
+</select>
+
+=== 57 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/09-input.svelte	svelte
+<div contenteditable="true" bind:innerHTML={html}></div>
+
+=== 237 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/10-input.svelte	svelte
+<video
+  src={clip}
+  bind:duration
+  bind:buffered
+  bind:played
+  bind:seekable
+  bind:seeking
+  bind:ended
+  bind:currentTime
+  bind:playbackRate
+  bind:paused
+  bind:volume
+  bind:muted
+  bind:videoWidth
+  bind:videoHeight
+></video>
+
+=== 94 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/11-input.svelte	svelte
+<div bind:offsetWidth={width} bind:offsetHeight={height}>
+  <Chart {width} {height} />
+</div>
+
+=== 32 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/01-input.svelte	svelte
+<input bind:group={variable} />
 
 === 612 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/02-input.svelte	svelte
 <script>
@@ -1012,6 +1120,20 @@
   <div in:fly out:fade>flies in, fades out</div>
 {/if}
 
+=== 243 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/01-input.svelte	svelte
+<script>
+  const animation = (node, { from, to }, params) => ({
+    delay: 42,
+    duration: 42,
+    easing: (t) => 42,
+    css: (t, u) => "foo :bar",
+    tick: (t, u) => {},
+  });
+</script>
+
+<div animate:name />
+<div animate:name={params} />
+
 === 130 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/02-input.svelte	svelte
 <!-- When `list` is reordered the animation will run-->
 {#each list as item, index (item)}
@@ -1082,6 +1204,21 @@
 === 30 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/03-input.svelte	svelte
 <SomeComponent on:whatever />
 
+=== 90 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/01-input.svelte	svelte
+<Slider
+  bind:value
+  min={0}
+  --rail-color="black"
+  --track-color="rgb(0, 0, 255)"
+/>
+
+=== 136 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/02-input.svelte	svelte
+<div
+  style="display: contents; --rail-color: black; --track-color: rgb(0, 0, 255)"
+>
+  <Slider bind:value min={0} max={100} />
+</div>
+
 === 176 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/03-input.svelte	svelte
 <Slider --rail-color="goldenrod" />
 
@@ -1091,6 +1228,12 @@
     background-color: var(--rail-color, var(--theme-color, "purple"));
   }
 </style>
+
+=== 36 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/03-bind-property/01-input.svelte	svelte
+<MyComp bind:property={variable} />
+
+=== 28 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/03-bind-property/02-input.svelte	svelte
+<Keypad bind:value={pin} />
 
 === 42 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/01-input.svelte	svelte
 <MyComp bind:this={component_instance} />
@@ -1215,6 +1358,9 @@
 === 37 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/01-input.svelte	svelte
 <svelte:window on:event={handler} />
 
+=== 36 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/02-input.svelte	svelte
+<svelte:window bind:prop={value} />
+
 === 146 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/03-input.svelte	svelte
 <script>
   function handleKeydown(event) {
@@ -1223,6 +1369,9 @@
 </script>
 
 <svelte:window on:keydown={handleKeydown} />
+
+=== 35 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/04-input.svelte	svelte
+<svelte:window bind:scrollY={y} />
 
 === 39 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/01-input.svelte	svelte
 <svelte:document on:event={handler} />
@@ -1247,8 +1396,22 @@
   <link rel="stylesheet" href="tutorial/dark-theme.css" />
 </svelte:head>
 
+=== 181 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/01-input.svelte	error.txt
+`<svelte:options>` unknown attribute 'option'
+https://svelte.dev/e/svelte_options_unknown_attribute
+> 1 | <svelte:options option={value}/>
+    |                ^^^^^^^^^^^^^^
+  2 |
+
 === 53 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-input.svelte	svelte
 <svelte:options customElement="my-custom-element" />
+
+=== 209 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-old-input.svelte	error.txt
+"tag" option is deprecated — use "customElement" instead
+https://svelte.dev/e/svelte_options_deprecated_tag
+> 1 | <svelte:options tag="my-custom-element"/>
+    |                ^^^^^^^^^^^^^^^^^^^^^^^
+  2 |
 
 === 372 tests/fixtures/parser/ast/docs/template-syntax/20-svelte-fragment/01-input.svelte	svelte
 <!-- Widget.svelte -->
@@ -1421,6 +1584,13 @@
 === 50 tests/fixtures/parser/ast/if-block01-input.svelte	svelte
 {#if expression}{:else if expression}{:else}{/if}
 
+=== 68 tests/fixtures/parser/ast/illegal/dot-in-bind01-input.svelte	svelte
+<script>
+  let value = "";
+</script>
+
+<input bind:va.lue={value} />
+
 === 47 tests/fixtures/parser/ast/issue327-eslint-plugin-svelte-input.svelte	svelte
 {#each f(//asdf
   d) as k}<Csdf></Csdf>{/each}
@@ -1531,6 +1701,28 @@
   </script>
 </div>
 
+=== 212 tests/fixtures/parser/ast/newline-in-blocks-input.svelte	svelte
+<!--await-->
+{#await expression}
+  ...
+{:then name}
+  ...
+{:catch name}
+  ...
+{/await}
+<!--each-->
+{#each cats as { id, name }, i}
+  ...
+{/each}
+<!--if-->
+{#if a}
+  ...
+{/if}
+<!--key-->
+{#key value}
+  ...
+{/key}
+
 === 93 tests/fixtures/parser/ast/postcss-input.svelte	svelte
 <style lang="postcss">
   body {
@@ -1551,12 +1743,33 @@
   export { prop };
 </script>
 
+=== 195 tests/fixtures/parser/ast/pug/each/each01-input.svelte	error.txt
+Unexpected token
+https://svelte.dev/e/js_parse_error
+  3 | </script>
+  4 |
+> 5 | <template lang="pug">
+    |        ^
+  6 | +each("objs as obj")
+  7 |     p("{...obj}") {obj.a}
+  8 | </template>
+
 === 85 tests/fixtures/parser/ast/pug/each/self-closing-template-input.svelte	svelte
 <script>
   console.log("foo");
 </script>
 
 <template src="./fixtures/template.pug" />
+
+=== 147 tests/fixtures/parser/ast/sass-input.svelte	svelte
+<style lang="sass">
+$font-stack:    Helvetica, sans-serif
+$primary-color: #333
+
+body
+    font: 100% $font-stack
+    color: $primary-color
+</style>
 
 === 62 tests/fixtures/parser/ast/script-in-style-input.svelte	svelte
 <style>
@@ -1573,6 +1786,62 @@
     console.log("foo");
   </script>
 </head>
+
+=== 161 tests/fixtures/parser/ast/self-closing-style01-input.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+> 1 | <style src="./fixtures/style.css" />
+    |                                  ^
+  2 | <div></div>
+  3 |
+
+=== 1243 tests/fixtures/parser/ast/space-in-blocks-input.svelte	svelte
+<script>
+  const foo = "foo";
+  let text = "";
+  let value = "";
+  let input;
+  const myClass = "my-class";
+  const id = "id";
+  const attrs = {};
+  const bar = "<div></div>";
+  const o1 = 1,
+    o2 = 2;
+  const expression = true;
+  const list = [];
+</script>
+
+<!-- prettier-ignore -->
+<div>
+{ foo }
+<input bind:value={ text } this={ input } class="foo { myClass }" />
+<input bind:value { id } />
+<input { ...attrs } />
+{ @html bar }
+{ @debug o1 }
+{ @debug o1, o2 }
+
+{ #if expression }...{ /if }
+{ #if expression }...{ :else if expression }...{ /if }
+{ #if expression }...{ :else }...{ /if }
+{ #if expression }{ :else }{ /if }
+
+{ #each list as item }...{ /each }
+{ #each list as item, index }...{ /each }
+{ #each list as item (item.key) }...{ /each }
+{ #each list as item, index (item.key) }...{ /each }
+{ #each list as item }...{ :else }...{ /each }
+
+{ #await expression }...{ :then name }...{ :catch name }...{ /await }
+{ #await expression }...{ :then name }...{ /await }
+{ #await expression then name }...{ /await }
+{ #await expression catch name }...{ /await }
+{ #await expression then }...{ /await }
+{ #await expression catch }...{ /await }
+{ #await expression }...{ :then}...{ :catch}...{ /await }
+
+{ #key expression }...{ /key }
+</div>
 
 === 192 tests/fixtures/parser/ast/store-bindings-input.svelte	svelte
 <script>
@@ -1634,6 +1903,14 @@
   }
 </style>
 
+=== 58 tests/fixtures/parser/ast/style02-input.svelte	svelte
+<div />
+
+<style lang="stylus">
+div
+  color: red;
+</style>
+
 === 140 tests/fixtures/parser/ast/svelte5/$bindable-used-input.svelte	svelte
 <script>
   let { b = $bindable() } = $props();
@@ -1644,6 +1921,20 @@
 </script>
 
 <button onclick={handler}>Click Me!</button>
+
+=== 121 tests/fixtures/parser/ast/svelte5/$derived-in-template-with-ts01-input.svelte	svelte
+<script lang="ts">
+  import MyComponent from "./MyComponent.svelte";
+</script>
+
+<MyComponent :foo={() => $derived(0)} />
+
+=== 111 tests/fixtures/parser/ast/svelte5/$derived-in-template-without-ts01-input.svelte	svelte
+<script>
+  import MyComponent from "./MyComponent.svelte";
+</script>
+
+<MyComponent :foo={() => $derived(0)} />
 
 === 112 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-runes-input.svelte	svelte
 <script>
@@ -2030,6 +2321,23 @@
   <button on:click={toggle}> Toggle dark mode </button>
 </div>
 
+=== 304 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-frozen-input.svelte	svelte
+<script>
+  let numbers = $state.frozen([1, 2, 3]);
+</script>
+
+<button onclick={() => (numbers = [...numbers, numbers.length + 1])}>
+  push
+</button>
+
+<button onclick={() => (numbers = numbers.slice(0, -1))}> pop </button>
+
+<p>
+  {numbers.join(" + ") || 0}
+  =
+  {numbers.reduce((a, b) => a + b, 0)}
+</p>
+
 === 107 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-input.svelte	svelte
 <script>
   let count = $state(0);
@@ -2038,6 +2346,17 @@
 <button on:click={() => count++}>
   clicks: {count}
 </button>
+
+=== 201 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-is-input.svelte	svelte
+<script>
+  let foo = $state({});
+  let bar = {};
+
+  foo.bar = bar;
+
+  console.log(foo.bar === bar); // false — `foo.bar` is a reactive proxy
+  console.log($state.is(foo.bar, bar)); // true
+</script>
 
 === 172 tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	svelte
 <script>
@@ -3039,6 +3358,24 @@
 {name}
 <!-- name: string -->
 
+=== 361 tests/fixtures/parser/ast/svelte5/ts-$state-flozen01-input.svelte	svelte
+<script lang="ts">
+  let numbers = $state.frozen([1, 2, 3]);
+  let unused = $state.frozen(["a", "b", "c"]);
+</script>
+
+<button onclick={() => (numbers = [...numbers, numbers.length + 1])}>
+  push
+</button>
+
+<button onclick={() => (numbers = numbers.slice(0, -1))}> pop </button>
+
+<p>
+  {numbers.join(" + ") || 0}
+  =
+  {numbers.reduce((a, b) => a + b, 0)}
+</p>
+
 === 140 tests/fixtures/parser/ast/svelte5/ts-$state01-input.svelte	svelte
 <script lang="ts">
   let count = $state(0);
@@ -3661,6 +3998,16 @@
   }}
 />
 
+=== 520 tests/fixtures/parser/ast/ts-generics06-complex-type-output.svelte	error.txt
+Expected token =
+https://svelte.dev/e/expected_token
+  1 | <script lang="ts" generics="
+> 2 |   T extends {foo: number, bar: string} = {foo: 1, bar: '2'}, // T: T, foo: number, bar: string, foo: 1, bar: "2"
+    |                                                                                                               ^
+  3 |   U extends Record<string, T> = Record<string, T>, // U: U, Record: Record<K, T>, T: T, Record: Record<K, T>, T: T
+  4 |   V extends [U,T] = [U,T], // V: V, U: U, T: T, U: U, T: T
+  5 | ">
+
 === 632 tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	svelte
 <script lang="ts">
   import Component, { ListItem } from "./lib/Component.svelte";
@@ -4057,6 +4404,46 @@
   <!-- bar: { prop: boolean; }, bar.prop: boolean -->
 </Component>
 
+=== 219 tests/fixtures/parser/ast/ts-store01-input.svelte	svelte
+<script lang="ts">
+  import { writable } from "svelte/store";
+  const a = writable(0);
+  const b = writable(0);
+  const $b = "abc";
+  type $c = "abc";
+  const c: $c = "abc";
+</script>
+
+{$a}
+{b}
+{$b}
+{c}
+{$c}
+{$unknown}
+
+=== 683 tests/fixtures/parser/ast/ts-store01-type-output.svelte	svelte
+<script lang="ts">
+  import { writable } from "svelte/store"; // writable: <T>(value?: T | undefined, start?: StartStopNotifier<T> | undefined) => Writable<T>, writable: <T>(value?: T | undefined, start?: StartStopNotifier<T> | undefined) => Writable<T>
+  const a = writable(0); // a: Writable<number>, writable(0): Writable<number>
+  const b = writable(0); // b: Writable<number>, writable(0): Writable<number>
+  const $b = "abc"; // $b: "abc"
+  type $c = "abc"; // $c: "abc"
+  const c: $c = "abc"; // c: "abc"
+</script>
+
+{$a}
+<!-- $a: number -->
+{b}
+<!-- b: Writable<number> -->
+{$b}
+<!-- $b: "abc" -->
+{c}
+<!-- c: "abc" -->
+{$c}
+<!-- $c: any -->
+{$unknown}
+<!-- $unknown: any -->
+
 === 236 tests/fixtures/parser/ast/ts-store02-input.svelte	svelte
 <script context="module" lang="ts">
   import { writable } from "svelte/store";
@@ -4128,6 +4515,17 @@
 <!-- $maybeNull: string | null -->
 {$maybeNullAndStr}
 <!-- $maybeNullAndStr: string | boolean | null -->
+
+=== 224 tests/fixtures/parser/ast/ts-tokens-bug-input.svelte	svelte
+<!-- Copied from https://github.com/sveltejs/svelte-eslint-parser/issues/502 -->
+<script lang="ts">
+  import Button from "$lib/Button.svelte";
+</script>
+
+<Button active={$store.number === index}>
+  {index}
+  {tab}
+</Button>
 
 === 341 tests/fixtures/parser/ast/ts-use01-input.svelte	svelte
 <script lang="ts">
@@ -6990,6 +7388,12 @@
 
 <!-- https://svelte.dev/repl/00d48f7d8e504f488fb8148de74f9ca4?version=3.52.0 -->
 
+=== 42 tests/fixtures/parser/error/dot-in-bind02-input.svelte	svelte
+<script>
+</script>
+
+<input bind:va.lue />
+
 === 122 tests/fixtures/parser/error/name01-input.svelte	svelte
 <script>
   let name = "world";
@@ -6998,6 +7402,16 @@
 </script>
 
 <h1 transition:max-width>Hello {name}!</h1>
+
+=== 176 tests/fixtures/parser/error/shorthand01-input.svelte	svelte
+<script>
+  import Component from "./Component.svelte";
+  let name = "world";
+  const max = 0;
+  const width = 0;
+</script>
+
+<Component bind:max-width>Hello {name}!</Component>
 
 === 117 tests/fixtures/parser/error/shorthand02-input.svelte	svelte
 <script>
@@ -7114,6 +7528,36 @@
   }
 </style>
 
+=== 374 tests/fixtures/parser/style-context/parse-error-input.svelte	svelte
+<div class="container">
+  <div class="div-class">Hello</div>
+  <span class="span-class">World!</span>
+</div>
+
+<style>
+  // This syntax is intentionally invalid CSS - this is to be used to test resiliency against invalid input
+  .container {
+    class .div-class/35
+      # Weird comment
+      color: red;
+
+    .span-class begin
+      font-weight: bold;
+    end
+  }
+</style>
+
+=== 134 tests/fixtures/parser/style-context/self-closing-style-element-input.svelte	error.txt
+Expected token >
+https://svelte.dev/e/expected_token
+  3 | </script>
+  4 |
+> 5 | <b>{a}</b>
+    |       ^
+  6 |
+  7 | <style />
+  8 |
+
 === 169 tests/fixtures/parser/style-context/simple-css-input.svelte	svelte
 <script>
   let a = 10;
@@ -7163,6 +7607,25 @@
     .span-class {
       font-weight: bold;
     }
+  }
+</style>
+
+=== 394 tests/fixtures/parser/style-context/unknown-lang-input.svelte	svelte
+<div class="container">
+  <div class="div-class">Hello</div>
+  <span class="span-class">World!</span>
+</div>
+
+<style lang="invalid-lang">
+  // This syntax is intentionally invalid CSS - this is to be used to test resiliency against invalid input
+  .container {
+    class .div-class/35
+      # Weird comment
+      color: red;
+
+    .span-class begin
+      font-weight: bold;
+    end
   }
 </style>
 

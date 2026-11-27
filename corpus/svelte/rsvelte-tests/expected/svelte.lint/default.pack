@@ -4254,9 +4254,6 @@
 
 === 0 rsvelte_language_server/tsgo_overlay/tests/a_svelte_module_specifier_maps_back_without_the_appended_tsx/91c2308d28b6a966.svelte	lint.txt
 
-=== 47 rsvelte_language_server/tsgo_overlay/tests/an_unparseable_shadow_still_finds_the_render_return_type_slot/204de4961e65fda8.svelte	lint.txt
-1:49 - - "Parsing error: Identifier expected."
-
 === 0 rsvelte_language_server/tsgo_overlay/tests/build_is_diskless_and_discovers_project_components/0a99dcc3a96bfd76.svelte	lint.txt
 
 === 86 rsvelte_language_server/tsgo_overlay/tests/component_query_anchor_survives_overlay_import_rewriting/2af52250087f60f3.svelte	lint.txt
@@ -13062,17 +13059,6 @@
 2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 2:5 2:58 svelte/valid-compile "Using `<slot>` to render parent content is deprecated. Use `{@render ...}` tags instead\nhttps://svelte.dev/e/slot_element_deprecated(slot_element_deprecated)"
 2:56 2:58 svelte/html-self-closing "Disallow self-closing on HTML elements."
-
-=== 669 rsvelte_projection/svelte2tsx_slots_reflection_2161/object_key_is_never_substituted/5a210d59b14880c1.svelte	lint.txt
-1:1 1:22 svelte/require-each-key "Each block should have a key"
-1:8 1:13 no-undef "'items' is not defined."
-2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
-2:20 2:32 svelte/max-attributes-per-line "'b' should be on a new line."
-2:80 2:85 no-undef "'$item' is not defined."
-2:80 2:85 svelte/valid-compile "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription(store_invalid_scoped_subscription)"
-2:89 2:98 svelte/html-quotes "Unexpected to be enclosed by any quotes."
-2:91 2:96 no-undef "'$item' is not defined."
-2:103 2:104 no-undef "'g' is not defined."
 
 === 834 rsvelte_projection/svelte2tsx_slots_reflection_2161/string_literals_are_not_substituted/063b0c5c6a77f7e9.svelte	lint.txt
 1:1 1:22 svelte/require-each-key "Each block should have a key"

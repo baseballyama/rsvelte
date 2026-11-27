@@ -5388,11 +5388,6 @@ Comp.
 === 13 rsvelte_language_server/tsgo_overlay/tests/a_svelte_module_specifier_maps_back_without_the_appended_tsx/91c2308d28b6a966.svelte	svelte
 <p>other</p>
 
-=== 61 rsvelte_language_server/tsgo_overlay/tests/an_unparseable_shadow_still_finds_the_render_return_type_slot/204de4961e65fda8.svelte	svelte
-<script>
-class A { b() { return true; } } new A().
-</script>
-
 === 14 rsvelte_language_server/tsgo_overlay/tests/build_is_diskless_and_discovers_project_components/0a99dcc3a96bfd76.svelte	svelte
 <p>Nested</p>
 
@@ -16804,22 +16799,6 @@ https://svelte.dev/e/debug_tag_invalid_arguments
 === 86 rsvelte_projection/svelte2tsx_slots_reflection_2161/nested_object_shorthand_resolves_values_only/42adfdcd4abf6d23.svelte	svelte
 {#each items as item}
   <slot a={{ x: { item }, y: [item], z: item.item }} />
-{/each}
-
-=== 197 rsvelte_projection/svelte2tsx_slots_reflection_2161/object_key_is_never_substituted/5a210d59b14880c1.svelte	svelte
-{#each items as item}
-  <slot
-    a={item}
-    b={{ item }}
-    c={{ item: "abc" }.item}
-    d={{ item: item }}
-    e={$item}
-    f={$item}
-    {...g}
-    {...item}
-  >
-    Hello
-  </slot>
 {/each}
 
 === 83 rsvelte_projection/svelte2tsx_slots_reflection_2161/string_literals_are_not_substituted/063b0c5c6a77f7e9.svelte	svelte

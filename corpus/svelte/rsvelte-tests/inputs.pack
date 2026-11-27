@@ -3186,8 +3186,6 @@ export const answer = 42;
 === 13 rsvelte_language_server/tsgo_overlay/tests/a_svelte_module_specifier_maps_back_without_the_appended_tsx/91c2308d28b6a966.svelte	svelte	runes	neutral
 <p>other</p>
 
-=== 58 rsvelte_language_server/tsgo_overlay/tests/an_unparseable_shadow_still_finds_the_render_return_type_slot/204de4961e65fda8.svelte	svelte	runes	rejected
-<script>class A { b() { return true; } } new A().</script>
 === 13 rsvelte_language_server/tsgo_overlay/tests/build_is_diskless_and_discovers_project_components/0a99dcc3a96bfd76.svelte	svelte	runes	neutral
 <p>Nested</p>
 === 68 rsvelte_language_server/tsgo_overlay/tests/component_query_anchor_survives_overlay_import_rewriting/2af52250087f60f3.svelte	svelte	runes	rejected
@@ -10673,11 +10671,6 @@ $$slots;</script>
 === 88 rsvelte_projection/svelte2tsx_slots_reflection_2161/nested_object_shorthand_resolves_values_only/42adfdcd4abf6d23.svelte	svelte	runes	neutral
 {#each items as item}
     <slot a={{ x: { item }, y: [item], z: item.item }} />
-{/each}
-
-=== 158 rsvelte_projection/svelte2tsx_slots_reflection_2161/object_key_is_never_substituted/5a210d59b14880c1.svelte	svelte	runes	rejected
-{#each items as item}
-    <slot a={item} b={{ item }} c={{ item: 'abc' }.item} d={{ item: item }} e={$item} f="{$item}" {...g} {...item}>Hello</slot>
 {/each}
 
 === 85 rsvelte_projection/svelte2tsx_slots_reflection_2161/string_literals_are_not_substituted/063b0c5c6a77f7e9.svelte	svelte	runes	neutral
