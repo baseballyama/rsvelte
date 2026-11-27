@@ -188,6 +188,7 @@ fn assignment_target_object<'b, 'a>(
 
 /// [`crate::strip::inner`], or the expression inside a pair of parentheses: an assignment target
 /// or a chain keeps none, so those inside one of its types go with it.
+#[inline]
 pub(crate) fn inner_or_parenthesized<'a>(
     e: &mut Expression<'a>,
     allocator: &'a Allocator,
