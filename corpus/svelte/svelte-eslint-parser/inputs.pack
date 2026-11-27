@@ -12614,6 +12614,23 @@ export function getConfig(): Linter.Config {
   };
 }
 
+=== 257 tests/fixtures/integrations/type-info-tests/$derived2-input.svelte	svelte	runes	rejected
+<script lang="ts">
+  type Info = { foo: number };
+  let i: Info | null = null;
+  export const d = $derived(i?.foo ? fn(i.foo) : null);
+
+  setTimeout(() => {
+    i = { foo: 42 };
+  }, 10);
+
+  function fn(a: number): number {
+    return a;
+  }
+</script>
+
+{d}
+
 === 308 tests/fixtures/integrations/type-info-tests/$derived2-ts-input.svelte.ts	svelte-module-ts	runes	-
 export type Info = { n: number };
 export function foo() {
@@ -13275,6 +13292,10 @@ const foo = {
 <!-- this is a comment! -->
 <h1>Hello world</h1>
 
+=== 74 tests/fixtures/parser/ast/docs/template-syntax/04-comments/02-input.svelte	svelte	runes	rejected
+<!-- svelte-ignore a11y-autofocus -->
+<input bind:value={name} autofocus>
+
 === 109 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/01-input.svelte	svelte	runes	neutral
 {#if expression}...{/if}
 {#if expression}...{:else if expression}...{/if}
@@ -13410,6 +13431,13 @@ const foo = {
 {@debug user}
 {@debug user1, user2, user3}
 
+=== 31 tests/fixtures/parser/ast/docs/template-syntax/10.1-at-const/01-input.svelte	svelte	runes	rejected
+{@const variable = assignment}
+
+=== 72 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/01-input.svelte	svelte	runes	rejected
+<div on:eventname={handler} />
+<div on:eventname|modifiers={handler} />
+
 === 143 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/02-input.svelte	svelte	runes	neutral
 <script>
 	let count = 0;
@@ -13453,6 +13481,87 @@ const foo = {
 
 <button on:click={increment} on:click={track}>Click me!</button>
 
+=== 31 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/01-input.svelte	svelte	runes	rejected
+<div bind:property={variable}/>
+=== 110 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/02-input.svelte	svelte	runes	rejected
+<input bind:value={name}>
+<textarea bind:value={text}></textarea>
+
+<input type="checkbox" bind:checked={yes}>
+
+=== 76 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/03-input.svelte	svelte	runes	rejected
+<!-- These are equivalent -->
+<input bind:value={value}>
+<input bind:value>
+
+=== 77 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/04-input.svelte	svelte	runes	rejected
+<input type="number" bind:value={num}>
+<input type="range" bind:value={num}>
+
+=== 141 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/05-input.svelte	svelte	runes	rejected
+<label for="avatar">Upload a picture:</label>
+<input
+	accept="image/png, image/jpeg"
+	bind:files
+	id="avatar"
+	name="avatar"
+	type="file"
+/>
+
+=== 131 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/06-input.svelte	svelte	runes	rejected
+<select bind:value={selected}>
+	<option value={a}>a</option>
+	<option value={b}>b</option>
+	<option value={c}>c</option>
+</select>
+
+=== 216 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/07-input.svelte	svelte	runes	rejected
+<select multiple bind:value={fillings}>
+	<option value="Rice">Rice</option>
+	<option value="Beans">Beans</option>
+	<option value="Cheese">Cheese</option>
+	<option value="Guac (extra)">Guac (extra)</option>
+</select>
+
+=== 153 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/08-input.svelte	svelte	runes	rejected
+<select multiple bind:value={fillings}>
+	<option>Rice</option>
+	<option>Beans</option>
+	<option>Cheese</option>
+	<option>Guac (extra)</option>
+</select>
+
+=== 57 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/09-input.svelte	svelte	runes	rejected
+<div contenteditable="true" bind:innerHTML={html}></div>
+
+=== 223 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/10-input.svelte	svelte	runes	rejected
+<video
+	src={clip}
+	bind:duration
+	bind:buffered
+	bind:played
+	bind:seekable
+	bind:seeking
+	bind:ended
+	bind:currentTime
+	bind:playbackRate
+	bind:paused
+	bind:volume
+	bind:muted
+	bind:videoWidth
+	bind:videoHeight
+></video>
+
+=== 95 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/11-input.svelte	svelte	runes	rejected
+<div
+	bind:offsetWidth={width}
+	bind:offsetHeight={height}
+>
+	<Chart {width} {height}/>
+</div>
+
+=== 29 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/01-input.svelte	svelte	runes	rejected
+<input bind:group={variable}>
 === 596 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/02-input.svelte	svelte	runes	neutral
 <script>
 	let tortilla = 'Plain';
@@ -13623,6 +13732,18 @@ const transition = (node, params) => ({
 	</div>
 {/if}
 
+=== 262 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/01-input.svelte	svelte	runes	rejected
+<script>
+    const animation = (node, { from, to } , params) => ({
+        delay: 42,
+        duration: 42,
+        easing: (t) => 42,
+        css: (t, u) => 'foo :bar',
+        tick: (t, u) => {}
+    })
+</script>
+<div animate:name/>
+<div animate:name={params}/>
 === 129 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/02-input.svelte	svelte	runes	neutral
 <!-- When `list` is reordered the animation will run-->
 {#each list as item, index (item)}
@@ -13695,6 +13816,23 @@ const transition = (node, params) => ({
 === 29 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/01-on-eventname/03-input.svelte	svelte	runes	neutral
 <SomeComponent on:whatever/>
 
+=== 90 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/01-input.svelte	svelte	runes	rejected
+<Slider
+  bind:value
+  min={0}
+  --rail-color="black"
+  --track-color="rgb(0, 0, 255)"
+/>
+
+=== 138 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/02-input.svelte	svelte	runes	rejected
+<div style="display: contents; --rail-color: black; --track-color: rgb(0, 0, 255)">
+  <Slider
+	bind:value
+	min={0}
+	max={100}
+  />
+</div>
+
 === 171 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/03-input.svelte	svelte	runes	neutral
 <!-- Slider.svelte -->
 <style>
@@ -13703,6 +13841,12 @@ const transition = (node, params) => ({
 	}
 </style>
 <Slider --rail-color="goldenrod"/>
+
+=== 35 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/03-bind-property/01-input.svelte	svelte	runes	rejected
+<MyComp bind:property={variable}/>
+
+=== 27 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/03-bind-property/02-input.svelte	svelte	runes	rejected
+<Keypad bind:value={pin}/>
 
 === 41 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/01-input.svelte	svelte	runes	neutral
 <MyComp bind:this={component_instance}/>
@@ -13826,6 +13970,9 @@ const transition = (node, params) => ({
 === 36 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/01-input.svelte	svelte	runes	neutral
 <svelte:window on:event={handler}/>
 
+=== 35 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/02-input.svelte	svelte	runes	rejected
+<svelte:window bind:prop={value}/>
+
 === 141 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/03-input.svelte	svelte	runes	neutral
 <script>
 	function handleKeydown(event) {
@@ -13834,6 +13981,9 @@ const transition = (node, params) => ({
 </script>
 
 <svelte:window on:keydown={handleKeydown}/>
+
+=== 34 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/04-input.svelte	svelte	runes	rejected
+<svelte:window bind:scrollY={y}/>
 
 === 38 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/01-input.svelte	svelte	runes	neutral
 <svelte:document on:event={handler}/>
@@ -13861,8 +14011,14 @@ const transition = (node, params) => ({
 	<link rel="stylesheet" href="tutorial/dark-theme.css">
 </svelte:head>
 
+=== 33 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/01-input.svelte	svelte	runes	rejected
+<svelte:options option={value}/>
+
 === 52 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-input.svelte	svelte	runes	neutral
 <svelte:options customElement="my-custom-element"/>
+
+=== 42 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-old-input.svelte	svelte	runes	rejected
+<svelte:options tag="my-custom-element"/>
 
 === 362 tests/fixtures/parser/ast/docs/template-syntax/20-svelte-fragment/01-input.svelte	svelte	runes	neutral
 <!-- Widget.svelte -->
@@ -14035,6 +14191,12 @@ import Foo from './foo.svelte'
 === 50 tests/fixtures/parser/ast/if-block01-input.svelte	svelte	runes	neutral
 {#if expression}{:else if expression}{:else}{/if}
 
+=== 65 tests/fixtures/parser/ast/illegal/dot-in-bind01-input.svelte	svelte	runes	rejected
+<script>
+let value = ''
+</script>
+<input bind:va.lue="{value}"/>
+
 === 46 tests/fixtures/parser/ast/issue327-eslint-plugin-svelte-input.svelte	svelte	runes	neutral
 {#each f(
 //asdf
@@ -14144,6 +14306,60 @@ d) as k}<Csdf></Csdf>{/each}
 	</script>
 </div>
 
+=== 220 tests/fixtures/parser/ast/newline-in-blocks-input.svelte	svelte	runes	rejected
+<!--await-->
+{
+#await
+expression
+}
+...
+{
+:then
+name
+}
+...
+{
+:catch
+name
+}
+...
+{
+/await
+}
+<!--each-->
+{
+#each
+cats
+as
+{
+id,
+name
+}
+,
+i
+}
+...
+{
+/each
+}
+<!--if-->
+{
+#if
+a
+}
+...
+{
+/if
+}
+<!--key-->
+{
+#key
+value
+}
+...
+{
+/key
+}
 === 93 tests/fixtures/parser/ast/postcss-input.svelte	svelte	runes	neutral
 <style lang="postcss">
   body {
@@ -14164,12 +14380,30 @@ d) as k}<Csdf></Csdf>{/each}
 	export {prop}
 </script>
 
+=== 140 tests/fixtures/parser/ast/pug/each/each01-input.svelte	svelte	runes	rejected
+<script>
+let objs = [{a: 1, b: 2}, {a: 2, b: 3}]
+</script>
+
+<template lang="pug">
++each("objs as obj")
+    p("{...obj}") {obj.a}
+</template>
 === 81 tests/fixtures/parser/ast/pug/each/self-closing-template-input.svelte	svelte	runes	neutral
 <template src="./fixtures/template.pug" />
 <script>
 console.log('foo')
 </script>
 
+=== 146 tests/fixtures/parser/ast/sass-input.svelte	svelte	runes	rejected
+<style lang="sass">
+$font-stack:    Helvetica, sans-serif
+$primary-color: #333
+
+body
+    font: 100% $font-stack
+    color: $primary-color
+</style>
 === 57 tests/fixtures/parser/ast/script-in-style-input.svelte	svelte	runes	neutral
 <style>
 a {
@@ -14182,6 +14416,58 @@ a {
     <link href="/style.css" rel="stylesheet">
     <script>console.log('foo')</script>
 </head>
+
+=== 49 tests/fixtures/parser/ast/self-closing-style01-input.svelte	svelte	runes	rejected
+<style src="./fixtures/style.css" />
+<div></div>
+
+=== 1230 tests/fixtures/parser/ast/space-in-blocks-input.svelte	svelte	runes	rejected
+<script>
+	const foo = 'foo';
+	let text = '';
+	let value = '';
+	let input;
+	const myClass = 'my-class';
+	const id = 'id';
+	const attrs = {};
+	const bar = '<div></div>';
+	const o1 = 1,
+		o2 = 2;
+	const expression = true;
+	const list = [];
+</script>
+
+<!-- prettier-ignore -->
+<div>
+{ foo }
+<input bind:value={ text } this={ input } class="foo { myClass }" />
+<input bind:value { id } />
+<input { ...attrs } />
+{ @html bar }
+{ @debug o1 }
+{ @debug o1, o2 }
+
+{ #if expression }...{ /if }
+{ #if expression }...{ :else if expression }...{ /if }
+{ #if expression }...{ :else }...{ /if }
+{ #if expression }{ :else }{ /if }
+
+{ #each list as item }...{ /each }
+{ #each list as item, index }...{ /each }
+{ #each list as item (item.key) }...{ /each }
+{ #each list as item, index (item.key) }...{ /each }
+{ #each list as item }...{ :else }...{ /each }
+
+{ #await expression }...{ :then name }...{ :catch name }...{ /await }
+{ #await expression }...{ :then name }...{ /await }
+{ #await expression then name }...{ /await }
+{ #await expression catch name }...{ /await }
+{ #await expression then }...{ /await }
+{ #await expression catch }...{ /await }
+{ #await expression }...{ :then}...{ :catch}...{ /await }
+
+{ #key expression }...{ /key }
+</div>
 
 === 190 tests/fixtures/parser/ast/store-bindings-input.svelte	svelte	runes	neutral
 <script>
@@ -14241,6 +14527,13 @@ div {
 </style>
 <div />
 
+=== 57 tests/fixtures/parser/ast/style02-input.svelte	svelte	runes	rejected
+<style lang="stylus">
+div
+  color: red;
+</style>
+<div />
+
 === 135 tests/fixtures/parser/ast/svelte5/$bindable-used-input.svelte	svelte	runes	runes
 <script>
 	let { b = $bindable() } = $props();
@@ -14251,6 +14544,20 @@ div {
 </script>
 
 <button onclick={handler}>Click Me!</button>
+
+=== 123 tests/fixtures/parser/ast/svelte5/$derived-in-template-with-ts01-input.svelte	svelte	runes	rejected
+<script lang="ts">
+    import MyComponent from './MyComponent.svelte';
+</script>
+
+<MyComponent :foo={() => $derived(0)} />
+
+=== 113 tests/fixtures/parser/ast/svelte5/$derived-in-template-without-ts01-input.svelte	svelte	runes	rejected
+<script>
+    import MyComponent from './MyComponent.svelte';
+</script>
+
+<MyComponent :foo={() => $derived(0)} />
 
 === 110 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-runes-input.svelte	svelte	runes	runes
 <script>
@@ -14626,6 +14933,23 @@ div {
 	</button>
 </div>
 
+=== 308 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-frozen-input.svelte	svelte	runes	rejected
+<script>
+  let numbers = $state.frozen([1, 2, 3]);
+</script>
+
+<button onclick="{() => (numbers = [...numbers, numbers.length + 1])}">
+  push
+</button>
+
+<button onclick="{() => (numbers = numbers.slice(0, -1))}"> pop </button>
+
+<p>
+  {numbers.join(" + ") || 0}
+  =
+  {numbers.reduce((a, b) => a + b, 0)}
+</p>
+
 === 109 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-input.svelte	svelte	runes	runes
 <script>
   let count = $state(0);
@@ -14634,6 +14958,17 @@ div {
 <button on:click="{() => count++}">
   clicks: {count}
 </button>
+
+=== 201 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-is-input.svelte	svelte	runes	rejected
+<script>
+  let foo = $state({});
+  let bar = {};
+
+  foo.bar = bar;
+
+  console.log(foo.bar === bar); // false — `foo.bar` is a reactive proxy
+  console.log($state.is(foo.bar, bar)); // true
+</script>
 
 === 169 tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	svelte	runes	runes
 <script>
@@ -15691,6 +16026,24 @@ export const invalid = $props();
 
 {name} <!-- name: string -->
 
+=== 365 tests/fixtures/parser/ast/svelte5/ts-$state-flozen01-input.svelte	svelte	runes	rejected
+<script lang="ts">
+  let numbers = $state.frozen([1, 2, 3]);
+  let unused = $state.frozen(["a", "b", "c"]);
+</script>
+
+<button onclick="{() => (numbers = [...numbers, numbers.length + 1])}">
+  push
+</button>
+
+<button onclick="{() => (numbers = numbers.slice(0, -1))}"> pop </button>
+
+<p>
+  {numbers.join(" + ") || 0}
+  =
+  {numbers.reduce((a, b) => a + b, 0)}
+</p>
+
 === 142 tests/fixtures/parser/ast/svelte5/ts-$state01-input.svelte	svelte	runes	runes
 <script lang="ts">
   let count = $state(0);
@@ -16214,6 +16567,27 @@ export const invalid = $props();
     e.detail; // e.detail: number
 }}" />
 
+=== 822 tests/fixtures/parser/ast/ts-generics06-complex-type-output.svelte	svelte	runes	rejected
+<script lang="ts" generics="
+  T extends {foo: number, bar: string} = {foo: 1, bar: '2'}, // T: T, foo: number, bar: string, foo: 1, bar: "2"
+  U extends Record<string, T> = Record<string, T>, // U: U, Record: Record<K, T>, T: T, Record: Record<K, T>, T: T
+  V extends [U,T] = [U,T], // V: V, U: U, T: T, U: U, T: T
+">
+    export let array1: T[]; // array1: T[]
+    export let array2: U[]; // array2: U[]
+    export let array3: V[]; // array3: V[]
+</script>
+
+{#each array1 as a} <!-- array1: T[], a: T -->
+    {a.foo} {a.bar} <!-- a.foo: number, a.bar: string -->
+{/each}
+{#each array2 as a} <!-- array2: U[], a: U -->
+    {a.b.foo} {a.c.bar} <!-- a.b.foo: number, a.c.bar: string -->
+{/each}
+{#each array3 as a} <!-- array3: V[], a: V -->
+    {a[0].b.foo} {a[1].bar} <!-- a[0].b.foo: number, a[1].bar: string -->
+{/each}
+
 === 632 tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	svelte	runes	neutral
 <script lang="ts">
   import Component, { ListItem } from "./lib/Component.svelte";
@@ -16539,6 +16913,38 @@ export const invalid = $props();
   <div let:foo={bar}>{bar.prop}</div> <!-- bar: { prop: boolean; }, bar.prop: boolean -->
 </Component>
 
+=== 207 tests/fixtures/parser/ast/ts-store01-input.svelte	svelte	runes	rejected
+<script lang="ts">
+	import { writable } from 'svelte/store';
+	const a = writable(0)
+	const b = writable(0)
+	const $b = 'abc'
+	type $c = 'abc'
+	const c: $c = 'abc'
+</script>
+{$a}
+{b}
+{$b}
+{c}
+{$c}
+{$unknown}
+
+=== 671 tests/fixtures/parser/ast/ts-store01-type-output.svelte	svelte	runes	rejected
+<script lang="ts">
+	import { writable } from 'svelte/store'; // writable: <T>(value?: T | undefined, start?: StartStopNotifier<T> | undefined) => Writable<T>, writable: <T>(value?: T | undefined, start?: StartStopNotifier<T> | undefined) => Writable<T>
+	const a = writable(0) // a: Writable<number>, writable(0): Writable<number>
+	const b = writable(0) // b: Writable<number>, writable(0): Writable<number>
+	const $b = 'abc' // $b: "abc"
+	type $c = 'abc' // $c: "abc"
+	const c: $c = 'abc' // c: "abc"
+</script>
+{$a} <!-- $a: number -->
+{b} <!-- b: Writable<number> -->
+{$b} <!-- $b: "abc" -->
+{c} <!-- c: "abc" -->
+{$c} <!-- $c: any -->
+{$unknown} <!-- $unknown: any -->
+
 === 225 tests/fixtures/parser/ast/ts-store02-input.svelte	svelte	runes	neutral
 <script context="module" lang="ts">
 	import { writable } from 'svelte/store';
@@ -16598,6 +17004,15 @@ export const invalid = $props();
 {$maybeUndef} <!-- $maybeUndef: number | undefined -->
 {$maybeNull} <!-- $maybeNull: string | null -->
 {$maybeNullAndStr} <!-- $maybeNullAndStr: string | boolean | null -->
+
+=== 225 tests/fixtures/parser/ast/ts-tokens-bug-input.svelte	svelte	runes	rejected
+<!-- Copied from https://github.com/sveltejs/svelte-eslint-parser/issues/502 -->
+<script lang="ts">
+    import Button from "$lib/Button.svelte";
+</script>
+<Button active={$store.number === index}>
+    {index} {tab}
+</Button>
 
 === 341 tests/fixtures/parser/ast/ts-use01-input.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -19436,6 +19851,11 @@ export const invalid = $props();
 
 <!-- https://svelte.dev/repl/00d48f7d8e504f488fb8148de74f9ca4?version=3.52.0 -->
 
+=== 40 tests/fixtures/parser/error/dot-in-bind02-input.svelte	svelte	runes	rejected
+<script>
+</script>
+<input bind:va.lue/>
+
 === 114 tests/fixtures/parser/error/name01-input.svelte	svelte	runes	neutral
 <script>
 let name = 'world';
@@ -19445,6 +19865,15 @@ const width = 0
 
 <h1 transition:max-width>Hello {name}!</h1>
 
+=== 164 tests/fixtures/parser/error/shorthand01-input.svelte	svelte	runes	rejected
+<script>
+import Component from './Component.svelte'
+let name = 'world';
+const max = 0
+const width = 0
+</script>
+
+<Component bind:max-width>Hello {name}!</Component>
 === 109 tests/fixtures/parser/error/shorthand02-input.svelte	svelte	runes	neutral
 <script>
 let name = 'world';
@@ -19556,6 +19985,34 @@ const width = 0
 
 <style> .myClass { color: red; } </style>
 
+=== 374 tests/fixtures/parser/style-context/parse-error-input.svelte	svelte	runes	rejected
+<div class="container">
+  <div class="div-class">Hello</div>
+  <span class="span-class">World!</span>
+</div>
+
+<style>
+  // This syntax is intentionally invalid CSS - this is to be used to test resiliency against invalid input
+  .container {
+    class .div-class/35
+      # Weird comment
+      color: red;
+
+    .span-class begin
+      font-weight: bold;
+    end
+  }
+</style>
+
+=== 55 tests/fixtures/parser/style-context/self-closing-style-element-input.svelte	svelte	runes	rejected
+<script>
+  let a = 10
+</script>
+
+<b>{a}</b>
+
+<style />
+
 === 168 tests/fixtures/parser/style-context/simple-css-input.svelte	svelte	runes	neutral
 <script>
   let a = 10
@@ -19605,6 +20062,25 @@ const width = 0
     .span-class {
       font-weight: bold;
     }
+  }
+</style>
+
+=== 394 tests/fixtures/parser/style-context/unknown-lang-input.svelte	svelte	runes	rejected
+<div class="container">
+  <div class="div-class">Hello</div>
+  <span class="span-class">World!</span>
+</div>
+
+<style lang="invalid-lang">
+  // This syntax is intentionally invalid CSS - this is to be used to test resiliency against invalid input
+  .container {
+    class .div-class/35
+      # Weird comment
+      color: red;
+
+    .span-class begin
+      font-weight: bold;
+    end
   }
 </style>
 

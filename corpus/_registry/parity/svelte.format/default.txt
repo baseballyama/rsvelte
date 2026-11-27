@@ -1,8 +1,13 @@
-# svelte.format/default: 35271 match
+# svelte.format/default: 35508 match
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/empty.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/view.svelte	mismatch
+svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/valid-compile/valid/babel/babel-function-bind01-input.svelte	mismatch
 svelte/headscale-ui/src/routes/devices.html/+page.svelte	mismatch
 svelte/headscale-ui/src/routes/users.html/+page.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element-error/input.svelte	unexpected
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/diagnostics/shared-comp.svelte	refused
+svelte/language-tools/packages/svelte2tsx/test/emitDts/samples/javascript-libRoot/src/lib/Test.svelte	refused
+svelte/language-tools/packages/svelte2tsx/test/emitDts/samples/svelte3/src/Test.svelte	refused
 svelte/networking-toolbox/src/lib/components/tools/EDNSSizeEstimator.svelte	mismatch
 svelte/networking-toolbox/src/lib/components/tools/PTRGenerator.svelte	mismatch
 svelte/networking-toolbox/src/routes/diagnostics/dns/blacklist-checker/+page.svelte	mismatch

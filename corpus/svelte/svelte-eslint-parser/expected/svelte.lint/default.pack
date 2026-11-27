@@ -205,6 +205,11 @@
 
 === 0 tests/fixtures/integrations/type-info-tests/$derived-within-class-input.svelte.ts	lint.txt
 
+=== 358 tests/fixtures/integrations/type-info-tests/$derived2-input.svelte	lint.txt
+1:1 13:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+4:3 4:56 svelte/valid-compile "Cannot export derived state from a module. To expose the current derived value, export a function returning its value\nhttps://svelte.dev/e/derived_invalid_export(derived_invalid_export)"
+6:3 6:13 no-undef "'setTimeout' is not defined."
+
 === 97 tests/fixtures/integrations/type-info-tests/$derived2-ts-input.svelte.ts	lint.txt
 3:7 3:21 no-useless-assignment "The value assigned to 'a' is not used in subsequent statements."
 
@@ -485,6 +490,13 @@
 
 === 0 tests/fixtures/parser/ast/docs/template-syntax/04-comments/01-input.svelte	lint.txt
 
+=== 419 tests/fixtures/parser/ast/docs/template-syntax/04-comments/02-input.svelte	lint.txt
+2:20 2:24 no-undef "'name' is not defined."
+2:20 2:24 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+2:26 2:35 svelte/max-attributes-per-line "'autofocus' should be on a new line."
+2:26 2:35 svelte/sort-attributes "Attribute 'autofocus' should go before 'bind:value'."
+2:35 2:36 svelte/html-self-closing "Require self-closing on HTML void elements."
+
 === 370 tests/fixtures/parser/ast/docs/template-syntax/05-hash-if/01-input.svelte	lint.txt
 1:6 1:16 no-undef "'expression' is not defined."
 2:6 2:16 no-undef "'expression' is not defined."
@@ -635,6 +647,19 @@
 3:16 3:21 no-undef "'user2' is not defined."
 3:23 3:28 no-undef "'user3' is not defined."
 
+=== 519 tests/fixtures/parser/ast/docs/template-syntax/10.1-at-const/01-input.svelte	lint.txt
+1:1 1:31 svelte/no-at-const-tags "Use `{const ...}` declaration tag instead of legacy `{@const ...}`."
+1:1 1:31 svelte/valid-compile "`{@const}` must be the immediate child of `{#snippet}`, `{#if}`, `{:else if}`, `{:else}`, `{#each}`, `{:then}`, `{:catch}`, `<svelte:fragment>`, `<svelte:boundary>` or `<Component>`\nhttps://svelte.dev/e/const_tag_invalid_placement(const_tag_invalid_placement)"
+1:9 1:17 no-unused-vars "'variable' is assigned a value but never used."
+1:20 1:30 no-undef "'assignment' is not defined."
+
+=== 502 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/01-input.svelte	lint.txt
+1:20 1:27 no-undef "'handler' is not defined."
+1:29 1:31 svelte/html-self-closing "Disallow self-closing on HTML elements."
+2:6 2:38 svelte/valid-compile "Valid event modifiers are preventDefault, stopPropagation, stopImmediatePropagation, capture, once, passive, nonpassive, self or trusted\nhttps://svelte.dev/e/event_handler_invalid_modifier(event_handler_invalid_modifier)"
+2:30 2:37 no-undef "'handler' is not defined."
+2:39 2:41 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
 === 972 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/01-on-eventname/02-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 2:6 2:11 svelte/valid-compile "`count` is updated, but is not declared with `$state(...)`. Changing its value will not correctly trigger updates\nhttps://svelte.dev/e/non_reactive_update(non_reactive_update)"
@@ -677,6 +702,133 @@
 12:9 12:29 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 12:30 12:46 svelte/max-attributes-per-line "'on:click' should be on a new line."
 12:30 12:46 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
+
+=== 345 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/01-input.svelte	lint.txt
+1:6 1:30 svelte/valid-compile "`bind:property` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name(bind_invalid_name)"
+1:21 1:29 no-undef "'variable' is not defined."
+1:30 1:32 svelte/html-self-closing "Disallow self-closing on HTML elements."
+1:30 1:32 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
+=== 502 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/02-input.svelte	lint.txt
+1:20 1:24 no-undef "'name' is not defined."
+1:20 1:24 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+1:25 1:26 svelte/html-self-closing "Require self-closing on HTML void elements."
+2:23 2:27 no-undef "'text' is not defined."
+4:24 4:42 svelte/max-attributes-per-line "'bind:checked' should be on a new line."
+4:38 4:41 no-undef "'yes' is not defined."
+4:42 4:43 svelte/html-self-closing "Require self-closing on HTML void elements."
+
+=== 446 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/03-input.svelte	lint.txt
+2:8 2:26 svelte/shorthand-directive "Expected shorthand directive."
+2:20 2:25 no-undef "'value' is not defined."
+2:20 2:25 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+2:26 2:27 svelte/html-self-closing "Require self-closing on HTML void elements."
+3:13 3:18 no-undef "'value' is not defined."
+3:18 3:19 svelte/html-self-closing "Require self-closing on HTML void elements."
+
+=== 536 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/04-input.svelte	lint.txt
+1:22 1:38 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+1:34 1:37 no-undef "'num' is not defined."
+1:34 1:37 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+1:38 1:39 svelte/html-self-closing "Require self-closing on HTML void elements."
+2:21 2:37 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+2:33 2:36 no-undef "'num' is not defined."
+2:37 2:38 svelte/html-self-closing "Require self-closing on HTML void elements."
+
+=== 810 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/05-input.svelte	lint.txt
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:7 4:12 no-undef "'files' is not defined."
+4:7 4:12 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:2 5:13 svelte/sort-attributes "Attribute 'id' should go before 'accept'."
+6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:2 6:15 svelte/sort-attributes "Attribute 'name' should go before 'accept'."
+7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:2 7:13 svelte/sort-attributes "Attribute 'type' should go before 'bind:files'."
+
+=== 540 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/06-input.svelte	lint.txt
+1:21 1:29 no-undef "'selected' is not defined."
+1:21 1:29 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:17 2:18 no-undef "'a' is not defined."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:17 3:18 no-undef "'b' is not defined."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:17 4:18 no-undef "'c' is not defined."
+
+=== 579 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/07-input.svelte	lint.txt
+1:18 1:39 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+1:30 1:38 no-undef "'fillings' is not defined."
+1:30 1:38 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 579 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/08-input.svelte	lint.txt
+1:18 1:39 svelte/max-attributes-per-line "'bind:value' should be on a new line."
+1:30 1:38 no-undef "'fillings' is not defined."
+1:30 1:38 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 255 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/09-input.svelte	lint.txt
+1:29 1:50 svelte/max-attributes-per-line "'bind:innerHTML' should be on a new line."
+1:45 1:49 no-undef "'html' is not defined."
+1:45 1:49 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+
+=== 1936 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/10-input.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:7 2:11 no-undef "'clip' is not defined."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:7 3:15 no-undef "'duration' is not defined."
+3:7 3:15 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:7 4:15 no-undef "'buffered' is not defined."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:7 5:13 no-undef "'played' is not defined."
+6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+6:7 6:15 no-undef "'seekable' is not defined."
+7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:7 7:14 no-undef "'seeking' is not defined."
+8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:7 8:12 no-undef "'ended' is not defined."
+9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:7 9:18 no-undef "'currentTime' is not defined."
+10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:7 10:19 no-undef "'playbackRate' is not defined."
+11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:7 11:13 no-undef "'paused' is not defined."
+12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+12:7 12:13 no-undef "'volume' is not defined."
+13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:7 13:12 no-undef "'muted' is not defined."
+14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+14:7 14:17 no-undef "'videoWidth' is not defined."
+15:1 15:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+15:7 15:18 no-undef "'videoHeight' is not defined."
+
+=== 841 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/02-bind-property/11-input.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+2:20 2:25 no-undef "'width' is not defined."
+2:20 2:25 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:21 3:27 no-undef "'height' is not defined."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:3 5:8 no-undef "'Chart' is not defined."
+5:10 5:15 no-undef "'width' is not defined."
+5:17 5:25 svelte/max-attributes-per-line "'height' should be on a new line."
+5:17 5:25 svelte/sort-attributes "Attribute 'height' should go before 'width'."
+5:18 5:24 no-undef "'height' is not defined."
+5:25 5:27 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
+=== 255 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/01-input.svelte	lint.txt
+1:20 1:28 no-undef "'variable' is not defined."
+1:20 1:28 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+1:29 1:30 svelte/html-self-closing "Require self-closing on HTML void elements."
 
 === 2332 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/03-bind-group/02-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -958,6 +1110,33 @@
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 1843 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/01-input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+2:11 2:20 no-unused-vars "'animation' is assigned a value but never used."
+2:24 2:28 no-unused-vars "'node' is defined but never used."
+2:32 2:36 no-unused-vars "'from' is defined but never used."
+2:38 2:40 no-unused-vars "'to' is defined but never used."
+2:45 2:51 no-unused-vars "'params' is defined but never used."
+3:1 3:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+4:1 4:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+5:1 5:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+5:18 5:19 no-unused-vars "'t' is defined but never used."
+6:1 6:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+6:15 6:16 no-unused-vars "'t' is defined but never used."
+6:18 6:19 no-unused-vars "'u' is defined but never used."
+7:1 7:9 svelte/indent "Expected indentation of 4 spaces but found 8 spaces."
+7:16 7:17 no-unused-vars "'t' is defined but never used."
+7:19 7:20 no-unused-vars "'u' is defined but never used."
+8:1 8:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+10:6 10:18 svelte/valid-compile "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement(animation_invalid_placement)"
+10:14 10:18 no-undef "'name' is not defined."
+10:18 10:20 svelte/html-self-closing "Disallow self-closing on HTML elements."
+10:18 10:20 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+11:14 11:18 no-undef "'name' is not defined."
+11:20 11:26 no-undef "'params' is not defined."
+11:27 11:29 svelte/html-self-closing "Disallow self-closing on HTML elements."
+11:27 11:29 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
 === 315 tests/fixtures/parser/ast/docs/template-syntax/11-element-directives/09-animate-fn/02-input.svelte	lint.txt
 1:1 1:56 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
 2:8 2:12 no-undef "'list' is not defined."
@@ -1027,11 +1206,45 @@
 1:2 1:15 no-undef "'SomeComponent' is not defined."
 1:27 1:29 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
 
+=== 475 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/01-input.svelte	lint.txt
+1:2 1:8 no-undef "'Slider' is not defined."
+2:8 2:13 no-undef "'value' is not defined."
+2:8 2:13 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+3:3 3:10 svelte/sort-attributes "Attribute 'min' should go before 'bind:value'."
+4:3 4:23 svelte/sort-attributes "Attribute '--rail-color' should go before 'bind:value'."
+5:3 5:33 svelte/sort-attributes "Attribute '--track-color' should go before 'bind:value'."
+
+=== 915 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/02-input.svelte	lint.txt
+1:6 1:83 svelte/no-inline-styles "Found disallowed style attribute."
+1:13 1:31 svelte/prefer-style-directive "Can use style directives instead."
+1:32 1:52 svelte/prefer-style-directive "Can use style directives instead."
+1:53 1:82 svelte/prefer-style-directive "Can use style directives instead."
+2:4 2:10 no-undef "'Slider' is not defined."
+3:1 3:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
+3:7 3:12 no-undef "'value' is not defined."
+3:7 3:12 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+4:1 4:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
+4:2 4:9 svelte/sort-attributes "Attribute 'min' should go before 'bind:value'."
+5:1 5:2 svelte/indent "Expected indentation of 4 spaces but found 1 whitespace."
+5:2 5:11 svelte/sort-attributes "Attribute 'max' should go before 'bind:value'."
+
 === 373 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/02-style-props/03-input.svelte	lint.txt
 3:2 3:21 svelte/consistent-selector-style "Selector should select by element type instead of class"
 3:2 3:21 svelte/valid-compile "Unused CSS selector \".potato-slider-rail\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 7:2 7:8 no-undef "'Slider' is not defined."
 7:33 7:35 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
+=== 308 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/03-bind-property/01-input.svelte	lint.txt
+1:2 1:8 no-undef "'MyComp' is not defined."
+1:24 1:32 no-undef "'variable' is not defined."
+1:24 1:32 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+1:33 1:35 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
+=== 303 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/03-bind-property/02-input.svelte	lint.txt
+1:2 1:8 no-undef "'Keypad' is not defined."
+1:21 1:24 no-undef "'pin' is not defined."
+1:21 1:24 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+1:25 1:27 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
 
 === 192 tests/fixtures/parser/ast/docs/template-syntax/12-component-directives/04-bind-this/01-input.svelte	lint.txt
 1:2 1:8 no-undef "'MyComp' is not defined."
@@ -1154,12 +1367,22 @@
 1:26 1:33 no-undef "'handler' is not defined."
 1:34 1:36 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
 
+=== 262 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/02-input.svelte	lint.txt
+1:16 1:33 svelte/valid-compile "`bind:prop` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name(bind_invalid_name)"
+1:27 1:32 no-undef "'value' is not defined."
+1:33 1:35 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
 === 377 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/03-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 3:3 3:8 no-undef "'alert' is not defined."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 7:42 7:44 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
+=== 257 tests/fixtures/parser/ast/docs/template-syntax/16_1-svelte-window/04-input.svelte	lint.txt
+1:30 1:31 no-undef "'y' is not defined."
+1:30 1:31 svelte/valid-compile "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value(bind_invalid_value)"
+1:32 1:34 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
 
 === 137 tests/fixtures/parser/ast/docs/template-syntax/16_2-svelte-document/01-input.svelte	lint.txt
 1:28 1:35 no-undef "'handler' is not defined."
@@ -1189,8 +1412,14 @@
 2:25 2:55 svelte/sort-attributes "Attribute 'href' should go before 'rel'."
 2:55 2:56 svelte/html-self-closing "Require self-closing on HTML void elements."
 
+=== 127 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/01-input.svelte	lint.txt
+1:16 - - "Parsing error: `<svelte:options>` unknown attribute 'option'\nhttps://svelte.dev/e/svelte_options_unknown_attribute"
+
 === 90 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-input.svelte	lint.txt
 1:50 1:52 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
+=== 141 tests/fixtures/parser/ast/docs/template-syntax/19-svelte-options/02-old-input.svelte	lint.txt
+1:16 - - "Parsing error: \"tag\" option is deprecated — use \"customElement\" instead\nhttps://svelte.dev/e/svelte_options_deprecated_tag"
 
 === 1086 tests/fixtures/parser/ast/docs/template-syntax/20-svelte-fragment/01-input.svelte	lint.txt
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1315,6 +1544,12 @@
 1:27 1:37 svelte/no-dupe-else-if-blocks "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the `{#if}` / `{:else if}` chain."
 1:27 1:37 no-undef "'expression' is not defined."
 
+=== 390 tests/fixtures/parser/ast/illegal/dot-in-bind01-input.svelte	lint.txt
+2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+4:8 4:29 svelte/valid-compile "`bind:va.lue` is not a valid binding. Did you mean 'value'?\nhttps://svelte.dev/e/bind_invalid_name(bind_invalid_name)"
+4:20 4:29 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+4:29 4:31 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
+
 === 482 tests/fixtures/parser/ast/issue327-eslint-plugin-svelte-input.svelte	lint.txt
 1:1 3:9 svelte/require-each-key "Each block should have a key"
 1:8 1:9 no-undef "'f' is not defined."
@@ -1388,6 +1623,76 @@
 3:1 3:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 5214 tests/fixtures/parser/ast/newline-in-blocks-input.svelte	lint.txt
+1:1 1:13 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
+1:1 1:13 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
+2:1 3:1 svelte/mustache-spacing "Expected no space after '{', but found."
+2:1 3:4 svelte/valid-compile "Expected a `#` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character(block_unexpected_character)"
+3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+4:1 4:11 no-undef "'expression' is not defined."
+4:1 4:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+4:11 5:2 svelte/mustache-spacing "Expected no space before '}', but found."
+6:1 6:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+7:1 8:1 svelte/mustache-spacing "Expected no space after '{', but found."
+8:1 8:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+9:1 9:5 no-unused-vars "'name' is defined but never used."
+9:1 9:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+9:5 10:2 svelte/mustache-spacing "Expected no space before '}', but found."
+11:1 11:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+12:1 13:1 svelte/mustache-spacing "Expected no space after '{', but found."
+13:1 13:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+14:1 14:5 no-unused-vars "'name' is defined but never used."
+14:1 14:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+14:5 15:2 svelte/mustache-spacing "Expected no space before '}', but found."
+16:1 16:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+17:1 18:1 svelte/mustache-spacing "Expected no space after '{', but found."
+18:1 18:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+18:7 19:2 svelte/mustache-spacing "Expected no space before '}', but found."
+20:1 20:12 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
+20:1 20:12 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
+21:1 22:1 svelte/mustache-spacing "Expected no space after '{', but found."
+21:1 31:2 svelte/require-each-key "Each block should have a key"
+22:1 22:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+23:1 23:5 no-undef "'cats' is not defined."
+23:1 23:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+24:1 24:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+25:1 25:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+26:1 26:3 no-unused-vars "'id' is defined but never used."
+26:1 26:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
+27:1 27:5 no-unused-vars "'name' is defined but never used."
+27:1 27:1 svelte/indent "Expected indentation of 6 spaces but found 0 spaces."
+28:1 28:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+29:1 29:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+30:1 30:2 no-unused-vars "'i' is defined but never used."
+30:1 30:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+30:2 31:2 svelte/mustache-spacing "Expected no space before '}', but found."
+32:1 32:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+33:1 34:1 svelte/mustache-spacing "Expected no space after '{', but found."
+34:1 34:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+34:6 35:2 svelte/mustache-spacing "Expected no space before '}', but found."
+36:1 36:10 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
+36:1 36:10 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
+37:1 38:1 svelte/mustache-spacing "Expected no space after '{', but found."
+38:1 38:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+39:1 39:2 no-undef "'a' is not defined."
+39:1 39:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+39:2 40:2 svelte/mustache-spacing "Expected no space before '}', but found."
+41:1 41:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+42:1 43:1 svelte/mustache-spacing "Expected no space after '{', but found."
+43:1 43:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+43:4 44:2 svelte/mustache-spacing "Expected no space before '}', but found."
+45:1 45:11 svelte/spaced-html-comment "Expected space or tab after '<!--' in comment."
+45:1 45:11 svelte/spaced-html-comment "Expected space or tab before '-->' in comment."
+46:1 47:1 svelte/mustache-spacing "Expected no space after '{', but found."
+47:1 47:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+48:1 48:6 no-undef "'value' is not defined."
+48:1 48:1 svelte/indent "Expected indentation of 4 spaces but found 0 spaces."
+48:6 49:2 svelte/mustache-spacing "Expected no space before '}', but found."
+50:1 50:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+51:1 52:1 svelte/mustache-spacing "Expected no space after '{', but found."
+52:1 52:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+52:5 53:2 svelte/mustache-spacing "Expected no space before '}', but found."
+
 === 87 tests/fixtures/parser/ast/postcss-input.svelte	lint.txt
 1:1 6:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
@@ -1399,11 +1704,22 @@
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 325 tests/fixtures/parser/ast/pug/each/each01-input.svelte	lint.txt
+2:1 2:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+2:5 2:9 no-unused-vars "'objs' is assigned a value but never used."
+2:5 2:9 svelte/prefer-const "'objs' is never reassigned. Use 'const' instead."
+7:9 7:9 svelte/valid-compile "Unexpected token\nhttps://svelte.dev/e/js_parse_error(js_parse_error)"
+
 === 446 tests/fixtures/parser/ast/pug/each/self-closing-template-input.svelte	lint.txt
 1:1 1:43 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<template ...></template>` rather than `<template ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 1:41 1:43 svelte/html-self-closing "Disallow self-closing on HTML elements."
 3:1 3:8 no-undef "'console' is not defined."
 3:1 3:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+
+=== 295 tests/fixtures/parser/ast/sass-input.svelte	lint.txt
+1:1 8:9 svelte/valid-style-parse "Found unsupported style element language \"sass\""
+1:1 8:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
+5:1 5:5 svelte/valid-compile "Unused CSS selector \"body\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
 
 === 120 tests/fixtures/parser/ast/script-in-style-input.svelte	lint.txt
 2:1 2:2 svelte/valid-compile "Unused CSS selector \"a\"\nhttps://svelte.dev/e/css_unused_selector(css_unused_selector)"
@@ -1418,6 +1734,176 @@
 3:29 3:45 svelte/max-attributes-per-line "'rel' should be on a new line."
 3:45 3:46 svelte/html-self-closing "Require self-closing on HTML void elements."
 4:1 4:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+
+=== 308 tests/fixtures/parser/ast/self-closing-style01-input.svelte	lint.txt
+1:1 1:37 svelte/no-nested-style-tag "Nested `<style>` elements are not scoped and may lead to unintended styles being applied."
+1:35 1:37 svelte/html-self-closing "Disallow self-closing on HTML elements."
+1:35 1:35 svelte/valid-compile "Expected token >\nhttps://svelte.dev/e/expected_token(expected_token)"
+
+=== 12768 tests/fixtures/parser/ast/space-in-blocks-input.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:6 5:11 no-unassigned-vars "'input' is always 'undefined' because it's never assigned."
+6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+8:1 8:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+9:1 9:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:1 10:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+11:1 11:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
+12:1 12:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:1 13:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+18:1 18:3 svelte/mustache-spacing "Expected no space after '{', but found."
+18:1 18:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+18:6 18:8 svelte/mustache-spacing "Expected no space before '}', but found."
+19:1 19:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+19:1 19:69 svelte/no-unused-class-name "Unused class \"foo\"."
+19:19 19:21 svelte/mustache-spacing "Expected no space after '{', but found."
+19:25 19:27 svelte/mustache-spacing "Expected no space before '}', but found."
+19:28 19:42 svelte/max-attributes-per-line "'this' should be on a new line."
+19:28 19:42 svelte/sort-attributes "Attribute 'this' should go before 'bind:value'."
+19:33 19:35 svelte/mustache-spacing "Expected no space after '{', but found."
+19:40 19:42 svelte/mustache-spacing "Expected no space before '}', but found."
+19:43 19:66 svelte/sort-attributes "Attribute 'class' should go before 'bind:value'."
+19:54 19:56 svelte/mustache-spacing "Expected no space after '{', but found."
+19:63 19:65 svelte/mustache-spacing "Expected no space before '}', but found."
+20:1 20:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+20:19 20:25 svelte/max-attributes-per-line "'id' should be on a new line."
+20:19 20:25 svelte/sort-attributes "Attribute 'id' should go before 'bind:value'."
+20:19 20:21 svelte/mustache-spacing "Expected no space after '{', but found."
+20:23 20:25 svelte/mustache-spacing "Expected no space before '}', but found."
+21:1 21:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+21:8 21:10 svelte/mustache-spacing "Expected no space after '{', but found."
+21:18 21:20 svelte/mustache-spacing "Expected no space before '}', but found."
+22:1 22:3 svelte/mustache-spacing "Expected no space after '{', but found."
+22:1 22:14 svelte/no-at-html-tags "`{@html}` can lead to XSS attack."
+22:1 22:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+22:1 22:6 svelte/valid-compile "Expected a `@` character immediately following the opening bracket\nhttps://svelte.dev/e/block_unexpected_character(block_unexpected_character)"
+22:12 22:14 svelte/mustache-spacing "Expected no space before '}', but found."
+23:1 23:3 svelte/mustache-spacing "Expected no space after '{', but found."
+23:1 23:14 svelte/no-at-debug-tags "Unexpected `{@debug}`."
+23:1 23:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+23:12 23:14 svelte/mustache-spacing "Expected no space before '}', but found."
+24:1 24:3 svelte/mustache-spacing "Expected no space after '{', but found."
+24:1 24:18 svelte/no-at-debug-tags "Unexpected `{@debug}`."
+24:1 24:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+24:16 24:18 svelte/mustache-spacing "Expected no space before '}', but found."
+26:1 26:3 svelte/mustache-spacing "Expected no space after '{', but found."
+26:1 26:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+26:17 26:19 svelte/mustache-spacing "Expected no space before '}', but found."
+26:22 26:24 svelte/mustache-spacing "Expected no space after '{', but found."
+26:27 26:29 svelte/mustache-spacing "Expected no space before '}', but found."
+27:1 27:3 svelte/mustache-spacing "Expected no space after '{', but found."
+27:1 27:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+27:17 27:19 svelte/mustache-spacing "Expected no space before '}', but found."
+27:22 27:24 svelte/mustache-spacing "Expected no space after '{', but found."
+27:33 27:43 svelte/no-dupe-else-if-blocks "This branch can never execute. Its condition is a duplicate or covered by previous conditions in the `{#if}` / `{:else if}` chain."
+27:43 27:45 svelte/mustache-spacing "Expected no space before '}', but found."
+27:48 27:50 svelte/mustache-spacing "Expected no space after '{', but found."
+27:53 27:55 svelte/mustache-spacing "Expected no space before '}', but found."
+28:1 28:3 svelte/mustache-spacing "Expected no space after '{', but found."
+28:1 28:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+28:17 28:19 svelte/mustache-spacing "Expected no space before '}', but found."
+28:22 28:24 svelte/mustache-spacing "Expected no space after '{', but found."
+28:29 28:31 svelte/mustache-spacing "Expected no space before '}', but found."
+28:34 28:36 svelte/mustache-spacing "Expected no space after '{', but found."
+28:39 28:41 svelte/mustache-spacing "Expected no space before '}', but found."
+29:1 29:3 svelte/mustache-spacing "Expected no space after '{', but found."
+29:1 29:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+29:17 29:19 svelte/mustache-spacing "Expected no space before '}', but found."
+29:19 29:21 svelte/mustache-spacing "Expected no space after '{', but found."
+29:26 29:28 svelte/mustache-spacing "Expected no space before '}', but found."
+29:28 29:30 svelte/mustache-spacing "Expected no space after '{', but found."
+29:33 29:35 svelte/mustache-spacing "Expected no space before '}', but found."
+31:1 31:3 svelte/mustache-spacing "Expected no space after '{', but found."
+31:1 31:23 svelte/require-each-key "Each block should have a key"
+31:1 31:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+31:17 31:21 no-unused-vars "'item' is defined but never used."
+31:21 31:23 svelte/mustache-spacing "Expected no space before '}', but found."
+31:26 31:28 svelte/mustache-spacing "Expected no space after '{', but found."
+31:33 31:35 svelte/mustache-spacing "Expected no space before '}', but found."
+32:1 32:3 svelte/mustache-spacing "Expected no space after '{', but found."
+32:1 32:30 svelte/require-each-key "Each block should have a key"
+32:1 32:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+32:17 32:21 no-unused-vars "'item' is defined but never used."
+32:23 32:28 no-unused-vars "'index' is defined but never used."
+32:28 32:30 svelte/mustache-spacing "Expected no space before '}', but found."
+32:33 32:35 svelte/mustache-spacing "Expected no space after '{', but found."
+32:40 32:42 svelte/mustache-spacing "Expected no space before '}', but found."
+33:1 33:3 svelte/mustache-spacing "Expected no space after '{', but found."
+33:1 33:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+33:32 33:34 svelte/mustache-spacing "Expected no space before '}', but found."
+33:37 33:39 svelte/mustache-spacing "Expected no space after '{', but found."
+33:44 33:46 svelte/mustache-spacing "Expected no space before '}', but found."
+34:1 34:3 svelte/mustache-spacing "Expected no space after '{', but found."
+34:1 34:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+34:23 34:28 no-unused-vars "'index' is defined but never used."
+34:39 34:41 svelte/mustache-spacing "Expected no space before '}', but found."
+34:44 34:46 svelte/mustache-spacing "Expected no space after '{', but found."
+34:51 34:53 svelte/mustache-spacing "Expected no space before '}', but found."
+35:1 35:3 svelte/mustache-spacing "Expected no space after '{', but found."
+35:1 35:23 svelte/require-each-key "Each block should have a key"
+35:1 35:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+35:17 35:21 no-unused-vars "'item' is defined but never used."
+35:21 35:23 svelte/mustache-spacing "Expected no space before '}', but found."
+35:26 35:28 svelte/mustache-spacing "Expected no space after '{', but found."
+35:33 35:35 svelte/mustache-spacing "Expected no space before '}', but found."
+35:38 35:40 svelte/mustache-spacing "Expected no space after '{', but found."
+35:45 35:47 svelte/mustache-spacing "Expected no space before '}', but found."
+37:1 37:3 svelte/mustache-spacing "Expected no space after '{', but found."
+37:1 37:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+37:20 37:22 svelte/mustache-spacing "Expected no space before '}', but found."
+37:25 37:27 svelte/mustache-spacing "Expected no space after '{', but found."
+37:33 37:37 no-unused-vars "'name' is defined but never used."
+37:37 37:39 svelte/mustache-spacing "Expected no space before '}', but found."
+37:42 37:44 svelte/mustache-spacing "Expected no space after '{', but found."
+37:51 37:55 no-unused-vars "'name' is defined but never used."
+37:55 37:57 svelte/mustache-spacing "Expected no space before '}', but found."
+37:60 37:62 svelte/mustache-spacing "Expected no space after '{', but found."
+37:68 37:70 svelte/mustache-spacing "Expected no space before '}', but found."
+38:1 38:3 svelte/mustache-spacing "Expected no space after '{', but found."
+38:1 38:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+38:20 38:22 svelte/mustache-spacing "Expected no space before '}', but found."
+38:25 38:27 svelte/mustache-spacing "Expected no space after '{', but found."
+38:33 38:37 no-unused-vars "'name' is defined but never used."
+38:37 38:39 svelte/mustache-spacing "Expected no space before '}', but found."
+38:42 38:44 svelte/mustache-spacing "Expected no space after '{', but found."
+38:50 38:52 svelte/mustache-spacing "Expected no space before '}', but found."
+39:1 39:3 svelte/mustache-spacing "Expected no space after '{', but found."
+39:1 39:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+39:26 39:30 no-unused-vars "'name' is defined but never used."
+39:30 39:32 svelte/mustache-spacing "Expected no space before '}', but found."
+39:35 39:37 svelte/mustache-spacing "Expected no space after '{', but found."
+39:43 39:45 svelte/mustache-spacing "Expected no space before '}', but found."
+40:1 40:3 svelte/mustache-spacing "Expected no space after '{', but found."
+40:1 40:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+40:27 40:31 no-unused-vars "'name' is defined but never used."
+40:31 40:33 svelte/mustache-spacing "Expected no space before '}', but found."
+40:36 40:38 svelte/mustache-spacing "Expected no space after '{', but found."
+40:44 40:46 svelte/mustache-spacing "Expected no space before '}', but found."
+41:1 41:3 svelte/mustache-spacing "Expected no space after '{', but found."
+41:1 41:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+41:25 41:27 svelte/mustache-spacing "Expected no space before '}', but found."
+41:30 41:32 svelte/mustache-spacing "Expected no space after '{', but found."
+41:38 41:40 svelte/mustache-spacing "Expected no space before '}', but found."
+42:1 42:3 svelte/mustache-spacing "Expected no space after '{', but found."
+42:1 42:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+42:26 42:28 svelte/mustache-spacing "Expected no space before '}', but found."
+42:31 42:33 svelte/mustache-spacing "Expected no space after '{', but found."
+42:39 42:41 svelte/mustache-spacing "Expected no space before '}', but found."
+43:1 43:3 svelte/mustache-spacing "Expected no space after '{', but found."
+43:1 43:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+43:20 43:22 svelte/mustache-spacing "Expected no space before '}', but found."
+43:25 43:27 svelte/mustache-spacing "Expected no space after '{', but found."
+43:36 43:38 svelte/mustache-spacing "Expected no space after '{', but found."
+43:48 43:50 svelte/mustache-spacing "Expected no space after '{', but found."
+43:56 43:58 svelte/mustache-spacing "Expected no space before '}', but found."
+45:1 45:3 svelte/mustache-spacing "Expected no space after '{', but found."
+45:1 45:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+45:18 45:20 svelte/mustache-spacing "Expected no space before '}', but found."
+45:23 45:25 svelte/mustache-spacing "Expected no space after '{', but found."
+45:29 45:31 svelte/mustache-spacing "Expected no space before '}', but found."
 
 === 608 tests/fixtures/parser/ast/store-bindings-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1478,12 +1964,27 @@
 6:1 6:8 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
 6:6 6:8 svelte/html-self-closing "Disallow self-closing on HTML elements."
 
+=== 480 tests/fixtures/parser/ast/style02-input.svelte	lint.txt
+1:1 4:9 svelte/valid-style-parse "Found unsupported style element language \"stylus\""
+1:1 4:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
+5:1 5:8 svelte/valid-compile "Self-closing HTML tags for non-void elements are ambiguous — use `<div ...></div>` rather than `<div ... />`\nhttps://svelte.dev/e/element_invalid_self_closing_tag(element_invalid_self_closing_tag)"
+5:6 5:8 svelte/html-self-closing "Disallow self-closing on HTML elements."
+
 === 406 tests/fixtures/parser/ast/svelte5/$bindable-used-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 5:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 9:1 9:27 svelte/button-has-type "Missing an explicit type attribute for button."
+
+=== 447 tests/fixtures/parser/ast/svelte5/$derived-in-template-with-ts01-input.svelte	lint.txt
+1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:26 5:37 svelte/valid-compile "`$derived(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement(state_invalid_placement)"
+
+=== 358 tests/fixtures/parser/ast/svelte5/$derived-in-template-without-ts01-input.svelte	lint.txt
+2:1 2:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:26 5:37 svelte/valid-compile "`$derived(...)` can only be used as a variable declaration initializer, a class field declaration, or the first assignment to a class field at the top level of the constructor.\nhttps://svelte.dev/e/state_invalid_placement(state_invalid_placement)"
 
 === 162 tests/fixtures/parser/ast/svelte5/$props-without-destructuring-runes-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -1732,10 +2233,24 @@
 46:1 46:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 47:1 47:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 424 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-frozen-input.svelte	lint.txt
+2:17 2:41 svelte/valid-compile "`$state.frozen` is now `$state.raw`\nhttps://svelte.dev/e/rune_renamed(rune_renamed)"
+5:1 5:72 svelte/button-has-type "Missing an explicit type attribute for button."
+5:17 5:71 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+9:1 9:60 svelte/button-has-type "Missing an explicit type attribute for button."
+9:17 9:59 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+
 === 365 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-input.svelte	lint.txt
 5:1 5:36 svelte/button-has-type "Missing an explicit type attribute for button."
 5:9 5:35 svelte/valid-compile "Using `on:click` to listen to the click event is deprecated. Use the event attribute `onclick` instead\nhttps://svelte.dev/e/event_directive_deprecated(event_directive_deprecated)"
 5:18 5:35 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+
+=== 370 tests/fixtures/parser/ast/svelte5/docs/runes/01-$state-is-input.svelte	lint.txt
+2:7 2:10 svelte/prefer-const "'foo' is never reassigned. Use 'const' instead."
+3:7 3:10 svelte/prefer-const "'bar' is never reassigned. Use 'const' instead."
+7:3 7:10 no-undef "'console' is not defined."
+8:3 8:10 no-undef "'console' is not defined."
+8:15 8:38 svelte/valid-compile "The `$state.is` rune has been removed\nhttps://svelte.dev/e/rune_removed(rune_removed)"
 
 === 536 tests/fixtures/parser/ast/svelte5/docs/runes/02-$derived-input.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2413,6 +2928,16 @@
 === 89 tests/fixtures/parser/ast/svelte5/ts-$props02-type-output.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
+=== 670 tests/fixtures/parser/ast/svelte5/ts-$state-flozen01-input.svelte	lint.txt
+1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:17 2:41 svelte/valid-compile "`$state.frozen` is now `$state.raw`\nhttps://svelte.dev/e/rune_renamed(rune_renamed)"
+3:7 3:13 no-unused-vars "'unused' is assigned a value but never used."
+3:7 3:13 svelte/prefer-const "'unused' is never reassigned. Use 'const' instead."
+6:1 6:72 svelte/button-has-type "Missing an explicit type attribute for button."
+6:17 6:71 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+10:1 10:60 svelte/button-has-type "Missing an explicit type attribute for button."
+10:17 10:59 svelte/html-quotes "Unexpected to be enclosed by any quotes."
+
 === 603 tests/fixtures/parser/ast/svelte5/ts-$state01-input.svelte	lint.txt
 1:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 3:7 3:11 no-unused-vars "'name' is assigned a value but never used."
@@ -2912,6 +3437,9 @@
 7:1 7:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
 8:4 8:5 svelte/html-closing-bracket-new-line "Expected 1 line break before closing bracket, but no line breaks found."
 
+=== 81 tests/fixtures/parser/ast/ts-generics06-complex-type-output.svelte	lint.txt
+2:111 - - "Parsing error: Expected token =\nhttps://svelte.dev/e/expected_token"
+
 === 253 tests/fixtures/parser/ast/ts-let/ts-let01-input.svelte	lint.txt
 1:1 18:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 21:22 21:30 svelte/max-attributes-per-line "'let:item' should be on a new line."
@@ -3078,6 +3606,30 @@
 === 89 tests/fixtures/parser/ast/ts-slot-binding01-type-output.svelte	lint.txt
 1:1 3:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 
+=== 942 tests/fixtures/parser/ast/ts-store01-input.svelte	lint.txt
+1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:8 5:10 svelte/valid-compile "The $ prefix is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_prefix_invalid(dollar_prefix_invalid)"
+6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:2 10:3 svelte/require-store-reactive-access "Use the $ prefix or the get function to access reactive values instead of accessing the raw store."
+14:2 14:10 no-undef "'$unknown' is not defined."
+
+=== 942 tests/fixtures/parser/ast/ts-store01-type-output.svelte	lint.txt
+1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+3:1 3:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:1 5:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+5:8 5:10 svelte/valid-compile "The $ prefix is reserved, and cannot be used for variables and imports\nhttps://svelte.dev/e/dollar_prefix_invalid(dollar_prefix_invalid)"
+6:1 6:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+7:1 7:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+10:2 10:3 svelte/require-store-reactive-access "Use the $ prefix or the get function to access reactive values instead of accessing the raw store."
+14:2 14:10 no-undef "'$unknown' is not defined."
+
 === 966 tests/fixtures/parser/ast/ts-store02-input.svelte	lint.txt
 1:1 5:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 1:9 1:25 svelte/valid-compile "`context=\"module\"` is deprecated, use the `module` attribute instead\nhttps://svelte.dev/e/script_context_deprecated(script_context_deprecated)"
@@ -3133,6 +3685,17 @@
 9:1 9:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 10:1 10:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 11:1 11:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 762 tests/fixtures/parser/ast/ts-tokens-bug-input.svelte	lint.txt
+2:1 4:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
+3:1 3:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+5:17 5:23 no-undef "'$store' is not defined."
+5:17 5:30 svelte/prefer-destructured-store-props "Destructure number from $store for better change tracking & fewer redraws"
+5:17 5:23 svelte/valid-compile "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid(global_reference_invalid)"
+5:35 5:40 no-undef "'index' is not defined."
+6:1 6:5 svelte/indent "Expected indentation of 2 spaces but found 4 spaces."
+6:6 6:11 no-undef "'index' is not defined."
+6:14 6:17 no-undef "'tab' is not defined."
 
 === 509 tests/fixtures/parser/ast/ts-use01-input.svelte	lint.txt
 1:1 10:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -5029,6 +5592,12 @@
 9:45 9:47 svelte/html-self-closing "Disallow self-closing on HTML elements."
 9:45 9:47 svelte/html-closing-bracket-spacing "Expected space before '>', but not found."
 
+=== 75 tests/fixtures/parser/error/dot-in-bind02-input.svelte	lint.txt
+3:12 - - "Parsing error: Expected Identifier, but MemberExpression found."
+
+=== 75 tests/fixtures/parser/error/shorthand01-input.svelte	lint.txt
+8:16 - - "Parsing error: Expected Identifier, but BinaryExpression found."
+
 === 944 tests/fixtures/parser/selector-parsing/simple-css-input.svelte	lint.txt
 2:7 2:8 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 10:3 10:11 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -5064,6 +5633,16 @@
 2:7 2:8 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 7:9 7:17 svelte/consistent-selector-style "Selector should select by element type instead of class"
 
+=== 312 tests/fixtures/parser/style-context/parse-error-input.svelte	lint.txt
+6:1 17:9 svelte/valid-style-parse "Error parsing style element. Error message: \"tests/fixtures/parser/style-context/parse-error-input.svelte:4:11: Unknown word .div-class/35\""
+7:3 7:3 svelte/valid-compile "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier(css_expected_identifier)"
+
+=== 381 tests/fixtures/parser/style-context/self-closing-style-element-input.svelte	lint.txt
+2:7 2:8 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
+7:1 7:10 svelte/no-nested-style-tag "Nested `<style>` elements are not scoped and may lead to unintended styles being applied."
+7:8 7:10 svelte/html-self-closing "Disallow self-closing on HTML elements."
+7:8 7:8 svelte/valid-compile "Expected token >\nhttps://svelte.dev/e/expected_token(expected_token)"
+
 === 178 tests/fixtures/parser/style-context/simple-css-input.svelte	lint.txt
 2:7 2:8 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."
 10:3 10:11 svelte/consistent-selector-style "Selector should select by element type instead of class"
@@ -5079,6 +5658,10 @@
 8:3 8:13 svelte/consistent-selector-style "Selector should select by ID instead of class"
 9:5 9:15 svelte/consistent-selector-style "Selector should select by ID instead of class"
 14:5 14:16 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 182 tests/fixtures/parser/style-context/unknown-lang-input.svelte	lint.txt
+6:1 17:9 svelte/valid-style-parse "Found unsupported style element language \"invalid-lang\""
+6:1 17:9 svelte/block-lang "The lang attribute of the <style> block should be omitted."
 
 === 178 tests/fixtures/parser/style-context/unrelated-style-attr-input.svelte	lint.txt
 2:7 2:8 svelte/prefer-const "'a' is never reassigned. Use 'const' instead."

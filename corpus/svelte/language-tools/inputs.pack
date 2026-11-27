@@ -43836,6 +43836,24 @@ $noStoreModule;
 {/if}
 
 {$noStoreModule}
+=== 297 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-animations-transitions-typechecks/input.svelte	svelte	runes	rejected
+<script lang="ts">
+  import { draw } from 'svelte/transition';
+  import { flip } from 'svelte/animate';
+
+  function action(node: HTMLInputElement) {
+      node;
+  }
+</script>
+
+<div transition:draw></div>
+<path transition:draw></path>
+
+<p animate:flip></p>
+
+<p use:action></p>
+<input use:action />
+
 === 663 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	svelte	runes	neutral
 <script lang="ts">
     function action(node: any) {
@@ -44008,6 +44026,38 @@ $noStoreModule;
 <div>
     {hi}
 </div>
+=== 447 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/coffeescript-ignore/input.svelte	svelte	runes	rejected
+<script lang="coffee">
+# Assignment:
+number   = 42
+opposite = true
+
+# Conditions:
+number = -42 if opposite
+
+# Functions:
+square = (x) -> x * x
+
+# Arrays:
+list = [1, 2, 3, 4, 5]
+
+# Objects:
+math =
+  root:   Math.sqrt
+  square: square
+  cube:   (x) -> x * square x
+
+# Splats:
+race = (winner, runners...) ->
+  print winner, runners
+
+# Existence:
+alert "I knew it!" if elvis?
+
+# Array comprehensions:
+cubes = (math.cube num for num in list)
+</script>
+
 === 10 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte	svelte	runes	neutral
 <p>hi</p>
 
@@ -44565,6 +44615,9 @@ a().b;
   foo;baz;
 </script>
 
+=== 31 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/parser-error/input.svelte	svelte	runes	rejected
+<style></style>
+<style></style>
 === 160 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/nested/imported.ts	ts	module	-
 /**
  *
@@ -44619,6 +44672,23 @@ let a: number = 'a'; a;
 +if('typeof a === "number"')
   A(a='{a.toFixed(2)}')
 </template>
+
+=== 152 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/ignores-unused-label/input.svelte	svelte	runes	rejected
+<script type="ts">
+  export let x = 0
+
+  let x2: number
+
+  $: x2 = x * x
+
+  $: {
+    x2 = x * x
+  }
+
+  $: sqrt = x * x
+</script>
+
+<p>{x2} == {sqrt}</p>
 
 === 115 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte	svelte	runes	neutral
 <script>
@@ -44727,6 +44797,13 @@ let a: number = 'a'; a;
 <!-- error -->
 <div style:wrong />
 <div style:wrong={wrong} />
+
+=== 64 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element-error/input.svelte	svelte	runes	rejected
+<script lang="ts">
+</script>
+
+<!-- error -->
+<svelte:element />
 
 === 706 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -45067,6 +45144,19 @@ catch error}
 hi}
     {hi}
 {/key}
+=== 113 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/parser-error/input.svelte	svelte	runes	rejected
+<script lang="ts">
+    function hi() {
+
+    }
+</script>
+
+{#if 'hi'}
+    <div></div>
+{:else}
+    <div></div>
+{/if
+
 === 125 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/script/input.svelte	svelte	runes	neutral
 <script lang="ts">
     import {} from 'svelte';
@@ -47359,6 +47449,16 @@ function parseDate(date: string): Date {
 <FixAllImported />
 <FixAllImported2 />
 
+=== 44 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte	svelte	runes	rejected
+<button onclick={(e: Event) => {}}></button>
+=== 110 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-add-lang-ts.svelte	svelte	runes	rejected
+<script>
+    function a(b: number) {
+        return b + 1;
+    }
+</script>
+
+<script context="module"></script>
 === 79 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	svelte	runes	neutral
 <script context="module">
     // @ts-check
@@ -47372,6 +47472,19 @@ function parseDate(date: string): Date {
 </script>
 
 <Empty />
+=== 151 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-const-reassign.svelte	svelte	runes	rejected
+<script lang="ts">
+    const hi = 1;
+
+    hi = 1;
+</script>
+
+{#if hi == 1}
+    {@const hi2 = hi}
+
+    <button on:click={() => hi2 = 2}></button>
+{/if}
+
 === 70 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component.svelte	svelte	runes	neutral
 <script lang="ts">
 
@@ -47425,6 +47538,12 @@ class FixAllImported3 {}
 <FixAllImported2 />
 
 
+=== 66 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-store.svelte	svelte	runes	rejected
+<script lang="ts">
+    $someOtherStore;
+    $someStore;
+</script>
+
 === 251 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeactions.svelte	svelte	runes	neutral
 <script lang="ts">
 import {C} from 'blubb';
@@ -47440,6 +47559,16 @@ abc();
 {abc()}
 <Empty />
 <button on:click={e => handleClick(e)} />
+=== 123 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-add-async.svelte	svelte	runes	rejected
+<script>
+    {
+        await Promise.resolve()
+    }
+
+    function test() {
+        await Promise.resolve()
+    }
+</script>
 === 65 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-missing-function-element.svelte	svelte	runes	neutral
 <script lang="ts">
 
@@ -47474,6 +47603,15 @@ export class FixAllImported3 extends SvelteComponentTyped {}
     import { someStore as someOtherStore3 } from './importing/a';
 </script>
 
+=== 69 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-error.svelte	svelte	runes	rejected
+<script>
+  import {c} from './c';
+  const a = true;
+</script>
+
+{c}
+<
+
 === 142 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-group.svelte	svelte	runes	neutral
 <script>
     import { } from 'svelte';
@@ -47488,6 +47626,21 @@ export class FixAllImported3 extends SvelteComponentTyped {}
     // @ts-ignore
     import { } from './somepng.png'
 </script>
+
+=== 262 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-module-store.svelte	svelte	runes	rejected
+<script context="module">
+  import { _ } from 'svelte-i18n';
+</script>
+
+<script>
+  import { _ } from 'svelte-i18n';
+  import { _d } from 'svelte-i18n';
+  import { _e } from 'svelte-i18n1';
+</script>
+
+<p>{$_('test')}</p>
+<p>{$_d('test')}</p>
+<p>{$_e('test')}</p>
 
 === 135 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-snippet.svelte	svelte	runes	neutral
 <script lang="ts" module>
@@ -47609,6 +47762,41 @@ export { ComponentDef3 as ComponentDef6 };
 <script>
     import {} from './'
 </script>
+=== 68 packages/language-server/test/plugins/typescript/testfiles/completions/completions-auto-optional-chain.svelte	svelte	runes	rejected
+<script lang="ts">
+    let a: string | undefined;
+
+    a.
+</script>
+
+=== 317 packages/language-server/test/plugins/typescript/testfiles/completions/completions-in-reactive-statement.svelte	svelte	runes	rejected
+<script lang="ts">
+    import { writable } from "svelte/store";
+
+    const prop = { abc: true };
+
+    function fun() { return prop; }
+    const variable = prop;
+    const store = writable(prop);
+
+    $: fun().;
+    $: variable.;
+    $: $store.;
+
+    $: a = fun().;
+    $: b = variable.;
+    $: c = $store.;
+</script>
+
+=== 58 packages/language-server/test/plugins/typescript/testfiles/completions/completions.svelte	svelte	runes	rejected
+<script>class A { b() { return true; } } new A().</script>
+=== 77 packages/language-server/test/plugins/typescript/testfiles/completions/completionsstyle.svelte	svelte	runes	rejected
+<script>class c { b() { return true; } }</script>
+<style>
+.bla {
+c
+}
+</style>
 === 188 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion-ts-def.svelte	svelte	runes	neutral
 <script>
     import { ComponentDef, ComponentDef2 } from './ComponentDef';
@@ -47662,6 +47850,54 @@ export { ComponentDef3 as ComponentDef6 };
     let { a }: { a: string } = $props();
 </script>
 
+=== 2 packages/language-server/test/plugins/typescript/testfiles/completions/custom-element-tag.svelte	svelte	runes	rejected
+<c
+=== 541 packages/language-server/test/plugins/typescript/testfiles/completions/editingCompletion.svelte	svelte	runes	rejected
+<script>
+    let b = { c: 1 };
+</script>
+
+{b.}
+
+{#await b.}
+    
+{/await}
+
+{#key b.}
+    
+{/key}
+
+{@html b.}
+
+{#if b.}
+    
+{/if}
+
+{#each [b] as _b}
+    {@const _hi2 = _b.}
+{/each}
+
+<div use:action={b.}></div>
+
+<div transition:fade={b.}></div>
+
+<button on:click={() => b.}></button>
+
+<input bind:value={b.}>
+
+<input value={b.}>
+
+<div class:active={b.}></div>
+
+<div style:position={b.}></div>
+
+<div animate:animate={b.}></div>
+
+<Component hi={b.}></Component>
+
+<Component bind:hi={b.}></Component>
+
+<Component on:click={() => b.}></Component>
 === 24 packages/language-server/test/plugins/typescript/testfiles/completions/element-events-completion.svelte	svelte	runes	neutral
 <button on:tou></button>
 === 90 packages/language-server/test/plugins/typescript/testfiles/completions/emptytext-importer.svelte	svelte	runes	neutral
@@ -47680,6 +47916,11 @@ export { ComponentDef3 as ComponentDef6 };
 <script>
     Scn
 </script>
+=== 31 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-store.svelte	svelte	runes	rejected
+<script>
+    $store;
+</script>
+
 === 106 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-text.svelte	svelte	runes	neutral
 <script lang="ts">
   let abc = "";
@@ -47693,6 +47934,8 @@ a</div>
 a</Comp>
 <Comp></Comp>
 
+=== 53 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions.svelte	svelte	runes	rejected
+<script>import {} from '../completions/' blu</script>
 === 23 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions1.svelte	svelte	runes	neutral
 <script>
 blu
@@ -47704,6 +47947,20 @@ import {} from '../../testfiles/'
 blu
 </script>
 
+=== 55 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions3.svelte	svelte	runes	rejected
+<script>import {} from '../../testfiles/' blu</script>
+
+=== 26 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions4.svelte	svelte	runes	rejected
+<script>
+</script>
+<Import
+=== 7 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions5.svelte	svelte	runes	rejected
+<Import
+=== 78 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions6.svelte	svelte	runes	rejected
+<script>
+import ImportedFile from '../imported-file.svelte';
+</script>
+<Import
 === 104 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions7.svelte	svelte	runes	neutral
 <script context="module">
 
@@ -47733,6 +47990,18 @@ blu
 	onMoun
 </script>
 
+=== 11 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions_unclose-tag.svelte	svelte	runes	rejected
+<Com />
+<E
+
+=== 43 packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions.svelte	svelte	runes	rejected
+<script lang="ts">
+    import blu
+</script>
+=== 45 packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions2.svelte	svelte	runes	rejected
+<script lang="ts">
+    import {blu}
+</script>
 === 89 packages/language-server/test/plugins/typescript/testfiles/completions/jsdoc-completions.svelte	svelte	runes	neutral
 <script>
     /***/
@@ -47744,6 +48013,20 @@ blu
     }
 </script>
 
+=== 67 packages/language-server/test/plugins/typescript/testfiles/completions/mustache.svelte	svelte	runes	rejected
+<script>
+    let a = 1;
+    let b = { b: 1 };
+</script>
+{a?.}
+{b.}
+
+=== 91 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced-v5.svelte	svelte	runes	rejected
+<script lang="ts">
+    import * as Components from './ComponentDef'
+</script>
+
+<Components.
 === 590 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced.svelte	svelte	runes	neutral
 <script lang="ts">
     import * as Components from './ComponentDef'
@@ -47872,6 +48155,11 @@ export function blubb() {
 
 === 10 packages/language-server/test/plugins/typescript/testfiles/diagnostics/empty-export.ts	ts	module	-
 export {};
+=== 57 packages/language-server/test/plugins/typescript/testfiles/diagnostics/shared-comp.svelte	svelte	runes	rejected
+<script context="module">
+    export const fo;
+</script>
+
 === 24 packages/language-server/test/plugins/typescript/testfiles/diagnostics/shared-ts-file.ts	ts	module	-
 export function ba() {}
 
@@ -53893,6 +54181,18 @@ export function atLeast(o: {
   dddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddddd
 {:else if asd}dddddd{/if}
 
+=== 224 packages/svelte-vscode/test/grammar/samples/interpolation-comments/input.svelte	svelte	runes	rejected
+{// A leading line comment formatted next to the opening brace
+value ? 'yes' : 'no'}
+
+{
+    // A leading line comment on the following line
+    value ? 'yes' : 'no'}
+
+{/* A leading block comment */ value ? 'yes' : 'no'}
+
+{/
+
 === 18 packages/svelte-vscode/test/grammar/samples/key-block/input.svelte	svelte	runes	neutral
 {#key hi}
 
@@ -53947,6 +54247,15 @@ export function atLeast(o: {
 <script context="module" lang="ts">type a = 1;</script>
 <script lang="ts"></script>
 
+=== 71 packages/svelte-vscode/test/grammar/samples/store/input.svelte	svelte	runes	rejected
+<script>
+import './$types';
+import '$lib/foo';
+$bar;
+</script>
+
+{$bar}
+
 === 105 packages/svelte-vscode/test/grammar/samples/style-directive/input.svelte	svelte	runes	neutral
 <div style:position={position}></div>
 
@@ -53967,6 +54276,11 @@ export function atLeast(o: {
 === 45 packages/svelte-vscode/test/grammar/samples/style-props/input.svelte	svelte	runes	neutral
 <Component --rail-color="black"></Component>
 
+=== 38 packages/svelte-vscode/test/grammar/samples/style-sass/input.svelte	svelte	runes	rejected
+<style lang="sass">
+    .abc
+</style>
+
 === 41 packages/svelte-vscode/test/grammar/samples/style-scss/input.svelte	svelte	runes	neutral
 <style lang="scss">
     .abc {}
@@ -53974,6 +54288,11 @@ export function atLeast(o: {
 
 === 38 packages/svelte-vscode/test/grammar/samples/style-src/input.svelte	svelte	runes	neutral
 <style src="../external.css"></style>
+
+=== 40 packages/svelte-vscode/test/grammar/samples/style-stylus/input.svelte	svelte	runes	rejected
+<style lang="stylus">
+    .abc
+</style>
 
 === 35 packages/svelte-vscode/test/grammar/samples/style/input.svelte	svelte	runes	neutral
 <style>
@@ -64606,6 +64925,20 @@ export const ANOTHER_TOKEN = new GenericToken<AnotherService>('AnotherService');
 export * from './consumer.js';
 
 
+=== 231 packages/svelte2tsx/test/emitDts/samples/javascript-libRoot/src/lib/Test.svelte	svelte	runes	rejected
+<script>
+    import { createEventDispatcher } from 'svelte';
+    /**
+     * @type {string}
+     */
+    export const astring;
+
+    const dispatch = createEventDispatcher();
+    dispatch('event', true);
+</script>
+
+<slot {astring} />
+
 === 137 packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte	svelte	runes	runes
 <script lang="ts">
     let { foo, bar = $bindable() }: { foo: string, bar?: number } = $props();
@@ -64617,6 +64950,17 @@ export * from './consumer.js';
 <div on:click>
     <slot />
 </div>
+
+=== 211 packages/svelte2tsx/test/emitDts/samples/svelte3/src/Test.svelte	svelte	runes	rejected
+<script lang="ts">
+    import { createEventDispatcher } from 'svelte';
+    export const astring: string;
+
+    const dispatch = createEventDispatcher();
+    dispatch('event', true);
+</script>
+
+<slot {astring} />
 
 === 102 packages/svelte2tsx/test/emitDts/samples/svelte3/src/index.ts	ts	module	-
 export { default as Test } from './Test.svelte';
@@ -65319,6 +65663,13 @@ describe('htmlx2jsx', () => {
 
 === 25 packages/svelte2tsx/test/htmlx2jsx/samples/action-svelte-body/input.svelte	svelte	runes	neutral
 <svelte:body use:blink />
+=== 28 packages/svelte2tsx/test/htmlx2jsx/samples/animation-bare/input.svelte	svelte	runes	rejected
+<h1 animate:blink>Hello</h1>
+=== 166 packages/svelte2tsx/test/htmlx2jsx/samples/animation-params/input.svelte	svelte	runes	rejected
+<h1 animate:blink={{y: 50, duration: 500}}>Hello</h1>
+<h1 animate:blink='{{y: 50, duration: 500}}'>Hello</h1>
+<h1 animate:blink="{{y: 50, duration: 500}}">Hello</h1>
+
 === 123 packages/svelte2tsx/test/htmlx2jsx/samples/attachments.v5/input.svelte	svelte	runes	neutral
 <div {@attach x}></div>
 <div {@attach (node) => {}}></div>
@@ -65344,6 +65695,9 @@ describe('htmlx2jsx', () => {
 === 88 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-foreign-ns/input.svelte	svelte	runes	neutral
 <SomeComponent attrName="text" attrCase=text />
 <someelement attrName="text" attrCase />
+=== 59 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-invalid-jsx-name/input.svelte	svelte	runes	rejected
+<Hello |-wtf="foo"></Hello>
+<div --custom-prop="foo"></div>
 === 260 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-multiline/input.svelte	svelte	runes	neutral
 <Comp multilineattr="hello
 world" />
@@ -65509,6 +65863,12 @@ display: block" />
 {#await somePromise then}
     <h1>Promise Resolved</h1>
 {/await}
+=== 144 packages/svelte2tsx/test/htmlx2jsx/samples/binding-bare/input.svelte	svelte	runes	rejected
+<input type="text" bind:value/>
+<input type="checkbox" bind:checked>
+
+<Input type="text" bind:value/>
+<Input type="checkbox" bind:checked />
 === 242 packages/svelte2tsx/test/htmlx2jsx/samples/binding-get-set.v5/input.svelte	svelte	runes	neutral
 <input bind:value={get, set} />
 <input bind:value={() => v, new_v => v = new_v} />
@@ -65518,6 +65878,31 @@ display: block" />
 
 <Input bind:value={get, set} />
 <Input bind:value={() => v, new_v => v = new_v} />
+
+=== 93 packages/svelte2tsx/test/htmlx2jsx/samples/binding-group-bare/input.svelte	svelte	runes	rejected
+<input type="radio" bind:group value="Plain"/>
+<input type="radio" value="Plain" bind:group>
+
+=== 57 packages/svelte2tsx/test/htmlx2jsx/samples/binding-group/input.svelte	svelte	runes	rejected
+<input type="radio" bind:group={tortilla} value="Plain"/>
+=== 292 packages/svelte2tsx/test/htmlx2jsx/samples/binding-oneway/input.svelte	svelte	runes	rejected
+<div type="text" 
+    bind:clientWidth={width} 
+    bind:clientHeight={height} 
+    bind:offsetWidth={offsetWidth} 
+    bind:offsetHeight={offsetHeight}
+/>
+
+<video
+    src={clip}
+    bind:duration
+    bind:buffered
+    bind:seekable
+    bind:seeking
+    bind:played
+    bind:ended
+></video>
+
 
 === 59 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-component/input.svelte	svelte	runes	neutral
 <Component type="radio" bind:this={element} value="Plain"/>
@@ -65540,6 +65925,15 @@ display: block" />
 
 === 55 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this/input.svelte	svelte	runes	neutral
 <input type="radio" bind:this={element} value="Plain"/>
+=== 288 packages/svelte2tsx/test/htmlx2jsx/samples/binding/input.svelte	svelte	runes	rejected
+<input type="text" bind:value={test}/>
+<input type="text" bind:value="{test}"/>
+<input type="text" bind:value='{test}'/>
+
+<Input type="text" bind:value={test}/>
+<Input type="text" bind:value="{test}"/>
+<Input type="text" bind:value='{test}'/>
+<Input type="text" bind:value={test}></Input>
 === 90 packages/svelte2tsx/test/htmlx2jsx/samples/blocks-without-whitespace-inbetween/input.svelte	svelte	runes	neutral
 {#if name == "world"}!{/if}{#each x as y}!{/each}{#await x then y}!{/await}{#if bla}*{/if}
 === 27 packages/svelte2tsx/test/htmlx2jsx/samples/class-bare/input.svelte	svelte	runes	neutral
@@ -65662,6 +66056,15 @@ display: block" />
 {@debug myfile}
 {@debug myfile   , someOtherFile }
 {@debug myfile, someOtherFile, someThirdFile    }
+=== 254 packages/svelte2tsx/test/htmlx2jsx/samples/directive-quoted/input.svelte	svelte	runes	rejected
+<h1 on:click="{()=>console.log("click")}">Hello</h1>
+<Component on:click="{test}"/>
+<img use:action="{thing}" />
+<img transition:fade="{params}" />
+<img class:thing="{classthing}" />
+<img animate:thing="{params}" />
+<img bind:thing="{binding}" />
+
 === 76 packages/svelte2tsx/test/htmlx2jsx/samples/doctype/input.svelte	svelte	runes	neutral
 <!DOCTYPE html>
 <html lang="en">
@@ -65709,6 +66112,123 @@ display: block" />
 {#each { length: 5 }, index}
     {index}
 {/each}
+
+=== 29 packages/svelte2tsx/test/htmlx2jsx/samples/editing-action/input.svelte	svelte	runes	rejected
+<div use:action={opt.}></div>
+=== 73 packages/svelte2tsx/test/htmlx2jsx/samples/editing-animation/input.svelte	svelte	runes	rejected
+{#each list as item (item)}
+	<li animate:flip={opt?.}>{item}</li>
+{/each}
+=== 51 packages/svelte2tsx/test/htmlx2jsx/samples/editing-await/input.svelte	svelte	runes	rejected
+{#await Promise.}
+    
+{:then value} 
+    
+{/await}
+=== 79 packages/svelte2tsx/test/htmlx2jsx/samples/editing-binding/input.svelte	svelte	runes	rejected
+<input bind:group={obj.}>
+<input bind:value={obj.}>
+<Input bind:value={obj.} />
+=== 29 packages/svelte2tsx/test/htmlx2jsx/samples/editing-bracket/input.svelte	svelte	runes	rejected
+{someRecord[anotherRecord.]}
+
+=== 28 packages/svelte2tsx/test/htmlx2jsx/samples/editing-class-directive/input.svelte	svelte	runes	rejected
+<div class:abc={obj.}></div>
+=== 53 packages/svelte2tsx/test/htmlx2jsx/samples/editing-const/input.svelte	svelte	runes	rejected
+{#each [''] as str}
+    {@const lower = str.}
+{/each}
+=== 110 packages/svelte2tsx/test/htmlx2jsx/samples/editing-empty-expression.v5/input.svelte	svelte	runes	rejected
+<div>{}</div>
+
+<div attr={}></div>
+<div {}></div>
+
+<Component prop={}></Component>
+<Component {}></Component>
+
+=== 68 packages/svelte2tsx/test/htmlx2jsx/samples/editing-event-handler/input.svelte	svelte	runes	rejected
+<div on:click={handlers.}></div>
+
+<Component on:click={handlers.} />
+=== 11 packages/svelte2tsx/test/htmlx2jsx/samples/editing-html-block/input.svelte	svelte	runes	rejected
+{@html ''.}
+=== 37 packages/svelte2tsx/test/htmlx2jsx/samples/editing-if/input.svelte	svelte	runes	rejected
+{#if ''?.}
+
+{:else if ''.}
+    
+{/if}
+=== 22 packages/svelte2tsx/test/htmlx2jsx/samples/editing-key/input.svelte	svelte	runes	rejected
+{#key ''.}
+    
+{/key}
+=== 76 packages/svelte2tsx/test/htmlx2jsx/samples/editing-mustache/input.svelte	svelte	runes	rejected
+{abc.   }
+{abc?. }
+{abc ?}
+{a+}
+<Component regex={/.*/} />}
+<span>}</span>}
+
+=== 74 packages/svelte2tsx/test/htmlx2jsx/samples/editing-parentheses/input.svelte	svelte	runes	rejected
+{console.log(''.)}
+
+{#await Promise.resolve(''.)}
+
+{:then value}
+
+{/await}
+=== 59 packages/svelte2tsx/test/htmlx2jsx/samples/editing-props/input.svelte	svelte	runes	rejected
+<label id={''.}></label>
+
+<Component hi={''?.}></Component>
+=== 35 packages/svelte2tsx/test/htmlx2jsx/samples/editing-style-directive/input.svelte	svelte	runes	rejected
+<div style:display={styles.}></div>
+=== 37 packages/svelte2tsx/test/htmlx2jsx/samples/editing-transition/input.svelte	svelte	runes	rejected
+<div transition:fade={option.}></div>
+=== 126 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-block.v5/input.svelte	svelte	runes	rejected
+<div>
+    {#if foo}
+</div>
+
+<div>
+    {#each array as item}
+        {#if i}
+</div>
+
+<Component>
+    {#snippet f}
+</Component>
+
+=== 149 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-component-no-attr.v5/input.svelte	svelte	runes	rejected
+<!-- 
+    Don't add trailing newline to this file.
+    A component ends where the file ends is a part of the test. 
+-->
+<div>
+    <Comp
+</div>
+
+<Comp
+=== 149 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-element-no-attr.v5/input.svelte	svelte	runes	rejected
+<!-- 
+    Don't add trailing newline to this file.
+    A component ends where the file ends is a part of the test. 
+-->
+<div>
+    <span
+</div>
+
+<span
+=== 59 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-tag.v5/input.svelte	svelte	runes	rejected
+<div>
+    <Comp a={b}
+</div>
+
+<div>
+    <span a={b}
+</div>
 
 === 14 packages/svelte2tsx/test/htmlx2jsx/samples/element-only/input.svelte	svelte	runes	neutral
 <h1>Hello</h1>
@@ -66188,6 +66708,17 @@ display: block" />
     {/if}
 {/if}
 
+=== 115 packages/svelte2tsx/test/htmlx2jsx/samples/key-block/input.svelte	svelte	runes	rejected
+{#key value}
+    <p>hello</p>
+{/key}
+{#key $store}
+    <p>hello</p>
+{/key}
+{#key expr.obj}
+    <p>hello</p>
+{/key}
+
 === 65 packages/svelte2tsx/test/htmlx2jsx/samples/mustache-tag-object-literal/input.svelte	svelte	runes	neutral
 {{ 
     toString() { return "Hello World" } 
@@ -66372,6 +66903,24 @@ display: block" />
 === 3 packages/svelte2tsx/test/htmlx2jsx/samples/tokens-not-allowed-in-jsx/input.svelte	svelte	runes	neutral
 }>
 
+=== 458 packages/svelte2tsx/test/htmlx2jsx/samples/transition-animate-fallbacks/input.svelte	svelte	runes	rejected
+<!-- transitions -->
+<h1 transition:blur>Hello</h1>
+<h1 transition:fade>Hello</h1>
+<h1 transition:fly>Hello</h1>
+<h1 transition:slide>Hello</h1>
+<h1 transition:scale>Hello</h1>
+<h1 transition:draw>Hello</h1>
+<!-- also for in/out transitions -->
+<h1 in:blur>Hello</h1>
+<h1 out:blur>Hello</h1>
+<!-- animate -->
+<h1 animate:flip>Hello</h1>
+<!-- not others -->
+<h1 transition:foo>Hello</h1>
+<h1 in:foo>Hello</h1>
+<h1 out:foo>Hello</h1>
+<h1 animate:foo>Hello</h1>
 === 80 packages/svelte2tsx/test/htmlx2jsx/samples/transition-bare/input.svelte	svelte	runes	neutral
 <h1 transition:blink>Hello</h1>
 <h1 in:blink>Hello</h1>
@@ -66386,6 +66935,67 @@ display: block" />
 <h1 out:blink={{y: 50, duration: 500}}>Hello</h1>
 <h1 out:blink='{{y: 50, duration: 500}}'>Hello</h1>
 <h1 out:blink="{{y: 50, duration: 500}}">Hello</h1>
+
+=== 985 packages/svelte2tsx/test/htmlx2jsx/samples/ts-in-template.v5/input.svelte	svelte	runes	rejected
+<script lang="ts"></script>
+
+{#if foo as true}
+    if
+{:else if bar as false}
+    else if
+{/if}
+
+{#each items as [''] as item: string, i (item)}
+    {item as string}
+{/each}
+
+{#await foo as Promise<void>}
+    waiting
+{:then result: any}
+    result
+{:catch error: any}
+    error
+{/await}
+
+{#key item as string}
+    key
+{/key}
+
+{#snippet foo(bar: string)}
+    snippet
+{/snippet}
+
+{#snippet foo2(bar : string)}
+    snippet
+{/snippet}
+
+{#snippet foo3(bar    : string | number)}
+    snippet
+{/snippet}
+
+{#snippet foo4(bar    : string | number, baz     : (str: string)=>void)}
+    snippet
+{/snippet}
+
+{#snippet foo5(bar: {baz: string})}
+    snippet
+{/snippet}
+
+{#snippet foo6(bar?: string)}
+    snippet
+{/snippet}
+
+{#snippet foo7(bar, baz = '')}
+    snippet
+{/snippet}
+
+{@render foo(bar as string)}
+
+<button onclick={(e: Event) => {e as any}}>click</button>
+<Component attr={attr as boolean} />
+<label id={ok!}></label>
+<Component bind:this={x as any} />
+<div bind:clientWidth={x as any} />
 
 === 96 packages/svelte2tsx/test/htmlx2jsx/samples/void-elements/input.svelte	svelte	runes	neutral
 <area>
@@ -67677,6 +68287,62 @@ function parse_edit_ranges(text_with_ranges: string, index_relative: boolean) {
     return ranges;
 }
 
+=== 214 packages/svelte2tsx/test/sourcemaps/samples/action-directive/input.svelte	svelte	runes	rejected
+<element use:action/>
+
+<element
+	use:action 
+/>
+
+<element use:action.nested.method={foo}/>
+
+<element 
+	use:action={$foo}
+/>
+
+<element
+	use:action={{ foo }}
+/>
+
+<element
+	use:action={{ 
+		...leet,
+		foo: $bar
+	}}
+/>
+=== 170 packages/svelte2tsx/test/sourcemaps/samples/await-block/input.svelte	svelte	runes	rejected
+{#await promise then value}
+    <element foo={value.bar}/>
+{/await}
+
+{#await promise}
+	<element />
+{:then}
+	<element />
+{/await}
+
+{#await $promise}
+	<element />
+{/await}
+
+=== 158 packages/svelte2tsx/test/sourcemaps/samples/component-props/input.svelte	svelte	runes	rejected
+<Component foo />
+
+<Component foo="leet"bar/>
+	
+<Component {...bar} />
+
+<Component
+	{...bar}
+/>
+
+<Component
+	bind:foo={bar}
+/>
+
+<Component
+	bind:this={bar}
+/>
 === 503 packages/svelte2tsx/test/sourcemaps/samples/each-block/input.svelte	svelte	runes	neutral
 {#each items as item}
 	<li>{item.name} x {item.qty}</li>
@@ -67703,6 +68369,54 @@ function parse_edit_ranges(text_with_ranges: string, index_relative: boolean) {
 {:else}
 	<p>No tasks today!</p>
 {/each}
+=== 176 packages/svelte2tsx/test/sourcemaps/samples/element-attributes/input.svelte	svelte	runes	rejected
+<element foo/>
+
+<element 
+    foo
+/>
+
+<element 
+    foo="leet" 
+/>
+
+<element 
+	{foo}bar
+/>
+
+<element 
+    {foo} 
+/>
+
+<element 
+    bind:foo 
+/>
+
+<element 
+    bind:foo={bar}
+/>
+=== 111 packages/svelte2tsx/test/sourcemaps/samples/event-binding/input.svelte	svelte	runes	rejected
+<Component on:click={$check ? method1 : method2} />
+<button on:click={$check ? method1 : method2} >Bla</button>
+=== 132 packages/svelte2tsx/test/sourcemaps/samples/if-block/input.svelte	svelte	runes	rejected
+{#if foo}
+	<element />
+{/if}
+
+{#if $foo}<element />{/if}
+
+{#if foo}
+	<element/>
+{:else if bar}
+	<element/>
+{:else}
+	<element/>
+{/if}
+=== 59 packages/svelte2tsx/test/sourcemaps/samples/import-equal/input.svelte	svelte	runes	rejected
+<script>
+    import A
+    import C = require('');
+</script>
 === 31 packages/svelte2tsx/test/sourcemaps/samples/property-shorthand/input.svelte	svelte	runes	neutral
 <button {count}>button</button>
 === 20 packages/svelte2tsx/test/sourcemaps/samples/simple-element/input.svelte	svelte	runes	neutral
@@ -67755,6 +68469,23 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 293 packages/svelte2tsx/test/svelte2tsx/samples/$store-as-directive/input.svelte	svelte	runes	rejected
+<script>
+	const transitionStore = null;
+	const animateStore = null;
+	const inStore = null;
+	const outStore = null;
+	const actionStore = null;
+</script>
+
+<div 
+    transition:$transitionStore={{ y: 100 }}
+    use:$actionStore
+    in:$inStore
+    out:$outStore
+    animate:$animateStore
+>
+</div>
 === 702 packages/svelte2tsx/test/svelte2tsx/samples/$store-assign/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -67828,6 +68559,17 @@ return { props: {store: store}, slots: {}, events: {} }}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(['store'], __sveltets_2_with_any_event($$render()))) {
 }
+=== 181 packages/svelte2tsx/test/svelte2tsx/samples/$store-export-type/input.svelte	svelte	runes	rejected
+<script>
+    import type { Writable } from "svelte/store";
+    
+    export let store: Writable<string[]> | null = null;
+    
+    if ($store) {
+        $store.length
+    }
+</script>
+
 === 379 packages/svelte2tsx/test/svelte2tsx/samples/$store-index/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -67838,6 +68580,11 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 69 packages/svelte2tsx/test/svelte2tsx/samples/$store-index/input.svelte	svelte	runes	rejected
+{someRecordOrArr[$store]}
+{someObject['$store']}
+{someObject.$store}
+
 === 753 packages/svelte2tsx/test/svelte2tsx/samples/$store-inside-block-without-braces/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -67872,6 +68619,34 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 371 packages/svelte2tsx/test/svelte2tsx/samples/$store-inside-block-without-braces/input.svelte	svelte	runes	rejected
+<script>
+    const store1 = '';
+
+    if (store1)
+        $store1
+    else if (store1)
+        $store1
+    else
+        $store
+    if (store1)
+        $store1 = 1
+    if (store1)
+        $store1.x = 1
+
+    for (let i=0; i < 1; i++)
+        $store1
+
+    for (const a of b)
+        $store1
+
+    for (const a in b)
+        $store1
+
+    while (true)
+        $store1
+</script>
+
 === 406 packages/svelte2tsx/test/svelte2tsx/samples/$store-nested-declaration/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -67887,6 +68662,15 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 108 packages/svelte2tsx/test/svelte2tsx/samples/$store-nested-declaration/input.svelte	svelte	runes	rejected
+<script>
+    function x(tr) {
+        for (let notAStore of tr.effects) {}
+    }
+
+    $notAStore;
+</script>
+
 === 569 packages/svelte2tsx/test/svelte2tsx/samples/$store-no-instance-only-module-script/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;
@@ -67987,6 +68771,8 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 21 packages/svelte2tsx/test/svelte2tsx/samples/ast-offset-none/input.svelte	svelte	runes	rejected
+<script>$var</script>
 === 323 packages/svelte2tsx/test/svelte2tsx/samples/ast-offset-some/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -67996,6 +68782,8 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 24 packages/svelte2tsx/test/svelte2tsx/samples/ast-offset-some/input.svelte	svelte	runes	rejected
+<script>   $var</script>
 === 571 packages/svelte2tsx/test/svelte2tsx/samples/attributes-foreign-ns/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -68099,6 +68887,14 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 266 packages/svelte2tsx/test/svelte2tsx/samples/binding-assignment-$store/input.svelte	svelte	runes	rejected
+<div bind:offsetHeight={$compile_options} />
+<div bind:offsetHeight={$compile_options.foo} />
+<div bind:this={$compile_options} />
+<div bind:this={$compile_options.foo} />
+<div bind:noAssignment={$compile_options} />
+<div bind:noAssignment={$compile_options.foo} />
+
 === 459 packages/svelte2tsx/test/svelte2tsx/samples/binding-group-store/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -68107,6 +68903,8 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 86 packages/svelte2tsx/test/svelte2tsx/samples/binding-group-store/input.svelte	svelte	runes	rejected
+<input id="dom-input" type="radio" bind:group={$compile_options.generate} value="dom">
 === 2234 packages/svelte2tsx/test/svelte2tsx/samples/circle-drawer-example/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -68394,6 +69192,53 @@ return { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings
 const Input__SvelteComponent_ = __sveltets_2_fn_component($$render());
 /*Ωignore_startΩ*/type Input__SvelteComponent_ = ReturnType<typeof Input__SvelteComponent_>;
 /*Ωignore_endΩ*/export default Input__SvelteComponent_;
+=== 891 packages/svelte2tsx/test/svelte2tsx/samples/comments-in-attributes.v5/input.svelte	svelte	runes	rejected
+<script>
+    let x = $state();
+</script>
+
+<div
+    // comment
+    foo="bar"
+    x // comment same line
+    /* another comment */
+    baz="qux"
+    // event handler comment
+    on:click={handler}
+    // action comment
+    use:action={params}
+    // transition comment
+    transition:fade
+    // animation comment
+    animate:flip
+    // attachment comment
+    {@attach attachment}
+    // binding comment
+    bind:this={element}
+    // spread comment
+    {...spread_props}
+    trailing // trailing comment same line
+></div>
+
+<Component
+    // comment
+    foo="bar"
+    /* another comment */
+    baz="qux"
+    // event handler comment
+    on:click={handler}
+    // attachment comment
+    {@attach attachment}
+    // binding comment
+    bind:prop={bound_prop}
+    // spread comment
+    {...spread_props}
+    // let comment
+    let:item
+    trailing
+    // trailing comment newline
+></Component>
+
 === 548 packages/svelte2tsx/test/svelte2tsx/samples/component-default-slot/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -68980,6 +69825,11 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {'default': {a
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 158 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-object-key/input.svelte	svelte	runes	rejected
+{#each items as item}
+    <slot a={item} b={{ item }} c={{ item: 'abc' }.item} d={{ item: item }} e={$item} f="{$item}" {...g} {...item}>Hello</slot>
+{/each}
+
 === 601 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-var-shadowing/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -69522,6 +70372,13 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 155 packages/svelte2tsx/test/svelte2tsx/samples/custom-css-properties-with-$store/input.svelte	svelte	runes	rejected
+<Component 
+  --custom-css-property1={$jo}
+  --custom-css-property2="hi{$jo}hi"
+  --custom-css-property3='hi{$jo}hi'
+  --custom-css-property4=hi{$jo}hi />
+
 === 384 packages/svelte2tsx/test/svelte2tsx/samples/debug-block/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -69532,6 +70389,10 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 103 packages/svelte2tsx/test/svelte2tsx/samples/debug-block/input.svelte	svelte	runes	rejected
+{@debug myfile}
+{@debug $myfile   , someOtherFile }
+{@debug myfile, $someOtherFile, someThirdFile    } 
 === 1132 packages/svelte2tsx/test/svelte2tsx/samples/declaration-tag-async.v5/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -69579,6 +70440,9 @@ export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2T
 <script>
     const regex = /<!DOCTYPE html>/i;
 </script>
+=== 6 packages/svelte2tsx/test/svelte2tsx/samples/editing-mustache/input.svelte	svelte	runes	rejected
+{a?.}
+
 === 316 packages/svelte2tsx/test/svelte2tsx/samples/empty-source/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -70564,6 +71428,31 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 351 packages/svelte2tsx/test/svelte2tsx/samples/nested-$-variables-script/input.svelte	svelte	runes	rejected
+<script>
+let top1 = someStore()
+let top2 = someStore()
+let topLevelGet = $top1
+topLevelGet = $top2
+
+function test(top1) {
+    let passedGet = $top1
+}
+
+function test2($top1) {
+    let paramShadowed = $top1
+}
+
+function test3() {
+    let $top2 = "hi"
+    let letshadowed = $top2
+}
+
+const test4 = ({a,  b: { $top1: $top2 }}) => $top2 && $top1
+
+</script>
+
+
 === 930 packages/svelte2tsx/test/svelte2tsx/samples/nested-$-variables-template/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -70596,6 +71485,33 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 586 packages/svelte2tsx/test/svelte2tsx/samples/nested-$-variables-template/input.svelte	svelte	runes	rejected
+<h1 on:click={ () => {
+
+    // TODO: this is invalid Svelte right now, stores have to be top level 
+    // it's therefore okay to not append "let top1$/top2$ = __svelte_store_get(..)"
+    let top1 = someStore()
+    let top2 = someStore()
+    let topLevelGet = $top1
+    topLevelGet = $top2
+
+    function test(top1) {
+        let passedGet = $top1
+    }
+
+    function test2($top1) {
+        let paramShadowed = $top1
+    }
+
+    function test3() {
+        let $top2 = "hi"
+        let letshadowed = $top2
+    }
+
+    const test4 = ({a,  b: { $top1: $top2 }}) => $top2 && $top1
+
+}}>Hi</h1>
+
 === 351 packages/svelte2tsx/test/svelte2tsx/samples/object-binding-export/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -70695,6 +71611,22 @@ const Input__SvelteComponent_ = __sveltets_2_fn_component($$render());
 
 {id} {props}
 
+=== 287 packages/svelte2tsx/test/svelte2tsx/samples/reactive-$store-destructuring/input.svelte	svelte	runes	rejected
+<script>
+  $: ({ count } = $data);
+  $: ({ count2 } = $data)
+  let count3;
+  $: ({ count3 } = $data)
+  let bla4;
+  $: ({ bla4, bla5 } = $data)
+
+  $: ([ count ] = $data);
+  $: ([ count2 ] = $data)
+  let count3;
+  $: ([ count3 ] = $data)
+  let bla4;
+  $: ([ bla4, bla5 ] = $data)
+</script>
 === 422 packages/svelte2tsx/test/svelte2tsx/samples/reactive-assignment-type-cast/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -70860,6 +71792,11 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 47 packages/svelte2tsx/test/svelte2tsx/samples/reactive-store-set/input.svelte	svelte	runes	rejected
+<script>
+    $: $store = $store + 1;
+</script>
+
 === 608 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports-runes.v5/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -71334,6 +72271,8 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {'s': {}}, eve
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 31 packages/svelte2tsx/test/svelte2tsx/samples/slot-bind-this/input.svelte	svelte	runes	rejected
+<slot name="s" bind:this={s} />
 === 953 packages/svelte2tsx/test/svelte2tsx/samples/snippet-generics.v5/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -71720,6 +72659,18 @@ export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2T
 
     let a = $derived(1);
 </script>
+=== 252 packages/svelte2tsx/test/svelte2tsx/samples/store-destructuring/input.svelte	svelte	runes	rejected
+<script>
+    const store = fromSomewhere();
+    const { store1, store2, noStore } = fromSomewhere();
+    const [ store3, store4, noStore ] = fromSomewhere();
+</script>
+<p>{$store}</p>
+<p>{$store1}</p>
+<p>{$store2}</p>
+<p>{$store3}</p>
+<p>{$store4}</p>
+
 === 853 packages/svelte2tsx/test/svelte2tsx/samples/store-from-module/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;
@@ -71875,6 +72826,9 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 16 packages/svelte2tsx/test/svelte2tsx/samples/stores-mustache/input.svelte	svelte	runes	rejected
+<Me f="{$s} "/>
+
 === 368 packages/svelte2tsx/test/svelte2tsx/samples/style-after-selfclosing-iframe/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -72100,6 +73054,17 @@ return { props: /** @type {$$ComponentProps} */({}), exports: /** @type {{snapsh
 const Page__SvelteComponent_ = __sveltets_2_fn_component($$render());
 /*Ωignore_startΩ*/type Page__SvelteComponent_ = ReturnType<typeof Page__SvelteComponent_>;
 /*Ωignore_endΩ*/export default Page__SvelteComponent_;
+=== 169 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes/+page.svelte	svelte	runes	rejected
+<script>
+    export let data;
+    export let form;
+    export const snapshot = {};
+
+    export let nope;
+    export let form = {}
+    export let data: number;
+</script>
+
 === 1746 packages/svelte2tsx/test/svelte2tsx/samples/transforms-interfaces-dts/expected-svelte5.ts	ts	module	-
 import { SvelteComponentTyped } from "svelte"
 
@@ -73085,6 +74050,35 @@ return { props: {} as Record<string, never>, slots: {}, events: {...__sveltets_2
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 488 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed/input.svelte	svelte	runes	rejected
+<script>
+    import { createEventDispatcher, abc } from "svelte";
+
+    const notDispatch = abc();
+    const bla = 'bye';
+    const dispatch = createEventDispatcher<{
+    /**
+     * A DOC
+     */
+    hi: boolean; 
+    /**
+     * not this
+     */
+    /**
+     * ANOTHER DOC
+     */
+    [bla]: boolean;
+    // not this
+    btn: string;}>();
+
+    dispatch('hi', true);
+
+    function bye() {
+        dispatch(bla, false);
+    }
+</script>
+
+<button on:click={() => dispatch('btn', '')}></button>
 === 928 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatchers-same-event/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;
@@ -73117,6 +74111,24 @@ return { props: {} as Record<string, never>, slots: {}, events: {...__sveltets_2
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 375 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatchers-same-event/input.svelte	svelte	runes	rejected
+<script>
+    import { createEventDispatcher, abc } from "svelte";
+
+    const notDispatch = abc();
+    const dispatch1 = createEventDispatcher<{
+    /**
+     * A DOC
+     */
+    hi: boolean;
+    }>();
+    const dispatch2 = createEventDispatcher<{hi: string;}>();
+    const dispatch3 = createEventDispatcher();
+
+    dispatch3('bye', true);
+</script>
+
+<button on:click></button>
 === 898 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatchers/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;
@@ -73149,6 +74161,24 @@ return { props: {} as Record<string, never>, slots: {}, events: {...__sveltets_2
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 376 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatchers/input.svelte	svelte	runes	rejected
+<script>
+    import { createEventDispatcher, abc } from "svelte";
+
+    const notDispatch = abc();
+    const dispatch1 = createEventDispatcher<{
+    /**
+     * A DOC
+     */
+    hi: boolean;
+    }>();
+    const dispatch2 = createEventDispatcher<{btn: string;}>();
+    const dispatch3 = createEventDispatcher();
+
+    dispatch3('bye', true);
+</script>
+
+<button on:click></button>
 === 362 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-arrow-function/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -73163,6 +74193,14 @@ return { props: {f: f} as {f?: typeof f}, slots: {}, events: {} }}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 109 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-arrow-function/input.svelte	svelte	runes	rejected
+<script>
+    export let f = (a: number, b: number) => {
+      let c = a + b;
+      return c;
+    }
+</script>
+
 === 1218 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-boolean/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -73178,6 +74216,15 @@ return { props: {bla: bla , blubb: blubb , bla1: bla1 , blubb1: blubb1 , a1: a1 
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 232 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-boolean/input.svelte	svelte	runes	rejected
+<script>
+    export let bla = false;
+    export let blubb = true;
+    export let bla1: boolean = false;
+    export let blubb1: boolean = true;
+    export let a1 = true, a2 = false, b1: boolean = true, b2: boolean = false;
+</script>
+
 === 660 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-const/expected-svelte5.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -73205,6 +74252,12 @@ export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2T
     get SOME() { return __sveltets_2_nonNullable(this.$$prop_def.SOME) }
     get CONSTANT() { return __sveltets_2_nonNullable(this.$$prop_def.CONSTANT) }
 }
+=== 101 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-const/input.svelte	svelte	runes	rejected
+<script>
+    export const name: string = "world";
+    export const SOME = 1, CONSTANT = 2;
+</script>
+
 === 470 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-doc-typedef/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -73256,6 +74309,22 @@ return { props: {a: a , b: b , c: c , d: d} as {
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 187 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-doc/input.svelte	svelte	runes	rejected
+<script>
+    /**
+     * DOCS!
+     */
+    export let a: string;
+    /**
+     * MORE DOCS!
+     */
+    export let b = 1;
+    export let c;
+
+    // not this one
+    export let d;
+</script>
+
 === 295 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-has-initializer/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -73280,6 +74349,13 @@ return { props: {a: a , b: b} as {a: A, b?: A}, slots: {}, events: {} }}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 85 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-has-type/input.svelte	svelte	runes	rejected
+<script>
+    interface A {}
+    export let a: A;
+    export let b: A = {};
+</script>
+
 === 307 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-interface/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;
@@ -73290,6 +74366,11 @@ return { props: {} as Record<string, never>, slots: {}, events: {} }}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 62 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-interface/input.svelte	svelte	runes	rejected
+<script context="module">
+    export interface A {}
+</script>
+
 === 1801 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list-runes-false/expected-svelte5.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -73344,6 +74425,27 @@ return { props: {name1: name1 , name2: name2 , name3: name3 , name4: name4 , ren
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 536 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list-runes-false/input.svelte	svelte	runes	rejected
+<svelte:options runes={false} />
+<script>
+    let name1: string = "world"
+    let name2: string;
+    let name3: string = '', name4: string;
+
+    let rename1: string = '';
+    let rename2: string;
+
+    class Foo {}
+    function bar() {}
+    const baz: string = '';
+
+    class RenameFoo {}
+    function renamebar() {}
+    const renamebaz: string = '';
+
+    export { name1, name2, name3, name4, rename1 as renamed1, rename2 as renamed2, Foo, bar, baz, RenameFoo as RenamedFoo, renamebar as renamedbar, renamebaz as renamedbaz };
+</script>
+
 === 1578 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list-runes.v5/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -73371,6 +74473,27 @@ return { props: {} as Record<string, never>, exports: {name1: name1,name2: name2
 const Input__SvelteComponent_ = __sveltets_2_fn_component($$render());
 /*Ωignore_startΩ*/type Input__SvelteComponent_ = ReturnType<typeof Input__SvelteComponent_>;
 /*Ωignore_endΩ*/export default Input__SvelteComponent_;
+=== 528 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list-runes.v5/input.svelte	svelte	runes	rejected
+<svelte:options runes />
+<script>
+    let name1: string = "world"
+    let name2: string;
+    let name3: string = '', name4: string;
+
+    let rename1: string = '';
+    let rename2: string;
+
+    class Foo {}
+    function bar() {}
+    const baz: string = '';
+
+    class RenameFoo {}
+    function renamebar() {}
+    const renamebaz: string = '';
+
+    export { name1, name2, name3, name4, rename1 as renamed1, rename2 as renamed2, Foo, bar, baz, RenameFoo as RenamedFoo, renamebar as renamedbar, renamebaz as renamedbaz };
+</script>
+
 === 1733 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list/expected-svelte5.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -73423,6 +74546,26 @@ return { props: {name1: name1 , name2: name2 , name3: name3 , name4: name4 , ren
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 503 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list/input.svelte	svelte	runes	rejected
+<script>
+    let name1: string = "world"
+    let name2: string;
+    let name3: string = '', name4: string;
+
+    let rename1: string = '';
+    let rename2: string;
+
+    class Foo {}
+    function bar() {}
+    const baz: string = '';
+
+    class RenameFoo {}
+    function renamebar() {}
+    const renamebaz: string = '';
+
+    export { name1, name2, name3, name4, rename1 as renamed1, rename2 as renamed2, Foo, bar, baz, RenameFoo as RenamedFoo, renamebar as renamedbar, renamebaz as renamedbaz };
+</script>
+
 === 591 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-required-props/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -73658,6 +74801,12 @@ return { props: {number1: number1 , number2: number2} as {number1: number, numbe
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 133 packages/svelte2tsx/test/svelte2tsx/samples/ts-multiple-export/input.svelte	svelte	runes	rejected
+<script>
+    export let number1: number
+    export let number2: number
+</script>
+<h1>{number1} + {number2} = {number1 + number2}</h1>
 === 912 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-best-effort-types.v5/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -73669,6 +74818,11 @@ return { props: {} as any as $$ComponentProps, exports: {}, bindings: __sveltets
 const Input__SvelteComponent_ = __sveltets_2_fn_component($$render());
 /*Ωignore_startΩ*/type Input__SvelteComponent_ = ReturnType<typeof Input__SvelteComponent_>;
 /*Ωignore_endΩ*/export default Input__SvelteComponent_;
+=== 211 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-best-effort-types.v5/input.svelte	svelte	runes	rejected
+<script>
+    let { a, b = true, c = 1, d = '', e = null, f = {}, g = foo, h = null as Bar, i = null as any as Baz, j = [], k = undefined, l = $bindable(), m = $bindable(1), n = () => {} } = $props(); 
+</script>
+
 === 652 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-bindable.v5/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -74171,6 +75325,19 @@ return { props: {} as any as A, exports: {}, bindings: __sveltets_$$bindings('')
 const Input__SvelteComponent_ = __sveltets_2_fn_component($$render());
 /*Ωignore_startΩ*/type Input__SvelteComponent_ = ReturnType<typeof Input__SvelteComponent_>;
 /*Ωignore_endΩ*/export default Input__SvelteComponent_;
+=== 131 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-14.v5/input.svelte	svelte	runes	rejected
+<script module>
+    enum A {
+    }
+</script>
+
+<script lang="ts">
+interface A {
+    Abc: number
+}
+
+let {Abc}: A = $props()
+</script>
 === 509 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-15.v5/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;
@@ -74567,6 +75734,12 @@ return { props: {foo: foo} as {foo: string}, slots: {}, events: {} }}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 121 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune-unchanged.v5/+page.svelte	svelte	runes	rejected
+<script>
+    export const snapshot: any = {};
+    let { form, data }: {form: boolean, data: true } = $props();
+</script>
+
 === 638 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune-unchanged.v5/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;
@@ -74633,6 +75806,11 @@ return { props: {name: name} as {name?: string | number}, slots: {}, events: {} 
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_with_any_event($$render())) {
 }
+=== 66 packages/svelte2tsx/test/svelte2tsx/samples/ts-typed-export-with-default/input.svelte	svelte	runes	rejected
+<script>
+    export let name: string | number = "world"
+</script>
+
 === 379 packages/svelte2tsx/test/svelte2tsx/samples/ts-uses-$$props/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() { let $$props = __sveltets_2_allPropsType();
@@ -74675,6 +75853,11 @@ return { props: /** @type {Record<string, never>} */ ({}), exports: {}, bindings
 const Input__SvelteComponent_ = __sveltets_2_isomorphic_component(__sveltets_2_partial(__sveltets_2_with_any_event($$render())));
 /*Ωignore_startΩ*/type Input__SvelteComponent_ = InstanceType<typeof Input__SvelteComponent_>;
 /*Ωignore_endΩ*/export default Input__SvelteComponent_;
+=== 29 packages/svelte2tsx/test/svelte2tsx/samples/unclosed-tag-containing-tag.v5/input.svelte	svelte	runes	rejected
+<div>
+	<p></p>
+	
+	<div></div>
 === 408 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$props-script/expectedv2.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() { let $$props = __sveltets_2_allPropsType();
@@ -74980,6 +76163,9 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 79 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store/input.svelte	svelte	runes	rejected
+<script>$b=$b.concat(5)</script>
+<h1 on:click={() => $b=$b.concat(5)}>{$b}</h1>
 === 669 packages/svelte2tsx/test/svelte2tsx/samples/uses-accessors-attr-not-present/expected-svelte5.ts	ts	module	-
 ///<reference types="svelte" />
 ;function $$render() {
@@ -75227,6 +76413,22 @@ return { props: /** @type {Record<string, never>} */ ({}), slots: {}, events: {}
 
 export default class Input__SvelteComponent_ extends __sveltets_2_createSvelte2TsxComponent(__sveltets_2_partial(__sveltets_2_with_any_event($$render()))) {
 }
+=== 340 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components/input.svelte	svelte	runes	rejected
+{#if true}
+<svelte:self prop1={1} />
+{/if}
+<svelte:component this={testComponent} propa={5}>
+    <h1>content</h1>
+</svelte:component>
+<svelte:window on:click={e => {}}  />
+<svelte:body on:click={e => {}} />
+<svelte:head>
+    <h1>Hi</h1>
+</svelte:head>
+<svelte:options />
+<svelte:fragment />
+<svelte:document foo="bar" on:click={e => {}} />
+
 === 768 packages/svelte2tsx/test/test.ts	ts	module	-
 const { dirname } = require('path');
 const { join } = require('path');

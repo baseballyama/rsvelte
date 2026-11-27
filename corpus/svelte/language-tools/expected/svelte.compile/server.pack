@@ -802,6 +802,22 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 335 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-animations-transitions-typechecks/input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 13,
+		"column": 3,
+		"character": 238
+	},
+	"end": {
+		"line": 13,
+		"column": 15,
+		"character": 250
+	}
+}
+
 === 474 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/actions-enhance-types/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -1371,6 +1387,22 @@ import * as $ from 'svelte/internal/server';
 export default function Input($$renderer) {
 	$$renderer.push(`<div>${$.escape(hi)}</div>`);
 }
+=== 229 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/coffeescript-ignore/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected character ' '\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 24
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 24
+	}
+}
+
 === 125 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/component-invalid/imported.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -2971,6 +3003,22 @@ export default function Other($$renderer) {
 
 	baz;
 }
+=== 264 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/parser-error/input.svelte	error.json
+{
+	"code": "style_duplicate",
+	"message": "A component can have a single top-level `<style>` element\nhttps://svelte.dev/e/style_duplicate",
+	"start": {
+		"line": 2,
+		"column": 0,
+		"character": 16
+	},
+	"end": {
+		"line": 2,
+		"column": 0,
+		"character": 16
+	}
+}
+
 === 288 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/project-reference/nested/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import { hi } from 'hi2';
@@ -3049,6 +3097,22 @@ export default function Input($$renderer) {
 	$$renderer.push(`<template lang="pug">+if('typeof a === "number"')
   A(a='${$.escape(a.toFixed(2))}')</template>`);
 }
+=== 221 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/ignores-unused-label/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 4,
+		"column": 8,
+		"character": 47
+	},
+	"end": {
+		"line": 4,
+		"column": 8,
+		"character": 47
+	}
+}
+
 === 177 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/reactive-statement-unused-label/keeps-other-unused-label-warnings/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -3344,6 +3408,22 @@ export default function Input($$renderer) {
 		}
 	}
 ]
+
+=== 291 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element-error/input.svelte	error.json
+{
+	"code": "svelte_element_missing_this",
+	"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 45
+	},
+	"end": {
+		"line": 5,
+		"column": 0,
+		"character": 45
+	}
+}
 
 === 680 packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/svelte-element/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -3836,6 +3916,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!---->`);
 }
+=== 225 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/parser-error/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 11,
+		"column": 4,
+		"character": 112
+	},
+	"end": {
+		"line": 11,
+		"column": 4,
+		"character": 112
+	}
+}
+
 === 154 packages/language-server/test/plugins/typescript/features/folding-range/fixtures/script/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import 'svelte';
@@ -4149,6 +4245,38 @@ export default function Codeaction_custom_fix_all_component3($$renderer) {
 	FixAllImported2($$renderer, {});
 	$$renderer.push(`<!---->`);
 }
+=== 223 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-add-lang-ts-no-script.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	},
+	"end": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	}
+}
+
+=== 223 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-add-lang-ts.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 16,
+		"character": 25
+	},
+	"end": {
+		"line": 2,
+		"column": 16,
+		"character": 25
+	}
+}
+
 === 131 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-checkJs-module.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -4183,6 +4311,22 @@ export default function Codeaction_component_import($$renderer) {
 
 	Empty($$renderer, {});
 }
+=== 241 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-const-reassign.svelte	error.json
+{
+	"code": "constant_assignment",
+	"message": "Cannot assign to constant\nhttps://svelte.dev/e/constant_assignment",
+	"start": {
+		"line": 4,
+		"column": 4,
+		"character": 42
+	},
+	"end": {
+		"line": 4,
+		"column": 10,
+		"character": 48
+	}
+}
+
 === 247 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-component.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -4239,6 +4383,22 @@ export default function Codeaction_custom_fix_all_component6($$renderer) {
 	FixAllImported2($$renderer, {});
 	$$renderer.push(`<!---->`);
 }
+=== 362 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeaction-custom-fix-all-store.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$someOtherStore` is an illegal variable name. To reference a global variable called `$someOtherStore`, use `globalThis.$someOtherStore`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 2,
+		"column": 4,
+		"character": 23
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 38
+	}
+}
+
 === 395 packages/language-server/test/plugins/typescript/testfiles/code-actions/codeactions.svelte	js
 import * as $ from 'svelte/internal/server';
 import { C } from 'blubb';
@@ -4305,6 +4465,22 @@ export default function Codeactions($$renderer) {
 	}
 ]
 
+=== 257 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-add-async.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Cannot use keyword 'await' outside an async function\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 7,
+		"column": 8,
+		"character": 84
+	},
+	"end": {
+		"line": 7,
+		"column": 8,
+		"character": 84
+	}
+}
+
 === 153 packages/language-server/test/plugins/typescript/testfiles/code-actions/fix-missing-function-element.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -4365,6 +4541,22 @@ import { someStore as someOtherStore2 } from './importing/a';
 import { someStore as someOtherStore3 } from './importing/a';
 
 export default function Organize_import_all_remove($$renderer) {}
+=== 228 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-error.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 7,
+		"column": 1,
+		"character": 68
+	},
+	"end": {
+		"line": 7,
+		"column": 1,
+		"character": 68
+	}
+}
+
 === 190 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-group.svelte	js
 import * as $ from 'svelte/internal/server';
 import 'svelte';
@@ -4380,6 +4572,22 @@ import './somepng.png';
 export default function Organize_imports_leading_comment($$renderer) {
 	// @ts-ignore
 }
+=== 250 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-module-store.svelte	error.json
+{
+	"code": "declaration_duplicate",
+	"message": "`_` has already been declared\nhttps://svelte.dev/e/declaration_duplicate",
+	"start": {
+		"line": 6,
+		"column": 11,
+		"character": 92
+	},
+	"end": {
+		"line": 6,
+		"column": 12,
+		"character": 93
+	}
+}
+
 === 175 packages/language-server/test/plugins/typescript/testfiles/code-actions/organize-imports-snippet.svelte	js
 import * as $ from 'svelte/internal/server';
 import { Foo } from "./importing/a";
@@ -4519,6 +4727,70 @@ import * as $ from 'svelte/internal/server';
 import './';
 
 export default function DirCasing($$renderer) {}
+=== 221 packages/language-server/test/plugins/typescript/testfiles/completions/completions-auto-optional-chain.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 58
+	},
+	"end": {
+		"line": 5,
+		"column": 0,
+		"character": 58
+	}
+}
+
+=== 227 packages/language-server/test/plugins/typescript/testfiles/completions/completions-in-reactive-statement.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 10,
+		"column": 13,
+		"character": 209
+	},
+	"end": {
+		"line": 10,
+		"column": 13,
+		"character": 209
+	}
+}
+
+=== 223 packages/language-server/test/plugins/typescript/testfiles/completions/completions.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 49,
+		"character": 49
+	},
+	"end": {
+		"line": 1,
+		"column": 49,
+		"character": 49
+	}
+}
+
+=== 246 packages/language-server/test/plugins/typescript/testfiles/completions/completionsstyle.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 4,
+		"column": 0,
+		"character": 65
+	},
+	"end": {
+		"line": 5,
+		"column": 0,
+		"character": 67
+	}
+}
+
 === 396 packages/language-server/test/plugins/typescript/testfiles/completions/component-events-completion-ts-def.svelte	js
 import * as $ from 'svelte/internal/server';
 import { ComponentDef, ComponentDef2 } from './ComponentDef';
@@ -4577,6 +4849,38 @@ import * as $ from 'svelte/internal/server';
 export default function Component_props_rune($$renderer, $$props) {
 	let { a } = $$props;
 }
+=== 226 packages/language-server/test/plugins/typescript/testfiles/completions/custom-element-tag.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 2,
+		"character": 2
+	},
+	"end": {
+		"line": 1,
+		"column": 2,
+		"character": 2
+	}
+}
+
+=== 221 packages/language-server/test/plugins/typescript/testfiles/completions/editingCompletion.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 5,
+		"column": 3,
+		"character": 45
+	},
+	"end": {
+		"line": 5,
+		"column": 3,
+		"character": 45
+	}
+}
+
 === 150 packages/language-server/test/plugins/typescript/testfiles/completions/element-events-completion.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -4635,6 +4939,22 @@ import * as $ from 'svelte/internal/server';
 export default function Importcompletions_new_line($$renderer) {
 	Scn;
 }
+=== 335 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-store.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 2,
+		"column": 4,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 10,
+		"character": 19
+	}
+}
+
 === 389 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions-text.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -4656,6 +4976,22 @@ a`);
 	Comp($$renderer, {});
 	$$renderer.push(`<!---->`);
 }
+=== 223 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 41,
+		"character": 41
+	},
+	"end": {
+		"line": 1,
+		"column": 41,
+		"character": 41
+	}
+}
+
 === 110 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions1.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -4669,6 +5005,70 @@ import '../../testfiles/';
 export default function Importcompletions2($$renderer) {
 	blu;
 }
+=== 223 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions3.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 42,
+		"character": 42
+	},
+	"end": {
+		"line": 1,
+		"column": 42,
+		"character": 42
+	}
+}
+
+=== 228 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions4.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 3,
+		"column": 7,
+		"character": 26
+	},
+	"end": {
+		"line": 3,
+		"column": 7,
+		"character": 26
+	}
+}
+
+=== 226 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions5.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 7,
+		"character": 7
+	},
+	"end": {
+		"line": 1,
+		"column": 7,
+		"character": 7
+	}
+}
+
+=== 228 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions6.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 4,
+		"column": 7,
+		"character": 78
+	},
+	"end": {
+		"line": 4,
+		"column": 7,
+		"character": 78
+	}
+}
+
 === 150 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions7.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as data from "./to-import";
@@ -4745,6 +5145,54 @@ export default function Importcompletions9($$renderer) {
 	}
 ]
 
+=== 228 packages/language-server/test/plugins/typescript/testfiles/completions/importcompletions_unclose-tag.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 2,
+		"character": 10
+	}
+}
+
+=== 221 packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 34
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 34
+	}
+}
+
+=== 221 packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions2.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 36
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 36
+	}
+}
+
 === 155 packages/language-server/test/plugins/typescript/testfiles/completions/jsdoc-completions.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -4755,6 +5203,38 @@ export default function Jsdoc_completions($$renderer) {
 	/***/
 	function abc(parameter1) {}
 }
+=== 221 packages/language-server/test/plugins/typescript/testfiles/completions/mustache.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 5,
+		"column": 4,
+		"character": 60
+	},
+	"end": {
+		"line": 5,
+		"column": 4,
+		"character": 60
+	}
+}
+
+=== 230 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced-v5.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 5,
+		"column": 12,
+		"character": 91
+	},
+	"end": {
+		"line": 5,
+		"column": 12,
+		"character": 91
+	}
+}
+
 === 1533 packages/language-server/test/plugins/typescript/testfiles/completions/namespaced.svelte	js
 import * as $ from 'svelte/internal/server';
 import * as Components from './ComponentDef';
@@ -4999,6 +5479,22 @@ export default function Different_ts_service($$renderer) {
 	foo;
 	bar;
 }
+=== 223 packages/language-server/test/plugins/typescript/testfiles/diagnostics/shared-comp.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 19,
+		"character": 45
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 45
+	}
+}
+
 === 144 packages/language-server/test/plugins/typescript/testfiles/diagnostics/unresolvedimport.svelte	js
 import * as $ from 'svelte/internal/server';
 import foo from './doesntexistyet';
@@ -6201,6 +6697,22 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 253 packages/svelte-vscode/test/grammar/samples/interpolation-comments/input.svelte	error.json
+{
+	"code": "block_unexpected_close",
+	"message": "Unexpected block closing tag\nhttps://svelte.dev/e/block_unexpected_close",
+	"start": {
+		"line": 10,
+		"column": 1,
+		"character": 222
+	},
+	"end": {
+		"line": 10,
+		"column": 1,
+		"character": 222
+	}
+}
+
 === 155 packages/svelte-vscode/test/grammar/samples/key-block/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -6481,6 +6993,22 @@ export default function Input($$renderer) {}
 	}
 ]
 
+=== 328 packages/svelte-vscode/test/grammar/samples/store/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$bar` is an illegal variable name. To reference a global variable called `$bar`, use `globalThis.$bar`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 4,
+		"column": 0,
+		"character": 47
+	},
+	"end": {
+		"line": 4,
+		"column": 4,
+		"character": 51
+	}
+}
+
 === 259 packages/svelte-vscode/test/grammar/samples/style-directive/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -6547,6 +7075,22 @@ export default function Input($$renderer) {
 		Component($$renderer, {});
 	});
 }
+=== 254 packages/svelte-vscode/test/grammar/samples/style-sass/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 29
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 29
+	}
+}
+
 === 26 packages/svelte-vscode/test/grammar/samples/style-scss/input.svelte	css
 
     /* (empty) .abc {}*/
@@ -6577,6 +7121,22 @@ export default function Input($$renderer) {}
 import * as $ from 'svelte/internal/server';
 
 export default function Input($$renderer) {}
+=== 254 packages/svelte-vscode/test/grammar/samples/style-stylus/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 31
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 31
+	}
+}
+
 === 32 packages/svelte-vscode/test/grammar/samples/style/input.svelte	css
 
     /* (empty) .container {}*/
@@ -6629,6 +7189,22 @@ function hoistable2($$renderer) {
 let foo = true;
 
 export default function Repl($$renderer) {}
+=== 225 packages/svelte2tsx/test/emitDts/samples/javascript-libRoot/src/lib/Test.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 6,
+		"column": 24,
+		"character": 123
+	},
+	"end": {
+		"line": 6,
+		"column": 24,
+		"character": 123
+	}
+}
+
 === 249 packages/svelte2tsx/test/emitDts/samples/javascript-runes.v5/src/TestRunes.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -6709,6 +7285,22 @@ export default function TestNoScript($$renderer, $$props) {
 	}
 ]
 
+=== 225 packages/svelte2tsx/test/emitDts/samples/svelte3/src/Test.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 3,
+		"column": 32,
+		"character": 103
+	},
+	"end": {
+		"line": 3,
+		"column": 32,
+		"character": 103
+	}
+}
+
 === 329 packages/svelte2tsx/test/emitDts/samples/typescript-imports-outside-lib-root.v5/src/Component.svelte	js
 import * as $ from 'svelte/internal/server';
 import { greet } from '../utils/helper';
@@ -6766,6 +7358,38 @@ export default function Input($$renderer) {
 import * as $ from 'svelte/internal/server';
 
 export default function Input($$renderer) {}
+=== 330 packages/svelte2tsx/test/htmlx2jsx/samples/animation-bare/input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	}
+}
+
+=== 330 packages/svelte2tsx/test/htmlx2jsx/samples/animation-params/input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 42,
+		"character": 42
+	}
+}
+
 === 242 packages/svelte2tsx/test/htmlx2jsx/samples/attachments.v5/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -6837,6 +7461,22 @@ export default function Input($$renderer) {
 		}
 	}
 ]
+
+=== 267 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-invalid-jsx-name/input.svelte	error.json
+{
+	"code": "attribute_invalid_name",
+	"message": "'--custom-prop' is not a valid attribute name\nhttps://svelte.dev/e/attribute_invalid_name",
+	"start": {
+		"line": 2,
+		"column": 5,
+		"character": 33
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 52
+	}
+}
 
 === 548 packages/svelte2tsx/test/htmlx2jsx/samples/attribute-multiline/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -7319,6 +7959,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
+=== 246 packages/svelte2tsx/test/htmlx2jsx/samples/binding-bare/input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	},
+	"end": {
+		"line": 1,
+		"column": 29,
+		"character": 29
+	}
+}
+
 === 906 packages/svelte2tsx/test/htmlx2jsx/samples/binding-get-set.v5/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -7398,6 +8054,54 @@ export default function Input_1($$renderer) {
 		}
 	}
 ]
+
+=== 246 packages/svelte2tsx/test/htmlx2jsx/samples/binding-group-bare/input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 25,
+		"character": 25
+	},
+	"end": {
+		"line": 1,
+		"column": 30,
+		"character": 30
+	}
+}
+
+=== 246 packages/svelte2tsx/test/htmlx2jsx/samples/binding-group/input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 32,
+		"character": 32
+	},
+	"end": {
+		"line": 1,
+		"column": 40,
+		"character": 40
+	}
+}
+
+=== 246 packages/svelte2tsx/test/htmlx2jsx/samples/binding-oneway/input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 2,
+		"column": 22,
+		"character": 40
+	},
+	"end": {
+		"line": 2,
+		"column": 27,
+		"character": 45
+	}
+}
 
 === 150 packages/svelte2tsx/test/htmlx2jsx/samples/binding-this-component/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -7488,6 +8192,22 @@ import * as $ from 'svelte/internal/server';
 export default function Input($$renderer) {
 	$$renderer.push(`<input type="radio" value="Plain"/>`);
 }
+=== 246 packages/svelte2tsx/test/htmlx2jsx/samples/binding/input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 31,
+		"character": 31
+	},
+	"end": {
+		"line": 1,
+		"column": 35,
+		"character": 35
+	}
+}
+
 === 689 packages/svelte2tsx/test/htmlx2jsx/samples/blocks-without-whitespace-inbetween/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -7881,6 +8601,22 @@ export default function Input($$renderer) {
 
 	debugger;
 }
+=== 333 packages/svelte2tsx/test/htmlx2jsx/samples/directive-quoted/input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 6,
+		"column": 5,
+		"character": 193
+	},
+	"end": {
+		"line": 6,
+		"column": 29,
+		"character": 217
+	}
+}
+
 === 184 packages/svelte2tsx/test/htmlx2jsx/samples/doctype/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -8025,6 +8761,342 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-action/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 21,
+		"character": 21
+	},
+	"end": {
+		"line": 1,
+		"column": 21,
+		"character": 21
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-animation/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 24,
+		"character": 52
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 52
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-await/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-binding/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-bracket/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 26,
+		"character": 26
+	},
+	"end": {
+		"line": 1,
+		"column": 26,
+		"character": 26
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-class-directive/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 20,
+		"character": 20
+	},
+	"end": {
+		"line": 1,
+		"column": 20,
+		"character": 20
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-const/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 24,
+		"character": 44
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 44
+	}
+}
+
+=== 219 packages/svelte2tsx/test/htmlx2jsx/samples/editing-empty-expression.v5/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-event-handler/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	},
+	"end": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-html-block/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 10,
+		"character": 10
+	},
+	"end": {
+		"line": 1,
+		"column": 10,
+		"character": 10
+	}
+}
+
+=== 219 packages/svelte2tsx/test/htmlx2jsx/samples/editing-if/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 9,
+		"character": 9
+	},
+	"end": {
+		"line": 1,
+		"column": 9,
+		"character": 9
+	}
+}
+
+=== 219 packages/svelte2tsx/test/htmlx2jsx/samples/editing-key/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 9,
+		"character": 9
+	},
+	"end": {
+		"line": 1,
+		"column": 9,
+		"character": 9
+	}
+}
+
+=== 219 packages/svelte2tsx/test/htmlx2jsx/samples/editing-mustache/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-parentheses/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-props/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 14,
+		"character": 14
+	},
+	"end": {
+		"line": 1,
+		"column": 14,
+		"character": 14
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-style-directive/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 27,
+		"character": 27
+	},
+	"end": {
+		"line": 1,
+		"column": 27,
+		"character": 27
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-transition/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 29,
+		"character": 29
+	},
+	"end": {
+		"line": 1,
+		"column": 29,
+		"character": 29
+	}
+}
+
+=== 287 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-block.v5/input.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 20
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 20
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-component-no-attr.v5/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 7,
+		"column": 2,
+		"character": 138
+	},
+	"end": {
+		"line": 7,
+		"column": 2,
+		"character": 138
+	}
+}
+
+=== 223 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-element-no-attr.v5/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 7,
+		"column": 2,
+		"character": 138
+	},
+	"end": {
+		"line": 7,
+		"column": 2,
+		"character": 138
+	}
+}
+
+=== 221 packages/svelte2tsx/test/htmlx2jsx/samples/editing-unclosed-tag.v5/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 24
+	},
+	"end": {
+		"line": 3,
+		"column": 2,
+		"character": 24
+	}
+}
+
 === 127 packages/svelte2tsx/test/htmlx2jsx/samples/element-only/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -9488,6 +10560,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
+=== 335 packages/svelte2tsx/test/htmlx2jsx/samples/key-block/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 4,
+		"column": 6,
+		"character": 43
+	},
+	"end": {
+		"line": 4,
+		"column": 12,
+		"character": 49
+	}
+}
+
 === 271 packages/svelte2tsx/test/htmlx2jsx/samples/mustache-tag-object-literal/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -10137,6 +11225,22 @@ import * as $ from 'svelte/internal/server';
 export default function Input($$renderer) {
 	$$renderer.push(`<!---->}>`);
 }
+=== 335 packages/svelte2tsx/test/htmlx2jsx/samples/transition-animate-fallbacks/input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 12,
+		"column": 4,
+		"character": 313
+	},
+	"end": {
+		"line": 12,
+		"column": 16,
+		"character": 325
+	}
+}
+
 === 157 packages/svelte2tsx/test/htmlx2jsx/samples/transition-bare/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -10155,6 +11259,22 @@ import * as $ from 'svelte/internal/server';
 export default function Input($$renderer) {
 	$$renderer.push(`<h1>Hello</h1> <h1>Hello</h1> <h1>Hello</h1> <h1>Hello</h1> <h1>Hello</h1>`);
 }
+=== 250 packages/svelte2tsx/test/htmlx2jsx/samples/ts-in-template.v5/input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 59,
+		"column": 23,
+		"character": 972
+	},
+	"end": {
+		"line": 59,
+		"column": 24,
+		"character": 973
+	}
+}
+
 === 223 packages/svelte2tsx/test/htmlx2jsx/samples/void-elements/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -10192,6 +11312,54 @@ export default function Input($$renderer) {
 		}
 	}
 ]
+
+=== 334 packages/svelte2tsx/test/sourcemaps/samples/action-directive/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$foo` is an illegal variable name. To reference a global variable called `$foo`, use `globalThis.$foo`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 10,
+		"column": 13,
+		"character": 115
+	},
+	"end": {
+		"line": 10,
+		"column": 17,
+		"character": 119
+	}
+}
+
+=== 345 packages/svelte2tsx/test/sourcemaps/samples/await-block/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$promise` is an illegal variable name. To reference a global variable called `$promise`, use `globalThis.$promise`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 11,
+		"column": 8,
+		"character": 138
+	},
+	"end": {
+		"line": 11,
+		"column": 16,
+		"character": 146
+	}
+}
+
+=== 250 packages/svelte2tsx/test/sourcemaps/samples/component-props/input.svelte	error.json
+{
+	"code": "bind_invalid_value",
+	"message": "Can only bind to state or props\nhttps://svelte.dev/e/bind_invalid_value",
+	"start": {
+		"line": 12,
+		"column": 11,
+		"character": 119
+	},
+	"end": {
+		"line": 12,
+		"column": 14,
+		"character": 122
+	}
+}
 
 === 2158 packages/svelte2tsx/test/sourcemaps/samples/each-block/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -10269,6 +11437,70 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!--]-->`);
 }
+=== 249 packages/svelte2tsx/test/sourcemaps/samples/element-attributes/input.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:foo` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 20,
+		"column": 4,
+		"character": 131
+	},
+	"end": {
+		"line": 20,
+		"column": 12,
+		"character": 139
+	}
+}
+
+=== 336 packages/svelte2tsx/test/sourcemaps/samples/event-binding/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$check` is an illegal variable name. To reference a global variable called `$check`, use `globalThis.$check`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 21,
+		"character": 21
+	},
+	"end": {
+		"line": 1,
+		"column": 27,
+		"character": 27
+	}
+}
+
+=== 328 packages/svelte2tsx/test/sourcemaps/samples/if-block/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$foo` is an illegal variable name. To reference a global variable called `$foo`, use `globalThis.$foo`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 5,
+		"column": 5,
+		"character": 35
+	},
+	"end": {
+		"line": 5,
+		"column": 9,
+		"character": 39
+	}
+}
+
+=== 221 packages/svelte2tsx/test/sourcemaps/samples/import-equal/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 3,
+		"column": 4,
+		"character": 26
+	},
+	"end": {
+		"line": 3,
+		"column": 4,
+		"character": 26
+	}
+}
+
 === 161 packages/svelte2tsx/test/sourcemaps/samples/property-shorthand/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -10380,6 +11612,22 @@ export default function Input($$renderer, $$props) {
 	}
 ]
 
+=== 279 packages/svelte2tsx/test/svelte2tsx/samples/$store-as-directive/input.svelte	error.json
+{
+	"code": "transition_conflict",
+	"message": "Cannot use `transition:` alongside existing `in:` directive\nhttps://svelte.dev/e/transition_conflict",
+	"start": {
+		"line": 12,
+		"column": 4,
+		"character": 229
+	},
+	"end": {
+		"line": 12,
+		"column": 15,
+		"character": 240
+	}
+}
+
 === 1255 packages/svelte2tsx/test/svelte2tsx/samples/$store-assign/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -10409,6 +11657,70 @@ export default function Input($$renderer) {
 
 	if ($$store_subs) $.unsubscribe_stores($$store_subs);
 }
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/$store-export-type/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 16,
+		"character": 25
+	},
+	"end": {
+		"line": 2,
+		"column": 16,
+		"character": 25
+	}
+}
+
+=== 336 packages/svelte2tsx/test/svelte2tsx/samples/$store-index/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
+=== 337 packages/svelte2tsx/test/svelte2tsx/samples/$store-inside-block-without-braces/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 9,
+		"column": 8,
+		"character": 119
+	},
+	"end": {
+		"line": 9,
+		"column": 14,
+		"character": 125
+	}
+}
+
+=== 347 packages/svelte2tsx/test/svelte2tsx/samples/$store-nested-declaration/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$notAStore` is an illegal variable name. To reference a global variable called `$notAStore`, use `globalThis.$notAStore`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 6,
+		"column": 4,
+		"character": 86
+	},
+	"end": {
+		"line": 6,
+		"column": 14,
+		"character": 96
+	}
+}
+
 === 383 packages/svelte2tsx/test/svelte2tsx/samples/$store-no-instance-only-module-script/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import { store1 } from './somewhere';
@@ -10452,6 +11764,38 @@ export default function Input($$renderer) {
 
 	if ($$store_subs) $.unsubscribe_stores($$store_subs);
 }
+=== 328 packages/svelte2tsx/test/svelte2tsx/samples/ast-offset-none/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$var` is an illegal variable name. To reference a global variable called `$var`, use `globalThis.$var`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 330 packages/svelte2tsx/test/svelte2tsx/samples/ast-offset-some/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$var` is an illegal variable name. To reference a global variable called `$var`, use `globalThis.$var`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 11,
+		"character": 11
+	},
+	"end": {
+		"line": 1,
+		"column": 15,
+		"character": 15
+	}
+}
+
 === 265 packages/svelte2tsx/test/svelte2tsx/samples/attributes-foreign-ns/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -10485,6 +11829,38 @@ export default function Input($$renderer, $$props) {
 		if ($$store_subs) $.unsubscribe_stores($$store_subs);
 	});
 }
+=== 366 packages/svelte2tsx/test/svelte2tsx/samples/binding-assignment-$store/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$compile_options` is an illegal variable name. To reference a global variable called `$compile_options`, use `globalThis.$compile_options`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	},
+	"end": {
+		"line": 1,
+		"column": 40,
+		"character": 40
+	}
+}
+
+=== 366 packages/svelte2tsx/test/svelte2tsx/samples/binding-group-store/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$compile_options` is an illegal variable name. To reference a global variable called `$compile_options`, use `globalThis.$compile_options`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 47,
+		"character": 47
+	},
+	"end": {
+		"line": 1,
+		"column": 63,
+		"character": 63
+	}
+}
+
 === 503 packages/svelte2tsx/test/svelte2tsx/samples/circle-drawer-example/input.svelte	css
 
 	.controls.svelte-cnhafb {
@@ -10817,6 +12193,22 @@ import * as $ from 'svelte/internal/server';
 export default function Input($$renderer) {
 	// } // <- error here
 }
+=== 335 packages/svelte2tsx/test/svelte2tsx/samples/comments-in-attributes.v5/input.svelte	error.json
+{
+	"code": "animation_invalid_placement",
+	"message": "An element that uses the `animate:` directive must be the only child of a keyed `{#each ...}` block\nhttps://svelte.dev/e/animation_invalid_placement",
+	"start": {
+		"line": 18,
+		"column": 4,
+		"character": 316
+	},
+	"end": {
+		"line": 18,
+		"column": 16,
+		"character": 328
+	}
+}
+
 === 277 packages/svelte2tsx/test/svelte2tsx/samples/component-default-slot/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -11540,6 +12932,22 @@ export default function Input($$renderer) {
 
 	$$renderer.push(`<!----></div>`);
 }
+=== 329 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-object-key/input.svelte	error.json
+{
+	"code": "store_invalid_scoped_subscription",
+	"message": "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
+	"start": {
+		"line": 2,
+		"column": 79,
+		"character": 101
+	},
+	"end": {
+		"line": 2,
+		"column": 84,
+		"character": 106
+	}
+}
+
 === 498 packages/svelte2tsx/test/svelte2tsx/samples/component-slot-var-shadowing/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -11644,12 +13052,60 @@ export default function Input($$renderer, $$props) {
 	}
 ]
 
+=== 327 packages/svelte2tsx/test/svelte2tsx/samples/custom-css-properties-with-$store/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$jo` is an illegal variable name. To reference a global variable called `$jo`, use `globalThis.$jo`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 2,
+		"column": 26,
+		"character": 38
+	},
+	"end": {
+		"line": 2,
+		"column": 29,
+		"character": 41
+	}
+}
+
+=== 338 packages/svelte2tsx/test/svelte2tsx/samples/debug-block/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$myfile` is an illegal variable name. To reference a global variable called `$myfile`, use `globalThis.$myfile`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 2,
+		"column": 8,
+		"character": 24
+	},
+	"end": {
+		"line": 2,
+		"column": 15,
+		"character": 31
+	}
+}
+
 === 126 packages/svelte2tsx/test/svelte2tsx/samples/doctype-script/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
 export default function Input($$renderer) {
 	const regex = /<!DOCTYPE html>/i;
 }
+=== 219 packages/svelte2tsx/test/svelte2tsx/samples/editing-mustache/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	}
+}
+
 === 301 packages/svelte2tsx/test/svelte2tsx/samples/event-and-forwarded-event/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import { createEventDispatcher } from "svelte";
@@ -12141,6 +13597,38 @@ export default function Input($$renderer, $$props) {
 
 	iconSnippet($$renderer);
 }
+=== 329 packages/svelte2tsx/test/svelte2tsx/samples/nested-$-variables-script/input.svelte	error.json
+{
+	"code": "store_invalid_scoped_subscription",
+	"message": "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
+	"start": {
+		"line": 8,
+		"column": 20,
+		"character": 142
+	},
+	"end": {
+		"line": 8,
+		"column": 25,
+		"character": 147
+	}
+}
+
+=== 329 packages/svelte2tsx/test/svelte2tsx/samples/nested-$-variables-template/input.svelte	error.json
+{
+	"code": "store_invalid_scoped_subscription",
+	"message": "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
+	"start": {
+		"line": 7,
+		"column": 22,
+		"character": 260
+	},
+	"end": {
+		"line": 7,
+		"column": 27,
+		"character": 265
+	}
+}
+
 === 226 packages/svelte2tsx/test/svelte2tsx/samples/props-variable-and-$props.id-destructured.v5/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -12180,6 +13668,38 @@ export default function Input($$renderer, $$props) {
 
 	$$renderer.push(`<!---->${$.escape(id)} ${$.escape(props)}`);
 }
+=== 254 packages/svelte2tsx/test/svelte2tsx/samples/reactive-$store-destructuring/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'count3' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 11,
+		"column": 6,
+		"character": 202
+	},
+	"end": {
+		"line": 11,
+		"column": 6,
+		"character": 202
+	}
+}
+
+=== 335 packages/svelte2tsx/test/svelte2tsx/samples/reactive-store-set/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$store` is an illegal variable name. To reference a global variable called `$store`, use `globalThis.$store`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 2,
+		"column": 7,
+		"character": 16
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 22
+	}
+}
+
 === 199 packages/svelte2tsx/test/svelte2tsx/samples/renamed-exports-runes.v5/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -12437,6 +13957,22 @@ import * as $ from 'svelte/internal/server';
 export default function Input($$renderer) {
 	$$renderer.push(`<h1>hello</h1>`);
 }
+=== 307 packages/svelte2tsx/test/svelte2tsx/samples/slot-bind-this/input.svelte	error.json
+{
+	"code": "slot_element_invalid_attribute",
+	"message": "`<slot>` can only receive attributes and (optionally) let directives\nhttps://svelte.dev/e/slot_element_invalid_attribute",
+	"start": {
+		"line": 1,
+		"column": 15,
+		"character": 15
+	},
+	"end": {
+		"line": 1,
+		"column": 28,
+		"character": 28
+	}
+}
+
 === 187 packages/svelte2tsx/test/svelte2tsx/samples/snippet-instance-script.v5/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -12582,6 +14118,22 @@ import { derived } from 'svelte/store';
 export default function Input($$renderer) {
 	let a = $.derived(() => 1);
 }
+=== 255 packages/svelte2tsx/test/svelte2tsx/samples/store-destructuring/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'noStore' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 4,
+		"column": 28,
+		"character": 129
+	},
+	"end": {
+		"line": 4,
+		"column": 28,
+		"character": 129
+	}
+}
+
 === 541 packages/svelte2tsx/test/svelte2tsx/samples/store-from-module/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import { store1, store2 } from './store';
@@ -12669,6 +14221,22 @@ export default function Input($$renderer) {
 
 	if ($$store_subs) $.unsubscribe_stores($$store_subs);
 }
+=== 322 packages/svelte2tsx/test/svelte2tsx/samples/stores-mustache/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$s` is an illegal variable name. To reference a global variable called `$s`, use `globalThis.$s`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 10,
+		"character": 10
+	}
+}
+
 === 46 packages/svelte2tsx/test/svelte2tsx/samples/style-after-selfclosing-iframe/input.svelte	css
 
   /* (unused) .bla {
@@ -12980,6 +14548,22 @@ export default function _page($$renderer, $$props) {
 
 	$.bind_props($$props, { snapshot });
 }
+=== 252 packages/svelte2tsx/test/svelte2tsx/samples/sveltekit-autotypes/+page.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'form' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 7,
+		"column": 15,
+		"character": 120
+	},
+	"end": {
+		"line": 7,
+		"column": 15,
+		"character": 120
+	}
+}
+
 === 90 packages/svelte2tsx/test/svelte2tsx/samples/ts-$$Props-interface-only-props/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -13061,6 +14645,230 @@ export default function Input($$renderer, $$props) {
 		}
 	}
 ]
+
+=== 227 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatcher-typed/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 10,
+		"column": 15,
+		"character": 210
+	},
+	"end": {
+		"line": 10,
+		"column": 15,
+		"character": 210
+	}
+}
+
+=== 225 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatchers-same-event/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 9,
+		"column": 15,
+		"character": 188
+	},
+	"end": {
+		"line": 9,
+		"column": 15,
+		"character": 188
+	}
+}
+
+=== 225 packages/svelte2tsx/test/svelte2tsx/samples/ts-event-dispatchers/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 9,
+		"column": 15,
+		"character": 188
+	},
+	"end": {
+		"line": 9,
+		"column": 15,
+		"character": 188
+	}
+}
+
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-arrow-function/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 21,
+		"character": 30
+	},
+	"end": {
+		"line": 2,
+		"column": 21,
+		"character": 30
+	}
+}
+
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-boolean/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 4,
+		"column": 19,
+		"character": 85
+	},
+	"end": {
+		"line": 4,
+		"column": 19,
+		"character": 85
+	}
+}
+
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-const/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 21,
+		"character": 30
+	},
+	"end": {
+		"line": 2,
+		"column": 21,
+		"character": 30
+	}
+}
+
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-doc/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 5,
+		"column": 16,
+		"character": 54
+	},
+	"end": {
+		"line": 5,
+		"column": 16,
+		"character": 54
+	}
+}
+
+=== 240 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-has-type/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "The keyword 'interface' is reserved\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 4,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 4,
+		"character": 13
+	}
+}
+
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-interface/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 11,
+		"character": 37
+	},
+	"end": {
+		"line": 2,
+		"column": 11,
+		"character": 37
+	}
+}
+
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list-runes-false/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 3,
+		"column": 13,
+		"character": 55
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 55
+	}
+}
+
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list-runes.v5/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 3,
+		"column": 13,
+		"character": 47
+	},
+	"end": {
+		"line": 3,
+		"column": 13,
+		"character": 47
+	}
+}
+
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-export-list/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 13,
+		"character": 22
+	},
+	"end": {
+		"line": 2,
+		"column": 13,
+		"character": 22
+	}
+}
+
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-multiple-export/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 22,
+		"character": 31
+	},
+	"end": {
+		"line": 2,
+		"column": 22,
+		"character": 31
+	}
+}
+
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-best-effort-types.v5/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 74,
+		"character": 83
+	},
+	"end": {
+		"line": 2,
+		"column": 74,
+		"character": 83
+	}
+}
 
 === 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-bindable.v5/input.svelte	js
 import * as $ from 'svelte/internal/server';
@@ -13172,6 +14980,22 @@ import * as $ from 'svelte/internal/server';
 export default function Input($$renderer, $$props) {
 	let { Abc } = $$props;
 }
+=== 671 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-14.v5/input.svelte	error.json
+{
+	"code": "typescript_invalid_feature",
+	"message": "TypeScript language features like enums are not natively supported, and their use is generally discouraged. Outside of `<script>` tags, these features are not supported. For use within `<script>` tags, you will need to use a preprocessor to convert it to JavaScript before it gets passed to the Svelte compiler. If you are using `vitePreprocess`, make sure to specifically enable preprocessing script tags (`vitePreprocess({ script: true })`)\nhttps://svelte.dev/e/typescript_invalid_feature",
+	"start": {
+		"line": 2,
+		"column": 4,
+		"character": 20
+	},
+	"end": {
+		"line": 3,
+		"column": 5,
+		"character": 34
+	}
+}
+
 === 155 packages/svelte2tsx/test/svelte2tsx/samples/ts-runes-hoistable-props-false-15.v5/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import { store } from './foo';
@@ -13271,6 +15095,22 @@ export default function Input($$renderer, $$props) {
 	let x = 0;
 	let y = $.derived(() => x * 2);
 }
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune-unchanged.v5/+page.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 25,
+		"character": 34
+	},
+	"end": {
+		"line": 2,
+		"column": 25,
+		"character": 34
+	}
+}
+
 === 192 packages/svelte2tsx/test/svelte2tsx/samples/ts-sveltekit-autotypes-$props-rune.v5/+page.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -13306,6 +15146,22 @@ export default function Input($$renderer) {
 	}
 ]
 
+=== 223 packages/svelte2tsx/test/svelte2tsx/samples/ts-typed-export-with-default/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 19,
+		"character": 28
+	},
+	"end": {
+		"line": 2,
+		"column": 19,
+		"character": 28
+	}
+}
+
 === 213 packages/svelte2tsx/test/svelte2tsx/samples/typeof-$store/input.svelte	js
 import * as $ from 'svelte/internal/server';
 import { writable } from "svelte/store";
@@ -13315,6 +15171,22 @@ export default function Input($$renderer, $$props) {
 		const foo = writable(1);
 	});
 }
+=== 228 packages/svelte2tsx/test/svelte2tsx/samples/unclosed-tag-containing-tag.v5/input.svelte	error.json
+{
+	"code": "element_unclosed",
+	"message": "`<div>` was left open\nhttps://svelte.dev/e/element_unclosed",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
 === 530 packages/svelte2tsx/test/svelte2tsx/samples/uses-$$slots-script/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -13784,6 +15656,22 @@ export default function Input($$renderer, $$props) {
 	}
 ]
 
+=== 322 packages/svelte2tsx/test/svelte2tsx/samples/uses-$store/input.svelte	error.json
+{
+	"code": "global_reference_invalid",
+	"message": "`$b` is an illegal variable name. To reference a global variable called `$b`, use `globalThis.$b`\nhttps://svelte.dev/e/global_reference_invalid",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 10,
+		"character": 10
+	}
+}
+
 === 952 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components-let-forward/input.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -13888,4 +15776,20 @@ export default function Input($$renderer, $$props) {
 		}
 	}
 ]
+
+=== 307 packages/svelte2tsx/test/svelte2tsx/samples/uses-svelte-components/input.svelte	error.json
+{
+	"code": "svelte_fragment_invalid_placement",
+	"message": "`<svelte:fragment>` must be the direct child of a component\nhttps://svelte.dev/e/svelte_fragment_invalid_placement",
+	"start": {
+		"line": 13,
+		"column": 0,
+		"character": 271
+	},
+	"end": {
+		"line": 13,
+		"column": 19,
+		"character": 290
+	}
+}
 

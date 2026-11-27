@@ -6424,22 +6424,6 @@ import * as $ from 'svelte/internal/server';
 export default function _1c2308d28b6a966($$renderer) {
 	$$renderer.push(`<p>other</p>`);
 }
-=== 223 rsvelte_language_server/tsgo_overlay/tests/an_unparseable_shadow_still_finds_the_render_return_type_slot/204de4961e65fda8.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 1,
-		"column": 49,
-		"character": 49
-	},
-	"end": {
-		"line": 1,
-		"column": 49,
-		"character": 49
-	}
-}
-
 === 137 rsvelte_language_server/tsgo_overlay/tests/build_is_diskless_and_discovers_project_components/0a99dcc3a96bfd76.svelte	js
 import * as $ from 'svelte/internal/server';
 
@@ -27506,22 +27490,6 @@ export default function _2adfdcd4abf6d23($$renderer, $$props) {
 		}
 	}
 ]
-
-=== 329 rsvelte_projection/svelte2tsx_slots_reflection_2161/object_key_is_never_substituted/5a210d59b14880c1.svelte	error.json
-{
-	"code": "store_invalid_scoped_subscription",
-	"message": "Cannot subscribe to stores that are not declared at the top level of the component\nhttps://svelte.dev/e/store_invalid_scoped_subscription",
-	"start": {
-		"line": 2,
-		"column": 79,
-		"character": 101
-	},
-	"end": {
-		"line": 2,
-		"column": 84,
-		"character": 106
-	}
-}
 
 === 502 rsvelte_projection/svelte2tsx_slots_reflection_2161/string_literals_are_not_substituted/063b0c5c6a77f7e9.svelte	js
 import * as $ from 'svelte/internal/server';
