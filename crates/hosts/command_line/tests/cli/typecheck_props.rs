@@ -23,24 +23,33 @@ fn typecheck_types_untyped_props_as_svelte2tsx_names_them() {
              <C />\n<C v={{1}} zz={{2}} />\n{wrong}"
         )
     };
-    let (js, ts) = ("", " lang=\"ts\"");
+    let (javascript, typescript) = ("", " lang=\"ts\"");
     let files = [
-        ("src/Number.svelte", child(js, "", "{ v, w = 1 }")),
-        ("src/NumberTs.svelte", child(ts, "", "{ v, w = 1 }")),
+        ("src/Number.svelte", child(javascript, "", "{ v, w = 1 }")),
+        ("src/NumberTs.svelte", child(typescript, "", "{ v, w = 1 }")),
         (
             "src/Typeof.svelte",
-            child(ts, "const d = 1; ", "{ v, w = d }"),
+            child(typescript, "const d = 1; ", "{ v, w = d }"),
         ),
-        ("src/Parenthesized.svelte", child(js, "", "{ v, w = (1) }")),
-        ("src/Undeclared.svelte", child(js, "", "{ v, w = x }")),
-        ("src/UndeclaredTs.svelte", child(ts, "", "{ v, w = x }")),
+        (
+            "src/Parenthesized.svelte",
+            child(javascript, "", "{ v, w = (1) }"),
+        ),
+        (
+            "src/Undeclared.svelte",
+            child(javascript, "", "{ v, w = x }"),
+        ),
+        (
+            "src/UndeclaredTs.svelte",
+            child(typescript, "", "{ v, w = x }"),
+        ),
         (
             "src/Directive.svelte",
-            child(js, "// @ts-expect-error\n\t", "{ v, w = x }"),
+            child(javascript, "// @ts-expect-error\n\t", "{ v, w = x }"),
         ),
         (
             "src/DirectiveTs.svelte",
-            child(ts, "// @ts-expect-error\n\t", "{ v, w = x }"),
+            child(typescript, "// @ts-expect-error\n\t", "{ v, w = x }"),
         ),
         ("src/UseNumber.svelte", parent("Number", Some("w=\"s\""))),
         (
