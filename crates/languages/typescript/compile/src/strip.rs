@@ -18,6 +18,8 @@ use oxc_ast_visit::{Visit, VisitMut, walk, walk_mut};
 use oxc_span::{GetSpan, Span};
 use oxc_syntax::scope::ScopeFlags;
 
+use crate::parentheses::inner_or_parenthesized;
+
 /// Erases the types of every node it visits.
 pub struct Strip<'a> {
     allocator: &'a Allocator,
@@ -319,7 +321,7 @@ fn is_type_export(specifier: &ExportSpecifier<'_>) -> bool {
 }
 
 /// The expression inside `as`, `satisfies`, `!`, `<T>` and instantiation, if `e` is one of them.
-fn inner<'a>(e: &mut Expression<'a>, allocator: &'a Allocator) -> Option<Expression<'a>> {
+pub fn inner<'a>(e: &mut Expression<'a>, allocator: &'a Allocator) -> Option<Expression<'a>> {
     let inner = match e {
         Expression::TSAsExpression(e) => &mut e.expression,
         Expression::TSSatisfiesExpression(e) => &mut e.expression,
@@ -329,18 +331,6 @@ fn inner<'a>(e: &mut Expression<'a>, allocator: &'a Allocator) -> Option<Express
         _ => return None,
     };
     Some(inner.take_in(&allocator))
-}
-
-/// [`inner`], or the expression inside a pair of parentheses: an assignment target or a chain
-/// keeps none, so those inside one of its types go with it.
-fn inner_or_parenthesized<'a>(
-    e: &mut Expression<'a>,
-    allocator: &'a Allocator,
-) -> Option<Expression<'a>> {
-    match e {
-        Expression::ParenthesizedExpression(e) => Some(e.expression.take_in(&allocator)),
-        e => inner(e, allocator),
-    }
 }
 
 /// Whether [`Strip`] removes `statement` from the list that holds it.
