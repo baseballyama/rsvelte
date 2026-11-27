@@ -10,8 +10,8 @@ declare function __rsvelte_slots<Slots = Record<string, Record<string, any>>>():
 declare const __rsvelte_snippet_return: any;
 declare function __rsvelte_slot_flags<Key extends string>(): Record<Key, boolean>;
 declare function __rsvelte_component_props<C extends (internals: any, props: any) => unknown>(component: C): Parameters<C>[1] & Record<string, any>;
-// The instance svelte2tsx constructs; a class component reaches here as the call `__rsvelte_component` makes of it.
-declare function __rsvelte_instance<C>(component: C): C extends ConstructorOfATypedSvelteComponent ? InstanceType<C> : C extends ((...args: any) => infer Instance extends ATypedSvelteComponent) ? Instance : C extends import('svelte').Component<infer Props extends Record<string, any>, any, any> ? import('svelte').SvelteComponent<Props, Props['$$events'], Props['$$slots']> : any;
+// The instance svelte2tsx constructs; a class component reaches here as the call `__rsvelte_component` makes of it, and a generic one's generics are their constraints, as svelte2tsx infers them.
+declare function __rsvelte_instance<C>(component: C): C extends { __rsvelte_instance: (...args: any) => infer Instance } ? Instance : C extends ConstructorOfATypedSvelteComponent ? InstanceType<C> : C extends ((...args: any) => infer Instance extends ATypedSvelteComponent) ? Instance : C extends import('svelte').Component<infer Props extends Record<string, any>, any, any> ? import('svelte').SvelteComponent<Props, Props['$$events'], Props['$$slots']> : any;
 // The instance `$on` reads: a generic component's call constructs it for the generics the props infer.
 declare function __rsvelte_constructed<C, Constructed>(component: C, constructed: Constructed): C extends { __rsvelte_instance: any } ? Constructed : ReturnType<typeof __rsvelte_instance<C>>;
 // The props a component lets `bind:` pass, as svelte2tsx's `$$bindings`; a class component allows any.
