@@ -1,15 +1,11 @@
 ;
 function $$render() {
-  let /** @type {typeof __rsvelte_public_props0} */ { width = $bindable(), x = $bindable() } = $props();
+  let /** @typedef {{ width?: any, x?: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { width = $bindable(), x = $bindable() } = $props();
   width;
   x;
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({}, {
-    width: __rsvelte_untyped_prop(),
-    x: __rsvelte_untyped_prop(),
-  }, false);
   async () => {
     {
       svelteHTML.createElement("svelte:window", {
@@ -26,7 +22,7 @@ function $$render() {
       };
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "width" | "x">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "width" | "x">} */ (__rsvelte_export_component))();
 }
 export const GlobalsPropsBinding__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof GlobalsPropsBinding__SvelteComponent_>} GlobalsPropsBinding__SvelteComponent_ */

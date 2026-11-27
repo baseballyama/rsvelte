@@ -1,11 +1,8 @@
 ;
 function $$render() {
-  let c = $state('a'); let /** @type {typeof __rsvelte_public_props0} */ { p } = $props();
+  let c = $state('a'); let /** @typedef {{ p: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { p } = $props();
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    p: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("my-el", {});
@@ -43,7 +40,7 @@ function $$render() {
       }
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const ScopedCustomElement__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof ScopedCustomElement__SvelteComponent_>} ScopedCustomElement__SvelteComponent_ */
