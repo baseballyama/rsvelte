@@ -158,3 +158,42 @@ fn typecheck_reads_a_block_name_in_the_blocks_other_branches() {
             .native(),
     );
 }
+
+/// A `let:` value a component forwards from a generic one is typed for the generics' constraints,
+/// as svelte2tsx's instance of the generic component infers them. svelte-check 4.7.8 reports
+/// these two lines.
+#[test]
+fn typecheck_types_a_value_forwarded_from_a_generic_component_by_its_constraint() {
+    let report = check(&[
+        (
+            "src/Generic.svelte",
+            "<script lang=\"ts\" generics=\"T\">\n\tlet { v }: { v: T } = $props();\n</script>\n\
+            <slot val={v} />\n",
+        ),
+        (
+            "src/Bounded.svelte",
+            "<script lang=\"ts\" generics=\"T extends string\">\n\
+            \tlet { v }: { v: T } = $props();\n</script>\n<slot val={v} />\n",
+        ),
+        (
+            "src/Forward.svelte",
+            "<script lang=\"ts\">\n\timport Generic from \"./Generic.svelte\";\n\
+            \timport Bounded from \"./Bounded.svelte\";\n</script>\n\
+            <Generic v=\"s\" let:val><slot x={val} /></Generic>\n\
+            <Bounded v=\"s\" let:val><slot name=\"b\" y={val} /></Bounded>\n",
+        ),
+        (
+            "src/App.svelte",
+            "<script lang=\"ts\">\n\timport Forward from \"./Forward.svelte\";\n</script>\n\
+            <Forward let:x>{x.foo}<svelte:fragment slot=\"b\" let:y>{y.foo}</svelte:fragment>\
+            </Forward>\n",
+        ),
+    ]);
+    assert_eq!(
+        report,
+        "src/App.svelte(4,17): error TS18046: 'x' is of type 'unknown'.\n\
+         src/App.svelte(4,58): error TS2339: Property 'foo' does not exist on type 'string'.\n\
+         \nFound 2 errors in 1 file.\n"
+            .native(),
+    );
+}
