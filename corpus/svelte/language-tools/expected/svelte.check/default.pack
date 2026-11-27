@@ -3468,6 +3468,62 @@
 	}
 ]
 
+=== 548 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module './shared-comp.svelte'. 'packages/language-server/test/plugins/typescript/testfiles/diagnostics/shared-comp.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 46
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module './shared-ts-file' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 42
+		}
+	}
+]
+
+=== 550 packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service/different-ts-service.svelte	json
+[
+	{
+		"code": 7016,
+		"message": "Could not find a declaration file for module '../shared-comp.svelte'. 'packages/language-server/test/plugins/typescript/testfiles/diagnostics/shared-comp.svelte' implicitly has an 'any' type.",
+		"start": {
+			"line": 1,
+			"character": 24
+		},
+		"end": {
+			"line": 1,
+			"character": 47
+		}
+	},
+	{
+		"code": 2307,
+		"message": "Cannot find module '../shared-ts-file' or its corresponding type declarations.",
+		"start": {
+			"line": 2,
+			"character": 24
+		},
+		"end": {
+			"line": 2,
+			"character": 43
+		}
+	}
+]
+
 === 183 packages/language-server/test/plugins/typescript/testfiles/diagnostics/shared-comp.svelte	json
 [
 	{

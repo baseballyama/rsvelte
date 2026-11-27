@@ -36,6 +36,8 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/importstatementcompletions2.svelte	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/completions/mustache.svelte	js-equivalent
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service.svelte	mismatch
+svelte/language-tools/packages/language-server/test/plugins/typescript/testfiles/diagnostics/different-ts-service/different-ts-service.svelte	mismatch
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/editing-animation/input.svelte	js-equivalent
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/editing-if/input.svelte	js-equivalent
 svelte/language-tools/packages/svelte2tsx/test/htmlx2jsx/samples/ts-in-template.v5/input.svelte	mismatch
