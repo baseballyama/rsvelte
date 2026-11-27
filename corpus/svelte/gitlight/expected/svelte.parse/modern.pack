@@ -2,11 +2,33 @@
 === 65 src/lib/components/common/DragRegion.svelte	ast.sha256
 0385e73ba2432feee433f4aa18a3661f48a981115dcdcae9a65f84059b2fd5a5
 
+=== 262 src/lib/components/common/ScrollbarContainer.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 49,
+		"column": 18,
+		"character": 1003
+	},
+	"end": {
+		"line": 49,
+		"column": 18,
+		"character": 1003
+	}
+}
+
 === 65 src/lib/components/dashboard/Banner.svelte	ast.sha256
 beafaa8780a82bd6374813f2390c97a3c47c14b1c76f76e4eead82e1aef2c33d
 
 === 65 src/lib/components/dashboard/LoadingScreen.svelte	ast.sha256
 83698c5f1d0e56b32ac3255997ffe539aecea92859602d8c84d229d662787c9f
+
+=== 65 src/lib/components/dashboard/sidebar/WatchedPersons.svelte	ast.sha256
+a66114d6a6f04ac624fcf56a609b59a986f5844555e0c39b05812336b4b13bde
+
+=== 65 src/lib/components/dashboard/sidebar/WatchedRepos.svelte	ast.sha256
+88a92c5dc7c7cbe9e0716edd9d707eef574d0837f30b46324fcb8bd9b00ee0b4
 
 === 65 src/lib/components/settings/accounts/Accounts.svelte	ast.sha256
 bf5f2f2c10c9a187e69f0efac88531022326020e401711671536dc531db95c4c

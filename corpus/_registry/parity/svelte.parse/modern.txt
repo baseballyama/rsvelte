@@ -1,4 +1,4 @@
-# svelte.parse/modern: 34369 match
+# svelte.parse/modern: 34848 match
 svelte/appwrite-console/src/lib/components/columnSelector.svelte	mismatch
 svelte/appwrite-console/src/lib/components/loadingDots.svelte	mismatch
 svelte/appwrite-console/src/lib/components/multiSelectTable.svelte	mismatch
@@ -10,6 +10,7 @@ svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/database
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/edit.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/rows/editRelated.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/sheetOptions.svelte	mismatch
+svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-input.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts-v5/ts-abstract-accessor-property-output.svelte	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/indent/invalid/ts/ts-import-export01-input.svelte	mismatch
@@ -57,6 +58,13 @@ svelte/primo/src/lib/components/CreateSite.svelte	mismatch
 svelte/primo/src/lib/components/app-sidebar.svelte	mismatch
 svelte/primo/src/routes/dashboard/library/+page.svelte	mismatch
 svelte/primo/src/routes/dashboard/marketplace/blocks/+page.svelte	mismatch
+svelte/rsvelte-mutants/animotion/open-expression/js_parse_error/35da9d6bccd68cc1.svelte	js-equivalent
+svelte/rsvelte-mutants/animotion/open-expression/js_parse_error/bf2dfbcca3b401fb.svelte	js-equivalent
+svelte/rsvelte-mutants/cnblocks/duplicate-attribute/expected_token/7a556e431c90630e.svelte	mismatch
+svelte/rsvelte-mutants/cnblocks/duplicate-attribute/expected_token/a22d6c3178e84aac.svelte	mismatch
+svelte/rsvelte-mutants/cnblocks/script-twice/js_parse_error/5556caa365c1a1d9.svelte	js-equivalent
+svelte/rsvelte-mutants/cnblocks/script-twice/js_parse_error/d18921f6ddf6dbf3.svelte	js-equivalent
+svelte/rsvelte-mutants/svelte-eslint-parser/drop-close/tag_invalid_placement/aed3d470dae0873b.svelte	mismatch
 svelte/rsvelte-tests-core-1/abstract_property_erasure_3082/an_abstract_member_is_erased_on_every_target/2433da24234ea06f.svelte	mismatch
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_in_a_statement_that_already_parsed_is_not_the_stopping_point/293aa2c2a9e79787.svelte	js-equivalent
 svelte/rsvelte-tests-core-1/acorn_reserved_word_statement_start/a_reserved_word_in_a_statement_that_already_parsed_is_not_the_stopping_point/43f538da0f7ac99c.svelte	js-equivalent
@@ -880,6 +888,7 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_broken_script_3232/export_is_
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_rune_scan/matches_official_svelte2tsx/50bd00218c5ee21d.svelte	unexpected
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_rune_scan/matches_official_svelte2tsx/ad09375848e26929.svelte	unexpected
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_class_rune_scan/matches_official_svelte2tsx/b6ebc2c3659ad9a5.svelte	unexpected
+svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	unexpected
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/a_typed_dispatchers_own_dispatch_calls_are_not_scanned/2d878381cb5c90fb.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/an_event_declared_by_two_typed_dispatchers_also_becomes_a_custom_event/b01fa1aa066f852e.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_event_dispatcher_2157/every_typed_dispatcher_contributes_its_own_event_typings/8d81e5b3fe2e0e7c.svelte	js-equivalent
@@ -921,6 +930,8 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_asy
 svelte/rsvelte/check/sibling-paths-alias/project/pkg-libs/components/survey-options/survey-options.svelte	mismatch
 svelte/rsvelte/check/sibling-symlink/project/pkg-libs/src/components/survey-options.svelte	mismatch
 svelte/rsvelte/check/tsx-ambiguous-angle-brackets/project/src/Arrows.svelte	mismatch
+svelte/rsvelte/errors/script_invalid_attribute_value.svelte	unexpected
+svelte/rsvelte/errors/script_reserved_attribute.svelte	unexpected
 svelte/rsvelte/lint/block-lang/05-case-insensitive.svelte	js-equivalent
 svelte/rsvelte/lint/max-lines-per-block/06-style.svelte	mismatch
 svelte/rsvelte/lint/mustache-spacing/18-exotic-ws-controls.svelte	mismatch
@@ -985,7 +996,6 @@ svelte/rsvelte/pattern/issues/3201-template-strict-with.svelte	unexpected
 svelte/rsvelte/pattern/issues/3205-entity-word-boundary-underscore.svelte	mismatch
 svelte/rsvelte/pattern/issues/3205-textarea-legacy-entity.svelte	mismatch
 svelte/rsvelte/pattern/issues/3220-assign-rvalue-member.svelte	js-equivalent
-svelte/rsvelte/pattern/issues/3220-assign-rvalue-target.svelte	js-equivalent
 svelte/rsvelte/pattern/issues/4335-parse-ts-type-fields.svelte	mismatch
 svelte/rsvelte/pattern/issues/abstract-method-member-alignment.svelte	mismatch
 svelte/rsvelte/pattern/issues/acorn-unchecked-ts-grammar-rule-in-a-template.svelte	mismatch
@@ -1075,10 +1085,17 @@ svelte/svelte-sonner/src/components/Hero.svelte	mismatch
 svelte/svelte-sonner/src/lib/Toaster.svelte	mismatch
 svelte/svelte-tiny-virtual-list/src/routes/+page.svelte	mismatch
 svelte/svelte-ux/packages/svelte-ux/src/routes/docs/components/Table/+page.svelte	mismatch
+svelte/svelte-virtuallists/src/lib/VirtualListNew.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/declaration-tag-trailing-slash/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/comment-with-apostrophe/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/css-prune-edge-cases/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/css/samples/directive-special-character/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/parser-modern/samples/css-nth-syntax/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/parser-modern/samples/loose-declaration-tag/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/input.svelte	js-equivalent
 svelte/svelte/packages/svelte/tests/print/samples/css-escape-sequences/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/print/samples/css-escape-sequences/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/print/samples/style-comments/input.svelte	mismatch
@@ -1088,8 +1105,26 @@ svelte/svelte/packages/svelte/tests/print/samples/style/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-optional-arguments-defaults/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/snippet-typescript/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/runtime-runes/samples/typescript/main.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/css-invalid-global-selector-4/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/css-invalid-global-selector-6/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/css-invalid-global-selector/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte	unexpected
+svelte/svelte/packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	unexpected
+svelte/svelte/packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	js-equivalent
+svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	unexpected
+svelte/svelte/packages/svelte/tests/validator/samples/ts-unsupported-accessor/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/ts-unsupported-decorator/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/ts-unsupported-enum/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/ts-unsupported-modifier-readonly/input.svelte	mismatch
+svelte/svelte/packages/svelte/tests/validator/samples/ts-unsupported-modifier/input.svelte	mismatch
 svelte/sveltepress/packages/theme-blog/src/components/GiscusComments.svelte	mismatch
 svelte/sveltestrap/src/Nav/Nav.stories.svelte	mismatch
+svelte/syntaxfm-website/src/lib/ComponentWindow.svelte	unexpected
 svelte/syntaxfm-website/src/lib/FacePile.svelte	mismatch
 svelte/syntaxfm-website/src/lib/Icon.svelte	mismatch
 svelte/syntaxfm-website/src/lib/ShowTable.svelte	mismatch

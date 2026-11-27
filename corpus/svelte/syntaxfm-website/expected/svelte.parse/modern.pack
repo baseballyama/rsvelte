@@ -11,6 +11,22 @@ ef051374b1e198c6727ff6a240a00338f6f030375ea27300d07dfc1fc9d36a66
 === 65 src/lib/AmsterdamBanner.svelte	ast.sha256
 d9e8445042404fe3d91864c75302781087d334ad47665641df0f2ca882ed6c11
 
+=== 255 src/lib/ComponentWindow.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'Component' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 7,
+		"column": 7,
+		"character": 115
+	},
+	"end": {
+		"line": 7,
+		"column": 7,
+		"character": 115
+	}
+}
+
 === 65 src/lib/DropdownMenu.svelte	ast.sha256
 16d56f578a067eba2a771b937897d836d8e3c4160604e5c52d00351889aa8327
 

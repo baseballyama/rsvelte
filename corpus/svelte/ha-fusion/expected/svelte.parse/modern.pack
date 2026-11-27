@@ -29,6 +29,12 @@ f3e3c53e2a2a0405f4f53b482825432ffa141ae6371ab8aa7bdd46b0bd579e8e
 === 65 src/lib/Main/DragIndicator.svelte	ast.sha256
 0e1e9cbf3f76b327800eb11353b789e9ef3b5ae32d94d87dfa98ab5d31e7d74b
 
+=== 65 src/lib/Modal/LightModal.svelte	ast.sha256
+ab8b9c9d5f0cede41addf5c3e640bba5ea4b450896caaf3c039d11e351ea8df1
+
+=== 65 src/lib/Modal/PictureElements/HelpOverlay.svelte	ast.sha256
+c1d61633d001a13f9d4436f1aa803d1ae88ec70e70647df7da20fb0d5937850f
+
 === 65 src/lib/Settings/CustomJs.svelte	ast.sha256
 5e3c4783e7e035f12e86d1093c984948f00ebc0d1886231b043a878e584c9a42
 

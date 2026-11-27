@@ -95,6 +95,22 @@ e05d7198a0325fa8def31b3283484a051ebbe53b70755fa8a2c62f6a6de78dd2
 === 65 sites/docs/src/packages/async-stack/_page/examples/toast/usage.svelte	ast.sha256
 8f89b79a0e6a47c63b98f31225271cda9d10307ec46cd3cd153e4495e9b0a02f
 
+=== 231 sites/docs/src/packages/async-stack/docs.md.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 120,
+		"column": 92,
+		"character": 4837
+	},
+	"end": {
+		"line": 120,
+		"column": 92,
+		"character": 4837
+	}
+}
+
 === 65 sites/docs/src/packages/avatar/_page/examples/custom.markup.svelte	ast.sha256
 6bce1791fce884ff3cb55e287bf2f12f250d921ae1d012bc3dbdad264faa27e4
 
@@ -125,6 +141,22 @@ ba27ffc34c6c3f74afe0dd369c01e740f1303f837f632b9520210753848f69bc
 === 65 sites/docs/src/packages/avatar/_page/examples/uiAvatar.verbose.svelte	ast.sha256
 08f1a5b06ed1e6872b59d9e8aac06c4309cd074d3bad2beb78e3a68bae0f4e40
 
+=== 325 sites/docs/src/packages/avatar/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 87,
+		"column": 0,
+		"character": 2706
+	},
+	"end": {
+		"line": 87,
+		"column": 0,
+		"character": 2706
+	}
+}
+
 === 65 sites/docs/src/packages/clickoutside/_page/examples/demo.svelte	ast.sha256
 f065159414d4c517942bc58a3d44b14770016d2ea38fada5623509fe9f4d296b
 
@@ -134,8 +166,40 @@ f065159414d4c517942bc58a3d44b14770016d2ea38fada5623509fe9f4d296b
 === 65 sites/docs/src/packages/clickoutside/_page/examples/quick-start.svelte	ast.sha256
 f0ce72c394d4c1a62c32eb338dbbeb011737fb55d55602a4efae18b58ad0b5fc
 
+=== 325 sites/docs/src/packages/clickoutside/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 57,
+		"column": 0,
+		"character": 1326
+	},
+	"end": {
+		"line": 57,
+		"column": 0,
+		"character": 1326
+	}
+}
+
 === 65 sites/docs/src/packages/cloudflare-turnstile/_page/examples/quick-start.svelte	ast.sha256
 5562a470908504bfca1165f1c058cfbc4779f9a9603d126bc2cfe7f09735e4cd
+
+=== 332 sites/docs/src/packages/cloudflare-turnstile/docs.md.svelte	error.json
+{
+	"code": "tag_invalid_name",
+	"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+	"start": {
+		"line": 111,
+		"column": 65,
+		"character": 3992
+	},
+	"end": {
+		"line": 111,
+		"column": 72,
+		"character": 3999
+	}
+}
 
 === 65 sites/docs/src/packages/copy/_page/examples/custom-event.svelte	ast.sha256
 283bd54a235e334fc5e7b19d79bf4e7f5c02e2d54782d652216576bf3aa684fa
@@ -152,6 +216,22 @@ c77c1945865775eb5b26847efa1bcb9dde265836e6eb3ddb6b1c0d8c5c8ddfbe
 === 65 sites/docs/src/packages/copy/_page/examples/synthetic-copy.svelte	ast.sha256
 d1ef731692a4f3e1de5cff4fdf906fc8d91e6e6a154c70c0b9e4fed68595dcd8
 
+=== 231 sites/docs/src/packages/copy/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 127,
+		"column": 23,
+		"character": 5005
+	},
+	"end": {
+		"line": 127,
+		"column": 23,
+		"character": 5005
+	}
+}
+
 === 65 sites/docs/src/packages/dragscroll/_page/examples/limitation-scroll-snap.svelte	ast.sha256
 09717b11292696a59ee2267b95a31078dd326f717e5e1eb912f40e84478e9d13
 
@@ -161,8 +241,27 @@ d1ef731692a4f3e1de5cff4fdf906fc8d91e6e6a154c70c0b9e4fed68595dcd8
 === 65 sites/docs/src/packages/dragscroll/_page/examples/option-axis.svelte	ast.sha256
 beb755943def26c3e56438adaec21182f56fce9310e059af6a8c3ae3b9478af8
 
+=== 65 sites/docs/src/packages/dragscroll/docs.md.svelte	ast.sha256
+e8b138b584175e28e2effa6929899d1e97d4a88538a721fcbd1a727f585a56c7
+
 === 65 sites/docs/src/packages/inline-svg/_page/examples/action.svelte	ast.sha256
 8af72b35d6bf0ce0ded746474e9041ec85ac2ebcd9cca030ca3d7732c8b70828
+
+=== 229 sites/docs/src/packages/inline-svg/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 107,
+		"column": 5,
+		"character": 3532
+	},
+	"end": {
+		"line": 107,
+		"column": 5,
+		"character": 3532
+	}
+}
 
 === 65 sites/docs/src/packages/intersect/_page/examples/event-intersect.svelte	ast.sha256
 9541cef398618496359a33fdd6ea2fa1825cab2ceafd3ef71f02ed8de96907af
@@ -176,6 +275,9 @@ f4e4b5bb09ae220065fb1304a812e408724ac82d2e5193a6f9971a0e99dcc6be
 === 65 sites/docs/src/packages/intersect/_page/examples/quick-start.svelte	ast.sha256
 f81d6f879c13ebce7a87412488a514f00fe85d9f16e32ca407a0c724f6eeff2f
 
+=== 65 sites/docs/src/packages/intersect/docs.md.svelte	ast.sha256
+e44e948dcddc638ef8c961be375bbcb1ff833cdb0d47d2768ee289e4381a721d
+
 === 65 sites/docs/src/packages/lockscroll/_page/examples/quick-start.svelte	ast.sha256
 82cc69227e337c9306e986dec0a283657d030ccec6ed5247337cb40cfc9fbea7
 
@@ -184,6 +286,22 @@ f81d6f879c13ebce7a87412488a514f00fe85d9f16e32ca407a0c724f6eeff2f
 
 === 65 sites/docs/src/packages/lockscroll/_page/examples/svelte-rune.svelte	ast.sha256
 e75515abfeaba24af836a0952eec8fb0f87117541379f2f997ac11823e177b91
+
+=== 297 sites/docs/src/packages/lockscroll/docs.md.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:body>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 90,
+		"column": 0,
+		"character": 2618
+	},
+	"end": {
+		"line": 90,
+		"column": 0,
+		"character": 2618
+	}
+}
 
 === 65 sites/docs/src/packages/modal/docs.md.svelte	ast.sha256
 1a33752d97433ca70b1956334e7a24c8c1ec44a0058a9128946ed2e4395813cf
@@ -209,6 +327,38 @@ a877702b305ed79a20c4fd33163785fc6d1d8f79f897f27c76ab96328a7e3525
 === 65 sites/docs/src/packages/movable/_page/examples/quick-start.svelte	ast.sha256
 9e1f6131ff2cf4b5cf7d3754f3f7f9cb1b51c2f2a3b66b7661a2ddf93b671516
 
+=== 227 sites/docs/src/packages/movable/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 63,
+		"column": 5,
+		"character": 1812
+	},
+	"end": {
+		"line": 63,
+		"column": 5,
+		"character": 1812
+	}
+}
+
+=== 325 sites/docs/src/packages/noti/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 85,
+		"column": 0,
+		"character": 2498
+	},
+	"end": {
+		"line": 85,
+		"column": 0,
+		"character": 2498
+	}
+}
+
 === 65 sites/docs/src/packages/popover/_page/examples/quick-start.svelte	ast.sha256
 5717091d3032423a0cda91dd72f48ecd5c9b870f5747e83b438d5f07855bf786
 
@@ -218,8 +368,88 @@ ca157e2f1fd2d17b871c004d9c1051c4e16c33b6c46fb862bbf3b2a498483b95
 === 65 sites/docs/src/packages/popover/_page/examples/tooltip/usage.svelte	ast.sha256
 6126a1089a06285dacc92951806762fe244e02e497ad844ba0caeac12fc861fa
 
+=== 229 sites/docs/src/packages/popover/docs.md.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 92,
+		"column": 51,
+		"character": 3209
+	},
+	"end": {
+		"line": 92,
+		"column": 51,
+		"character": 3209
+	}
+}
+
 === 65 sites/docs/src/packages/preaction/_page/examples/demo.svelte	ast.sha256
 8bac290c6ac981d570a10232b71e51c7a4abe28c2eb7d7d3e409fced7c415b48
+
+=== 325 sites/docs/src/packages/preaction/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 59,
+		"column": 0,
+		"character": 1655
+	},
+	"end": {
+		"line": 59,
+		"column": 0,
+		"character": 1655
+	}
+}
+
+=== 229 sites/docs/src/packages/preprocess-auto-slug/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 57,
+		"column": 12,
+		"character": 1734
+	},
+	"end": {
+		"line": 57,
+		"column": 12,
+		"character": 1734
+	}
+}
+
+=== 229 sites/docs/src/packages/preprocess-external-link/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 51,
+		"column": 12,
+		"character": 1339
+	},
+	"end": {
+		"line": 51,
+		"column": 12,
+		"character": 1339
+	}
+}
+
+=== 229 sites/docs/src/packages/preprocess-inline-svg/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 47,
+		"column": 12,
+		"character": 1095
+	},
+	"end": {
+		"line": 47,
+		"column": 12,
+		"character": 1095
+	}
+}
 
 === 65 sites/docs/src/packages/qr/_page/examples/img-action.svelte	ast.sha256
 f599bb08bbdb5be7b783c51a73f141e009ced0218d14736f448da7b4c0d5acc7
@@ -248,11 +478,91 @@ ed08e7058689ef9391b44f574bcee03819209d67ace499f561782486a1d326ad
 === 65 sites/docs/src/packages/qr/_page/examples/svg-headless.svelte	ast.sha256
 5cd6232fb84f388952f8e8744416b80f8e25158d0d02df77595fb2bdd23084a7
 
+=== 229 sites/docs/src/packages/qr/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 217,
+		"column": 5,
+		"character": 6374
+	},
+	"end": {
+		"line": 217,
+		"column": 5,
+		"character": 6374
+	}
+}
+
 === 65 sites/docs/src/packages/resize/_page/examples/example.svelte	ast.sha256
 5c568d293e296869d089d713a3b343eef23b268ddda080f6d03fd6c30c302d96
 
+=== 325 sites/docs/src/packages/resize/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 44,
+		"column": 0,
+		"character": 1076
+	},
+	"end": {
+		"line": 44,
+		"column": 0,
+		"character": 1076
+	}
+}
+
+=== 323 sites/docs/src/packages/shortcut/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 35,
+		"column": 0,
+		"character": 722
+	},
+	"end": {
+		"line": 35,
+		"column": 0,
+		"character": 722
+	}
+}
+
 === 65 sites/docs/src/packages/swipeable/_page/examples/demo.svelte	ast.sha256
 c3ca3d7e13c1201a757aa374c997ab417cfb06aaff5bc0f9c99de7d100ebfad0
+
+=== 323 sites/docs/src/packages/swipeable/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 29,
+		"column": 0,
+		"character": 531
+	},
+	"end": {
+		"line": 29,
+		"column": 0,
+		"character": 531
+	}
+}
+
+=== 325 sites/docs/src/packages/toc/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 82,
+		"column": 0,
+		"character": 2236
+	},
+	"end": {
+		"line": 82,
+		"column": 0,
+		"character": 2236
+	}
+}
 
 === 65 sites/docs/src/packages/tooltip/docs.md.svelte	ast.sha256
 864266380b11b20fb64dc15cfe3859ddeb1bda223b6163008ce85e4ffbed9e4d
@@ -271,6 +581,22 @@ c3ca3d7e13c1201a757aa374c997ab417cfb06aaff5bc0f9c99de7d100ebfad0
 
 === 65 sites/docs/src/routes/(site)/docs/contributing/+page.md.svelte	ast.sha256
 e9852187849500f04a1038bb2a887b6aee7b887616e45ac7b740f4377b609c7c
+
+=== 328 sites/docs/src/routes/(site)/docs/guidelines/+page.md.svelte	error.json
+{
+	"code": "tag_invalid_name",
+	"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+	"start": {
+		"line": 11,
+		"column": 26,
+		"character": 348
+	},
+	"end": {
+		"line": 11,
+		"column": 28,
+		"character": 350
+	}
+}
 
 === 65 sites/docs/src/routes/(site)/search/+page.svelte	ast.sha256
 016ddea490b2b655ca3cfc0331a689187ea118d408c852b72c8fc4547feebafe

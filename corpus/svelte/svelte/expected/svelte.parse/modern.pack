@@ -2,14 +2,1041 @@
 === 65 benchmarking/benchmarks/ssr/wrapper/App.svelte	ast.sha256
 14b0b9965c4c6bf7e9e0a4b4e155d43f767918bb3f5ebe477e823c2589067b6d
 
+=== 251 packages/svelte/tests/compiler-errors/samples/attribute-empty/main.svelte	error.json
+{
+	"code": "expected_attribute_value",
+	"message": "Expected attribute value\nhttps://svelte.dev/e/expected_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression-2/main.svelte	ast.sha256
+0fc40b06da71b7e82a7347cc9f1653b3655fad312e6806c6df449ab1e4358f85
+
+=== 65 packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression/main.svelte	ast.sha256
+a03ad3fc9f0b57fb5782062923e2e849374b5ec474d6b3e2a4c1f0f58be4821b
+
+=== 245 packages/svelte/tests/compiler-errors/samples/attribute-unique-binding/main.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	},
+	"end": {
+		"line": 1,
+		"column": 25,
+		"character": 25
+	}
+}
+
+=== 245 packages/svelte/tests/compiler-errors/samples/attribute-unique-class/main.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	},
+	"end": {
+		"line": 1,
+		"column": 40,
+		"character": 40
+	}
+}
+
+=== 245 packages/svelte/tests/compiler-errors/samples/attribute-unique-shorthand/main.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	},
+	"end": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	}
+}
+
+=== 245 packages/svelte/tests/compiler-errors/samples/attribute-unique-style/main.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	},
+	"end": {
+		"line": 1,
+		"column": 42,
+		"character": 42
+	}
+}
+
+=== 245 packages/svelte/tests/compiler-errors/samples/attribute-unique/main.svelte	error.json
+{
+	"code": "attribute_duplicate",
+	"message": "Attributes need to be unique\nhttps://svelte.dev/e/attribute_duplicate",
+	"start": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	},
+	"end": {
+		"line": 1,
+		"column": 28,
+		"character": 28
+	}
+}
+
+=== 227 packages/svelte/tests/compiler-errors/samples/catch-before-closing/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token {:else}\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 35
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 35
+	}
+}
+
+=== 345 packages/svelte/tests/compiler-errors/samples/catch-without-await/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/class-state-field-static/main.svelte	ast.sha256
+53222d6e646a2a0c815ca3a6f38101577dfbcb5d636e0b595e233e3636690d9b
+
+=== 225 packages/svelte/tests/compiler-errors/samples/comment-unclosed/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token -->\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	},
+	"end": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	}
+}
+
+=== 323 packages/svelte/tests/compiler-errors/samples/component-invalid-name/main.svelte	error.json
+{
+	"code": "tag_invalid_name",
+	"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+	"start": {
+		"line": 7,
+		"column": 1,
+		"character": 71
+	},
+	"end": {
+		"line": 7,
+		"column": 14,
+		"character": 84
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-2/main.svelte	ast.sha256
+31298013a31e6e30db6e91738691006a4f8c8a3da7f28bd3be775a9de8ca87e1
+
+=== 65 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-3/main.svelte	ast.sha256
+4e067e65c2f1d5667d12a44e49d1cee18b9b840ba2bf8a802abbebb16221b60b
+
+=== 65 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-4/main.svelte	ast.sha256
+7f04052b8f3ccd99fe63fa343e046273cff1dcccb9051167b3a03f39e5269b7b
+
+=== 65 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-5/main.svelte	ast.sha256
+9c074ba4a6024969ffba8ffc4dfae81f4a9de46aae873ba11c6a1d32d9441680
+
+=== 65 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-6/main.svelte	ast.sha256
+7447d08aa714042a4b63a64624726ff6cb4399fd22d623b93cad49ac9eb540f4
+
+=== 65 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error/main.svelte	ast.sha256
+b06f57dc94c6af4e81f3a24aa130202059e2c60a734be5a58fb9843e52cb1112
+
+=== 65 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error-2/main.svelte	ast.sha256
+5a7e76f0fa11401a3dfa1d27e03f27d4192d3d5eda1ba375e318fb920364d985
+
+=== 65 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error-3/main.svelte	ast.sha256
+a2c589dd133091d3f1c292acbecbd4b52164699b565ece8548fdeb7163726c26
+
+=== 65 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error/main.svelte	ast.sha256
+4b1823bb1be8d2061e7a4d653b9af4e4d0ee818c143ead72e037098001b97906
+
 === 65 packages/svelte/tests/compiler-errors/samples/const-tag-cyclical/main.svelte	ast.sha256
 ca53db3592e27ac392053dd4e96bc822fdab832e22be50d8340602c0465fc76a
+
+=== 293 packages/svelte/tests/compiler-errors/samples/const-tag-sequence/main.svelte	error.json
+{
+	"code": "const_tag_invalid_expression",
+	"message": "{@const ...} must consist of a single variable declaration\nhttps://svelte.dev/e/const_tag_invalid_expression",
+	"start": {
+		"line": 6,
+		"column": 15,
+		"character": 75
+	},
+	"end": {
+		"line": 6,
+		"column": 33,
+		"character": 93
+	}
+}
 
 === 65 packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte	ast.sha256
 c2072bab1ece24a3af8f401674b51da6d45c00856136291baa8998f2573835a2
 
 === 65 packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-2/main.svelte	ast.sha256
 dce88e1ecdd03dfcc52aaf7fb652bb6d7b004b05508c24440f59d087edd73f3a
+
+=== 234 packages/svelte/tests/compiler-errors/samples/const-tag-whitespace/main.svelte	error.json
+{
+	"code": "expected_whitespace",
+	"message": "Expected whitespace\nhttps://svelte.dev/e/expected_whitespace",
+	"start": {
+		"line": 2,
+		"column": 8,
+		"character": 19
+	},
+	"end": {
+		"line": 2,
+		"column": 8,
+		"character": 19
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/css-global-block-combinator-2/main.svelte	ast.sha256
+480e9cf93894dd504200c17341157158fe06e7e49759cbbb57d5faa7cd2c06c4
+
+=== 65 packages/svelte/tests/compiler-errors/samples/css-global-block-combinator/main.svelte	ast.sha256
+ac19f844a534d64f7e301b61ee39c072678cd482cde0ef16382fc7a8697ade9f
+
+=== 65 packages/svelte/tests/compiler-errors/samples/css-global-block-declaration/main.svelte	ast.sha256
+bf1d4ad804d83868b94ecf676a72cb5534271fe5de7455db7684ed4d3c0cc264
+
+=== 65 packages/svelte/tests/compiler-errors/samples/css-global-block-in-pseudoclass/main.svelte	ast.sha256
+98aed146efb5dc2e07db8b8cf706950eb8325c423722e53b3ccf703d9f4d62f0
+
+=== 65 packages/svelte/tests/compiler-errors/samples/css-global-block-multiple-1/main.svelte	ast.sha256
+caa4da6ca155ae09da018996071330bbf9cc5031e9bfefeda485237f3989c2ee
+
+=== 65 packages/svelte/tests/compiler-errors/samples/css-global-block-multiple-2/main.svelte	ast.sha256
+db44be2d6152c9aa185238d43b784ca7a84b11199b1f9e18fdcd1d2e8912d70c
+
+=== 65 packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-1/main.svelte	ast.sha256
+3f592b275fecd3caa02a91edb5571b70b36c5e21116274c848054e17513a2462
+
+=== 65 packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-2/main.svelte	ast.sha256
+9ca7ccc4d24a7c801efb6ebf2d65ec1153716b27cd063a7a847007060525f34a
+
+=== 65 packages/svelte/tests/compiler-errors/samples/css-global-modifier/main.svelte	ast.sha256
+b8afcf48ee55e91e5949d49b11c7b45b59663868202cfbff99ea35de95fb2694
+
+=== 65 packages/svelte/tests/compiler-errors/samples/css-nesting-selector-root/main.svelte	ast.sha256
+d8ecefe3cc591682486ced677a5c0526c8cdc3224393952d2590c7e0a7c71ca1
+
+=== 254 packages/svelte/tests/compiler-errors/samples/css/main.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 25
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 25
+	}
+}
+
+=== 230 packages/svelte/tests/compiler-errors/samples/declaration-tag-trailing-slash/main.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-legacy/main.svelte	ast.sha256
+128266f5e553bf5211d1d7feb61fce1607b4bf26711aea49fc86138a055898af
+
+=== 65 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-runes-2/main.svelte	ast.sha256
+d4df956390ba043fd59fb33c0eaa9527fceb14e6432710761de9b496775aa6b0
+
+=== 65 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-runes/main.svelte	ast.sha256
+1c742c74cd23dd36cc30bbb2eee1b415bb6ad09e3e7b3be91c83eaddf200c480
+
+=== 65 packages/svelte/tests/compiler-errors/samples/dollar-binding-global/main.svelte	ast.sha256
+92ad61f2f229c18dfe0bd3cd31d8a45957142af2e46357599727226ff9cd4f1d
+
+=== 65 packages/svelte/tests/compiler-errors/samples/dollar-binding-import/main.svelte	ast.sha256
+dd2f9aa30b31791804a5eaaad97d329fcb8f2817e49ae817153d90750ee3e369
+
+=== 65 packages/svelte/tests/compiler-errors/samples/dynamic-element-binding-invalid/main.svelte	ast.sha256
+bbd546a2a2459a47f1aaf7c0250bc4e243b217ce1072292236488ac867980533
+
+=== 65 packages/svelte/tests/compiler-errors/samples/each-key-without-as/main.svelte	ast.sha256
+afa45f73fd7a5459f517e633b9b3ef2aff65fb75d9877a4199697e6203daa6b1
+
+=== 320 packages/svelte/tests/compiler-errors/samples/element-invalid-name/main.svelte	error.json
+{
+	"code": "tag_invalid_name",
+	"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	}
+}
+
+=== 247 packages/svelte/tests/compiler-errors/samples/else-before-closing-2/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token {:then ...} or {:catch ...}\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 24
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 24
+	}
+}
+
+=== 345 packages/svelte/tests/compiler-errors/samples/else-before-closing-3/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 6
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 6
+	}
+}
+
+=== 347 packages/svelte/tests/compiler-errors/samples/else-before-closing/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 18
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 18
+	}
+}
+
+=== 347 packages/svelte/tests/compiler-errors/samples/else-if-before-closing-2/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 17
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 17
+	}
+}
+
+=== 247 packages/svelte/tests/compiler-errors/samples/else-if-before-closing/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token {:then ...} or {:catch ...}\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 26
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 26
+	}
+}
+
+=== 247 packages/svelte/tests/compiler-errors/samples/else-if-without-if/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token {:then ...} or {:catch ...}\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 27
+	},
+	"end": {
+		"line": 3,
+		"column": 2,
+		"character": 27
+	}
+}
+
+=== 260 packages/svelte/tests/compiler-errors/samples/empty-attribute-shorthand/main.svelte	error.json
+{
+	"code": "attribute_empty_shorthand",
+	"message": "Attribute shorthand cannot be empty\nhttps://svelte.dev/e/attribute_empty_shorthand",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	}
+}
+
+=== 250 packages/svelte/tests/compiler-errors/samples/empty-classname-binding/main.svelte	error.json
+{
+	"code": "directive_missing_name",
+	"message": "`class:` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 10,
+		"character": 10
+	}
+}
+
+=== 246 packages/svelte/tests/compiler-errors/samples/empty-directive-name/main.svelte	error.json
+{
+	"code": "directive_missing_name",
+	"message": "`use:` name cannot be empty\nhttps://svelte.dev/e/directive_missing_name",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/export-not-defined-module/main.svelte	ast.sha256
+34cb29c539ce7002cfc5db4f171add4030a236d373c894bfe72780ef68864b75
+
+=== 65 packages/svelte/tests/compiler-errors/samples/export-state-module/main.svelte	ast.sha256
+3135b7a0f06276174eb4359200e78c54d150cb63d55bb5943b27032d06f8f70a
+
+=== 222 packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Assigning to rvalue\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/invalid-arguments-usage/main.svelte	ast.sha256
+c528f92f155173eeb074f51ec626f2c7716e7c83a6a660f37f3c71583b1ec4ce
+
+=== 65 packages/svelte/tests/compiler-errors/samples/invalid-snippet-binding/main.svelte	ast.sha256
+756af58d74bad4be58fb00420d626ab1d52f3baa115904fc6bc6cc9637364fbd
+
+=== 65 packages/svelte/tests/compiler-errors/samples/invalid-snippet-mutation/main.svelte	ast.sha256
+c6225fd03e06a412fa0be74d28ff17e1aedf75f877e64658016899d36e4e504f
+
+=== 65 packages/svelte/tests/compiler-errors/samples/legacy-no-const-assignment/main.svelte	ast.sha256
+330230bc1872882c7176b9ebea0498046d0edacd51e3acdb288e7dc40710a272
+
+=== 65 packages/svelte/tests/compiler-errors/samples/legacy-no-const-update/main.svelte	ast.sha256
+2ffa276613edb12645d1feb3c07b748cf39403b0dcb8a7a99f64255329dfe388
+
+=== 223 packages/svelte/tests/compiler-errors/samples/malformed-snippet-2/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token )\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 31,
+		"character": 31
+	},
+	"end": {
+		"line": 1,
+		"column": 31,
+		"character": 31
+	}
+}
+
+=== 223 packages/svelte/tests/compiler-errors/samples/malformed-snippet/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 20,
+		"character": 20
+	},
+	"end": {
+		"line": 1,
+		"column": 20,
+		"character": 20
+	}
+}
+
+=== 264 packages/svelte/tests/compiler-errors/samples/multiple-styles/main.svelte	error.json
+{
+	"code": "style_duplicate",
+	"message": "A component can have a single top-level `<style>` element\nhttps://svelte.dev/e/style_duplicate",
+	"start": {
+		"line": 9,
+		"column": 0,
+		"character": 58
+	},
+	"end": {
+		"line": 9,
+		"column": 0,
+		"character": 58
+	}
+}
+
+=== 270 packages/svelte/tests/compiler-errors/samples/options-children/main.svelte	error.json
+{
+	"code": "svelte_meta_invalid_content",
+	"message": "<svelte:options> cannot have children\nhttps://svelte.dev/e/svelte_meta_invalid_content",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 24,
+		"character": 24
+	}
+}
+
+=== 232 packages/svelte/tests/compiler-errors/samples/raw-mustaches-whitespace/main.svelte	error.json
+{
+	"code": "expected_whitespace",
+	"message": "Expected whitespace\nhttps://svelte.dev/e/expected_whitespace",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/render-tag-invalid-call/main.svelte	ast.sha256
+1832cbc22b3601a94b3cad1ac657df8153853c11897ae4bdb29c496a8e98225c
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-before-after-update/main.svelte	ast.sha256
+6756ae66ff889ec04b497fee05136475bd55ba29ed9114eac2d343d159faa29e
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-bindable-not-called/main.svelte	ast.sha256
+9ac0e7afd9819bfe9b39a78dd7e0fcef8d55dd89bf3a460eccd49223b452a5ec
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-duplicate-props/main.svelte	ast.sha256
+9db12f33ca686527fd944291496afe7b4a16717319012edfdcc6d6370abdf4e7
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-export-let-derived/main.svelte	ast.sha256
+64753e7a81f947f59edf4aec1c23f432c116c78c4d1f9d8919173a1707920836
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-export-let/main.svelte	ast.sha256
+2574f462d61018b42c445657e19a880efd91ba3c64a46b88ef8509a583cd2604
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-binding-this/main.svelte	ast.sha256
+8314edba254570197322ece888e30a3fc3fcc0ed4ce0e8a54211f24d710ac84a
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-binding/main.svelte	ast.sha256
+2babed525e8c83775912152727c397bd40f7ddb0c9ba60abafdcfbb36527c8fd
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-mutation/main.svelte	ast.sha256
+01b34ba7de46ea8db6b3f93bd249bb5ca0f75e9d160dc9428a196ef1785165d9
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-no-const-assignment/main.svelte	ast.sha256
+33cc2c2ebaa737a7c523b90c0f1bd440aef3c2ea1a209f99e70fa1730277b50a
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-no-const-update/main.svelte	ast.sha256
+94bbc85f688b7bf4f393a01c2d39c32d9dff933d637f086f8c4a5efeb040732d
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-no-rune-each/main.svelte	ast.sha256
+c43e59413ffa29183fecc17bf2b2139d54cdb679dc9174aa150172e5eb5cec6b
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-props-illegal-name-1/main.svelte	ast.sha256
+7f87836083ae00a7502cc0e10f40c18f9348122db1f083eb76c7b17947f66866
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-props-illegal-name-2/main.svelte	ast.sha256
+fea75175d73ea3b9b95575d4bdecc329a439aa575756ab255d6630351387085d
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-props-not-called/main.svelte	ast.sha256
+1ba26898283474ae9e3be8ad5fa5cb40cb1ffc296269684d18f547a449a9a2a4
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-args/main.svelte	ast.sha256
+e87538898348be99469cd4a85f6ae5929173450a9c99abffe1d5f8736ac66443
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-placement/main.svelte	ast.sha256
+4ecabe77ce9cb026cf6e389615250ea7acd979ecbdc7323107e452ecff627824
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte	ast.sha256
+b6abe543e3606ae3c51b1015d6545d1bedee8a099a6558a6172c0b5d75a05b7f
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-placement/main.svelte	ast.sha256
+5e1df6a534283bd76541b9da483cc41cb8a4ea26446af714b929d962bf81ba01
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-args/main.svelte	ast.sha256
+f4cd9ce6ea2c95e3671dc9d852d02b183b218edbdada4c7b2acd40b4bbcd85ae
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-placement/main.svelte	ast.sha256
+c146ad79675cb0c25d7a50117a49e9f04a4e462ed5b189938be4bcb3f0e5ea6a
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-host-placement/main.svelte	ast.sha256
+c1d6f927b4b5974826fca4d127396ad939dcfa84b52cee4901294b5aa979c0eb
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-args/main.svelte	ast.sha256
+373d8fb3cf65d80eb087588fd3ab57c61c092eba9790f9bc7531de0750e619f8
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-placement-instance/main.svelte	ast.sha256
+44778a96d71cd8af6fa93cdeb0036814812c3a8f8cbbb04cc4b22683d01fdd76
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-args/main.svelte	ast.sha256
+bbf0a2a673dbc910f519bb3ff19f10b33690511757e15a09d9cb03aa64b79864
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-placement/main.svelte	ast.sha256
+cab92618e7d16471798d04b3279ee784890b5b17524a664ae475331be56fb7f1
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-raw-args/main.svelte	ast.sha256
+e1d1d1ef55b81e53dfadf2e79b962060bab4b4cf224e9df654ef5612a5201f24
+
+=== 65 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-snapshot-args/main.svelte	ast.sha256
+47c9176f69893d62a07d9a78c8fbe9a376ded1908e54d5c2021f5c4af8b31916
+
+=== 228 packages/svelte/tests/compiler-errors/samples/script-unclosed-eof/main.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 3,
+		"column": 8,
+		"character": 32
+	},
+	"end": {
+		"line": 3,
+		"column": 8,
+		"character": 32
+	}
+}
+
+=== 235 packages/svelte/tests/compiler-errors/samples/script-unclosed/main.svelte	error.json
+{
+	"code": "element_unclosed",
+	"message": "`<script>` was left open\nhttps://svelte.dev/e/element_unclosed",
+	"start": {
+		"line": 3,
+		"column": 22,
+		"character": 32
+	},
+	"end": {
+		"line": 3,
+		"column": 22,
+		"character": 32
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/self-reference/main.svelte	ast.sha256
+2a172ebf3003c06b265d165f70cbefc9872d3a4f37517a911186c69083a12eb6
+
+=== 65 packages/svelte/tests/compiler-errors/samples/slot-conflicting-with-render-tag/main.svelte	ast.sha256
+b01d5c6da7fb66c5b28e9c6ca503a0db59fbab400fbb80fa60341965f155ad57
+
+=== 65 packages/svelte/tests/compiler-errors/samples/snippet-children-conflict/main.svelte	ast.sha256
+2ff4bfc5bdeccb4af8a03baedd168bd4d3eb01784793db80b6b8de38b7cfe9e8
+
+=== 65 packages/svelte/tests/compiler-errors/samples/snippet-invalid-export/main.svelte	ast.sha256
+89a9570d6be4ef2c4c14c06b3fcfc53189b5c2e2def6d6833ba14ca8d724503b
+
+=== 65 packages/svelte/tests/compiler-errors/samples/snippet-rest-args/main.svelte	ast.sha256
+ab80e8d7a18142638a79d4f73c50290a2f796015b598fa404735a509d6ceaf79
+
+=== 65 packages/svelte/tests/compiler-errors/samples/store-autosub-context-module/main.svelte	ast.sha256
+f4a865287a3eb01702e62666b3e044418031890067c587b59f25a04bd81afa29
+
+=== 65 packages/svelte/tests/compiler-errors/samples/store-contextual/main.svelte	ast.sha256
+cac3b4478404e7b7472f3af117eada285ca80a2f790ba61676138f23b2111e56
+
+=== 65 packages/svelte/tests/compiler-errors/samples/store-global-disallowed/main.svelte	ast.sha256
+e4388e213bfbc5d9b5206b08b6395e6bba509211dc7f9568200adf467971a3fa
+
+=== 65 packages/svelte/tests/compiler-errors/samples/store-prevent-user-declarations/main.svelte	ast.sha256
+c6ec4c8fa24393f5dec8c9de20e2dc9eb4fb83f87806192b055144c9071f6390
+
+=== 65 packages/svelte/tests/compiler-errors/samples/store-shadow-scope-2/main.svelte	ast.sha256
+8ba198720bb9acd841e0e06247594e3b8b9f08d30a357c496d63cd86d8db93eb
+
+=== 65 packages/svelte/tests/compiler-errors/samples/store-shadow-scope-3/main.svelte	ast.sha256
+0bdf5251b087574944b2563290ca1f8f62fe5991005e9c4a74373269b8cd0cad
+
+=== 65 packages/svelte/tests/compiler-errors/samples/store-shadow-scope/main.svelte	ast.sha256
+691524458864c78525118b67cb19d54c72d7fac6ec43e53b70c5e4ea6a0975e1
+
+=== 65 packages/svelte/tests/compiler-errors/samples/store-template-expression-scope/main.svelte	ast.sha256
+c563f8b6b2fc012a299e02be55415135c04a09f0a9130e4cc6fe1c25a6f3278f
+
+=== 227 packages/svelte/tests/compiler-errors/samples/style-unclosed-eof/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token </style\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 7,
+		"character": 31
+	},
+	"end": {
+		"line": 3,
+		"column": 7,
+		"character": 31
+	}
+}
+
+=== 252 packages/svelte/tests/compiler-errors/samples/style-unclosed/main.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 9
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 9
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/svelte-internal-import/main.svelte	ast.sha256
+330e06bee8b399b84d7192253bd7fbe14c17b3294adf5ba176f9394cc84af76e
+
+=== 414 packages/svelte/tests/compiler-errors/samples/svelte-selfdestructive/main.svelte	error.json
+{
+	"code": "svelte_meta_invalid_tag",
+	"message": "Valid `<svelte:...>` tag names are svelte:head, svelte:options, svelte:window, svelte:document, svelte:body, svelte:element, svelte:component, svelte:self, svelte:fragment or svelte:boundary\nhttps://svelte.dev/e/svelte_meta_invalid_tag",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 10
+	},
+	"end": {
+		"line": 2,
+		"column": 24,
+		"character": 32
+	}
+}
+
+=== 347 packages/svelte/tests/compiler-errors/samples/then-before-closing/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 3,
+		"column": 1,
+		"character": 21
+	},
+	"end": {
+		"line": 3,
+		"column": 1,
+		"character": 21
+	}
+}
+
+=== 345 packages/svelte/tests/compiler-errors/samples/then-without-await/main.svelte	error.json
+{
+	"code": "block_invalid_continuation_placement",
+	"message": "{:...} block is invalid at this position (did you forget to close the preceding element or block?)\nhttps://svelte.dev/e/block_invalid_continuation_placement",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/unbalanced-curly-component/main.svelte	ast.sha256
+e379872ffbfe7e715d96ae4f6f5f77b3e09174fe3f9762ecb9c390c708e99efd
+
+=== 65 packages/svelte/tests/compiler-errors/samples/unbalanced-curly-element/main.svelte	ast.sha256
+908de9974ef8bbd1207e88deefecc7f7f383ed41f3ac74ee2924e4ad030fb7da
+
+=== 223 packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	},
+	"end": {
+		"line": 1,
+		"column": 19,
+		"character": 19
+	}
+}
+
+=== 226 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-b/main.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 2,
+		"character": 2
+	},
+	"end": {
+		"line": 1,
+		"column": 2,
+		"character": 2
+	}
+}
+
+=== 226 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-c/main.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 222 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-d/main.svelte	error.json
+{
+	"code": "block_unclosed",
+	"message": "Block was left open\nhttps://svelte.dev/e/block_unclosed",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 228 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input/main.svelte	error.json
+{
+	"code": "element_unclosed",
+	"message": "`<div>` was left open\nhttps://svelte.dev/e/element_unclosed",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 1,
+		"character": 1
+	}
+}
+
+=== 285 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag-autoclose-2/main.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</p>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 38
+	},
+	"end": {
+		"line": 5,
+		"column": 0,
+		"character": 38
+	}
+}
+
+=== 370 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag-autoclose/main.svelte	error.json
+{
+	"code": "element_invalid_closing_tag_autoclosed",
+	"message": "`</p>` attempted to close element that was already automatically closed by `<pre>` (cannot nest `<pre>` inside `<p>`)\nhttps://svelte.dev/e/element_invalid_closing_tag_autoclosed",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 24
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 24
+	}
+}
+
+=== 285 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag/main.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	}
+}
+
+=== 285 packages/svelte/tests/compiler-errors/samples/void-closing/main.svelte	error.json
+{
+	"code": "void_element_invalid_content",
+	"message": "Void elements cannot have children or closing tags\nhttps://svelte.dev/e/void_element_invalid_content",
+	"start": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
+=== 65 packages/svelte/tests/compiler-errors/samples/window-children/main.svelte	ast.sha256
+049088f27b915c611012c3b81ce46348c4bacfe84c202b1f52783fdac058daac
+
+=== 274 packages/svelte/tests/compiler-errors/samples/window-duplicate/main.svelte	error.json
+{
+	"code": "svelte_meta_duplicate",
+	"message": "A component can only have one `<svelte:window>` element\nhttps://svelte.dev/e/svelte_meta_duplicate",
+	"start": {
+		"line": 2,
+		"column": 0,
+		"character": 17
+	},
+	"end": {
+		"line": 2,
+		"column": 0,
+		"character": 17
+	}
+}
+
+=== 293 packages/svelte/tests/compiler-errors/samples/window-inside-block/main.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:window>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 11
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 11
+	}
+}
+
+=== 291 packages/svelte/tests/compiler-errors/samples/window-inside-element/main.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:window>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 7
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 7
+	}
+}
 
 === 65 packages/svelte/tests/css/samples/animations/input.svelte	ast.sha256
 57f6627d94a6e9ba2f81b5a81cfae625303998ee36bf16d8f68588500e8d7ef5
@@ -761,6 +1788,38 @@ c8eedbf164fd8313320215aa5ee3690659e548211c0f3f17e306bb382a507308
 === 65 packages/svelte/tests/migrate/samples/accessors/output.svelte	ast.sha256
 6ed390cc185596f412cbe96cd7e05eca8c46e8751fb2dd3c7ebb3fed53bcd44a
 
+=== 254 packages/svelte/tests/migrate/samples/css-ignore/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 1,
+		"character": 78
+	},
+	"end": {
+		"line": 8,
+		"column": 1,
+		"character": 78
+	}
+}
+
+=== 254 packages/svelte/tests/migrate/samples/css-ignore/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 8,
+		"column": 1,
+		"character": 86
+	},
+	"end": {
+		"line": 8,
+		"column": 1,
+		"character": 86
+	}
+}
+
 === 65 packages/svelte/tests/migrate/samples/derivations/output.svelte	ast.sha256
 2a8ead9f28412e635176555c33a4312388a1949bfcc2572c5ec3d8bf58a6e678
 
@@ -832,6 +1891,38 @@ af0b330dbb17c90fb3a385407061b55f5ed52df619f77d259e29eee4ff887453
 
 === 65 packages/svelte/tests/migrate/samples/impossible-migrate-slot-non-identifier/output.svelte	ast.sha256
 dc24d9863a4a66125cb5d7161cefc770d93bdb8375901e0a9e0c45809106e5ea
+
+=== 230 packages/svelte/tests/migrate/samples/impossible-migrate-with-errors/input.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 3,
+		"column": 21,
+		"character": 30
+	},
+	"end": {
+		"line": 3,
+		"column": 21,
+		"character": 30
+	}
+}
+
+=== 232 packages/svelte/tests/migrate/samples/impossible-migrate-with-errors/output.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 5,
+		"column": 21,
+		"character": 150
+	},
+	"end": {
+		"line": 5,
+		"column": 21,
+		"character": 150
+	}
+}
 
 === 65 packages/svelte/tests/migrate/samples/is-not-where-has/input.svelte	ast.sha256
 71a13a22a05b37deaa84f5170f7c4b86d2f5d24739adc529801defb2929fbf6c
@@ -986,8 +2077,14 @@ ee8f177712507bf90a7d0c5ebea26a79ad276e00a1808ac3548408e8ea3c623d
 === 65 packages/svelte/tests/migrate/samples/slots-multiple/output.svelte	ast.sha256
 9e930d7530ca09755ae527fd162fc02288f8d3fe88af093ef782d7bde9edb5c1
 
+=== 65 packages/svelte/tests/migrate/samples/slots-with-$$props/output.svelte	ast.sha256
+1367d607d74bd791bf04d1fe658e7895aff2ba71b8db0388321497ad194e0c7e
+
 === 65 packages/svelte/tests/migrate/samples/slots/input.svelte	ast.sha256
 2d4cafb1b83659d9e63b545f25ca8f639979342756bc7230a34ca0a23a6252b9
+
+=== 65 packages/svelte/tests/migrate/samples/slots/output.svelte	ast.sha256
+75f87d94122b0d74158fed221610c4eef63f05d49565320cb6ffe8a9959be545
 
 === 65 packages/svelte/tests/migrate/samples/state-and-derivations-sequence/output.svelte	ast.sha256
 6c38a827dec40d7862a1578b39716d9b5be2c82d2617a92e9a3521e841b03f79
@@ -1184,11 +2281,107 @@ b8c1bf18768ee7a6d553c934e65a3612a07c68ba09e4f751a081a6b4e12f0d45
 === 65 packages/svelte/tests/parser-legacy/samples/if-block/input.svelte	ast.sha256
 fd7d01ac2622df335ec5f8483df7469c832d104d5632c44dafdfe3f055bd839c
 
+=== 249 packages/svelte/tests/parser-legacy/samples/implicitly-closed-li-block/input.svelte	error.json
+{
+	"code": "block_unexpected_close",
+	"message": "Unexpected block closing tag\nhttps://svelte.dev/e/block_unexpected_close",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 34
+	},
+	"end": {
+		"line": 5,
+		"column": 2,
+		"character": 34
+	}
+}
+
 === 65 packages/svelte/tests/parser-legacy/samples/implicitly-closed-li/input.svelte	ast.sha256
 2b8c24652863b9d309908b874af41b5380300ce55056847845ea1194ba05996c
 
 === 65 packages/svelte/tests/parser-legacy/samples/javascript-comments/input.svelte	ast.sha256
 d9c6a9256a2303be6824737176fc3b3a2c34cd0998e3d306dec34f02c23e465e
+
+=== 219 packages/svelte/tests/parser-legacy/samples/loose-invalid-block/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	},
+	"end": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	}
+}
+
+=== 260 packages/svelte/tests/parser-legacy/samples/loose-invalid-expression/input.svelte	error.json
+{
+	"code": "attribute_empty_shorthand",
+	"message": "Attribute shorthand cannot be empty\nhttps://svelte.dev/e/attribute_empty_shorthand",
+	"start": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	},
+	"end": {
+		"line": 1,
+		"column": 5,
+		"character": 5
+	}
+}
+
+=== 287 packages/svelte/tests/parser-legacy/samples/loose-unclosed-block/input.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 17
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 17
+	}
+}
+
+=== 221 packages/svelte/tests/parser-legacy/samples/loose-unclosed-open-tag/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 2,
+		"character": 25
+	},
+	"end": {
+		"line": 3,
+		"column": 2,
+		"character": 25
+	}
+}
+
+=== 287 packages/svelte/tests/parser-legacy/samples/loose-unclosed-tag/input.svelte	error.json
+{
+	"code": "element_invalid_closing_tag",
+	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 14
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 14
+	}
+}
 
 === 65 packages/svelte/tests/parser-legacy/samples/nbsp/input.svelte	ast.sha256
 5d49e3e162c203eea3ce1773225987ce78238928a8320d539722a8a93761cff7
@@ -1277,6 +2470,9 @@ a1cd70d7e1eb5a0b502c7357c785f8d0b2dc059df0ba7bd03acdf0dd6e47194b
 === 65 packages/svelte/tests/parser-modern/samples/css-nth-of-minified/input.svelte	ast.sha256
 f97cab175f7da82a1f97f1a2e27858fea92000da975023b83130331f0e74b2ad
 
+=== 65 packages/svelte/tests/parser-modern/samples/css-nth-syntax/input.svelte	ast.sha256
+88e55f8b2e0bce9d3aad2e108c2f4574446c1d5b9d113cb9459c8b5a2c8c0afd
+
 === 65 packages/svelte/tests/parser-modern/samples/css-pseudo-classes/input.svelte	ast.sha256
 2261658c2e013400059b8e3dab8d1e97d1a20e4ff21605025d5124cd5406673a
 
@@ -1288,6 +2484,22 @@ f97cab175f7da82a1f97f1a2e27858fea92000da975023b83130331f0e74b2ad
 
 === 65 packages/svelte/tests/parser-modern/samples/if-block-elseif/input.svelte	ast.sha256
 bf57ce354a1d63885376a0d33e5aee4fb58adc06d7d0402709a4b3cc6e780951
+
+=== 234 packages/svelte/tests/parser-modern/samples/loose-declaration-tag/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "The keyword 'let' is reserved\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 2,
+		"character": 13
+	}
+}
 
 === 65 packages/svelte/tests/parser-modern/samples/loose-valid-each-as/input.svelte	ast.sha256
 9f7063aadf3eab8d5ad1bae5a35065673978eb7a7c0c332f58a0d4a871df671d
@@ -1316,6 +2528,22 @@ e939d53da93fb0e76103ce6386613ed1ea1c400a31f7d56c8d7e7ce641404dc5
 === 65 packages/svelte/tests/parser-modern/samples/typescript-in-event-handler/input.svelte	ast.sha256
 8da980d62ede2e1f5d64ac15cf099e967a5d2fe7228ba5bab4ce9b66b9b7d186
 
+=== 221 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 2,
+		"column": 5,
+		"character": 58
+	},
+	"end": {
+		"line": 2,
+		"column": 5,
+		"character": 58
+	}
+}
+
 === 65 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/output.svelte	ast.sha256
 15bc24a066bec346921c1e17eedda6c940e3917388eb24e2af379a578b535f71
 
@@ -1324,6 +2552,38 @@ e939d53da93fb0e76103ce6386613ed1ea1c400a31f7d56c8d7e7ce641404dc5
 
 === 65 packages/svelte/tests/preprocess/samples/attributes-with-equals/output.svelte	ast.sha256
 a885c07e68c899074142d40be4a83bb765da92813b2f6b620c5bde5e7d708397
+
+=== 254 packages/svelte/tests/preprocess/samples/comments/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 13
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 13
+	}
+}
+
+=== 254 packages/svelte/tests/preprocess/samples/comments/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 0,
+		"character": 15
+	},
+	"end": {
+		"line": 3,
+		"column": 0,
+		"character": 15
+	}
+}
 
 === 65 packages/svelte/tests/preprocess/samples/dependencies/input.svelte	ast.sha256
 66f11214f633ac92ccddd7c9252e294f200040478057d792ddba9d5bd39984b4
@@ -1358,6 +2618,54 @@ e56e60812fd0416a1b1011b894397c182d394824dca461ca591e3d820ed70793
 === 65 packages/svelte/tests/preprocess/samples/partial-names/output.svelte	ast.sha256
 b3d562290ff2fdb401f52e2b7ead238ec80b131a417dd959907d063acb01b850
 
+=== 254 packages/svelte/tests/preprocess/samples/script-multiple/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 6,
+		"column": 0,
+		"character": 62
+	},
+	"end": {
+		"line": 6,
+		"column": 0,
+		"character": 62
+	}
+}
+
+=== 254 packages/svelte/tests/preprocess/samples/script-multiple/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 6,
+		"column": 0,
+		"character": 62
+	},
+	"end": {
+		"line": 6,
+		"column": 0,
+		"character": 62
+	}
+}
+
+=== 223 packages/svelte/tests/preprocess/samples/script-self-closing/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
 === 65 packages/svelte/tests/preprocess/samples/script-self-closing/output.svelte	ast.sha256
 fd7b8a9ee7e9e6c80a9544d9456d67e2d03119344129597af02927a8a52162ec
 
@@ -1373,8 +2681,123 @@ a069bfece5c368b76b8646224d76f648e9316c15f980fb0b3130d110792a8113
 === 65 packages/svelte/tests/preprocess/samples/style-async/output.svelte	ast.sha256
 59dcf158bfdf764a15e0799b58f6d6c63cd32de128bda1003ee662780c4d37c2
 
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes-modified-longer/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 25,
+		"character": 30
+	},
+	"end": {
+		"line": 3,
+		"column": 25,
+		"character": 30
+	}
+}
+
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes-modified-longer/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 51,
+		"character": 56
+	},
+	"end": {
+		"line": 3,
+		"column": 51,
+		"character": 56
+	}
+}
+
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes-modified/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 45,
+		"character": 50
+	},
+	"end": {
+		"line": 3,
+		"column": 45,
+		"character": 50
+	}
+}
+
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes-modified/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 3,
+		"column": 27,
+		"character": 32
+	},
+	"end": {
+		"line": 3,
+		"column": 27,
+		"character": 32
+	}
+}
+
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes/input.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1,
+		"column": 50,
+		"character": 50
+	},
+	"end": {
+		"line": 1,
+		"column": 50,
+		"character": 50
+	}
+}
+
+=== 256 packages/svelte/tests/preprocess/samples/style-attributes/output.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1,
+		"column": 53,
+		"character": 53
+	},
+	"end": {
+		"line": 1,
+		"column": 53,
+		"character": 53
+	}
+}
+
+=== 223 packages/svelte/tests/preprocess/samples/style-self-closing/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token >\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 3,
+		"column": 18,
+		"character": 57
+	},
+	"end": {
+		"line": 3,
+		"column": 18,
+		"character": 57
+	}
+}
+
 === 65 packages/svelte/tests/preprocess/samples/style-self-closing/output.svelte	ast.sha256
 25835adb3073bc02c4b3fae4aaa07d86c248424e54146cd79adece1d50ecc5ca
+
+=== 65 packages/svelte/tests/print/samples/animate-directive/input.svelte	ast.sha256
+a593a89a81304342bcb64876366358f50583210bd5f8cb6e36953b05e6f94692
 
 === 65 packages/svelte/tests/print/samples/attach-tag/input.svelte	ast.sha256
 6e0d00f099aa700190d8ace406e4ec74c3cd63fd62dae3cf2460f2972ccf3a1e
@@ -1384,6 +2807,9 @@ ce863a5cbd754ab5a53e5c40cd6cbf824889ae974cd1e722fc386f15afbafb12
 
 === 65 packages/svelte/tests/print/samples/await-block/input.svelte	ast.sha256
 e6e42318e5ec84ebe2d8f7232da7f98f34871ba393eb7616e0b57254fe0d1074
+
+=== 65 packages/svelte/tests/print/samples/bind-directive/input.svelte	ast.sha256
+a27861b0d366ba00cc52a56313d3a0a5a00e74d37bf2dea5bb2346d5eefc0cb7
 
 === 65 packages/svelte/tests/print/samples/block-element-separation/input.svelte	ast.sha256
 d87c826de6a050812ef93acb2ee10beb9109e4b49cf173be8e5f0b3fd7a266ac
@@ -3307,6 +4733,12 @@ d25cdb8dad7b21ec5c8a491fdb8bf65a2e44cb3e1c7c8b7b3a3d9e22605accbc
 
 === 65 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-in-reactive-declaration-2/main.svelte	ast.sha256
 24a43ecb588c9183d288c9e429c57240083aa62a016eeef8a9cb76e6409ecb21
+
+=== 65 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-missing-global-script/main.svelte	ast.sha256
+cabd325b0575a616bf3ef4ddd0720d40a40e188ba12a2751507780a297ae979f
+
+=== 65 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-missing-global-template/main.svelte	ast.sha256
+c593b4b228dde6bbbefe188c1d1689b64d2a572d59847e0eaa867fa2624cc3d8
 
 === 65 packages/svelte/tests/runtime-legacy/samples/store-each-binding-deep/main.svelte	ast.sha256
 307342b5e2f9db5e58b0fad41ba0018b79b7580a83e8085944b1a58ce79653a7
@@ -7262,6 +8694,12 @@ fbd4ab15cfcdc4cf5f2098818351226b8d68149c69918853ed1108ff914bf4d2
 === 65 packages/svelte/tests/validator/samples/a11y-tabindex-no-positive/input.svelte	ast.sha256
 6c7a9f3e972c71e910cd080300142696354f558d0a7bb7899225734a39f01fe0
 
+=== 65 packages/svelte/tests/validator/samples/action-on-component/input.svelte	ast.sha256
+6c93590906aa7b81fe1784232310f9a97d02f7650534abe52cb6380ebeedf02a
+
+=== 65 packages/svelte/tests/validator/samples/animation-duplicate/input.svelte	ast.sha256
+7b6ac4a438cce782a73a96d8d7d061e77fad3c44267712f16dfc9b5a55cc5b4a
+
 === 65 packages/svelte/tests/validator/samples/animation-each-with-const/input.svelte	ast.sha256
 b923ba15362a26b3011eddd70afb78290429d059aba2e5500ac83c18699b3090
 
@@ -7271,14 +8709,75 @@ b923ba15362a26b3011eddd70afb78290429d059aba2e5500ac83c18699b3090
 === 65 packages/svelte/tests/validator/samples/animation-each-with-whitespace/input.svelte	ast.sha256
 df278246e9203f214e60516fd4a4a554ae3f93d19cc0e1ece8c694db0848ab80
 
+=== 65 packages/svelte/tests/validator/samples/animation-not-in-each/input.svelte	ast.sha256
+04e5ccdec9d464bc68af4552f33de1870970fdb78ec6da07ac414fc2db9578c9
+
+=== 65 packages/svelte/tests/validator/samples/animation-not-in-keyed-each/input.svelte	ast.sha256
+2c5d911f649a0ffcd0f09d09cb7923cdd3f4e186cdadd236a66ed6f5b2538528
+
+=== 65 packages/svelte/tests/validator/samples/animation-on-component/input.svelte	ast.sha256
+c611038776124db11493ce1ff6239c9a414b19e0d1bfe374965bc1fc7ae9f102
+
+=== 65 packages/svelte/tests/validator/samples/animation-siblings/input.svelte	ast.sha256
+59e1cf239d3793b855b493e6aa8c8479a7546ea780b1c3476c27f112f36cc786
+
 === 65 packages/svelte/tests/validator/samples/anonymous-declarations/input.svelte	ast.sha256
 e3497453437b4a46b456cc1eb2f272e7e6570cffab1bc4c087d389a988624f5a
+
+=== 65 packages/svelte/tests/validator/samples/assignment-to-const-2/input.svelte	ast.sha256
+766a822a860cd9788b0b64c572812c90824c728b6985452f0f19d4919b6ade4a
+
+=== 65 packages/svelte/tests/validator/samples/assignment-to-const-3/input.svelte	ast.sha256
+2927d8c8f545490885101c631795e922e29673709b59dbf118b26dcf5a13a830
+
+=== 65 packages/svelte/tests/validator/samples/assignment-to-const-4/input.svelte	ast.sha256
+2fee6a3f50c7cd41ec7f90eeb4c0847d2da1d1119d6f1b1046ec7d4fcea2515a
+
+=== 65 packages/svelte/tests/validator/samples/assignment-to-const-5/input.svelte	ast.sha256
+41cbcc622c0e6e1fd6cf23a0b661b4ddacbd2d00033aac78fe57f00cc751f0ee
 
 === 65 packages/svelte/tests/validator/samples/assignment-to-const-6/input.svelte	ast.sha256
 7c001f6e2448629b24457c7a9f8f3cf1b3b91de48faf5d50f9117faf47762d57
 
+=== 65 packages/svelte/tests/validator/samples/assignment-to-const-7/input.svelte	ast.sha256
+440536fcc68a04484c92f19b6cb7085667de15314ea651110cfe63d0b254bc7e
+
 === 65 packages/svelte/tests/validator/samples/assignment-to-const-8/input.svelte	ast.sha256
 df491733879ff3e65e62e2234d8137646c9793eeece52a9114d5f98a402f4424
+
+=== 65 packages/svelte/tests/validator/samples/assignment-to-const/input.svelte	ast.sha256
+1d2398b19efd0dd06cc3fd4663d54a611d17c1bca541785893445e585d40189a
+
+=== 221 packages/svelte/tests/validator/samples/attribute-expected-equals/input.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token =\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 5,
+		"column": 9,
+		"character": 50
+	},
+	"end": {
+		"line": 5,
+		"column": 9,
+		"character": 50
+	}
+}
+
+=== 65 packages/svelte/tests/validator/samples/attribute-invalid-name-2/input.svelte	ast.sha256
+9c95196a49ed1186a91296b0468e3ba7221d410b0191f1326b61ce07d7cd9a61
+
+=== 65 packages/svelte/tests/validator/samples/attribute-invalid-name-3/input.svelte	ast.sha256
+9cb6d843a17f06f0814fd19cfc030db2821e21cfa4cb7510e7865e5c4de0a4cb
+
+=== 65 packages/svelte/tests/validator/samples/attribute-invalid-name-4/input.svelte	ast.sha256
+64e7455249a0d9801c60d75b07833002c14d7c4b7f8fe67c2d193ae8e34f85ae
+
+=== 65 packages/svelte/tests/validator/samples/attribute-invalid-name-5/input.svelte	ast.sha256
+6ccaf6c2473c356839807f2fa3555113ba5b903aefcd3ac726b493e913f66f62
+
+=== 65 packages/svelte/tests/validator/samples/attribute-invalid-name/input.svelte	ast.sha256
+2b6a0670ed46c23357782749a567ced1f87ad03ce6ecddaa201d2315fae4d494
 
 === 65 packages/svelte/tests/validator/samples/attribute-quoted/input.svelte	ast.sha256
 9ee8db9855b865718ceff5838ac388f4dd22919bc1b2efdc3e9b96e24f77d65e
@@ -7298,14 +8797,77 @@ eca74c846d3ac2342de6ef512d39b6b2d866b9eb294059a4010b696cff108452
 === 65 packages/svelte/tests/validator/samples/bidirectional-control-characters/input.svelte	ast.sha256
 c51451abe204c7a905beb4e1a3a4a6a020e9e0e932dec41c99e79ac2188d8d80
 
+=== 65 packages/svelte/tests/validator/samples/bind-group-snippet-parameter/input.svelte	ast.sha256
+e04f8309b5373fb6bb095eeb5af42ea66a09dc92b664a348614aa2e3640181f6
+
+=== 65 packages/svelte/tests/validator/samples/bind_group_invalid_expression/input.svelte	ast.sha256
+afb2e5969683c79c627ae2f8e629c6c02fbf8633e4c73c7f133fe7dbf9c86a89
+
+=== 65 packages/svelte/tests/validator/samples/binding-await-catch/input.svelte	ast.sha256
+d99df57c41ec22f355b45b389f19340d4dd3d49b58ab1ab82cb3fa6eb3f21d3f
+
+=== 65 packages/svelte/tests/validator/samples/binding-await-then-2/input.svelte	ast.sha256
+a2c1b5775de600a6485aa3247839c09fac2d07fd1e3eea5e1b240fb72e78d165
+
+=== 65 packages/svelte/tests/validator/samples/binding-await-then/input.svelte	ast.sha256
+6d9f072c601986c6cfbc22d909aee08538c152b70a6e02a5e00816c4ffdd4410
+
 === 65 packages/svelte/tests/validator/samples/binding-const-field/input.svelte	ast.sha256
 d3708cc22a4469c6cc36092dabcd3057f156c6a404ffb183aa9f1bad38eb602d
+
+=== 65 packages/svelte/tests/validator/samples/binding-const/input.svelte	ast.sha256
+c10a816c468b109d739d18323b5d6f9ac90e193e3064c341dc92119a009316c0
+
+=== 65 packages/svelte/tests/validator/samples/binding-dimensions-svg/input.svelte	ast.sha256
+d14e9937e4b3aa2f6514470135a59e569598e1dc004256f9f9aa64a169322df4
+
+=== 65 packages/svelte/tests/validator/samples/binding-import-component/input.svelte	ast.sha256
+98cc17912776ab672a9c0a297922039b8d7deb26406f801923799b6251250fd3
+
+=== 65 packages/svelte/tests/validator/samples/binding-import-element/input.svelte	ast.sha256
+6e83598b8fda349f750bb3fc045095d18d05069549dd35a97d17082e6e173bd9
+
+=== 65 packages/svelte/tests/validator/samples/binding-input-checked/input.svelte	ast.sha256
+91167bbd9a82c57ee24a77cea5232f3d2749bc03cc8626c3b05f67f9a5bb1603
+
+=== 65 packages/svelte/tests/validator/samples/binding-input-type-boolean/input.svelte	ast.sha256
+7d1230c53b48b34c3649ec70d22e6f899c75166d3bbc60777128591fff5d4704
+
+=== 65 packages/svelte/tests/validator/samples/binding-invalid-on-element-2/input.svelte	ast.sha256
+891117f06eec35c7252ac3673ea70df15d26c6d4d793578f2e14903c3e4805f9
+
+=== 65 packages/svelte/tests/validator/samples/binding-invalid-on-element/input.svelte	ast.sha256
+f3df24b4662739ef79c8f86afe7a83a24a432fa54600934821ec7def67e90f77
+
+=== 65 packages/svelte/tests/validator/samples/binding-invalid-value-global/input.svelte	ast.sha256
+f8f912f98b076fd41b0a0f73e3e2d181d0dd42036124554f8f3510bbe4ec6990
+
+=== 65 packages/svelte/tests/validator/samples/binding-invalid-value/input.svelte	ast.sha256
+77635a8371c6d1e68c88a3d0a5375d4b035fe3fe43737c474d1be84d6f06f773
+
+=== 65 packages/svelte/tests/validator/samples/binding-invalid/input.svelte	ast.sha256
+cd08fc5323fc1cffd5c55e5f2688db75b6c8fa2f9ca197558f09e82071fd26cf
+
+=== 65 packages/svelte/tests/validator/samples/binding-let/input.svelte	ast.sha256
+d9df1c4498146953df25d651844a61a120f732569449301621f0a55d192d9d7a
+
+=== 65 packages/svelte/tests/validator/samples/binding-radio-input-checked/input.svelte	ast.sha256
+6dce6773b3ef82e130cdadee6820f13c958e02fd141913fbdaa817cc568c5646
+
+=== 65 packages/svelte/tests/validator/samples/binding-select-multiple-dynamic/input.svelte	ast.sha256
+532e4061e1bcb69cbcac4a72498182735a4128fbc63cec767ffbeaa22d986fb2
 
 === 65 packages/svelte/tests/validator/samples/binding-this-input-type-dynamic/input.svelte	ast.sha256
 56e1440f45073d3c782545cbf6ff641227737906b193b377aa5de40c09110d91
 
 === 65 packages/svelte/tests/validator/samples/catch-declares-error-variable/input.svelte	ast.sha256
 fdefd0abbcf63d634538c5b67babb906b3d3e5837518e137e5c8b3e2d8b5415f
+
+=== 65 packages/svelte/tests/validator/samples/component-event-modifiers-invalid/input.svelte	ast.sha256
+ba667db1729f9c2bf8bc2c0a80bb477e658c7e42eb67fc801523d268a0c12a13
+
+=== 65 packages/svelte/tests/validator/samples/component-invalid-style-directive/input.svelte	ast.sha256
+12316359e6c03363a5904f6979ffc2897b77ba0a5d409f4d8c98fab9fd800c11
 
 === 65 packages/svelte/tests/validator/samples/component-legacy-instantiation/input.svelte	ast.sha256
 6500e1c597a6a32026eaefccab8413a3daf9c9ee9fabca77ed25ada7ee6d45e1
@@ -7316,14 +8878,142 @@ fdefd0abbcf63d634538c5b67babb906b3d3e5837518e137e5c8b3e2d8b5415f
 === 65 packages/svelte/tests/validator/samples/component-namespaced/input.svelte	ast.sha256
 c8b5bfc40cf6009b1ac7efd2b7e80073261ed75dde5941d501b3e5567d2eed62
 
+=== 65 packages/svelte/tests/validator/samples/component-slot-default-reserved/input.svelte	ast.sha256
+5701853676236170e9dab3f66c8cfd1d4846ec00eeea4c36c03df680c7974409
+
+=== 65 packages/svelte/tests/validator/samples/component-slot-dynamic-attribute/input.svelte	ast.sha256
+1cc9ff5589c008681817290c47a0e37d638f19532da5b54a5dc6c87c964bc64c
+
+=== 65 packages/svelte/tests/validator/samples/component-slot-dynamic/input.svelte	ast.sha256
+f14f8cb340f49ddf2e7fbc72bc7251a62cb39ecf1a2dfc7393f7f25695085176
+
+=== 65 packages/svelte/tests/validator/samples/component-slotted-custom-element-2/input.svelte	ast.sha256
+39c71862f6866849c9b907662e5332864adbbbcf60401465f1cc4c72689946db
+
 === 65 packages/svelte/tests/validator/samples/component-slotted-custom-element/input.svelte	ast.sha256
 85dcf121253a16cefc4ee51073d79700314c0712e0d785b10c57ab9db722d16a
+
+=== 65 packages/svelte/tests/validator/samples/component-slotted-each-block/input.svelte	ast.sha256
+7d8fb0f62c8236874de06c85b15f828f45e6dc2e76bb615ef6a56f0c36947ae4
+
+=== 65 packages/svelte/tests/validator/samples/component-slotted-if-block/input.svelte	ast.sha256
+ed48905d22c63ec87552c01b34b4b592c31b4cc718e900f27681d25e5b42275f
+
+=== 65 packages/svelte/tests/validator/samples/const-tag-conflict-1/input.svelte	ast.sha256
+343786416866a79ca6e97e3b7da1417cbeace5e10dfb7ce278394b31f054b0b5
+
+=== 65 packages/svelte/tests/validator/samples/const-tag-conflict-2/input.svelte	ast.sha256
+2424615bec6bcea06c62dae6b7ce5030eeee320738ba9276a2d5c3d55348f18e
 
 === 65 packages/svelte/tests/validator/samples/const-tag-inside-key-block/input.svelte	ast.sha256
 b9dfa8000152b35f0ba037d37fab63f7b264becda8b286bdc15ecbb2f6786c18
 
+=== 65 packages/svelte/tests/validator/samples/const-tag-invalid-rune-usage/input.svelte	ast.sha256
+9df3dacce38305b54919545c6b31e928e2e4872629477d46587a1167b04aa969
+
+=== 65 packages/svelte/tests/validator/samples/const-tag-placement-1/input.svelte	ast.sha256
+55d31f38f3d6aca873009ff0d0dd200b861a86be277a604c078a1ececeed4f41
+
+=== 65 packages/svelte/tests/validator/samples/const-tag-placement-2/input.svelte	ast.sha256
+15dfb4ae1128d64dc0bb5b45a49daf94d1af2652576fef59f4c0cbee5124f1ab
+
 === 65 packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte	ast.sha256
 97aa0c0afa9883fbf06a1e38dbc0e2bb8873bef62e4af36db8f547d262ed05d9
+
+=== 65 packages/svelte/tests/validator/samples/const-tag-readonly-1/input.svelte	ast.sha256
+e5700c3aab83eb8f63e6813d351f34af100d9773dd1b01c56fe679c7c8ccce5c
+
+=== 65 packages/svelte/tests/validator/samples/const-tag-readonly-2/input.svelte	ast.sha256
+08c2eaacb0b0a5b63345f9ac1e23480d8d9fec09f1290b21658780a170adca5e
+
+=== 65 packages/svelte/tests/validator/samples/contenteditable-dynamic/input.svelte	ast.sha256
+0e42c898aff3cbd5aa03f0cb4288fdb80767b15f3ed0b8f651f910b9e92632e8
+
+=== 65 packages/svelte/tests/validator/samples/contenteditable-missing/input.svelte	ast.sha256
+1157ef2a712e96693fa1ca7b49b7fa930fa4c41bf81ff2a1451679dd318eb2f0
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-1/input.svelte	ast.sha256
+37f8775312ded92e4e0b0b43c2daa263818978b1975255a2ff9c5d5d6b161f4c
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-2/input.svelte	ast.sha256
+7eb796edba956b6618d9116b9725f61f61bd830506d975d45bb4bc1baa47e5ff
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-3/input.svelte	ast.sha256
+808d8a23d64521a04dcdaa0baeb272a374b8bc92e5ab1cf2f7d5831f8d73487a
+
+=== 233 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-4/input.svelte	error.json
+{
+	"code": "css_selector_invalid",
+	"message": "Invalid selector\nhttps://svelte.dev/e/css_selector_invalid",
+	"start": {
+		"line": 4,
+		"column": 5,
+		"character": 30
+	},
+	"end": {
+		"line": 4,
+		"column": 5,
+		"character": 30
+	}
+}
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-placement-2/input.svelte	ast.sha256
+85b0da03d82bf729fba3acbcaf0aeb73e55f78099dd5bb9af29273169fb57834
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-placement-3/input.svelte	ast.sha256
+e572b6d61307bb0854f60a661a5581de31452c7efd28a32f63bbbc3865ccea7f
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-placement-4/input.svelte	ast.sha256
+964862ade92bc09d142f0dae88e3f3d35af6985e8460d90200c953a74eec0007
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-placement-5/input.svelte	ast.sha256
+13999faa7cf31340ed21035ff524a49759506f1ceb728aa45083770a26923aed
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-placement-6/input.svelte	ast.sha256
+c534db1ee505deb37bc8083f07c5d73bd41d3514a6f56bc85013ab0d6c75a34d
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-placement/input.svelte	ast.sha256
+cfcbc929748d5889cb68750c40690b8aadea137f0b8ec3267044b2d5801b9a0a
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-selector-2/input.svelte	ast.sha256
+a4a77780c53f6243b9b78004fbc12d49d189dcbc3701b79c079057a10d1651b4
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-selector-3/input.svelte	ast.sha256
+40ace2c4d2e033aa3eb40dc92a0f23d7552fe71ba2259b828172f035b1424083
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-selector-4/input.svelte	ast.sha256
+6710f94c91304e1fba13f1abe8f85a8e28979b19072e466ec9fae1fb121bc549
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-selector-5/input.svelte	ast.sha256
+05a5c67cc7e5706961367841b0d695ece70a9f756a78e27b58dd69358afc65d5
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-selector-6/input.svelte	ast.sha256
+0baeb7450d46f4702b408eec54bcd194084b1d7236cb1f68a2c56669a6323621
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-selector-list/input.svelte	ast.sha256
+5e53c15671daef5cd317ae6b47578f0ae04ed3525136be0eb1c7cfd43664318a
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-global-selector/input.svelte	ast.sha256
+215689bdfdec43787269bfd27dcf4ed459e03a0ab43a3adf4972a224331ea886
+
+=== 65 packages/svelte/tests/validator/samples/css-invalid-type-selector-placement/input.svelte	ast.sha256
+a99b4a3c660f5a032c1fa2aaccb708f8f20a13ef9f55a61ecc16f5b427a67073
+
+=== 228 packages/svelte/tests/validator/samples/css-mismatched-quotes/input.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 7,
+		"column": 8,
+		"character": 76
+	},
+	"end": {
+		"line": 7,
+		"column": 8,
+		"character": 76
+	}
+}
 
 === 65 packages/svelte/tests/validator/samples/custom-element-props-identifier-props-option/input.svelte	ast.sha256
 d289f9a6bc4199f030116d12bdc77d2fb27180dfeb25f23d69892a31147ce869
@@ -7334,8 +9024,62 @@ d289f9a6bc4199f030116d12bdc77d2fb27180dfeb25f23d69892a31147ce869
 === 65 packages/svelte/tests/validator/samples/custom-element-props-identifier/input.svelte	ast.sha256
 dec282ac961170a38f14ab7eeda8a1324d2c1c4b90ec6aa518ed0a183a1b6d2a
 
+=== 300 packages/svelte/tests/validator/samples/debug-invalid-args/input.svelte	error.json
+{
+	"code": "debug_tag_invalid_arguments",
+	"message": "{@debug ...} arguments must be identifiers, not arbitrary expressions\nhttps://svelte.dev/e/debug_tag_invalid_arguments",
+	"start": {
+		"line": 2,
+		"column": 9,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 9,
+		"character": 13
+	}
+}
+
+=== 65 packages/svelte/tests/validator/samples/declaration-tag-already-declared/input.svelte	ast.sha256
+b9cc08af52ce53456ec4fb8aeae71659a294f50607dfeaf491f33d1ee68cde32
+
 === 65 packages/svelte/tests/validator/samples/declaration-tag-invalid-function/input.svelte	ast.sha256
 3d89e67703366c011d7f8bb31013b24200c92ae3cb592012a016df3367a0b457
+
+=== 292 packages/svelte/tests/validator/samples/declaration-tag-invalid-type-2/input.svelte	error.json
+{
+	"code": "declaration_tag_invalid_type",
+	"message": "Declaration tags must be `let` or `const` declarations\nhttps://svelte.dev/e/declaration_tag_invalid_type",
+	"start": {
+		"line": 28,
+		"column": 2,
+		"character": 486
+	},
+	"end": {
+		"line": 28,
+		"column": 20,
+		"character": 504
+	}
+}
+
+=== 287 packages/svelte/tests/validator/samples/declaration-tag-invalid-type/input.svelte	error.json
+{
+	"code": "declaration_tag_invalid_type",
+	"message": "Declaration tags must be `let` or `const` declarations\nhttps://svelte.dev/e/declaration_tag_invalid_type",
+	"start": {
+		"line": 2,
+		"column": 2,
+		"character": 13
+	},
+	"end": {
+		"line": 2,
+		"column": 5,
+		"character": 16
+	}
+}
+
+=== 65 packages/svelte/tests/validator/samples/declaration-tag-legacy-mode/input.svelte	ast.sha256
+a2cbe540a443923a8e18c1fb9bf09112dc55c333b98c4b8f17105113a0fe953c
 
 === 65 packages/svelte/tests/validator/samples/declaration-tag-maybe-runes/input.svelte	ast.sha256
 5b89c7edb7f02a12e56cec7cf4f852b765ad557c59cf3c70d8373839e4deb877
@@ -7343,8 +9087,181 @@ dec282ac961170a38f14ab7eeda8a1324d2c1c4b90ec6aa518ed0a183a1b6d2a
 === 65 packages/svelte/tests/validator/samples/declaration-tag-state-referenced-locally/input.svelte	ast.sha256
 7d9da017342b9c268994856879be7575b595d6238e93e68df22d844c00f8aa5d
 
+=== 65 packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte	ast.sha256
+c886cebebfeafa4468fb24039545290d33dd582ebee2473f31feb19946f31b7a
+
+=== 65 packages/svelte/tests/validator/samples/default-export-anonymous-function/input.svelte	ast.sha256
+3c3c8143be958f48301fa684e5e250ea4287b7a886f8bd6c23187f0e6d07b1fe
+
+=== 65 packages/svelte/tests/validator/samples/default-export-indirect/input.svelte	ast.sha256
+a7c94846de957043f3c4d32ac7b14d06715febeca2749cb5e96b2c8bacf61d9f
+
+=== 65 packages/svelte/tests/validator/samples/default-export-module/input.svelte	ast.sha256
+19e2524a57277bdf4e90b33f78b60d7ae3186bde9b511230e6f372dc52432b5e
+
+=== 65 packages/svelte/tests/validator/samples/default-export/input.svelte	ast.sha256
+2b7d3a8a3d27115d621d82238231a0edbd0ad4df1ce40b4cc837958628f76360
+
+=== 297 packages/svelte/tests/validator/samples/directive-non-expression/input.svelte	error.json
+{
+	"code": "directive_invalid_value",
+	"message": "Directive value must be a JavaScript expression enclosed in curly braces\nhttps://svelte.dev/e/directive_invalid_value",
+	"start": {
+		"line": 1,
+		"column": 15,
+		"character": 15
+	},
+	"end": {
+		"line": 1,
+		"column": 15,
+		"character": 15
+	}
+}
+
+=== 65 packages/svelte/tests/validator/samples/document-binding-invalid-dimensions/input.svelte	ast.sha256
+4addca7701edda3547154facf72a448edb4ac8f62e2da3182418b6b003ffd103
+
+=== 65 packages/svelte/tests/validator/samples/dollar-dollar-global-in-markup/input.svelte	ast.sha256
+68584643e280713bd1c5274fe788076f444a544b6d1f07a9a4628babfdcf6746
+
+=== 65 packages/svelte/tests/validator/samples/dollar-dollar-global-in-script/input.svelte	ast.sha256
+a970dd7bae53390d20d1352041fb3f33ec4bc14c5f782b57ba1ba16cc52f9690
+
+=== 65 packages/svelte/tests/validator/samples/dollar-global-in-markup/input.svelte	ast.sha256
+f6a7135545b75f3781e1847729dc890d03631e0dece1e6121339f9c2f6edb7cb
+
+=== 65 packages/svelte/tests/validator/samples/dollar-global-in-script/input.svelte	ast.sha256
+1b6c6f724fbd1a752269b357de2a98f43024758ee26353b25d03100dd081cbf9
+
+=== 293 packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte	error.json
+{
+	"code": "svelte_element_missing_this",
+	"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
+	"start": {
+		"line": 2,
+		"column": 17,
+		"character": 23
+	},
+	"end": {
+		"line": 2,
+		"column": 21,
+		"character": 27
+	}
+}
+
+=== 289 packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	error.json
+{
+	"code": "svelte_element_missing_this",
+	"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 7
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 7
+	}
+}
+
+=== 290 packages/svelte/tests/validator/samples/dynamic-element-this/input.svelte	error.json
+{
+	"code": "unexpected_reserved_word",
+	"message": "'this' is a reserved word in JavaScript and cannot be used here\nhttps://svelte.dev/e/unexpected_reserved_word",
+	"start": {
+		"line": 2,
+		"column": 18,
+		"character": 24
+	},
+	"end": {
+		"line": 2,
+		"column": 18,
+		"character": 24
+	}
+}
+
+=== 254 packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Comma is not permitted after the rest element\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 5,
+		"column": 53,
+		"character": 100
+	},
+	"end": {
+		"line": 5,
+		"column": 53,
+		"character": 100
+	}
+}
+
+=== 232 packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected keyword 'case'\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	},
+	"end": {
+		"line": 1,
+		"column": 18,
+		"character": 18
+	}
+}
+
+=== 223 packages/svelte/tests/validator/samples/each-block-invalid-context-destructured/input.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	},
+	"end": {
+		"line": 1,
+		"column": 17,
+		"character": 17
+	}
+}
+
+=== 290 packages/svelte/tests/validator/samples/each-block-invalid-context/input.svelte	error.json
+{
+	"code": "unexpected_reserved_word",
+	"message": "'case' is a reserved word in JavaScript and cannot be used here\nhttps://svelte.dev/e/unexpected_reserved_word",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	}
+}
+
 === 65 packages/svelte/tests/validator/samples/empty-block/input.svelte	ast.sha256
 cd5ba6da56b96a6ee1a111c01473d78d8369c7c3c5b4bf37eba37be71ea5b559
+
+=== 65 packages/svelte/tests/validator/samples/error-mode-warn/input.svelte	ast.sha256
+61a4be9f66ec82bb19c23120f11f2f05cf57e42cc21fe82767a9f3bddf532cd4
+
+=== 65 packages/svelte/tests/validator/samples/event-attribute/input.svelte	ast.sha256
+bff68d6f583390ef5f9b8cc18efb9cf9faf7d5aecd80932b2663fcdd3e9f10ad
+
+=== 65 packages/svelte/tests/validator/samples/event-modifiers-invalid-nonpassive/input.svelte	ast.sha256
+bf15336526f822a4bdde69c7fa1ecaf7ab0e64f4766d91b7a5a8ef9716aa9fdf
+
+=== 65 packages/svelte/tests/validator/samples/event-modifiers-invalid-passive/input.svelte	ast.sha256
+f59b979f2ed7f9aea31234135f8283746ed7d3e87ab888f51cd79482221d4bd6
+
+=== 65 packages/svelte/tests/validator/samples/event-modifiers-invalid/input.svelte	ast.sha256
+3955cd1c002883d9e32f0bdb73b0b4fb8ae65108ad3ded637100acdda548d496
 
 === 65 packages/svelte/tests/validator/samples/export-not-defined-module-with-source/input.svelte	ast.sha256
 e491f24770acf119ee86640780c12030bb6597dc41322ae12536bf6a6d5648ad
@@ -7358,8 +9275,43 @@ e491f24770acf119ee86640780c12030bb6597dc41322ae12536bf6a6d5648ad
 === 65 packages/svelte/tests/validator/samples/global-event-reference/input.svelte	ast.sha256
 5f841b2f25f15f0c72ab0f428de68726702cb190359dc4744f2ee2e9f2832a88
 
+=== 265 packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	error.json
+{
+	"code": "tag_invalid_placement",
+	"message": "{@html ...} tag cannot be in attribute value\nhttps://svelte.dev/e/tag_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 262 packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	error.json
+{
+	"code": "tag_invalid_placement",
+	"message": "{@html ...} tag cannot be inside <textarea>\nhttps://svelte.dev/e/tag_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 12
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 12
+	}
+}
+
 === 65 packages/svelte/tests/validator/samples/if-block-whitespace-legacy/input.svelte	ast.sha256
 abf93ec094fe2eddcbcc6f73bb2177a7c7736e8558fd85abc42037cd42a76e4a
+
+=== 65 packages/svelte/tests/validator/samples/if-block-whitespace-runes/input.svelte	ast.sha256
+f302b7e34fec036984f686791fc550719f9eb5795609f310e73b0fb890cf99a5
 
 === 65 packages/svelte/tests/validator/samples/ignore-warning-compiler-option/input.svelte	ast.sha256
 9bd6f93a51d1308f22cf3e7dd15744a1eba2484f0c0c059cc4c1f8141869e008
@@ -7385,6 +9337,15 @@ abf93ec094fe2eddcbcc6f73bb2177a7c7736e8558fd85abc42037cd42a76e4a
 === 65 packages/svelte/tests/validator/samples/illegal-attribute-character/input.svelte	ast.sha256
 b40ed62190801d8ce389f7a9fc1f03555c1e61259b8cc45d086956cace3e4f34
 
+=== 65 packages/svelte/tests/validator/samples/illegal-variable-declaration/input.svelte	ast.sha256
+06a5303d8963ca213cd517ed146dae6803b56799f437c87475cad940bbcdf0eb
+
+=== 65 packages/svelte/tests/validator/samples/illegal_spread_element-document/input.svelte	ast.sha256
+eae86344e94c55972ef4034e8c2eb86fe2b8fa07f549ccda8cb529b2102ae1f4
+
+=== 65 packages/svelte/tests/validator/samples/illegal_spread_element-window/input.svelte	ast.sha256
+66362030bd9261c44462e3ab20b62171796c9783c45a5f05b322cdf5473eb44a
+
 === 65 packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte	ast.sha256
 d8fae1e9dc3b46d18083e598fe0b08c969b99457c6d6be81fb45272c56717033
 
@@ -7409,14 +9370,48 @@ e9e56b4ce5aac1d5205de27d789ddf6e0d486fc5ec190f32c6264571790bf7e2
 === 65 packages/svelte/tests/validator/samples/inline-new-class/input.svelte	ast.sha256
 c99536bdd64d5d09b147c587d339d46a7873d2cff8e36b9f83424be9b3f3e633
 
+=== 246 packages/svelte/tests/validator/samples/invalid-empty-css-declaration/input.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 5,
+		"column": 2,
+		"character": 47
+	},
+	"end": {
+		"line": 5,
+		"column": 8,
+		"character": 53
+	}
+}
+
+=== 65 packages/svelte/tests/validator/samples/invalid-node-placement-2/input.svelte	ast.sha256
+dd82b1cbed94a3bccca29f9ddca5879a1ae8ed30ab0128747171cc2b7eee9687
+
 === 65 packages/svelte/tests/validator/samples/invalid-node-placement-3/input.svelte	ast.sha256
 2e4f7e6d77259fc52a1e11093f743769423fdccbdc3bd7b5943a74ac171006a4
+
+=== 65 packages/svelte/tests/validator/samples/invalid-node-placement-4/input.svelte	ast.sha256
+0b1faa4a0854e6ac1dd5504fa57ffbbba74317a7955714b16ccde25415a121f4
 
 === 65 packages/svelte/tests/validator/samples/invalid-node-placement-5/input.svelte	ast.sha256
 9f4240d8e69ebe67918649ce902ca8ad179695a8c5a3c0199f84e17cbd8acf49
 
+=== 65 packages/svelte/tests/validator/samples/invalid-node-placement-6/input.svelte	ast.sha256
+25485818dc645b7172a3e5860f8b9c75cb47c658070d8fb11f4d70bae6066198
+
+=== 65 packages/svelte/tests/validator/samples/invalid-node-placement-7/input.svelte	ast.sha256
+c71fbd113ce71535bd8df5e8936c849e44ba5b667b0699ddfe69f330a0dca935
+
+=== 65 packages/svelte/tests/validator/samples/invalid-node-placement-8/input.svelte	ast.sha256
+06dfd196092b497c61f8809690f39771ed405793bad67c8546ba63410f667cb0
+
 === 65 packages/svelte/tests/validator/samples/invalid-node-placement-template/input.svelte	ast.sha256
 2922b86ad454a99f7e8101614de9c9408dd2bcc0753dbe4bc0c5560aa6ef40b8
+
+=== 65 packages/svelte/tests/validator/samples/invalid-node-placement/input.svelte	ast.sha256
+8cf6837af10852abe76281987e7dee8ffcfbafeebf8d9e7896f4a483fb846b7b
 
 === 65 packages/svelte/tests/validator/samples/invalid-self-closing-tag/input.svelte	ast.sha256
 e139c71260379d2a5d53c3df6c25e1a889b3223851ba33bc3c2438567fd7b2f4
@@ -7424,14 +9419,113 @@ e139c71260379d2a5d53c3df6c25e1a889b3223851ba33bc3c2438567fd7b2f4
 === 65 packages/svelte/tests/validator/samples/js-scope-catch-clause/input.svelte	ast.sha256
 5172b911adae5de369b49bfa215fb7b2d68c0e9698a8f686172c2e11cdaf5d10
 
+=== 65 packages/svelte/tests/validator/samples/let-directive/input.svelte	ast.sha256
+ced1d3f5d8c554819587f1655b94f79b0c2a68a5b20dc0c670a8267b6bf2b3c1
+
+=== 269 packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	error.json
+{
+	"code": "block_invalid_placement",
+	"message": "{#if ...} block cannot be in attribute value\nhttps://svelte.dev/e/block_invalid_placement",
+	"start": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	},
+	"end": {
+		"line": 1,
+		"column": 12,
+		"character": 12
+	}
+}
+
+=== 268 packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	error.json
+{
+	"code": "block_invalid_placement",
+	"message": "{#each ...} block cannot be inside <textarea>\nhttps://svelte.dev/e/block_invalid_placement",
+	"start": {
+		"line": 2,
+		"column": 1,
+		"character": 12
+	},
+	"end": {
+		"line": 2,
+		"column": 1,
+		"character": 12
+	}
+}
+
 === 65 packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte	ast.sha256
 f1a29b422a30136002f821b7bb529841408e37b496fc3f79c0e16c4cfa77985d
+
+=== 319 packages/svelte/tests/validator/samples/multiple-script-default-context/input.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 30
+	},
+	"end": {
+		"line": 5,
+		"column": 0,
+		"character": 30
+	}
+}
+
+=== 319 packages/svelte/tests/validator/samples/multiple-script-module-context/input.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 5,
+		"column": 0,
+		"character": 37
+	},
+	"end": {
+		"line": 5,
+		"column": 0,
+		"character": 37
+	}
+}
 
 === 65 packages/svelte/tests/validator/samples/multiple-var-same-name/input.svelte	ast.sha256
 8eed887198a8049b9253d1f279d670d0ddfdb9df8dc84ecab285c4a264e3cbbb
 
 === 65 packages/svelte/tests/validator/samples/mutate-derived-private-field/input.svelte	ast.sha256
 b53abb7bb84b55161159a6cf116e94b16cc32ce7aac4876c6b1dcd00b799782c
+
+=== 314 packages/svelte/tests/validator/samples/namespace-invalid/input.svelte	error.json
+{
+	"code": "svelte_options_invalid_attribute_value",
+	"message": "Value must be \"html\", \"mathml\" or \"svg\", if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 54,
+		"character": 54
+	}
+}
+
+=== 314 packages/svelte/tests/validator/samples/namespace-non-literal/input.svelte	error.json
+{
+	"code": "svelte_options_invalid_attribute_value",
+	"message": "Value must be \"html\", \"mathml\" or \"svg\", if specified\nhttps://svelte.dev/e/svelte_options_invalid_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 30,
+		"character": 30
+	}
+}
 
 === 65 packages/svelte/tests/validator/samples/no-missing-declarations-for-same-node-let-variable/input.svelte	ast.sha256
 1f142a1bfda6efe621907c0f3966389d7c4206e58f4510a89aad4474c3f993bd
@@ -7445,6 +9539,9 @@ b53abb7bb84b55161159a6cf116e94b16cc32ce7aac4876c6b1dcd00b799782c
 === 65 packages/svelte/tests/validator/samples/non-invalid-node-placement-if-snippet/input.svelte	ast.sha256
 b9f78bc089b8a7c903c5be943b0fd3439af931132afbfecd57e7fe5c921449d2
 
+=== 65 packages/svelte/tests/validator/samples/reactive-declaration-cyclical/input.svelte	ast.sha256
+ffdc76996235f7c27ee2c638e475f59a2930248645e2d06c42444dac8dc183d6
+
 === 65 packages/svelte/tests/validator/samples/reassign-derived-private-public-field/input.svelte	ast.sha256
 8f0e623bbaab56b7c47d0166a17c556809b624e551946289a2667e5257578ec9
 
@@ -7456,6 +9553,21 @@ fe1abd879816b6d5bf78e9bb3ae28ae9004aca1f204fdca50dfa84e56f80ecc6
 
 === 65 packages/svelte/tests/validator/samples/rest-eachblock-binding/input.svelte	ast.sha256
 4666aef9fdc348dae7a433076a3e79fc1d401490b011d5892ace7f682a184080
+
+=== 65 packages/svelte/tests/validator/samples/rune-invalid-spread-derived-by/input.svelte	ast.sha256
+fb61eda6ef1b439491d4e1e321f604638c1d20156b7352ffe64ba261c0a09692
+
+=== 65 packages/svelte/tests/validator/samples/rune-invalid-spread-derived/input.svelte	ast.sha256
+a06f915e9bc333792254ea5f0c22ab3c0d87f53b920a35517c35f4fb1f3a8a0e
+
+=== 65 packages/svelte/tests/validator/samples/rune-invalid-spread-state-raw/input.svelte	ast.sha256
+c35196c3da9ac1ff877c2df7ee15c27f77a3f18b1a0244fbcebab851a2f21739
+
+=== 65 packages/svelte/tests/validator/samples/rune-invalid-spread-state/input.svelte	ast.sha256
+e25a7f09169e54fde2c0725f9bb70775cee8b93a617110c7f5b2f204ac3cc200
+
+=== 65 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings-2/input.svelte	ast.sha256
+12680868b4dc7908fa0d806abad9918f46a68ff954a038dce1098b3b661f7ea6
 
 === 65 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings/input.svelte	ast.sha256
 9e9f4bacecc57a0b46a1cea027183b5894f90db5f0a681174492beb085d6c295
@@ -7475,6 +9587,22 @@ b6279506773faaa375d8cc4ddd5963019103b19353311ad2ac88d3f02b8937ba
 === 65 packages/svelte/tests/validator/samples/script-context-module-runes-deprecated/input.svelte	ast.sha256
 8a72a5ce6ad0e33de315c3e8d5bbb3db8b947a583bbe5b9f0aa08c4bf726929f
 
+=== 287 packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	error.json
+{
+	"code": "script_invalid_context",
+	"message": "If the context attribute is supplied, its value must be \"module\"\nhttps://svelte.dev/e/script_invalid_context",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 22,
+		"character": 22
+	}
+}
+
 === 65 packages/svelte/tests/validator/samples/script-invalid-spread-attribute/input.svelte	ast.sha256
 bbbccfe3b031d940dd6b30fe4d827889a5fe7abb599d282cc48075f71156e7c8
 
@@ -7493,6 +9621,9 @@ bbbccfe3b031d940dd6b30fe4d827889a5fe7abb599d282cc48075f71156e7c8
 === 65 packages/svelte/tests/validator/samples/slot-attribute-component/input.svelte	ast.sha256
 d6aa295416549d33e3b70999d7f674cd78c9d2e7dd874bf52408915a74f9c1c6
 
+=== 65 packages/svelte/tests/validator/samples/slot-attribute-invalid/input.svelte	ast.sha256
+15c475b9f2cd672ae95c33cff093b2400ef2fb7498d85396ccc81449b5dfe103
+
 === 65 packages/svelte/tests/validator/samples/slot-warning-ignore/input.svelte	ast.sha256
 c3f92eaed2cad129f880101f5ac30f922d8a863f3f941d4106f1b3407b9fad3e
 
@@ -7501,6 +9632,12 @@ dc431cc142880c62d490e9b313608e8cbd10528e7e3b5b5728316c579adf97ee
 
 === 65 packages/svelte/tests/validator/samples/slot-warning2/input.svelte	ast.sha256
 6befdc675384c962ced97386ecac60ac9b2d90632cafe431117b46b1ba5531b7
+
+=== 65 packages/svelte/tests/validator/samples/snippet-already-declared/input.svelte	ast.sha256
+d3f11b87c9753bb7ca9b8fc9d1788e0aae63b79adbae54fe63376bc123dc3b6b
+
+=== 65 packages/svelte/tests/validator/samples/snippet-shadowing-prop/input.svelte	ast.sha256
+31a1641e1befdb9a593c05edea9fd10f06d307e5bdc4e05982688c20345c2e5b
 
 === 65 packages/svelte/tests/validator/samples/snippet-whitespace-ok/input.svelte	ast.sha256
 b8d5dbb7edeeeed7320ddb91e0028c484f23b6268f36cc6cc496a71e5865a497
@@ -7520,8 +9657,20 @@ f5aa0bdacf7dd85a4d075733be09b3c8f9a4c2c851147a7679b92b11961e01ad
 === 65 packages/svelte/tests/validator/samples/store-runes-conflict/input.svelte	ast.sha256
 0c7e798e1dc04ff94e6adb763a19516e9c83c8fdb83776aa378fe00e76c38dda
 
+=== 65 packages/svelte/tests/validator/samples/style-directive-modifiers-invalid/input.svelte	ast.sha256
+d600b655966b329a366083ee68e4690d329c742399deae1de374568ca0b1e55a
+
 === 65 packages/svelte/tests/validator/samples/svelte-component-deprecated/input.svelte	ast.sha256
 965cdff30a031df818aaa3113b33901b27bee8e1f2b8c3776cdfeb10880606ee
+
+=== 65 packages/svelte/tests/validator/samples/svelte-fragment-placement-2/input.svelte	ast.sha256
+adce95d6e202d4dd742c78ee9b2d41464820cce660935ec505b22e29fa211138
+
+=== 65 packages/svelte/tests/validator/samples/svelte-fragment-placement/input.svelte	ast.sha256
+2338bbee2121e9b68764e090c6aa181ddd79f669208ced5574ed80710eab1e93
+
+=== 65 packages/svelte/tests/validator/samples/svelte-head-attributes/input.svelte	ast.sha256
+c40f37404837516d48cb1153f3eaf0758e7585abde28e5843f83d61abb0db584
 
 === 65 packages/svelte/tests/validator/samples/svelte-ignore-non-reactive-update/input.svelte	ast.sha256
 1620bde2a241982e1f372ee8b7d2e94c8fd407107252b296a471361864707a11
@@ -7538,11 +9687,119 @@ f5aa0bdacf7dd85a4d075733be09b3c8f9a4c2c851147a7679b92b11961e01ad
 === 65 packages/svelte/tests/validator/samples/tag-hyphen/input.svelte	ast.sha256
 543fd317d86247088e1673668ca3bfd7a43b49f206026db7ad37a076e99aa8f4
 
+=== 280 packages/svelte/tests/validator/samples/tag-invalid/input.svelte	error.json
+{
+	"code": "svelte_options_invalid_tagname",
+	"message": "Tag name must be lowercase and hyphenated\nhttps://svelte.dev/e/svelte_options_invalid_tagname",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 39,
+		"character": 39
+	}
+}
+
+=== 501 packages/svelte/tests/validator/samples/tag-non-string/input.svelte	error.json
+{
+	"code": "svelte_options_invalid_customelement",
+	"message": "\"customElement\" must be a string literal defining a valid custom element name or an object of the form { tag?: string; shadow?: \"open\" | \"none\" | `ShadowRootInit`; props?: { [key: string]: { attribute?: string; reflect?: boolean; type: .. } } }\nhttps://svelte.dev/e/svelte_options_invalid_customelement",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 34,
+		"character": 34
+	}
+}
+
+=== 261 packages/svelte/tests/validator/samples/tag-reserved/input.svelte	error.json
+{
+	"code": "svelte_options_reserved_tagname",
+	"message": "Tag name is reserved\nhttps://svelte.dev/e/svelte_options_reserved_tagname",
+	"start": {
+		"line": 1,
+		"column": 16,
+		"character": 16
+	},
+	"end": {
+		"line": 1,
+		"column": 41,
+		"character": 41
+	}
+}
+
+=== 65 packages/svelte/tests/validator/samples/textarea-value-children/input.svelte	ast.sha256
+eb8ce9a2a4f4a236d98582a59171879258ba6387d8c30c1d5e99e277d5cf06da
+
+=== 65 packages/svelte/tests/validator/samples/title-no-attributes/input.svelte	ast.sha256
+8fc0a5955ab9065d5b974fdc97250eb02460599b0de45c03a0e60f0590a91459
+
+=== 65 packages/svelte/tests/validator/samples/title-no-children/input.svelte	ast.sha256
+09dd9102afe70e1da139ab5409c9847dace7d0b2d16c843eb45f583199ea92ad
+
+=== 65 packages/svelte/tests/validator/samples/transition-duplicate-in-transition/input.svelte	ast.sha256
+1f1093ed436b5ef2edb9a42a62d280b60604ec55ebcff7703ab6d7c89fb438bb
+
+=== 65 packages/svelte/tests/validator/samples/transition-duplicate-in/input.svelte	ast.sha256
+5daeb4dc3b679884fa1334b250d47651467cb4b83159f31808d7668acb459ee1
+
+=== 65 packages/svelte/tests/validator/samples/transition-duplicate-out-transition/input.svelte	ast.sha256
+9cc29c7c59602da7cad31027e9d09123efd199cac327451ed77f9916d5578719
+
+=== 65 packages/svelte/tests/validator/samples/transition-duplicate-out/input.svelte	ast.sha256
+df45db37fdc78207a5aefe8c10ba3814398896e7ff24ea795cb79563a4d1a67c
+
+=== 65 packages/svelte/tests/validator/samples/transition-duplicate-transition-in/input.svelte	ast.sha256
+06ae15972ecadfe1efbed579072e3165f55e0f0613d13a0e36fba8f0759f7f69
+
+=== 65 packages/svelte/tests/validator/samples/transition-duplicate-transition-out/input.svelte	ast.sha256
+7f4753c20eb5d3c2fccc22cebf32511f3aa060fedc9fe665949896763155ce80
+
+=== 65 packages/svelte/tests/validator/samples/transition-duplicate-transition/input.svelte	ast.sha256
+646c7551620d677b4a08efbe6d38783f4527a76a40da55d00f5f78b73d2932e9
+
+=== 65 packages/svelte/tests/validator/samples/transition-on-component/input.svelte	ast.sha256
+24f6725c60426dcbdb48279abb76cdf09d397cbaff20bf6c2a7cae4f9a789bbe
+
+=== 65 packages/svelte/tests/validator/samples/ts-unsupported-accessor/input.svelte	ast.sha256
+cf795b94e2d9898b9f6b379f50432004ad9783de0c0a45458a6edcd6ab75243f
+
+=== 65 packages/svelte/tests/validator/samples/ts-unsupported-decorator/input.svelte	ast.sha256
+bd77942ffdae398bec7ac8e211e2cba457a81c3402e9f7fcdc75983f86d18569
+
+=== 65 packages/svelte/tests/validator/samples/ts-unsupported-enum/input.svelte	ast.sha256
+9c11ed460e1274e829585b56d7f388381d6b4929d59b408d6e8b9ebdd3bb461a
+
+=== 65 packages/svelte/tests/validator/samples/ts-unsupported-modifier-readonly/input.svelte	ast.sha256
+fe99bba6d85ae1d286e403f3f62d3ad34488e6abfec2bc7c596c590d3d814c24
+
+=== 65 packages/svelte/tests/validator/samples/ts-unsupported-modifier/input.svelte	ast.sha256
+c95cbdb731ef2c914ff493a4e8f6a4fb7163db60ca1ce36ff9741c2da6e5c336
+
+=== 65 packages/svelte/tests/validator/samples/ts-unsupported-namespace/input.svelte	ast.sha256
+3c47c71d8cac2813211369cced9b780cbadb06d63205f01cb5dce46cfda785c6
+
 === 65 packages/svelte/tests/validator/samples/unknown-code/input.svelte	ast.sha256
 5cde99649020c23e484160883aff49b3693d512c41eb83064c5588d9784b4fea
 
 === 65 packages/svelte/tests/validator/samples/use-the-platform/input.svelte	ast.sha256
 8aa3046c58eebc2bfe0d01d6cf8d900c332d02ca1db583bc23c618c1d8ad06da
+
+=== 65 packages/svelte/tests/validator/samples/window-binding-invalid-dimensions/input.svelte	ast.sha256
+9833a4abfcbc537079536b69bcf8e62706ea702814b17b6467f54df42837adca
+
+=== 65 packages/svelte/tests/validator/samples/window-binding-invalid-innerwidth/input.svelte	ast.sha256
+96412c6ab2d0e20cc117731a2050192af8ce55ec460a413c20f999dc3d34389b
+
+=== 65 packages/svelte/tests/validator/samples/window-binding-invalid/input.svelte	ast.sha256
+93917ffa33e47c7484e093ad2826e47e4fc9cc233faaa5a60139301d5da2dee9
 
 === 65 packages/svelte/tests/validator/samples/window-binding-online/input.svelte	ast.sha256
 dd05b54be01e061c38d86079db09fd3063b3a07e5eefb44482ff7cb771445b36

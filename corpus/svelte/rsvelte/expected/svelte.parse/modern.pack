@@ -149,6 +149,75 @@ bb31e175834577b157397dcbbff64ce1b122b8fdea98ef2b7d31b6d79759c110
 === 65 crates/rsvelte_core/fixtures_utf8_boundary/svelte_ignore_scan.svelte	ast.sha256
 61893d901c06e35988bfabb0b6dd65279d2fe970fcc9ea1d01f9ae777b470e1a
 
+=== 65 errors/a11y_incorrect_aria_attribute_type_idlist.svelte	ast.sha256
+8822312a47d0f59abca61cb8e6feabd500320ddfa27f4fe6f84bd98aeda70487
+
+=== 65 errors/attribute_contenteditable_dynamic.svelte	ast.sha256
+9d722796fb9ea94c288f135ae2ea0b90c620f820572256997f2a1165dd573026
+
+=== 65 errors/attribute_contenteditable_missing.svelte	ast.sha256
+e8f439d693e1dfa98c6743cc7473fbdec330632d6c4feeb1cba665154274e9ea
+
+=== 245 errors/block_invalid_elseif.svelte	error.json
+{
+	"code": "block_invalid_elseif",
+	"message": "'elseif' should be 'else if'\nhttps://svelte.dev/e/block_invalid_elseif",
+	"start": {
+		"line": 7,
+		"column": 1,
+		"character": 58
+	},
+	"end": {
+		"line": 7,
+		"column": 1,
+		"character": 58
+	}
+}
+
+=== 65 errors/inspect_trace_generator.svelte	ast.sha256
+4067b56585607b0a9df570dbd716315f38707ce0e704af1937783989d7365431
+
+=== 65 errors/props_invalid_identifier.svelte	ast.sha256
+355604c35bd9587efb97662fc7f1bae794995995a7ce6a18d4db8292e6ef390b
+
+=== 65 errors/render_tag_invalid_spread_argument.svelte	ast.sha256
+947f231054e5bd69430ca752ea5070191be9ab60d8f9282a31d33abadede3fc7
+
+=== 306 errors/script_invalid_attribute_value.svelte	error.json
+{
+	"code": "script_invalid_attribute_value",
+	"message": "If the `module` attribute is supplied, it must be a boolean attribute\nhttps://svelte.dev/e/script_invalid_attribute_value",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 23,
+		"character": 23
+	}
+}
+
+=== 280 errors/script_reserved_attribute.svelte	error.json
+{
+	"code": "script_reserved_attribute",
+	"message": "The `server` attribute is reserved and cannot be used\nhttps://svelte.dev/e/script_reserved_attribute",
+	"start": {
+		"line": 1,
+		"column": 8,
+		"character": 8
+	},
+	"end": {
+		"line": 1,
+		"column": 14,
+		"character": 14
+	}
+}
+
+=== 65 errors/svelte_boundary_invalid_attribute_value.svelte	ast.sha256
+cc0719a753c1912f53d6a026d5f42f628081c33b5fe0ab6cfd9a0f0353b1f9f2
+
 === 65 lint-env/no-sveltekit/src/nav.svelte	ast.sha256
 6fdd3da724fa219e6880005538bf386aa313ae1c9c1577ca3dc323de1b91260f
 
@@ -7032,6 +7101,12 @@ cf715b6486b0d60e55d3e1a4cf73597a0876cea1c9fefc18fffc961156363363
 === 65 pattern/issues/3187-dollar-prefixed-still-rejected.svelte	ast.sha256
 d036f3b16401d9399cfca7fc3477e3f471fb262bbbc149f80809384913e5ccb4
 
+=== 65 pattern/issues/3187-dollar-prefixed-template-bindings-legacy.svelte	ast.sha256
+54466a72a5cb661e2c5a9b767a423d52b3c3a29c02b67e7ff39794aa3e14df1e
+
+=== 65 pattern/issues/3187-dollar-prefixed-template-bindings.svelte	ast.sha256
+8422c9169935eb6fb323e0e8024ae1907585f328db7819962892a256553ac617
+
 === 65 pattern/issues/3188-boundary-snippet-params.svelte	ast.sha256
 8d5625cbc0bbf91bf1d59fec432a12ec4bb565e7fd1aa49b16f482279423e099
 
@@ -7857,22 +7932,6 @@ d7a9c11b1de18b6f8491ead17602ae70834daececd32c0b578d3e9a602b618a6
 		"line": 5,
 		"column": 1,
 		"character": 48
-	}
-}
-
-=== 222 pattern/issues/3220-assign-rvalue-target.svelte	error.json
-{
-	"code": "js_parse_error",
-	"message": "Assigning to rvalue\nhttps://svelte.dev/e/js_parse_error",
-	"start": {
-		"line": 1,
-		"column": 1,
-		"character": 1
-	},
-	"end": {
-		"line": 1,
-		"column": 1,
-		"character": 1
 	}
 }
 

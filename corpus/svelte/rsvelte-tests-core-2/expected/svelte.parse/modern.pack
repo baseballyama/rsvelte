@@ -11605,6 +11605,22 @@ e66e5b574345dd001b621d4a875d15cb68fd320e86600bdd246f37306918d35f
 	}
 }
 
+=== 221 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/55233fd392c207df.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token -->\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	},
+	"end": {
+		"line": 1,
+		"column": 6,
+		"character": 6
+	}
+}
+
 === 263 malformed_markup_positions/malformed_markup_reports_upstreams_code_and_point/5fe5d773ee7f35e7.svelte	error.json
 {
 	"code": "expected_block_type",
@@ -15414,6 +15430,60 @@ b45ef6386fdf29ef2c25a742856fc38f887c79d722cb3afc604ece23e32e40a3
 
 === 65 prop_trailing_comment_hosts/a_trailing_comment_lands_on_the_node_upstream_puts_it_on/fbd8eb4e632ed166.svelte	ast.sha256
 2dda2c2ba7cf7375773161b0cd8b2f22f8b2b3d4064c6e3e288f7cdcc3dbc4bc
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/020b288a227d609f.svelte	ast.sha256
+a83aa7fa53dafcb6e276a971e7ce1f21941d90020f93ffaf1de103f40abe95b3
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/3878e417553838ff.svelte	ast.sha256
+31fe28c8380892bc4aede1b3ba024923953324e7a841ebfd30fb2602af1d1d0d
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/40a18664f4a013d6.svelte	ast.sha256
+63dfc9c739f29c661acd88a69b07599acb6744e5c07341ee829d006049a32ebd
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/492c297b9dffb264.svelte	ast.sha256
+2d3b2727399a31ae595215295fbd0762e874dc4cb15d5e196de53872f6ff148c
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/5ac078c3889eb1e3.svelte	ast.sha256
+05a659df9bb00a0c7a11f42909612db783650323c47ac6a8d6173361594bbf31
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/65f20bb0ed350420.svelte	ast.sha256
+38ac0da1b026e647281241d5846ffb9299a88a59b0bb3a0d22bd86c5ae87f278
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/75e852fd5e8e2eaa.svelte	ast.sha256
+7d502c65cc84b0a77a12afb095419cd3a42e98edf6bec5a4c7aa716b190700c2
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/774dd1f9051392b2.svelte	ast.sha256
+ee599605eb681f250655229f40854a53fe9c92fef571905e55f80dd12bb465d4
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/8137b4bead4b8592.svelte	ast.sha256
+cb3c1cdb2989be0b52691654e8d86b5f4e7e0ffb5511685b16574188192394f6
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/83a1774e58f11718.svelte	ast.sha256
+adfe07855a4a2cc41c9acf133df0564d6c02ea4df4fdcc8ebe5cb6dcbe2431a0
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/867ab3bb973e3de9.svelte	ast.sha256
+cccf9994396332d17d65f5d539a71be62498192df54c7c2ef969777b5c126f18
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/a0fc2e5a0877c646.svelte	ast.sha256
+2adaac585cebe6a4f7a021a67f72e03914f45eadc7ea4c9c07914a55498a8852
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/a6095544abbbf447.svelte	ast.sha256
+473e88c4b9e872add516ce1583a4eea02c96069619ba16f140ac288d1d54892b
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/bef4129c10420c3f.svelte	ast.sha256
+1c5137149b1de81ea9f7b0608822c988e5cff475f4a3acedb330ea04a35482db
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/cbecb0fa72032a54.svelte	ast.sha256
+2bc473b44cff8fb80023cb71e3ef5ee4c241b1a6e3cec30ee5fdff0f52906ea5
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/e715c301f7c8ea7d.svelte	ast.sha256
+fc419566400821917c0497ce1a02a4113278f49dd67e50c3695b58b2c5b27054
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/fa0cd1f02975e700.svelte	ast.sha256
+a3a33f041f71a0a4aeed6d3aef42f732e6f4c1d52a2d237bdc3ffee8483628a8
+
+=== 65 props_bigint_key_3363/a_bigint_key_is_accepted/fafe8e26dd0c636b.svelte	ast.sha256
+e446d9114699657d310645926d7689d5ebbbf011b9d3c175cf2f102b443b3109
 
 === 65 props_bigint_key_3363/a_string_key_and_an_identifier_key_are_unaffected/174e1a0283f1b28b.svelte	ast.sha256
 901d2b945287c0a405cde456f21754d20a2ae695bb0eb551b5bb98972486c908

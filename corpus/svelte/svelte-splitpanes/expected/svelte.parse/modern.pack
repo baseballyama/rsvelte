@@ -2,6 +2,22 @@
 === 65 example/src/routes/+page.svelte	ast.sha256
 f44070de307872bd5e51c92c2905703a6453c6889e08d1b5b36393500577d3b1
 
+=== 266 src/lib/Splitpanes.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1203,
+		"column": 4,
+		"character": 40365
+	},
+	"end": {
+		"line": 1203,
+		"column": 4,
+		"character": 40365
+	}
+}
+
 === 65 src/lib/internal/GatheringRound.svelte	ast.sha256
 4ddf51f93d9b04aa4783314a48025a8a81232a144ba8cf36dc8f7365a2aa4509
 

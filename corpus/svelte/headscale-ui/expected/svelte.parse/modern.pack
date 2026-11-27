@@ -41,9 +41,15 @@ d6ba79ea41e3424f59fa9118a6d3c8ccbe356847725c391f2a9123ad538609b4
 === 65 src/routes/+page.svelte	ast.sha256
 11991efd8e8f0cd588d9dd058503416fe359143b2a89df7f611c81af7fdaca6a
 
+=== 65 src/routes/devices.html/+page.svelte	ast.sha256
+b5fdef66f9d8c200633c98ae846ac33040dd10d3ba2deaf4caec938fc6677442
+
 === 65 src/routes/groups.html/+page.svelte	ast.sha256
 6f999a3dd0051ee6e3aaa78f6a5442b18a5bd3d942def0bc8c97467c3da8d077
 
 === 65 src/routes/settings.html/+page.svelte	ast.sha256
 b3dca5c3f726cabb35a0b6566f9550d6ba72a65ef2ba00e72b2b4fbadaf9ef23
+
+=== 65 src/routes/users.html/+page.svelte	ast.sha256
+d73ed46698d7e06b5894a6d9e6981af9adf7b788e1c90f64a0b25b51c08ae33b
 

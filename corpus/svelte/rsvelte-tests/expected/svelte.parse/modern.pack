@@ -53,22 +53,6 @@ d8539b917e5e07354c11b3769d614d0917c3a4108f6a948d761649297e0dad33
 === 65 js/scripts/compat-lsp/mechanism.test.mjs/fc77f34582ff0f3f.svelte	ast.sha256
 1e388a39eb83ec8d0b9f7c0377321c2a880ec52a92c96cd47bb14155b252cd93
 
-=== 228 rsvelte/runtime_api/failures_do_not_expose_compiler_phase_errors/cae0c88bd9675a5a.svelte	error.json
-{
-	"code": "element_unclosed",
-	"message": "`<div>` was left open\nhttps://svelte.dev/e/element_unclosed",
-	"start": {
-		"line": 1,
-		"column": 0,
-		"character": 0
-	},
-	"end": {
-		"line": 1,
-		"column": 1,
-		"character": 1
-	}
-}
-
 === 65 rsvelte/runtime_api/fixed_css_scope_is_frozen_in_facts_and_runtime_output/0115c930074f2e71.svelte	ast.sha256
 e18d3e9248e0e6dc06f7d929a98253f293f2832eacd6028a8a6b2889b6c1fca4
 
@@ -248,22 +232,6 @@ ee49341a80d3a874a75e15aa9e8651fab14da810e38a1dbf3f92f7598494d69a
 
 === 65 rsvelte_check/svelte_check/overlay/tests/relative_tsconfig_path_still_resolves_paths_aliases_that_escape_cwd/413c0fb87e01698a.svelte	ast.sha256
 595b47cc67339d2173c5422a5fca0e7b19354586f3f10a8d6a3dda0a83bfe937
-
-=== 227 rsvelte_check/svelte_check/runner/tests/compiler_errors_keep_their_specific_code/4e810ce2e7d5e62e.svelte	error.json
-{
-	"code": "expected_token",
-	"message": "Expected token </style\nhttps://svelte.dev/e/expected_token",
-	"start": {
-		"line": 3,
-		"column": 7,
-		"character": 31
-	},
-	"end": {
-		"line": 3,
-		"column": 7,
-		"character": 31
-	}
-}
 
 === 222 rsvelte_check/svelte_check/runner/tests/compiler_errors_keep_their_specific_code/a2b0f77fff2325e8.svelte	error.json
 {
@@ -2018,38 +1986,6 @@ f9badea979f5537501b8d81bc4c9012ac7b3d5e24a1be599ef3e3bc51a499219
 		"line": 2,
 		"column": 1,
 		"character": 18
-	}
-}
-
-=== 285 rsvelte_language_server/folding/tests/no_input_panics/94343e3237a4bce8.svelte	error.json
-{
-	"code": "element_invalid_closing_tag",
-	"message": "`</div>` attempted to close an element that was not open\nhttps://svelte.dev/e/element_invalid_closing_tag",
-	"start": {
-		"line": 1,
-		"column": 0,
-		"character": 0
-	},
-	"end": {
-		"line": 1,
-		"column": 0,
-		"character": 0
-	}
-}
-
-=== 226 rsvelte_language_server/folding/tests/no_input_panics/975a1cfd04076805.svelte	error.json
-{
-	"code": "unexpected_eof",
-	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
-	"start": {
-		"line": 1,
-		"column": 1,
-		"character": 1
-	},
-	"end": {
-		"line": 1,
-		"column": 1,
-		"character": 1
 	}
 }
 
@@ -6108,6 +6044,22 @@ e42007d830126aee3d94fe0e0d6355658501f5e1c54bbb23d3bad58cac305bed
 		"line": 1,
 		"column": 5,
 		"character": 5
+	}
+}
+
+=== 289 rsvelte_projection/svelte2tsx_error_message_3135/a_template_error_is_the_bare_sentence_official_throws/a039318f158dc9bc.svelte	error.json
+{
+	"code": "svelte_element_missing_this",
+	"message": "`<svelte:element>` must have a 'this' attribute with a value\nhttps://svelte.dev/e/svelte_element_missing_this",
+	"start": {
+		"line": 1,
+		"column": 0,
+		"character": 0
+	},
+	"end": {
+		"line": 1,
+		"column": 0,
+		"character": 0
 	}
 }
 

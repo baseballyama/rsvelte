@@ -1490,6 +1490,22 @@ db4d900417b9d7f08d0153f1bffe8d1315362df725510cc48943d151f445f552
 === 65 packages/kit/test/build-errors/apps/server-only-shared/src/routes/+page.svelte	ast.sha256
 babc201e534bd5bf4c8bfec8c57d6cffa3004015a79f679ed8206499bb59f0f3
 
+=== 226 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	error.json
+{
+	"code": "unexpected_eof",
+	"message": "Unexpected end of input\nhttps://svelte.dev/e/unexpected_eof",
+	"start": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	},
+	"end": {
+		"line": 1,
+		"column": 4,
+		"character": 4
+	}
+}
+
 === 65 packages/kit/test/prerendering/basics/src/routes/(grouped)/grouped/+page.svelte	ast.sha256
 53c964d8be437ad9c5a369d7827636fd433fcc86f92d1997c4c181817e37ad2a
 

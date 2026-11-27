@@ -23,6 +23,22 @@ ce2be6793ad6c3aa650f02e6440e5747fef6db5999c379fed0e1bb75ea0058f6
 === 65 src/lib/commandCenter/panels/teams.svelte	ast.sha256
 ddaa2c162c48bec6c42d5d78e9caa47b580a481a4b881283a930085ae9f51a35
 
+=== 264 src/lib/commandCenter/panels/template.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 365,
+		"column": 4,
+		"character": 12862
+	},
+	"end": {
+		"line": 365,
+		"column": 4,
+		"character": 12862
+	}
+}
+
 === 65 src/lib/commandCenter/panels/users.svelte	ast.sha256
 9dde46762113480a74d61f553f548b7cc29328c9796afbfe28f583cefd14755a
 
@@ -80,8 +96,40 @@ fca02f6122a38f99fc4251c38ba80c74ed871522b273caa260fac42522558afd
 === 65 src/lib/components/code.svelte	ast.sha256
 b3b251f76c1c8f51ec696d0230cb834e2dc8eafe6d9afb04e3b0f47c8070cf06
 
+=== 260 src/lib/components/collapsibleItem.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 62,
+		"column": 4,
+		"character": 2162
+	},
+	"end": {
+		"line": 62,
+		"column": 4,
+		"character": 2162
+	}
+}
+
 === 65 src/lib/components/columnSelector.svelte	ast.sha256
 6ac1fe480708006e22b5a1db5a2ecc5c3681fb82398f67d4a4b1d26689c2c4f9
+
+=== 256 src/lib/components/consent.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 137,
+		"column": 13,
+		"character": 4163
+	},
+	"end": {
+		"line": 137,
+		"column": 30,
+		"character": 4180
+	}
+}
 
 === 65 src/lib/components/copy.svelte	ast.sha256
 895093d7249445b1ffa88835c7dda4d7c84620677f9f28125420b5ab331aa838
@@ -170,6 +218,22 @@ ef5f4e072cc40fe88544d337835438a7ce66354178f44f5fd57432f91664e2d3
 === 65 src/lib/components/menu/subMenu.svelte	ast.sha256
 3c5e92cebd2365179fb71c68d70f32f6515a154bf6a0cd57fe50e79ec23df96d
 
+=== 229 src/lib/components/modalWrapper.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token ;\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 96,
+		"column": 36,
+		"character": 2417
+	},
+	"end": {
+		"line": 96,
+		"column": 36,
+		"character": 2417
+	}
+}
+
 === 65 src/lib/components/multiSelectTable.svelte	ast.sha256
 56d41b70b384969d053ba1d061be7fa8c7162a4a96400a822c949558afded3da
 
@@ -188,6 +252,9 @@ a5ae80e710910e813c6916125fbc00c005daef987cad8fb78bbb6a09324cd10a
 === 65 src/lib/components/permissions/row.svelte	ast.sha256
 50685c074b1449d175807d25924678a343feb4a3f23976de9590dc552e62e3b2
 
+=== 65 src/lib/components/regionCard.svelte	ast.sha256
+724e365b33bf9fcc0cc246807df16803eb33c162dfab45b9d89234573fe99997
+
 === 65 src/lib/components/roles/base.svelte	ast.sha256
 a5b796a4c0ee2296407f6a5a28e6ca685f2e8b7f2710a16d16907aea7db50ffb
 
@@ -205,6 +272,9 @@ be2f1326e019a4f67e05532760efbccbfe100daf9d2da01c6585048d1381c45c
 
 === 65 src/lib/components/sortButton.svelte	ast.sha256
 dfec561e7a1da9b321c1678be030886640bd909ee47e00a937c3fbfefc1c51af
+
+=== 65 src/lib/components/svgIcon.svelte	ast.sha256
+6cfec7b5270eb266698f2873b03ad6deafc76f99f242fa7b004c7e93f09c0d2a
 
 === 65 src/lib/components/tiles.svelte	ast.sha256
 90b8b1dc01c0fe80766df6d5637e12fe37f7c53f8e0099016b1ad4993e946b08
@@ -229,6 +299,22 @@ a8c0e02a686184b53572410083bcc10c0aa144239ab73a9125da66a8160f4b0b
 
 === 65 src/lib/elements/forms/Seekbar.svelte	ast.sha256
 672ed46cf41b3385f0d0e31e626f575bad506e12187b0021d1cd7b040505e741
+
+=== 262 src/lib/elements/forms/inputDateRange.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 139,
+		"column": 8,
+		"character": 4757
+	},
+	"end": {
+		"line": 139,
+		"column": 8,
+		"character": 4757
+	}
+}
 
 === 65 src/lib/elements/forms/inputLine.svelte	ast.sha256
 30340ae373016e0e4736a27dd9360bfddb2ca2d6b6f7b5a1f3d615bad72b7016
@@ -263,6 +349,38 @@ fac9c1ff9b2f64b2a4e34d31816aadb1624f72a43e14b06b2cf15c77e9489d22
 === 65 src/lib/layout/responsiveContainerHeader.svelte	ast.sha256
 60262f43b15123ce5524cb6dc651b4d592f27aa978e2566bf78fd0008d801b6e
 
+=== 256 src/lib/layout/unauthenticated.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 219,
+		"column": 25,
+		"character": 9468
+	},
+	"end": {
+		"line": 219,
+		"column": 42,
+		"character": 9485
+	}
+}
+
+=== 260 src/lib/layout/wizardCover.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 51,
+		"column": 4,
+		"character": 1484
+	},
+	"end": {
+		"line": 51,
+		"column": 4,
+		"character": 1484
+	}
+}
+
 === 65 src/lib/layout/wizardSecondaryFooter.svelte	ast.sha256
 cbb58136dec51b5c139cdbd76009e91bc0badfe3f350d64588d21f2bca8c2ea0
 
@@ -286,6 +404,22 @@ dac51f7c62eb09ec2d46b796cb5ccbd6c818e48af392803b899c85eadb2fdb3d
 
 === 65 src/routes/(authenticated)/git/authorize-contributor/+page.svelte	ast.sha256
 bb566a7a9f1f9251dac49955792200442d09ac892f32280324c690177a319c85
+
+=== 254 src/routes/(authenticated)/mfa/+page.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 96,
+		"column": 13,
+		"character": 3008
+	},
+	"end": {
+		"line": 96,
+		"column": 34,
+		"character": 3029
+	}
+}
 
 === 65 src/routes/(console)/(migration-wizard)/step2.svelte	ast.sha256
 705e831a814430e4f7a799d501ee5167f35dc8bc49d94a8e9183378fef6f842a
@@ -322,6 +456,38 @@ ad1ece5ff0b51b0729ac35d03ba5c4599479c88ff718783ec7cd827c0b0f3e82
 
 === 65 src/routes/(console)/feedbackWizard.svelte	ast.sha256
 2c66f6c4be799e4a2e8b5a886d9f3ebdd9fa5e1d25c0311095f722703c57d30f
+
+=== 256 src/routes/(console)/onboarding/create-organization/+page.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 122,
+		"column": 17,
+		"character": 4265
+	},
+	"end": {
+		"line": 122,
+		"column": 38,
+		"character": 4286
+	}
+}
+
+=== 256 src/routes/(console)/onboarding/create-project/+page.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 140,
+		"column": 17,
+		"character": 4615
+	},
+	"end": {
+		"line": 140,
+		"column": 38,
+		"character": 4636
+	}
+}
 
 === 65 src/routes/(console)/organization-[organization]/+page.svelte	ast.sha256
 8bef458e79089710c40290fb87a2b545e3eae078a7e89d42faee0b3987343474
@@ -539,6 +705,22 @@ ac25955b2e6b54c8ecff3b22161c8f656360d210a63d196684906c3e5e540f95
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/indexes/view.svelte	ast.sha256
 e8954fb2a5ae96501599daee0bbedce89f29de68ab63f6bfccf90bbd63d5fc0b
 
+=== 266 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/empty.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 511,
+		"column": 12,
+		"character": 17061
+	},
+	"end": {
+		"line": 511,
+		"column": 12,
+		"character": 17061
+	}
+}
+
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(entity)/views/layouts/emptySheetCards.svelte	ast.sha256
 fabf9d869db3ca971e6aa90346ecfa1885fae193ea50ad89b8c008751425a14f
 
@@ -569,6 +751,22 @@ a2f021f80d07367467a01e72cbb22ec0241c2223a92c4290429657853a70237f
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/columns.svelte	ast.sha256
 be3757cca8d842489d04ac6a5718613332fbb49f3122d0dd6bc72bcbaf025f7a
 
+=== 268 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/empty.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 2151,
+		"column": 12,
+		"character": 85650
+	},
+	"end": {
+		"line": 2151,
+		"column": 12,
+		"character": 85650
+	}
+}
+
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/icon/ai.svelte	ast.sha256
 ed294316b59ba2e0a0c55aa7104eef7b9f260bca05b664beb42566c8f175d143
 
@@ -577,6 +775,22 @@ b01d8ad3c983f7c5ebbdfde23d59a761ad15384bde2c8c4fa2895319b64d187f
 
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/icon/aiNotification.svelte	ast.sha256
 af56f020e8accf491cfb2fa7bba58aaae987030c7efa37b49b255d181d2a2ac2
+
+=== 264 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/indexes.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 544,
+		"column": 4,
+		"character": 19328
+	},
+	"end": {
+		"line": 544,
+		"column": 4,
+		"character": 19328
+	}
+}
 
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/(suggestions)/input.svelte	ast.sha256
 c1b612db9a5c665e613d4a0629c52bc8943df237ff64d11ee82242ee6e697aea
@@ -608,6 +822,22 @@ b1dab56d258cd2daf0e2ae024271aabda509f9b06062ff97a96bd946efa6e4c9
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/embeddingModal.svelte	ast.sha256
 20bdb773273c81a9cb90a92d39cadd1abe56be23c35b28b218de86bc363557c9
 
+=== 266 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/editor/view.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1717,
+		"column": 8,
+		"character": 65542
+	},
+	"end": {
+		"line": 1717,
+		"column": 8,
+		"character": 65542
+	}
+}
+
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/hintBadge.svelte	ast.sha256
 cb1d6694a2bc4fbdcf01cccb2390d00c696c5478b6c6305adfa03e4d129eedb0
 
@@ -622,6 +852,9 @@ cb1d6694a2bc4fbdcf01cccb2390d00c696c5478b6c6305adfa03e4d129eedb0
 
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/save.svelte	ast.sha256
 83e8e5cebe92adf43c7353a0e18f9757b2b7afab537cd00c0dece183e6c7a90c
+
+=== 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/suggestions.svelte	ast.sha256
+cd13b2b5df1a277473d0211600861bee73584834121ee1043a8485a83ba65a8e
 
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/+page.svelte	ast.sha256
 8b60b4ebada1b0c8c876b83873517ba447ff96bff74f288478db15325c6b8c40
@@ -644,6 +877,22 @@ da187fc4beb8b8bb44432a9f8460cc0f695fb983b52ccfe464cd68136c286e3e
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/settings/displayName.svelte	ast.sha256
 2f865198635105ca9352f3409bf7284ec6d1b369b6c4ed91defccb79b7baf90e
 
+=== 266 src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/spreadsheet.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1034,
+		"column": 4,
+		"character": 38858
+	},
+	"end": {
+		"line": 1034,
+		"column": 4,
+		"character": 38858
+	}
+}
+
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/delete.svelte	ast.sha256
 6b09be55ab61b728ba136e6549abebaf40f925a67987cc005dd1483f068d1ead
 
@@ -655,6 +904,38 @@ da187fc4beb8b8bb44432a9f8460cc0f695fb983b52ccfe464cd68136c286e3e
 
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/settings/+page.svelte	ast.sha256
 f3cbb26829d8e3add9749126856c8384b5001a41a3a0e7a0389169605bd7b3e9
+
+=== 264 src/routes/(console)/project-[region]-[project]/databases/database-[database]/subNavigation.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 362,
+		"column": 8,
+		"character": 13428
+	},
+	"end": {
+		"line": 362,
+		"column": 8,
+		"character": 13428
+	}
+}
+
+=== 264 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/+layout.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 599,
+		"column": 4,
+		"character": 20127
+	},
+	"end": {
+		"line": 599,
+		"column": 4,
+		"character": 20127
+	}
+}
 
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/+page.svelte	ast.sha256
 26963406b84661aad898e6d302163834f8cd861ca900dbb9fd0e4780d9ac9783
@@ -679,6 +960,22 @@ bee4923006094209863ead7529f7aa76dc39f6c1bf62d6cbadd4b633438cd966
 
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/requiredArrayCheckboxes.svelte	ast.sha256
 d1bf724a74a183bc3e766cc60f0c3375a31dddbd9a4ed4c735d0f0eed84eaad8
+
+=== 262 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/columns/string.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 182,
+		"column": 8,
+		"character": 6250
+	},
+	"end": {
+		"line": 182,
+		"column": 8,
+		"character": 6250
+	}
+}
 
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/createColumn.svelte	ast.sha256
 f3afc644420410fdbf4b06ea952c5c496b4e517913e3a4202a71a154e735ee47
@@ -736,6 +1033,22 @@ e1f2a3b2e4ff2d7f708ecb77e76593b16ddcce679e194b65ea744a11ae3982ba
 
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/sheetOptions.svelte	ast.sha256
 4323037433b3e6c6f0efbe17955be5822e629d4e2a3a4fbb8ed7d54a8e68ab9e
+
+=== 266 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table-[table]/spreadsheet.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 1407,
+		"column": 4,
+		"character": 59368
+	},
+	"end": {
+		"line": 1407,
+		"column": 4,
+		"character": 59368
+	}
+}
 
 === 65 src/routes/(console)/project-[region]-[project]/databases/database-[database]/table.svelte	ast.sha256
 ca7898abddd0aaada1e914b89eeff0ab9643fae61e472743d766731509062594
@@ -856,6 +1169,9 @@ c26a55eccfa450652c0288bbec582bbcb1810fd700e35b40efd912aba5feaec5
 
 === 65 src/routes/(console)/project-[region]-[project]/messaging/message-[message]/header.svelte	ast.sha256
 4e60cfb07d5091ea59354065d6b943f3ee9faedc1ad08e5f60b364699e021734
+
+=== 65 src/routes/(console)/project-[region]-[project]/messaging/provider.svelte	ast.sha256
+05bcb06dce8f2b27da1c4f12cb3a8b3718ce8bb3906080918b7329842ec5e2f8
 
 === 65 src/routes/(console)/project-[region]-[project]/messaging/providers/+page.svelte	ast.sha256
 908ef4105a919b2ac97ff31cfb0768a9b9934b97e06410df9d4c12f23e313ec0
@@ -991,6 +1307,9 @@ cc1e3b85fad1c3b110775d2635fb0f2a3a212fb097b975bb1f740d1c8f5b3b3a
 
 === 65 src/routes/(console)/project-[region]-[project]/overview/onboard.svelte	ast.sha256
 1f08165b174d53303c1fb732a731afde9e2d75fa57095641422c327f97a4685f
+
+=== 65 src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte	ast.sha256
+c6ec380c8d1bfa7610fc76bc0133c1682e7b7a68cfb23a55443f611c7fd621ab
 
 === 65 src/routes/(console)/project-[region]-[project]/overview/platforms/[platform]/+page@project-[region]-[project].svelte	ast.sha256
 5ddb30aa98c7c960a878441c49a7dc9b590299da5c9bb83102d877e355fb95e7
@@ -1262,6 +1581,38 @@ d079b31e56be8c0afc687054d7dd9b7367046a4eab16fee1de0698d068719c6c
 === 65 src/routes/(public)/auth/magic-url/+page.svelte	ast.sha256
 4660e8eff10fb4fce925d300be1faf3f5211f3b8213cb3c3d0a9270ca14fd76f
 
+=== 260 src/routes/(public)/auth/oauth2/failure/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 71,
+		"column": 4,
+		"character": 2553
+	},
+	"end": {
+		"line": 71,
+		"column": 4,
+		"character": 2553
+	}
+}
+
+=== 260 src/routes/(public)/auth/oauth2/success/+page.svelte	error.json
+{
+	"code": "css_expected_identifier",
+	"message": "Expected a valid CSS identifier\nhttps://svelte.dev/e/css_expected_identifier",
+	"start": {
+		"line": 45,
+		"column": 4,
+		"character": 1672
+	},
+	"end": {
+		"line": 45,
+		"column": 4,
+		"character": 1672
+	}
+}
+
 === 65 src/routes/(public)/auth/preview/+page.svelte	ast.sha256
 3d6c4c24b3c41345baf9b70d961e4b47e234b00ccc6bfc1472f877c8d00f4817
 
@@ -1309,4 +1660,20 @@ f752a9191e60286263329a10430ce491e5a4a651542dab20f97f05d38de07a02
 
 === 65 src/routes/+error.svelte	ast.sha256
 ec73605f63a6db27c3bd5ecc77d02b16af5865c2d4b0e48e22d9ecdfb9b3c6ad
+
+=== 258 src/routes/+layout.svelte	error.json
+{
+	"code": "css_empty_declaration",
+	"message": "Declaration cannot be empty\nhttps://svelte.dev/e/css_empty_declaration",
+	"start": {
+		"line": 307,
+		"column": 21,
+		"character": 10656
+	},
+	"end": {
+		"line": 307,
+		"column": 42,
+		"character": 10677
+	}
+}
 

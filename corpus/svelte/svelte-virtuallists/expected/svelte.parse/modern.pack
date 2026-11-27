@@ -26,6 +26,9 @@ c6efb24b3283124f5e72f9374077486ce07476fd8c255287c361dd2672c32c31
 === 65 src/comp/ToggleButton.svelte	ast.sha256
 287d9111ef1876fea59ee2326e8f5a30fc5884992d3844b443321b213f7e1fa2
 
+=== 65 src/lib/VirtualListNew.svelte	ast.sha256
+e59fa6573bc4c2f9fbd16f129480abc9a119b2608fab9577e054139feafe40b0
+
 === 65 src/routes/+layout.svelte	ast.sha256
 fdce107a5bf905a239b8bd24ed362615cbc374a9ba306542f3f6e4dfe49c6f8d
 
