@@ -11,6 +11,7 @@ mod task;
 pub use task::register;
 
 pub mod build;
+mod erased_comments;
 pub mod features;
 pub mod original_text;
 pub mod print;
@@ -24,8 +25,10 @@ pub fn emit(program: &Program<'_>) -> String {
     let allocator = Allocator::default();
     let mut program = program.clone_in(&allocator);
     // Before the types go: an `import type` still makes the file a module.
+    let module = prologue::is_external_module(&program);
     prologue::ensure_use_strict(&allocator, &mut program);
-    Strip::new(&allocator).visit_program(&mut program);
+    Strip::verbatim(&allocator).visit_program(&mut program);
+    prologue::keep_module(&allocator, &mut program, module);
     OriginalText::new(&allocator).visit_program(&mut program);
     print::print(&program)
 }

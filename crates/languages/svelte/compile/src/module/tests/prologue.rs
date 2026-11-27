@@ -46,3 +46,29 @@ fn a_module_keeps_its_prologue_after_the_runtime_import() {
         }
     }
 }
+
+#[test]
+fn a_namespace_export_alone_does_not_make_a_module() {
+    // TypeScript 6.0.3's emit, which svelte 5.59.1 `compileModule` reads: `export as namespace`
+    // is no module syntax, so the script gets the prologue and no `export {}`; an erased
+    // `export type` keeps the module one. The enums take the lowering's path.
+    let compiled = |source| compile("a.svelte.ts", source, Target::Client);
+    let import = "import * as $ from \"svelte/internal/client\";\n";
+    assert_eq!(
+        compiled("export as namespace N;\nconst a = 1;\n"),
+        format!("{import}(\"use strict\");\nconst a = 1;\n")
+    );
+    assert_eq!(
+        compiled("export as namespace N;\nexport type T = 1;\nconst a = 1;\n"),
+        format!("{import}const a = 1;\nexport {{}};\n")
+    );
+    let script = compiled("export as namespace N;\nenum E { A }\n");
+    assert!(
+        script.starts_with(&format!("{import}(\"use strict\");\n")),
+        "{script}"
+    );
+    assert!(!script.contains("export {}"), "{script}");
+    let module = compiled("export type T = 1;\nenum E { A }\n");
+    assert!(!module.contains("use strict"), "{module}");
+    assert!(module.ends_with("export {};\n"), "{module}");
+}
