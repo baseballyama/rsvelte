@@ -5,6 +5,7 @@ use std::borrow::Cow;
 use oxc_allocator::Allocator;
 use oxc_ast::ast::{BigIntLiteral, Expression, NumericLiteral, Program, StaticMemberExpression};
 use oxc_ast_visit::{VisitMut, walk_mut};
+use oxc_syntax::identifier::is_white_space;
 
 /// TypeScript's `canUseOriginalText` (6.0.3 at 050880ce59, `src/compiler/utilities.ts:2036`).
 ///
@@ -98,7 +99,8 @@ impl OriginalText<'_> {
     /// property, `start..end`: the emit writes no second dot after a number in parentheses, which
     /// `mayNeedDotDotForPropertyAccess` does not see as a number, nor after a comment or a line
     /// break it writes before the dot (`hasTrailingComment`, `hasTrailingWhitespace`). The tree
-    /// keeps none of the three, so only spaces may come before the dot.
+    /// keeps none of the three, so only JavaScript's white space other than a line break, which
+    /// includes `U+FEFF`, may come before the dot.
     fn dot_follows(&self, start: u32, end: u32) -> bool {
         // A range outside the source is a node a transform built, which no comment, line break or
         // parenthesis precedes.
@@ -108,9 +110,7 @@ impl OriginalText<'_> {
         let before_dot = between
             .split_once('.')
             .map_or(between, |(before, _)| before);
-        before_dot
-            .chars()
-            .all(|c| c.is_whitespace() && !matches!(c, '\n' | '\r' | '\u{2028}' | '\u{2029}'))
+        before_dot.chars().all(is_white_space)
     }
 }
 
