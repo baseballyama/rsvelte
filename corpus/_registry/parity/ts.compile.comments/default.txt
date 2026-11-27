@@ -1,4 +1,4 @@
-# ts.compile.comments/default: 8712 match
+# ts.compile.comments/default: 8717 match
 svelte/appwrite-console/e2e/steps/free-project.ts	missing
 svelte/appwrite-console/e2e/steps/pro-project.ts	missing
 svelte/appwrite-console/src/lib/actions/analytics.ts	refused
@@ -1119,7 +1119,6 @@ svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/DecoratorBloc
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/HashtagNode.ts	missing
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/KeywordNode.ts	missing
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/core/plugins/collaboration/CollaborationContext.ts	missing
-svelte/svelte-lexical/packages/svelte-lexical/src/lib/index.ts	mismatch
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/themes/default/editor/CommentEditorTheme.ts	missing
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/themes/default/editor/DefaultEditorTheme.ts	missing
 svelte/svelte-lexical/packages/svelte-lexical/src/lib/themes/default/editor/StickyEditorTheme.ts	missing
@@ -1250,7 +1249,6 @@ svelte/svelte-put/sites/docs/src/routes/+layout.server.ts	missing
 svelte/svelte-sites/sites/hn.svelte.dev/src/lib/htmlSubsetParse.ts	mismatch
 svelte/svelte-sites/sites/hn.svelte.dev/src/lib/utils.ts	missing
 svelte/svelte-sites/sites/hn.svelte.dev/src/routes/[list=category]/rss/+server.ts	missing
-svelte/svelte-spa-router/src/types.ts	mismatch
 svelte/svelte-spa-router/test/app/src/routes.ts	missing
 svelte/svelte-splitpanes/src/lib/internal/utils/functions.ts	missing
 svelte/svelte-splitpanes/tests/unit/array.spec.ts	missing
@@ -1310,7 +1308,6 @@ svelte/svelteui/packages/svelteui-composables/src/utilities/use-deep-search/util
 svelte/svelteui/packages/svelteui-core/src/internal/utils/environment.ts	missing
 svelte/svelteui/packages/svelteui-core/src/internal/utils/forwarding/forward-actions.ts	missing
 svelte/svelteui/packages/svelteui-core/src/internal/utils/forwarding/forward-events.ts	missing
-svelte/svelteui/packages/svelteui-core/src/internal/utils/forwarding/forward-transitions.ts	missing
 svelte/svelteui/packages/svelteui-core/src/styles/engine/create-styles.ts	missing
 svelte/svelthree/src/lib/ani/SvelthreeAnimationManager.ts	mismatch
 svelte/svelthree/src/lib/ani/SvelthreeAnimationObjectFactory.ts	missing
@@ -1318,7 +1315,6 @@ svelte/svelthree/src/lib/constants/ExposedPropKeys.ts	missing
 svelte/svelthree/src/lib/constants/Interaction.ts	missing
 svelte/svelthree/src/lib/logic/if$/if$_instance_change.ts	missing
 svelte/svelthree/src/lib/logic/shared/remove.ts	missing
-svelte/svelthree/src/lib/logic/special/index.ts	missing
 svelte/svelthree/src/lib/utils/PropUtils.ts	mismatch
 svelte/svelthree/src/lib/utils/Propeller.ts	missing
 svelte/svelthree/src/lib/utils/SvelthreeProps.ts	missing
@@ -1898,7 +1894,6 @@ svelte/typescript/externalModules/exportNonLocalDeclarations.svelte.ts	skipped
 svelte/typescript/externalModules/multipleExportDefault3.svelte.ts	skipped
 svelte/typescript/externalModules/multipleExportDefault6.svelte.ts	skipped
 svelte/typescript/externalModules/topLevelAwaitErrors.2.svelte.ts	skipped
-svelte/typescript/externalModules/typeOnly/preserveValueImports_module.svelte.ts	mismatch
 svelte/typescript/functions/functionNameConflicts.svelte.ts	skipped
 svelte/typescript/functions/functionOverloadErrors.svelte.ts	refused
 svelte/typescript/functions/functionWithUseStrictAndSimpleParameterList_es2016.svelte.ts	skipped

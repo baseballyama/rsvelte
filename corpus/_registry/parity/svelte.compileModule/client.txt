@@ -1,4 +1,4 @@
-# svelte.compileModule/client: 5401 match
+# svelte.compileModule/client: 5402 match
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/the_module_entry_point_rejects_it_too/4141f97ded0c1b17.svelte.js	js-equivalent
 svelte/rsvelte-tests-core-1/await_yield_in_params_2547/the_module_entry_point_rejects_it_too/ad97a54f92d09056.svelte.js	js-equivalent
 svelte/rsvelte-tests-core-1/class_field_super_4549/super_is_legal_exactly_where_acorn_enters_scope_super/3f444903d7c83c4f.svelte.js	js-equivalent
@@ -515,7 +515,6 @@ svelte/typescript/enums/enumConstantMemberWithTemplateLiteralsEmitDeclaration.sv
 svelte/typescript/enums/enumConstantMembers.svelte.ts	mismatch
 svelte/typescript/es2017/useObjectValuesAndEntries1.svelte.ts	mismatch
 svelte/typescript/es2019/globalThisAmbientModules.svelte.ts	refused
-svelte/typescript/es2019/importMeta/importMetaNarrowing.svelte.ts	mismatch
 svelte/typescript/es2022/arbitraryModuleNamespaceIdentifiers/arbitraryModuleNamespaceIdentifiers_module.svelte.ts	mismatch
 svelte/typescript/es6/arrowFunction/disallowLineTerminatorBeforeArrow.svelte.ts	refused
 svelte/typescript/es6/arrowFunction/emitArrowFunctionWhenUsingArguments05.svelte.ts	unexpected
