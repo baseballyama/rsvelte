@@ -144,7 +144,7 @@ pub fn compile_module(
 
 /// The official map names the source by its file name alone, so that a preprocessor's map, which
 /// names it so, joins it.
-fn source_name(filename: &str) -> &str {
+pub(crate) fn source_name(filename: &str) -> &str {
     filename
         .rfind(['/', '\\'])
         .map_or(filename, |at| &filename[at + 1..])

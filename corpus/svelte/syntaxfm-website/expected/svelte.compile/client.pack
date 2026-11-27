@@ -230,6 +230,22 @@ export default function AmsterdamBanner($$anchor) {
 	$.template_effect(() => $.set_attribute(img, 'src', syntaxLogo));
 	$.append($$anchor, a);
 }
+=== 255 src/lib/ComponentWindow.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Identifier 'Component' has already been declared\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 7,
+		"column": 7,
+		"character": 115
+	},
+	"end": {
+		"line": 7,
+		"column": 7,
+		"character": 115
+	}
+}
+
 === 514 src/lib/DropdownMenu.svelte	css
 
 	.dropdown-menu.svelte-hx6dpd {

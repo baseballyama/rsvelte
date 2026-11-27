@@ -6689,3 +6689,877 @@
 
 ["svelte/rsvelte/pattern/module-legacy-octal-escape-in-a-script.svelte.ts".skip]
 "ts.compile" = "TypeScript's emit is a script, not a module (an octal escape in strict mode), so the module tree comparison cannot read it; a plain .ts file like it is not imported (typescript-emit-unparseable)"
+
+["svelte/test262/expressions/dynamic-import/eval-export-dflt-expr-cls-named.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 drops the parentheses of `export default (class cName {})`, which makes the class expression a declaration that binds `cName`"
+
+["svelte/test262/expressions/dynamic-import/eval-export-dflt-expr-gen-anon.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 drops the parentheses of `export default (function* () {})`, which makes the generator expression a declaration"
+
+["svelte/test262/expressions/dynamic-import/eval-export-dflt-cls-named.svelte.js".skip]
+"svelte.compileModule" = "upstream bug: esrap 2.4.2 writes a `;` after `export default class cName {}`, an empty statement the source does not have"
+
+["svelte/typescript/parser/ecmascript6/Iterators/parserForOfStatement24.svelte.ts".skip]
+"svelte.compileModule/client" = "upstream bug: esrap 2.4.2 drops the parentheses of `for ((async) of [1, 2]);`, which no parser reads"
+"svelte.compileModule/server" = "upstream bug: esrap 2.4.2 drops the parentheses of `for ((async) of [1, 2]);`, which no parser reads"
+
+["svelte/typescript/async/es2017/asyncArrowFunction/asyncArrowFunction2_es2017.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:14), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es2017/asyncArrowFunction/asyncArrowFunction3_es2017.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 5:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es2017/asyncArrowFunction/asyncArrowFunction4_es2017.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es2017/asyncArrowFunction/asyncArrowFunction5_es2017.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:22), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es2017/functionDeclarations/asyncFunctionDeclaration11_es2017.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 4:15), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es2017/functionDeclarations/asyncFunctionDeclaration12_es2017.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use 'await' as identifier inside an async function at 4:23), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es2017/functionDeclarations/asyncFunctionDeclaration2_es2017.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 5:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es2017/functionDeclarations/asyncFunctionDeclaration4_es2017.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 4:9), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es5/asyncArrowFunction/asyncArrowFunction2_es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 6:14), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es5/asyncArrowFunction/asyncArrowFunction3_es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 6:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es5/asyncArrowFunction/asyncArrowFunction4_es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 5:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es5/asyncArrowFunction/asyncArrowFunction5_es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 6:22), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es5/asyncClass_es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:6), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es5/asyncGetter_es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 6:14), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es5/functionDeclarations/asyncFunctionDeclaration11_es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 5:15), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es5/functionDeclarations/asyncFunctionDeclaration12_es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use 'await' as identifier inside an async function at 5:23), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es5/functionDeclarations/asyncFunctionDeclaration2_es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 6:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/asyncArrowFunction/asyncArrowFunction2_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:14), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/asyncArrowFunction/asyncArrowFunction3_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 5:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/asyncArrowFunction/asyncArrowFunction4_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/asyncArrowFunction/asyncArrowFunction5_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:22), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/asyncConstructor_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Constructor can't be an async method at 5:10), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/asyncEnum_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 4:6), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/asyncSetter_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 6:14), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/asyncWithVarShadowing_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Identifier 'x' has already been declared at 101:12), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/functionDeclarations/asyncFunctionDeclaration11_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 4:15), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/functionDeclarations/asyncFunctionDeclaration12_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use 'await' as identifier inside an async function at 4:23), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/async/es6/functionDeclarations/asyncFunctionDeclaration2_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 5:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/awaitAndYieldInProperty.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 7:20), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/classDeclarations/classAbstractKeyword/classAbstractMergedDeclaration.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Identifier 'CC1' has already been declared at 13:6), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/classDeclarations/classAndVariableWithSameName.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Identifier 'C' has already been declared at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/classStaticBlock/classStaticBlock7.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use await in class static initialization block at 5:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/constructorDeclarations/superCalls/derivedClassConstructorWithoutSuperCall.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('super' keyword outside a method at 21:30), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/constructorDeclarations/superCalls/derivedClassSuperProperties.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 82:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/constructorDeclarations/superCalls/superCallInConstructorWithNoBaseType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (super() call outside constructor of a subclass at 5:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/members/instanceAndStaticMembers/typeOfThisInStaticMembers11.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 5:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/members/privateNames/privateNameEnum.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/mixinAccessors2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 7:17), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/propertyMemberDeclarations/autoAccessor1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:13), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/classes/propertyMemberDeclarations/autoAccessor7.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 7:13), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/declarationEmit/anonymousClassAccessorsDeclarationEmit1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:13), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/accessor/decoratorOnClassAccessor1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/accessor/decoratorOnClassAccessor2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/accessor/decoratorOnClassAccessor4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/accessor/decoratorOnClassAccessor5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/accessor/decoratorOnClassAccessor7.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/accessor/decoratorOnClassAccessor8.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/constructableDecoratorOnClass01.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/constructor/decoratorOnClassConstructor4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 2:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/constructor/parameter/decoratorOnClassConstructorParameter1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/constructor/parameter/decoratorOnClassConstructorParameter5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 11:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/decoratorChecksFunctionBodies.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 8:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/decoratorOnClass1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 2:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/decoratorOnClass2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 1:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/decoratorOnClass3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 2:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/decoratorOnClass4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 2:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/decoratorOnClass8.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 2:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/decoratorOnClassMethod1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/decoratorOnClassMethod11.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 8:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/decoratorOnClassMethod13.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/decoratorOnClassMethod15.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/decoratorOnClassMethod18.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/decoratorOnClassMethod2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/decoratorOnClassMethod5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/decoratorOnClassMethod7.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/parameter/decoratorOnClassMethodParameter1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/parameter/decoratorOnClassMethodParameter2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/method/parameter/decoratorOnClassMethodParameter3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/property/decoratorOnClassProperty1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/property/decoratorOnClassProperty10.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/property/decoratorOnClassProperty11.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/property/decoratorOnClassProperty12.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/property/decoratorOnClassProperty13.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/property/decoratorOnClassProperty2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/property/decoratorOnClassProperty6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/class/property/decoratorOnClassProperty7.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/decoratorCallGeneric.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/decoratorMetadata-jsdoc.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/decorators/legacyDecorators-contextualTypes.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 4:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/dynamicImport/importCallExpressionGrammarError.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 6:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/enums/awaitAndYield.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 8:21), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/arrowFunction/emitArrowFunctionWhenUsingArguments05.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Binding arguments in strict mode at 6:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/arrowFunction/emitArrowFunctionWhenUsingArguments07_ES6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Binding arguments in strict mode at 6:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/arrowFunction/emitArrowFunctionWhenUsingArguments12_ES6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Binding arguments in strict mode at 5:6), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/arrowFunction/emitArrowFunctionWhenUsingArguments15.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Binding arguments in strict mode at 7:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/computedProperties/computedPropertyNames26_ES5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('super' keyword outside a method at 9:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/computedProperties/computedPropertyNames49_ES6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (setter should have exactly one param at 12:15), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/accessor/decoratorOnClassAccessor1.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 2:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/decoratorOnClass1.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 2:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/decoratorOnClass2.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 1:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/decoratorOnClass3.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 1:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/decoratorOnClass4.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 1:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/decoratorOnClass5.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 2:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/decoratorOnClass6.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 1:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/decoratorOnClass7.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 1:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/decoratorOnClass8.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 1:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/method/decoratorOnClassMethod1.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 2:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/method/parameter/decoratorOnClassMethodParameter1.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/decorators/class/property/decoratorOnClassProperty1.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 2:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/destructuring/emptyVariableDeclarationBindingPatterns02_ES6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Complex binding patterns require an initialization value at 5:10), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/for-ofStatements/for-of-excess-declarations.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 3:12), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/for-ofStatements/for-of53.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Identifier 'v' has already been declared at 4:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/functionDeclarations/FunctionDeclaration11_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'yield' is reserved at 3:10), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/functionDeclarations/FunctionDeclaration12_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use 'yield' as identifier inside a generator at 3:18), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/functionDeclarations/FunctionDeclaration2_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'yield' is reserved at 6:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/functionDeclarations/FunctionDeclaration3_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'yield' is reserved at 3:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/functionDeclarations/FunctionDeclaration4_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'yield' is reserved at 3:9), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/functionDeclarations/FunctionDeclaration5_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use 'yield' as identifier inside a generator at 3:14), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/moduleExportsSystem/topLevelVarHoistingCommonJS.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('with' in strict mode at 54:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/modules/multipleDefaultExports03.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Duplicate export 'default' at 5:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/modules/multipleDefaultExports04.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Duplicate export 'default' at 5:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/modules/multipleDefaultExports05.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Duplicate export 'default' at 5:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/newTarget/invalidNewTarget.es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('new.target' can only be used in functions and class static block at 4:10), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/newTarget/invalidNewTarget.es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('new.target' can only be used in functions and class static block at 4:10), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInRegularExpressions07.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Invalid regular expression: /\\u{110000}/: Invalid unicode escape at 5:9), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/unicodeExtendedEscapes/unicodeExtendedEscapesInRegularExpressions19.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Invalid regular expression: /\\u{}/: Invalid unicode escape at 3:9), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/variableDeclarations/VariableDeclaration11_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'let' is reserved at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/variableDeclarations/VariableDeclaration1_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 3:6), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/variableDeclarations/VariableDeclaration2_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 4:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/variableDeclarations/VariableDeclaration4_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 3:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es6/yieldExpressions/YieldExpression20_es6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'yield' is reserved at 5:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/es7/trailingCommasInBindingPatterns.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Comma is not permitted after the rest element at 4:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-nonStatic.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-nonStaticPrivate.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-static.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/accessors/esDecorators-classDeclaration-accessors-staticPrivate.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/classSuper/esDecorators-classDeclaration-classSuper.1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/classSuper/esDecorators-classDeclaration-classSuper.2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/classSuper/esDecorators-classDeclaration-classSuper.3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/classSuper/esDecorators-classDeclaration-classSuper.4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/classSuper/esDecorators-classDeclaration-classSuper.5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/classSuper/esDecorators-classDeclaration-classSuper.6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/classSuper/esDecorators-classDeclaration-classSuper.7.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 14:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/classThisReference/esDecorators-classDeclaration-classThisReference.es5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 5:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/classThisReference/esDecorators-classDeclaration-classThisReference.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 5:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/esDecorators-classDeclaration-commonjs-classNamespaceMerge.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/esDecorators-classDeclaration-commonjs.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/esDecorators-classDeclaration-multipleDecorators.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 5:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/esDecorators-classDeclaration-outerThisReference.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 5:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/esDecorators-classDeclaration-parameterDecorators.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/esDecorators-classDeclaration-parameterProperties.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 11:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/esDecorators-classDeclaration-setFunctionNameComputedField.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 8:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/esDecorators-classDeclaration-simpleTransformation.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 5:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStatic.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 8:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticAccessor.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticPrivate.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-nonStaticPrivateAccessor.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/fields/esDecorators-classDeclaration-fields-static.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 8:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-nonStatic.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-nonStaticPrivate.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-static.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classDeclaration/methods/esDecorators-classDeclaration-methods-staticPrivate.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/classSuper/esDecorators-classExpression-classSuper.1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/classSuper/esDecorators-classExpression-classSuper.2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/classSuper/esDecorators-classExpression-classSuper.3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/classSuper/esDecorators-classExpression-classSuper.4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/classSuper/esDecorators-classExpression-classSuper.5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/classSuper/esDecorators-classExpression-classSuper.6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/esDecorators-classExpression-commentPreservation.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 9:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/namedEvaluation/esDecorators-classExpression-namedEvaluation.1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/namedEvaluation/esDecorators-classExpression-namedEvaluation.10.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 10:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/namedEvaluation/esDecorators-classExpression-namedEvaluation.11.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/namedEvaluation/esDecorators-classExpression-namedEvaluation.2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/namedEvaluation/esDecorators-classExpression-namedEvaluation.3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/namedEvaluation/esDecorators-classExpression-namedEvaluation.4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/namedEvaluation/esDecorators-classExpression-namedEvaluation.5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 5:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/classExpression/namedEvaluation/esDecorators-classExpression-namedEvaluation.6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 5:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/esDecorators-arguments.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/esDecorators-contextualTypes.2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/esDecorators-contextualTypes.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/esDecorators-decoratorExpression.1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/esDecorators-decoratorExpression.2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 7:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/esDecorators-emitDecoratorMetadata.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/esDecorators-preservesThis.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/esDecorators/esDecorators-privateFieldAccess.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 5:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/elementAccess/letIdentifierInElementAccess01.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'let' is reserved at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/functions/arrowFunctionContexts.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('with' in strict mode at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/nullishCoalescingOperator/nullishCoalescingOperator5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Logical expressions and coalesce expressions cannot be mixed. Wrap either by parentheses at 5:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/objectLiterals/objectLiteralErrors.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 49:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/optionalChaining/elementAccessChain/elementAccessChain.3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Optional chaining cannot appear in left-hand side at 4:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/optionalChaining/propertyAccessChain/propertyAccessChain.3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Optional chaining cannot appear in left-hand side at 4:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/superPropertyAccess/errorSuperPropertyAccess.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('super' keyword outside a method at 62:12), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/decrementOperator/decrementOperatorWithEnumTypeInvalidOperations.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 22:25), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/decrementOperator/decrementOperatorWithNumberTypeInvalidOperations.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 16:24), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/decrementOperator/decrementOperatorWithUnsupportedBooleanType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 15:24), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/decrementOperator/decrementOperatorWithUnsupportedStringType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 18:24), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/deleteOperator/deleteOperatorWithAnyOtherType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Deleting local variable in strict mode at 25:23), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/deleteOperator/deleteOperatorWithBooleanType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Deleting local variable in strict mode at 12:23), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/deleteOperator/deleteOperatorWithEnumType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Deleting local variable in strict mode at 16:23), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/deleteOperator/deleteOperatorWithNumberType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Deleting local variable in strict mode at 13:23), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/deleteOperator/deleteOperatorWithStringType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Deleting local variable in strict mode at 13:23), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/incrementOperator/incrementOperatorWithEnumTypeInvalidOperations.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 21:25), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/incrementOperator/incrementOperatorWithNumberTypeInvalidOperations.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 16:24), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/incrementOperator/incrementOperatorWithUnsupportedBooleanType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 15:24), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/expressions/unaryOperators/incrementOperator/incrementOperatorWithUnsupportedStringType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 18:24), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/externalModules/es6/es6modulekindWithES5Target.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 10:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/externalModules/es6/es6modulekindWithES5Target11.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 4:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/externalModules/esnext/esnextmodulekindWithES5Target.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 10:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/externalModules/esnext/esnextmodulekindWithES5Target11.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 4:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/externalModules/esnext/esnextmodulekindWithES5Target3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 4:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/externalModules/exportNonInitializedVariablesInIfThenStatementNoCrash1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('import' and 'export' may only appear at the top level at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/externalModules/exportNonLocalDeclarations.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Export 'string' is not defined at 3:9), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/externalModules/multipleExportDefault3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Duplicate export 'default' at 6:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/externalModules/multipleExportDefault6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Duplicate export 'default' at 6:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/externalModules/topLevelAwaitErrors.2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Cannot use keyword 'await' outside an async function at 6:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/functions/functionNameConflicts.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Identifier 'fn3' has already been declared at 14:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/functions/functionWithUseStrictAndSimpleParameterList_es2016.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Illegal 'use strict' directive in function with non-simple parameter list at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface01.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'interface' is reserved at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/interfaces/interfaceDeclarations/asiPreventsParsingAsInterface04.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'interface' is reserved at 3:13), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/internalModules/importDeclarations/shadowedInternalModule.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Identifier 'Q' has already been declared at 41:10), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/internalModules/moduleBody/invalidModuleWithStatementsOfEveryKind.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'static' is reserved at 76:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/internalModules/moduleBody/invalidModuleWithVarStatements.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'static' is reserved at 14:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Accessors/parserAccessors7.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (getter should have no params at 3:17), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration10.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 4:17), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ConstructorDeclarations/parserConstructorDeclaration3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 4:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ErrorRecovery/ExtendsOrImplementsClauses/parserErrorRecovery_ExtendsOrImplementsClause1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ErrorRecovery/ExtendsOrImplementsClauses/parserErrorRecovery_ExtendsOrImplementsClause3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ErrorRecovery/VariableLists/parserErrorRecovery_VariableList1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('return' outside of function at 4:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ErrorRecovery/parserErrantSemicolonInClass1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (setter should have exactly one param at 13:9), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ErrorRecovery/parserModifierOnStatementInBlock1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('import' and 'export' may only appear at the top level at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ErrorRecovery/parserModifierOnStatementInBlock3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('import' and 'export' may only appear at the top level at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ExportAssignments/parserExportAssignment5.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('import' and 'export' may only appear at the top level at 5:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ExportAssignments/parserExportAssignment9.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('import' and 'export' may only appear at the top level at 5:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Expressions/parserAssignmentExpression1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 3:1), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Expressions/parserUnaryExpression1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 3:2), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Expressions/parserUnaryExpression2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 3:2), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Expressions/parserUnaryExpression3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 3:2), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Expressions/parserUnaryExpression4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 3:2), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Generics/parserGreaterThanTokenAmbiguity15.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to rvalue at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration10.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 4:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration12.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (getter should have no params at 4:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration14.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (setter should have exactly one param at 4:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/MemberAccessorDeclarations/parserMemberAccessorDeclaration18.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Setter cannot use rest params at 5:12), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/MemberFunctionDeclarations/parserMemberFunctionDeclaration4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 4:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/MemberVariableDeclarations/parserMemberVariableDeclaration4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/ParameterLists/parserParameterList1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Comma is not permitted after the rest element at 5:10), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Statements/BreakStatements/parser_breakNotInIterationOrSwitchStatement1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic break at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Statements/BreakStatements/parser_breakNotInIterationOrSwitchStatement2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic break at 5:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Statements/ContinueStatements/parser_continueNotInIterationStatement1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic continue at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Statements/ContinueStatements/parser_continueNotInIterationStatement2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic continue at 5:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Statements/ContinueStatements/parser_continueNotInIterationStatement3.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic continue at 5:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Statements/LabeledStatements/parser_duplicateLabel1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Label 'target' is already declared at 3:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Statements/LabeledStatements/parser_duplicateLabel2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Label 'target' is already declared at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Statements/ReturnStatements/parserReturnStatement1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('return' outside of function at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Statements/ReturnStatements/parserReturnStatement2.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('return' outside of function at 4:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/Statements/parserES5ForOfStatement20.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (for-in loop variable declaration may not have an initializer at 4:5), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/StrictMode/parserStrictMode1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'static' is reserved at 6:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/StrictMode/parserStrictMode11.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Binding eval in strict mode at 4:19), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/StrictMode/parserStrictMode13.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Binding eval in strict mode at 5:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/StrictMode/parserStrictMode3-negative.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to eval in strict mode at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/StrictMode/parserStrictMode4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to arguments in strict mode at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/StrictMode/parserStrictMode6-negative.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Assigning to eval in strict mode at 3:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/VariableDeclarations/parserVariableDeclaration6.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 3:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript5/parser10.1.1-8gs.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'public' is reserved at 17:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName35.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 4:6), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript6/ComputedPropertyNames/parserComputedPropertyName39.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'public' is reserved at 4:5), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript6/Iterators/parserForOfStatement21.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 3:15), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript6/Iterators/parserForOfStatement4.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (for-of loop variable declaration may not have an initializer at 3:5), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/parser/ecmascript6/Iterators/parserForOfStatement7.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 3:23), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/salsa/constructorNameInAccessor.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Constructor can't have get/set modifier at 4:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/salsa/constructorNameInGenerator.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Constructor can't be a generator at 4:5), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/scanner/ecmascript5/scanner10.1.1-8gs.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (The keyword 'public' is reserved at 16:4), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/VariableStatements/usingDeclarations/awaitUsingDeclarationsInForIn.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Using declaration is not allowed in for-in loops at 8:23), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.10.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 9:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/VariableStatements/usingDeclarations/usingDeclarationsWithESClassDecorators.9.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected character '@' at 9:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/breakStatements/invalidDoWhileBreakStatements.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic break at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/breakStatements/invalidForBreakStatements.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic break at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/breakStatements/invalidForInBreakStatements.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic break at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/breakStatements/invalidWhileBreakStatements.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic break at 5:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/continueStatements/invalidDoWhileContinueStatements.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic continue at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/continueStatements/invalidForContinueStatements.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic continue at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/continueStatements/invalidForInContinueStatements.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic continue at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/continueStatements/invalidSwitchContinueStatement.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic continue at 6:8), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/continueStatements/invalidWhileContinueStatements.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unsyntactic continue at 7:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/labeledStatements/labeledStatementDeclarationListInLoopNoCrash1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 7:13), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/labeledStatements/labeledStatementExportDeclarationNoCrash1.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 5:16), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/labeledStatements/labeledStatementWithLabel.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 4:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/labeledStatements/labeledStatementWithLabel_es2015.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 3:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/labeledStatements/labeledStatementWithLabel_strict.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 3:7), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/tryStatements/catchClauseWithTypeAnnotation.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Identifier 'x' has already been declared at 56:12), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/statements/withStatements/withStatements.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module ('with' in strict mode at 4:0), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/types/import/importWithTypeArguments.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 3:6), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/types/objectTypeLiteral/callSignatures/restParametersOfNonArrayTypes.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Comma is not permitted after the rest element at 7:14), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/types/rest/objectRestPropertyMustBeLast.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Comma is not permitted after the rest element at 4:10), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/types/specifyingTypes/typeQueries/typeofANonExportedType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Duplicate export 'r5' at 18:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/types/specifyingTypes/typeQueries/typeofAnExportedType.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Duplicate export 'r5' at 18:11), so the tree comparison cannot read it (typescript-emit-unparseable)"
+
+["svelte/typescript/types/stringLiteral/stringLiteralTypesInVariableDeclarations01.svelte.ts".skip]
+"ts.compile" = "TypeScript's emit does not parse as a module (Unexpected token at 8:7), so the tree comparison cannot read it (typescript-emit-unparseable)"

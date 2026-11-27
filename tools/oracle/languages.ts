@@ -9,6 +9,16 @@ import type { Language } from './types.ts';
 
 const code = (e: unknown): string => (e as { code?: string }).code ?? 'throw';
 
+/** Whether svelte rejects the component in the mode it infers itself. */
+function rejectedWithoutRunes(src: string, filename: string): boolean {
+	try {
+		compile(src, { filename, generate: false });
+		return false;
+	} catch {
+		return true;
+	}
+}
+
 const LANGUAGES: Language[] = [
 	{
 		id: 'svelte',
@@ -21,6 +31,12 @@ const LANGUAGES: Language[] = [
 			try {
 				compile(src, { filename, generate: false, runes: true });
 			} catch (e) {
+				// A rejection in every mode is a real error, and the rejection is the expected
+				// result; a component only legacy mode compiles is out of scope, as is one that
+				// needs an experimental option.
+				if (code(e) !== 'experimental_async' && rejectedWithoutRunes(src, filename)) {
+					return { include: true, fields: { mode: 'runes', inferredMode: 'rejected' } };
+				}
 				return { include: false, reason: `not-runes-compatible:${code(e)}` };
 			}
 			let inferredMode = 'neutral';
@@ -36,9 +52,13 @@ const LANGUAGES: Language[] = [
 		ext: '.svelte.js',
 		matches: (p) => p.endsWith('.svelte.js'),
 		admit(src, filename) {
+			// A module has no legacy mode, so its rejection is the expected result.
 			try {
 				compileModule(src, { filename, generate: false });
 			} catch (e) {
+				if (code(e) !== 'experimental_async') {
+					return { include: true, fields: { mode: 'runes', inferredMode: 'rejected' } };
+				}
 				return { include: false, reason: `module-rejected:${code(e)}` };
 			}
 			return { include: true, fields: { mode: 'runes' } };

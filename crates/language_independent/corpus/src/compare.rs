@@ -8,6 +8,7 @@
 
 mod comments;
 mod javascript;
+mod source_map;
 
 pub(crate) use javascript::Parentheses;
 use javascript::Unparsed;
@@ -199,6 +200,56 @@ pub(crate) fn comments_verdict(
         Err(Unparsed::Expected(e)) => Err(format!(
             "official js of {}: does not parse: {e}",
             official.path
+        )),
+    }
+}
+
+/// Whether rsvelte's source map gives each identifier of its JavaScript the origin the official
+/// map gives the same identifier: `Missing` when only the official map gives some an origin,
+/// `Unexpected` when only rsvelte's does, `Mismatch` when the two give one different origins or
+/// both of the others happen. `official` is the official compile's entries and `map` its
+/// `js.map`. A unit that is not compared says why; `None` when the official tool wrote no map.
+///
+/// # Errors
+///
+/// The official JavaScript or map does not parse.
+pub(crate) fn source_map_verdict(
+    official: &[Entry<'_>],
+    map: Option<&Entry<'_>>,
+    ours: Option<&TaskOutput>,
+) -> Result<Option<Verdict>, String> {
+    if official.iter().any(|e| e.attributes.starts_with("error.")) {
+        return Ok(Some(Verdict::OfficialRejected));
+    }
+    let (Some(javascript), Some(map)) = (official.iter().find(|e| e.attributes == "js"), map)
+    else {
+        return Ok(None);
+    };
+    let (Some(actual), Some(actual_map)) = (
+        ours.and_then(|o| file(o, "js")),
+        ours.and_then(|o| file(o, "js.map")),
+    ) else {
+        return Ok(Some(Verdict::Refused));
+    };
+    let expected = source_map::Mapped {
+        javascript: javascript.body,
+        map: map.body,
+    };
+    let actual = source_map::Mapped {
+        javascript: actual,
+        map: actual_map,
+    };
+    match source_map::difference(expected, actual) {
+        Ok(d) => Ok(Some(match (d.missing > 0, d.extra > 0, d.moved > 0) {
+            (false, false, false) => Verdict::Match,
+            (true, false, false) => Verdict::Missing,
+            (false, true, false) => Verdict::Unexpected,
+            _ => Verdict::Mismatch,
+        })),
+        Err(Unparsed::Actual(_)) => Ok(Some(Verdict::Unparseable)),
+        Err(Unparsed::Expected(e)) => Err(format!(
+            "official js or map of {}: does not parse: {e}",
+            javascript.path
         )),
     }
 }

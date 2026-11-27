@@ -2058,6 +2058,9 @@
 11:2 11:77 svelte/no-unused-class-name "Unused class \"c-btn--outlined\"."
 11:40 11:76 svelte/max-attributes-per-line "'onclick' should be on a new line."
 
+=== 82 sites/docs/src/packages/async-stack/docs.md.svelte	lint.txt
+120:92 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
 === 796 sites/docs/src/packages/avatar/_page/examples/custom.markup.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:19 5:55 svelte/max-attributes-per-line "'gravatar' should be on a new line."
@@ -2158,6 +2161,9 @@
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:1 16:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 17:1 17:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 176 sites/docs/src/packages/avatar/docs.md.svelte	lint.txt
+87:0 - - "Parsing error: A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate"
 
 === 7111 sites/docs/src/packages/clickoutside/_page/examples/demo.svelte	lint.txt
 1:1 20:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -2366,6 +2372,9 @@
 9:23 9:51 svelte/max-attributes-per-line "'onclickoutside' should be on a new line."
 9:23 9:51 svelte/sort-attributes "Attribute 'onclickoutside' should go before 'use:clickoutside'."
 
+=== 176 sites/docs/src/packages/clickoutside/docs.md.svelte	lint.txt
+57:0 - - "Parsing error: A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate"
+
 === 2145 sites/docs/src/packages/cloudflare-turnstile/_page/examples/quick-start.svelte	lint.txt
 1:1 9:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2392,6 +2401,9 @@
 22:1 22:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 22:18 22:48 svelte/no-unused-class-name "Unused class \"hl-success\"."
 22:18 22:48 svelte/no-unused-class-name "Unused class \"px-2\"."
+
+=== 181 sites/docs/src/packages/cloudflare-turnstile/docs.md.svelte	lint.txt
+111:65 - - "Parsing error: Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name"
 
 === 239 sites/docs/src/packages/copy/_page/examples/custom-event.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2569,6 +2581,9 @@
 27:1 27:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 28:1 28:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 82 sites/docs/src/packages/copy/docs.md.svelte	lint.txt
+127:23 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
+
 === 2478 sites/docs/src/packages/dragscroll/_page/examples/limitation-scroll-snap.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 5:1 9:2 svelte/no-unused-class-name "Unused class \"not-prose\"."
@@ -2605,6 +2620,27 @@
 15:1 15:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 16:1 16:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 1464 sites/docs/src/packages/dragscroll/docs.md.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+13:28 13:42 svelte/max-attributes-per-line "'display' should be on a new line."
+13:28 13:42 svelte/sort-attributes "Attribute 'display' should go before 'group'."
+13:43 13:79 svelte/valid-compile "`bind:title` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name(bind_invalid_name)"
+15:1 15:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+16:1 16:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+17:1 17:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+19:1 19:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+20:1 20:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+21:1 21:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+23:1 23:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+24:1 24:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+25:1 25:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+31:1 31:40 svelte/no-unused-class-name "Unused class \"c-callout\"."
+31:1 31:40 svelte/no-unused-class-name "Unused class \"c-callout--info\"."
+33:1 33:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+58:10 58:20 no-undef "'dragscroll' is not defined."
+59:10 59:20 no-undef "'dragscroll' is not defined."
+67:10 67:20 no-undef "'dragscroll' is not defined."
+
 === 596 sites/docs/src/packages/inline-svg/_page/examples/action.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2613,6 +2649,9 @@
 9:26 9:37 svelte/sort-attributes "Attribute 'width' should go before 'use:inlineSvg'."
 9:38 9:52 svelte/sort-attributes "Attribute 'class' should go before 'use:inlineSvg'."
 12:5 12:12 svelte/consistent-selector-style "Selector should select by element type instead of class"
+
+=== 81 sites/docs/src/packages/inline-svg/docs.md.svelte	lint.txt
+107:5 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
 
 === 2219 sites/docs/src/packages/intersect/_page/examples/event-intersect.svelte	lint.txt
 1:1 8:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -2721,6 +2760,46 @@
 15:20 15:45 svelte/max-attributes-per-line "'onintersect' should be on a new line."
 15:20 15:45 svelte/sort-attributes "Attribute 'onintersect' should go before 'use:intersect'."
 
+=== 2961 sites/docs/src/packages/intersect/docs.md.svelte	lint.txt
+2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+16:28 16:42 svelte/max-attributes-per-line "'display' should be on a new line."
+16:28 16:42 svelte/sort-attributes "Attribute 'display' should go before 'group'."
+16:43 16:79 svelte/valid-compile "`bind:title` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name(bind_invalid_name)"
+18:1 18:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+19:1 19:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+20:1 20:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+22:1 22:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+23:1 23:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+24:1 24:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+26:1 26:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+27:1 27:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+28:1 28:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+32:1 32:64 svelte/no-unused-class-name "Unused class \"c-callout\"."
+32:1 32:64 svelte/no-unused-class-name "Unused class \"c-callout--success\"."
+32:1 32:64 svelte/no-unused-class-name "Unused class \"c-callout--megaphone\"."
+58:1 58:40 svelte/no-unused-class-name "Unused class \"c-callout\"."
+58:1 58:40 svelte/no-unused-class-name "Unused class \"c-callout--info\"."
+60:1 60:1 svelte/indent "Expected indentation of 2 spaces but found 0 spaces."
+64:1 64:56 svelte/no-unused-class-name "Unused class \"block\"."
+64:1 64:56 svelte/no-unused-class-name "Unused class \"border-2\"."
+64:1 64:56 svelte/no-unused-class-name "Unused class \"border-violet-500\"."
+64:1 64:56 svelte/no-unused-class-name "Unused class \"p-4\"."
+66:3 66:28 svelte/no-unused-class-name "Unused class \"text-center\"."
+80:1 80:66 svelte/no-unused-class-name "Unused class \"block\"."
+80:1 80:66 svelte/no-unused-class-name "Unused class \"border-2\"."
+80:1 80:66 svelte/no-unused-class-name "Unused class \"border-violet-500\"."
+80:1 80:66 svelte/no-unused-class-name "Unused class \"p-4\"."
+80:1 80:66 svelte/no-unused-class-name "Unused class \"not-prose\"."
+82:3 82:26 svelte/no-unused-class-name "Unused class \"text-center\"."
+97:10 97:19 no-undef "'intersect' is not defined."
+97:20 97:32 svelte/max-attributes-per-line "'on:intersect' should be on a new line."
+97:20 97:32 svelte/sort-attributes "Attribute 'on:intersect' should go before 'use:intersect'."
+97:33 97:49 svelte/sort-attributes "Attribute 'on:intersectonce' should go before 'use:intersect'."
+100:10 100:19 no-undef "'intersect' is not defined."
+100:20 100:31 svelte/max-attributes-per-line "'onintersect' should be on a new line."
+100:20 100:31 svelte/sort-attributes "Attribute 'onintersect' should go before 'use:intersect'."
+100:32 100:47 svelte/sort-attributes "Attribute 'onintersectonce' should go before 'use:intersect'."
+
 === 701 sites/docs/src/packages/lockscroll/_page/examples/quick-start.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2790,6 +2869,9 @@
 19:2 19:75 svelte/no-unused-class-name "Unused class \"c-btn\"."
 19:2 19:75 svelte/no-unused-class-name "Unused class \"c-btn--outlined\"."
 19:40 19:74 svelte/max-attributes-per-line "'onclick' should be on a new line."
+
+=== 135 sites/docs/src/packages/lockscroll/docs.md.svelte	lint.txt
+90:0 - - "Parsing error: `<svelte:body>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement"
 
 === 154 sites/docs/src/packages/modal/docs.md.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -2921,6 +3003,12 @@
 5:1 5:78 svelte/no-unused-class-name "Unused class \"place-items-center\"."
 5:66 5:77 svelte/max-attributes-per-line "'use:movable' should be on a new line."
 
+=== 80 sites/docs/src/packages/movable/docs.md.svelte	lint.txt
+63:5 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
+
+=== 176 sites/docs/src/packages/noti/docs.md.svelte	lint.txt
+85:0 - - "Parsing error: A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate"
+
 === 1151 sites/docs/src/packages/popover/_page/examples/quick-start.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 4:1 4:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3018,6 +3106,9 @@
 13:21 13:48 svelte/sort-attributes "Attribute 'class' should go before 'hint'."
 14:1 14:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 
+=== 81 sites/docs/src/packages/popover/docs.md.svelte	lint.txt
+92:51 - - "Parsing error: Unexpected token\nhttps://svelte.dev/e/js_parse_error"
+
 === 3786 sites/docs/src/packages/preaction/_page/examples/demo.svelte	lint.txt
 1:1 40:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3066,6 +3157,18 @@
 45:1 45:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 50:1 50:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
 51:1 51:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 176 sites/docs/src/packages/preaction/docs.md.svelte	lint.txt
+59:0 - - "Parsing error: A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate"
+
+=== 81 sites/docs/src/packages/preprocess-auto-slug/docs.md.svelte	lint.txt
+57:12 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
+
+=== 81 sites/docs/src/packages/preprocess-external-link/docs.md.svelte	lint.txt
+51:12 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
+
+=== 81 sites/docs/src/packages/preprocess-inline-svg/docs.md.svelte	lint.txt
+47:12 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
 
 === 1073 sites/docs/src/packages/qr/_page/examples/img-action.svelte	lint.txt
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3210,6 +3313,9 @@
 13:19 13:33 svelte/max-attributes-per-line "'href' should be on a new line."
 13:34 13:51 svelte/sort-attributes "Attribute 'download' should go before 'href'."
 
+=== 81 sites/docs/src/packages/qr/docs.md.svelte	lint.txt
+217:5 - - "Parsing error: Expected token }\nhttps://svelte.dev/e/expected_token"
+
 === 5530 sites/docs/src/packages/resize/_page/examples/example.svelte	lint.txt
 1:1 32:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
 2:1 2:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
@@ -3282,6 +3388,12 @@
 51:4 51:42 svelte/sort-attributes "Attribute 'class' should go before 'type'."
 52:1 52:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 53:1 53:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 176 sites/docs/src/packages/resize/docs.md.svelte	lint.txt
+44:0 - - "Parsing error: A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate"
+
+=== 176 sites/docs/src/packages/shortcut/docs.md.svelte	lint.txt
+35:0 - - "Parsing error: A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate"
 
 === 10913 sites/docs/src/packages/swipeable/_page/examples/demo.svelte	lint.txt
 1:1 41:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."
@@ -3427,6 +3539,12 @@
 86:1 86:4 svelte/indent "Expected indentation of 6 spaces but found 3 whitespaces."
 87:1 87:3 svelte/indent "Expected indentation of 4 spaces but found 2 whitespaces."
 88:1 88:2 svelte/indent "Expected indentation of 2 spaces but found 1 whitespace."
+
+=== 176 sites/docs/src/packages/swipeable/docs.md.svelte	lint.txt
+29:0 - - "Parsing error: A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate"
+
+=== 176 sites/docs/src/packages/toc/docs.md.svelte	lint.txt
+82:0 - - "Parsing error: A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate"
 
 === 0 sites/docs/src/packages/tooltip/docs.md.svelte	lint.txt
 
@@ -4005,6 +4123,9 @@
 28:1 28:31 svelte/no-unused-class-name "Unused class \"text-sm\"."
 29:3 29:143 svelte/no-unused-class-name "Unused class \"c-link\"."
 29:21 29:142 svelte/max-attributes-per-line "'href' should be on a new line."
+
+=== 180 sites/docs/src/routes/(site)/docs/guidelines/+page.md.svelte	lint.txt
+11:26 - - "Parsing error: Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name"
 
 === 9650 sites/docs/src/routes/(site)/search/+page.svelte	lint.txt
 1:1 33:10 svelte/block-lang "The lang attribute of the <script> block should be omitted."

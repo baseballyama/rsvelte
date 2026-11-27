@@ -63,6 +63,9 @@ enum Kind {
     Reader,
     /// Where the comments of another task's JavaScript are, against that task's pack.
     Comments { of: &'static str },
+    /// The source map the task writes, against its own pack's map and the official JavaScript of
+    /// the compared task `of`.
+    SourceMap { of: &'static str },
 }
 
 /// One source's verdicts: (unit key, index into `compared`, verdict).
@@ -114,6 +117,19 @@ impl Conformance {
         self.compared.push(Compared {
             task,
             kind: Kind::Comments { of },
+            parentheses: Parentheses::Dropped,
+        });
+        self
+    }
+
+    /// Compares where the source map that rsvelte's `task` writes says each identifier of its
+    /// JavaScript comes from with the official map in the pack of `task`, which holds the map
+    /// alone: the official JavaScript is the one of `of`, a task compared too.
+    #[must_use]
+    pub fn compare_source_map(mut self, task: &'static str, of: &'static str) -> Self {
+        self.compared.push(Compared {
+            task,
+            kind: Kind::SourceMap { of },
             parentheses: Parentheses::Dropped,
         });
         self
@@ -417,7 +433,8 @@ impl Conformance {
         let mut out = Vec::new();
         for (i, c) in self.compared.iter().enumerate() {
             let official: Vec<Entry<'_>> = expected[i].find(&document.path).collect();
-            if !matches!(c.kind, Kind::Comments { .. }) && table.is_some_and(|t| t.skips(c.task)) {
+            let own_skip = !matches!(c.kind, Kind::Comments { .. } | Kind::SourceMap { .. });
+            if own_skip && table.is_some_and(|t| t.skips(c.task)) {
                 continue;
             }
             if let Kind::Comments { of } = c.kind {
@@ -438,6 +455,21 @@ impl Conformance {
                 if let Some(v) = verdict {
                     out.push((key.clone(), i, v));
                 }
+                continue;
+            }
+            if let Kind::SourceMap { of } = c.kind {
+                let ours = result.outputs.iter().find(|(t, _)| *t == c.task);
+                let javascript = self.official_javascript(of, expected, &document.path)?;
+                let verdict = if table.is_some_and(|t| t.skips(c.task) || t.skips(of)) {
+                    Some(Verdict::Skipped)
+                } else if result.panic.is_some() {
+                    (!javascript.is_empty()).then_some(Verdict::Panicked)
+                } else {
+                    let map = official.iter().find(|e| e.attributes == "js.map");
+                    compare::source_map_verdict(&javascript, map, ours.map(|(_, out)| out))
+                        .map_err(|e| format!("{key}: {e}"))?
+                };
+                out.extend(verdict.map(|v| (key.clone(), i, v)));
                 continue;
             }
             let ours = result.outputs.iter().find(|(t, _)| *t == c.task);
@@ -474,6 +506,22 @@ impl Conformance {
             }
         }
         Ok(out)
+    }
+}
+
+impl Conformance {
+    /// The entries of the official output of `of`, a compared task, for the unit at `path`.
+    fn official_javascript<'p>(
+        &self,
+        of: &str,
+        expected: &'p [Pack],
+        path: &str,
+    ) -> Result<Vec<Entry<'p>>, String> {
+        let Some(j) = (self.compared.iter()).position(|o| o.task == of && o.kind == Kind::Output)
+        else {
+            return Err(format!("{of} is not compared"));
+        };
+        Ok(expected[j].find(path).collect())
     }
 }
 

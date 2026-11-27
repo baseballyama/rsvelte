@@ -18,7 +18,7 @@ env:
   CARGO_TERM_COLOR: always
 
 # corpus/svelte is most of the tree's bytes and corpus/_own most of its files; only `oracle import`
-# reads corpus/_own. The jobs that do not read them check out without them (`no-corpus` below).
+# and the held test, which reads corpus/_own/held, read corpus/_own. The jobs that do not read them check out without them (`no-corpus` below).
 # git still lists the excluded files, so such a job must not read a tracked file under them:
 # tools/structure reads every tracked file and runs on the whole tree; tools/writing reads every
 # tracked *.md and skips corpus/.
@@ -74,6 +74,7 @@ jobs:
             sparse-checkout: |
               /*
               !/corpus/_own/
+              /corpus/_own/held/
             opt-level: 1
           - part: workspace
             packages: --workspace --exclude rsvelte_command_line

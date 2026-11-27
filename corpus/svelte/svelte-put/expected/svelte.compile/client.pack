@@ -3406,6 +3406,22 @@ export default function Usage($$anchor, $$props) {
 }
 
 $.delegate(['click']);
+=== 231 sites/docs/src/packages/async-stack/docs.md.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 120,
+		"column": 92,
+		"character": 4837
+	},
+	"end": {
+		"line": 120,
+		"column": 92,
+		"character": 4837
+	}
+}
+
 === 948 sites/docs/src/packages/avatar/_page/examples/custom.markup.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -3626,6 +3642,22 @@ export default function UiAvatar_verbose($$anchor) {
 		}
 	});
 }
+=== 325 sites/docs/src/packages/avatar/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 87,
+		"column": 0,
+		"character": 2706
+	},
+	"end": {
+		"line": 87,
+		"column": 0,
+		"character": 2706
+	}
+}
+
 === 3066 sites/docs/src/packages/clickoutside/_page/examples/demo.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -3794,6 +3826,22 @@ export default function Quick_start($$anchor) {
 	$.event('clickoutside', div, doSomething);
 	$.append($$anchor, div);
 }
+=== 325 sites/docs/src/packages/clickoutside/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 57,
+		"column": 0,
+		"character": 1326
+	},
+	"end": {
+		"line": 57,
+		"column": 0,
+		"character": 1326
+	}
+}
+
 === 1163 sites/docs/src/packages/cloudflare-turnstile/_page/examples/quick-start.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -3828,6 +3876,22 @@ export default function Quick_start($$anchor) {
 	$.event('turnstile', div, (e) => $.set(token, e.detail.token, true));
 	$.append($$anchor, fragment);
 }
+=== 332 sites/docs/src/packages/cloudflare-turnstile/docs.md.svelte	error.json
+{
+	"code": "tag_invalid_name",
+	"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+	"start": {
+		"line": 111,
+		"column": 65,
+		"character": 3992
+	},
+	"end": {
+		"line": 111,
+		"column": 72,
+		"character": 3999
+	}
+}
+
 === 695 sites/docs/src/packages/copy/_page/examples/custom-event.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -4053,6 +4117,22 @@ export default function Synthetic_copy($$anchor) {
 	$.event('copy', button, onSyntheticCopy);
 	$.append($$anchor, div);
 }
+=== 231 sites/docs/src/packages/copy/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 127,
+		"column": 23,
+		"character": 5005
+	},
+	"end": {
+		"line": 127,
+		"column": 23,
+		"character": 5005
+	}
+}
+
 === 901 sites/docs/src/packages/dragscroll/_page/examples/limitation-scroll-snap.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -4226,6 +4306,22 @@ export default function Option_axis($$anchor, $$props) {
 	}
 ]
 
+=== 252 sites/docs/src/packages/dragscroll/docs.md.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:title` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 13,
+		"column": 42,
+		"character": 417
+	},
+	"end": {
+		"line": 13,
+		"column": 78,
+		"character": 453
+	}
+}
+
 === 87 sites/docs/src/packages/inline-svg/_page/examples/action.svelte	css
 
 	svg.svelte.svelte-3biusw {
@@ -4247,6 +4343,22 @@ export default function Action($$anchor, $$props) {
 	$.action(svg, ($$node, $$action_arg) => inlineSvg?.($$node, $$action_arg), src);
 	$.append($$anchor, svg);
 }
+=== 229 sites/docs/src/packages/inline-svg/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 107,
+		"column": 5,
+		"character": 3532
+	},
+	"end": {
+		"line": 107,
+		"column": 5,
+		"character": 3532
+	}
+}
+
 === 1547 sites/docs/src/packages/intersect/_page/examples/event-intersect.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -4418,6 +4530,22 @@ export default function Quick_start($$anchor) {
 	$.event('intersect', div, onIntersect);
 	$.append($$anchor, div);
 }
+=== 252 sites/docs/src/packages/intersect/docs.md.svelte	error.json
+{
+	"code": "bind_invalid_name",
+	"message": "`bind:title` is not a valid binding\nhttps://svelte.dev/e/bind_invalid_name",
+	"start": {
+		"line": 16,
+		"column": 42,
+		"character": 622
+	},
+	"end": {
+		"line": 16,
+		"column": 78,
+		"character": 658
+	}
+}
+
 === 662 sites/docs/src/packages/lockscroll/_page/examples/quick-start.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -4524,6 +4652,22 @@ export default function Svelte_rune($$anchor, $$props) {
 }
 
 $.delegate(['click']);
+=== 297 sites/docs/src/packages/lockscroll/docs.md.svelte	error.json
+{
+	"code": "svelte_meta_invalid_placement",
+	"message": "`<svelte:body>` tags cannot be inside elements or blocks\nhttps://svelte.dev/e/svelte_meta_invalid_placement",
+	"start": {
+		"line": 90,
+		"column": 0,
+		"character": 2618
+	},
+	"end": {
+		"line": 90,
+		"column": 0,
+		"character": 2618
+	}
+}
+
 === 1010 sites/docs/src/packages/modal/docs.md.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -4715,6 +4859,38 @@ export default function Quick_start($$anchor) {
 	$.action(div, ($$node) => movable?.($$node));
 	$.append($$anchor, div);
 }
+=== 227 sites/docs/src/packages/movable/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 63,
+		"column": 5,
+		"character": 1812
+	},
+	"end": {
+		"line": 63,
+		"column": 5,
+		"character": 1812
+	}
+}
+
+=== 325 sites/docs/src/packages/noti/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 85,
+		"column": 0,
+		"character": 2498
+	},
+	"end": {
+		"line": 85,
+		"column": 0,
+		"character": 2498
+	}
+}
+
 === 921 sites/docs/src/packages/popover/_page/examples/quick-start.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -4867,6 +5043,22 @@ export default function Usage($$anchor) {
 	$.reset(p);
 	$.append($$anchor, p);
 }
+=== 229 sites/docs/src/packages/popover/docs.md.svelte	error.json
+{
+	"code": "js_parse_error",
+	"message": "Unexpected token\nhttps://svelte.dev/e/js_parse_error",
+	"start": {
+		"line": 92,
+		"column": 51,
+		"character": 3209
+	},
+	"end": {
+		"line": 92,
+		"column": 51,
+		"character": 3209
+	}
+}
+
 === 1331 sites/docs/src/packages/preaction/_page/examples/demo.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -4922,6 +5114,70 @@ export default function Demo($$anchor, $$props) {
 	$.append($$anchor, fragment);
 	$.pop();
 }
+=== 325 sites/docs/src/packages/preaction/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 59,
+		"column": 0,
+		"character": 1655
+	},
+	"end": {
+		"line": 59,
+		"column": 0,
+		"character": 1655
+	}
+}
+
+=== 229 sites/docs/src/packages/preprocess-auto-slug/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 57,
+		"column": 12,
+		"character": 1734
+	},
+	"end": {
+		"line": 57,
+		"column": 12,
+		"character": 1734
+	}
+}
+
+=== 229 sites/docs/src/packages/preprocess-external-link/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 51,
+		"column": 12,
+		"character": 1339
+	},
+	"end": {
+		"line": 51,
+		"column": 12,
+		"character": 1339
+	}
+}
+
+=== 229 sites/docs/src/packages/preprocess-inline-svg/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 47,
+		"column": 12,
+		"character": 1095
+	},
+	"end": {
+		"line": 47,
+		"column": 12,
+		"character": 1095
+	}
+}
+
 === 668 sites/docs/src/packages/qr/_page/examples/img-action.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -5162,6 +5418,22 @@ export default function Svg_headless($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
+=== 229 sites/docs/src/packages/qr/docs.md.svelte	error.json
+{
+	"code": "expected_token",
+	"message": "Expected token }\nhttps://svelte.dev/e/expected_token",
+	"start": {
+		"line": 217,
+		"column": 5,
+		"character": 6374
+	},
+	"end": {
+		"line": 217,
+		"column": 5,
+		"character": 6374
+	}
+}
+
 === 1977 sites/docs/src/packages/resize/_page/examples/example.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -5217,6 +5489,38 @@ export default function Example($$anchor, $$props) {
 	$.append($$anchor, div);
 	$.pop();
 }
+=== 325 sites/docs/src/packages/resize/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 44,
+		"column": 0,
+		"character": 1076
+	},
+	"end": {
+		"line": 44,
+		"column": 0,
+		"character": 1076
+	}
+}
+
+=== 323 sites/docs/src/packages/shortcut/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 35,
+		"column": 0,
+		"character": 722
+	},
+	"end": {
+		"line": 35,
+		"column": 0,
+		"character": 722
+	}
+}
+
 === 4045 sites/docs/src/packages/swipeable/_page/examples/demo.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -5355,6 +5659,38 @@ export default function Demo($$anchor, $$props) {
 }
 
 $.delegate(['click']);
+=== 323 sites/docs/src/packages/swipeable/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 29,
+		"column": 0,
+		"character": 531
+	},
+	"end": {
+		"line": 29,
+		"column": 0,
+		"character": 531
+	}
+}
+
+=== 325 sites/docs/src/packages/toc/docs.md.svelte	error.json
+{
+	"code": "script_duplicate",
+	"message": "A component can have a single top-level `<script>` element and/or a single top-level `<script module>` element\nhttps://svelte.dev/e/script_duplicate",
+	"start": {
+		"line": 82,
+		"column": 0,
+		"character": 2236
+	},
+	"end": {
+		"line": 82,
+		"column": 0,
+		"character": 2236
+	}
+}
+
 === 653 sites/docs/src/packages/tooltip/docs.md.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';
@@ -6149,6 +6485,22 @@ export default function _page_md($$anchor) {
 	$.next(5);
 	$.append($$anchor, fragment);
 }
+=== 328 sites/docs/src/routes/(site)/docs/guidelines/+page.md.svelte	error.json
+{
+	"code": "tag_invalid_name",
+	"message": "Expected a valid element or component name. Components must have a valid variable name or dot notation expression\nhttps://svelte.dev/e/tag_invalid_name",
+	"start": {
+		"line": 11,
+		"column": 26,
+		"character": 348
+	},
+	"end": {
+		"line": 11,
+		"column": 28,
+		"character": 350
+	}
+}
+
 === 6047 sites/docs/src/routes/(site)/search/+page.svelte	js
 import 'svelte/internal/init-operations';
 import 'svelte/internal/disclose-version';

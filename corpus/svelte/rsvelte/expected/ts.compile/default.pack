@@ -310,6 +310,17 @@ export class Store {
 }
 export const totals = () => total;
 
+=== 250 pattern/adversarial/typescript/ts-enum-namespace-module.svelte.ts	js
+export var Level;
+(function (Level) {
+    Level[Level["Low"] = 1] = "Low";
+    Level[Level["High"] = 2] = "High";
+})(Level || (Level = {}));
+export const state = $state({ level: Level.Low });
+export function raise() {
+    state.level = Level.High;
+}
+
 === 281 pattern/adversarial/typescript/ts-module-runes.svelte.ts	js
 let count = $state(0);
 const doubled = $derived(count * 2);

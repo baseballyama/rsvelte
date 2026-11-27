@@ -10241,6 +10241,8 @@ export const throws = prerender(() => {
 
 <p>{secret}</p>
 
+=== 4 packages/kit/test/build-errors/apps/syntax-error/src/routes/+page.svelte	svelte	runes	rejected
+<div
 === 204 packages/kit/test/prerendering/basics/src/env.ts	ts	module	-
 import { defineEnvVars } from '@sveltejs/kit/env';
 

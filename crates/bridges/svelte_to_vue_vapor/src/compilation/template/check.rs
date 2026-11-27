@@ -273,9 +273,7 @@ fn check_await_directive(
 ) -> R<()> {
     let (first, second): (Option<ExpressionIdentifier>, Option<ExpressionIdentifier>) =
         match attribute.value {
-            AttributeValue::Attach(expression) | AttributeValue::Bind(expression) => {
-                (Some(expression), None)
-            }
+            AttributeValue::Attach(expression) => (Some(expression), None),
             AttributeValue::Use { action, argument } => (Some(action), argument),
             AttributeValue::Transition {
                 function, argument, ..
@@ -288,12 +286,6 @@ fn check_await_directive(
         .chain(second)
         .any(|expression| is_expression_async(javascript.get_expression(expression)))
     {
-        if matches!(attribute.value, AttributeValue::Bind(_)) {
-            return Err(unsupported(
-                "an await expression in a binding (Svelte rejects it as `bind_invalid_expression`)",
-                attribute.span,
-            ));
-        }
         return Err(unsupported(
             "an await expression in an action, attachment, transition or animation (Svelte \
              rejects it as `illegal_await_expression`)",

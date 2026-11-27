@@ -3787,6 +3787,169 @@ test('REGEX_VALID_TAG_NAME no ReDoS', () => {
 	}
 });
 
+=== 19 packages/svelte/tests/compiler-errors/samples/attribute-empty/main.svelte	svelte	runes	rejected
+<div class= ></div>
+=== 136 packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression-2/main.svelte	svelte	runes	rejected
+<script>
+	let { x, y, z } = $props();
+</script>
+
+<!-- allowed -->
+<span foo={(x, y, z)} />
+
+<!-- not allowed -->
+<span foo={x, y, z} />
+
+=== 175 packages/svelte/tests/compiler-errors/samples/attribute-sequence-expression/main.svelte	svelte	runes	rejected
+<script>
+	import Child from './Child.svelte';
+	let { x, y, z } = $props();
+</script>
+
+<!-- allowed -->
+<Child foo={(x, y, z)} />
+
+<!-- not allowed -->
+<Child foo={x, y, z} />
+
+=== 27 packages/svelte/tests/compiler-errors/samples/attribute-unique-binding/main.svelte	svelte	runes	rejected
+<Widget foo={42} bind:foo/>
+=== 47 packages/svelte/tests/compiler-errors/samples/attribute-unique-class/main.svelte	svelte	runes	rejected
+<div class:cool={true} class:cool={true}></div>
+=== 31 packages/svelte/tests/compiler-errors/samples/attribute-unique-shorthand/main.svelte	svelte	runes	rejected
+<div title='foo' {title}></div>
+=== 49 packages/svelte/tests/compiler-errors/samples/attribute-unique-style/main.svelte	svelte	runes	rejected
+<div style:color="red" style:color="green"></div>
+=== 35 packages/svelte/tests/compiler-errors/samples/attribute-unique/main.svelte	svelte	runes	rejected
+<div class='foo' class='bar'></div>
+=== 53 packages/svelte/tests/compiler-errors/samples/catch-before-closing/main.svelte	svelte	runes	rejected
+{#await true}
+	{#each foo as bar}
+{:catch f}
+{/await}
+=== 18 packages/svelte/tests/compiler-errors/samples/catch-without-await/main.svelte	svelte	runes	rejected
+{:catch theValue}
+
+=== 56 packages/svelte/tests/compiler-errors/samples/class-state-field-static/main.svelte	svelte	runes	rejected
+<script>
+	class X {
+		static x = $state();
+	}
+</script>
+
+=== 24 packages/svelte/tests/compiler-errors/samples/comment-unclosed/main.svelte	svelte	runes	rejected
+<!-- an unclosed comment
+=== 98 packages/svelte/tests/compiler-errors/samples/component-invalid-name/main.svelte	svelte	runes	rejected
+<!-- ok -->
+<Component />
+<Wunderschön />
+<Cæжαकン中 />
+
+<!-- error -->
+<Components[1] />
+
+=== 184 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-2/main.svelte	svelte	runes	rejected
+<script>
+	import Nested from './irrelevant';
+</script>
+
+<Nested>
+	<svelte:fragment slot="foo">{value}</svelte:fragment>
+	<svelte:fragment slot="foo">{value}</svelte:fragment>
+</Nested>
+=== 156 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-3/main.svelte	svelte	runes	rejected
+<script>
+	import Nested from './irrelevant';
+</script>
+
+<Nested>
+	<svelte:fragment slot="foo">{value}</svelte:fragment>
+	<p slot="foo">{value}</p>
+</Nested>
+=== 146 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-4/main.svelte	svelte	runes	rejected
+<script>
+	import Nested from './irrelevant';
+</script>
+
+<Nested>
+	<svelte:fragment slot="default">value</svelte:fragment>
+	<p>value</p>
+</Nested>
+
+=== 180 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-5/main.svelte	svelte	runes	rejected
+<script>
+	import Nested from './irrelevant';
+	import Inner from './irrelevant';
+</script>
+
+<Nested>
+	<Inner slot="foo">{value}</Inner>
+	<Inner slot="foo">{value}</Inner>
+</Nested>
+
+=== 172 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error-6/main.svelte	svelte	runes	rejected
+<script>
+	import Nested from './irrelevant';
+	import Inner from './irrelevant';
+</script>
+
+<Nested>
+	<p slot="foo">{value}</p>
+	<Inner slot="foo">{value}</Inner>
+</Nested>
+
+=== 260 packages/svelte/tests/compiler-errors/samples/component-slot-duplicate-error/main.svelte	svelte	runes	rejected
+<script>
+	import Nested from './irrelevant';
+</script>
+
+<!-- allowed in custom elements -->
+<c-e>
+    <c-e-item slot="allowed"></c-e-item>
+    <c-e-item slot="allowed"></c-e-item>
+</c-e>
+
+<Nested>
+	<p slot="foo">{value}</p>
+	<p slot="foo">{value}</p>
+</Nested>
+=== 158 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error-2/main.svelte	svelte	runes	rejected
+<script>
+  import Nested from './irrelevant';
+</script>
+
+<Nested>
+  <div slot="slot1">
+    <div>
+      <div slot="slot2"></div>
+    </div>
+  </div>
+</Nested>
+
+=== 145 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error-3/main.svelte	svelte	runes	rejected
+<script>
+  import Nested from './irrelevant';
+</script>
+
+<Nested>
+  <div>
+    <div>
+      <div slot="slot2"></div>
+    </div>
+  </div>
+</Nested>
+
+=== 130 packages/svelte/tests/compiler-errors/samples/component-slot-nested-error/main.svelte	svelte	runes	rejected
+<script>
+	import Nested from './irrelevant';
+</script>
+
+<Nested>
+	<div slot="slot1">
+		<div slot="slot2"></div>
+	</div>
+</Nested>
+
 === 69 packages/svelte/tests/compiler-errors/samples/const-tag-cyclical/main.svelte	svelte	runes	neutral
 {#if true}
 	{@const a = b}
@@ -3794,6 +3957,14 @@ test('REGEX_VALID_TAG_NAME no ReDoS', () => {
 	<h1>hello {a}</h1>
 {/if}
 
+=== 100 packages/svelte/tests/compiler-errors/samples/const-tag-sequence/main.svelte	svelte	runes	rejected
+{#if true}
+	{@const foo = ('bar', 'baz')}
+{/if}
+
+{#if true}
+	{@const foo = 'foo', bar = 'bar'}
+{/if}
 === 412 packages/svelte/tests/compiler-errors/samples/const-tag-snippet-invalid-reference-1/main.svelte	svelte	runes	runes
 <svelte:options runes />
 
@@ -3857,6 +4028,845 @@ test('REGEX_VALID_TAG_NAME no ReDoS', () => {
 	{/snippet}
 </Component>
 
+=== 38 packages/svelte/tests/compiler-errors/samples/const-tag-whitespace/main.svelte	svelte	runes	rejected
+{#if true}
+	{@constfoo = 'bar'}
+{/if}
+
+=== 105 packages/svelte/tests/compiler-errors/samples/css-global-block-combinator-2/main.svelte	svelte	runes	rejected
+<style>
+	/* ok */
+	.x :global.x p {
+	}
+	.x :global > p {
+	}
+
+	/* not ok */
+	.x > :global p {
+	}
+</style>
+
+=== 78 packages/svelte/tests/compiler-errors/samples/css-global-block-combinator/main.svelte	svelte	runes	rejected
+<style>
+	/* ok */
+	.x :global {
+	}
+
+	/* not ok */
+	.x > :global {
+	}
+</style>
+
+=== 133 packages/svelte/tests/compiler-errors/samples/css-global-block-declaration/main.svelte	svelte	runes	rejected
+<style>
+	/* ok */
+	.x :global {
+		color: red;
+	}
+
+	:global .y {
+		color: red;
+	}
+
+	/* not ok */
+	:global {
+		color: red;
+	}
+</style>
+
+=== 61 packages/svelte/tests/compiler-errors/samples/css-global-block-in-pseudoclass/main.svelte	svelte	runes	rejected
+<style>
+	/* invalid */
+	:is(:global) { color: red }
+</style>
+
+=== 259 packages/svelte/tests/compiler-errors/samples/css-global-block-multiple-1/main.svelte	svelte	runes	rejected
+<style>
+	/* valid */
+	/* We gotta allow `:global x, :global y` and the likes because CSS preprocessors might generate that from e.g. `:global { x, y {...} }` */
+	:global .x, :global .y {}
+	.x :global, .y :global {}
+
+	/* invalid */
+	.x :global, .y {}
+</style>
+
+=== 77 packages/svelte/tests/compiler-errors/samples/css-global-block-multiple-2/main.svelte	svelte	runes	rejected
+<style>
+	/* invalid */
+	:global, :global .y {
+		z { color: red }
+	}
+</style>
+
+=== 106 packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-1/main.svelte	svelte	runes	rejected
+<style>
+	/* ok */
+	div :global.x {
+		color: red;
+	}
+
+	/* not ok */
+	:global.x {
+		color: red;
+	}
+</style>
+
+=== 184 packages/svelte/tests/compiler-errors/samples/css-global-modifier-start-2/main.svelte	svelte	runes	rejected
+<style>
+	/* ok */
+	div :global {
+		&.x {
+			color: red;
+		}
+	}
+	div {
+		:global {
+			&.x {
+				color: red;
+			}
+		}
+	}
+
+	/* not ok */
+	:global {
+		&.x {
+			color: red;
+		}
+	}
+</style>
+
+=== 106 packages/svelte/tests/compiler-errors/samples/css-global-modifier/main.svelte	svelte	runes	rejected
+<style>
+	/* ok */
+	div :global.x {
+		color: red;
+	}
+
+	/* not ok */
+	.x:global {
+		color: red;
+	}
+</style>
+
+=== 183 packages/svelte/tests/compiler-errors/samples/css-nesting-selector-root/main.svelte	svelte	runes	rejected
+<style>
+	/* valid */
+	:global(&) {
+		color: blue;
+	}
+	:global(& div) {
+		color: blue;
+	}
+	:global(&) div {
+		color: blue;
+	}
+	/* error */
+	:global(div &) {
+		color: blue;
+	}
+</style>
+
+=== 33 packages/svelte/tests/compiler-errors/samples/css/main.svelte	svelte	runes	rejected
+<style>
+	this is not css
+</style>
+=== 12 packages/svelte/tests/compiler-errors/samples/declaration-tag-trailing-slash/main.svelte	svelte	runes	rejected
+{let x = a /
+=== 121 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-legacy/main.svelte	svelte	runes	rejected
+<svelte:options runes={false} />
+
+<script>
+	function ok($) {}
+	function ok2() {
+		let $;
+	}
+
+	// error
+	let $;
+</script>
+
+=== 96 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-runes-2/main.svelte	svelte	runes	rejected
+<svelte:options runes />
+
+<script>
+	function ok($) {}
+	function error() {
+		let $;
+	}
+</script>
+
+=== 53 packages/svelte/tests/compiler-errors/samples/dollar-binding-declaration-runes/main.svelte	svelte	runes	rejected
+<svelte:options runes />
+
+<script>
+	let $;
+</script>
+
+=== 16 packages/svelte/tests/compiler-errors/samples/dollar-binding-global-js/main.svelte.js	svelte-module-js	runes	rejected
+console.log($);
+
+=== 36 packages/svelte/tests/compiler-errors/samples/dollar-binding-global/main.svelte	svelte	runes	rejected
+<script>
+	console.log($);
+</script>
+
+=== 53 packages/svelte/tests/compiler-errors/samples/dollar-binding-import/main.svelte	svelte	runes	rejected
+<script>
+	import { $ } from './somewhere';
+</script>
+
+=== 110 packages/svelte/tests/compiler-errors/samples/dynamic-element-binding-invalid/main.svelte	svelte	runes	rejected
+<script>
+  const tag = "div";
+  let value;
+</script>
+
+<svelte:element this={tag} bind:value></svelte:element>
+
+=== 129 packages/svelte/tests/compiler-errors/samples/each-key-without-as/main.svelte	svelte	runes	rejected
+<script>
+	let items = [{ id: 3 }, { id: 2 }, { id: 1 }];
+</script>
+
+{#each items, i (items[i].id)}
+	<p>{items[i].id}</p>
+{/each}
+
+=== 18 packages/svelte/tests/compiler-errors/samples/effect-active-rune/main.svelte.js	svelte-module-js	runes	rejected
+$effect.active();
+
+=== 20 packages/svelte/tests/compiler-errors/samples/element-invalid-name/main.svelte	svelte	runes	rejected
+<yes[no]></yes[no]>
+
+=== 36 packages/svelte/tests/compiler-errors/samples/else-before-closing-2/main.svelte	svelte	runes	rejected
+{#if true}
+	{#await p}
+{:else}
+{/if}
+=== 12 packages/svelte/tests/compiler-errors/samples/else-before-closing-3/main.svelte	svelte	runes	rejected
+<li>
+{:else}
+=== 30 packages/svelte/tests/compiler-errors/samples/else-before-closing/main.svelte	svelte	runes	rejected
+{#if true}
+	<li>
+{:else}
+{/if}
+=== 38 packages/svelte/tests/compiler-errors/samples/else-if-before-closing-2/main.svelte	svelte	runes	rejected
+{#if true}
+	<p>
+{:else if false}
+{/if}
+=== 47 packages/svelte/tests/compiler-errors/samples/else-if-before-closing/main.svelte	svelte	runes	rejected
+{#if true}
+	{#await foo}
+{:else if false}
+{/if}
+=== 45 packages/svelte/tests/compiler-errors/samples/else-if-without-if/main.svelte	svelte	runes	rejected
+{#await foo}
+{:then bar}
+	{:else if}
+{/await}
+=== 16 packages/svelte/tests/compiler-errors/samples/empty-attribute-shorthand/main.svelte	svelte	runes	rejected
+<span {}></span>
+=== 29 packages/svelte/tests/compiler-errors/samples/empty-classname-binding/main.svelte	svelte	runes	rejected
+<h1 class:={true}>Hello</h1>
+
+=== 20 packages/svelte/tests/compiler-errors/samples/empty-directive-name/main.svelte	svelte	runes	rejected
+<h1 use:>Hello</h1>
+
+=== 84 packages/svelte/tests/compiler-errors/samples/export-default-derived-state-indirect/main.svelte.js	svelte-module-js	runes	rejected
+let count = $state(0);
+
+const double = $derived(count * 2);
+
+export default double;
+
+=== 119 packages/svelte/tests/compiler-errors/samples/export-default-state-indirect/main.svelte.js	svelte-module-js	runes	rejected
+let primitive = $state('nope');
+
+export function update_primitive() {
+	primitive = 'yep';
+}
+
+export default primitive;
+
+=== 80 packages/svelte/tests/compiler-errors/samples/export-derived-state-indirect/main.svelte.js	svelte-module-js	runes	rejected
+let count = $state(0);
+
+const double = $derived(count * 2);
+
+export { double };
+
+=== 67 packages/svelte/tests/compiler-errors/samples/export-derived-state/main.svelte.js	svelte-module-js	runes	rejected
+let count = $state(0);
+
+export const double = $derived(count * 2);
+
+=== 44 packages/svelte/tests/compiler-errors/samples/export-not-defined-module/main.svelte	svelte	runes	rejected
+<script module>
+	export { blah };
+</script>
+
+=== 224 packages/svelte/tests/compiler-errors/samples/export-state-indirect/main.svelte.js	svelte-module-js	runes	rejected
+const object = $state({
+	ok: true
+});
+
+let primitive = $state('nope');
+
+export function update_object() {
+	object.ok = !object.ok;
+}
+
+export function update_primitive() {
+	primitive = 'yep';
+}
+
+export { object, primitive };
+
+=== 243 packages/svelte/tests/compiler-errors/samples/export-state-module/main.svelte	svelte	runes	rejected
+<script module>
+	export const object = $state({
+		ok: true
+	});
+
+	export let primitive = $state('nope');
+
+	export function update_object() {
+		object.ok = !object.ok;
+	}
+
+	export function update_primitive() {
+		primitive = 'yep';
+	}
+</script>
+
+=== 209 packages/svelte/tests/compiler-errors/samples/export-state/main.svelte.js	svelte-module-js	runes	rejected
+export const object = $state({
+	ok: true
+});
+
+export const primitive = $state('nope');
+
+export function update_object() {
+	object.ok = !object.ok;
+}
+
+export function update_primitive() {
+	primitive = 'yep';
+}
+
+=== 12 packages/svelte/tests/compiler-errors/samples/illegal-expression/main.svelte	svelte	runes	rejected
+{42 = nope}
+
+=== 30 packages/svelte/tests/compiler-errors/samples/invalid-arguments-usage/main.svelte	svelte	runes	rejected
+<script>
+	arguments
+</script>
+
+=== 74 packages/svelte/tests/compiler-errors/samples/invalid-rune-name-shadowed/main.svelte.js	svelte-module-js	runes	rejected
+class State {
+	value = $state.foo();
+}
+
+export const state = new State();
+
+=== 22 packages/svelte/tests/compiler-errors/samples/invalid-rune-name/main.svelte.js	svelte-module-js	runes	rejected
+$effect.imnotarune();
+
+=== 61 packages/svelte/tests/compiler-errors/samples/invalid-snippet-binding/main.svelte	svelte	runes	rejected
+{#snippet foo(value)}
+	<input bind:value={value}>
+{/snippet}
+
+=== 84 packages/svelte/tests/compiler-errors/samples/invalid-snippet-mutation/main.svelte	svelte	runes	rejected
+{#snippet foo(value)}
+	<button onclick={() => value += 1}>click</button>
+{/snippet}
+
+=== 56 packages/svelte/tests/compiler-errors/samples/legacy-no-const-assignment/main.svelte	svelte	runes	rejected
+<script>
+	const a = createCounter();
+	a += 1;
+</script>
+
+=== 53 packages/svelte/tests/compiler-errors/samples/legacy-no-const-update/main.svelte	svelte	runes	rejected
+<script>
+	const a = createCounter();
+	a++;
+</script>
+
+=== 32 packages/svelte/tests/compiler-errors/samples/malformed-snippet-2/main.svelte	svelte	runes	rejected
+{#snippet children(hi{/snippet}
+
+=== 33 packages/svelte/tests/compiler-errors/samples/malformed-snippet/main.svelte	svelte	runes	rejected
+{#snippet children()hi{/snippet}
+
+=== 99 packages/svelte/tests/compiler-errors/samples/multiple-styles/main.svelte	svelte	runes	rejected
+<div>foo</div>
+
+<style>
+	div {
+		color: red;
+	}
+</style>
+
+<style>
+	div {
+		color: blue;
+	}
+</style>
+=== 42 packages/svelte/tests/compiler-errors/samples/options-children/main.svelte	svelte	runes	rejected
+<svelte:options>contents</svelte:options>
+
+=== 11 packages/svelte/tests/compiler-errors/samples/raw-mustaches-whitespace/main.svelte	svelte	runes	rejected
+{@htmlfoo}
+
+=== 40 packages/svelte/tests/compiler-errors/samples/render-tag-invalid-call/main.svelte	svelte	runes	rejected
+{@render snippet.apply(null, [1, 2, 3])}
+=== 98 packages/svelte/tests/compiler-errors/samples/runes-before-after-update/main.svelte	svelte	runes	rejected
+<svelte:options runes />
+
+<script>
+	import { beforeUpdate, afterUpdate } from 'svelte';
+</script>
+
+=== 54 packages/svelte/tests/compiler-errors/samples/runes-bindable-not-called/main.svelte	svelte	runes	rejected
+<script>
+	let { a = $bindable } = $props();
+</script>
+
+=== 73 packages/svelte/tests/compiler-errors/samples/runes-duplicate-props/main.svelte	svelte	runes	rejected
+<script>
+	const { foo } = $props();
+	const { bar } = $props();
+</script>
+
+=== 85 packages/svelte/tests/compiler-errors/samples/runes-export-let-derived/main.svelte	svelte	runes	rejected
+<script>
+	let count = $state(0);
+	export let double = $derived(count * 2);
+</script>
+
+=== 179 packages/svelte/tests/compiler-errors/samples/runes-export-let/main.svelte	svelte	runes	rejected
+<script module>
+    export let bar = ''; // check that it doesn't error here already
+</script>
+
+<script>
+    export let foo;
+    let x = $state(); // mark as runes mode
+</script>
+
+=== 61 packages/svelte/tests/compiler-errors/samples/runes-export-named-state/main.svelte.js	svelte-module-js	runes	rejected
+export const x = $state(0);
+export let y = $state(0);
+y = 1;
+
+=== 269 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-binding-this/main.svelte	svelte	runes	rejected
+<script lang="ts">
+	let array: Array<{ id: number; element: HTMLElement | null }> = $state([
+		{ id: 1, element: null },
+		{ id: 2, element: null },
+		{ id: 3, element: null }
+	]);
+</script>
+
+{#each array as { id, element } (id)}
+	<input bind:this={element} />
+{/each}
+
+=== 97 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-binding/main.svelte	svelte	runes	rejected
+<script>
+	let arr = $state([1,2,3]);
+</script>
+
+{#each arr as value}
+	<input bind:value>
+{/each}
+
+=== 128 packages/svelte/tests/compiler-errors/samples/runes-invalid-each-mutation/main.svelte	svelte	runes	rejected
+<script>
+	let arr = $state([1,2,3]);
+</script>
+
+{#each arr as value}
+	<button onclick={() => value += 1}>click</button>
+{/each}
+
+=== 57 packages/svelte/tests/compiler-errors/samples/runes-module-store-subscription/main.svelte.js	svelte-module-js	runes	rejected
+import { store } from 'somewhere';
+
+console.log($store);
+
+=== 50 packages/svelte/tests/compiler-errors/samples/runes-no-const-assignment/main.svelte	svelte	runes	rejected
+<script>
+	const a = $state(0);
+	a += 1;
+</script>
+
+=== 29 packages/svelte/tests/compiler-errors/samples/runes-no-const-assignment/main.svelte.js	svelte-module-js	runes	rejected
+const a = $state(0);
+a += 1;
+
+=== 47 packages/svelte/tests/compiler-errors/samples/runes-no-const-update/main.svelte	svelte	runes	rejected
+<script>
+	const a = $state(0);
+	a++;
+</script>
+
+=== 92 packages/svelte/tests/compiler-errors/samples/runes-no-rune-each/main.svelte	svelte	runes	rejected
+<script>
+	let todos = $state([]);
+</script>
+
+
+{#each todos as $state(todo)}
+  {todo}
+{/each}
+=== 51 packages/svelte/tests/compiler-errors/samples/runes-props-illegal-name-1/main.svelte	svelte	runes	rejected
+<script>
+	let { $$slots: a } = $props();
+</script>
+
+=== 58 packages/svelte/tests/compiler-errors/samples/runes-props-illegal-name-2/main.svelte	svelte	runes	rejected
+<script>
+	let props = $props();
+	props.$$slots;
+</script>
+
+=== 40 packages/svelte/tests/compiler-errors/samples/runes-props-not-called/main.svelte	svelte	runes	rejected
+<script>
+	let { a } = $props;
+</script>
+
+=== 64 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-args/main.svelte	svelte	runes	rejected
+<script>
+	const { foo = $bindable(1, 2) } = $props();
+</script>
+
+=== 58 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-placement/main.svelte	svelte	runes	rejected
+<script>
+	const { a = $bindable() } = $state();
+</script>
+
+=== 38 packages/svelte/tests/compiler-errors/samples/runes-wrong-bindable-placement/main.svelte.js	svelte-module-js	runes	rejected
+const { a = $bindable() } = $state();
+
+=== 44 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte	svelte	runes	rejected
+<script>
+	const foo = $derived();
+</script>
+
+=== 24 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte.js	svelte-module-js	runes	rejected
+const foo = $derived();
+
+=== 33 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-placement/main.svelte	svelte	runes	rejected
+<script>
+	$derived(1);
+</script>
+
+=== 13 packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-placement/main.svelte.js	svelte-module-js	runes	rejected
+$derived(1);
+
+=== 31 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-args/main.svelte	svelte	runes	rejected
+<script>
+	$effect();
+</script>
+
+=== 11 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-args/main.svelte.js	svelte-module-js	runes	rejected
+$effect();
+
+=== 66 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-placement/main.svelte	svelte	runes	rejected
+<script>
+	function a() {
+		return $effect(() => {});
+	}
+</script>
+
+=== 44 packages/svelte/tests/compiler-errors/samples/runes-wrong-effect-placement/main.svelte.js	svelte-module-js	runes	rejected
+function a() {
+	return $effect(() => {});
+}
+
+=== 29 packages/svelte/tests/compiler-errors/samples/runes-wrong-host-placement/main.svelte	svelte	runes	rejected
+<script>
+	$host();
+</script>
+
+=== 9 packages/svelte/tests/compiler-errors/samples/runes-wrong-host-placement/main.svelte.js	svelte-module-js	runes	rejected
+$host();
+
+=== 47 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-args/main.svelte	svelte	runes	rejected
+<script>
+	const { foo } = $props(1);
+</script>
+
+=== 64 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-placement-instance/main.svelte	svelte	runes	rejected
+<script>
+	function x() {
+		const { a } = $props();
+	}
+</script>
+
+=== 24 packages/svelte/tests/compiler-errors/samples/runes-wrong-props-placement-module/main.svelte.js	svelte-module-js	runes	rejected
+const { a } = $props();
+
+=== 49 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-args/main.svelte	svelte	runes	rejected
+<script>
+	const foo = $state(1, 2, 3);
+</script>
+
+=== 29 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-args/main.svelte.js	svelte-module-js	runes	rejected
+const foo = $state(1, 2, 3);
+
+=== 52 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-placement/main.svelte	svelte	runes	rejected
+<script>
+	function a(x) {}
+	a($state(1));
+</script>
+
+=== 31 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-placement/main.svelte.js	svelte-module-js	runes	rejected
+function a(x) {}
+a($state(1));
+
+=== 53 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-raw-args/main.svelte	svelte	runes	rejected
+<script>
+	const foo = $state.raw(1, 2, 3);
+</script>
+
+=== 33 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-raw-args/main.svelte.js	svelte-module-js	runes	rejected
+const foo = $state.raw(1, 2, 3);
+
+=== 51 packages/svelte/tests/compiler-errors/samples/runes-wrong-state-snapshot-args/main.svelte	svelte	runes	rejected
+<script>
+	const foo = $state.snapshot();
+</script>
+
+=== 32 packages/svelte/tests/compiler-errors/samples/script-unclosed-eof/main.svelte	svelte	runes	rejected
+<h1>Hello {name}!</h1>
+
+<script>
+=== 32 packages/svelte/tests/compiler-errors/samples/script-unclosed/main.svelte	svelte	runes	rejected
+<script>
+
+<h1>Hello {name}!</h1>
+=== 14 packages/svelte/tests/compiler-errors/samples/self-reference/main.svelte	svelte	runes	rejected
+<svelte:self/>
+=== 85 packages/svelte/tests/compiler-errors/samples/slot-conflicting-with-render-tag/main.svelte	svelte	runes	rejected
+<script>
+	let { children } = $props();
+</script>
+
+{@render children()}
+<slot></slot>
+
+=== 364 packages/svelte/tests/compiler-errors/samples/snippet-children-conflict/main.svelte	svelte	runes	rejected
+<!-- ok -->
+<Button>
+	hello
+</Button>
+<Button>
+	{#snippet children()}hi{/snippet}
+</Button>
+<Button>
+	hello
+	{#snippet foo()}x{/snippet}
+</Button>
+<Button>
+	{#snippet children()}hi{/snippet}
+	{#snippet foo()}x{/snippet}
+</Button>
+<div>
+	hello
+	{#snippet children()}hi{/snippet}
+</div>
+
+<!-- invalid -->
+<Button>
+	hello
+	{#snippet children()}hi{/snippet}
+</Button>
+
+=== 109 packages/svelte/tests/compiler-errors/samples/snippet-invalid-export/main.svelte	svelte	runes	rejected
+<script module>
+	export { foo }
+</script>
+
+<script>
+	let x = 42;
+</script>
+
+{#snippet foo()}
+	{x}
+{/snippet}
+
+=== 48 packages/svelte/tests/compiler-errors/samples/snippet-rest-args/main.svelte	svelte	runes	rejected
+{#snippet children(...args)}
+	{args}
+{/snippet}
+
+=== 218 packages/svelte/tests/compiler-errors/samples/store-autosub-context-module/main.svelte	svelte	runes	rejected
+<script module>
+	// this should be fine (state rune is not treated as a store)
+	const state = $state(0);
+	// this is not
+	const foo = {};
+	const answer = $foo;
+</script>
+
+<script>
+	let state;
+</script>
+
+<p>{answer}</p>
+=== 239 packages/svelte/tests/compiler-errors/samples/store-contextual/main.svelte	svelte	runes	rejected
+<script>
+	export let todos;
+</script>
+
+{#each todos as todo}
+	<label>
+		<input type=checkbox on:change={e => todo.update(t => ({ done: e.target.checked, text: t.text }))}>
+		{$todo.done ? '[done]' : '[todo]'} {$todo.text}
+	</label>
+{/each}
+=== 27 packages/svelte/tests/compiler-errors/samples/store-global-disallowed/main.svelte	svelte	runes	rejected
+<script>
+	$foo();
+</script>
+=== 127 packages/svelte/tests/compiler-errors/samples/store-prevent-user-declarations/main.svelte	svelte	runes	rejected
+<script>
+	export let count;
+	let $count;
+</script>
+
+<button on:click="{() => count.update(n => n + 1)}">count {$count}</button>
+=== 185 packages/svelte/tests/compiler-errors/samples/store-shadow-scope-2/main.svelte	svelte	runes	rejected
+<script>
+	import { writable } from 'svelte/store';
+	const user = writable(0);
+	const users = [];
+	$: selected = users.find(user => user.id == $user);
+
+	$: console.log($user);
+</script>
+
+=== 185 packages/svelte/tests/compiler-errors/samples/store-shadow-scope-3/main.svelte	svelte	runes	rejected
+<script>
+	import { writable } from 'svelte/store';
+	const user = writable(0);
+	const users = [];
+
+	$: console.log($user);
+	$: selected = users.find(user => user.id == $user);
+</script>
+
+=== 141 packages/svelte/tests/compiler-errors/samples/store-shadow-scope/main.svelte	svelte	runes	rejected
+<script>
+	import { writable } from 'svelte/store';
+	const store = writable();
+
+	function foo() {
+		let store = 1;
+		$store = 2;
+	}
+</script>
+
+=== 154 packages/svelte/tests/compiler-errors/samples/store-template-expression-scope/main.svelte	svelte	runes	rejected
+<script>
+	import { writable } from 'svelte/store';
+	const store = writable();
+</script>
+
+<button
+	on:click={(store) => {
+		$store = Math.random();
+	}} />
+
+=== 31 packages/svelte/tests/compiler-errors/samples/style-unclosed-eof/main.svelte	svelte	runes	rejected
+<h1>Hello {name}!</h1>
+
+<style>
+=== 31 packages/svelte/tests/compiler-errors/samples/style-unclosed/main.svelte	svelte	runes	rejected
+<style>
+
+<h1>Hello {name}!</h1>
+=== 107 packages/svelte/tests/compiler-errors/samples/svelte-internal-import/main.svelte	svelte	runes	rejected
+<svelte:options runes={true} />
+
+<script>
+    import { something } from 'svelte/internal/client';
+</script>
+=== 52 packages/svelte/tests/compiler-errors/samples/svelte-internal-import/main.svelte.js	svelte-module-js	runes	rejected
+import { something } from 'svelte/internal/server';
+
+=== 52 packages/svelte/tests/compiler-errors/samples/svelte-selfdestructive/main.svelte	svelte	runes	rejected
+{#if x}
+	<svelte:selfdestructive x="{x - 1}"/>
+{/if}
+=== 38 packages/svelte/tests/compiler-errors/samples/then-before-closing/main.svelte	svelte	runes	rejected
+{#await true}
+	<li>
+{:then f}
+{/await}
+=== 17 packages/svelte/tests/compiler-errors/samples/then-without-await/main.svelte	svelte	runes	rejected
+{:then theValue}
+
+=== 119 packages/svelte/tests/compiler-errors/samples/unbalanced-curly-component/main.svelte	svelte	runes	rejected
+<svelte:options runes />
+<script>
+	import Component from "./Component.svelte";
+</script>
+
+<Component onclick={true}} />
+=== 91 packages/svelte/tests/compiler-errors/samples/unbalanced-curly-element/main.svelte	svelte	runes	rejected
+<svelte:options runes />
+<button
+	onclick={() => console.log('hello')}}
+>
+	click
+</button>
+
+=== 20 packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	svelte	runes	rejected
+<Component test={ />
+=== 2 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-b/main.svelte	svelte	runes	rejected
+<d
+=== 1 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-c/main.svelte	svelte	runes	rejected
+<
+=== 21 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input-d/main.svelte	svelte	runes	rejected
+{#if foo}
+	<p>foo</p>
+=== 5 packages/svelte/tests/compiler-errors/samples/unexpected-end-of-input/main.svelte	svelte	runes	rejected
+<div>
+=== 42 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag-autoclose-2/main.svelte	svelte	runes	rejected
+<div>
+	<p>
+	<pre>pre tag</pre>
+</div>
+</p>
+=== 28 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag-autoclose/main.svelte	svelte	runes	rejected
+<p>
+	<pre>pre tag</pre>
+</p>
+=== 6 packages/svelte/tests/compiler-errors/samples/unmatched-closing-tag/main.svelte	svelte	runes	rejected
+</div>
+=== 31 packages/svelte/tests/compiler-errors/samples/void-closing/main.svelte	svelte	runes	rejected
+<input>this is illegal!</input>
+=== 39 packages/svelte/tests/compiler-errors/samples/window-children/main.svelte	svelte	runes	rejected
+<svelte:window>contents</svelte:window>
+=== 33 packages/svelte/tests/compiler-errors/samples/window-duplicate/main.svelte	svelte	runes	rejected
+<svelte:window/>
+<svelte:window/>
+=== 33 packages/svelte/tests/compiler-errors/samples/window-inside-block/main.svelte	svelte	runes	rejected
+{#if foo}
+	<svelte:window/>
+{/if}
+=== 30 packages/svelte/tests/compiler-errors/samples/window-inside-element/main.svelte	svelte	runes	rejected
+<div>
+	<svelte:window/>
+</div>
 === 2307 packages/svelte/tests/compiler-errors/test.ts	ts	module	-
 import * as fs from 'node:fs';
 import { assert, expect, it } from 'vitest';
@@ -9448,6 +10458,39 @@ await run(__dirname);
 </button>
 
 <svelte:options immutable/>
+=== 209 packages/svelte/tests/migrate/samples/css-ignore/input.svelte	svelte	runes	rejected
+<script>
+	export let name;
+</script>
+
+<div>{name}</div>
+
+<style lang="scss">
+	$font-stack: Helvetica, sans-serif;
+	$primary-color: #333;
+
+	body {
+		font: 100% $font-stack;
+		color: $primary-color;
+	}
+</style>
+
+=== 216 packages/svelte/tests/migrate/samples/css-ignore/output.svelte	svelte	runes	rejected
+<script>
+	let { name } = $props();
+</script>
+
+<div>{name}</div>
+
+<style lang="scss">
+	$font-stack: Helvetica, sans-serif;
+	$primary-color: #333;
+
+	body {
+		font: 100% $font-stack;
+		color: $primary-color;
+	}
+</style>
 === 461 packages/svelte/tests/migrate/samples/derivations/output.svelte	svelte	runes	runes
 <script>
 	let count = 0;
@@ -9991,6 +11034,16 @@ await run(__dirname);
 === 198 packages/svelte/tests/migrate/samples/impossible-migrate-slot-non-identifier/output.svelte	svelte	runes	neutral
 <!-- @migration-task Error while migrating Svelte code: This migration would change the name of a slot (dashed-name to dashed_name) making the component unusable -->
 <slot name="dashed-name"></slot>
+=== 30 packages/svelte/tests/migrate/samples/impossible-migrate-with-errors/input.svelte	svelte	runes	rejected
+<script
+
+unterminated template
+=== 150 packages/svelte/tests/migrate/samples/impossible-migrate-with-errors/output.svelte	svelte	runes	rejected
+<!-- @migration-task Error while migrating Svelte code: Unexpected end of input
+https://svelte.dev/e/unexpected_eof -->
+<script
+
+unterminated template
 === 1215 packages/svelte/tests/migrate/samples/is-not-where-has/input.svelte	svelte	runes	neutral
 <script>
 	function is(){}
@@ -11263,6 +12316,35 @@ stuff
 
 <button>{@render children?.()}</button>
 <button>{@render children?.()}</button>
+=== 587 packages/svelte/tests/migrate/samples/slots-with-$$props/output.svelte	svelte	runes	rejected
+<script>
+	/**
+	 * @typedef {Object} Props
+	 * @property {import('svelte').Snippet} [children]
+	 * @property {import('svelte').Snippet<[any]>} [foo]
+	 * @property {import('svelte').Snippet} [bar]
+	 */
+
+	/** @type {Props & { [key: string]: any }} */
+	let { ...props } = $props();
+</script>
+
+<button>{@render props.children?.()}</button>
+
+{#if foos}
+	{@render props.foo?.({ foo: foos, })}
+{/if}
+
+{#if props.bar}
+	{$$slots}
+	{@render props.bar?.()}
+{/if}
+
+{#if props.children}foo{/if}
+
+{#if props.children}foo{/if}
+
+{@render props.children?.({ header: "something", title: props.cool, id, })}
 === 248 packages/svelte/tests/migrate/samples/slots/input.svelte	svelte	runes	neutral
 <button><slot /></button>
 
@@ -11280,6 +12362,35 @@ stuff
 {#if $$slots['default']}foo{/if}
 
 <slot header="something" title={my_title} {id} />
+=== 528 packages/svelte/tests/migrate/samples/slots/output.svelte	svelte	runes	rejected
+<script>
+	/**
+	 * @typedef {Object} Props
+	 * @property {import('svelte').Snippet} [children]
+	 * @property {import('svelte').Snippet<[any]>} [foo]
+	 * @property {import('svelte').Snippet} [bar]
+	 */
+
+	/** @type {Props} */
+	let { children, foo, bar } = $props();
+</script>
+
+<button>{@render children?.()}</button>
+
+{#if foos}
+	{@render foo?.({ foo: foos, })}
+{/if}
+
+{#if bar}
+	{$$slots}
+	{@render bar?.()}
+{/if}
+
+{#if children}foo{/if}
+
+{#if children}foo{/if}
+
+{@render children?.({ header: "something", title: my_title, id, })}
 === 466 packages/svelte/tests/migrate/samples/state-and-derivations-sequence/output.svelte	svelte	runes	runes
 <script>
 	let count = $state((void 0, 0));
@@ -12046,6 +13157,15 @@ Hello &amp; World
 === 18 packages/svelte/tests/parser-legacy/samples/if-block/input.svelte	svelte	runes	neutral
 {#if foo}bar{/if}
 
+=== 52 packages/svelte/tests/parser-legacy/samples/implicitly-closed-li-block/input.svelte	svelte	runes	rejected
+<ul>
+	<li>a
+	{#if true}
+		<li>b
+	{/if}
+	<li>c
+</ul>
+
 === 31 packages/svelte/tests/parser-legacy/samples/implicitly-closed-li/input.svelte	svelte	runes	neutral
 <ul>
 	<li>a
@@ -12099,6 +13219,123 @@ Hello &amp; World
 	a + b // trailing line comment
 	/* trailing block comment */
 }
+
+=== 103 packages/svelte/tests/parser-legacy/samples/loose-invalid-block/input.svelte	svelte	runes	rejected
+{#if }
+{:else if }
+{:else }
+{/if}
+
+{#each }
+{/each}
+
+{#snippet }
+{/snippet}
+
+{#snippet foo}
+{/snippet}
+
+=== 325 packages/svelte/tests/parser-legacy/samples/loose-invalid-expression/input.svelte	svelte	runes	rejected
+<div {}></div>
+<div foo={}></div>
+
+<div foo={a.}></div>
+<div foo={'hi}'.}></div>
+<Component onclick={() => x.} />
+
+<input bind:value={a.} />
+
+asd{a.}asd
+{foo[bar.]}
+
+{#if x.}{/if}
+
+{#each array as item (item.)}{/each}
+
+{#each obj. as item}{/each}
+
+{#await x.}{/await}
+
+{#await x. then y}{/await}
+
+{#await x. catch y}{/await}
+
+=== 151 packages/svelte/tests/parser-legacy/samples/loose-unclosed-block/input.svelte	svelte	runes	rejected
+<div>
+	{#if foo}
+</div>
+
+<Comp>
+	{#key bar}
+</Comp>
+
+<div>
+	{#if foo}
+		{#if bar}
+	{/if}
+</div>
+
+{#if foo}
+	{#key bar}
+{/if}
+
+{#each x as y}
+<p>hi</p>
+
+=== 170 packages/svelte/tests/parser-legacy/samples/loose-unclosed-open-tag/input.svelte	svelte	runes	rejected
+<div>
+	<Comp foo={bar}
+</div>
+
+<div>
+	<span foo={bar}
+</div>
+
+{#if foo}
+	<Comp foo={bar}
+{/if}
+
+{#if foo}
+	<Comp foo={bar}
+	{#if bar}
+		{bar}
+	{/if}
+{/if}
+
+<div foo={bar}
+=== 205 packages/svelte/tests/parser-legacy/samples/loose-unclosed-tag/input.svelte	svelte	runes	rejected
+<div>
+	<Comp>
+</div>
+
+<div>
+	<Comp foo={bar}
+</div>
+
+<div>
+	<span
+</div>
+
+<div>
+	<Comp.
+</div>
+
+<div>
+	<comp.
+</div>
+
+{#if foo}
+	<div>
+{/if}
+
+{#if foo}
+	<Comp foo={bar}
+{/if}
+
+<div>
+<p>hi</p>
+
+<open-ended
 
 === 19 packages/svelte/tests/parser-legacy/samples/nbsp/input.svelte	svelte	runes	neutral
 <span>&nbsp;</span>
@@ -12349,6 +13586,54 @@ await run(__dirname);
 
 <li>Foo</li>
 
+=== 821 packages/svelte/tests/parser-modern/samples/css-nth-syntax/input.svelte	svelte	runes	rejected
+<style>
+    /* test that all these are parsed correctly */
+	h1:nth-of-type(2n+1){
+        background: red;
+    }
+    h1:nth-child(-n + 3 of li.important) {
+        background: red;
+    }
+    h1:nth-child(1) {
+        background: red;
+    }
+    h1:nth-child(p) {
+        background: red;
+    }
+    h1:nth-child(n+7) {
+        background: red;
+    }
+    h1:nth-child(even) {
+        background: red;
+    }
+    h1:nth-child(odd) {
+        background: red;
+    }
+    h1:nth-child(
+        n
+    ) {
+        background: red;
+    }
+    h1:global(nav) {
+        background: red;
+    }
+		h1:nth-of-type(10n+1){
+        background: red;
+    }
+		h1:nth-of-type(-2n+3){
+        background: red;
+    }
+		h1:nth-of-type(+12){
+        background: red;
+    }
+		h1:nth-of-type(+3n){
+        background: red;
+    }
+</style>
+
+<h1>Foo</h1>
+
 === 387 packages/svelte/tests/parser-modern/samples/css-pseudo-classes/input.svelte	svelte	runes	neutral
 <style>
     /* test that all these are parsed correctly */
@@ -12404,6 +13689,13 @@ await run(__dirname);
 	<p>x is greater than 10</p>
 {:else if x < 5}
 	<p>x is less than 5</p>
+{/if}
+
+=== 55 packages/svelte/tests/parser-modern/samples/loose-declaration-tag/input.svelte	svelte	runes	rejected
+{#if true}
+	{let }
+	{const x = }
+	{let x = a / }
 {/if}
 
 === 120 packages/svelte/tests/parser-modern/samples/loose-valid-each-as/input.svelte	svelte	runes	neutral
@@ -12641,6 +13933,11 @@ it('Strips BOM from the input', () => {
 	});
 });
 
+=== 71 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/input.svelte	svelte	runes	rejected
+<script generics="T extends Record<string, string>">
+	foo {}
+</script>
+
 === 62 packages/svelte/tests/preprocess/samples/attributes-with-closing-tag/output.svelte	svelte	runes	neutral
 <script generics="T extends Record<string, string>"></script>
 
@@ -12651,6 +13948,60 @@ it('Strips BOM from the input', () => {
 
 === 30 packages/svelte/tests/preprocess/samples/attributes-with-equals/output.svelte	svelte	runes	neutral
 <style foo="bar=baz"></style>
+
+=== 179 packages/svelte/tests/preprocess/samples/comments/input.svelte	svelte	runes	rejected
+<style>
+	one
+</style>
+
+<script>
+	one
+</script>
+
+<!-- <style>
+	one
+</style> -->
+
+<!-- <script>
+	one
+</script> -->
+
+<style>
+<!-- one -->
+</style>
+
+<script>
+<!-- one -->
+</script>
+
+
+
+=== 183 packages/svelte/tests/preprocess/samples/comments/output.svelte	svelte	runes	rejected
+<style>
+	three
+</style>
+
+<script>
+	two
+</script>
+
+<!-- <style>
+	one
+</style> -->
+
+<!-- <script>
+	one
+</script> -->
+
+<style>
+<!-- three -->
+</style>
+
+<script>
+<!-- two -->
+</script>
+
+
 
 === 38 packages/svelte/tests/preprocess/samples/dependencies/input.svelte	svelte	runes	neutral
 <style>
@@ -12730,6 +14081,28 @@ it('Strips BOM from the input', () => {
 </style-foo>
 <style></style>
 
+=== 103 packages/svelte/tests/preprocess/samples/script-multiple/input.svelte	svelte	runes	rejected
+<script>
+	REPLACEME
+</script>
+<style>
+	SHOULD NOT BE REPLACED
+</style>
+<script>
+	REPLACEMETOO
+</script>
+=== 103 packages/svelte/tests/preprocess/samples/script-multiple/output.svelte	svelte	runes	rejected
+<script>
+	replaceme
+</script>
+<style>
+	SHOULD NOT BE REPLACED
+</style>
+<script>
+	replacemetoo
+</script>
+=== 25 packages/svelte/tests/preprocess/samples/script-self-closing/input.svelte	svelte	runes	rejected
+<script the-answer="42"/>
 === 51 packages/svelte/tests/preprocess/samples/script-self-closing/output.svelte	svelte	runes	neutral
 <script the-answer="42">console.log("42");</script>
 === 48 packages/svelte/tests/preprocess/samples/script/input.svelte	svelte	runes	neutral
@@ -12756,6 +14129,42 @@ it('Strips BOM from the input', () => {
 		color: purple;
 	}
 </style>
+=== 44 packages/svelte/tests/preprocess/samples/style-attributes-modified-longer/input.svelte	svelte	runes	rejected
+foo
+
+<style lang='scss'>BEFORE</style>
+
+bar
+
+=== 70 packages/svelte/tests/preprocess/samples/style-attributes-modified-longer/output.svelte	svelte	runes	rejected
+foo
+
+<style sth="wayyyyyyyyyyyyy looooooonger">PROCESSED</style>
+
+bar
+
+=== 64 packages/svelte/tests/preprocess/samples/style-attributes-modified/input.svelte	svelte	runes	rejected
+foo
+
+<style lang='scss' data-foo="bar" bool>BEFORE</style>
+
+bar
+
+=== 46 packages/svelte/tests/preprocess/samples/style-attributes-modified/output.svelte	svelte	runes	rejected
+foo
+
+<style sth="else">PROCESSED</style>
+
+bar
+
+=== 58 packages/svelte/tests/preprocess/samples/style-attributes/input.svelte	svelte	runes	rejected
+<style type='text/scss' data-foo="bar" bool>BEFORE</style>
+=== 61 packages/svelte/tests/preprocess/samples/style-attributes/output.svelte	svelte	runes	rejected
+<style type='text/scss' data-foo="bar" bool>PROCESSED</style>
+=== 59 packages/svelte/tests/preprocess/samples/style-self-closing/input.svelte	svelte	runes	rejected
+<div class='brand-color'>$brand</div>
+
+<style color="red"/>
 === 85 packages/svelte/tests/preprocess/samples/style-self-closing/output.svelte	svelte	runes	neutral
 <div class='brand-color'>$brand</div>
 
@@ -12803,6 +14212,9 @@ const { test, run } = suite<PreprocessTest>(async (config, cwd) => {
 export { test };
 
 await run(__dirname);
+
+=== 31 packages/svelte/tests/print/samples/animate-directive/input.svelte	svelte	runes	rejected
+<div animate:flip>{item}</div>
 
 === 264 packages/svelte/tests/print/samples/attach-tag/input.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -12859,6 +14271,9 @@ await run(__dirname);
 {:catch}
 	<p>Something went wrong</p>
 {/await}
+
+=== 28 packages/svelte/tests/print/samples/bind-directive/input.svelte	svelte	runes	rejected
+<input bind:value={name} />
 
 === 924 packages/svelte/tests/print/samples/block-element-separation/input.svelte	svelte	runes	neutral
 <svelte:head><title>Page Title</title></svelte:head><div>no space</div>
@@ -20425,6 +21840,13 @@ Valid: {$validity.valid}
 
 <Child {store_container} />
 
+=== 39 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-missing-global-script/main.svelte	svelte	runes	rejected
+<script>
+	$: $missingGlobal;
+</script>
+
+=== 23 packages/svelte/tests/runtime-legacy/samples/store-auto-subscribe-missing-global-template/main.svelte	svelte	runes	rejected
+<p>{$missingGlobal}</p>
 === 255 packages/svelte/tests/runtime-legacy/samples/store-each-binding-deep/main.svelte	svelte	runes	neutral
 <script>
 	import { writable } from 'svelte/store';
@@ -42327,6 +43749,885 @@ describe('signals', () => {
 	});
 });
 
+=== 948 packages/svelte/tests/snapshot/samples/async-const/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p> </p>`);
+
+export default function Async_const($$anchor) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			let a;
+			let b;
+
+			var promises = $.run([
+				async () => {
+					try {
+						return a = (await $.save($.async_derived(async () => {
+							try {
+								return (await $.save(1))();
+							} finally {
+								$.unsave();
+							}
+						})))();
+					} finally {
+						$.unsave();
+					}
+				},
+				() => b = $.derived(() => $.get(a) + 1)
+			]);
+
+			var p = root();
+			var text = $.only_child(p, true);
+
+			$.template_effect(() => $.set_text(text, $.get(b)), void 0, void 0, [promises[1]]);
+			$.append($$anchor, p);
+		};
+
+		$.if(node, ($$render) => {
+			if (true) $$render(consequent);
+		});
+	}
+
+	$.append($$anchor, fragment);
+}
+=== 506 packages/svelte/tests/snapshot/samples/async-const/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/server';
+
+export default function Async_const($$renderer) {
+	if (true) {
+		$$renderer.push('<!--[0-->');
+
+		let a;
+		let b;
+		var promises = $$renderer.run([async () => a = (await $.save(1))(), () => b = a + 1]);
+
+		$$renderer.push(`<p>`);
+		$$renderer.async([promises[1]], ($$renderer) => $$renderer.push(() => $.escape(b)));
+		$$renderer.push(`</p>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 853 packages/svelte/tests/snapshot/samples/async-each-fallback-hoisting/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/client';
+
+export default function Async_each_fallback_hoisting($$anchor) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.async(node, [], [() => Promise.resolve([])], (node, $$collection) => {
+		$.each(
+			node,
+			16,
+			() => $.get($$collection),
+			$.index,
+			($$anchor, item) => {
+				$.next();
+
+				var text = $.text();
+
+				$.template_effect(($0) => $.set_text(text, $0), void 0, [() => Promise.reject('This should never be reached')]);
+				$.append($$anchor, text);
+			},
+			($$anchor) => {
+				$.next();
+
+				var text_1 = $.text();
+
+				$.template_effect(($0) => $.set_text(text_1, $0), void 0, [() => Promise.resolve(4)]);
+				$.append($$anchor, text_1);
+			}
+		);
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 766 packages/svelte/tests/snapshot/samples/async-each-fallback-hoisting/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/server';
+
+export default function Async_each_fallback_hoisting($$renderer) {
+	$$renderer.child_block(async ($$renderer) => {
+		const each_array = $.ensure_array_like((await $.save(Promise.resolve([])))());
+
+		if (each_array.length !== 0) {
+			$$renderer.push('<!--[-->');
+
+			for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+				let item = each_array[$$index];
+
+				$$renderer.push(`<!---->`);
+				$$renderer.push(async () => $.escape(await Promise.reject('This should never be reached')));
+			}
+		} else {
+			$$renderer.push(`<!--[!--><!---->`);
+			$$renderer.push(async () => $.escape(await Promise.resolve(4)));
+		}
+	});
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 720 packages/svelte/tests/snapshot/samples/async-each-hoisting/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/client';
+
+export default function Async_each_hoisting($$anchor) {
+	const first = Promise.resolve(1);
+	const second = Promise.resolve(2);
+	const third = Promise.resolve(3);
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.async(node, [], [() => Promise.resolve([first, second, third])], (node, $$collection) => {
+		$.each(node, 17, () => $.get($$collection), $.index, ($$anchor, item) => {
+			$.next();
+
+			var text = $.text();
+
+			$.template_effect(($0) => $.set_text(text, $0), void 0, [() => $.get(item)]);
+			$.append($$anchor, text);
+		});
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 679 packages/svelte/tests/snapshot/samples/async-each-hoisting/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/server';
+
+export default function Async_each_hoisting($$renderer) {
+	const first = Promise.resolve(1);
+	const second = Promise.resolve(2);
+	const third = Promise.resolve(3);
+
+	$$renderer.push(`<!--[-->`);
+
+	$$renderer.child_block(async ($$renderer) => {
+		const each_array = $.ensure_array_like((await $.save(Promise.resolve([first, second, third])))());
+
+		for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+			let item = each_array[$$index];
+
+			$$renderer.push(`<!---->`);
+			$$renderer.push(async () => $.escape(await item));
+		}
+	});
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 877 packages/svelte/tests/snapshot/samples/async-if-alternate-hoisting/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/client';
+
+export default function Async_if_alternate_hoisting($$anchor) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.async(node, [], [() => Promise.resolve(false)], (node, $$condition) => {
+		var consequent = ($$anchor) => {
+			var text = $.text();
+
+			$.template_effect(($0) => $.set_text(text, $0), void 0, [() => Promise.reject('no no no')]);
+			$.append($$anchor, text);
+		};
+
+		var alternate = ($$anchor) => {
+			var text_1 = $.text();
+
+			$.template_effect(($0) => $.set_text(text_1, $0), void 0, [() => Promise.resolve('yes yes yes')]);
+			$.append($$anchor, text_1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get($$condition)) $$render(consequent); else $$render(alternate, -1);
+		});
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 523 packages/svelte/tests/snapshot/samples/async-if-alternate-hoisting/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/server';
+
+export default function Async_if_alternate_hoisting($$renderer) {
+	$$renderer.child_block(async ($$renderer) => {
+		if ((await $.save(Promise.resolve(false)))()) {
+			$$renderer.push('<!--[0-->');
+			$$renderer.push(async () => $.escape(await Promise.reject('no no no')));
+		} else {
+			$$renderer.push('<!--[-1-->');
+			$$renderer.push(async () => $.escape(await Promise.resolve('yes yes yes')));
+		}
+	});
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 4861 packages/svelte/tests/snapshot/samples/async-if-chain/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<!> <!> <!> <!> <!>`, 1);
+
+export default function Async_if_chain($$anchor) {
+	function complex1() {
+		return 1;
+	}
+
+	let foo = true;
+	var blocking;
+	var $$promises = $.run([async () => blocking = await $.async_derived(() => foo)]);
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	$.async(node, [$$promises[0]], void 0, (node) => {
+		var consequent = ($$anchor) => {
+			var text = $.text('foo');
+
+			$.append($$anchor, text);
+		};
+
+		var consequent_1 = ($$anchor) => {
+			var text_1 = $.text('bar');
+
+			$.append($$anchor, text_1);
+		};
+
+		var alternate = ($$anchor) => {
+			var text_2 = $.text('else');
+
+			$.append($$anchor, text_2);
+		};
+
+		$.if(node, ($$render) => {
+			if (foo) $$render(consequent); else if (bar) $$render(consequent_1, 1); else $$render(alternate, -1);
+		});
+	});
+
+	var node_1 = $.sibling(node, 2);
+
+	$.async(node_1, [$$promises[0]], [() => foo], (node_1, $$condition) => {
+		var consequent_2 = ($$anchor) => {
+			var text_3 = $.text('foo');
+
+			$.append($$anchor, text_3);
+		};
+
+		var consequent_3 = ($$anchor) => {
+			var text_4 = $.text('bar');
+
+			$.append($$anchor, text_4);
+		};
+
+		var alternate_2 = ($$anchor) => {
+			var fragment_1 = $.comment();
+			var node_2 = $.first_child(fragment_1);
+
+			$.async(node_2, [], [() => baz], (node_2, $$condition) => {
+				var consequent_4 = ($$anchor) => {
+					var text_5 = $.text('baz');
+
+					$.append($$anchor, text_5);
+				};
+
+				var alternate_1 = ($$anchor) => {
+					var text_6 = $.text('else');
+
+					$.append($$anchor, text_6);
+				};
+
+				$.if(
+					node_2,
+					($$render) => {
+						if ($.get($$condition)) $$render(consequent_4); else $$render(alternate_1, -1);
+					},
+					true
+				);
+			});
+
+			$.append($$anchor, fragment_1);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($.get($$condition)) $$render(consequent_2); else if (bar) $$render(consequent_3, 1); else $$render(alternate_2, -1);
+		});
+	});
+
+	var node_3 = $.sibling(node_1, 2);
+
+	$.async(
+		node_3,
+		[$$promises[0]],
+		[
+			async () => {
+				try {
+					return (await $.save(foo))() > 10;
+				} finally {
+					$.unsave();
+				}
+			}
+		],
+		(node_3, $$condition) => {
+			var consequent_5 = ($$anchor) => {
+				var text_7 = $.text('foo');
+
+				$.append($$anchor, text_7);
+			};
+
+			var consequent_6 = ($$anchor) => {
+				var text_8 = $.text('bar');
+
+				$.append($$anchor, text_8);
+			};
+
+			var alternate_4 = ($$anchor) => {
+				var fragment_2 = $.comment();
+				var node_4 = $.first_child(fragment_2);
+
+				$.async(
+					node_4,
+					[$$promises[0]],
+					[
+						async () => {
+							try {
+								return (await $.save(foo))() > 5;
+							} finally {
+								$.unsave();
+							}
+						}
+					],
+					(node_4, $$condition) => {
+						var consequent_7 = ($$anchor) => {
+							var text_9 = $.text('baz');
+
+							$.append($$anchor, text_9);
+						};
+
+						var alternate_3 = ($$anchor) => {
+							var text_10 = $.text('else');
+
+							$.append($$anchor, text_10);
+						};
+
+						$.if(
+							node_4,
+							($$render) => {
+								if ($.get($$condition)) $$render(consequent_7); else $$render(alternate_3, -1);
+							},
+							true
+						);
+					}
+				);
+
+				$.append($$anchor, fragment_2);
+			};
+
+			$.if(node_3, ($$render) => {
+				if ($.get($$condition)) $$render(consequent_5); else if (bar) $$render(consequent_6, 1); else $$render(alternate_4, -1);
+			});
+		}
+	);
+
+	var node_5 = $.sibling(node_3, 2);
+
+	{
+		var consequent_8 = ($$anchor) => {
+			var text_11 = $.text('foo');
+
+			$.append($$anchor, text_11);
+		};
+
+		var consequent_9 = ($$anchor) => {
+			var text_12 = $.text('bar');
+
+			$.append($$anchor, text_12);
+		};
+
+		var consequent_10 = ($$anchor) => {
+			var text_13 = $.text('baz');
+
+			$.append($$anchor, text_13);
+		};
+
+		var d = $.derived(() => complex1() * complex2 > 100);
+
+		var alternate_5 = ($$anchor) => {
+			var text_14 = $.text('else');
+
+			$.append($$anchor, text_14);
+		};
+
+		$.if(node_5, ($$render) => {
+			if (simple1) $$render(consequent_8); else if (simple2 > 10) $$render(consequent_9, 1); else if ($.get(d)) $$render(consequent_10, 2); else $$render(alternate_5, -1);
+		});
+	}
+
+	var node_6 = $.sibling(node_5, 2);
+
+	$.async(node_6, [$$promises[0]], void 0, (node_6) => {
+		var consequent_11 = ($$anchor) => {
+			var text_15 = $.text('foo');
+
+			$.append($$anchor, text_15);
+		};
+
+		var consequent_12 = ($$anchor) => {
+			var text_16 = $.text('bar');
+
+			$.append($$anchor, text_16);
+		};
+
+		var alternate_6 = ($$anchor) => {
+			var text_17 = $.text('else');
+
+			$.append($$anchor, text_17);
+		};
+
+		$.if(node_6, ($$render) => {
+			if ($.get(blocking) > 10) $$render(consequent_11); else if ($.get(blocking) > 5) $$render(consequent_12, 1); else $$render(alternate_6, -1);
+		});
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 2127 packages/svelte/tests/snapshot/samples/async-if-chain/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/server';
+
+export default function Async_if_chain($$renderer) {
+	function complex1() {
+		return 1;
+	}
+
+	let foo = true;
+	var blocking;
+	var $$promises = $$renderer.run([async () => blocking = await $.async_derived(() => foo)]);
+
+	$$renderer.async_block([$$promises[0]], ($$renderer) => {
+		if (foo) {
+			$$renderer.push(`<!--[0-->foo`);
+		} else if (bar) {
+			$$renderer.push(`<!--[1-->bar`);
+		} else {
+			$$renderer.push(`<!--[-1-->else`);
+		}
+	});
+
+	$$renderer.push(`<!--]--> `);
+
+	$$renderer.async_block([$$promises[0]], async ($$renderer) => {
+		if ((await $.save(foo))()) {
+			$$renderer.push(`<!--[0-->foo`);
+		} else if (bar) {
+			$$renderer.push(`<!--[1-->bar`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+
+			$$renderer.child_block(async ($$renderer) => {
+				if ((await $.save(baz))()) {
+					$$renderer.push(`<!--[0-->baz`);
+				} else {
+					$$renderer.push(`<!--[-1-->else`);
+				}
+			});
+
+			$$renderer.push(`<!--]-->`);
+		}
+	});
+
+	$$renderer.push(`<!--]--> `);
+
+	$$renderer.async_block([$$promises[0]], async ($$renderer) => {
+		if ((await $.save(foo))() > 10) {
+			$$renderer.push(`<!--[0-->foo`);
+		} else if (bar) {
+			$$renderer.push(`<!--[1-->bar`);
+		} else {
+			$$renderer.push('<!--[-1-->');
+
+			$$renderer.async_block([$$promises[0]], async ($$renderer) => {
+				if ((await $.save(foo))() > 5) {
+					$$renderer.push(`<!--[0-->baz`);
+				} else {
+					$$renderer.push(`<!--[-1-->else`);
+				}
+			});
+
+			$$renderer.push(`<!--]-->`);
+		}
+	});
+
+	$$renderer.push(`<!--]--> `);
+
+	if (simple1) {
+		$$renderer.push(`<!--[0-->foo`);
+	} else if (simple2 > 10) {
+		$$renderer.push(`<!--[1-->bar`);
+	} else if (complex1() * complex2 > 100) {
+		$$renderer.push(`<!--[2-->baz`);
+	} else {
+		$$renderer.push(`<!--[-1-->else`);
+	}
+
+	$$renderer.push(`<!--]--> `);
+
+	$$renderer.async_block([$$promises[0]], ($$renderer) => {
+		if (blocking() > 10) {
+			$$renderer.push(`<!--[0-->foo`);
+		} else if (blocking() > 5) {
+			$$renderer.push(`<!--[1-->bar`);
+		} else {
+			$$renderer.push(`<!--[-1-->else`);
+		}
+	});
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 866 packages/svelte/tests/snapshot/samples/async-if-hoisting/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/client';
+
+export default function Async_if_hoisting($$anchor) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.async(node, [], [() => Promise.resolve(true)], (node, $$condition) => {
+		var consequent = ($$anchor) => {
+			var text = $.text();
+
+			$.template_effect(($0) => $.set_text(text, $0), void 0, [() => Promise.resolve('yes yes yes')]);
+			$.append($$anchor, text);
+		};
+
+		var alternate = ($$anchor) => {
+			var text_1 = $.text();
+
+			$.template_effect(($0) => $.set_text(text_1, $0), void 0, [() => Promise.reject('no no no')]);
+			$.append($$anchor, text_1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($.get($$condition)) $$render(consequent); else $$render(alternate, -1);
+		});
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 512 packages/svelte/tests/snapshot/samples/async-if-hoisting/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/server';
+
+export default function Async_if_hoisting($$renderer) {
+	$$renderer.child_block(async ($$renderer) => {
+		if ((await $.save(Promise.resolve(true)))()) {
+			$$renderer.push('<!--[0-->');
+			$$renderer.push(async () => $.escape(await Promise.resolve('yes yes yes')));
+		} else {
+			$$renderer.push('<!--[-1-->');
+			$$renderer.push(async () => $.escape(await Promise.reject('no no no')));
+		}
+	});
+
+	$$renderer.push(`<!--]-->`);
+}
+=== 1834 packages/svelte/tests/snapshot/samples/async-in-derived/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<!> <!>`, 1);
+
+export default function Async_in_derived($$anchor, $$props) {
+	$.push($$props, true);
+
+	var yes1, yes2, no1, no2;
+
+	var $$promises = $.run([
+		async () => yes1 = await $.async_derived(() => 1),
+		async () => yes2 = await $.async_derived(async () => foo(await 1)),
+		() => {
+			no1 = $.derived(async () => {
+				return await 1;
+			});
+
+			no2 = $.derived(() => async () => {
+				return await 1;
+			});
+		}
+	]);
+
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			let yes1;
+			let yes2;
+			let no1;
+			let no2;
+
+			var promises = $.run([
+				async () => {
+					try {
+						return yes1 = (await $.save($.async_derived(async () => {
+							try {
+								return (await $.save(1))();
+							} finally {
+								$.unsave();
+							}
+						})))();
+					} finally {
+						$.unsave();
+					}
+				},
+
+				async () => {
+					try {
+						return yes2 = (await $.save($.async_derived(async () => {
+							try {
+								return foo((await $.save(1))());
+							} finally {
+								$.unsave();
+							}
+						})))();
+					} finally {
+						$.unsave();
+					}
+				},
+
+				() => no1 = $.derived(() => (async () => {
+					return await 1;
+				})()),
+
+				() => no2 = $.derived(() => (async () => {
+					return await 1;
+				})())
+			]);
+		};
+
+		$.if(node, ($$render) => {
+			if (true) $$render(consequent);
+		});
+	}
+
+	var node_1 = $.sibling(node, 2);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			let x;
+
+			var promises_1 = $.run([
+				() => $$promises[2].promise,
+				() => x = $.derived(() => $.get(no2))
+			]);
+		};
+
+		$.if(node_1, ($$render) => {
+			if (true) $$render(consequent_1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+	$.pop();
+}
+=== 1196 packages/svelte/tests/snapshot/samples/async-in-derived/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/server';
+
+export default function Async_in_derived($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		var yes1, yes2, no1, no2;
+
+		var $$promises = $$renderer.run([
+			async () => yes1 = await $.async_derived(() => 1),
+			async () => yes2 = await $.async_derived(async () => foo(await 1)),
+			() => {
+				no1 = $.derived(async () => {
+					return await 1;
+				});
+
+				no2 = $.derived(() => async () => {
+					return await 1;
+				});
+			}
+		]);
+
+		if (true) {
+			$$renderer.push('<!--[0-->');
+
+			let yes1;
+			let yes2;
+			let no1;
+			let no2;
+
+			var promises = $$renderer.run([
+				async () => yes1 = (await $.save(1))(),
+				async () => yes2 = foo((await $.save(1))()),
+				() => no1 = (async () => {
+					return await 1;
+				})(),
+
+				() => no2 = (async () => {
+					return await 1;
+				})()
+			]);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]--> `);
+
+		if (true) {
+			$$renderer.push('<!--[0-->');
+
+			let x;
+			var promises_1 = $$renderer.run([() => $$promises[2], () => x = no2()]);
+		} else {
+			$$renderer.push('<!--[-1-->');
+		}
+
+		$$renderer.push(`<!--]-->`);
+	});
+}
+=== 619 packages/svelte/tests/snapshot/samples/async-top-level-group-sync-run/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/client';
+
+export default function Async_top_level_group_sync_run($$anchor) {
+	var a,
+		// these should be grouped into one, having an async tick inbetween
+		// would change how the code runs and could introduce subtle timing bugs
+		b,
+		c;
+
+	var $$promises = $.run([
+		async () => a = await Promise.resolve(1),
+		() => {
+			b = a + 1;
+			c = b + 1;
+		}
+	]);
+
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, c), void 0, void 0, [$$promises[1]]);
+	$.append($$anchor, text);
+}
+=== 562 packages/svelte/tests/snapshot/samples/async-top-level-group-sync-run/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/server';
+
+export default function Async_top_level_group_sync_run($$renderer) {
+	var a,
+		// these should be grouped into one, having an async tick inbetween
+		// would change how the code runs and could introduce subtle timing bugs
+		b,
+		c;
+
+	var $$promises = $$renderer.run([
+		async () => a = await Promise.resolve(1),
+		() => {
+			b = a + 1;
+			c = b + 1;
+		}
+	]);
+
+	$$renderer.push(`<!---->`);
+	$$renderer.async([$$promises[1]], ($$renderer) => $$renderer.push(() => $.escape(c)));
+}
+=== 490 packages/svelte/tests/snapshot/samples/async-top-level-inspect-server/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p> </p>`);
+
+export default function Async_top_level_inspect_server($$anchor) {
+	var data;
+	var $$promises = $.run([async () => data = await Promise.resolve(42), () => void 0]);
+	var p = root();
+	var text = $.only_child(p, true);
+
+	$.template_effect(() => $.set_text(text, data), void 0, void 0, [$$promises[1]]);
+	$.append($$anchor, p);
+}
+=== 404 packages/svelte/tests/snapshot/samples/async-top-level-inspect-server/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/flags/async';
+import * as $ from 'svelte/internal/server';
+
+export default function Async_top_level_inspect_server($$renderer) {
+	var data;
+	var $$promises = $$renderer.run([async () => data = await Promise.resolve(42), () => void 0]);
+
+	$$renderer.push(`<p>`);
+	$$renderer.async([$$promises[1]], ($$renderer) => $$renderer.push(() => $.escape(data)));
+	$$renderer.push(`</p>`);
+}
+=== 817 packages/svelte/tests/snapshot/samples/await-block-scope/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button> </button> <!> `, 1);
+
+export default function Await_block_scope($$anchor) {
+	let counter = $.proxy({ count: 0 });
+	const promise = $.derived(() => Promise.resolve(counter));
+
+	function increment() {
+		counter.count += 1;
+	}
+
+	var fragment = root();
+	var button = $.first_child(fragment);
+	var text = $.only_child(button);
+	var node = $.sibling(button, 2);
+
+	$.await(node, () => $.get(promise), null, ($$anchor, counter) => {});
+
+	var text_1 = $.sibling(node);
+
+	$.template_effect(() => {
+		$.set_text(text, `clicks: ${counter.count ?? ''}`);
+		$.set_text(text_1, ` ${counter.count ?? ''}`);
+	});
+
+	$.delegated('click', button, increment);
+	$.append($$anchor, fragment);
+}
+
+$.delegate(['click']);
+=== 434 packages/svelte/tests/snapshot/samples/await-block-scope/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Await_block_scope($$renderer) {
+	let counter = { count: 0 };
+	const promise = $.derived(() => Promise.resolve(counter));
+
+	function increment() {
+		counter.count += 1;
+	}
+
+	$$renderer.push(`<button>clicks: ${$.escape(counter.count)}</button> `);
+	$.await($$renderer, promise(), () => {}, (counter) => {});
+	$$renderer.push(`<!--]--> ${$.escape(counter.count)}`);
+}
 === 279 packages/svelte/tests/snapshot/samples/await-block-scope/index.svelte	svelte	runes	runes
 <script>
 	let counter = $state({ count: 0 });
@@ -42345,6 +44646,79 @@ describe('signals', () => {
 
 {counter.count}
 
+=== 721 packages/svelte/tests/snapshot/samples/bind-component-snippet/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+import TextInput from './Child.svelte';
+
+const snippet = ($$anchor) => {
+	$.next();
+
+	var text = $.text('Something');
+
+	$.append($$anchor, text);
+};
+
+var root = $.from_html(`<!> `, 1);
+
+export default function Bind_component_snippet($$anchor) {
+	let value = $.state('');
+	const _snippet = snippet;
+	var fragment = root();
+	var node = $.first_child(fragment);
+
+	TextInput(node, {
+		get value() {
+			return $.get(value);
+		},
+
+		set value($$value) {
+			$.set(value, $$value, true);
+		}
+	});
+
+	var text_1 = $.sibling(node);
+
+	$.template_effect(() => $.set_text(text_1, ` value: ${$.get(value) ?? ''}`));
+	$.append($$anchor, fragment);
+}
+=== 723 packages/svelte/tests/snapshot/samples/bind-component-snippet/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+import TextInput from './Child.svelte';
+
+function snippet($$renderer) {
+	$$renderer.push(`<!---->Something`);
+}
+
+export default function Bind_component_snippet($$renderer) {
+	let value = '';
+	const _snippet = snippet;
+	let $$settled = true;
+	let $$inner_renderer;
+
+	function $$render_inner($$renderer) {
+		TextInput($$renderer, {
+			get value() {
+				return value;
+			},
+
+			set value($$value) {
+				value = $$value;
+				$$settled = false;
+			}
+		});
+
+		$$renderer.push(`<!----> value: ${$.escape(value)}`);
+	}
+
+	do {
+		$$settled = true;
+		$$inner_renderer = $$renderer.copy();
+		$$render_inner($$inner_renderer);
+	} while (!$$settled);
+
+	$$renderer.subsume($$inner_renderer);
+}
 === 198 packages/svelte/tests/snapshot/samples/bind-component-snippet/index.svelte	svelte	runes	runes
 <script>
 	import TextInput from './Child.svelte';
@@ -42360,9 +44734,109 @@ describe('signals', () => {
 <TextInput bind:value />
 value: {value}
 
+=== 263 packages/svelte/tests/snapshot/samples/bind-this/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+export default function Bind_this($$anchor) {
+	$.bind_this(Foo($$anchor, { $$legacy: true }), ($$value) => foo = $$value, () => foo);
+}
+=== 117 packages/svelte/tests/snapshot/samples/bind-this/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Bind_this($$renderer) {
+	Foo($$renderer, {});
+}
 === 24 packages/svelte/tests/snapshot/samples/bind-this/index.svelte	svelte	runes	neutral
 <Foo bind:this={foo} />
 
+=== 756 packages/svelte/tests/snapshot/samples/class-state-field-constructor-assignment/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Class_state_field_constructor_assignment($$anchor, $$props) {
+	$.push($$props, true);
+
+	class Foo {
+		#a = $.state(0);
+
+		get a() {
+			return $.get(this.#a);
+		}
+
+		set a(value) {
+			$.set(this.#a, value, true);
+		}
+
+		#b = $.state();
+		#foo = $.derived(() => ({ bar: this.a * 2 }));
+
+		get foo() {
+			return $.get(this.#foo);
+		}
+
+		set foo(value) {
+			$.set(this.#foo, value);
+		}
+
+		#bar = $.derived(() => ({ baz: this.foo }));
+
+		get bar() {
+			return $.get(this.#bar);
+		}
+
+		set bar(value) {
+			$.set(this.#bar, value);
+		}
+
+		constructor() {
+			this.a = 1;
+			$.set(this.#b, 2);
+			this.foo.bar = 3;
+			this.bar = 4;
+		}
+	}
+
+	$.pop();
+}
+=== 620 packages/svelte/tests/snapshot/samples/class-state-field-constructor-assignment/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Class_state_field_constructor_assignment($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		class Foo {
+			a = 0;
+			#b;
+			#foo = $.derived(() => ({ bar: this.a * 2 }));
+
+			get foo() {
+				return this.#foo();
+			}
+
+			set foo($$value) {
+				return this.#foo($$value);
+			}
+
+			#bar = $.derived(() => ({ baz: this.foo }));
+
+			get bar() {
+				return this.#bar();
+			}
+
+			set bar($$value) {
+				return this.#bar($$value);
+			}
+
+			constructor() {
+				this.a = 1;
+				this.#b = 2;
+				this.foo.bar = 3;
+				this.bar = 4;
+			}
+		}
+	});
+}
 === 236 packages/svelte/tests/snapshot/samples/class-state-field-constructor-assignment/index.svelte	svelte	runes	runes
 <script>
 	class Foo {
@@ -42379,6 +44853,73 @@ value: {value}
 	}
 </script>
 
+=== 841 packages/svelte/tests/snapshot/samples/dedupe-templates/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p class="x">hello</p>`);
+var root_1 = $.from_html(`<!> <!>`, 1);
+
+export default function Dedupe_templates($$anchor, $$props) {
+	var fragment = root_1();
+	var node = $.first_child(fragment);
+
+	{
+		var consequent = ($$anchor) => {
+			var p = root();
+
+			$.append($$anchor, p);
+		};
+
+		var alternate = ($$anchor) => {
+			var p_1 = root();
+
+			$.append($$anchor, p_1);
+		};
+
+		$.if(node, ($$render) => {
+			if ($$props.a) $$render(consequent); else $$render(alternate, -1);
+		});
+	}
+
+	var node_1 = $.sibling(node, 2);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var p_2 = root();
+
+			$.append($$anchor, p_2);
+		};
+
+		$.if(node_1, ($$render) => {
+			if ($$props.b) $$render(consequent_1);
+		});
+	}
+
+	$.append($$anchor, fragment);
+}
+=== 443 packages/svelte/tests/snapshot/samples/dedupe-templates/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Dedupe_templates($$renderer, $$props) {
+	let { a, b } = $$props;
+
+	if (a) {
+		$$renderer.push(`<!--[0--><p class="x">hello</p>`);
+	} else {
+		$$renderer.push(`<!--[-1--><p class="x">hello</p>`);
+	}
+
+	$$renderer.push(`<!--]--> `);
+
+	if (b) {
+		$$renderer.push(`<!--[0--><p class="x">hello</p>`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
 === 247 packages/svelte/tests/snapshot/samples/dedupe-templates/index.svelte	svelte	runes	runes
 <script>
 	let { a, b } = $props();
@@ -42395,6 +44936,49 @@ value: {value}
 	<p class="x">hello</p>
 {/if}
 
+=== 700 packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<button type="button">B</button>`);
+
+export default function Delegated_locally_declared_shadowed($$anchor) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.each(node, 0, () => ({ length: 1 }), $.index, ($$anchor, $$item, index) => {
+		var button = root();
+
+		$.set_attribute(button, 'data-index', index);
+
+		$.delegated('click', button, (e) => {
+			const index = Number(e.currentTarget.dataset.index);
+
+			console.log(index);
+		});
+
+		$.append($$anchor, button);
+	});
+
+	$.append($$anchor, fragment);
+}
+
+$.delegate(['click']);
+=== 408 packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Delegated_locally_declared_shadowed($$renderer) {
+	$$renderer.push(`<!--[-->`);
+
+	const each_array = $.ensure_array_like({ length: 1 });
+
+	for (let index = 0, $$length = each_array.length; index < $$length; index++) {
+		$$renderer.push(`<button type="button"${$.attr('data-index', index)}>B</button>`);
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
 === 230 packages/svelte/tests/snapshot/samples/delegated-locally-declared-shadowed/index.svelte	svelte	runes	neutral
 <script lang="ts"></script>
 
@@ -42409,6 +44993,38 @@ value: {value}
 	>
 {/each}
 
+=== 336 packages/svelte/tests/snapshot/samples/destructured-assignments/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+/* index.svelte.js generated by Svelte VERSION */
+import * as $ from 'svelte/internal/client';
+
+let a = $.state(1);
+let b = $.state(2);
+let c = 3;
+let d = 4;
+
+export function update(array) {
+	((array) => {
+		var $$array = $.to_array(array, 2);
+
+		$.set(a, $$array[0], true);
+		$.set(b, $$array[1], true);
+	})(array);
+
+	[c, d] = array;
+}
+=== 208 packages/svelte/tests/snapshot/samples/destructured-assignments/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+/* index.svelte.js generated by Svelte VERSION */
+import * as $ from 'svelte/internal/server';
+
+let a = 1;
+let b = 2;
+let c = 3;
+let d = 4;
+
+export function update(array) {
+	[a, b] = array;
+	[c, d] = array;
+}
 === 129 packages/svelte/tests/snapshot/samples/destructured-assignments/index.svelte.js	svelte-module-js	runes	-
 let a = $state(1);
 let b = $state(2);
@@ -42420,6 +45036,57 @@ export function update(array) {
 	[c, d] = array;
 }
 
+=== 1080 packages/svelte/tests/snapshot/samples/dynamic-attributes-casing/_expected/client/main.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<div></div> <svg></svg> <custom-element></custom-element> <div></div> <svg></svg> <custom-element></custom-element>`, 3);
+
+export default function Main($$anchor) {
+	// needs to be a snapshot test because jsdom does auto-correct the attribute casing
+	let x = 'test';
+
+	let y = () => 'test';
+	var fragment = root();
+	var div = $.first_child(fragment);
+
+	$.set_attribute(div, 'foobar', x);
+
+	var svg = $.sibling(div, 2);
+
+	$.set_attribute(svg, 'viewBox', x);
+
+	var custom_element = $.sibling(svg, 2);
+
+	$.set_custom_element_data(custom_element, 'fooBar', x);
+
+	var div_1 = $.sibling(custom_element, 2);
+	var svg_1 = $.sibling(div_1, 2);
+	var custom_element_1 = $.sibling(svg_1, 2);
+
+	$.template_effect(($0) => $.set_custom_element_data(custom_element_1, 'fooBar', $0), [() => y()]);
+
+	$.template_effect(
+		($0, $1) => {
+			$.set_attribute(div_1, 'foobar', $0);
+			$.set_attribute(svg_1, 'viewBox', $1);
+		},
+		[() => y(), () => y()]
+	);
+
+	$.append($$anchor, fragment);
+}
+=== 494 packages/svelte/tests/snapshot/samples/dynamic-attributes-casing/_expected/server/main.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Main($$renderer) {
+	// needs to be a snapshot test because jsdom does auto-correct the attribute casing
+	let x = 'test';
+
+	let y = () => 'test';
+
+	$$renderer.push(`<div${$.attr('foobar', x)}></div> <svg${$.attr('viewBox', x)}></svg> <custom-element${$.attr('foobar', x)}></custom-element> <div${$.attr('foobar', y())}></div> <svg${$.attr('viewBox', y())}></svg> <custom-element${$.attr('foobar', y())}></custom-element>`);
+}
 === 441 packages/svelte/tests/snapshot/samples/dynamic-attributes-casing/main.svelte	svelte	runes	runes
 <script>
     // needs to be a snapshot test because jsdom does auto-correct the attribute casing
@@ -42436,21 +45103,151 @@ export function update(array) {
 <svg viewBox={y()} ></svg>
 <custom-element fooBar={y()}></custom-element>
 
+=== 472 packages/svelte/tests/snapshot/samples/each-index-non-null/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p></p>`);
+
+export default function Each_index_non_null($$anchor) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.each(node, 0, () => Array(10), $.index, ($$anchor, $$item, i) => {
+		var p = root();
+
+		p.textContent = `index: ${i}`;
+		$.append($$anchor, p);
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 342 packages/svelte/tests/snapshot/samples/each-index-non-null/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Each_index_non_null($$renderer) {
+	$$renderer.push(`<!--[-->`);
+
+	const each_array = $.ensure_array_like(Array(10));
+
+	for (let i = 0, $$length = each_array.length; i < $$length; i++) {
+		$$renderer.push(`<p>index: ${$.escape(i)}</p>`);
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
 === 48 packages/svelte/tests/snapshot/samples/each-index-non-null/index.svelte	svelte	runes	neutral
 {#each Array(10), i}
 	<p>index: {i}</p>
 {/each}
 
+=== 498 packages/svelte/tests/snapshot/samples/each-string-template/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+export default function Each_string_template($$anchor) {
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.each(node, 0, () => ['foo', 'bar', 'baz'], $.index, ($$anchor, thing) => {
+		$.next();
+
+		var text = $.text();
+
+		$.template_effect(() => $.set_text(text, `${thing ?? ''}, `));
+		$.append($$anchor, text);
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 408 packages/svelte/tests/snapshot/samples/each-string-template/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Each_string_template($$renderer) {
+	$$renderer.push(`<!--[-->`);
+
+	const each_array = $.ensure_array_like(['foo', 'bar', 'baz']);
+
+	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+		let thing = each_array[$$index];
+
+		$$renderer.push(`<!---->${$.escape(thing)}, `);
+	}
+
+	$$renderer.push(`<!--]-->`);
+}
 === 62 packages/svelte/tests/snapshot/samples/each-string-template/index.svelte	svelte	runes	neutral
 {#each ['foo', 'bar', 'baz'] as thing}
 	{thing},{' '}
 {/each}
 
+=== 140 packages/svelte/tests/snapshot/samples/export-state/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+/* index.svelte.js generated by Svelte VERSION */
+import * as $ from 'svelte/internal/client';
+
+export const object = $.proxy({ ok: true });
+=== 131 packages/svelte/tests/snapshot/samples/export-state/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+/* index.svelte.js generated by Svelte VERSION */
+import * as $ from 'svelte/internal/server';
+
+export const object = { ok: true };
 === 45 packages/svelte/tests/snapshot/samples/export-state/index.svelte.js	svelte-module-js	runes	-
 export const object = $state({
 	ok: true
 });
 
+=== 652 packages/svelte/tests/snapshot/samples/function-prop-no-getter/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Function_prop_no_getter($$anchor) {
+	let count = $.state(0);
+
+	function onmouseup() {
+		$.set(count, $.get(count) + 2);
+	}
+
+	const plusOne = (num) => num + 1;
+
+	Button($$anchor, {
+		onmousedown: () => $.set(count, $.get(count) + 1),
+		onmouseup,
+		onmouseenter: () => $.set(count, plusOne($.get(count)), true),
+		children: ($$anchor, $$slotProps) => {
+			$.next();
+
+			var text = $.text();
+
+			$.template_effect(() => $.set_text(text, `clicks: ${$.get(count) ?? ''}`));
+			$.append($$anchor, text);
+		},
+		$$slots: { default: true }
+	});
+}
+=== 444 packages/svelte/tests/snapshot/samples/function-prop-no-getter/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Function_prop_no_getter($$renderer) {
+	let count = 0;
+
+	function onmouseup() {
+		count += 2;
+	}
+
+	const plusOne = (num) => num + 1;
+
+	Button($$renderer, {
+		onmousedown: () => count += 1,
+		onmouseup,
+		onmouseenter: () => count = plusOne(count),
+		children: ($$renderer) => {
+			$$renderer.push(`<!---->clicks: ${$.escape(count)}`);
+		},
+		$$slots: { default: true }
+	});
+}
 === 245 packages/svelte/tests/snapshot/samples/function-prop-no-getter/index.svelte	svelte	runes	runes
 <script>
 	let count = $state(0);
@@ -42466,6 +45263,38 @@ export const object = $state({
 	clicks: {count}
 </Button>
 
+=== 448 packages/svelte/tests/snapshot/samples/functional-templating/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_tree(
+	[
+		['h1', null, 'hello'],
+		' ',
+		[
+			'div',
+			{ class: 'potato' },
+			['p', null, 'child element'],
+			' ',
+			['p', null, 'another child element']
+		]
+	],
+	1
+);
+
+export default function Functional_templating($$anchor) {
+	var fragment = root();
+
+	$.next(2);
+	$.append($$anchor, fragment);
+}
+=== 219 packages/svelte/tests/snapshot/samples/functional-templating/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Functional_templating($$renderer) {
+	$$renderer.push(`<h1>hello</h1> <div class="potato"><p>child element</p> <p>another child element</p></div>`);
+}
 === 96 packages/svelte/tests/snapshot/samples/functional-templating/index.svelte	svelte	runes	neutral
 <h1>hello</h1>
 
@@ -42474,9 +45303,79 @@ export const object = $state({
 	<p>another child element</p>
 </div>
 
+=== 270 packages/svelte/tests/snapshot/samples/hello-world/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h1>hello world</h1>`);
+
+export default function Hello_world($$anchor) {
+	var h1 = root();
+
+	$.append($$anchor, h1);
+}
+=== 139 packages/svelte/tests/snapshot/samples/hello-world/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Hello_world($$renderer) {
+	$$renderer.push(`<h1>hello world</h1>`);
+}
 === 21 packages/svelte/tests/snapshot/samples/hello-world/index.svelte	svelte	runes	neutral
 <h1>hello world</h1>
 
+=== 394 packages/svelte/tests/snapshot/samples/hmr/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h1>hello world</h1>`);
+
+function Hmr($$anchor) {
+	var h1 = root();
+
+	$.append($$anchor, h1);
+}
+
+if (import.meta.hot) {
+	Hmr = $.hmr(Hmr);
+
+	import.meta.hot.accept((module) => {
+		Hmr[$.HMR].update(module.default);
+	});
+}
+
+export default Hmr;
+=== 131 packages/svelte/tests/snapshot/samples/hmr/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Hmr($$renderer) {
+	$$renderer.push(`<h1>hello world</h1>`);
+}
+=== 225 packages/svelte/tests/snapshot/samples/imports-in-modules/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+import { random } from './module.svelte';
+
+export default function Imports_in_modules($$anchor) {}
+=== 150 packages/svelte/tests/snapshot/samples/imports-in-modules/_expected/client/module.svelte.js	svelte-module-js	runes	rejected
+/* module.svelte.js generated by Svelte VERSION */
+import * as $ from 'svelte/internal/client';
+import { random } from './export';
+
+export { random };
+=== 145 packages/svelte/tests/snapshot/samples/imports-in-modules/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+import { random } from './module.svelte';
+
+export default function Imports_in_modules($$renderer) {}
+=== 150 packages/svelte/tests/snapshot/samples/imports-in-modules/_expected/server/module.svelte.js	svelte-module-js	runes	rejected
+/* module.svelte.js generated by Svelte VERSION */
+import * as $ from 'svelte/internal/server';
+import { random } from './export';
+
+export { random };
 === 62 packages/svelte/tests/snapshot/samples/imports-in-modules/index.svelte	svelte	runes	neutral
 <script>
 	import { random } from './module.svelte';
@@ -42487,6 +45386,52 @@ import { random } from './export';
 
 export { random };
 
+=== 938 packages/svelte/tests/snapshot/samples/nullish-coallescence-omittance/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<h1></h1> <b></b> <button> </button> <h1></h1> <div></div>`, 1);
+
+export default function Nullish_coallescence_omittance($$anchor, $$props) {
+	let name = 'world';
+	let count = $.state(0);
+	var fragment = root();
+	var h1 = $.first_child(fragment);
+
+	h1.textContent = 'Hello, world!';
+
+	var b = $.sibling(h1, 2);
+
+	b.textContent = '123';
+
+	var button = $.sibling(b, 2);
+	var text = $.only_child(button);
+	var h1_1 = $.sibling(button, 2);
+
+	h1_1.textContent = 'Hello, world';
+
+	var div = $.sibling(h1_1, 2);
+
+	$.template_effect(() => {
+		$.set_text(text, `Count is ${$.get(count) ?? ''}`);
+		$.set_attribute(div, 'title', `Hello, world ${$.get(count) ?? ''}  1  ${typeof $$props.value} ${$$props.value ?? ''}`);
+	});
+
+	$.delegated('click', button, () => $.update(count));
+	$.append($$anchor, fragment);
+}
+
+$.delegate(['click']);
+=== 421 packages/svelte/tests/snapshot/samples/nullish-coallescence-omittance/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Nullish_coallescence_omittance($$renderer, $$props) {
+	let name = 'world';
+	let count = 0;
+	let { value } = $$props;
+
+	$$renderer.push(`<h1>Hello, world!</h1> <b>123</b> <button>Count is ${$.escape(count)}</button> <h1>Hello, world</h1> <div${$.attr('title', `Hello, world ${$.stringify(count)}  1  ${typeof value} ${$.stringify(value)}`)}></div>`);
+}
 === 381 packages/svelte/tests/snapshot/samples/nullish-coallescence-omittance/index.svelte	svelte	runes	runes
 <script>
     let name = 'world';
@@ -42499,6 +45444,42 @@ export { random };
 <h1>Hello, {name ?? 'earth' ?? null}</h1>
 <div title="Hello, {name} {count} {null} {1} {undefined} {typeof value} {value}"></div>
 
+=== 407 packages/svelte/tests/snapshot/samples/props-identifier/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var rest_excludes = new Set(['$$slots', '$$events', '$$legacy']);
+
+export default function Props_identifier($$anchor, $$props) {
+	$.push($$props, true);
+
+	let props = $.rest_props($$props, rest_excludes);
+
+	$$props.a;
+	props[a];
+	$$props.a.b;
+	$$props.a.b = true;
+	props.a = true;
+	props[a] = true;
+	props;
+	$.pop();
+}
+=== 308 packages/svelte/tests/snapshot/samples/props-identifier/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Props_identifier($$renderer, $$props) {
+	$$renderer.component(($$renderer) => {
+		let { $$slots, $$events, ...props } = $$props;
+
+		props.a;
+		props[a];
+		props.a.b;
+		props.a.b = true;
+		props.a = true;
+		props[a] = true;
+		props;
+	});
+}
 === 137 packages/svelte/tests/snapshot/samples/props-identifier/index.svelte	svelte	runes	runes
 <script>
 	let props = $props();
@@ -42511,6 +45492,36 @@ export { random };
 	props;
 </script>
 
+=== 485 packages/svelte/tests/snapshot/samples/purity/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p></p> <p></p> <!>`, 1);
+
+export default function Purity($$anchor) {
+	var fragment = root();
+	var p = $.first_child(fragment);
+
+	p.textContent = '0';
+
+	var p_1 = $.sibling(p, 2);
+
+	p_1.textContent = location.href;
+
+	var node = $.sibling(p_1, 2);
+
+	Child(node, { prop: encodeURIComponent('hello') });
+	$.append($$anchor, fragment);
+}
+=== 245 packages/svelte/tests/snapshot/samples/purity/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Purity($$renderer) {
+	$$renderer.push(`<p>0</p> <p>${$.escape(location.href)}</p> `);
+	Child($$renderer, { prop: encodeURIComponent('hello') });
+	$$renderer.push(`<!---->`);
+}
 === 108 packages/svelte/tests/snapshot/samples/purity/index.svelte	svelte	runes	neutral
 <p>{Math.max(0, Math.min(0, 100))}</p>
 <p>{location.href}</p>
@@ -42520,6 +45531,650 @@ export { random };
 === 34 packages/svelte/tests/snapshot/samples/select-with-rich-content/Option.svelte	svelte	runes	neutral
 <option>Component Option</option>
 
+=== 286 packages/svelte/tests/snapshot/samples/select-with-rich-content/_expected/client/Option.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<option>Component Option</option>`);
+
+export default function Option($$anchor) {
+	var option = root();
+
+	$.append($$anchor, option);
+}
+=== 9646 packages/svelte/tests/snapshot/samples/select-with-rich-content/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+import Option from './Option.svelte';
+
+const opt = ($$anchor) => {
+	var option = root();
+
+	$.append($$anchor, option);
+};
+
+const option_snippet = ($$anchor) => {
+	var option_1 = root_1();
+
+	$.append($$anchor, option_1);
+};
+
+const option_snippet2 = ($$anchor) => {
+	var option_2 = root_2();
+
+	$.append($$anchor, option_2);
+};
+
+const conditional_option = ($$anchor) => {
+	var option_3 = root_3();
+
+	$.append($$anchor, option_3);
+};
+
+var root = $.from_html(`<option>Snippet</option>`);
+var root_1 = $.from_html(`<option>Rendered</option>`);
+var root_2 = $.from_html(`<option>Rendered in group</option>`);
+var root_3 = $.from_html(`<option>Conditional</option>`);
+var option_content = $.from_html(`<span>Rich</span>`, 1);
+var root_4 = $.from_html(`<option> </option>`);
+var root_5 = $.from_html(`<option>Visible</option>`);
+var root_6 = $.from_html(`<option>Keyed</option>`);
+var option_content_1 = $.from_html(`<strong>Bold</strong>`, 1);
+var option_content_2 = $.from_html(`<em>Italic</em> text`, 1);
+var option_content_3 = $.from_html(`<span> </span>`, 1);
+var root_7 = $.from_html(`<option><!></option>`);
+var root_8 = $.from_html(`<option>Boundary</option>`);
+var option_content_4 = $.from_html(`<span>Rich in boundary</span>`, 1);
+var root_9 = $.from_html(`<select><option><!></option></select> <select></select> <select><!></select> <select><!></select>  <select><!></select> <select></select> <select><optgroup label="Group"><option><!></option></optgroup></select> <select><optgroup label="Group"></optgroup></select> <select><option><!></option></select> <select></select> <select><!></select> <select><!></select> <select><!></select> <select><!></select>  <select><!></select> <select><!></select> <select><optgroup label="Group"><!></optgroup></select>  <select><optgroup label="Group"><!></optgroup></select> <select><option><!></option></select> <select><!></select>  <select><!></select>`, 1);
+
+export default function Select_with_rich_content($$anchor) {
+	let items = [1, 2, 3];
+	let show = true;
+	let html = '<option>From HTML</option>';
+	var fragment = root_9();
+	var select = $.first_child(fragment);
+	var option_4 = $.child(select);
+
+	$.customizable_select(option_4, () => {
+		var anchor = $.child(option_4);
+		var fragment_1 = option_content();
+
+		$.append(anchor, fragment_1);
+	});
+
+	$.reset(select);
+
+	var select_1 = $.sibling(select, 2);
+
+	$.each(select_1, 5, () => items, $.index, ($$anchor, item) => {
+		var option_5 = root_4();
+		var text = $.only_child(option_5, true);
+		var option_5_value = {};
+
+		$.template_effect(() => {
+			$.set_text(text, $.get(item));
+
+			if (option_5_value !== (option_5_value = $.get(item))) {
+				option_5.__value = option_5_value;
+			}
+		});
+
+		$.append($$anchor, option_5);
+	});
+
+	$.reset(select_1);
+
+	var select_2 = $.sibling(select_1, 2);
+	var node = $.child(select_2);
+
+	{
+		var consequent = ($$anchor) => {
+			var option_6 = root_5();
+
+			$.append($$anchor, option_6);
+		};
+
+		$.if(node, ($$render) => {
+			if (show) $$render(consequent);
+		});
+	}
+
+	$.reset(select_2);
+
+	var select_3 = $.sibling(select_2, 2);
+	var node_1 = $.child(select_3);
+
+	$.key(node_1, () => items, ($$anchor) => {
+		var option_7 = root_6();
+
+		$.append($$anchor, option_7);
+	});
+
+	$.reset(select_3);
+
+	var select_4 = $.sibling(select_3, 2);
+
+	$.customizable_select(select_4, () => {
+		var anchor_1 = $.child(select_4);
+		var fragment_2 = $.comment();
+		var node_2 = $.first_child(fragment_2);
+
+		opt(node_2);
+		$.append(anchor_1, fragment_2);
+	});
+
+	var select_5 = $.sibling(select_4, 2);
+
+	$.each(select_5, 5, () => items, $.index, ($$anchor, item) => {
+		const x = $.derived_safe_equal(() => $.get(item) * 2);
+		var option_8 = root_4();
+		var text_1 = $.only_child(option_8, true);
+		var option_8_value = {};
+
+		$.template_effect(() => {
+			$.set_text(text_1, $.get(x));
+
+			if (option_8_value !== (option_8_value = $.get(x))) {
+				option_8.__value = option_8_value;
+			}
+		});
+
+		$.append($$anchor, option_8);
+	});
+
+	$.reset(select_5);
+
+	var select_6 = $.sibling(select_5, 2);
+	var optgroup = $.child(select_6);
+	var option_9 = $.child(optgroup);
+
+	$.customizable_select(option_9, () => {
+		var anchor_2 = $.child(option_9);
+		var fragment_3 = option_content_1();
+
+		$.append(anchor_2, fragment_3);
+	});
+
+	$.reset(optgroup);
+	$.reset(select_6);
+
+	var select_7 = $.sibling(select_6, 2);
+	var optgroup_1 = $.child(select_7);
+
+	$.each(optgroup_1, 5, () => items, $.index, ($$anchor, item) => {
+		var option_10 = root_4();
+		var text_2 = $.only_child(option_10, true);
+		var option_10_value = {};
+
+		$.template_effect(() => {
+			$.set_text(text_2, $.get(item));
+
+			if (option_10_value !== (option_10_value = $.get(item))) {
+				option_10.__value = option_10_value;
+			}
+		});
+
+		$.append($$anchor, option_10);
+	});
+
+	$.reset(optgroup_1);
+	$.reset(select_7);
+
+	var select_8 = $.sibling(select_7, 2);
+	var option_11 = $.child(select_8);
+
+	$.customizable_select(option_11, () => {
+		var anchor_3 = $.child(option_11);
+		var fragment_4 = option_content_2();
+
+		$.next();
+		$.append(anchor_3, fragment_4);
+	});
+
+	option_11.value = option_11.__value = 'a';
+	$.reset(select_8);
+
+	var select_9 = $.sibling(select_8, 2);
+
+	$.each(select_9, 5, () => items, $.index, ($$anchor, item) => {
+		var option_12 = root_7();
+
+		$.customizable_select(option_12, () => {
+			var anchor_4 = $.child(option_12);
+			var fragment_5 = option_content_3();
+			var span = $.first_child(fragment_5);
+			var text_3 = $.only_child(span, true);
+
+			$.template_effect(() => $.set_text(text_3, $.get(item)));
+			$.append(anchor_4, fragment_5);
+		});
+
+		$.append($$anchor, option_12);
+	});
+
+	$.reset(select_9);
+
+	var select_10 = $.sibling(select_9, 2);
+	var node_3 = $.child(select_10);
+
+	{
+		var consequent_1 = ($$anchor) => {
+			var fragment_6 = $.comment();
+			var node_4 = $.first_child(fragment_6);
+
+			$.each(node_4, 1, () => items, $.index, ($$anchor, item) => {
+				var option_13 = root_4();
+				var text_4 = $.only_child(option_13, true);
+				var option_13_value = {};
+
+				$.template_effect(() => {
+					$.set_text(text_4, $.get(item));
+
+					if (option_13_value !== (option_13_value = $.get(item))) {
+						option_13.__value = option_13_value;
+					}
+				});
+
+				$.append($$anchor, option_13);
+			});
+
+			$.append($$anchor, fragment_6);
+		};
+
+		$.if(node_3, ($$render) => {
+			if (show) $$render(consequent_1);
+		});
+	}
+
+	$.reset(select_10);
+
+	var select_11 = $.sibling(select_10, 2);
+	var node_5 = $.child(select_11);
+
+	$.boundary(node_5, {}, ($$anchor) => {
+		var option_14 = root_8();
+
+		$.append($$anchor, option_14);
+	});
+
+	$.reset(select_11);
+
+	var select_12 = $.sibling(select_11, 2);
+	var node_6 = $.child(select_12);
+
+	$.boundary(node_6, {}, ($$anchor) => {
+		var option_15 = root_7();
+
+		$.customizable_select(option_15, () => {
+			var anchor_5 = $.child(option_15);
+			var fragment_7 = option_content_4();
+
+			$.append(anchor_5, fragment_7);
+		});
+
+		$.append($$anchor, option_15);
+	});
+
+	$.reset(select_12);
+
+	var select_13 = $.sibling(select_12, 2);
+
+	$.customizable_select(select_13, () => {
+		var anchor_6 = $.child(select_13);
+		var fragment_8 = $.comment();
+		var node_7 = $.first_child(fragment_8);
+
+		Option(node_7, {});
+		$.append(anchor_6, fragment_8);
+	});
+
+	var select_14 = $.sibling(select_13, 2);
+
+	$.customizable_select(select_14, () => {
+		var anchor_7 = $.child(select_14);
+		var fragment_9 = $.comment();
+		var node_8 = $.first_child(fragment_9);
+
+		option_snippet(node_8);
+		$.append(anchor_7, fragment_9);
+	});
+
+	var select_15 = $.sibling(select_14, 2);
+
+	$.customizable_select(select_15, () => {
+		var anchor_8 = $.child(select_15);
+		var fragment_10 = $.comment();
+		var node_9 = $.first_child(fragment_10);
+
+		$.html(node_9, () => html);
+		$.append(anchor_8, fragment_10);
+	});
+
+	var select_16 = $.sibling(select_15, 2);
+	var optgroup_2 = $.child(select_16);
+
+	$.customizable_select(optgroup_2, () => {
+		var anchor_9 = $.child(optgroup_2);
+		var fragment_11 = $.comment();
+		var node_10 = $.first_child(fragment_11);
+
+		Option(node_10, {});
+		$.append(anchor_9, fragment_11);
+	});
+
+	$.reset(select_16);
+
+	var select_17 = $.sibling(select_16, 2);
+	var optgroup_3 = $.child(select_17);
+
+	$.customizable_select(optgroup_3, () => {
+		var anchor_10 = $.child(optgroup_3);
+		var fragment_12 = $.comment();
+		var node_11 = $.first_child(fragment_12);
+
+		option_snippet2(node_11);
+		$.append(anchor_10, fragment_12);
+	});
+
+	$.reset(select_17);
+
+	var select_18 = $.sibling(select_17, 2);
+	var option_16 = $.child(select_18);
+
+	$.customizable_select(option_16, () => {
+		var anchor_11 = $.child(option_16);
+		var fragment_13 = $.comment();
+		var node_12 = $.first_child(fragment_13);
+
+		$.html(node_12, () => '<strong>Bold HTML</strong>');
+		$.append(anchor_11, fragment_13);
+	});
+
+	$.reset(select_18);
+
+	var select_19 = $.sibling(select_18, 2);
+
+	$.customizable_select(select_19, () => {
+		var anchor_12 = $.child(select_19);
+		var fragment_14 = $.comment();
+		var node_13 = $.first_child(fragment_14);
+
+		$.each(node_13, 1, () => items, $.index, ($$anchor, item) => {
+			Option($$anchor, {});
+		});
+
+		$.append(anchor_12, fragment_14);
+	});
+
+	var select_20 = $.sibling(select_19, 2);
+
+	$.customizable_select(select_20, () => {
+		var anchor_13 = $.child(select_20);
+		var fragment_16 = $.comment();
+		var node_14 = $.first_child(fragment_16);
+
+		{
+			var consequent_2 = ($$anchor) => {
+				conditional_option($$anchor);
+			};
+
+			$.if(node_14, ($$render) => {
+				if (show) $$render(consequent_2);
+			});
+		}
+
+		$.append(anchor_13, fragment_16);
+	});
+
+	$.append($$anchor, fragment);
+}
+=== 177 packages/svelte/tests/snapshot/samples/select-with-rich-content/_expected/server/Option.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Option($$renderer) {
+	$$renderer.option({}, ($$renderer) => {
+		$$renderer.push(`Component Option`);
+	});
+}
+=== 4993 packages/svelte/tests/snapshot/samples/select-with-rich-content/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+import Option from './Option.svelte';
+
+function opt($$renderer) {
+	$$renderer.option({}, ($$renderer) => {
+		$$renderer.push(`Snippet`);
+	});
+}
+
+function option_snippet($$renderer) {
+	$$renderer.option({}, ($$renderer) => {
+		$$renderer.push(`Rendered`);
+	});
+}
+
+function option_snippet2($$renderer) {
+	$$renderer.option({}, ($$renderer) => {
+		$$renderer.push(`Rendered in group`);
+	});
+}
+
+function conditional_option($$renderer) {
+	$$renderer.option({}, ($$renderer) => {
+		$$renderer.push(`Conditional`);
+	});
+}
+
+export default function Select_with_rich_content($$renderer) {
+	let items = [1, 2, 3];
+	let show = true;
+	let html = '<option>From HTML</option>';
+
+	$$renderer.push(`<select>`);
+
+	$$renderer.option(
+		{},
+		($$renderer) => {
+			$$renderer.push(`<span>Rich</span>`);
+		},
+		void 0,
+		void 0,
+		void 0,
+		void 0,
+		true
+	);
+
+	$$renderer.push(`</select> <select><!--[-->`);
+
+	const each_array = $.ensure_array_like(items);
+
+	for (let $$index = 0, $$length = each_array.length; $$index < $$length; $$index++) {
+		let item = each_array[$$index];
+
+		$$renderer.option({}, item);
+	}
+
+	$$renderer.push(`<!--]--></select> <select>`);
+
+	if (show) {
+		$$renderer.push('<!--[0-->');
+
+		$$renderer.option({}, ($$renderer) => {
+			$$renderer.push(`Visible`);
+		});
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]--></select> <select><!---->`);
+
+	{
+		$$renderer.option({}, ($$renderer) => {
+			$$renderer.push(`Keyed`);
+		});
+	}
+
+	$$renderer.push(`<!----></select>  <select>`);
+	opt($$renderer);
+	$$renderer.push(`<!----><!></select> <select><!--[-->`);
+
+	const each_array_1 = $.ensure_array_like(items);
+
+	for (let $$index_1 = 0, $$length = each_array_1.length; $$index_1 < $$length; $$index_1++) {
+		let item = each_array_1[$$index_1];
+		const x = item * 2;
+
+		$$renderer.option({}, x);
+	}
+
+	$$renderer.push(`<!--]--></select> <select><optgroup label="Group">`);
+
+	$$renderer.option(
+		{},
+		($$renderer) => {
+			$$renderer.push(`<strong>Bold</strong>`);
+		},
+		void 0,
+		void 0,
+		void 0,
+		void 0,
+		true
+	);
+
+	$$renderer.push(`</optgroup></select> <select><optgroup label="Group"><!--[-->`);
+
+	const each_array_2 = $.ensure_array_like(items);
+
+	for (let $$index_2 = 0, $$length = each_array_2.length; $$index_2 < $$length; $$index_2++) {
+		let item = each_array_2[$$index_2];
+
+		$$renderer.option({}, item);
+	}
+
+	$$renderer.push(`<!--]--></optgroup></select> <select>`);
+
+	$$renderer.option(
+		{ value: 'a' },
+		($$renderer) => {
+			$$renderer.push(`<em>Italic</em> text`);
+		},
+		void 0,
+		void 0,
+		void 0,
+		void 0,
+		true
+	);
+
+	$$renderer.push(`</select> <select><!--[-->`);
+
+	const each_array_3 = $.ensure_array_like(items);
+
+	for (let $$index_3 = 0, $$length = each_array_3.length; $$index_3 < $$length; $$index_3++) {
+		let item = each_array_3[$$index_3];
+
+		$$renderer.option(
+			{},
+			($$renderer) => {
+				$$renderer.push(`<span>${$.escape(item)}</span>`);
+			},
+			void 0,
+			void 0,
+			void 0,
+			void 0,
+			true
+		);
+	}
+
+	$$renderer.push(`<!--]--></select> <select>`);
+
+	if (show) {
+		$$renderer.push(`<!--[0--><!--[-->`);
+
+		const each_array_4 = $.ensure_array_like(items);
+
+		for (let $$index_4 = 0, $$length = each_array_4.length; $$index_4 < $$length; $$index_4++) {
+			let item = each_array_4[$$index_4];
+
+			$$renderer.option({}, item);
+		}
+
+		$$renderer.push(`<!--]-->`);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]--></select> <select>`);
+	$$renderer.push(`<!--[-->`);
+
+	{
+		$$renderer.option({}, ($$renderer) => {
+			$$renderer.push(`Boundary`);
+		});
+	}
+
+	$$renderer.push(`<!--]-->`);
+	$$renderer.push(`</select> <select>`);
+	$$renderer.push(`<!--[-->`);
+
+	{
+		$$renderer.option(
+			{},
+			($$renderer) => {
+				$$renderer.push(`<span>Rich in boundary</span>`);
+			},
+			void 0,
+			void 0,
+			void 0,
+			void 0,
+			true
+		);
+	}
+
+	$$renderer.push(`<!--]-->`);
+	$$renderer.push(`</select> <select>`);
+	Option($$renderer, {});
+	$$renderer.push(`<!----><!></select>  <select>`);
+	option_snippet($$renderer);
+	$$renderer.push(`<!----><!></select> <select>${$.html(html)}<!></select> <select><optgroup label="Group">`);
+	Option($$renderer, {});
+	$$renderer.push(`<!----><!></optgroup></select>  <select><optgroup label="Group">`);
+	option_snippet2($$renderer);
+	$$renderer.push(`<!----><!></optgroup></select> <select>`);
+
+	$$renderer.option(
+		{},
+		($$renderer) => {
+			$$renderer.push(`${$.html('<strong>Bold HTML</strong>')}`);
+		},
+		void 0,
+		void 0,
+		void 0,
+		void 0,
+		true
+	);
+
+	$$renderer.push(`</select> <select><!--[-->`);
+
+	const each_array_5 = $.ensure_array_like(items);
+
+	for (let $$index_5 = 0, $$length = each_array_5.length; $$index_5 < $$length; $$index_5++) {
+		let item = each_array_5[$$index_5];
+
+		Option($$renderer, {});
+	}
+
+	$$renderer.push(`<!--]--><!></select>  <select>`);
+
+	if (show) {
+		$$renderer.push('<!--[0-->');
+		conditional_option($$renderer);
+	} else {
+		$$renderer.push('<!--[-1-->');
+	}
+
+	$$renderer.push(`<!--]--><!></select>`);
+}
 === 3811 packages/svelte/tests/snapshot/samples/select-with-rich-content/index.svelte	svelte	runes	neutral
 <script>
 	let items = [1, 2, 3];
@@ -42679,6 +46334,64 @@ export { random };
 	{/if}
 </select>
 
+=== 1556 packages/svelte/tests/snapshot/samples/skip-static-subtree/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<header><nav><a href="/">Home</a> <a href="/away">Away</a></nav></header> <main><h1> </h1> <div class="static"><p>we don't need to traverse these nodes</p></div> <p>or</p> <p>these</p> <p>ones</p> <!> <p>these</p> <p>trailing</p> <p>nodes</p> <p>can</p> <p>be</p> <p>completely</p> <p>ignored</p></main> <cant-skip><custom-elements></custom-elements></cant-skip> <div><input/></div> <div><source/></div> <select><option>a</option></select> <img src="..." alt="" loading="lazy"/> <div><img src="..." alt="" loading="lazy"/></div>`, 3);
+
+export default function Skip_static_subtree($$anchor, $$props) {
+	var fragment = root();
+	var main = $.sibling($.first_child(fragment), 2);
+	var h1 = $.child(main);
+	var text = $.only_child(h1, true);
+	var node = $.sibling(h1, 10);
+
+	$.html(node, () => $$props.content);
+	$.next(14);
+	$.reset(main);
+
+	var cant_skip = $.sibling(main, 2);
+	var custom_elements = $.child(cant_skip);
+
+	$.set_custom_element_data(custom_elements, 'with', 'attributes');
+	$.reset(cant_skip);
+
+	var div = $.sibling(cant_skip, 2);
+	var input = $.child(div);
+
+	$.autofocus(input, true);
+	$.reset(div);
+
+	var div_1 = $.sibling(div, 2);
+	var source = $.child(div_1);
+
+	source.muted = true;
+	$.reset(div_1);
+
+	var select = $.sibling(div_1, 2);
+	var option = $.child(select);
+
+	option.value = option.__value = 'a';
+	$.reset(select);
+	$.next(4);
+	$.template_effect(() => $.set_text(text, $$props.title));
+	$.append($$anchor, fragment);
+}
+=== 860 packages/svelte/tests/snapshot/samples/skip-static-subtree/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Skip_static_subtree($$renderer, $$props) {
+	let { title, content } = $$props;
+
+	$$renderer.push(`<header><nav><a href="/">Home</a> <a href="/away">Away</a></nav></header> <main><h1>${$.escape(title)}</h1> <div class="static"><p>we don't need to traverse these nodes</p></div> <p>or</p> <p>these</p> <p>ones</p> ${$.html(content)} <p>these</p> <p>trailing</p> <p>nodes</p> <p>can</p> <p>be</p> <p>completely</p> <p>ignored</p></main> <cant-skip><custom-elements with="attributes"></custom-elements></cant-skip> <div><input autofocus=""/></div> <div><source muted=""/></div> <select>`);
+
+	$$renderer.option({ value: 'a' }, ($$renderer) => {
+		$$renderer.push(`a`);
+	});
+
+	$$renderer.push(`</select> <img src="..." alt="" loading="lazy"/> <div><img src="..." alt="" loading="lazy"/></div>`);
+}
 === 740 packages/svelte/tests/snapshot/samples/skip-static-subtree/index.svelte	svelte	runes	runes
 <script>
 	let { title, content } = $props();
@@ -42730,6 +46443,57 @@ export { random };
 <div>
 	<img src="..." alt="" loading="lazy" />
 </div>
+=== 814 packages/svelte/tests/snapshot/samples/state-proxy-literal/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<input/> <input/> <button>reset</button>`, 1);
+
+export default function State_proxy_literal($$anchor) {
+	let str = $.state('');
+	let tpl = $.state(``);
+
+	function reset() {
+		$.set(str, '');
+		$.set(str, ``);
+		$.set(tpl, '');
+		$.set(tpl, ``);
+	}
+
+	var fragment = root();
+	var input = $.first_child(fragment);
+
+	$.remove_input_defaults(input);
+
+	var input_1 = $.sibling(input, 2);
+
+	$.remove_input_defaults(input_1);
+
+	var button = $.sibling(input_1, 2);
+
+	$.bind_value(input, () => $.get(str), ($$value) => $.set(str, $$value));
+	$.bind_value(input_1, () => $.get(tpl), ($$value) => $.set(tpl, $$value));
+	$.delegated('click', button, reset);
+	$.append($$anchor, fragment);
+}
+
+$.delegate(['click']);
+=== 316 packages/svelte/tests/snapshot/samples/state-proxy-literal/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function State_proxy_literal($$renderer) {
+	let str = '';
+	let tpl = ``;
+
+	function reset() {
+		str = '';
+		str = ``;
+		tpl = '';
+		tpl = ``;
+	}
+
+	$$renderer.push(`<input${$.attr('value', str)}/> <input${$.attr('value', tpl)}/> <button>reset</button>`);
+}
 === 233 packages/svelte/tests/snapshot/samples/state-proxy-literal/index.svelte	svelte	runes	runes
 <script>
 	let str = $state('');
@@ -42749,6 +46513,26 @@ export { random };
 
 <button onclick={reset}>reset</button>
 
+=== 322 packages/svelte/tests/snapshot/samples/svelte-element/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+export default function Svelte_element($$anchor, $$props) {
+	let tag = $.prop($$props, 'tag', 3, 'hr');
+	var fragment = $.comment();
+	var node = $.first_child(fragment);
+
+	$.element(node, tag, false);
+	$.append($$anchor, fragment);
+}
+=== 170 packages/svelte/tests/snapshot/samples/svelte-element/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Svelte_element($$renderer, $$props) {
+	let { tag = 'hr' } = $$props;
+
+	$.element($$renderer, tag);
+}
 === 83 packages/svelte/tests/snapshot/samples/svelte-element/index.svelte	svelte	runes	runes
 <script>
 	let { tag = 'hr' } = $props();
@@ -42756,6 +46540,47 @@ export { random };
 
 <svelte:element this={tag}  />
 
+=== 479 packages/svelte/tests/snapshot/samples/text-nodes-deriveds/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import * as $ from 'svelte/internal/client';
+
+var root = $.from_html(`<p> </p>`);
+
+export default function Text_nodes_deriveds($$anchor) {
+	let count1 = 0;
+	let count2 = 0;
+
+	function text1() {
+		return count1;
+	}
+
+	function text2() {
+		return count2;
+	}
+
+	var p = root();
+	var text = $.only_child(p);
+
+	$.template_effect(($0, $1) => $.set_text(text, `${$0 ?? ''}${$1 ?? ''}`), [() => text1(), () => text2()]);
+	$.append($$anchor, p);
+}
+=== 291 packages/svelte/tests/snapshot/samples/text-nodes-deriveds/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Text_nodes_deriveds($$renderer) {
+	let count1 = 0;
+	let count2 = 0;
+
+	function text1() {
+		return count1;
+	}
+
+	function text2() {
+		return count2;
+	}
+
+	$$renderer.push(`<p>${$.escape(text1())}${$.escape(text2())}</p>`);
+}
 === 171 packages/svelte/tests/snapshot/samples/text-nodes-deriveds/index.svelte	svelte	runes	runes
 <script>
 	let count1=$state(0);
@@ -42771,6 +46596,45 @@ export { random };
 </script>
 
 <p>{text1()}{text2()}</p>
+=== 509 packages/svelte/tests/snapshot/samples/typescript-optional-parameter/_expected/client/index.svelte.js	svelte-module-js	runes	rejected
+import 'svelte/internal/disclose-version';
+import 'svelte/internal/flags/legacy';
+import * as $ from 'svelte/internal/client';
+
+export default function Typescript_optional_parameter($$anchor) {
+	// the `?` on the optional parameter must be stripped, but optional chaining
+	// (`x?.length`, `o?.b`) must be preserved
+	function a(x) {
+		return x?.length;
+	}
+
+	const o = {};
+	const v = o?.b?.c;
+
+	a();
+	$.next();
+
+	var text = $.text();
+
+	$.template_effect(() => $.set_text(text, v));
+	$.append($$anchor, text);
+}
+=== 363 packages/svelte/tests/snapshot/samples/typescript-optional-parameter/_expected/server/index.svelte.js	svelte-module-js	runes	rejected
+import * as $ from 'svelte/internal/server';
+
+export default function Typescript_optional_parameter($$renderer) {
+	// the `?` on the optional parameter must be stripped, but optional chaining
+	// (`x?.length`, `o?.b`) must be preserved
+	function a(x) {
+		return x?.length;
+	}
+
+	const o = {};
+	const v = o?.b?.c;
+
+	a();
+	$$renderer.push(`<!---->${$.escape(v)}`);
+}
 === 271 packages/svelte/tests/snapshot/samples/typescript-optional-parameter/index.svelte	svelte	runes	neutral
 <script lang="ts">
 	// the `?` on the optional parameter must be stripped, but optional chaining
@@ -46142,6 +50006,23 @@ derived(
 <button tabindex='1'>click me</button>
 <button tabindex='{foo}'>click me</button>
 
+=== 95 packages/svelte/tests/validator/samples/action-on-component/input.svelte	svelte	runes	rejected
+<script>
+	import Widget from './Widget.svelte';
+
+	function foo(){}
+</script>
+
+<Widget use:foo/>
+=== 134 packages/svelte/tests/validator/samples/animation-duplicate/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+	function bar() {}
+</script>
+
+{#each things as thing (thing)}
+	<div animate:foo animate:bar></div>
+{/each}
 === 137 packages/svelte/tests/validator/samples/animation-each-with-const/input.svelte	svelte	runes	neutral
 <script>
   function flip(){}
@@ -46175,6 +50056,38 @@ derived(
 	{#each [] as n (n)} <div animate:flip></div> {/each}
 </div>
 
+=== 62 packages/svelte/tests/validator/samples/animation-not-in-each/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+</script>
+
+<div animate:foo></div>
+=== 120 packages/svelte/tests/validator/samples/animation-not-in-keyed-each/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+</script>
+
+{#each things as thing}
+	<div animate:foo></div>
+	<div animate:foo></div>
+{/each}
+=== 101 packages/svelte/tests/validator/samples/animation-on-component/input.svelte	svelte	runes	rejected
+<script>
+	import Widget from './Widget.svelte';
+
+	function foo() {}
+</script>
+
+<Widget animate:foo />
+=== 128 packages/svelte/tests/validator/samples/animation-siblings/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+</script>
+
+{#each things as thing (thing)}
+	<div animate:foo></div>
+	<div animate:foo></div>
+{/each}
 === 24 packages/svelte/tests/validator/samples/anonymous-declarations/class.svelte.js	svelte-module-js	runes	-
 export default class {}
 
@@ -46187,10 +50100,84 @@ export default function () {}
 	import klass from './class.svelte.js';
 </script>
 
+=== 312 packages/svelte/tests/validator/samples/assignment-to-const-2/input.svelte	svelte	runes	rejected
+<script>
+	const immutable = 0;
+
+	const obj1 = { prop: true };
+	const obj2 = { prop: 0 }
+</script>
+
+<!-- should not error -->
+<button on:click={() => obj1.prop = false}>click</button>
+<button on:click={() => obj2.prop++}>click</button>
+
+<!-- should error -->
+<button on:click={() => immutable++}>click</button>
+
+
+
+=== 293 packages/svelte/tests/validator/samples/assignment-to-const-3/input.svelte	svelte	runes	rejected
+<script>
+	const foo = 'hello';
+	
+	function shouldNotError() {
+		let foo = 0;
+		
+		function inner() {
+			foo = 1;
+		}
+	}
+	
+	function shouldError() {
+		function inner() {
+			foo = 1;
+		}
+	}
+</script>
+
+<button on:click={shouldNotError}>click</button>
+<button on:click={shouldError}>click</button>
+=== 221 packages/svelte/tests/validator/samples/assignment-to-const-4/input.svelte	svelte	runes	rejected
+<script>
+	const foo = 'hello';
+</script>
+
+<button on:click={() => {
+	let foo = 0;
+		
+	function inner() {
+		foo = 1;
+	}
+}}>
+	click
+</button>
+
+<button on:click={() => {
+	function inner() {
+		foo = 1;
+	}
+}}>
+	click
+</button>
+=== 81 packages/svelte/tests/validator/samples/assignment-to-const-5/input.svelte	svelte	runes	rejected
+<script>
+	const arr = [1, 2];
+	[arr, arr[1]] = [arr[1], arr[0]];
+</script>
+
+{arr}
 === 84 packages/svelte/tests/validator/samples/assignment-to-const-6/input.svelte	svelte	runes	neutral
 <script>
 	const arr = [1, 2];
 	[arr[0], arr[1]] = [arr[1], arr[0]];
+</script>
+
+{arr}
+=== 102 packages/svelte/tests/validator/samples/assignment-to-const-7/input.svelte	svelte	runes	rejected
+<script>
+	const arr = [{1: {arr: 2}}, 2];
+	[{1: { arr }}, arr[1]] = [arr[1], arr[0]];
 </script>
 
 {arr}
@@ -46201,6 +50188,54 @@ export default function () {}
 </script>
 
 {arr}
+
+=== 404 packages/svelte/tests/validator/samples/assignment-to-const/input.svelte	svelte	runes	rejected
+<script>
+	const immutable = false;
+
+	const obj1 = { prop: true };
+	const obj2 = { prop: 0 };
+
+	function shouldNotError() {
+		obj1.prop = false;
+	}
+
+	function shouldNotError2() {
+		obj2.prop++;
+	}
+
+	function shouldError() {
+		immutable = true
+	}
+
+	
+</script>
+
+<button on:click={shouldNotError}>click</button>
+<button on:click={shouldNotError2}>click</button>
+<button on:click={shouldError}>click</button>
+
+=== 76 packages/svelte/tests/validator/samples/attribute-expected-equals/input.svelte	svelte	runes	rejected
+<script>
+	let name = 'world';
+</script>
+
+<h1 class"=foo">Hello {name}!</h1>
+
+=== 22 packages/svelte/tests/validator/samples/attribute-invalid-name-2/input.svelte	svelte	runes	rejected
+<p 3aa="abc">Test</p>
+
+=== 16 packages/svelte/tests/validator/samples/attribute-invalid-name-3/input.svelte	svelte	runes	rejected
+<p a*a>Test</p>
+
+=== 15 packages/svelte/tests/validator/samples/attribute-invalid-name-4/input.svelte	svelte	runes	rejected
+<p -a>Test</p>
+
+=== 21 packages/svelte/tests/validator/samples/attribute-invalid-name-5/input.svelte	svelte	runes	rejected
+<p a;="abc">Test</p>
+
+=== 14 packages/svelte/tests/validator/samples/attribute-invalid-name/input.svelte	svelte	runes	rejected
+<p }>Test</p>
 
 === 528 packages/svelte/tests/validator/samples/attribute-quoted/input.svelte	svelte	runes	runes
 <svelte:options runes />
@@ -46267,6 +50302,50 @@ export default function () {}
 <!-- svelte-ignore bidirectional_control_characters -->
 ⁧⁦def⁩⁦abc⁩⁩
 
+=== 81 packages/svelte/tests/validator/samples/bind-group-snippet-parameter/input.svelte	svelte	runes	rejected
+{#snippet test(group)}
+	<input type="radio" bind:group={group.name} />
+{/snippet}
+=== 311 packages/svelte/tests/validator/samples/bind_group_invalid_expression/input.svelte	svelte	runes	rejected
+<script>
+	let values = $state([{ name: 'Alpha' }, { name: 'Beta' }, { name: 'Gamma' }]);
+	let selected = $state(values[1]);
+</script>
+
+{#each values as value}
+	<label>
+		<input type="radio" value="{value}" bind:group={() => selected, v => selected = v} /> {value.name}
+	</label>
+{/each}
+
+<p>{selected.name}</p>
+
+=== 110 packages/svelte/tests/validator/samples/binding-await-catch/input.svelte	svelte	runes	rejected
+<script>
+  let promise = 0;
+</script>
+{#await promise}
+{:catch error}
+  <input bind:value={error} />
+{/await}
+
+=== 101 packages/svelte/tests/validator/samples/binding-await-then-2/input.svelte	svelte	runes	rejected
+<script>
+  let promise = 0;
+</script>
+{#await promise}
+{:then value}
+  <input bind:value />
+{/await}
+
+=== 98 packages/svelte/tests/validator/samples/binding-await-then/input.svelte	svelte	runes	rejected
+<script>
+  let promise = 0;
+</script>
+{#await promise then value}
+  <input bind:value />
+{/await}
+
 === 85 packages/svelte/tests/validator/samples/binding-const-field/input.svelte	svelte	runes	neutral
 <script>
 	const dummy = {
@@ -46276,6 +50355,107 @@ export default function () {}
 
 <input bind:value={dummy.foo}>
 
+=== 69 packages/svelte/tests/validator/samples/binding-const/input.svelte	svelte	runes	rejected
+<script>
+	const dummy = 'foo';
+</script>
+
+<input bind:value={dummy}>
+
+=== 66 packages/svelte/tests/validator/samples/binding-dimensions-svg/input.svelte	svelte	runes	rejected
+<script>
+	let offsetWidth;
+</script>
+
+<svg bind:offsetWidth></svg>
+=== 123 packages/svelte/tests/validator/samples/binding-import-component/input.svelte	svelte	runes	rejected
+<script>
+	import Input from './Input.svelte';
+	import { dummy } from './dummy.js';
+</script>
+
+<Input bind:value={dummy} />
+
+=== 84 packages/svelte/tests/validator/samples/binding-import-element/input.svelte	svelte	runes	rejected
+<script>
+	import { dummy } from './dummy.js';
+</script>
+
+<input bind:value={dummy}>
+
+=== 56 packages/svelte/tests/validator/samples/binding-input-checked/input.svelte	svelte	runes	rejected
+<script>
+	let foo;
+</script>
+
+<input bind:checked={foo}>
+=== 59 packages/svelte/tests/validator/samples/binding-input-type-boolean/input.svelte	svelte	runes	rejected
+<script>
+	let foo;
+</script>
+
+<input bind:value={foo} type>
+=== 53 packages/svelte/tests/validator/samples/binding-invalid-on-element-2/input.svelte	svelte	runes	rejected
+<script>
+	let open;
+</script>
+
+<div bind:open></div>
+
+=== 54 packages/svelte/tests/validator/samples/binding-invalid-on-element/input.svelte	svelte	runes	rejected
+<script>
+	let value;
+</script>
+
+<div bind:value></div>
+=== 64 packages/svelte/tests/validator/samples/binding-invalid-value-global/input.svelte	svelte	runes	rejected
+<script>
+		console.log(foo);
+</script>
+<input bind:value={foo}>
+
+=== 42 packages/svelte/tests/validator/samples/binding-invalid-value/input.svelte	svelte	runes	rejected
+<script></script>
+<input bind:value={foo}>
+=== 60 packages/svelte/tests/validator/samples/binding-invalid/input.svelte	svelte	runes	rejected
+<script>
+	let whatever;
+</script>
+
+<div bind:whatever></div>
+=== 76 packages/svelte/tests/validator/samples/binding-let/input.svelte	svelte	runes	rejected
+<script>
+	let Foo;
+</script>
+
+<Foo let:bar>
+	<input bind:value={bar}>
+</Foo>
+=== 69 packages/svelte/tests/validator/samples/binding-radio-input-checked/input.svelte	svelte	runes	rejected
+<script>
+	let foo;
+</script>
+
+<input type="radio" bind:checked={foo}>
+=== 283 packages/svelte/tests/validator/samples/binding-select-multiple-dynamic/input.svelte	svelte	runes	rejected
+<script>
+	let value;
+	let multiple;
+</script>
+
+<!-- ok -->
+<select bind:this={value} {multiple}>
+	<option>1</option>
+	<option>2</option>
+	<option>3</option>
+</select>
+
+<!-- error -->
+<select bind:value {multiple}>
+	<option>1</option>
+	<option>2</option>
+	<option>3</option>
+</select>
 === 86 packages/svelte/tests/validator/samples/binding-this-input-type-dynamic/input.svelte	svelte	runes	neutral
 <script>
 	let foo;
@@ -46298,6 +50478,111 @@ export default function () {}
 
 {String(value)}
 
+=== 92 packages/svelte/tests/validator/samples/class-state-constructor-1/input.svelte.js	svelte-module-js	runes	rejected
+export class Counter {
+	count = $state(0);
+
+	constructor() {
+		this.count = $state(0);
+	}
+}
+
+=== 110 packages/svelte/tests/validator/samples/class-state-constructor-10/input.svelte.js	svelte-module-js	runes	rejected
+export class Counter {
+	constructor() {
+		if (true) {
+			this.count = -1;
+		}
+
+		this.count = $state(0);
+	}
+}
+
+=== 115 packages/svelte/tests/validator/samples/class-state-constructor-2/input.svelte.js	svelte-module-js	runes	rejected
+export class Counter {
+	constructor() {
+		this.count = $state(0);
+		this.count = 1;
+		this.count = $state(0);
+	}
+}
+
+=== 119 packages/svelte/tests/validator/samples/class-state-constructor-3/input.svelte.js	svelte-module-js	runes	rejected
+export class Counter {
+	constructor() {
+		this.count = $state(0);
+		this.count = 1;
+		this.count = $state.raw(0);
+	}
+}
+
+=== 90 packages/svelte/tests/validator/samples/class-state-constructor-4/input.svelte.js	svelte-module-js	runes	rejected
+export class Counter {
+	constructor() {
+		if (true) {
+			this.count = $state(0);
+		}
+	}
+}
+
+=== 116 packages/svelte/tests/validator/samples/class-state-constructor-5/input.svelte.js	svelte-module-js	runes	rejected
+export class Counter {
+	// prettier-ignore
+	'count' = $state(0);
+	constructor() {
+		this['count'] = $state(0);
+	}
+}
+
+=== 94 packages/svelte/tests/validator/samples/class-state-constructor-6/input.svelte.js	svelte-module-js	runes	rejected
+export class Counter {
+	count = $state(0);
+	constructor() {
+		this['count'] = $state(0);
+	}
+}
+
+=== 96 packages/svelte/tests/validator/samples/class-state-constructor-7/input.svelte.js	svelte-module-js	runes	rejected
+const count = 'count';
+
+export class Counter {
+	constructor() {
+		this[count] = $state(0);
+	}
+}
+
+=== 90 packages/svelte/tests/validator/samples/class-state-constructor-8/input.svelte.js	svelte-module-js	runes	rejected
+export class Counter {
+	constructor() {
+		this.count = -1;
+		this.count = $state(0);
+	}
+}
+
+=== 103 packages/svelte/tests/validator/samples/class-state-constructor-9/input.svelte.js	svelte-module-js	runes	rejected
+export class Counter {
+	count = -1;
+	static count() {}
+	constructor() {
+		this.count = $state(0);
+	}
+}
+
+=== 135 packages/svelte/tests/validator/samples/component-event-modifiers-invalid/input.svelte	svelte	runes	rejected
+<script>
+	import Button from './Button.svelte';
+	const doThat = () => {};
+</script>
+
+<Button on:click|preventDefault={doThat}></Button>
+=== 117 packages/svelte/tests/validator/samples/component-invalid-style-directive/input.svelte	svelte	runes	rejected
+<script>
+	let name = 'world';
+	
+	import Child from 'Child.svelte';
+</script>
+
+<Child name={name} style:color="red" />
 === 279 packages/svelte/tests/validator/samples/component-legacy-instantiation/input.svelte	svelte	runes	neutral
 <script>
 	import Foo, { Bar } from './Somewhere.svelte';
@@ -46331,6 +50616,34 @@ export default function () {}
 </script>
 
 <NS.Foo/>
+=== 28 packages/svelte/tests/validator/samples/component-slot-default-reserved/input.svelte	svelte	runes	rejected
+<slot name='default'></slot>
+=== 115 packages/svelte/tests/validator/samples/component-slot-dynamic-attribute/input.svelte	svelte	runes	rejected
+<script>
+	import Nested from './Nested.svelte';
+</script>
+
+<Nested>
+	<button slot={foo}>click me</button>
+</Nested>
+=== 26 packages/svelte/tests/validator/samples/component-slot-dynamic/input.svelte	svelte	runes	rejected
+<slot name='{foo}'></slot>
+=== 203 packages/svelte/tests/validator/samples/component-slotted-custom-element-2/input.svelte	svelte	runes	rejected
+<script>
+	import Nested from './Nested.svelte';
+	let thing = false;
+</script>
+
+<custom-element>
+	<Nested>
+		{#if thing}
+			<div>
+				<div slot='bar'></div>
+			</div>
+		{/if}
+	</Nested>
+</custom-element>
+
 === 226 packages/svelte/tests/validator/samples/component-slotted-custom-element/input.svelte	svelte	runes	neutral
 <script>
 	import Nested from './Nested.svelte';
@@ -46348,11 +50661,68 @@ export default function () {}
 	</custom-element>
 </Nested>
 
+=== 143 packages/svelte/tests/validator/samples/component-slotted-each-block/input.svelte	svelte	runes	rejected
+<script>
+	import Nested from './Nested.svelte';
+</script>
+
+<Nested>
+	{#each things as thing}
+		<div slot='foo'>{thing}</div>
+	{/each}
+</Nested>
+=== 129 packages/svelte/tests/validator/samples/component-slotted-if-block/input.svelte	svelte	runes	rejected
+<script>
+	import Nested from './Nested.svelte';
+</script>
+
+<Nested>
+	{#if thing}
+		<div slot='foo'>{thing}</div>
+	{/if}
+</Nested>
+=== 109 packages/svelte/tests/validator/samples/const-tag-conflict-1/input.svelte	svelte	runes	rejected
+<script>
+  export let array;
+</script>
+
+{#each array as item}
+  {@const a = item}
+  {@const a = item}
+{/each}
+=== 91 packages/svelte/tests/validator/samples/const-tag-conflict-2/input.svelte	svelte	runes	rejected
+<script>
+  export let array;
+</script>
+
+{#each array as item}
+  {@const item = 123}
+{/each}
 === 42 packages/svelte/tests/validator/samples/const-tag-inside-key-block/input.svelte	svelte	runes	neutral
 {#key 'key'}
 	{@const foo = 'bar'}
 {/key}
 
+=== 56 packages/svelte/tests/validator/samples/const-tag-invalid-rune-usage/input.svelte	svelte	runes	rejected
+{#snippet test()}
+	{@const der = $derived(0)}
+{/snippet}
+=== 54 packages/svelte/tests/validator/samples/const-tag-placement-1/input.svelte	svelte	runes	rejected
+<script>
+  export let a;
+</script>
+
+{@const b = a + 1}
+=== 94 packages/svelte/tests/validator/samples/const-tag-placement-2/input.svelte	svelte	runes	rejected
+<script>
+  export let a;
+</script>
+
+{#each a as i}
+  <div>
+    {@const b = i}
+  </div>
+{/each}
 === 120 packages/svelte/tests/validator/samples/const-tag-placement-svelte-boundary/input.svelte	svelte	runes	runes
 <script>
   let a = $state("");
@@ -46363,6 +50733,299 @@ export default function () {}
 	{x}
 	<FlakyComponent />
 </svelte:boundary>
+
+=== 130 packages/svelte/tests/validator/samples/const-tag-readonly-1/input.svelte	svelte	runes	rejected
+<script>
+  export let array;
+</script>
+
+{#each array as a}
+  {@const b = a + 1}
+  <button on:click={() => b ++}></button>
+{/each}
+
+=== 114 packages/svelte/tests/validator/samples/const-tag-readonly-2/input.svelte	svelte	runes	rejected
+<script>
+  export let array;
+</script>
+
+{#each array as a}
+  {@const b = a + 1}
+  <input bind:value={b} />
+{/each}
+=== 335 packages/svelte/tests/validator/samples/contenteditable-dynamic/input.svelte	svelte	runes	rejected
+<script>
+    export let name;
+
+    let toggle = false;
+</script>
+<!-- ok -->
+<editor contenteditable="true" bind:innerHTML={name}></editor>
+<editor contenteditable="" bind:innerHTML={name}></editor>
+<editor contenteditable bind:innerHTML={name}></editor>
+<!-- error -->
+<editor contenteditable={toggle} bind:innerHTML={name}></editor>
+
+=== 82 packages/svelte/tests/validator/samples/contenteditable-missing/input.svelte	svelte	runes	rejected
+<script>
+    export let name;
+</script>
+<editor bind:textContent={name}></editor>
+
+=== 123 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-1/input.svelte	svelte	runes	rejected
+<p><span /></p>
+
+<style>
+	p > span {
+		color: red;
+	}
+	:has(> span) {
+		color: red;
+	}
+	> span {
+		color: red;
+	}
+</style>
+
+=== 100 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-2/input.svelte	svelte	runes	rejected
+<p><span /></p>
+<p><span /></p>
+
+<style>
+	p + p {
+		color: red;
+	}
+	+ p {
+		color: red;
+	}
+</style>
+
+=== 84 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-3/input.svelte	svelte	runes	rejected
+<p><span /></p>
+
+<style>
+	@media screen {
+		> span {
+			color: red;
+		}
+	}
+</style>
+
+=== 58 packages/svelte/tests/validator/samples/css-invalid-combinator-selector-4/input.svelte	svelte	runes	rejected
+<p><span /></p>
+
+<style>
+	p > {
+		color: red;
+	}
+</style>
+
+=== 172 packages/svelte/tests/validator/samples/css-invalid-global-placement-2/input.svelte	svelte	runes	rejected
+<style>
+	.foo :global(.bar):first-child {
+		color: red;
+	}
+	.foo :global(p):first-child {
+		color: red;
+	}
+	.foo :global(.bar):first-child .baz {
+		color: red;
+	}
+</style>
+
+=== 114 packages/svelte/tests/validator/samples/css-invalid-global-placement-3/input.svelte	svelte	runes	rejected
+<style>
+	.foo :global(.bar)::after {
+		color: red;
+	}
+	.foo :global(.bar)::after .baz {
+		color: red;
+	}
+</style>
+
+=== 54 packages/svelte/tests/validator/samples/css-invalid-global-placement-4/input.svelte	svelte	runes	rejected
+<style>
+	.foo:global(div) {
+		color: red;
+	}
+</style>
+
+=== 83 packages/svelte/tests/validator/samples/css-invalid-global-placement-5/input.svelte	svelte	runes	rejected
+<style>
+	.foo:global(div.bar) {
+		color: red;
+	}
+</style>
+
+<div class="foo"></div>
+
+=== 111 packages/svelte/tests/validator/samples/css-invalid-global-placement-6/input.svelte	svelte	runes	rejected
+<style>
+	:global(div):first-child {
+		color: red;
+	}
+	.foo:global(div):first-child {
+		color: red;
+	}
+</style>
+
+=== 60 packages/svelte/tests/validator/samples/css-invalid-global-placement/input.svelte	svelte	runes	rejected
+<style>
+	.foo :global(.bar) .baz {
+		color: red;
+	}
+</style>
+=== 244 packages/svelte/tests/validator/samples/css-invalid-global-selector-2/input.svelte	svelte	runes	rejected
+<style>
+	div :global(:is(h1, h2)) {
+		color: red;
+	}
+	div :global(:where(h1, h2)) {
+		color: red;
+	}
+	div :global(h1 ~ :is(h2, h3)) {
+		color: red;
+	}
+	div :global(:is(h1, h2), h3) {
+		color: red;
+	}
+</style>
+
+<div>
+	<h1>hello world</h1>
+</div>
+=== 181 packages/svelte/tests/validator/samples/css-invalid-global-selector-3/input.svelte	svelte	runes	rejected
+<style>
+	div :global(h1[data-title="Hello, world!"]) {
+		color: red;
+	}
+	div :global(h1[attribute], video[autoplay]) {
+		color: red;
+	}
+</style>
+
+<div>
+	<h1>hello world</h1>
+</div>
+
+=== 97 packages/svelte/tests/validator/samples/css-invalid-global-selector-4/input.svelte	svelte	runes	rejected
+<style>
+	div :global(h1, .abc\)) {
+		color: red;
+	}
+</style>
+
+<div>
+	<h1>hello world</h1>
+</div>
+
+=== 141 packages/svelte/tests/validator/samples/css-invalid-global-selector-5/input.svelte	svelte	runes	rejected
+<style>
+	:global(h1, h2, h3), div {
+		color: red;
+	}
+	:global(h1, h2, h3) div {
+		color: red;
+	}
+</style>
+
+<div>
+	<h1>hello world</h1>
+</div>
+=== 143 packages/svelte/tests/validator/samples/css-invalid-global-selector-6/input.svelte	svelte	runes	rejected
+<style>
+	:global(.h1\,h2\,h3)::foo {
+		color: red;
+	}
+	:global(h1, h2, h3)::foo {
+		color: red;
+	}
+</style>
+
+<div>
+	<h1>hello world</h1>
+</div>
+=== 335 packages/svelte/tests/validator/samples/css-invalid-global-selector-list/input.svelte	svelte	runes	rejected
+<style>
+	::foo:global([data-state='checked']) {
+		color: red;
+	}
+	::foo:global(.foo) {
+		color: red;
+	}
+	::foo:global(#foo) {
+		color: red;
+	}
+	::foo:global(::foo) {
+		color: red;
+	}
+	::foo:global(:foo) {
+		color: red;
+	}
+	:global(h1) {
+		color: red;
+	}
+	::foo:global(h1) {
+		color: red;
+	}
+</style>
+
+<div>
+	<h1>hello world</h1>
+</div>
+=== 226 packages/svelte/tests/validator/samples/css-invalid-global-selector/input.svelte	svelte	runes	rejected
+<style>
+	div :global(.h1\,h2\,h3) {
+		color: red;
+	}
+	:global(h1, h2, h3) {
+		color: red;
+	}
+	div, :global(h1, h2, h3) {
+		color: red;
+	}
+	div :global(h1, h2, h3) {
+		color: red;
+	}
+</style>
+
+<div>
+	<h1>hello world</h1>
+</div>
+=== 301 packages/svelte/tests/validator/samples/css-invalid-type-selector-placement/input.svelte	svelte	runes	rejected
+<style>
+	:global(.foo):foo {
+		color: red;
+	}
+	:global(.foo)::foo {
+		color: red;
+	}
+	:global(.foo).bar {
+		color: red;
+	}
+	:global(.foo)#baz {
+		color: red;
+	}
+	:global(.foo)[id] {
+		color: red;
+	}
+	:global(.foo)h1 {
+		color: red;
+	}
+</style>
+
+<div>
+	<h1 class="bar" id="baz">hello world</h1>
+</div>
+
+=== 77 packages/svelte/tests/validator/samples/css-mismatched-quotes/input.svelte	svelte	runes	rejected
+<div></div>
+
+<style>
+	div {
+		background-image: url("star.gif');
+	}
+</style>
 
 === 92 packages/svelte/tests/validator/samples/custom-element-props-identifier-props-option/input.svelte	svelte	runes	runes
 <svelte:options customElement={{
@@ -46384,10 +51047,65 @@ export default function () {}
 <script>
 	let props = $props();
 </script>
+=== 33 packages/svelte/tests/validator/samples/debug-invalid-args/input.svelte	svelte	runes	rejected
+<p>
+	{@debug a + b}
+	{a + b}
+</p>
+=== 56 packages/svelte/tests/validator/samples/declaration-tag-already-declared/input.svelte	svelte	runes	rejected
+<script>
+	let foo = 'bar';
+</script>
+
+{let foo = 'baz'}
+
 === 38 packages/svelte/tests/validator/samples/declaration-tag-invalid-function/input.svelte	svelte	runes	neutral
 {#if true}
 	{function foo() {}}
 {/if}
+
+=== 512 packages/svelte/tests/validator/samples/declaration-tag-invalid-type-2/input.svelte	svelte	runes	rejected
+<script lang="ts"></script>
+
+{#if true}
+	<!-- check that these doesn't trigger already -->
+	{type}
+	{type }
+	{type && foo}
+	{type || bar}
+	{type % 2}
+	{type .x}
+	{type ?.x}
+	{type ()}
+	{type [1]}
+	{type `tag`}
+	{type === 'all' ? 'All types' : type}
+	{type !== 'all'}
+	{type == 'all'}
+	{type != 'all'}
+	{type + 1}
+	{type - 1}
+	{type * 2}
+	{type / 2}
+	{type > 1}
+	{type instanceof Foo}
+	{type instanceof /* comment */ Object}
+	{type in foo}
+	<!-- ... this one should trigger though -->
+	{type foo = boolean}
+{/if}
+
+=== 32 packages/svelte/tests/validator/samples/declaration-tag-invalid-type/input.svelte	svelte	runes	rejected
+{#if true}
+	{var foo = 1}
+{/if}
+
+=== 68 packages/svelte/tests/validator/samples/declaration-tag-legacy-mode/input.svelte	svelte	runes	rejected
+<script>
+	export let name = 'world';
+</script>
+
+{const foo = 'foo'}
 
 === 115 packages/svelte/tests/validator/samples/declaration-tag-maybe-runes/input.svelte	svelte	runes	neutral
 <script>
@@ -46411,6 +51129,89 @@ Usage when no explicit runes/legacy mode should be ok
 <button onclick={() => {
 	console.log(a);
 }}>a</button>
+=== 51 packages/svelte/tests/validator/samples/default-export-anonymous-class/input.svelte	svelte	runes	rejected
+<script>
+	export default function () {};
+</script>
+
+=== 45 packages/svelte/tests/validator/samples/default-export-anonymous-function/input.svelte	svelte	runes	rejected
+<script>
+	export default class {};
+</script>
+
+=== 79 packages/svelte/tests/validator/samples/default-export-indirect/input.svelte	svelte	runes	rejected
+<script module>
+    let answer = 42;
+    export { answer as default};
+</script>
+=== 46 packages/svelte/tests/validator/samples/default-export-module/input.svelte	svelte	runes	rejected
+<script module>
+	export default 42;
+</script>
+
+=== 39 packages/svelte/tests/validator/samples/default-export/input.svelte	svelte	runes	rejected
+<script>
+	export default 42;
+</script>
+
+=== 30 packages/svelte/tests/validator/samples/directive-non-expression/input.svelte	svelte	runes	rejected
+<div on:click="invalid"></div>
+=== 76 packages/svelte/tests/validator/samples/document-binding-invalid-dimensions/input.svelte	svelte	runes	rejected
+<script>
+    let foo;
+</script>
+
+<svelte:document bind:clientWidth={foo} />
+
+=== 13 packages/svelte/tests/validator/samples/dollar-dollar-global-in-markup/input.svelte	svelte	runes	rejected
+{$$billsyall}
+=== 32 packages/svelte/tests/validator/samples/dollar-dollar-global-in-script/input.svelte	svelte	runes	rejected
+<script>
+	$$billsyall;
+</script>
+=== 3 packages/svelte/tests/validator/samples/dollar-global-in-markup/input.svelte	svelte	runes	rejected
+{$}
+=== 22 packages/svelte/tests/validator/samples/dollar-global-in-script/input.svelte	svelte	runes	rejected
+<script>
+	$;
+</script>
+=== 56 packages/svelte/tests/validator/samples/dynamic-element-invalid-tag/input.svelte	svelte	runes	rejected
+<div>
+	<svelte:element this>foo</svelte:element>
+</div>
+
+=== 51 packages/svelte/tests/validator/samples/dynamic-element-missing-tag/input.svelte	svelte	runes	rejected
+<div>
+	<svelte:element>foo</svelte:element>
+</div>
+
+=== 58 packages/svelte/tests/validator/samples/dynamic-element-this/input.svelte	svelte	runes	rejected
+<div>
+	<svelte:element {this}>foo</svelte:element>
+</div>
+
+=== 155 packages/svelte/tests/validator/samples/each-block-destructured-object-rest-comma-after/input.svelte	svelte	runes	rejected
+<script>
+	export let animalEntries;
+</script>
+
+{#each animalEntries as { animal, features: { ...rest, eyes } } }
+	<p {...rest}>{animal} {eyes}</p>
+{/each}
+
+=== 48 packages/svelte/tests/validator/samples/each-block-invalid-context-destructured-object/input.svelte	svelte	runes	rejected
+{#each cases as { case }}
+	{case.title}
+{/each}
+
+=== 45 packages/svelte/tests/validator/samples/each-block-invalid-context-destructured/input.svelte	svelte	runes	rejected
+{#each cases as [case]}
+	{case.title}
+{/each}
+=== 43 packages/svelte/tests/validator/samples/each-block-invalid-context/input.svelte	svelte	runes	rejected
+{#each cases as case}
+	{case.title}
+{/each}
 === 335 packages/svelte/tests/validator/samples/empty-block/input.svelte	svelte	runes	neutral
 <script>
 	let things = [];
@@ -46431,6 +51232,30 @@ Usage when no explicit runes/legacy mode should be ok
 {#key things} {/key}
 {#await promise} {/await}
 
+=== 101 packages/svelte/tests/validator/samples/error-mode-warn/input.svelte	svelte	runes	rejected
+<script>
+	const dummy = 'foo';
+</script>
+
+<input bind:value={dummy}>
+<input bind:value={undeclared}>
+
+=== 118 packages/svelte/tests/validator/samples/event-attribute/input.svelte	svelte	runes	rejected
+<button onclick={() => {}}>ok</button>
+<Button onclick onbar="bar">ok</Button>
+
+<button onclick="foo">not ok</button>
+
+=== 65 packages/svelte/tests/validator/samples/event-modifiers-invalid-nonpassive/input.svelte	svelte	runes	rejected
+<div on:touchstart|nonpassive|passive={handleWheel}>
+	oops
+</div>
+=== 64 packages/svelte/tests/validator/samples/event-modifiers-invalid-passive/input.svelte	svelte	runes	rejected
+<div on:wheel|passive|preventDefault={handleWheel}>
+	oops
+</div>
+=== 44 packages/svelte/tests/validator/samples/event-modifiers-invalid/input.svelte	svelte	runes	rejected
+<button on:click|stop|bad={doThat}></button>
 === 71 packages/svelte/tests/validator/samples/export-not-defined-module-with-source/input.svelte	svelte	runes	neutral
 <script module>
 	export { something } from "./something.js";
@@ -46478,8 +51303,30 @@ Usage when no explicit runes/legacy mode should be ok
 <button {onkeydown}>click me</button>
 <button onkeydown={onkeydown}>click me</button>
 
+=== 33 packages/svelte/tests/validator/samples/html-block-in-attribute/input.svelte	svelte	runes	rejected
+<div style="{@html text}"></div>
+
+=== 37 packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	svelte	runes	rejected
+<textarea>
+	{@html fruit}
+</textarea>
 === 104 packages/svelte/tests/validator/samples/if-block-whitespace-legacy/input.svelte	svelte	runes	neutral
 <svelte:options runes={false} />
+
+<!-- prettier-ignore -->
+<div>
+	{ #if true}
+		<p>hi</p>
+	{/if}
+</div>
+
+=== 198 packages/svelte/tests/validator/samples/if-block-whitespace-runes/input.svelte	svelte	runes	rejected
+<svelte:options runes={true} />
+
+<!-- ok -->
+{#if true}{#if true}{/if}{/if}
+{#if foo}{:else if bar}{/if}
+{#if foo}{:else}{/if}
 
 <!-- prettier-ignore -->
 <div>
@@ -46597,6 +51444,35 @@ Usage when no explicit runes/legacy mode should be ok
 <button foo:bar>click me</button>
 <C foo:bar />
 
+=== 164 packages/svelte/tests/validator/samples/illegal-variable-declaration/input.svelte	svelte	runes	rejected
+<script module>
+	import { FOO } from './dummy.svelte';
+	function ok() {
+		let FOO;
+	}
+</script>
+
+<script>
+	function ok() {
+		let FOO;
+	}
+	let FOO;
+</script>
+
+{FOO}
+
+=== 75 packages/svelte/tests/validator/samples/illegal_spread_element-document/input.svelte	svelte	runes	rejected
+<script>
+	let a = {};
+</script>
+<svelte:document {...a}></svelte:document>
+
+=== 71 packages/svelte/tests/validator/samples/illegal_spread_element-window/input.svelte	svelte	runes	rejected
+<script>
+	let a = {};
+</script>
+<svelte:window {...a}></svelte:window>
+
 === 85 packages/svelte/tests/validator/samples/implicitly-closed-by-parent/input.svelte	svelte	runes	neutral
 <main><div class="hello"></main>
 
@@ -46667,6 +51543,27 @@ Usage when no explicit runes/legacy mode should be ok
 	}
 </script>
 
+=== 101 packages/svelte/tests/validator/samples/invalid-empty-css-declaration/input.svelte	svelte	runes	rejected
+<div class='foo bar'></div>
+
+<style>
+	.foo {
+		color:;
+	}
+	.bar {
+		font:;
+		color: blue;
+	}
+</style>
+=== 61 packages/svelte/tests/validator/samples/invalid-node-placement-2/input.svelte	svelte	runes	rejected
+<div>
+	<p>
+		<span>
+			<div>foo</div>
+		</span>
+	</p>
+</div>
+
 === 178 packages/svelte/tests/validator/samples/invalid-node-placement-3/input.svelte	svelte	runes	neutral
 <script>
 </script>
@@ -46680,6 +51577,17 @@ Usage when no explicit runes/legacy mode should be ok
 	<template>Cool</template>
 	<option value="1">bug</option>
 </select>
+=== 82 packages/svelte/tests/validator/samples/invalid-node-placement-4/input.svelte	svelte	runes	rejected
+<div>
+	<form>
+		<div>
+			<form>
+				<input />
+			</form>
+		</div>
+	</form>
+</div>
+
 === 85 packages/svelte/tests/validator/samples/invalid-node-placement-5/input.svelte	svelte	runes	neutral
 <div>
 	<form>
@@ -46691,6 +51599,44 @@ Usage when no explicit runes/legacy mode should be ok
 	</form>
 </div>
 
+=== 301 packages/svelte/tests/validator/samples/invalid-node-placement-6/input.svelte	svelte	runes	rejected
+<dl>
+	<dt>valid</dt>
+	<dd>
+		<!-- dl resets the validation -->
+		<dl>
+			<dt>valid</dt>
+			<dd>valid</dd>
+		</dl>
+		<!-- custom element resets the validation -->
+		<foo-bar>
+			<dt>valid</dt>
+			<dd>valid</dd>
+		</foo-bar>
+		<!-- other tags don't -->
+		<div>
+			<dt>invalid</dt>
+		</div>
+	</dd>
+</dl>
+
+=== 110 packages/svelte/tests/validator/samples/invalid-node-placement-7/input.svelte	svelte	runes	rejected
+<some-table>
+	<!-- No error -->
+	<tbody></tbody>
+</some-table>
+
+<div>
+	<!-- Error -->
+	<tbody></tbody>
+</div>
+
+=== 117 packages/svelte/tests/validator/samples/invalid-node-placement-8/input.svelte	svelte	runes	rejected
+
+<table attr={value} style:x={y} class="I'm not {counted} as text in the table">
+	<tbody>I am {bad}</tbody>
+</table>
+
 === 59 packages/svelte/tests/validator/samples/invalid-node-placement-template/input.svelte	svelte	runes	neutral
 <template>
 	<tr>
@@ -46698,6 +51644,15 @@ Usage when no explicit runes/legacy mode should be ok
 		<td></td>
 	</tr>
 </template>
+=== 92 packages/svelte/tests/validator/samples/invalid-node-placement/input.svelte	svelte	runes	rejected
+<div>
+	<a href="/foo">
+		<div>
+			<p><a href="/foo">{`hello`}</a></p>
+		</div>
+	</a>
+</div>
+
 === 122 packages/svelte/tests/validator/samples/invalid-self-closing-tag/input.svelte	svelte	runes	neutral
 <!-- valid -->
 <link />
@@ -46727,6 +51682,22 @@ Usage when no explicit runes/legacy mode should be ok
 	}
 	test();
 </script>
+=== 263 packages/svelte/tests/validator/samples/let-directive/input.svelte	svelte	runes	rejected
+{#if foo}
+	<svelte:self let:x></svelte:self>
+{/if}
+<Component let:x></Component>
+<div let:x></div><!-- strictly speaking this is invalid, but it was never checked in Svelte 3/4 either, and is now deprecated, so don't mind -->
+<svelte:window let:x></svelte:window>
+=== 42 packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	svelte	runes	rejected
+<div style="{#if condition}a{/if}"></div>
+
+=== 66 packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	svelte	runes	rejected
+<textarea>
+	{#each fruits as fruit}
+		{fruit}
+	{/each}
+</textarea>
 === 77 packages/svelte/tests/validator/samples/module-script-reactive-declaration/input.svelte	svelte	runes	neutral
 <script module>
 	let num = 2;
@@ -46734,6 +51705,22 @@ Usage when no explicit runes/legacy mode should be ok
 	$: square = num * num;
 </script>
 
+=== 58 packages/svelte/tests/validator/samples/multiple-script-default-context/input.svelte	svelte	runes	rejected
+<script>
+	let foo;
+</script>
+
+<script>
+	let bar;
+</script>
+=== 72 packages/svelte/tests/validator/samples/multiple-script-module-context/input.svelte	svelte	runes	rejected
+<script module>
+	let foo;
+</script>
+
+<script module>
+	let bar;
+</script>
 === 58 packages/svelte/tests/validator/samples/multiple-var-same-name/input.svelte	svelte	runes	neutral
 <script>
 	var test = "";
@@ -46751,6 +51738,12 @@ Usage when no explicit runes/legacy mode should be ok
 		}
 	}
 </script>
+=== 57 packages/svelte/tests/validator/samples/namespace-invalid/input.svelte	svelte	runes	rejected
+<svelte:options namespace="http://www.w3.org/1999/svg"/>
+
+=== 33 packages/svelte/tests/validator/samples/namespace-non-literal/input.svelte	svelte	runes	rejected
+<svelte:options namespace={ns}/>
+
 === 150 packages/svelte/tests/validator/samples/no-missing-declarations-for-same-node-let-variable/input.svelte	svelte	runes	neutral
 <script>
 	import Bla from './Bla.svelte';
@@ -46787,6 +51780,14 @@ Usage when no explicit runes/legacy mode should be ok
 		</tr>
 	</tbody>
 </table>
+=== 73 packages/svelte/tests/validator/samples/reactive-declaration-cyclical/input.svelte	svelte	runes	rejected
+<script>
+	let a = 1;
+	let b = 2;
+
+	$: a = b + 1;
+	$: b = a + 1;
+</script>
 === 170 packages/svelte/tests/validator/samples/reassign-derived-private-public-field/input.svelte	svelte	runes	runes
 <script>
 	class Test {
@@ -46834,6 +51835,26 @@ Usage when no explicit runes/legacy mode should be ok
 	<br/>
 {/each}
 
+=== 74 packages/svelte/tests/validator/samples/rune-invalid-spread-derived-by/input.svelte	svelte	runes	rejected
+<script>
+	const args = [0];
+	const count = $derived.by(...args);
+</script>
+=== 71 packages/svelte/tests/validator/samples/rune-invalid-spread-derived/input.svelte	svelte	runes	rejected
+<script>
+	const args = [0];
+	const count = $derived(...args);
+</script>
+=== 73 packages/svelte/tests/validator/samples/rune-invalid-spread-state-raw/input.svelte	svelte	runes	rejected
+<script>
+	const args = [0];
+	const count = $state.raw(...args);
+</script>
+=== 69 packages/svelte/tests/validator/samples/rune-invalid-spread-state/input.svelte	svelte	runes	rejected
+<script>
+	const args = [0];
+	const count = $state(...args);
+</script>
 === 188 packages/svelte/tests/validator/samples/runes-conflicting-store-in-module/input.svelte.js	svelte-module-js	runes	-
 const state = $state(0);
 
@@ -46849,6 +51870,19 @@ $effect.root(() => {
 		console.log(state);
 	});
 });
+
+=== 236 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings-2/input.svelte	svelte	runes	rejected
+<script>
+	let { foo } = $props();
+</script>
+
+<!-- ok -->
+<button onclick={foo}>click me</button>
+<Button on:click={foo}>click me</Button>
+<Button on:click={foo}>click me</Button>
+
+<!-- error -->
+<button on:click={foo}>click me</button>
 
 === 234 packages/svelte/tests/validator/samples/runes-legacy-syntax-warnings/input.svelte	svelte	runes	runes
 <script>
@@ -46911,6 +51945,10 @@ $effect.root(() => {
 	let num = 2;
 </script>
 
+=== 43 packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	svelte	runes	rejected
+<script context="nope">
+	let foo;
+</script>
 === 29 packages/svelte/tests/validator/samples/script-invalid-spread-attribute/input.svelte	svelte	runes	neutral
 <script {...wheee}></script>
 
@@ -46989,6 +52027,8 @@ $effect.root(() => {
         <Foo slot={foo}>valid</Foo>
     {/if}
 </Foo>
+=== 29 packages/svelte/tests/validator/samples/slot-attribute-invalid/input.svelte	svelte	runes	rejected
+<div slot='foo'>invalid</div>
 === 244 packages/svelte/tests/validator/samples/slot-warning-ignore/input.svelte	svelte	runes	neutral
 <script>
 	import Component from './Component.svelte';
@@ -47021,6 +52061,23 @@ $effect.root(() => {
 	<div slot='foo' on:click>hi!</div>
 </Component>
 
+=== 68 packages/svelte/tests/validator/samples/snippet-already-declared/input.svelte	svelte	runes	rejected
+<script>
+	let foo = 'bar';
+</script>
+
+{#snippet foo()}baz{/snippet}
+
+=== 138 packages/svelte/tests/validator/samples/snippet-shadowing-prop/input.svelte	svelte	runes	rejected
+<script>
+	import Component from "./Component.svelte";
+</script>
+
+<Component title="">
+	{#snippet title()}
+		title
+	{/snippet}
+</Component>
 === 59 packages/svelte/tests/validator/samples/snippet-whitespace-ok/input.svelte	svelte	runes	neutral
 <!-- prettier-ignore -->
 {#snippet ok () }
@@ -47095,6 +52152,8 @@ $effect.root(() => {
 	$state();
 </script>
 
+=== 39 packages/svelte/tests/validator/samples/style-directive-modifiers-invalid/input.svelte	svelte	runes	rejected
+<button style:color|bad='red'></button>
 === 105 packages/svelte/tests/validator/samples/svelte-component-deprecated/input.svelte	svelte	runes	runes
 <svelte:options runes />
 
@@ -47104,6 +52163,28 @@ $effect.root(() => {
 
 <svelte:component this={A} />
 
+=== 112 packages/svelte/tests/validator/samples/svelte-fragment-placement-2/input.svelte	svelte	runes	rejected
+<script>
+	import Nested from './Nested.svelte';
+</script>
+
+<svelte:fragment>
+	<div>test</div>
+</svelte:fragment>
+=== 152 packages/svelte/tests/validator/samples/svelte-fragment-placement/input.svelte	svelte	runes	rejected
+<script>
+	import Nested from './Nested.svelte';
+</script>
+
+<Nested>
+	<div>
+		<svelte:fragment>
+			<div>test</div>
+		</svelte:fragment>
+	</div>
+</Nested>
+=== 29 packages/svelte/tests/validator/samples/svelte-head-attributes/input.svelte	svelte	runes	rejected
+<svelte:head x></svelte:head>
 === 115 packages/svelte/tests/validator/samples/svelte-ignore-non-reactive-update/input.svelte	svelte	runes	runes
 <svelte:options runes />
 
@@ -47136,6 +52217,125 @@ $effect.root(() => {
 === 43 packages/svelte/tests/validator/samples/tag-hyphen/input.svelte	svelte	runes	neutral
 <svelte:options customElement="custom-" />
 
+=== 43 packages/svelte/tests/validator/samples/tag-invalid/input.svelte	svelte	runes	rejected
+<svelte:options customElement="invalid" />
+
+=== 37 packages/svelte/tests/validator/samples/tag-non-string/input.svelte	svelte	runes	rejected
+<svelte:options customElement={42}/>
+
+=== 45 packages/svelte/tests/validator/samples/tag-reserved/input.svelte	svelte	runes	rejected
+<svelte:options customElement="font-face" />
+
+=== 55 packages/svelte/tests/validator/samples/textarea-value-children/input.svelte	svelte	runes	rejected
+<textarea value='{foo}'>
+	some illegal text
+</textarea>
+=== 77 packages/svelte/tests/validator/samples/title-no-attributes/input.svelte	svelte	runes	rejected
+<svelte:head>
+	<title data-invalid=true>a static title</title>
+</svelte:head>
+=== 78 packages/svelte/tests/validator/samples/title-no-children/input.svelte	svelte	runes	rejected
+<svelte:head>
+	<title>an <strong>invalid</strong> title</title>
+</svelte:head>
+=== 94 packages/svelte/tests/validator/samples/transition-duplicate-in-transition/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+	function bar() {}
+</script>
+
+<div in:foo transition:bar>...</div>
+=== 86 packages/svelte/tests/validator/samples/transition-duplicate-in/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+	function bar() {}
+</script>
+
+<div in:foo in:bar>...</div>
+=== 95 packages/svelte/tests/validator/samples/transition-duplicate-out-transition/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+	function bar() {}
+</script>
+
+<div out:foo transition:bar>...</div>
+=== 88 packages/svelte/tests/validator/samples/transition-duplicate-out/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+	function bar() {}
+</script>
+
+<div out:foo out:bar>...</div>
+=== 94 packages/svelte/tests/validator/samples/transition-duplicate-transition-in/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+	function bar() {}
+</script>
+
+<div transition:foo in:bar>...</div>
+=== 95 packages/svelte/tests/validator/samples/transition-duplicate-transition-out/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+	function bar() {}
+</script>
+
+<div transition:foo out:bar>...</div>
+=== 102 packages/svelte/tests/validator/samples/transition-duplicate-transition/input.svelte	svelte	runes	rejected
+<script>
+	function foo() {}
+	function bar() {}
+</script>
+
+<div transition:foo transition:bar>...</div>
+=== 95 packages/svelte/tests/validator/samples/transition-on-component/input.svelte	svelte	runes	rejected
+<script>
+	import Widget from './Widget.svelte';
+
+	function foo() {}
+</script>
+
+<Widget in:foo/>
+=== 63 packages/svelte/tests/validator/samples/ts-unsupported-accessor/input.svelte	svelte	runes	rejected
+<script lang="ts">
+	class Foo {
+		accessor y = 1;
+	}
+</script>
+
+=== 54 packages/svelte/tests/validator/samples/ts-unsupported-decorator/input.svelte	svelte	runes	rejected
+<script lang="ts">
+    @foo()
+	class Foo {}
+</script>
+
+=== 54 packages/svelte/tests/validator/samples/ts-unsupported-enum/input.svelte	svelte	runes	rejected
+<script lang="ts">
+	enum Foo {
+		bar = 1
+	}
+</script>
+
+=== 82 packages/svelte/tests/validator/samples/ts-unsupported-modifier-readonly/input.svelte	svelte	runes	rejected
+<script lang="ts">
+	class Foo {
+		constructor(readonly x: number) {}
+	}
+</script>
+
+=== 81 packages/svelte/tests/validator/samples/ts-unsupported-modifier/input.svelte	svelte	runes	rejected
+<script lang="ts">
+	class Foo {
+		constructor(private x: number) {}
+	}
+</script>
+
+=== 93 packages/svelte/tests/validator/samples/ts-unsupported-namespace/input.svelte	svelte	runes	rejected
+<script module lang="ts">
+	namespace SomeNamespace {
+		export const foo = true;
+	}
+</script>
+
 === 449 packages/svelte/tests/validator/samples/unknown-code/input.svelte	svelte	runes	runes
 <svelte:options runes={true} />
 
@@ -47161,6 +52361,27 @@ $effect.root(() => {
 === 64 packages/svelte/tests/validator/samples/use-the-platform/input.svelte	svelte	runes	neutral
 <div className="abc"></div>
 <label htmlFor="i"><input /></label>
+=== 74 packages/svelte/tests/validator/samples/window-binding-invalid-dimensions/input.svelte	svelte	runes	rejected
+<script>
+    let foo;
+</script>
+
+<svelte:window bind:clientWidth={foo} />
+
+=== 68 packages/svelte/tests/validator/samples/window-binding-invalid-innerwidth/input.svelte	svelte	runes	rejected
+<script>
+    let w;
+</script>
+
+<svelte:window bind:innerwidth={w}/>
+
+=== 68 packages/svelte/tests/validator/samples/window-binding-invalid/input.svelte	svelte	runes	rejected
+<script>
+    let foo;
+</script>
+
+<svelte:window bind:potato={foo}/>
+
 === 61 packages/svelte/tests/validator/samples/window-binding-online/input.svelte	svelte	runes	neutral
 <script>
 	let online;

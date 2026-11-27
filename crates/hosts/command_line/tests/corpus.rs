@@ -503,6 +503,8 @@ fn compared(conformance: rsvelte_corpus::Conformance) -> rsvelte_corpus::Conform
         )
         .compare_with_parentheses("ts.compile/default")
         .compare_comments("ts.compile.comments/default", "ts.compile/default")
+        .compare_source_map("svelte.compile.sourcemap/client", "svelte.compile/client")
+        .compare_source_map("svelte.compile.sourcemap/server", "svelte.compile/server")
         .also_run("test.svelte.coverage")
         .out_of_scope("test.svelte.legacy")
         // Where rsvelte's tasks run wider than the official ones (`tools/oracle/tasks/`); a
