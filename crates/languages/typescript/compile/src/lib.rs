@@ -12,6 +12,7 @@ mod task;
 pub use task::register;
 
 pub mod build;
+mod erased_comments;
 pub mod features;
 pub mod original_text;
 pub mod parentheses;
