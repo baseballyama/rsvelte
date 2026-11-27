@@ -185,16 +185,3 @@ fn assignment_target_object<'b, 'a>(
 ) -> Option<&'b Expression<'a>> {
     target.as_member_expression().map(MemberExpression::object)
 }
-
-/// [`crate::strip::inner`], or the expression inside a pair of parentheses: an assignment target
-/// or a chain keeps none, so those inside one of its types go with it.
-#[inline]
-pub(crate) fn inner_or_parenthesized<'a>(
-    e: &mut Expression<'a>,
-    allocator: &'a Allocator,
-) -> Option<Expression<'a>> {
-    match e {
-        Expression::ParenthesizedExpression(e) => Some(e.expression.take_in(&allocator)),
-        e => crate::strip::inner(e, allocator),
-    }
-}
