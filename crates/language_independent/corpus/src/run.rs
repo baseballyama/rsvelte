@@ -40,13 +40,25 @@ pub struct Conformance {
     compared: Vec<Compared>,
     also_run: Vec<&'static str>,
     out_of_scope: Option<&'static str>,
-    /// `(task, languages)`: the task runs only on a unit of one of the languages.
-    languages: Vec<(&'static str, &'static [&'static str])>,
+    /// `(task, applies)`: the task runs only on a unit `applies` accepts.
+    applies: Vec<(&'static str, Applies)>,
     /// The units [`Self::out_of_scope`]'s task reported.
     excluded: AtomicUsize,
     /// `(unit key, task)` for each official entry of a unit that no reader of the pack takes.
     stale: Mutex<Vec<(String, &'static str)>>,
 }
+
+/// What [`Conformance::applies_to`] reads of a unit.
+#[derive(Debug, Clone, Copy)]
+pub struct Unit<'a> {
+    /// The first attribute of its `inputs.pack` entry.
+    pub language: &'a str,
+    /// Its path within its source.
+    pub path: &'a str,
+}
+
+/// Whether a task runs on a unit.
+pub type Applies = fn(Unit<'_>) -> bool;
 
 #[derive(Debug)]
 struct Compared {
@@ -80,7 +92,7 @@ impl Conformance {
             compared: Vec::new(),
             also_run: Vec::new(),
             out_of_scope: None,
-            languages: Vec::new(),
+            applies: Vec::new(),
             excluded: AtomicUsize::new(0),
             stale: Mutex::new(Vec::new()),
         }
@@ -164,12 +176,11 @@ impl Conformance {
         self
     }
 
-    /// Runs `task` only on a unit whose language, the first attribute of its `inputs.pack` entry,
-    /// is one of `languages`. A task whose project is the units that run it, such as a type check,
-    /// then holds only those.
+    /// Runs `task` only on a unit `applies` accepts, as an official task's `appliesTo` does. A task
+    /// whose project is the units that run it, such as a type check, then holds only those.
     #[must_use]
-    pub fn only_on(mut self, task: &'static str, languages: &'static [&'static str]) -> Self {
-        self.languages.push((task, languages));
+    pub fn applies_to(mut self, task: &'static str, applies: Applies) -> Self {
+        self.applies.push((task, applies));
         self
     }
 
@@ -302,12 +313,15 @@ impl Conformance {
     ) -> Result<(usize, Verdicts), String> {
         let inputs = source.inputs()?;
         let mut documents = Vec::with_capacity(inputs.len());
-        let mut languages = Vec::with_capacity(inputs.len());
+        let mut units = Vec::with_capacity(inputs.len());
         for e in inputs.entries().filter(|e| selected(&source.key(e.path))) {
             let d = Document::new(e.path, e.body)
                 .map_err(|err| format!("{}: {err:?}", source.key(e.path)))?;
             documents.push(d);
-            languages.push(e.attributes.split('\t').next().unwrap_or(e.attributes));
+            units.push(Unit {
+                language: e.attributes.split('\t').next().unwrap_or(e.attributes),
+                path: e.path,
+            });
         }
         let expected: Vec<Pack> = self
             .compared
@@ -322,20 +336,7 @@ impl Conformance {
             .chain(self.also_run.iter().copied())
             .chain(self.out_of_scope)
             .collect();
-        let mut tasks_of_language: BTreeMap<&str, Vec<&str>> = BTreeMap::new();
-        for &language in &languages {
-            tasks_of_language.entry(language).or_insert_with(|| {
-                tasks
-                    .iter()
-                    .copied()
-                    .filter(|task| {
-                        self.languages
-                            .iter()
-                            .all(|(t, only)| t != task || only.contains(&language))
-                    })
-                    .collect()
-            });
-        }
+        let (lists, list_of) = tasks_per_unit(&tasks, &self.applies, &units);
         let options = RunOptions {
             tasks: &tasks,
             sharing: Sharing::Shared,
@@ -372,7 +373,7 @@ impl Conformance {
                 }
             }
         };
-        let tasks_of = |i: usize| -> &[&str] { &tasks_of_language[languages[i]] };
+        let tasks_of = |i: usize| -> Option<&[&str]> { Some(&lists[list_of[i]]) };
         run_each_per_document(&self.registry, &documents, &options, &tasks_of, &sink)
             .map_err(|e| e.to_string())?;
         if write_actual {
@@ -523,6 +524,36 @@ impl Conformance {
         };
         Ok(expected[j].find(path).collect())
     }
+}
+
+/// The tasks of each unit, as an index into one list per distinct answer of the predicates: a
+/// task runs on a unit unless a predicate for it rejects the unit.
+fn tasks_per_unit<'t>(
+    tasks: &[&'t str],
+    applies: &[(&'static str, Applies)],
+    units: &[Unit<'_>],
+) -> (Vec<Vec<&'t str>>, Vec<usize>) {
+    let mut lists = Vec::new();
+    let mut seen: BTreeMap<Vec<bool>, usize> = BTreeMap::new();
+    let list_of = (units.iter())
+        .map(|&unit| {
+            let answer: Vec<bool> = applies.iter().map(|(_, a)| a(unit)).collect();
+            *seen.entry(answer).or_insert_with_key(|answer| {
+                lists.push(
+                    (tasks.iter().copied())
+                        .filter(|task| {
+                            applies
+                                .iter()
+                                .zip(answer)
+                                .all(|((t, _), &yes)| t != task || yes)
+                        })
+                        .collect(),
+                );
+                lists.len() - 1
+            })
+        })
+        .collect();
+    (lists, list_of)
 }
 
 /// The official pack a compared task reads.

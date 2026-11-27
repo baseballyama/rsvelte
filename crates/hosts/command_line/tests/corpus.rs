@@ -509,10 +509,19 @@ fn compared(conformance: rsvelte_corpus::Conformance) -> rsvelte_corpus::Conform
         .out_of_scope("test.svelte.legacy")
         // Where rsvelte's tasks run wider than the official ones (`tools/oracle/tasks/`); a
         // check's languages are those its project holds.
-        .only_on("svelte.lint/default", SVELTE_AND_MODULES)
-        .only_on("svelte.check/default", SVELTE_AND_MODULES)
-        .only_on("ts.compile/default", &["ts", "svelte-module-ts"])
+        .applies_to("svelte.lint/default", svelte_project)
+        .applies_to("svelte.check/default", svelte_project)
+        .applies_to("ts.compile/default", |u| {
+            // TypeScript emits nothing for a declaration file.
+            u.language == "ts"
+                || (u.language == "svelte-module-ts" && !u.path.ends_with(".d.svelte.ts"))
+        })
 }
 
-/// A component and a `.svelte.(js|ts)` module, the languages of a Svelte project's own units.
-const SVELTE_AND_MODULES: &[&str] = &["svelte", "svelte-module-js", "svelte-module-ts"];
+/// A component or a `.svelte.(js|ts)` module, a Svelte project's own units.
+fn svelte_project(unit: rsvelte_corpus::Unit<'_>) -> bool {
+    matches!(
+        unit.language,
+        "svelte" | "svelte-module-js" | "svelte-module-ts"
+    )
+}

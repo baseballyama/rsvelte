@@ -276,7 +276,6 @@ svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/src/utils/eslint-core.
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/src/utils/expression-affixes.ts	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/src/utils/load-module.ts	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/src/utils/ts-utils/index.ts	mismatch
-svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-conflicting-module-names/valid/declaration-sibling-d-svelte/Bar.d.svelte.ts	unexpected
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/invalid/shared-types.ts	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/fixtures/rules/no-unused-props/valid/shared-types.ts	mismatch
 svelte/eslint-plugin-svelte/packages/eslint-plugin-svelte/tests/src/integration/no-unused-vars.ts	mismatch
@@ -526,7 +525,6 @@ svelte/language-tools/packages/language-server/test/plugins/typescript/features/
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/CompletionProvider.test.ts	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/SemanticTokensProvider.test.ts	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/$$Props-invalid-alias/$$Props-invalid-alias5/ItemData.ts	mismatch
-svelte/language-tools/packages/language-server/test/plugins/typescript/features/diagnostics/fixtures/import-precedence/c.d.svelte.ts	unexpected
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/folding-range/index.test.ts	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/features/inlayHints/index.test.ts	mismatch
 svelte/language-tools/packages/language-server/test/plugins/typescript/module-loader.test.ts	mismatch

@@ -543,11 +543,11 @@ fn each_document_runs_only_its_own_tasks_and_a_finish_task_sees_only_its_documen
         identifier: "path",
         matches: matches_t,
     });
-    let docs: Vec<Document> = [("a.t", "ab"), ("b.t", "x"), ("c.t", "cde")]
+    let docs: Vec<Document> = [("a.t", "ab"), ("b.t", "x"), ("c.t", "cde"), ("d.t", "fg")]
         .into_iter()
         .map(|(p, t)| Document::new(p, t).unwrap())
         .collect();
-    let own: [&[&str]; 3] = [&["path", "total"], &["path"], &["total"]];
+    let own: [Option<&[&str]>; 4] = [None, Some(&["path"]), Some(&["total"]), Some(&[])];
     let options = options(&["path", "total"]);
     let collected = run_per_document(&reg, &docs, &options, &|i| own[i]).unwrap();
     let each = std::sync::Mutex::new((0..docs.len()).map(|_| None).collect::<Vec<_>>());
@@ -571,7 +571,8 @@ fn each_document_runs_only_its_own_tasks_and_a_finish_task_sees_only_its_documen
             [
                 vec!["path=path", "total=2/5"],
                 vec!["path=path"],
-                vec!["total=3/5"]
+                vec!["total=3/5"],
+                vec![]
             ]
         );
     }
