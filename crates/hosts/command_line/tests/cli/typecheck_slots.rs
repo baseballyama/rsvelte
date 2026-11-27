@@ -457,3 +457,51 @@ fn typecheck_hides_what_the_slot_function_reads_of_a_nested_slots_interface() {
             .native(),
     );
 }
+
+/// A slot that misses a required prop reports at its start tag. svelte-check 4.7.8 reports these
+/// lines, with TypeScript 6's TS2345 where TypeScript 7 reports TS2741 (`DIVERGENCES.md`, "The
+/// TypeScript 7 checker"). Without attributes, the props' braces map to the tag here: svelte-check
+/// reports `<slot/>` and `<slot></slot>` at column 2, and `<slot  />` and
+/// `<slot name="named" />` at column 7.
+#[test]
+fn typecheck_reports_a_missing_slot_prop_at_the_slot_tag() {
+    let tags = [
+        "<slot />",
+        "<slot/>",
+        "<slot></slot>",
+        "<slot  />",
+        "<slot name=\"named\" />",
+        "<slot b={1} />",
+        "<slot name=\"named\" b={1}></slot>",
+        "<div><slot /></div>",
+    ];
+    let components: Vec<(String, String)> = (tags.iter().enumerate())
+        .map(|(i, tag)| {
+            (
+                format!("src/V{}.svelte", i + 1),
+                format!(
+                    "<script lang=\"ts\">\n  type $$Slots = {{ default: {{ x: number }}; named: \
+                     {{ x: number }} }};\n</script>\n{tag}\n"
+                ),
+            )
+        })
+        .collect();
+    let files: Vec<(&str, &str)> = (components.iter())
+        .map(|(path, text)| (path.as_str(), text.as_str()))
+        .collect();
+    let missing = "error TS2741: Property 'x' is missing in type '{}' but required in type '{ x: \
+                   number; }'.";
+    let unknown = "error TS2353: Object literal may only specify known properties, and '\"b\"' \
+                   does not exist in type '{ x: number; }'.";
+    assert_eq!(
+        check(&files),
+        format!(
+            "src/V1.svelte(4,1): {missing}\nsrc/V2.svelte(4,1): {missing}\n\
+             src/V3.svelte(4,1): {missing}\nsrc/V4.svelte(4,1): {missing}\n\
+             src/V5.svelte(4,1): {missing}\nsrc/V6.svelte(4,7): {unknown}\n\
+             src/V7.svelte(4,20): {unknown}\nsrc/V8.svelte(4,6): {missing}\n\
+             \nFound 8 errors in 8 files.\n"
+        )
+        .native(),
+    );
+}
