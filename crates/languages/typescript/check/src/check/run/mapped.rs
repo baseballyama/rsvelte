@@ -73,10 +73,11 @@ impl CheckRequest<'_> {
             .map(move |(path, stand_in)| (normalized(&root.join(path)), stand_in))
     }
 
-    /// The extensions of the content-mapped documents, each once.
+    /// The extensions of the content-mapped documents and of the stand-ins, each once.
     pub(super) fn mapped_extensions(&self) -> Vec<&'static str> {
         let extensions: BTreeSet<_> = (self.mapped_files.iter().flatten())
             .map(|file| file.extension)
+            .chain(self.stand_ins.iter().filter_map(|(_, s)| s.extension))
             .collect();
         extensions.into_iter().collect()
     }
