@@ -4,7 +4,7 @@ import os from 'node:os';
 import path from 'node:path';
 import { test } from 'node:test';
 import { formatPack, readPack, writePack } from './pack.ts';
-import { mergePack, select, updateUnparseable } from './regen.ts';
+import { gone, mergePack, select, updateUnparseable } from './regen.ts';
 
 const entry = (p: string, body: string) => ({ path: p, attributes: ['js'], body });
 
@@ -63,6 +63,7 @@ test('a run rewrites the unparseable skips it covers and keeps the rest', () => 
 	const after = updateUnparseable(
 		before,
 		(key, task) => task === 'ts.compile/default' && key !== 'svelte/s/b.svelte.ts',
+		() => false,
 		[
 			{
 				key: 'svelte/s/c.svelte.ts',
@@ -83,4 +84,25 @@ test('a run rewrites the unparseable skips it covers and keeps the rest', () => 
 		"svelte/s/c.svelte.ts\tts.compile/default\tTypeScript's emit does not parse as a module: Unexpected token (1:2) (typescript-emit-unparseable)",
 		'',
 	]);
+});
+
+test('a skip of a unit that left the corpus goes, though its task did not run', () => {
+	const before = [
+		'svelte/s/kept.svelte.ts\tts.compile/default\tkept',
+		'svelte/s/deleted.svelte.ts\tts.compile/default\tgone',
+		'svelte/t/unread.svelte.ts\tts.compile/default\tother source',
+		'',
+	].join('\n');
+	const after = updateUnparseable(
+		before,
+		() => false,
+		gone(['svelte/s/kept.svelte.ts'], ['s']),
+		[],
+	);
+	assert.deepEqual(after.split('\n').slice(1), [
+		'svelte/s/kept.svelte.ts\tts.compile/default\tkept',
+		'svelte/t/unread.svelte.ts\tts.compile/default\tother source',
+		'',
+	]);
+	assert.equal(gone(['svelte/s/kept.svelte.ts'])('svelte/t/unread.svelte.ts'), true);
 });
