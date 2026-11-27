@@ -6,10 +6,10 @@
 //! rest as bytes. An official `error.*` means the official tool rejected the unit. Where
 //! JavaScript's comments are is a verdict of its own.
 
-mod ast;
 mod comments;
 mod javascript;
 mod source_map;
+mod syntax_tree;
 
 pub(crate) use javascript::Parentheses;
 use javascript::Unparsed;
@@ -330,7 +330,9 @@ fn compare(
         },
         "lint.txt" => lint(official, actual),
         // An AST that is not JSON is rsvelte's to fix.
-        "ast.sha256" => Ok(ast::same_hash(official, actual).map_or(Verdict::Unparseable, same)),
+        "ast.sha256" => {
+            Ok(syntax_tree::same_hash(official, actual).map_or(Verdict::Unparseable, same))
+        }
         "warnings.json" => same_diagnostics(official, actual).map(same),
         _ if name.ends_with("json") => {
             same_json(official, actual).map_err(|e| format!("not JSON: {e}"))

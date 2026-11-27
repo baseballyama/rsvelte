@@ -150,19 +150,20 @@ const fn position(at: &LineColumn) -> Position {
 #[napi(object)]
 #[derive(Debug)]
 pub struct Parsed {
-    pub ast: Option<String>,
+    #[napi(js_name = "ast")]
+    pub syntax_tree: Option<String>,
     pub error: Option<Report>,
 }
 
 #[must_use]
 pub fn parse(source: &str) -> Parsed {
     match rsvelte_svelte_compile::parse(source) {
-        Ok(ast) => Parsed {
-            ast: Some(ast),
+        Ok(syntax_tree) => Parsed {
+            syntax_tree: Some(syntax_tree),
             error: None,
         },
         Err(error) => Parsed {
-            ast: None,
+            syntax_tree: None,
             error: Some(report(&LineIndex::new(source), &error)),
         },
     }

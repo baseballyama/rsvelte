@@ -68,7 +68,8 @@ pub fn compile_module(
 #[wasm_bindgen(getter_with_clone)]
 #[derive(Debug)]
 pub struct Parsed {
-    pub ast: Option<String>,
+    #[wasm_bindgen(js_name = ast)]
+    pub syntax_tree: Option<String>,
     /// The report, as JSON.
     pub error: Option<String>,
 }
@@ -78,15 +79,15 @@ pub struct Parsed {
 #[must_use]
 pub fn parse(source: &str) -> Parsed {
     match rsvelte_svelte_compile::parse(source) {
-        Ok(ast) => Parsed {
-            ast: Some(ast),
+        Ok(syntax_tree) => Parsed {
+            syntax_tree: Some(syntax_tree),
             error: None,
         },
         Err(error) => {
             let mut json = StructuredDataWriter::new(false);
             report(&mut json, &LineIndex::new(source), &error);
             Parsed {
-                ast: None,
+                syntax_tree: None,
                 error: Some(json.finish()),
             }
         }

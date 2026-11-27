@@ -35,11 +35,11 @@ fn a_module_compiles_without_a_stylesheet() {
 }
 
 #[test]
-fn a_component_parses_to_its_ast_or_its_report() {
+fn a_component_parses_to_its_syntax_tree_or_its_report() {
     let parsed = parse("<p>{a}</p>");
-    assert!(parsed.ast.unwrap().starts_with(r#"{"css":null"#));
+    assert!(parsed.syntax_tree.unwrap().starts_with(r#"{"css":null"#));
     let failed = parse("<p>{</p>");
-    assert!(failed.ast.is_none());
+    assert!(failed.syntax_tree.is_none());
     assert!(
         failed
             .error

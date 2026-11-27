@@ -299,6 +299,51 @@ impl Printer<'_> {
         self.out.end();
     }
 
+    pub(super) fn stylesheet(&mut self, style: &rsvelte_svelte_syntax::syntax_tree::Style) {
+        self.out.object();
+        self.out.key("type").string("StyleSheet");
+        self.span(style.span);
+        self.out.key("attributes");
+        self.tag_attributes(&style.attributes);
+        self.out.key("children");
+        match &style.sheet {
+            Ok(sheet) => self.rules(sheet, &sheet.rules),
+            Err(_) => self.out.raw("[]"),
+        }
+        self.out.key("comments").array();
+        if let Ok(sheet) = &style.sheet {
+            for &comment in &sheet.comments {
+                self.out.element().object();
+                self.out.key("type").string("CSSComment");
+                let text = comment.text(self.source);
+                let inner = text.strip_prefix("/*").unwrap_or(text);
+                let inner = inner.strip_suffix("*/").unwrap_or(inner);
+                self.out.key("value").string(inner);
+                self.span(comment);
+                self.out.end();
+            }
+        }
+        self.out.end_array();
+        self.out.key("content").object();
+        self.span(style.content);
+        self.out
+            .key("styles")
+            .string(style.content.text(self.source));
+        self.out.key("comment");
+        match self.comment_before(style.span.start_offset) {
+            Some((span, data)) => {
+                self.out.object();
+                self.out.key("type").string("Comment");
+                self.span(span);
+                self.out.key("data").string(data.text(self.source));
+                self.out.end();
+            }
+            None => self.out.null(),
+        }
+        self.out.end();
+        self.out.end();
+    }
+
     /// A keyframe's selectors, such as `from, 50%`, which the official parser reads as selectors.
     fn keyframe_selectors(&mut self, prelude: Span) {
         let text = prelude.text(self.source);
