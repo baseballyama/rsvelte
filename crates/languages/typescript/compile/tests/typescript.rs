@@ -265,7 +265,8 @@ type Shape = fn(&str) -> String;
 #[test]
 fn a_number_in_parentheses_or_before_a_comment_or_a_line_break_gets_no_second_dot() {
     // TypeScript 6.0.3's `transpileModule`: `shouldEmitDotDot` writes the second dot after each
-    // of these numbers only where nothing but spaces comes before the dot.
+    // of these numbers only where nothing but white space that is not a line break comes before
+    // the dot.
     let numbers = [
         "1",
         "0",
@@ -275,13 +276,24 @@ fn a_number_in_parentheses_or_before_a_comment_or_a_line_break_gets_no_second_do
         "08",
         "100000000000000000000",
     ];
-    let shapes: [(Shape, bool); 6] = [
+    let shapes: [(Shape, bool); 17] = [
         (|n| format!("({n}).x"), false),
         (|n| format!("({n} ).x"), false),
         (|n| format!("{n}\n.x"), false),
+        (|n| format!("{n}\r.x"), false),
+        (|n| format!("{n}\r\n.x"), false),
+        (|n| format!("{n}\u{2028}.x"), false),
+        (|n| format!("{n}\u{2029}.x"), false),
         (|n| format!("{n} /*c*/ .x"), false),
         (|n| format!("{n} // c\n.x"), false),
         (|n| format!("{n}\t.x"), true),
+        (|n| format!("{n}\u{b}.x"), true),
+        (|n| format!("{n}\u{c}.x"), true),
+        (|n| format!("{n}\u{a0}.x"), true),
+        (|n| format!("{n}\u{feff}.x"), true),
+        (|n| format!("{n}\u{3000}.x"), true),
+        (|n| format!("{n}\u{85}.x"), true),
+        (|n| format!("{n}\u{200b}.x"), true),
     ];
     for number in numbers {
         for (shape, dotted) in shapes {
