@@ -1,7 +1,7 @@
 ;
 function $$render() {
   
-	let /** @type {typeof __rsvelte_public_props0} */ { p, q } = $props();
+	let /** @typedef {{ p: any, q: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { p, q } = $props();
 	let group = $state([]);
 	let one = $state('');
 	let checked = $state(false);
@@ -13,10 +13,6 @@ function $$render() {
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    p: __rsvelte_untyped_prop(),
-    q: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     {
       svelteHTML.createElement("input", {
@@ -91,7 +87,7 @@ function $$render() {
       group = __rsvelte_untyped_prop();
     }
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const BindGroupInterpolatedValue__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof BindGroupInterpolatedValue__SvelteComponent_>} BindGroupInterpolatedValue__SvelteComponent_ */

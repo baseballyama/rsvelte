@@ -11,13 +11,10 @@ function $$render() {
     return __rsvelte_snippet_return;
   };
 
-	let /** @type {typeof __rsvelte_public_props0} */ { items } = $props();
+	let /** @typedef {{ items: any }} $$ComponentProps *//** @type {$$ComponentProps} */ { items } = $props();
 
 ;
 
-  const __rsvelte_public_props0 = __rsvelte_props({
-    items: __rsvelte_untyped_prop(),
-  }, {}, false);
   async () => {
     if (items) {
       const a = b;
@@ -47,7 +44,7 @@ function $$render() {
     }
     __rsvelte_ensure_snippet(s(items));
   };
-  return (/** @type {typeof __rsvelte_export_component<typeof __rsvelte_public_props0, {}, "">} */ (__rsvelte_export_component))();
+  return (/** @type {typeof __rsvelte_export_component<$$ComponentProps, {}, "">} */ (__rsvelte_export_component))();
 }
 export const ReadsBeforeTransform__SvelteComponent_ = /** @type {__rsvelte_javascript_export<Awaited<ReturnType<typeof $$render>>>} */ ($$render());
 /** @typedef {ReturnType<typeof ReadsBeforeTransform__SvelteComponent_>} ReadsBeforeTransform__SvelteComponent_ */
