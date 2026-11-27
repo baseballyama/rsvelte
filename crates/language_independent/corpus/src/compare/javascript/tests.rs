@@ -1,4 +1,8 @@
-use super::{Unparsed, same_tree};
+use super::{Parentheses, Unparsed};
+
+fn same_tree(expected: &str, actual: &str) -> Result<bool, Unparsed> {
+    super::same_tree(expected, actual, Parentheses::Dropped)
+}
 
 #[test]
 fn layout_comments_and_literal_spelling_are_ignored() {
@@ -30,6 +34,15 @@ fn parentheses_are_not_nodes() {
         Ok(true)
     );
     assert_eq!(same_tree("f((() => 1));", "f(() => 1);"), Ok(true));
+}
+
+#[test]
+fn kept_parentheses_are_nodes() {
+    let kept = |expected, actual| super::same_tree(expected, actual, Parentheses::Kept);
+    assert_eq!(kept("(a + b) * c;", "((a + b)) * c;"), Ok(false));
+    assert_eq!(kept("(a) + b;", "a + b;"), Ok(false));
+    assert_eq!(kept("(a + b) * c;", "( a + b ) *c;"), Ok(true));
+    assert_eq!(kept("(f)(1);", "(f)(1)"), Ok(true));
 }
 
 #[test]

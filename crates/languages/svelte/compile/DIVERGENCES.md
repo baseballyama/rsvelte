@@ -89,6 +89,7 @@ The corpus compares JavaScript as a syntax tree
 - The report is [#5387](https://github.com/baseballyama/rsvelte/issues/5387).
 - A plain `.ts` file is not part of this entry. There, TypeScript 6.0.3's emit is the output. It
   keeps each pair of parentheses in the source except those around a type assertion, as in
-  `(f)(1)`. The emit that rsvelte writes drops them. No corpus task compares that emit
+  `(f)(1)`. The emit that rsvelte writes drops them. The `ts.compile` corpus task compares that
+  emit with parentheses kept as nodes, and its ledger records the units where they differ
   ([#5405](https://github.com/baseballyama/rsvelte/issues/5405)). The emit is to match
   TypeScript's text there, as [#5389](https://github.com/baseballyama/rsvelte/issues/5389) tracks.

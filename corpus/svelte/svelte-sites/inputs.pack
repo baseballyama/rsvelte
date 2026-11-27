@@ -335,6 +335,200 @@
 	}
 </style>
 
+=== 4022 sites/hn.svelte.dev/src/lib/htmlSubsetParse.ts	ts	module	-
+/// Types used by the parser
+
+export type Inline =
+	| { type: 'text'; text: string }
+	| { type: 'link'; href: string; text: string }
+	| { type: 'italic'; children: Inline[] };
+type Block = { type: 'paragraph'; children: Inline[] } | { type: 'code'; text: string };
+type ScanHit = { marker: string; index: number };
+type InlineResult = { node: Inline; rest: string };
+type BlockResult = { node: Block; rest: string };
+
+/// HTML Entities (most of them anyway)
+
+function decodeEntities(s: string) {
+	return s
+		.replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+		.replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+		.replace(/&lt;/g, '<')
+		.replace(/&gt;/g, '>')
+		.replace(/&quot;/g, '"')
+		.replace(/&apos;/g, "'")
+		.replace(/&amp;/g, '&'); // last — prevents double-decode
+}
+
+/// Scanner
+
+function scan(text: string, markers: string[]): ScanHit | null {
+	let best: ScanHit | null = null;
+	for (const marker of markers) {
+		const i = text.indexOf(marker);
+		if (i !== -1 && (best === null || i < best.index)) {
+			best = { marker, index: i };
+		}
+	}
+	return best;
+}
+
+/// Inline elements
+/// plain text, <a>, <i>
+/// <i> elements can contain plain text and <a>
+
+function parseInlines(html: string): Inline[] {
+	const nodes: Inline[] = [];
+	let rest = html;
+
+	while (rest) {
+		const hit = scan(rest, ['<a ', '<i>']);
+
+		if (!hit) {
+			addText(nodes, rest);
+			break;
+		}
+
+		if (hit.index > 0) addText(nodes, rest.slice(0, hit.index));
+
+		if (hit.marker === '<a ') {
+			const result = consumeLink(rest, hit.index);
+			nodes.push(result.node);
+			rest = result.rest;
+		} else {
+			const result = consumeItalic(rest, hit.index);
+			nodes.push(result.node);
+			rest = result.rest;
+		}
+	}
+
+	return nodes;
+}
+
+function consumeLink(text: string, openIdx: number): InlineResult {
+	const closeIdx = text.indexOf('</a>', openIdx);
+	if (closeIdx === -1) {
+		return { node: { type: 'text', text: decodeEntities(text.slice(openIdx)) }, rest: '' };
+	}
+
+	const hrefStart = text.indexOf('"', openIdx) + 1;
+	const hrefEnd = text.indexOf('"', hrefStart);
+	const bodyStart = text.indexOf('>', hrefEnd) + 1;
+
+	return {
+		node: {
+			type: 'link',
+			href: decodeEntities(text.slice(hrefStart, hrefEnd)),
+			text: decodeEntities(text.slice(bodyStart, closeIdx))
+		},
+		rest: text.slice(closeIdx + 4)
+	};
+}
+
+function consumeItalic(text: string, openIdx: number): InlineResult {
+	const closeIdx = text.indexOf('</i>', openIdx);
+	if (closeIdx === -1) {
+		return { node: { type: 'text', text: decodeEntities(text.slice(openIdx + 3)) }, rest: '' };
+	}
+
+	return {
+		node: { type: 'italic', children: parseInlines(text.slice(openIdx + 3, closeIdx)) },
+		rest: text.slice(closeIdx + 4)
+	};
+}
+
+function addText(nodes: Inline[], raw: string): void {
+	const text = decodeEntities(raw);
+	if (text) nodes.push({ type: 'text', text });
+}
+
+/// Block elements
+/// <p> or <pre><code> (never separated)
+
+/**
+ * Parse HN comment HTML into structured blocks.
+ */
+export function parse(html: string): Block[] {
+	const blocks: Block[] = [];
+	let rest = html;
+
+	while (rest) {
+		const hit = scan(rest, ['<p>', '<pre><code>']);
+
+		if (!hit) {
+			pushParagraph(blocks, rest);
+			break;
+		}
+
+		if (hit.index > 0) pushParagraph(blocks, rest.slice(0, hit.index));
+
+		if (hit.marker === '<pre><code>') {
+			const result = consumeCode(rest, hit.index);
+			blocks.push(result.node);
+			rest = result.rest;
+		} else {
+			rest = rest.slice(hit.index + 3);
+		}
+	}
+
+	return blocks;
+}
+
+function consumeCode(text: string, openIdx: number): BlockResult {
+	const closeIdx = text.indexOf('</code></pre>', openIdx);
+	if (closeIdx === -1) {
+		return { node: { type: 'code', text: decodeEntities(text.slice(openIdx + 11)) }, rest: '' };
+	}
+
+	return {
+		node: { type: 'code', text: decodeEntities(text.slice(openIdx + 11, closeIdx)) },
+		rest: text.slice(closeIdx + 13)
+	};
+}
+
+function pushParagraph(blocks: Block[], raw: string): void {
+	const children = parseInlines(raw);
+	if (children.length) blocks.push({ type: 'paragraph', children });
+}
+
+=== 649 sites/hn.svelte.dev/src/lib/utils.ts	ts	module	-
+// this compresses stupidly well
+const ORDERED_UNITS_AND_FACTOR = [
+	['year', 31_556_952], // using 365.2425 days
+	['month', 2_629_746], // divive year by 12
+	['week', 604_800],
+	['day', 86_400],
+	['hour', 3_600],
+	['minute', 60],
+	['second', 1]
+] as const;
+
+export function timeAgo(deltaSeconds: number): string {
+	for (const [unit, factor] of ORDERED_UNITS_AND_FACTOR) {
+		if (deltaSeconds >= factor) {
+			const truncValue = Math.trunc(deltaSeconds / factor);
+			const displayUnit = truncValue === 1 ? unit : `${unit}s`;
+			return `${truncValue} ${displayUnit} ago`;
+		}
+	}
+	// under 1s, you must be very quick or a time traveler
+	return 'now';
+}
+
+=== 273 sites/hn.svelte.dev/src/params/category.ts	ts	module	-
+import type { ParamMatcher } from '@sveltejs/kit';
+
+const categories = new Set(['top', 'new', 'best', 'show', 'ask', 'jobs']);
+
+export const match = ((name: string): name is 'top' | 'new' | 'best' | 'show' | 'ask' | 'jobs' =>
+	categories.has(name)) satisfies ParamMatcher;
+
+=== 167 sites/hn.svelte.dev/src/params/numeric.ts	ts	module	-
+import type { ParamMatcher } from '@sveltejs/kit';
+
+export const match = ((numeric: string): numeric is `${number}` =>
+	/^\d+$/.test(numeric)) satisfies ParamMatcher;
+
 === 557 sites/hn.svelte.dev/src/routes/+error.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { page } from '$app/state';
@@ -406,6 +600,15 @@
 	}
 </style>
 
+=== 221 sites/hn.svelte.dev/src/routes/+page.ts	ts	module	-
+import { dev } from '$app/environment';
+import { redirect } from '@sveltejs/kit';
+import type { PageLoad } from './$types';
+
+export const load = (() => {
+	throw redirect(dev ? 302 : 301, '/top/1');
+}) satisfies PageLoad;
+
 === 1011 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	import type { PageProps } from './$types';
@@ -444,6 +647,23 @@
 {:else}
 	<p>That's all we can find...</p>
 {/if}
+
+=== 526 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.ts	ts	module	-
+import { error } from '@sveltejs/kit';
+import type { PageLoad } from './$types';
+import type { ResponseType } from './api/+server';
+
+export const load = (async ({ params, fetch }) => {
+	const list = params.list === 'jobs' ? 'job' : params.list;
+	const page = +params.page;
+
+	const res = await fetch(`/${params.list}/${params.page}/api`);
+	if (!res.ok) error(res.status, res.statusText);
+
+	const items: ResponseType = await res.json();
+	const now = Date.now() / 1000;
+	return { list, page, items, now };
+}) satisfies PageLoad;
 
 === 1510 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/ItemSummary.svelte	svelte	runes	runes
 <script lang="ts">
@@ -585,6 +805,100 @@
 	}
 </style>
 
+=== 1233 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/api/+server.ts	ts	module	-
+import { json, error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+const FIRESTORE_BASE = 'https://hacker-news.firebaseio.com/v0/' as const;
+const ITEMS_PER_PAGE = 30 as const;
+
+export type ResponseType = (HNStory | HNJob | HNPoll | { type: 'null'; id: number })[];
+export const GET = (async ({ params, fetch }) => {
+	const list = params.list === 'jobs' ? 'job' : params.list;
+	const page = +params.page;
+
+	const offset = (page - 1) * ITEMS_PER_PAGE;
+	const storyResponse = await fetch(`${FIRESTORE_BASE}${list}stories.json`);
+	if (!storyResponse.ok)
+		error(storyResponse.status, `Upstream Responded with ${storyResponse.statusText}`);
+
+	const itemIds: number[] = await storyResponse.json();
+	const relevantItemIds = itemIds.slice(offset, offset + ITEMS_PER_PAGE);
+
+	if (relevantItemIds.length === 0) {
+		error(404, 'Page not found');
+	}
+
+	const items: ResponseType = await Promise.all(
+		relevantItemIds.map((id) =>
+			fetch(`${FIRESTORE_BASE}item/${id}.json`).then(
+				// allow partial failure in fetch
+				(res) => (res.ok ? res.json() : { type: 'null', id })
+			)
+		)
+	);
+
+	return json(items, {
+		headers: {
+			'Cache-Control': 'public, max-age=60, s-maxage=60'
+		}
+	});
+}) satisfies RequestHandler;
+
+=== 1620 sites/hn.svelte.dev/src/routes/[list=category]/rss/+server.ts	ts	module	-
+import { error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+import type { ResponseType } from '../[page=numeric]/api/+server';
+
+const render = (
+	list: string,
+	items: (HNStory | HNJob | HNPoll | { type: 'null'; id: number })[]
+) => `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+	<title>Svelte HN (${list})</title>
+	<link>https://hn.svelte.dev/${list}/1</link>
+	<description>Links from the orange site</description>
+	<image>
+		<url>https://hn.svelte.dev/favicon.png</url>
+		<title>Svelte HN (${list})</title>
+		<link>https://hn.svelte.dev/${list}/1</link>
+	</image>
+	${items
+		.filter((item) => item.type !== 'null')
+		.map(
+			(item) => `
+				<item>
+					<title>${item.title}${item.type !== 'poll' ? ` (${new URL(item.url).hostname})` : ''}</title>
+					<link>https://hn.svelte.dev/item/${item.id}</link>
+					<description><![CDATA[${
+						item.type !== 'poll' ? `<a href="${item.url}">link</a> / ` : ''
+					}<a href="https://hn.svelte.dev/item/${item.id}">comments</a>
+					]]></description>
+					<pubDate>${new Date(item.time * 1000).toUTCString()}</pubDate>
+				</item>
+			`
+		)
+		.join('\n')}
+</channel>
+</rss>`;
+
+export const GET = (async ({ params, fetch }) => {
+	const res = await fetch(`/${params.list}/1/api`);
+	if (!res.ok) error(res.status, res.statusText);
+	const items: ResponseType = await res.json();
+	const { list } = params;
+
+	const feed = render(list, items);
+
+	return new Response(feed, {
+		headers: {
+			'Cache-Control': `max-age=0, s-max-age=${600}`, // 10 minutes
+			'Content-Type': 'application/rss+xml'
+		}
+	});
+}) satisfies RequestHandler;
+
 === 908 sites/hn.svelte.dev/src/routes/about/+page.svelte	svelte	runes	neutral
 <svelte:head>
 	<title>About • Svelte Hacker News</title>
@@ -611,6 +925,14 @@
 	and the <a rel="external" href="https://hn.algolia.com/api">Algolia HN API</a>
 	as a backend. The app is hosted on <a rel="external" href="https://vercel.com">Vercel</a>.
 </p>
+
+=== 135 sites/hn.svelte.dev/src/routes/about/+page.ts	ts	module	-
+import type { Config } from '@sveltejs/adapter-vercel';
+export const prerender = true;
+
+export const config: Config = {
+	isr: false
+};
 
 === 1949 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -698,6 +1020,20 @@
 		border-top: none;
 	}
 </style>
+
+=== 455 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.ts	ts	module	-
+import { error } from '@sveltejs/kit';
+import type { PageLoad } from './$types';
+import type { ResponseType } from './api/+server';
+
+export const load = (async ({ params, fetch }) => {
+	const res = await fetch(`/item/${params.id}/api`);
+	if (!res.ok) error(res.status, res.statusText);
+	const { algoliaItem, pollOptions }: ResponseType = await res.json();
+
+	const now = Date.now() / 1000;
+	return { algoliaItem, pollOptions, now };
+}) satisfies PageLoad;
 
 === 1999 sites/hn.svelte.dev/src/routes/item/[id=numeric]/Comment.svelte	svelte	runes	runes
 <script lang="ts">
@@ -803,6 +1139,74 @@
 	}
 </style>
 
+=== 1781 sites/hn.svelte.dev/src/routes/item/[id=numeric]/api/+server.ts	ts	module	-
+import { json, error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+const FIRESTORE_BASE = 'https://hacker-news.firebaseio.com/v0/' as const;
+
+export type ResponseType = { algoliaItem: AlgoliaItem; pollOptions: HNPollOption[] };
+export const GET = (async ({ params, fetch }) => {
+	// HN fetch is allowed to fail
+	const [hnRes, algoliaRes] = await Promise.allSettled([
+		fetch(`${FIRESTORE_BASE}item/${params.id}.json`),
+		fetch(`https://hn.algolia.com/api/v1/items/${params.id}`)
+	]);
+	if (algoliaRes.status === 'rejected') error(500, 'Network failure');
+	if (!algoliaRes.value.ok)
+		error(algoliaRes.value.status, `Upstream Responded with ${algoliaRes.value.statusText}`);
+
+	const algoliaItem: AlgoliaItem = await algoliaRes.value.json();
+	const hnItem: HNItem | null =
+		hnRes.status === 'fulfilled' && hnRes.value.ok ? await hnRes.value.json() : null;
+
+	// if hn available, use their top-level sort
+	if (hnItem) {
+		// comment sort
+		if ('kids' in hnItem && typeof hnItem.kids !== 'undefined') {
+			const { kids } = hnItem;
+			algoliaItem.children.sort((a, b) => {
+				const indexA = kids.indexOf(a.id);
+				const indexB = kids.indexOf(b.id);
+				return indexA - indexB;
+			});
+		}
+		// poll item sort
+		if ('parts' in hnItem) {
+			algoliaItem.options = hnItem.parts;
+		}
+	}
+
+	let pollOptions: HNPollOption[] = [];
+	if (algoliaItem.type === 'poll') {
+		const pollsResponses = await Promise.all(
+			algoliaItem.options.map((id) => fetch(`${FIRESTORE_BASE}item/${id}.json`))
+		);
+		pollOptions = await Promise.all(pollsResponses.map((poll) => poll.json()));
+	}
+
+	return json(
+		{
+			algoliaItem,
+			pollOptions
+		} satisfies ResponseType,
+		{
+			headers: {
+				'Cache-Control': 'public, max-age=60, s-maxage=60'
+			}
+		}
+	);
+}) satisfies RequestHandler;
+
+=== 228 sites/hn.svelte.dev/src/routes/rss/+server.ts	ts	module	-
+import { dev } from '$app/environment';
+import { redirect } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+export const GET = (() => {
+	redirect(dev ? 301 : 302, '/top/rss');
+}) satisfies RequestHandler;
+
 === 862 sites/hn.svelte.dev/src/routes/user/[name]/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	import type { PageProps } from './$types';
@@ -837,4 +1241,36 @@
 		</div>
 	{/if}
 </div>
+
+=== 444 sites/hn.svelte.dev/src/routes/user/[name]/+page.ts	ts	module	-
+import { error } from '@sveltejs/kit';
+import type { PageLoad } from './$types.js';
+import type { ResponseType } from './api/+server.js';
+
+export const csr = false;
+export const load = (async ({ params, fetch }) => {
+	const res = await fetch(`/user/${params.name}/api`);
+	if (!res.ok) error(res.status, res.statusText);
+	const user: ResponseType = await res.json();
+	const now = Date.now() / 1000;
+	return { user, now };
+}) satisfies PageLoad;
+
+=== 593 sites/hn.svelte.dev/src/routes/user/[name]/api/+server.ts	ts	module	-
+import { json, error } from '@sveltejs/kit';
+import type { RequestHandler } from './$types';
+
+const FIRESTORE_BASE = 'https://hacker-news.firebaseio.com/v0/' as const;
+
+export type ResponseType = HNUser;
+export const GET = (async ({ params, fetch }) => {
+	const res = await fetch(`${FIRESTORE_BASE}user/${params.name}.json`);
+	if (!res.ok) error(res.status, `Upstream Responded with ${res.statusText}`);
+	const user: HNUser = await res.json();
+	return json(user satisfies ResponseType, {
+		headers: {
+			'Cache-Control': 'public, max-age=60, s-maxage=60'
+		}
+	});
+}) satisfies RequestHandler;
 

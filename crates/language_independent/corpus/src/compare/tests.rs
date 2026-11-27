@@ -1,6 +1,6 @@
 use rsvelte_kernel::computation::task::{OutputFile, TaskOutput};
 
-use super::{Ours, Verdict, verdict};
+use super::{Ours, Parentheses, Verdict, verdict};
 use crate::pack::Entry;
 
 fn official<'a>(files: &[(&'a str, &'a str)]) -> Vec<Entry<'a>> {
@@ -37,7 +37,8 @@ fn judge(
         output: &out,
         diagnostics: diagnostics.map(str::to_owned),
     };
-    verdict(&official(expected), Some(&ours)).expect("the official side is valid")
+    verdict(&official(expected), Some(&ours), Parentheses::Dropped)
+        .expect("the official side is valid")
 }
 
 const WARNING: &str = concat!(

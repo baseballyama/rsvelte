@@ -1,4 +1,16 @@
 # rsvelte pack 1
+=== 207 playwright.config.ts	ts	module	-
+import type { PlaywrightTestConfig } from '@playwright/test'
+
+const config: PlaywrightTestConfig = {
+	webServer: {
+		command: 'pnpm run build && pnpm run preview',
+		port: 3000,
+	},
+}
+
+export default config
+
 === 2106 posts/entry-and-exit-css-transitions/examples/Dialog.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { Sandbox } from '@sveltecraft/sandbox'
@@ -657,6 +669,10 @@
 <div class="accordion">
 	{@render children?.()}
 </div>
+
+=== 125 posts/learn-svelte/examples/accordion/index.ts	ts	module	-
+export { default as Accordion } from './accordion.svelte'
+export { default as AccordionItem } from './accordion-item.svelte'
 
 === 266 posts/learn-svelte/examples/attachment.svelte	svelte	runes	neutral
 <div class="container">
@@ -2047,6 +2063,31 @@
 	}
 </style>
 
+=== 569 src/lib/analytics/index.ts	ts	module	-
+import posthog from 'posthog-js'
+import { browser } from '$app/environment'
+import { beforeNavigate, afterNavigate } from '$app/navigation'
+
+const POSTHOG_KEY = 'phc_nZDwmyGFBKKFyA7fag8ia0Lq9PYMqxeofhojcOX67jW'
+
+export function initAnalytics() {
+	if (browser) {
+		posthog.init(POSTHOG_KEY, {
+			api_host: 'https://eu.i.posthog.com',
+			capture_pageview: false,
+			capture_pageleave: false,
+		})
+	}
+	return
+}
+
+export function useAnalytics() {
+	if (browser) {
+		beforeNavigate(() => posthog.capture('$pageleave'))
+		afterNavigate(() => posthog.capture('$pageview'))
+	}
+}
+
 === 2057 src/lib/components/card.svelte	svelte	runes	runes
 <script lang="ts">
 	import type { Snippet } from 'svelte'
@@ -2471,6 +2512,41 @@
 	/>
 </svg>
 
+=== 762 src/lib/icons/index.ts	ts	module	-
+import ArrowRight from './arrow-right.svelte'
+import ChevronDoubleLeft from './chevron-double-left.svelte'
+import ChevronDoubleRight from './chevron-double-right.svelte'
+import Cog from './cog.svelte'
+import Envelope from './envelope.svelte'
+import Eye from './eye.svelte'
+import GitHub from './github.svelte'
+import Heart from './heart.svelte'
+import Mail from './mail.svelte'
+import Menu from './menu.svelte'
+import PencilSquare from './pencil-square.svelte'
+import RSS from './rss.svelte'
+import X from './x.svelte'
+import Bluesky from './bluesky.svelte'
+import YouTube from './youtube.svelte'
+
+export {
+	ArrowRight,
+	Bluesky,
+	ChevronDoubleLeft,
+	ChevronDoubleRight,
+	Cog,
+	Envelope,
+	Eye,
+	GitHub,
+	Heart,
+	Mail,
+	Menu,
+	PencilSquare,
+	RSS,
+	X,
+	YouTube,
+}
+
 === 376 src/lib/icons/mail.svelte	svelte	runes	runes
 <script lang="ts">
 	let { ...rest } = $props()
@@ -2596,6 +2672,120 @@
 	/>
 	<path d="m10 15 5-3-5-3z" />
 </svg>
+
+=== 248 src/lib/sfx/index.ts	ts	module	-
+/**
+ * Credits
+ * https://www.zapsplat.com/music/organic-button-click-good-for-apps-games-ui-software-etc-7/
+ */
+
+export const sfx = {
+	click() {
+		const click = new Audio('/sfx/click.mp3')
+		click.volume = 0.4
+		click.play().catch(() => {})
+	},
+}
+
+=== 1238 src/lib/site/config.ts	ts	module	-
+export const siteName = 'Joy of Code'
+export const siteUrl = 'https://joyofcode.xyz/'
+export const siteTitle = 'Joy of Code'
+export const siteDescription = 'Web development and design-focused content'
+export const siteImage = `${siteUrl}social.png`
+export const postImage = 'https://social-share-images.vercel.app/'
+
+export const twitterHandle = '@joyofcodedev'
+export const twitter = 'https://x.com/joyofcodedev'
+export const bluesky = 'https://bsky.app/profile/joyofcode.xyz'
+export const youtube = 'https://www.youtube.com/@joyofcodedev'
+export const github = 'https://github.com/mattcroat'
+export const uses = 'https://github.com/mattcroat/uses'
+
+export const categories = {
+	javascript: 'JavaScript',
+	react: 'React',
+	css: 'CSS',
+	general: 'General',
+	design: 'Design',
+	git: 'Git & GitHub',
+	next: 'Next.js',
+	typescript: 'TypeScript',
+	svelte: 'Svelte',
+	sveltekit: 'SvelteKit',
+}
+
+// https://github.com/user/repo/blob/main/posts
+export const fileUrl = `https://github.com/mattcroat/joy-of-code/blob/main/posts`
+
+// https://raw.githubusercontent.com/user/repo/main/posts/post-slug/images/image.webp
+export const imagesUrl = `https://raw.githubusercontent.com/mattcroat/joy-of-code/main/posts`
+
+export const imagesLocal = `/posts`
+
+=== 1078 src/lib/site/posts.ts	ts	module	-
+import fs from 'node:fs/promises'
+import path from 'node:path'
+import matter from 'gray-matter'
+import type { Post } from '$lib/types'
+
+async function parseMarkdownFiles() {
+	try {
+		const posts: Post[] = []
+		const postsPath = path.resolve('posts')
+		const folders = await fs.readdir(postsPath)
+
+		for (const folder of folders) {
+			const markdownFilePath = path.join(postsPath, folder, `${folder}.md`)
+			const markdownContent = await fs.readFile(markdownFilePath, 'utf-8')
+			const { data } = matter(markdownContent)
+			posts.push(data as Post)
+		}
+
+		return posts
+	} catch (e) {
+		throw new Error('Could not parse Markdown files')
+	}
+}
+
+function getTime(date: string) {
+	return new Date(date).getTime()
+}
+
+export async function getPosts() {
+	let posts = await parseMarkdownFiles()
+	posts = posts.sort((first, second) => {
+		return getTime(second.published) - getTime(first.published)
+	})
+	return posts
+}
+
+export async function getPostsByCategory(category: string) {
+	const posts = await getPosts()
+	return posts.filter((post) => !post.draft && post.category === category)
+}
+
+=== 407 src/lib/types/index.ts	ts	module	-
+import type * as config from '$lib/site/config'
+
+export type Post = {
+	title: string
+	description: string
+	slug: string
+	published: string
+	category: string
+	series?: string
+	draft?: string
+}
+
+export type Fetch = (
+	input: RequestInfo | URL,
+	init?: RequestInit
+) => Promise<Response>
+
+export type Categories = keyof typeof config.categories
+
+export type DateStyle = Intl.DateTimeFormatOptions['dateStyle']
 
 === 2122 src/lib/ui/footer.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -3414,6 +3604,9 @@ export const preferences = new Preferences()
 	}
 </style>
 
+=== 42 src/lib/ui/header/search/index.ts	ts	module	-
+export { default } from './search.svelte'
+
 === 285 src/lib/ui/header/search/search-icon.svelte	svelte	runes	neutral
 <svg
 	xmlns="http://www.w3.org/2000/svg"
@@ -3430,6 +3623,25 @@ export const preferences = new Preferences()
 	<circle cx="11" cy="11" r="8" />
 	<path d="m21 21-4.3-4.3" />
 </svg>
+
+=== 485 src/lib/ui/header/search/search-worker.ts	ts	module	-
+import { createPostsIndex, searchPostsIndex } from './search'
+
+addEventListener('message', async (e) => {
+	const { type, payload } = e.data
+
+	if (type === 'load') {
+		const posts = await fetch('/api/search').then((res) => res.json())
+		createPostsIndex(posts)
+		postMessage({ type: 'ready' })
+	}
+
+	if (type === 'search') {
+		const searchTerm = payload.searchTerm
+		const results = searchPostsIndex(searchTerm)
+		postMessage({ type: 'results', payload: { results, searchTerm } })
+	}
+})
 
 === 4272 src/lib/ui/header/search/search.svelte	svelte	runes	runes
 <script lang="ts">
@@ -3633,6 +3845,74 @@ export const preferences = new Preferences()
 		}
 	}
 </style>
+
+=== 1526 src/lib/ui/header/search/search.ts	ts	module	-
+import FlexSearch from 'flexsearch'
+import type { Index } from 'flexsearch'
+
+export type Post = {
+	content: string
+	slug: string
+	title: string
+}
+
+export type Result = {
+	content: string[]
+	slug: string
+	title: string
+}
+
+let postsIndex: Index
+let posts: Post[]
+
+export function createPostsIndex(data: Post[]) {
+	postsIndex = new FlexSearch.Index({ tokenize: 'forward' })
+
+	data.forEach((post, i) => {
+		const item = `${post.title} ${post.content}`
+		postsIndex.add(i, item)
+	})
+
+	posts = data
+}
+
+export function searchPostsIndex(searchTerm: string) {
+	const match = searchTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+	const results = postsIndex.search(match)
+	return results
+		.map((index) => posts[index as number])
+		.map(({ slug, title, content }) => {
+			return {
+				slug,
+				title: replaceTextWithMarker(title, match),
+				content: getMatches(content, match),
+			}
+		})
+}
+
+function replaceTextWithMarker(text: string, match: string) {
+	const regex = new RegExp(match, 'gi')
+	return text.replaceAll(regex, (match) => `<mark>${match}</mark>`)
+}
+
+function getMatches(text: string, searchTerm: string, limit = 1) {
+	const regex = new RegExp(searchTerm, 'gi')
+	const indexes = []
+	let matches = 0
+	let match
+
+	while ((match = regex.exec(text)) !== null && matches < limit) {
+		indexes.push(match.index)
+		matches++
+	}
+
+	return indexes.map((index) => {
+		const start = index - 20
+		const end = index + 80
+		const excerpt = text.substring(start, end).trim()
+		return `...${replaceTextWithMarker(excerpt, searchTerm)}...`
+	})
+}
 
 === 774 src/lib/ui/header/socials.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -3907,6 +4187,47 @@ export const preferences = new Preferences()
 	}
 </style>
 
+=== 1041 src/lib/utils/index.ts	ts	module	-
+import { onNavigate } from '$app/navigation'
+import type { DateStyle, Fetch } from '$lib/types'
+
+export async function fetchJSON<Data>(
+	url: string,
+	fetchFn: Fetch = fetch
+): Promise<Data> {
+	const response = await fetchFn(url)
+	if (!response.ok) throw new Error(`Error fetching JSON from ${response.url}`)
+	return await response.json()
+}
+
+export function formatDate(
+	date: string,
+	dateStyle: DateStyle = 'medium',
+	locales = 'en'
+) {
+	// safari is mad about dashes in the date
+	const dateToFormat = new Date(date.replaceAll('-', '/'))
+	const dateFormatter = new Intl.DateTimeFormat(locales, { dateStyle })
+	return dateFormatter.format(dateToFormat)
+}
+
+export function formatNumber(number: number, locales = 'en') {
+	return new Intl.NumberFormat(locales).format(number)
+}
+
+export async function setupViewTransition() {
+	onNavigate((navigation) => {
+		if (!document.startViewTransition) return
+
+		return new Promise((resolve) => {
+			document.startViewTransition(async () => {
+				resolve()
+				await navigation.complete
+			})
+		})
+	})
+}
+
 === 390 src/routes/+error.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { page } from '$app/stores'
@@ -3931,6 +4252,15 @@ export const preferences = new Preferences()
 		}
 	}
 </style>
+
+=== 105 src/routes/+layout.server.ts	ts	module	-
+export const prerender = true
+
+export async function load({ url }) {
+	return {
+		url: url.pathname,
+	}
+}
 
 === 889 src/routes/+layout.svelte	svelte	runes	runes
 <script lang="ts">
@@ -3983,6 +4313,28 @@ export const preferences = new Preferences()
 		}
 	}
 </style>
+
+=== 98 src/routes/+layout.ts	ts	module	-
+import { initAnalytics } from '$lib/analytics'
+
+export async function load() {
+	initAnalytics()
+}
+
+=== 389 src/routes/+page.server.ts	ts	module	-
+import { fetchJSON } from '$lib/utils'
+import { error } from '@sveltejs/kit'
+import type { Post } from '$lib/types'
+
+export async function load({ fetch }) {
+	try {
+		const posts = await fetchJSON<Post[]>('/api/posts', fetch)
+		const publishedPosts = posts.filter(({ draft }) => !draft)
+		return { posts: publishedPosts.slice(0, 10) }
+	} catch (e) {
+		error(404, (e as Error).message)
+	}
+}
 
 === 3151 src/routes/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -4202,6 +4554,19 @@ export const preferences = new Preferences()
 		margin-top: var(--spacing-24);
 	}
 </style>
+
+=== 308 src/routes/[slug]/+page.ts	ts	module	-
+import { error } from '@sveltejs/kit'
+
+export async function load({ params: { slug } }) {
+	try {
+		const module = await import(`../../../posts/${slug}/${slug}.md`)
+		return { component: module.default, frontmatter: module.metadata }
+	} catch (e) {
+		console.error(e)
+		error(404, `Post does not exist`)
+	}
+}
 
 === 2025 src/routes/[slug]/card.svelte	svelte	runes	runes
 <script lang="ts">
@@ -4568,6 +4933,168 @@ export const preferences = new Preferences()
 	}
 </style>
 
+=== 236 src/routes/api/posts/+server.ts	ts	module	-
+import { error, json } from '@sveltejs/kit'
+import { getPosts } from '$lib/site/posts'
+
+export async function GET() {
+	try {
+		const posts = await getPosts()
+		return json(posts)
+	} catch (e) {
+		error(404, 'Failed to load posts')
+	}
+}
+
+=== 1548 src/routes/api/search/+server.ts	ts	module	-
+import { json } from '@sveltejs/kit'
+import matter from 'gray-matter'
+
+export const prerender = true
+
+const patterns: Record<string, RegExp> = {
+	frontmatter: /---.*?---/gs,
+	code: /```.*?\n|```/gs,
+	inline: /`([^`]*)`/g,
+	heading: /^#{1,6}\s.*$/gm,
+	link: /\[([^\]]+)\]\(([^)]+)\)/g,
+	image: /\!\[.*?\]\(.*?\)/g,
+	blockquote: /> /gm,
+	bold: /\*\*/g,
+	italic: /\b_([^_]+)_(?!\w)/g,
+	special: /{%.*?%}/g,
+	tags: /[<>]/g,
+}
+
+const htmlEntities: Record<string, string> = {
+	'<': '&lt;',
+	'>': '&gt;',
+}
+
+function stripMarkdown(markdown: string) {
+	for (const pattern in patterns) {
+		switch (pattern) {
+			case 'inline':
+				markdown = markdown.replace(patterns[pattern], '$1')
+				break
+			case 'tags':
+				markdown = markdown.replace(
+					patterns[pattern],
+					(match) => htmlEntities[match]
+				)
+				break
+			case 'link':
+				markdown = markdown.replace(patterns[pattern], '$2')
+				break
+			case 'italic':
+				markdown = markdown.replace(patterns[pattern], '$1')
+				break
+			default:
+				markdown = markdown.replace(patterns[pattern], '')
+		}
+	}
+
+	return markdown
+}
+
+export async function GET() {
+	const paths = import.meta.glob<string>('/posts/**/*.md', {
+		query: '?raw',
+		import: 'default',
+		eager: true,
+	})
+	const posts = Object.entries(paths)
+		.map(([_, content]) => {
+			const frontmatter = matter(content)
+
+			if (frontmatter.data.draft) {
+				return null
+			}
+
+			return {
+				title: frontmatter.data.title,
+				slug: frontmatter.data.slug,
+				content: stripMarkdown(content),
+			}
+		})
+		.filter(Boolean)
+
+	return json(posts)
+}
+
+=== 1096 src/routes/api/subscribe/+server.ts	ts	module	-
+import { json } from '@sveltejs/kit'
+import { BUTTONDOWN_API_KEY } from '$env/static/private'
+
+export async function POST({ request }) {
+	const API_URL = 'https://api.buttondown.email/v1/subscribers'
+	const API_KEY = BUTTONDOWN_API_KEY
+
+	const email = await request.json()
+
+	if (!email) {
+		return json(
+			{ error: 'You forget the email. 😊' },
+			{
+				status: 400,
+			}
+		)
+	}
+
+	try {
+		const response = await fetch(API_URL, {
+			method: 'post',
+			body: JSON.stringify({ email }),
+			headers: {
+				Authorization: `Token ${API_KEY}`,
+				'Content-Type': 'application/json',
+			},
+		})
+
+		if (!response.ok) {
+			const text = await response.text()
+
+			if (text.includes('already subscribed')) {
+				return json(
+					{ error: `You're already subscribed. 😊` },
+					{
+						status: 400,
+					}
+				)
+			}
+
+			return json({ error: text }, { status: 400 })
+		}
+
+		return json(
+			{ success: 'Thank you for subscribing! 🥳' },
+			{
+				status: 201,
+				headers: { location: '/' },
+			}
+		)
+	} catch (error) {
+		if (error instanceof Error) {
+			return json({ error: error.message })
+		}
+	}
+}
+
+=== 376 src/routes/archive/+page.server.ts	ts	module	-
+import { error } from '@sveltejs/kit'
+import { fetchJSON } from '$lib/utils'
+import type { Post } from '$lib/types'
+
+export async function load({ fetch }) {
+	try {
+		const posts = await fetchJSON<Post[]>('/api/posts', fetch)
+		const publishedPosts = posts.filter(({ draft }) => !draft)
+		return { posts: publishedPosts }
+	} catch (e) {
+		error(404, (e as Error).message)
+	}
+}
+
 === 1655 src/routes/archive/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	import Heading from '$lib/ui/heading.svelte'
@@ -4658,6 +5185,28 @@ export const preferences = new Preferences()
 	}
 </style>
 
+=== 485 src/routes/categories/[category]/+page.server.ts	ts	module	-
+import { error } from '@sveltejs/kit'
+import { getPostsByCategory } from '$lib/site/posts'
+import * as config from '$lib/site/config'
+import type { Categories } from '$lib/types/index.js'
+
+export async function load({ params }) {
+	const category = params.category as Categories
+
+	if (!config.categories[category]) {
+		error(404, 'Category does not exist')
+	}
+
+	try {
+		return {
+			posts: await getPostsByCategory(category),
+		}
+	} catch (e) {
+		error(404, `Failed to load posts`)
+	}
+}
+
 === 1087 src/routes/categories/[category]/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	import { page } from '$app/stores'
@@ -4710,6 +5259,26 @@ export const preferences = new Preferences()
 		}
 	}
 </style>
+
+=== 474 src/routes/drafts/+page.server.ts	ts	module	-
+import { error } from '@sveltejs/kit'
+import { dev } from '$app/environment'
+import { fetchJSON } from '$lib/utils'
+import type { Post } from '$lib/types'
+
+export async function load({ fetch }) {
+	if (!dev) error(404, 'Not found')
+
+	try {
+		const posts = await fetchJSON<Post[]>('/api/posts', fetch)
+		const draftPosts = posts.filter(({ draft }) => draft)
+		return { posts: draftPosts }
+	} catch (e) {
+		error(404, (e as Error).message)
+	}
+}
+
+export const prerender = false
 
 === 1603 src/routes/drafts/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -4877,6 +5446,23 @@ export const preferences = new Preferences()
 	}
 </style>
 
+=== 399 src/routes/drafts/[slug]/+page.ts	ts	module	-
+import { error } from '@sveltejs/kit'
+import { dev } from '$app/environment'
+
+export async function load({ params: { slug } }) {
+	if (!dev) error(404, 'Not found')
+
+	try {
+		const module = await import(`../../../../posts/${slug}/${slug}.md`)
+		return { component: module.default, frontmatter: module.metadata }
+	} catch (e) {
+		error(404, `Post does not exist`)
+	}
+}
+
+export const prerender = false
+
 === 559 src/routes/newsletter/+page.svelte	svelte	runes	neutral
 <script lang="ts">
 	import Heading from '$lib/ui/heading.svelte'
@@ -4909,4 +5495,93 @@ export const preferences = new Preferences()
 		}
 	}
 </style>
+
+=== 1061 src/routes/rss.xml/+server.ts	ts	module	-
+import { getPosts } from '$lib/site/posts.js'
+import * as config from '$lib/site/config'
+
+export const prerender = true
+
+export async function GET() {
+	const posts = await getPosts()
+
+	const headers = { 'Content-Type': 'application/xml' }
+
+	const xml = `
+		<rss xmlns:atom="http://www.w3.org/2005/Atom" version="2.0">
+			<channel>
+				<title>${config.siteName}</title>
+				<description>${config.siteDescription}</description>
+				<link>${config.siteUrl}</link>
+				<atom:link href="${
+					config.siteUrl
+				}rss.xml" rel="self" type="application/rss+xml"/>
+				${posts
+					.filter((post) => !post.draft)
+					.reverse()
+					.map(
+						(post) => `
+						<item>
+							<title>${post.title}</title>
+							<description>${post.description}</description>
+							<link>${config.siteUrl}${post.slug}</link>
+							<guid isPermaLink="true">${config.siteUrl}${post.slug}</guid>
+							<pubDate>${new Date(post.published).toUTCString()}</pubDate>
+						</item>
+					`
+					)
+					.join('')}
+			</channel>
+		</rss>
+	`.trim()
+
+	return new Response(xml, { headers })
+}
+
+=== 1174 src/routes/sitemap.xml/+server.ts	ts	module	-
+import * as config from '$lib/site/config'
+import { getPosts } from '$lib/site/posts'
+
+export const prerender = true
+
+export async function GET() {
+	const posts = await getPosts()
+
+	const headers = { 'Content-Type': 'application/xml' }
+
+	const pages = [
+		'archive',
+		'newsletter',
+		'about',
+		...Object.keys(config.categories).map(
+			(category) => `categories/${category}`
+		),
+		...posts.map((post) => post.slug),
+	]
+
+	const sitemap = `
+	  <?xml version="1.0" encoding="UTF-8" ?>
+	  <urlset
+	    xmlns="https://www.sitemaps.org/schemas/sitemap/0.9"
+	    xmlns:xhtml="https://www.w3.org/1999/xhtml"
+	    xmlns:mobile="https://www.google.com/schemas/sitemap-mobile/1.0"
+	    xmlns:news="https://www.google.com/schemas/sitemap-news/0.9"
+	    xmlns:image="https://www.google.com/schemas/sitemap-image/1.1"
+	    xmlns:video="https://www.google.com/schemas/sitemap-video/1.1"
+	  >
+	    ${pages
+				.map((page) => {
+					return `
+	          <url>
+	            <loc>${config.siteUrl}${page}</loc>
+	            <lastmod>${new Date().toISOString()}</lastmod>
+	          </url>
+	        `
+				})
+				.join('')}
+	  </urlset>
+	`.trim()
+
+	return new Response(sitemap, { headers })
+}
 

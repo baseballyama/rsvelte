@@ -136,6 +136,36 @@
   }
 </style>
 
+=== 397 apps/docs/src/components/editor/ace-inspect-theme.ts	ts	module	-
+import ace from 'ace-builds'
+import cssDark from './ace-inspect-theme.css?raw'
+import cssLight from './ace-inspect-theme-light.css?raw'
+
+export const inspectTheme: ace.Ace.Theme = {
+  cssClass: 'ace-inspect',
+  cssText: cssDark,
+  padding: 0,
+  isDark: true,
+}
+export const inspectThemeLight: ace.Ace.Theme = {
+  cssClass: 'ace-inspect-light',
+  cssText: cssLight,
+  padding: 0,
+  isDark: true,
+}
+
+=== 117 apps/docs/src/components/editor/aceprops.ts	ts	module	-
+export type AceProps = {
+  value: string
+  valid?: boolean
+  onchange?: (value: string) => void
+  message?: string
+}
+
+=== 59 apps/docs/src/components/editor/index.ts	ts	module	-
+import Editor from './Editor.svelte'
+export default Editor
+
 === 10585 apps/docs/src/components/global-opts/GlobalOptionsList.svelte	svelte	runes	runes
 <script module lang="ts">
   import { globalOpts, panelState, setGlobalOpts } from './globalopts.svelte'
@@ -679,6 +709,9 @@ export const Panel = ((...args: any[]) => {
 
 === 87 apps/docs/src/components/global-opts/sltheme.svelte.ts	svelte-module-ts	runes	-
 export let starlightTheme = $state<{ current: 'dark' | 'light' }>({ current: 'dark' })
+
+=== 76 apps/docs/src/components/index.ts	ts	module	-
+export { Inspect, Panel, Values } from './global-opts/globalopts.svelte.js'
 
 === 11433 apps/docs/src/components/theming/DefineTheme.svelte	svelte	runes	runes
 <!-- svelte-ignore state_referenced_locally -->
@@ -1347,6 +1380,441 @@ Result:
     overflow: hidden;
   }
 </style>
+
+=== 6132 apps/docs/src/components/theming/themes.ts	ts	module	-
+const inspect = {
+  '--base00': '#1e2c3e',
+  '--base01': '#31455e',
+  '--base02': '#151d29',
+  '--base03': '#6d819c',
+  '--base04': '#FFFFFF',
+  '--base05': '#dbdbdc',
+  '--base06': '#fff2c2',
+  '--base07': '#FFFFFF',
+  '--base08': '#ff5c7c',
+  '--base09': '#ff9f6b',
+  '--base0A': '#ffd285',
+  '--base0B': '#8fff96',
+  '--base0C': '#81eced',
+  '--base0D': '#81ecee',
+  '--base0E': '#ff8af5',
+  '--base0F': '#FFFFFF',
+}
+
+const light = {
+  '--base00': '#e8e8e8',
+  '--base01': '#d8d8d8',
+  '--base02': '#f8f8f8',
+  '--base03': '#b8b8b8',
+  '--base04': '#585858',
+  '--base05': '#383838',
+  '--base06': '#282828',
+  '--base07': '#181818',
+  '--base08': '#ab4642',
+  '--base09': '#dc9656',
+  '--base0A': '#9d5e00',
+  '--base0B': '#75834e',
+  '--base0C': '#5f8681',
+  '--base0D': '#3e9cbe',
+  '--base0E': '#ba8baf',
+  '--base0F': '#a16946',
+}
+
+const drak = {
+  '--base00': '#282a36',
+  '--base01': '#3a3c4e',
+  '--base02': '#44475a',
+  '--base03': '#6272a4',
+  '--base04': '#1c1d26',
+  '--base05': '#f8f8f2',
+  '--base06': '#f1f2f8',
+  '--base07': '#f7f7fb',
+  '--base08': '#ea51b2',
+  '--base09': '#ffb86c',
+  '--base0A': '#f1fa8c',
+  '--base0B': '#50fa7b',
+  '--base0C': '#a1efe4',
+  '--base0D': '#62d6e8',
+  '--base0E': '#bd93f9',
+  '--base0F': '#009e45',
+}
+
+const drakNeo = {
+  '--base00': '#1e1f35',
+  '--base01': '#313347',
+  '--base02': '#9298b0',
+  '--base03': '#7a86b3',
+  '--base04': '#a59f85',
+  '--base05': '#f8f8f3',
+  '--base06': '#f5f4f1',
+  '--base07': '#f9f8f5',
+  '--base08': '#ff1daf',
+  '--base09': '#ff9d95',
+  '--base0A': '#ffd29c',
+  '--base0B': '#24d7aa',
+  '--base0C': '#2cccff',
+  '--base0D': '#2cccff',
+  '--base0E': '#c299fe',
+  '--base0F': '#cc6633',
+}
+
+const plain = {
+  '--base00': '#FFFFFF',
+  '--base01': '#e6e6e6',
+  '--base02': '#949494',
+  '--base03': '#000000',
+  '--base04': '#000000',
+  '--base05': '#000000',
+  '--base06': '#000000',
+  '--base07': '#000000',
+  '--base08': '#000000',
+  '--base09': '#000000',
+  '--base0A': '#000000',
+  '--base0B': '#000000',
+  '--base0C': '#000000',
+  '--base0D': '#000000',
+  '--base0E': '#000000',
+  '--base0F': '#000000',
+}
+
+const plainDark = {
+  '--base00': '#000000',
+  '--base01': '#1a1a1a',
+  '--base02': '#4d4d4d',
+  '--base03': '#545454',
+  '--base04': '#FFFFFF',
+  '--base05': '#a8a8a8',
+  '--base06': '#FFFFFF',
+  '--base07': '#FFFFFF',
+  '--base08': '#808080',
+  '--base09': '#666666',
+  '--base0A': '#e0e2ca',
+  '--base0B': '#cccccc',
+  '--base0C': '#abaece',
+  '--base0D': '#cccccc',
+  '--base0E': '#cccccc',
+  '--base0F': '#FFFFFF',
+}
+
+const brown = {
+  '--base00': '#362f28',
+  '--base01': '#483d32',
+  '--base02': '#5a4f44',
+  '--base03': '#a8a8a8',
+  '--base04': '#fd8ba2',
+  '--base05': '#eacbae',
+  '--base06': '#f8f4f1',
+  '--base07': '#fbf9f7',
+  '--base08': '#fd8ba2',
+  '--base09': '#6cebff',
+  '--base0A': '#eff18f',
+  '--base0B': '#54ea51',
+  '--base0C': '#8dadfa',
+  '--base0D': '#8dadfa',
+  '--base0E': '#f6f993',
+  '--base0F': '#9e0096',
+}
+
+const stereo = {
+  '--base00': '#272822',
+  '--base01': '#383830',
+  '--base02': '#49483e',
+  '--base03': '#75715e',
+  '--base04': '#a59f85',
+  '--base05': '#f8f8f2',
+  '--base06': '#f5f4f1',
+  '--base07': '#f9f8f5',
+  '--base08': '#f92672',
+  '--base09': '#fd971f',
+  '--base0A': '#f4bf75',
+  '--base0B': '#a6e22e',
+  '--base0C': '#a1efe4',
+  '--base0D': '#66d9ef',
+  '--base0E': '#ae81ff',
+  '--base0F': '#cc6633',
+}
+
+const javascript = {
+  '--base00': '#FFFFFF',
+  '--base01': '#dedede',
+  '--base02': '#806060',
+  '--base03': '#4a4a4a',
+  '--base04': '#9d3939',
+  '--base05': '#000000',
+  '--base06': '#000000',
+  '--base07': '#000000',
+  '--base08': '#394db6',
+  '--base09': '#cc3f40',
+  '--base0A': '#cc3f40',
+  '--base0B': '#3029cf',
+  '--base0C': '#983f9f',
+  '--base0D': '#871e8f',
+  '--base0E': '#1e35ac',
+  '--base0F': '#000000',
+}
+
+const pinkula = {
+  '--base00': '#362836',
+  '--base01': '#4e3a4d',
+  '--base02': '#5a445a',
+  '--base03': '#9c62a4',
+  '--base04': '#261c26',
+  '--base05': '#f2f8f3',
+  '--base06': '#f8f1f8',
+  '--base07': '#fbf7fa',
+  '--base08': '#e753ea',
+  '--base09': '#ea9d52',
+  '--base0A': '#f8ff8f',
+  '--base0B': '#8fffa5',
+  '--base0C': '#a1a1ef',
+  '--base0D': '#8662e8',
+  '--base0E': '#f993c1',
+  '--base0F': '#00449e',
+}
+
+const ron = {
+  '--base00': '#3f313f',
+  '--base01': '#383038',
+  '--base02': '#493e49',
+  '--base03': '#735e75',
+  '--base04': '#a285a5',
+  '--base05': '#ffdbf3',
+  '--base06': '#f4f1f5',
+  '--base07': '#f8f5f9',
+  '--base08': '#f926eb',
+  '--base09': '#a81ffd',
+  '--base0A': '#f8f9e6',
+  '--base0B': '#e22e97',
+  '--base0C': '#efa1e9',
+  '--base0D': '#ef66ba',
+  '--base0E': '#ec81ff',
+  '--base0F': '#7333cc',
+}
+
+const uchu = {
+  '--base00': '#202225',
+  '--base01': '#393b3d',
+  '--base02': '#515255',
+  '--base03': '#828386',
+  '--base04': '#1c1d26',
+  '--base05': '#f0f0f2',
+  '--base06': '#facdd7',
+  '--base07': '#f7f7fb',
+  '--base08': '#ef6d8b',
+  '--base09': '#ff8833',
+  '--base0A': '#fedf7b',
+  '--base0B': '#89e292',
+  '--base0C': '#9ac0f9',
+  '--base0D': '#6ba2f5',
+  '--base0E': '#c7abe9',
+  '--base0F': '#009e45',
+}
+
+const beach = {
+  '--base00': '#e0d3c1',
+  '--base01': '#cdbaa0',
+  '--base02': '#baa991',
+  '--base03': '#917e62',
+  '--base04': '#FFFFFF',
+  '--base05': '#45453b',
+  '--base06': '#fff2c2',
+  '--base07': '#FFFFFF',
+  '--base08': '#a653ac',
+  '--base09': '#917e62',
+  '--base0A': '#67714b',
+  '--base0B': '#99008c',
+  '--base0C': '#007399',
+  '--base0D': '#027399',
+  '--base0E': '#99008b',
+  '--base0F': '#FFFFFF',
+}
+
+const hacker = {
+  '--base00': '#202221',
+  '--base01': '#071308',
+  '--base02': '#404f47',
+  '--base03': '#577f57',
+  '--base04': '#FFFFFF',
+  '--base05': '#00fa00',
+  '--base06': '#a6ff94',
+  '--base07': '#FFFFFF',
+  '--base08': '#d184f5',
+  '--base09': '#09fa00',
+  '--base0A': '#14ff14',
+  '--base0B': '#09fa00',
+  '--base0C': '#09fa8e',
+  '--base0D': '#00fa8e',
+  '--base0E': '#66cc6d',
+  '--base0F': '#FFFFFF',
+}
+
+export const themes = {
+  inspect,
+  drak,
+  drakNeo,
+  pinkula,
+  light,
+  plain,
+  plainDark,
+  stereo,
+  brown,
+  javascript,
+  ron,
+  hacker,
+  'uchu-dark': uchu,
+  beach,
+} as const
+
+export type ThemeKeys = keyof (typeof themes)['drak' | 'stereo']
+
+=== 673 apps/docs/src/content.config.ts	ts	module	-
+import { defineCollection } from 'astro:content'
+import { z } from 'astro/zod'
+import { docsLoader } from '@astrojs/starlight/loaders'
+import { docsSchema } from '@astrojs/starlight/schema'
+import { changelogsLoader } from 'starlight-changelogs/loader'
+
+export const collections = {
+  docs: defineCollection({
+    loader: docsLoader(),
+    schema: docsSchema({
+      extend: z.object({
+        globalopts: z.boolean().default(false),
+      }),
+    }),
+  }),
+  changelogs: defineCollection({
+    loader: changelogsLoader([
+      {
+        provider: 'github',
+        base: 'changelog',
+        owner: 'ampled',
+        repo: 'svelte-inspect-value',
+      },
+    ]),
+  }),
+}
+
+=== 4514 apps/docs/src/content/docs/theming/vars-defaults.ts	ts	module	-
+export const base16 = [
+  ['--base00', ['background color']],
+  ['--base01', ['row hover background', 'null-type background']],
+  ['--base02', ['text select background']],
+  ['--base03', ['border', 'expand button', 'length']],
+  ['--base04', ['unused']],
+  ['--base05', ['text color']],
+  ['--base06', ['flash on update']],
+  ['--base07', ['unused']],
+  [
+    '--base08',
+    [
+      'number / boolean type indicator',
+      'error value',
+      'html tag',
+      'key prefixes (get / set / static)',
+    ],
+  ],
+  ['--base09', ['symbol type indicator']],
+  ['--base0A', ['string color']],
+  ['--base0B', ['function name', 'html attribute color']],
+  [
+    '--base0C',
+    [
+      'object type indicatorr',
+      'array type indicator',
+      'node notes (json parsed, store value)',
+      'date value',
+      'url value',
+      'symbol value',
+      'class instance',
+    ],
+  ],
+  ['--base0D', ['class names']],
+  ['--base0E', ['string type indicator', 'number value', 'boolean value', 'button color']],
+  ['--base0F', ['unused']],
+] as const
+
+export default [
+  ['--inspect-background', 'none'],
+  ['--inspect-font-size', '12px'],
+  ['--inspect-font', 'monospace'],
+  ['--inspect-min-width', '360px'],
+  ['--inspect-max-width', '100%'],
+  ['--inspect-width', '100%'],
+  ['--background-color', 'var(--base00)'],
+  ['--hover-color', 'var(--base01)'],
+  ['--text-selection-background', 'var(--base02)'],
+  ['--text-search-highlight-color', 'var(--base0A)'],
+  ['--text-search-highlight-fg-color', 'var(--base01)'],
+  ['--text-search-highlight-border-top', 'none'],
+  ['--text-search-highlight-border-bottom', 'none'],
+  ['--text-search-highlight-border-left', 'none'],
+  ['--text-search-highlight-border-right', 'none'],
+  ['--text-search-highlight-outline', 'none'],
+  ['--text-search-highlight-decoration', 'none'],
+  ['--indent-color', 'var(--base03)'],
+  ['--indent', '0.75em'],
+  ['--indent-compact', '0.5em'],
+  ['--padding', '0.25em 0'],
+  ['--padding-compact', '0.25em 0'],
+  ['--length-color', 'var(--base03)'],
+  ['--border-color', 'var(--base03)'],
+  ['--border-radius', '8px'],
+  ['--bullet-color', 'var(--base03)'],
+  ['--comment-color', 'var(--base03)'],
+  ['--caret-color', 'var(--base03)'],
+  ['--key-whitespace-color', 'var(--base03)'],
+  ['--key-whitespace-opacity', '0.5'],
+  ['--tools-background-color', 'var(--base00)'],
+  ['--tools-background-color-borderless', 'transparent'],
+  ['--tools-border-color', 'var(--base03)'],
+  ['--caret-focus-color', 'var(--base05)'],
+  ['--caret-hover-color', 'var(--base05)'],
+  ['--text-color', 'var(--base05)'],
+  ['--child-update-flash-color', 'var(--base05)'],
+  ['--update-flash-color', 'var(--base06)'],
+  ['--delimiter-color', 'var(--base08)'],
+  ['--key-prefix-color', 'var(--base08)'],
+  ['--note-color', 'var(--base0C)'],
+  ['--button-color', 'var(--base0E)'],
+  ['--button-disabled-color', 'var(--base03)'],
+  ['--button-success-color', 'var(--base0B)'],
+  ['--promise-pending-color', 'var(--base0A)'],
+  ['--promise-fulfilled-color', 'var(--base0B)'],
+  ['--promise-rejected-color', 'var(--base0E)'],
+  ['--promise-bracket-color', 'var(--base03)'],
+  ['--error-color', 'var(--base08)'],
+  ['--string-value-color', 'var(--base0A)'],
+  ['--function-name-color', 'var(--base0B)'],
+  ['--function-var-color', 'var(--base0E)'],
+  ['--function-attribute-color', 'var(--base0E)'],
+  ['--function-comment-color', 'var(--base03)'],
+  ['--function-params-color', 'var(--base09)'],
+  ['--function-property-color', 'var(--base0B)'],
+  ['--symbol-value-color', 'var(--base0C)'],
+  ['--regex-value-color', 'var(--base0C)'],
+  ['--number-value-color', 'var(--base0E)'],
+  ['--bigint-value-color', 'var(--base0E)'],
+  ['--boolean-value-color', 'var(--base0E)'],
+  ['--class-name-color', 'var(--base0D)'],
+  ['--niltype-bg-color', 'var(--base01)'],
+  ['--niltype-text-color', 'var(--base05)'],
+  ['--number-type-color', 'var(--base08)'],
+  ['--bigint-type-color', 'var(--base08)'],
+  ['--boolean-type-color', 'var(--base08)'],
+  ['--symbol-type-color', 'var(--base09)'],
+  ['--regex-type-color', 'var(--base0B)'],
+  ['--array-type-color', 'var(--base0C)'],
+  ['--date-type-color', 'var(--base0C)'],
+  ['--map-type-color', 'var(--base0C)'],
+  ['--set-type-color', 'var(--base0C)'],
+  ['--url-type-color', 'var(--base0C)'],
+  ['--urlsearchparams-type-color', 'var(--base0C)'],
+  ['--object-type-color', 'var(--base0C)'],
+  ['--class-type-color', 'var(--base08)'],
+  ['--function-type-color', 'var(--base08)'],
+  ['--string-type-color', 'var(--base0E)'],
+] as const
 
 === 1679 apps/docs/src/examples/BasicEditable.svelte	svelte	runes	runes
 <script lang="ts">
@@ -2448,6 +2916,13 @@ Result:
   </label>
 </div>
 
+=== 313 apps/docs/src/examples/config/index.ts	ts	module	-
+export { default as Visibility } from './VisibilityToggles.svelte'
+export { default as PreviewSettings } from './PreviewSettings.svelte'
+export { default as ExpandLevel } from './ExpandLevel.svelte'
+export { default as Animation } from './Animation.svelte'
+export { default as RenderIf } from './RenderIf.svelte'
+
 === 1299 apps/docs/src/examples/custom/AdvancedExample.svelte	svelte	runes	runes
 <script lang="ts">
   import Inspect, { type CustomComponents, addComponent } from 'svelte-inspect-value'
@@ -2636,6 +3111,32 @@ Result:
 </script>
 
 <Inspect class="not-content mt" value={anObject} {customComponents} name="numbersAndColors" />
+
+=== 260 apps/docs/src/examples/custom/index.ts	ts	module	-
+import minimal from './example.txt?raw'
+import advanced from './advanced.txt?raw'
+import customNumber from './goofy-number.txt?raw'
+import customString from './hex-string.txt?raw'
+
+export const code = {
+  minimal,
+  advanced,
+  customNumber,
+  customString,
+}
+
+=== 595 apps/docs/src/examples/index.ts	ts	module	-
+export { default as BuiltIns } from './BuiltIns.svelte'
+export { default as BasicEditable } from './BasicEditable.svelte'
+
+export { default as Promises } from './Promises.svelte'
+export { default as Stores } from './Stores.svelte'
+export { default as Elements } from './HTMLElements.svelte'
+export { default as GettersAndSetters } from './GettersAndSetters.svelte'
+export { default as Iterators } from './Iterators.svelte'
+export { default as Classes } from './Classes.svelte'
+export { default as EmbedMedia } from './EmbedMedia.svelte'
+export { default as Functions } from './Functions.svelte'
 
 === 5642 apps/docs/src/examples/panel/PanelExample.svelte	svelte	runes	runes
 <script lang="ts">
@@ -3281,6 +3782,27 @@ Result:
     max-width: 4em;
   }
 </style>
+
+=== 446 packages/svelte/scripts/compile-releases.ts	ts	module	-
+import fs from 'node:fs/promises'
+
+async function compileReleases() {
+  const releases: { body: string; name: string }[] = await fetch(
+    'https://api.github.com/repos/ampled/svelte-inspect-value/releases'
+  ).then((r) => r.json())
+
+  let output = ''
+
+  releases.forEach((r) => {
+    if (!r.name.includes('next')) {
+      output += r.body + '\n'
+    }
+  })
+
+  await fs.writeFile('./src/doclib/typedoc/Releases.md', output)
+}
+
+compileReleases()
 
 === 2397 packages/svelte/src/doclib/Ace.svelte	svelte	runes	runes
 <script lang="ts">
@@ -5128,6 +5650,1093 @@ export function intervalEffect(handler: TimerHandler, timeout: number) {
       window.clearInterval(interval)
     }
   })
+}
+
+=== 2600 packages/svelte/src/doclib/props.ts	ts	module	-
+export default (baseUrl: string) =>
+  [
+    {
+      name: 'value',
+      description: 'required. value to inspect. can be any javascript value',
+      defaultValue: undefined,
+    },
+    {
+      name: 'name',
+      description: 'name of outer value. displayed as key',
+      defaultValue: undefined,
+    },
+    {
+      name: 'stringCollapse',
+      description:
+        'set a max display length for string values. 0 means full string will be displayed',
+      defaultValue: 0,
+    },
+    {
+      name: 'showLength',
+      description:
+        'display length of arrays or strings and number of nested entries in objects / maps etc',
+      defaultValue: true,
+    },
+    {
+      name: 'showTypes',
+      description:
+        'display type labels before values e.g. "string" / "number." Mainly affects basic primitive types',
+      defaultValue: true,
+    },
+    {
+      name: 'showPreview',
+      description: 'display preview of nested values of object, array, map, set etc.',
+      defaultValue: true,
+    },
+    {
+      name: 'showTools',
+      description: `display row of utility-"tools" when hovering an entry`,
+      defaultValue: true,
+    },
+    {
+      name: 'noanimate',
+      description: 'disable animations / transitions',
+      defaultValue: false,
+    },
+    {
+      name: 'embedMedia',
+      description:
+        'embed images and audio if a string value is a path or url that ends with an image or audio file extension',
+      defaultValue: false,
+    },
+    {
+      name: 'theme',
+      description: 'color theme class',
+      defaultValue: 'drak',
+      alternatives: [
+        'drak',
+        'stereo',
+        'dark',
+        'light',
+        'cotton-candy',
+        '<insert your own theme class here>',
+      ],
+      link: `${baseUrl}/theming`,
+    },
+    {
+      name: 'expandAll',
+      description: 'expand all nodes by default. can be a performance hitch with a lot of entries',
+      defaultValue: false,
+    },
+    {
+      name: 'expandLevel',
+      description: 'default level of initially expanded nested nodes',
+      defaultValue: 1,
+    },
+    {
+      name: 'borderless',
+      description: 'remove background color, border and padding',
+      defaultValue: false,
+    },
+    {
+      name: 'quotes',
+      description: " quote type for string values.'single'or'double'",
+      alternatives: ['single', 'double'],
+      defaultValue: 'single',
+    },
+    {
+      name: 'customComponents',
+      description: 'custom components for values. see link for extended documentation and demo',
+      defaultValue: '{}',
+      link: `${baseUrl}/custom`,
+    },
+  ] as const
+
+=== 513 packages/svelte/src/doclib/shiki.ts	ts	module	-
+import memoize from 'p-memoize'
+import { createHighlighter, type BundledLanguage } from 'shiki/bundle/web'
+import theme from './theme.js'
+
+const highlighter = createHighlighter({
+  langs: ['svelte', 'javascript', 'css'],
+  themes: [
+    //@ts-expect-error yeh
+    theme,
+  ],
+})
+
+export async function _highlight(code: string, language: BundledLanguage = 'svelte') {
+  const hl = await highlighter
+  return hl.codeToHtml(code, { lang: language, theme: 'inspect' })
+}
+
+export const highlight = memoize(_highlight)
+
+=== 28197 packages/svelte/src/doclib/theme.ts	ts	module	-
+const inspect = {
+  '--base00': '#1e2c3e',
+  '--base01': '#31455e',
+  '--base02': '#151d29',
+  '--base03': '#6d819c',
+  '--base04': '#FFFFFF',
+  '--base05': '#dbdbdc',
+  '--base06': '#fff2c2',
+  '--base07': '#FFFFFF',
+  '--base08': '#ff5c7c',
+  '--base09': '#d1ae00',
+  '--base0A': '#ffd285',
+  '--base0B': '#8fff96',
+  '--base0C': '#81eced',
+  '--base0D': '#81ecee',
+  '--base0E': '#ff8af5',
+  '--base0F': '#FFFFFF',
+}
+
+export default {
+  colors: {
+    'activityBar.activeBackground': '#BD93F910',
+    'activityBar.activeBorder': '#FF79C680',
+    'activityBar.background': '#343746',
+    'activityBar.foreground': '#F8F8F2',
+    'activityBar.inactiveForeground': '#6272A4',
+    'activityBarBadge.background': inspect['--base08'],
+    'activityBarBadge.foreground': '#F8F8F2',
+    'badge.background': '#44475A',
+    'badge.foreground': '#F8F8F2',
+    'breadcrumb.activeSelectionForeground': '#F8F8F2',
+    'breadcrumb.background': '#282A36',
+    'breadcrumb.focusForeground': '#F8F8F2',
+    'breadcrumb.foreground': '#6272A4',
+    'breadcrumbPicker.background': '#191A21',
+    'button.background': '#44475A',
+    'button.foreground': '#F8F8F2',
+    'button.secondaryBackground': '#282A36',
+    'button.secondaryForeground': '#F8F8F2',
+    'button.secondaryHoverBackground': '#343746',
+    'debugToolBar.background': '#21222C',
+    'diffEditor.insertedTextBackground': '#50FA7B20',
+    'diffEditor.removedTextBackground': '#FF555550',
+    'dropdown.background': '#343746',
+    'dropdown.border': '#191A21',
+    'dropdown.foreground': '#F8F8F2',
+    'editor.background': '#1e2c3e',
+    'editor.findMatchBackground': '#FFB86C80',
+    'editor.findMatchHighlightBackground': '#FFFFFF40',
+    'editor.findRangeHighlightBackground': '#44475A75',
+    'editor.foldBackground': '#21222C80',
+    'editor.foreground': '#dbdbdc',
+    'editor.hoverHighlightBackground': '#8BE9FD50',
+    'editor.lineHighlightBorder': '#44475A',
+    'editor.rangeHighlightBackground': '#BD93F915',
+    'editor.selectionBackground': '#44475A',
+    'editor.selectionHighlightBackground': '#424450',
+    'editor.snippetFinalTabstopHighlightBackground': '#282A36',
+    'editor.snippetFinalTabstopHighlightBorder': '#50FA7B',
+    'editor.snippetTabstopHighlightBackground': '#282A36',
+    'editor.snippetTabstopHighlightBorder': '#6272A4',
+    'editor.wordHighlightBackground': '#8BE9FD50',
+    'editor.wordHighlightStrongBackground': '#50FA7B50',
+    'editorBracketHighlight.foreground1': '#F8F8F2',
+    'editorBracketHighlight.foreground2': inspect['--base08'],
+    'editorBracketHighlight.foreground3': inspect['--base0D'],
+    'editorBracketHighlight.foreground4': '#50FA7B',
+    'editorBracketHighlight.foreground5': inspect['--base0E'],
+    'editorBracketHighlight.foreground6': '#FFB86C',
+    'editorBracketHighlight.unexpectedBracket.foreground': '#FF5555',
+    'editorCodeLens.foreground': '#6272A4',
+    'editorError.foreground': '#FF5555',
+    'editorGroup.border': '#BD93F9',
+    'editorGroup.dropBackground': '#44475A70',
+    'editorGroupHeader.tabsBackground': '#191A21',
+    'editorGutter.addedBackground': '#50FA7B80',
+    'editorGutter.deletedBackground': '#FF555580',
+    'editorGutter.modifiedBackground': '#8BE9FD80',
+    'editorHoverWidget.background': '#282A36',
+    'editorHoverWidget.border': '#6272A4',
+    'editorIndentGuide.activeBackground': '#FFFFFF45',
+    'editorIndentGuide.background': '#FFFFFF1A',
+    'editorLineNumber.foreground': '#6272A4',
+    'editorLink.activeForeground': inspect['--base0D'],
+    'editorMarkerNavigation.background': '#21222C',
+    'editorOverviewRuler.addedForeground': '#50FA7B80',
+    'editorOverviewRuler.border': '#191A21',
+    'editorOverviewRuler.currentContentForeground': '#50FA7B',
+    'editorOverviewRuler.deletedForeground': '#FF555580',
+    'editorOverviewRuler.errorForeground': '#FF555580',
+    'editorOverviewRuler.incomingContentForeground': '#BD93F9',
+    'editorOverviewRuler.infoForeground': '#8BE9FD80',
+    'editorOverviewRuler.modifiedForeground': '#8BE9FD80',
+    'editorOverviewRuler.selectionHighlightForeground': '#FFB86C',
+    'editorOverviewRuler.warningForeground': '#FFB86C80',
+    'editorOverviewRuler.wordHighlightForeground': inspect['--base0D'],
+    'editorOverviewRuler.wordHighlightStrongForeground': '#50FA7B',
+    'editorRuler.foreground': '#FFFFFF1A',
+    'editorSuggestWidget.background': '#21222C',
+    'editorSuggestWidget.foreground': '#F8F8F2',
+    'editorSuggestWidget.selectedBackground': '#44475A',
+    'editorWarning.foreground': inspect['--base0D'],
+    'editorWhitespace.foreground': '#FFFFFF1A',
+    'editorWidget.background': '#21222C',
+    errorForeground: '#FF5555',
+    'extensionButton.prominentBackground': '#50FA7B90',
+    'extensionButton.prominentForeground': '#F8F8F2',
+    'extensionButton.prominentHoverBackground': '#50FA7B60',
+    focusBorder: '#6272A4',
+    foreground: '#F8F8F2',
+    'gitDecoration.conflictingResourceForeground': '#FFB86C',
+    'gitDecoration.deletedResourceForeground': '#FF5555',
+    'gitDecoration.ignoredResourceForeground': '#6272A4',
+    'gitDecoration.modifiedResourceForeground': inspect['--base0D'],
+    'gitDecoration.untrackedResourceForeground': '#50FA7B',
+    'inlineChat.regionHighlight': '#343746',
+    'input.background': '#282A36',
+    'input.border': '#191A21',
+    'input.foreground': '#F8F8F2',
+    'input.placeholderForeground': '#6272A4',
+    'inputOption.activeBorder': '#BD93F9',
+    'inputValidation.errorBorder': '#FF5555',
+    'inputValidation.infoBorder': inspect['--base08'],
+    'inputValidation.warningBorder': '#FFB86C',
+    'list.activeSelectionBackground': '#44475A',
+    'list.activeSelectionForeground': '#F8F8F2',
+    'list.dropBackground': '#44475A',
+    'list.errorForeground': '#FF5555',
+    'list.focusBackground': '#44475A75',
+    'list.highlightForeground': inspect['--base0D'],
+    'list.hoverBackground': '#44475A75',
+    'list.inactiveSelectionBackground': '#44475A75',
+    'list.warningForeground': '#FFB86C',
+    'listFilterWidget.background': '#343746',
+    'listFilterWidget.noMatchesOutline': '#FF5555',
+    'listFilterWidget.outline': '#424450',
+    'merge.currentHeaderBackground': '#50FA7B90',
+    'merge.incomingHeaderBackground': '#BD93F990',
+    'panel.background': '#282A36',
+    'panel.border': '#BD93F9',
+    'panelTitle.activeBorder': inspect['--base08'],
+    'panelTitle.activeForeground': '#F8F8F2',
+    'panelTitle.inactiveForeground': '#6272A4',
+    'peekView.border': '#44475A',
+    'peekViewEditor.background': '#282A36',
+    'peekViewEditor.matchHighlightBackground': '#F1FA8C80',
+    'peekViewResult.background': '#21222C',
+    'peekViewResult.fileForeground': '#F8F8F2',
+    'peekViewResult.lineForeground': '#F8F8F2',
+    'peekViewResult.matchHighlightBackground': '#F1FA8C80',
+    'peekViewResult.selectionBackground': '#44475A',
+    'peekViewResult.selectionForeground': '#F8F8F2',
+    'peekViewTitle.background': '#191A21',
+    'peekViewTitleDescription.foreground': '#6272A4',
+    'peekViewTitleLabel.foreground': '#F8F8F2',
+    'pickerGroup.border': '#BD93F9',
+    'pickerGroup.foreground': inspect['--base0D'],
+    'progressBar.background': inspect['--base08'],
+    'selection.background': '#BD93F9',
+    'settings.checkboxBackground': '#21222C',
+    'settings.checkboxBorder': '#191A21',
+    'settings.checkboxForeground': '#F8F8F2',
+    'settings.dropdownBackground': '#21222C',
+    'settings.dropdownBorder': '#191A21',
+    'settings.dropdownForeground': '#F8F8F2',
+    'settings.headerForeground': '#F8F8F2',
+    'settings.modifiedItemIndicator': '#FFB86C',
+    'settings.numberInputBackground': '#21222C',
+    'settings.numberInputBorder': '#191A21',
+    'settings.numberInputForeground': '#F8F8F2',
+    'settings.textInputBackground': '#21222C',
+    'settings.textInputBorder': '#191A21',
+    'settings.textInputForeground': '#F8F8F2',
+    'sideBar.background': '#21222C',
+    'sideBarSectionHeader.background': '#282A36',
+    'sideBarSectionHeader.border': '#191A21',
+    'sideBarTitle.foreground': '#F8F8F2',
+    'statusBar.background': '#191A21',
+    'statusBar.debuggingBackground': '#FF5555',
+    'statusBar.debuggingForeground': '#191A21',
+    'statusBar.foreground': '#F8F8F2',
+    'statusBar.noFolderBackground': '#191A21',
+    'statusBar.noFolderForeground': '#F8F8F2',
+    'statusBarItem.prominentBackground': '#FF5555',
+    'statusBarItem.prominentHoverBackground': '#FFB86C',
+    'statusBarItem.remoteBackground': '#BD93F9',
+    'statusBarItem.remoteForeground': '#282A36',
+    'tab.activeBackground': '#282A36',
+    'tab.activeBorderTop': '#FF79C680',
+    'tab.activeForeground': '#F8F8F2',
+    'tab.border': '#191A21',
+    'tab.inactiveBackground': '#21222C',
+    'tab.inactiveForeground': '#6272A4',
+    'terminal.ansiBlack': '#21222C',
+    'terminal.ansiBlue': '#BD93F9',
+    'terminal.ansiBrightBlack': '#6272A4',
+    'terminal.ansiBrightBlue': '#D6ACFF',
+    'terminal.ansiBrightCyan': '#A4FFFF',
+    'terminal.ansiBrightGreen': '#69FF94',
+    'terminal.ansiBrightMagenta': '#FF92DF',
+    'terminal.ansiBrightRed': '#FF6E6E',
+    'terminal.ansiBrightWhite': '#FFFFFF',
+    'terminal.ansiBrightYellow': '#FFFFA5',
+    'terminal.ansiCyan': inspect['--base0D'],
+    'terminal.ansiGreen': '#50FA7B',
+    'terminal.ansiMagenta': inspect['--base08'],
+    'terminal.ansiRed': '#FF5555',
+    'terminal.ansiWhite': '#F8F8F2',
+    'terminal.ansiYellow': '#F1FA8C',
+    'terminal.background': '#282A36',
+    'terminal.foreground': '#F8F8F2',
+    'titleBar.activeBackground': '#21222C',
+    'titleBar.activeForeground': '#F8F8F2',
+    'titleBar.inactiveBackground': '#191A21',
+    'titleBar.inactiveForeground': '#6272A4',
+    'walkThrough.embeddedEditorBackground': '#21222C',
+  },
+  displayName: 'Inspect Theme',
+  name: 'inspect',
+  semanticHighlighting: true,
+  tokenColors: [
+    {
+      scope: ['emphasis'],
+      settings: {
+        fontStyle: 'italic',
+      },
+    },
+    {
+      scope: ['strong'],
+      settings: {
+        fontStyle: 'bold',
+      },
+    },
+    {
+      scope: ['header'],
+      settings: {
+        foreground: '#BD93F9',
+      },
+    },
+    {
+      scope: ['meta.diff', 'meta.diff.header'],
+      settings: {
+        foreground: '#6272A4',
+      },
+    },
+    {
+      scope: ['markup.inserted'],
+      settings: {
+        foreground: '#50FA7B',
+      },
+    },
+    {
+      scope: ['markup.deleted'],
+      settings: {
+        foreground: '#FF5555',
+      },
+    },
+    {
+      scope: ['markup.changed'],
+      settings: {
+        foreground: '#FFB86C',
+      },
+    },
+    {
+      scope: ['invalid'],
+      settings: {
+        fontStyle: 'underline italic',
+        foreground: '#FF5555',
+      },
+    },
+    {
+      scope: ['invalid.deprecated'],
+      settings: {
+        fontStyle: 'underline italic',
+        foreground: '#F8F8F2',
+      },
+    },
+    {
+      scope: ['entity.name.filename'],
+      settings: {
+        foreground: '#F1FA8C',
+      },
+    },
+    {
+      scope: ['markup.error'],
+      settings: {
+        foreground: '#FF5555',
+      },
+    },
+    {
+      scope: ['markup.underline'],
+      settings: {
+        fontStyle: 'underline',
+      },
+    },
+    {
+      scope: ['markup.bold'],
+      settings: {
+        fontStyle: 'bold',
+        foreground: '#FFB86C',
+      },
+    },
+    {
+      scope: ['markup.heading'],
+      settings: {
+        fontStyle: 'bold',
+        foreground: '#BD93F9',
+      },
+    },
+    {
+      scope: ['markup.italic'],
+      settings: {
+        fontStyle: 'italic',
+        foreground: '#F1FA8C',
+      },
+    },
+    {
+      scope: [
+        'beginning.punctuation.definition.list.markdown',
+        'beginning.punctuation.definition.quote.markdown',
+        'punctuation.definition.link.restructuredtext',
+      ],
+      settings: {
+        foreground: inspect['--base0D'],
+      },
+    },
+    {
+      scope: ['markup.inline.raw', 'markup.raw.restructuredtext'],
+      settings: {
+        foreground: '#50FA7B',
+      },
+    },
+    {
+      scope: ['markup.underline.link', 'markup.underline.link.image'],
+      settings: {
+        foreground: inspect['--base0D'],
+      },
+    },
+    {
+      scope: [
+        'meta.link.reference.def.restructuredtext',
+        'punctuation.definition.directive.restructuredtext',
+        'string.other.link.description',
+        'string.other.link.title',
+      ],
+      settings: {
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: ['entity.name.directive.restructuredtext', 'markup.quote'],
+      settings: {
+        fontStyle: 'italic',
+        foreground: '#F1FA8C',
+      },
+    },
+    {
+      scope: ['meta.separator.markdown'],
+      settings: {
+        foreground: '#6272A4',
+      },
+    },
+    {
+      scope: [
+        'fenced_code.block.language',
+        'markup.raw.inner.restructuredtext',
+        'markup.fenced_code.block.markdown punctuation.definition.markdown',
+      ],
+      settings: {
+        foreground: '#50FA7B',
+      },
+    },
+    {
+      scope: ['punctuation.definition.constant.restructuredtext'],
+      settings: {
+        foreground: '#BD93F9',
+      },
+    },
+    {
+      scope: [
+        'markup.heading.markdown punctuation.definition.string.begin',
+        'markup.heading.markdown punctuation.definition.string.end',
+      ],
+      settings: {
+        foreground: '#BD93F9',
+      },
+    },
+    {
+      scope: [
+        'meta.paragraph.markdown punctuation.definition.string.begin',
+        'meta.paragraph.markdown punctuation.definition.string.end',
+      ],
+      settings: {
+        foreground: '#F8F8F2',
+      },
+    },
+    {
+      scope: [
+        'markup.quote.markdown meta.paragraph.markdown punctuation.definition.string.begin',
+        'markup.quote.markdown meta.paragraph.markdown punctuation.definition.string.end',
+      ],
+      settings: {
+        foreground: '#F1FA8C',
+      },
+    },
+    {
+      scope: ['entity.name.type.class', 'entity.name.class'],
+      settings: {
+        fontStyle: 'normal',
+        foreground: inspect['--base0D'],
+      },
+    },
+    {
+      scope: [
+        'keyword.expressions-and-types.swift',
+        'keyword.other.this',
+        'variable.language',
+        'variable.language punctuation.definition.variable.php',
+        'variable.other.readwrite.instance.ruby',
+        'variable.parameter.function.language.special',
+      ],
+      settings: {
+        fontStyle: 'italic',
+        foreground: inspect['--base0E'],
+      },
+    },
+    {
+      scope: ['entity.other.inherited-class'],
+      settings: {
+        fontStyle: 'italic',
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: ['comment', 'punctuation.definition.comment', 'unused.comment', 'wildcard.comment'],
+      settings: {
+        foreground: '#6d819c',
+      },
+    },
+    {
+      scope: [
+        'comment keyword.codetag.notation',
+        'comment.block.documentation keyword',
+        'comment.block.documentation storage.type.class',
+      ],
+      settings: {
+        foreground: '#6d819c',
+      },
+    },
+    {
+      scope: ['comment.block.documentation entity.name.type'],
+      settings: {
+        fontStyle: 'italic',
+        foreground: inspect['--base0D'],
+      },
+    },
+    {
+      scope: ['comment.block.documentation entity.name.type punctuation.definition.bracket'],
+      settings: {
+        foreground: inspect['--base0D'],
+      },
+    },
+    {
+      scope: ['comment.block.documentation variable'],
+      settings: {
+        fontStyle: 'italic',
+        foreground: '#FFB86C',
+      },
+    },
+    {
+      scope: ['constant', 'variable.other.constant'],
+      settings: {
+        foreground: inspect['--base0E'],
+      },
+    },
+    {
+      scope: ['constant.character.escape', 'constant.character.string.escape', 'constant.regexp'],
+      settings: {
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: ['entity.name.tag'],
+      settings: {
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: ['entity.other.attribute-name.parent-selector'],
+      settings: {
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: ['entity.other.attribute-name'],
+      settings: {
+        fontStyle: 'italic',
+        foreground: '#50FA7B',
+      },
+    },
+    {
+      scope: [
+        'entity.name.function',
+        'meta.function-call.object',
+        'meta.function-call.php',
+        'meta.function-call.static',
+        'meta.method-call.java meta.method',
+        'meta.method.groovy',
+        'support.function.any-method.lua',
+        'keyword.operator.function.infix',
+      ],
+      settings: {
+        foreground: '#8fff96',
+      },
+    },
+    {
+      scope: [
+        'entity.name.variable.parameter',
+        'meta.at-rule.function variable',
+        'meta.at-rule.mixin variable',
+        'meta.function.arguments variable.other.php',
+        'meta.selectionset.graphql meta.arguments.graphql variable.arguments.graphql',
+        'variable.parameter',
+      ],
+      settings: {
+        fontStyle: 'italic',
+        foreground: '#FFB86C',
+      },
+    },
+    {
+      scope: ['meta.decorator variable.other.readwrite', 'meta.decorator variable.other.property'],
+      settings: {
+        fontStyle: 'italic',
+        foreground: '#50FA7B',
+      },
+    },
+    {
+      scope: ['meta.decorator variable.other.object'],
+      settings: {
+        foreground: '#50FA7B',
+      },
+    },
+    {
+      scope: ['keyword', 'punctuation.definition.keyword'],
+      settings: {
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: ['keyword.control.new', 'keyword.operator.new'],
+      settings: {
+        fontStyle: 'bold',
+      },
+    },
+    {
+      scope: ['meta.selector'],
+      settings: {
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: ['support'],
+      settings: {
+        fontStyle: 'italic',
+        foreground: inspect['--base0D'],
+      },
+    },
+    {
+      scope: ['support.function.magic', 'support.variable', 'variable.other.predefined'],
+      settings: {
+        fontStyle: 'regular',
+        foreground: inspect['--base0E'],
+      },
+    },
+    {
+      scope: ['support.function', 'support.type.property-name'],
+      settings: {
+        fontStyle: 'regular',
+      },
+    },
+    {
+      scope: [
+        'constant.other.symbol.hashkey punctuation.definition.constant.ruby',
+        'entity.other.attribute-name.placeholder punctuation',
+        'entity.other.attribute-name.pseudo-class punctuation',
+        'entity.other.attribute-name.pseudo-element punctuation',
+        'meta.group.double.toml',
+        'meta.group.toml',
+        'meta.object-binding-pattern-variable punctuation.destructuring',
+        'punctuation.colon.graphql',
+        'punctuation.definition.block.scalar.folded.yaml',
+        'punctuation.definition.block.scalar.literal.yaml',
+        'punctuation.definition.block.sequence.item.yaml',
+        'punctuation.definition.entity.other.inherited-class',
+        'punctuation.function.swift',
+        'punctuation.separator.dictionary.key-value',
+        'punctuation.separator.hash',
+        'punctuation.separator.inheritance',
+        'punctuation.separator.key-value',
+        'punctuation.separator.key-value.mapping.yaml',
+        'punctuation.separator.namespace',
+        'punctuation.separator.pointer-access',
+        'punctuation.separator.slice',
+        'string.unquoted.heredoc punctuation.definition.string',
+        'support.other.chomping-indicator.yaml',
+        'punctuation.separator.annotation',
+      ],
+      settings: {
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: [
+        'keyword.operator.other.powershell',
+        'keyword.other.statement-separator.powershell',
+        'meta.brace.round',
+        'meta.function-call punctuation',
+        'punctuation.definition.arguments.begin',
+        'punctuation.definition.arguments.end',
+        'punctuation.definition.entity.begin',
+        'punctuation.definition.entity.end',
+        'punctuation.definition.tag.cs',
+        'punctuation.definition.type.begin',
+        'punctuation.definition.type.end',
+        'punctuation.section.scope.begin',
+        'punctuation.section.scope.end',
+        'punctuation.terminator.expression.php',
+        'storage.type.generic.java',
+        'string.template meta.brace',
+        'string.template punctuation.accessor',
+      ],
+      settings: {
+        foreground: '#F8F8F2',
+      },
+    },
+    {
+      scope: [
+        'meta.string-contents.quoted.double punctuation.definition.variable',
+        'punctuation.definition.interpolation.begin',
+        'punctuation.definition.interpolation.end',
+        'punctuation.definition.template-expression.begin',
+        'punctuation.definition.template-expression.end',
+        'punctuation.section.embedded.begin',
+        'punctuation.section.embedded.coffee',
+        'punctuation.section.embedded.end',
+        'punctuation.section.embedded.end source.php',
+        'punctuation.section.embedded.end source.ruby',
+        'punctuation.definition.variable.makefile',
+      ],
+      settings: {
+        foreground: '#ffd285',
+      },
+    },
+    {
+      scope: [
+        'entity.name.function.target.makefile',
+        'entity.name.section.toml',
+        'entity.name.tag.yaml',
+        'variable.other.key.toml',
+      ],
+      settings: {
+        foreground: inspect['--base0D'],
+      },
+    },
+    {
+      scope: ['constant.other.date', 'constant.other.timestamp'],
+      settings: {
+        foreground: '#FFB86C',
+      },
+    },
+    {
+      scope: ['variable.other.alias.yaml'],
+      settings: {
+        fontStyle: 'italic underline',
+        foreground: '#50FA7B',
+      },
+    },
+    {
+      scope: [
+        'storage',
+        'meta.implementation storage.type.objc',
+        'meta.interface-or-protocol storage.type.objc',
+        'source.groovy storage.type.def',
+      ],
+      settings: {
+        fontStyle: 'regular',
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: [
+        'entity.name.type',
+        'keyword.primitive-datatypes.swift',
+        'keyword.type.cs',
+        'meta.protocol-list.objc',
+        'meta.return-type.objc',
+        'source.go storage.type',
+        'source.groovy storage.type',
+        'source.java storage.type',
+        'source.powershell entity.other.attribute-name',
+        'storage.class.std.rust',
+        'storage.type.attribute.swift',
+        'storage.type.c',
+        'storage.type.core.rust',
+        'storage.type.cs',
+        'storage.type.groovy',
+        'storage.type.objc',
+        'storage.type.php',
+        'storage.type.haskell',
+        'storage.type.ocaml',
+      ],
+      settings: {
+        fontStyle: 'italic',
+        foreground: inspect['--base0D'],
+      },
+    },
+    {
+      scope: [
+        'entity.name.type.type-parameter',
+        'meta.indexer.mappedtype.declaration entity.name.type',
+        'meta.type.parameters entity.name.type',
+      ],
+      settings: {
+        foreground: '#FFB86C',
+      },
+    },
+    {
+      scope: ['storage.modifier'],
+      settings: {
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: [
+        'string.regexp',
+        'constant.other.character-class.set.regexp',
+        'constant.character.escape.backslash.regexp',
+      ],
+      settings: {
+        foreground: '#F1FA8C',
+      },
+    },
+    {
+      scope: ['punctuation.definition.group.capture.regexp'],
+      settings: {
+        foreground: inspect['--base08'],
+      },
+    },
+    {
+      scope: [
+        'string.regexp punctuation.definition.string.begin',
+        'string.regexp punctuation.definition.string.end',
+      ],
+      settings: {
+        foreground: '#FF5555',
+      },
+    },
+    {
+      scope: ['punctuation.definition.character-class.regexp'],
+      settings: {
+        foreground: inspect['--base0D'],
+      },
+    },
+    {
+      scope: ['punctuation.definition.group.regexp'],
+      settings: {
+        foreground: '#FFB86C',
+      },
+    },
+    {
+      scope: ['punctuation.definition.group.assertion.regexp', 'keyword.operator.negation.regexp'],
+      settings: {
+        foreground: '#FF5555',
+      },
+    },
+    {
+      scope: ['meta.assertion.look-ahead.regexp'],
+      settings: {
+        foreground: '#50FA7B',
+      },
+    },
+    {
+      scope: ['string'],
+      settings: {
+        foreground: '#ffd285',
+      },
+    },
+    {
+      scope: ['punctuation.definition.string.begin', 'punctuation.definition.string.end'],
+      settings: {
+        foreground: '#E9F284',
+      },
+    },
+    {
+      scope: [
+        'punctuation.support.type.property-name.begin',
+        'punctuation.support.type.property-name.end',
+      ],
+      settings: {
+        foreground: '#8BE9FE',
+      },
+    },
+    {
+      scope: [
+        'string.quoted.docstring.multi',
+        'string.quoted.docstring.multi.python punctuation.definition.string.begin',
+        'string.quoted.docstring.multi.python punctuation.definition.string.end',
+        'string.quoted.docstring.multi.python constant.character.escape',
+      ],
+      settings: {
+        foreground: '#6272A4',
+      },
+    },
+    {
+      scope: [
+        'variable',
+        'constant.other.key.perl',
+        'support.variable.property',
+        'variable.other.constant.js',
+        'variable.other.constant.ts',
+        'variable.other.constant.tsx',
+      ],
+      settings: {
+        foreground: '#F8F8F2',
+      },
+    },
+    {
+      scope: [
+        'meta.import variable.other.readwrite',
+        'meta.variable.assignment.destructured.object.coffee variable',
+      ],
+      settings: {
+        fontStyle: 'italic',
+        foreground: '#FFB86C',
+      },
+    },
+    {
+      scope: [
+        'meta.import variable.other.readwrite.alias',
+        'meta.export variable.other.readwrite.alias',
+        'meta.variable.assignment.destructured.object.coffee variable variable',
+      ],
+      settings: {
+        fontStyle: 'normal',
+        foreground: '#F8F8F2',
+      },
+    },
+    {
+      scope: ['meta.selectionset.graphql variable'],
+      settings: {
+        foreground: '#F1FA8C',
+      },
+    },
+    {
+      scope: ['meta.selectionset.graphql meta.arguments variable'],
+      settings: {
+        foreground: '#F8F8F2',
+      },
+    },
+    {
+      scope: ['entity.name.fragment.graphql', 'variable.fragment.graphql'],
+      settings: {
+        foreground: inspect['--base0D'],
+      },
+    },
+    {
+      scope: [
+        'constant.other.symbol.hashkey.ruby',
+        'keyword.operator.dereference.java',
+        'keyword.operator.navigation.groovy',
+        'meta.scope.for-loop.shell punctuation.definition.string.begin',
+        'meta.scope.for-loop.shell punctuation.definition.string.end',
+        'meta.scope.for-loop.shell string',
+        'storage.modifier.import',
+        'punctuation.section.embedded.begin.tsx',
+        'punctuation.section.embedded.end.tsx',
+        'punctuation.section.embedded.begin.jsx',
+        'punctuation.section.embedded.end.jsx',
+        'punctuation.separator.list.comma.css',
+        'constant.language.empty-list.haskell',
+      ],
+      settings: {
+        foreground: '#F8F8F2',
+      },
+    },
+    {
+      scope: ['source.shell variable.other'],
+      settings: {
+        foreground: inspect['--base0E'],
+      },
+    },
+    {
+      scope: ['support.constant'],
+      settings: {
+        fontStyle: 'normal',
+        foreground: inspect['--base0E'],
+      },
+    },
+    {
+      scope: ['meta.scope.prerequisites.makefile'],
+      settings: {
+        foreground: '#F1FA8C',
+      },
+    },
+    {
+      scope: ['meta.attribute-selector.scss'],
+      settings: {
+        foreground: '#F1FA8C',
+      },
+    },
+    {
+      scope: [
+        'punctuation.definition.attribute-selector.end.bracket.square.scss',
+        'punctuation.definition.attribute-selector.begin.bracket.square.scss',
+      ],
+      settings: {
+        foreground: '#F8F8F2',
+      },
+    },
+    {
+      scope: ['meta.preprocessor.haskell'],
+      settings: {
+        foreground: '#6272A4',
+      },
+    },
+    {
+      scope: ['log.error'],
+      settings: {
+        fontStyle: 'bold',
+        foreground: '#FF5555',
+      },
+    },
+    {
+      scope: ['log.warning'],
+      settings: {
+        fontStyle: 'bold',
+        foreground: '#F1FA8C',
+      },
+    },
+  ],
+  type: 'dark',
+}
+
+=== 101 packages/svelte/src/doclib/types.ts	ts	module	-
+export type Document = {
+  title: [string, string]
+  children?: [string, string][]
+  type?: string
+}
+
+=== 100 packages/svelte/src/doclib/util.ts	ts	module	-
+export function createPageTitle(title: string) {
+  return `${title} - Svelte <Inspect {value} />`
+}
+
+=== 366 packages/svelte/src/hooks.server.ts	ts	module	-
+/* eslint-disable no-console */
+import type { HandleServerError } from '@sveltejs/kit'
+
+export const handleError: HandleServerError = async ({ error }) => {
+  console.log('#############################')
+  console.log('#     SERVER SIDE ERROR     #')
+  console.log('#############################')
+
+  console.log({ error })
+
+  return {
+    message: 'Whoops!',
+  }
 }
 
 === 1101 packages/svelte/src/lib/CollapseStateProvider.svelte	svelte	runes	runes
@@ -7362,6 +8971,249 @@ Initializes collapse state and provides function for building search index
     }
   }
 </style>
+
+=== 6619 packages/svelte/src/lib/attachments/focus.ts	ts	module	-
+/**
+ * Adapted from https://github.com/trbrc/svelte-inspect
+ */
+
+import type { Attachment } from 'svelte/attachments'
+
+let serialCounter = 0
+
+export const focusTarget = (enabled: boolean | undefined): Attachment<HTMLElement> => {
+  return (element) => {
+    const focusEventListener = () => {
+      setFocus(element)
+    }
+
+    if (enabled) {
+      // This should probably not be a global serial, but based instead on the scope.
+      element.dataset.focusTarget = (serialCounter++).toString()
+
+      element.addEventListener('focus', focusEventListener)
+    }
+
+    return () => {
+      element.dataset.focusTarget = undefined
+      element.removeEventListener('focus', focusEventListener)
+    }
+  }
+}
+
+export const scope = (enabled: boolean): Attachment<HTMLElement> => {
+  return (element) => {
+    if (enabled) element.dataset.focusScope = ''
+    return () => (element.dataset.focusScope = undefined)
+  }
+}
+
+const createRangeFrom = (element: HTMLElement) => {
+  const range = document.createRange()
+  range.selectNodeContents(element)
+  return range
+}
+
+function getElementBefore(referenceElement: HTMLElement, elements: NodeListOf<HTMLElement>) {
+  const range = createRangeFrom(referenceElement)
+  const lastIndex = elements.length - 1
+  for (let i = lastIndex; i >= 0; i--) {
+    if (range.comparePoint(elements[i], 0) === -1) {
+      return elements[i]
+    }
+  }
+  return elements[lastIndex]
+}
+
+function getElementAfter(referenceElement: HTMLElement, elements: NodeListOf<HTMLElement>) {
+  const range = createRangeFrom(referenceElement)
+  for (let i = 0; i < elements.length; i++) {
+    if (range.comparePoint(elements[i], 0) === 1) {
+      return elements[i]
+    }
+  }
+  return elements[0]
+}
+
+function getTargetBefore(element: HTMLElement) {
+  return getElementBefore(element, document.querySelectorAll('[data-focus-target]'))
+}
+
+function getTargetAfter(element: HTMLElement) {
+  return getElementAfter(element, document.querySelectorAll('[data-focus-target]'))
+}
+
+function getParentScope(element: HTMLElement, scopeId?: string) {
+  if (scopeId) {
+    const outer = document.querySelectorAll<HTMLDivElement>(`[data-focus-id="${scopeId}"]`).item(0)
+    if (outer) return outer
+  }
+
+  return element.closest('[data-focus-scope]') as HTMLElement | null
+}
+
+function getAllFocusTargets(outer: Element) {
+  return outer.querySelectorAll<HTMLElement>('[data-focus-target]')
+}
+
+function getCurrentFocusContainer(ele: Element, focusId?: string) {
+  return ele.closest<HTMLElement>(`[data-focus-id="${focusId}"]`)
+}
+
+function setFocus(targetElement: HTMLElement) {
+  if (targetElement) {
+    const serial = targetElement.dataset.focusTarget
+    if (serial) {
+      const scope = getParentScope(targetElement)
+      if (scope) {
+        scope.dataset.focusScope = serial
+      }
+    }
+    targetElement.focus()
+    return true
+  }
+  return false
+}
+
+export function focusPrev(focusId: string) {
+  if (!document.activeElement) return false
+  const outer = getCurrentFocusContainer(document.activeElement, focusId)
+  const target = getTargetBefore(document.activeElement as HTMLElement)
+  if (outer) {
+    if (outer.contains(target)) {
+      return setFocus(target)
+    }
+
+    return focusLast(focusId)
+  }
+
+  return false
+}
+
+export function focusNext(focusId: string) {
+  if (!document.activeElement) return false
+  const outer = getCurrentFocusContainer(document.activeElement, focusId)
+  const target = getTargetAfter(document.activeElement as HTMLElement)
+  if (outer) {
+    if (outer.contains(target)) {
+      return setFocus(target)
+    }
+
+    return focusFirst(focusId)
+  }
+
+  return false
+}
+
+export function focusLast(focusId: string) {
+  if (!document.activeElement) return false
+  const outer = getCurrentFocusContainer(document.activeElement, focusId)
+  if (outer) {
+    const targets = getAllFocusTargets(outer)
+    const last = targets.item(targets.length - 1)
+    if (last) return setFocus(last)
+  }
+  return false
+}
+
+export function focusFirst(focusId: string) {
+  if (!document.activeElement) return false
+  const outer = getCurrentFocusContainer(document.activeElement, focusId)
+  if (outer) {
+    const targets = getAllFocusTargets(outer)
+    const first = targets.item(0)
+    if (first) return setFocus(first)
+  }
+  return false
+}
+
+export function exitFocusScope(focusId: string) {
+  const outer = document.querySelectorAll<HTMLDivElement>(`[data-focus-id="${focusId}"]`).item(0)
+
+  const parent = getParentScope(document.activeElement as HTMLElement)
+  if (parent && outer && outer.contains(parent)) {
+    return setFocus(getTargetBefore(parent))
+  } else {
+    return focusPrev(focusId)
+  }
+}
+
+export function enterFocusScope() {
+  try {
+    const nextScope = getElementAfter(
+      document.activeElement as HTMLElement,
+      document.querySelectorAll('[data-focus-scope]')
+    )
+    const targetBefore = getTargetBefore(nextScope)
+    if (targetBefore !== document.activeElement) {
+      // We only want to enter the scope if it is directly after activeElement
+      return false
+    }
+    const serial = nextScope.dataset.focusScope
+    const selector = serial ? `[data-focus-target="${serial}"]` : `[data-focus-target]`
+    const target = nextScope.querySelector<HTMLElement>(selector)
+    return setFocus(target!)
+  } catch {
+    return false
+  }
+}
+
+export function focusBySearch(string: string, focusId: string) {
+  // Find a focus target that matches the string.
+  try {
+    const regex = new RegExp(string.split('').join('[^a-z0-9]*.?[^a-z0-9]*'), 'i')
+
+    let scope = document.activeElement as HTMLElement
+    const outer = scope.closest(`[data-focus-id="${focusId}"]`)
+
+    do {
+      scope = getParentScope(scope.parentElement as HTMLElement) as HTMLElement
+
+      const targets = scope?.querySelectorAll<HTMLElement>('[data-focus-target]')
+      for (let i = 0; i < targets?.length; i++) {
+        const target = targets[i]
+        // check non-preview keys first
+        const keyElements = target?.querySelectorAll<HTMLElement>(
+          '.key-button:not([data-search-ignore])'
+        )
+        if (keyElements.length) {
+          for (let j = 0; j < keyElements.length; j++) {
+            const t = keyElements[j]
+            const text = t.textContent ?? ''
+            if (regex.test(text) && outer?.contains(target)) {
+              return setFocus(target)
+            }
+          }
+        }
+        const text = target.textContent ?? ''
+        if (regex.test(text) && outer?.contains(target)) {
+          return setFocus(target)
+        }
+      }
+    } while (scope)
+  } catch (e) {
+    console.error('error while setting focus using typebuffer search:', e)
+  }
+  return false
+}
+
+=== 501 packages/svelte/src/lib/attachments/inspect-element.ts	ts	module	-
+import { addToPanel } from '../global.svelte.js'
+import type { Attachment } from 'svelte/attachments'
+
+/**
+ * Inspect an element with `Inspect.Panel`
+ *
+ * @param name key of element in `Inspect.Panel` global values. Defaults to `node.nodeName`
+ *
+ * @example
+ * ```svelte
+ * <input bind:value={amount} type="number" {@attach inspectElement('amountInput')} />
+ * ```
+ */
+export const inspectElement = (name?: string): Attachment => {
+  return (node) => addToPanel(name ?? node.nodeName, () => node)
+}
 
 === 1039 packages/svelte/src/lib/attachments/update-flash.svelte.ts	svelte-module-ts	runes	-
 import equal from 'fast-deep-equal'
@@ -12311,6 +14163,473 @@ https://icon-sets.iconify.design/material-symbols/reset-focus-rounded/
   /></svg
 >
 
+=== 775 packages/svelte/src/lib/components/icons/index.ts	ts	module	-
+export { default as Search } from './SearchIcon.svelte'
+export { default as Caret } from './Caret.svelte'
+export { default as ExpandCollapse } from './ExpandCollapseIcon.svelte'
+export { default as Close } from './CloseIcon.svelte'
+export { default as Console } from './Console.svelte'
+export { default as AndOr } from './AndOrIcon.svelte'
+export { default as Clipboard } from './ClipBoardIcon.svelte'
+export { default as PanelValue } from './PanelValueIcon.svelte'
+export { default as Fullscreen } from './Fullscreen.svelte'
+export { default as FullscreenExit } from './FullscreenExit.svelte'
+export { default as Opacity } from './OpacityIcon.svelte'
+export { default as Circle } from './CircleSolid.svelte'
+export { default as ResetResize } from './ResetResizeIcon.svelte'
+
+=== 3568 packages/svelte/src/lib/components/index.ts	ts	module	-
+import type { Component } from 'svelte'
+import type { CustomComponents, TypeViewProps } from '../types.js'
+import ArrayView from './ArrayView.svelte'
+import ClassView from './ClassView.svelte'
+import DateView from './DateView.svelte'
+import Default from './Default.svelte'
+import ErrorView from './ErrorView.svelte'
+import FunctionView from './FunctionView.svelte'
+import HtmlImageElementView from './HTMLImageElementView.svelte'
+import HtmlView from './HTMLView.svelte'
+import IteratorView from './IteratorView.svelte'
+import MapView from './MapView.svelte'
+import ObjectView from './ObjectView.svelte'
+import OneLineView from './OneLineView.svelte'
+import PromiseView from './PromiseView.svelte'
+import RegexpView from './RegexpView.svelte'
+import SetView from './SetView.svelte'
+import StringView from './StringView.svelte'
+import SvelteStoreView from './SvelteStoreView.svelte'
+import TypedArrayView from './TypedArrayView.svelte'
+import UrlSearchParamsView from './URLSearchParamsView.svelte'
+import UrlView from './URLView.svelte'
+import MapEntryView from './MapEntryView.svelte'
+
+type ViewComponent<T> = Component<TypeViewProps<T>>
+
+export type ComponentEntry<T = unknown> =
+  | [ViewComponent<T>, (props: TypeViewProps<T>) => Partial<TypeViewProps<T>>]
+  | [ViewComponent<T>]
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type ViewComponents = Record<string, ComponentEntry<any>>
+
+const components = {
+  symbol: [
+    OneLineView,
+    (props: TypeViewProps<symbol>) => ({ value: props.value, display: props.value.toString() }),
+  ],
+  number: [OneLineView],
+  boolean: [OneLineView],
+  undefined: [OneLineView],
+  null: [OneLineView],
+  regexp: [RegexpView],
+  bigint: [
+    OneLineView,
+    (props: TypeViewProps<bigint>) => ({ display: props.value.toString() + 'n' }),
+  ],
+  arraybuffer: [
+    OneLineView,
+    (props: TypeViewProps<ArrayBuffer>) => ({ display: `ArrayBuffer(${props.value.byteLength})` }),
+  ],
+  setiterator: [IteratorView],
+  arrayiterator: [IteratorView],
+  mapiterator: [IteratorView],
+  generator: [IteratorView],
+  asyncgenerator: [IteratorView],
+  weakset: [OneLineView, () => ({ display: ``, forceType: true })],
+  weakmap: [OneLineView, () => ({ display: ``, forceType: true })],
+  object: [ObjectView],
+  store: [SvelteStoreView],
+  array: [ArrayView],
+  string: [StringView],
+  function: [FunctionView],
+  asyncfunction: [FunctionView],
+  generatorfunction: [FunctionView],
+  asyncgeneratorfunction: [FunctionView],
+  class: [ClassView],
+  date: [DateView],
+  error: [ErrorView],
+  map: [MapView],
+  mapentry: [MapEntryView],
+  set: [SetView],
+  url: [UrlView],
+  urlsearchparams: [UrlSearchParamsView],
+  htmlcollection: [Default],
+  htmlimageelement: [HtmlImageElementView],
+  html: [HtmlView],
+  promise: [PromiseView],
+  typedarray: [TypedArrayView],
+} as ViewComponents
+
+export default components
+
+const typedArrays = [
+  'int8array',
+  'uint8array',
+  'uint8clampedarray',
+  'int16array',
+  'uint16array',
+  'int32array',
+  'uint32array',
+  'float32array',
+  'float64array',
+  'bigint64array',
+  'biguint64array',
+]
+
+export function getComponent(type: string, custom: CustomComponents) {
+  const comps = { ...components, ...custom }
+
+  if (typedArrays.includes(type)) return comps['typedarray']
+  if (type.includes('iterator')) return comps['arrayiterator']
+
+  return comps[type]
+}
+
+export function getDefaultComponent(type: string) {
+  if (typedArrays.includes(type)) return components['typedarray']
+  if (type.includes('iterator')) return components['arrayiterator']
+
+  return components[type]
+}
+
+=== 8610 packages/svelte/src/lib/configurable.ts	ts	module	-
+import { setContext, type Component } from 'svelte'
+import ValuesBase from './InspectValues.svelte'
+import * as options from './options.svelte.js'
+import type { InspectValuesOptions } from './types.js'
+
+/**
+ * Utility-type used to enhance `Inspect.Values` with {@linkcode Configurable.withOptions} and chainable inline configuration.
+ */
+export type Configurable<TComponent = Component> = TComponent & {
+  /**
+   * Configure `Inspect.Values` or other variants created with `withOptions` or {@linkcode configured}
+   *
+   * The component will also inherit options set with `setGlobalInspectOptions` or `InspectOptionsProvider`.
+   *
+   * "Global" options will be overriden by options passed to this method.
+   *
+   * @example
+   * ```svelte
+   * <script>
+   *  import Inspect from 'svelte-inspect-value'
+   *
+   *  const InspectValues = Inspect.withOptions(() => ({ theme: 'plain', showPreview: false }))
+   *  const Ins = InspectValues.withOptions(() => ({ showTypes: false })) // inherits from InspectValues
+   *
+   *  let str = 'hi'
+   *  let obj = {}
+   * </script>
+   *
+   * <InspectValues {str} {obj} arr={[1,2,3]} />
+   * ```
+   */
+  withOptions: (options: InspectValuesOptions) => Configurable<TComponent>
+  /** Initially expand all nodes (max 30) */
+  ExpandAll: Configurable<TComponent>
+  /** Set initial expand depth to 0 */
+  Expand0: Configurable<TComponent>
+  /** Set initial expand depth to 1 */
+  Expand1: Configurable<TComponent>
+  /** Set initial expand depth to 2 */
+  Expand2: Configurable<TComponent>
+  /** Set initial expand depth to 3 */
+  Expand3: Configurable<TComponent>
+  /** Set initial expand depth to 4 */
+  Expand4: Configurable<TComponent>
+  /** Set initial expand depth to 5 */
+  Expand5: Configurable<TComponent>
+  /** Set initial expand depth to 6 */
+  Expand6: Configurable<TComponent>
+  /** Set initial expand depth to 7 */
+  Expand7: Configurable<TComponent>
+  /** Set initial expand depth to 8 */
+  Expand8: Configurable<TComponent>
+  /** Set initial expand depth to 9 */
+  Expand9: Configurable<TComponent>
+  /** Set initial expand depth to 10 */
+  Expand10: Configurable<TComponent>
+  /**
+   * Use chainable inline configuration in a template.
+   * Complete configuration and return component with `Ok`
+   *
+   * Will override global options and options passed with `withOptions`
+   *
+   * @example
+   * ```svelte
+   * <script>
+   *  import Inspect from 'svelte-inspect-value'
+   *  import data from './data.js'
+   * </script>
+   *
+   * <Inspect.Values.Expand0.Config.Borderless.DoubleQuotes.DarkTheme.Ok
+   *  {data}
+   * />
+   * ```
+   */
+  Config: InlineConfig<TComponent>
+}
+
+/**
+ * @inline
+ *
+ * Use chainable inline configuration in a template.
+ * Complete configuration and return component with `Ok`
+ *
+ * Will override global options and options passed with `withOptions`
+ *
+ * @see {@link inlineConfigProperties}
+ *
+ * @example
+ * ```svelte
+ * <script>
+ *  import Inspect from 'svelte-inspect-value'
+ *  import data from './data.js'
+ * </script>
+ *
+ * <Inspect.Values.Expand0.Config.Borderless.DoubleQuotes.DarkTheme.Ok
+ *  {data}
+ * />
+ * ```
+ */
+export type InlineConfig<T = Component> = {
+  [key in keyof typeof inlineConfigProperties]: InlineConfig<T>
+} & {
+  /**
+   * Finish inline configuration and return component
+   */
+  Ok: Configurable<T>
+}
+
+export const inlineConfigProperties = {
+  DarkTheme: { theme: 'dark' },
+  LightTheme: { theme: 'light' },
+  DrakTheme: { theme: 'drak' },
+  StereoTheme: { theme: 'stereo' },
+  DefaultTheme: { theme: 'inspect' },
+  PlainTheme: { theme: 'plain' },
+  /** Render with no background color or border */
+  Borderless: { borderless: true },
+  /** Render with background color or border */
+  Border: { borderless: false },
+  /** Disable animations */
+  NoAnimate: { noanimate: true },
+  /** Enable animations */
+  Animate: { noanimate: false },
+  /** Initially expand all props */
+  ExpandAll: { expandAll: true },
+  /** Disable row tools */
+  NoTools: { showTools: false },
+  /** Enable row tools */
+  ShowTools: { showTools: true },
+  /** Disable display of counts of object entries, array items, string lengths etc.  */
+  NoLength: { showLength: false },
+  /** Enable display of counts of object entries, array items, string lengths etc.  */
+  ShowLength: { showLength: false },
+  /** Disable display of types of values */
+  NoTypes: { showTypes: false },
+  /** Enable display of types of values */
+  ShowTypes: { showTypes: false },
+  /** Disable preview of nested values */
+  NoPreview: { showPreview: false },
+  /** Enable preview of nested values */
+  ShowPreview: { showPreview: false },
+  /** Enable parsing stringified JSON arrays and Objects */
+  ParseJSON: { parseJson: true },
+  /** Enable inspecting Svelte stores / observables. Sets store-mode to `'full'` */
+  Stores: { stores: true },
+  /** Enable inspecting Svelte stores / observables. Sets store-mode to `'value-only'` */
+  StoreValues: { stores: 'value-only' },
+  /** Disable inspecting Svelte store / observables */
+  NoStores: { stores: false },
+  /** Enable embedding images and sounds */
+  EmbedMedia: { embedMedia: true },
+  SingleQuotes: { quotes: 'single' },
+  DoubleQuotes: { quotes: 'double' },
+  NoQuotes: { quotes: 'none' },
+  /** Set search mode to `'filter'` */
+  Search: { search: 'filter' },
+  /** Set search mode to `'filter-strict'` */
+  SearchStrict: { search: 'filter-strict' },
+  /** Set search mode to `'highlight'` */
+  SearchHighlight: { search: 'highlight' },
+  /** Disable search functionality */
+  NoSearch: { search: false },
+  /** Disable highlighting text matching search query */
+  NoHighlight: { highlightMatches: false },
+  /** Show heading with search (if enabled) and utility buttons */
+  Heading: { heading: true },
+} as const satisfies Record<string, Partial<options.InspectOptions>>
+
+export function createConfigurable<T>(
+  component: Configurable<T>,
+  inheritOptions: InspectValuesOptions,
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  returnComponent: Component<any, any, any> = ValuesBase
+): Configurable<T> {
+  // declare
+  component.withOptions = function (options: InspectValuesOptions) {
+    const merged: InspectValuesOptions = () => ({ ...inheritOptions(), ...options() })
+
+    // wrapper component
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    function wrapped(...args: any[]) {
+      setContext(Symbol.for('siv.with-options'), merged)
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      return (returnComponent as any)(...args) as Configurable<T>
+    }
+
+    return createConfigurable(wrapped as Configurable<T>, merged)
+  }
+
+  if (!Object.hasOwn(component, 'Config')) {
+    const cfg = {
+      config: {},
+      get Ok() {
+        return component.withOptions(() => ({ ...inheritOptions(), ...this.config }))
+      },
+    }
+
+    Object.entries(inlineConfigProperties).forEach(([property, options]) => {
+      Object.defineProperty(cfg, property, {
+        get(this: typeof cfg) {
+          this.config = { ...this.config, ...options }
+          return this
+        },
+      })
+    })
+
+    Object.defineProperty(component, 'Config', {
+      value: cfg,
+    })
+  }
+
+  for (let i = 0; i <= 10; i++) {
+    if (!Object.hasOwn(component, `Expand${i}`)) {
+      Object.defineProperty(component, `Expand${i}`, {
+        get: function () {
+          return component.withOptions(() => ({ ...inheritOptions(), expandLevel: i }))
+        },
+      })
+    }
+  }
+
+  if (!Object.hasOwn(component, 'ExpandAll')) {
+    Object.defineProperty(component, 'ExpandAll', {
+      get() {
+        return component.withOptions(() => ({ ...inheritOptions(), expandAll: true }))
+      },
+    })
+  }
+
+  return component
+}
+
+export const InspectValues = createConfigurable(
+  ValuesBase as Configurable<typeof ValuesBase>,
+  () => ({})
+)
+
+/**
+ * Creates a pre-configured Inspect-component that will inspect any value passed to it
+ * instead of using the `value`-prop.
+ *
+ * The component will also inherit options set with `setGlobalInspectOptions` or `InspectOptionsProvider`.
+ *
+ * "Global" options will be overriden by options passed to this method.
+ *
+ * @example
+ * ```svelte
+ * <script>
+ *  import {configured} from 'svelte-inspect-value'
+ *
+ *  const Inspect = configured(() => ({ theme: 'plain', borderless: true, showPreview: false }))
+ *
+ *  let str = 'hi'
+ *  let obj = {}
+ * </script>
+ *
+ * <Inspect {str} {obj} arr={[1,2,3]} />
+ * ```
+ *
+ * @see {@linkcode options.setGlobalInspectOptions}
+ * @see {@linkcode Configurable.withOptions}
+ */
+export function configured(options: InspectValuesOptions) {
+  return InspectValues.withOptions(options)
+}
+
+=== 141 packages/svelte/src/lib/context/preview.ts	ts	module	-
+import { getContext } from 'svelte'
+
+export function getPreviewLevel(): number {
+  return getContext(Symbol.for('siv.preview-level')) ?? 0
+}
+
+=== 1502 packages/svelte/src/lib/contexts.ts	ts	module	-
+import { getContext, setContext } from 'svelte'
+import { SvelteMap } from 'svelte/reactivity'
+import type { SearchTerm } from './util/search.js'
+
+const VALUE_CACHE = Symbol('siv.value-cache')
+const SEARCH = Symbol('siv.search')
+const KEY = Symbol('siv.key')
+const ADD_DESTROY_CALLBACKS = Symbol('siv.add-destroy-callbacks')
+
+export function initValueCache() {
+  return setContext(VALUE_CACHE, new SvelteMap<string, unknown>())
+}
+
+export function useValueCache<T = unknown>() {
+  return getContext<SvelteMap<string, T>>(VALUE_CACHE)
+}
+
+export function getPreviewLevel(): number {
+  return getContext(Symbol.for('siv.preview-level')) ?? 0
+}
+
+type SearchContext = () => {
+  searching: boolean
+  matchingPaths: string[]
+  query: string
+  terms: SearchTerm[]
+}
+
+export function setSearchContext(value: SearchContext) {
+  return setContext(SEARCH, value)
+}
+
+export function useSearchContext() {
+  return (
+    getContext<SearchContext>(SEARCH) ??
+    (() => ({
+      searching: false,
+      matchingPaths: [],
+      query: '',
+    }))
+  )
+}
+
+export function setIsKey() {
+  return setContext(KEY, true)
+}
+
+export function getIsKey() {
+  return getContext<true | undefined>(KEY) ?? false
+}
+
+type OnDestroyCallback = () => void
+
+type AddDestroyCallback = (cb: OnDestroyCallback) => void
+
+export function setAddDestroyCallback(cb: AddDestroyCallback) {
+  return setContext(ADD_DESTROY_CALLBACKS, cb)
+}
+
+export function getAddDestroyCallbackFn() {
+  return getContext<AddDestroyCallback>(ADD_DESTROY_CALLBACKS)
+}
+
 === 3244 packages/svelte/src/lib/global.svelte.ts	svelte-module-ts	runes	-
 import { DEV } from 'esm-env'
 import { onDestroy } from 'svelte'
@@ -12465,6 +14784,122 @@ export function copyToClipBoard(item: unknown, type: ValueType) {
 
   return navigator.clipboard.writeText(stringifyOrToString(item))
 }
+
+=== 3387 packages/svelte/src/lib/index.ts	ts	module	-
+import type { Component } from 'svelte'
+import { InspectValues, type Configurable } from './configurable.js'
+import InspectBase from './Inspect.svelte'
+import Panel from './Panel.svelte'
+import type { InspectProps, PanelProps } from './types.js'
+;(InspectBase as unknown as { Values: typeof InspectValues }).Values = InspectValues
+;(InspectBase as unknown as { Panel: typeof Panel }).Panel = Panel
+
+/**
+ * Value-inspector component.
+ *
+ * Also used to access variations of the component: {@linkcode Inspect.Values} and {@linkcode Inspect.Panel}
+ *
+ * @see {@link InspectProps}
+ *
+ * @example
+ * ```svelte
+ * <script>
+ *  import Inspect from 'svelte-inspect-value'
+ *  import data from './data.js'
+ * </script>
+ *
+ * <Inspect value={data} />
+ * <Inspect.Values {data} />
+ * <Inspect.Panel value={data} />
+ * ```
+ */
+export const Inspect = InspectBase as unknown as Component<
+  InspectProps,
+  {
+    search: (query: string) => void
+  }
+> & {
+  /**
+   * Another version of `Inspect` that will inspect any value passed to it instead of using the `value`-prop.
+   *
+   * Configure using `setGlobalInspectOptions`, {@linkcode [InspectOptionsProvider](./InspectOptionsProvider.svelte)},
+   * {@linkcode InspectValues.withOptions} or chainable inline configuration ({@linkcode InspectValues.Config})
+   * listed in order of priority.
+   *
+   * @example
+   * ```svelte
+   * <script>
+   *  import Inspect from 'svelte-inspect-value'
+   *
+   *  const InspectValues = Inspect.Values.withOptions(() => ({ expandLevel: 2 }))
+   *  const DarkInspect = InspectValues.withOptions(() => ({ theme: 'dark' }))
+   *
+   *  let str = 'hi'
+   *  let obj = { a: 1 }
+   * </script>
+   *
+   * <!-- unconfigured -->
+   * <Inspect.Values {str} {obj} />
+   *
+   * <!-- configured with withOptions -->
+   * <InspectValues {str} {obj} arr={[1,2,3]} />
+   *
+   * <!-- configured with withOptions. Will inherit expandLevel from InspectValues -->
+   * <DarkInspect {...obj} />
+   *
+   * <!-- chainable inline config -->
+   * <DarkInspect.Config.Borderless.NoAnimate.Ok {str} {obj} />
+   * ```
+   */
+  Values: Configurable<Component<Record<string, unknown>>>
+  /**
+   * A fixed-position panel version of {@linkcode Inspect}
+   *
+   * @example
+   * ```svelte
+   * <script>
+   *  import Inspect from 'svelte-inspect-value'
+   *  import data from './data.js'
+   * </script>
+   *
+   * <Inspect.Panel
+   *  value={data}
+   *  name="data"
+   *  position={['top', 'right']}
+   *  appearance="dense"
+   * />
+   * ```
+   */
+  Panel: Component<
+    PanelProps,
+    object,
+    'align' | 'resize' | 'open' | 'appearance' | 'opacity' | 'width' | 'height'
+  >
+}
+
+export { configured } from './configurable.js'
+export { default as CustomExpandable } from './CustomExpandable.svelte'
+export { default as CustomLine } from './CustomLine.svelte'
+export { addToPanel } from './global.svelte.js'
+export { inspectElement } from './attachments/inspect-element.js'
+export { default as InspectOptionsProvider } from './InspectOptionsProvider.svelte'
+export {
+  DEFAULT_OPTIONS,
+  GLOBAL_OPTIONS_CONTEXT,
+  setGlobalInspectOptions,
+  type InspectOptions,
+} from './options.svelte.js'
+export { default as PanelValue } from './PanelValue.svelte'
+export type {
+  CustomComponentProps,
+  CustomComponents,
+  InspectProps,
+  BaseProps,
+  PanelProps,
+  PanelSettings,
+} from './types.js'
+export { addComponent } from './util.js'
+export default Inspect
 
 === 14297 packages/svelte/src/lib/options.svelte.ts	svelte-module-ts	runes	-
 import { getContext, setContext, type Snippet } from 'svelte'
@@ -13105,6 +15540,640 @@ export function useState(): StateContext {
   return getContext<StateContext>(STATE_CONTEXT_KEY)
 }
 
+=== 158 packages/svelte/src/lib/transition/index.ts	ts	module	-
+export { fly, type FlyParams, type SlideParams } from 'svelte/transition'
+export * from './slide.js'
+export * from './rotate.js'
+export * from './slideXY.js'
+
+=== 1249 packages/svelte/src/lib/transition/rotate.ts	ts	module	-
+import { sineInOut } from 'svelte/easing'
+import type { EasingFunction, TransitionConfig } from 'svelte/transition'
+
+/**
+ * Same as splt_css_unit from svelte/internal, but lets you specify the default unit where the
+ * original function only uses 'px'
+ */
+function splitCssUnit(value: number | string, unitIfNumber = 'px'): [number, string] {
+  const split = typeof value === 'string' && value.match(/^\s*(-?[\d.]+)([^\s]*)\s*$/)
+  return split ? [parseFloat(split[1]), split[2] || unitIfNumber] : [value as number, unitIfNumber]
+}
+
+export interface RotateParams {
+  delay?: number
+  duration?: number
+  easing?: EasingFunction
+  opacity?: number
+  rotation?: number | string
+  x?: number
+  y?: number
+}
+
+export function rotate(
+  node: Element,
+  { delay = 0, duration = 250, easing = sineInOut, rotation = 180, opacity = 1 }: RotateParams = {}
+): TransitionConfig {
+  const style = getComputedStyle(node)
+  const target_opacity = +style.opacity
+  const od = target_opacity * (1 - opacity)
+  const [rotateValue, rotateUnit] = splitCssUnit(rotation, 'deg')
+  return {
+    delay,
+    duration,
+    easing,
+    css: (t, u) => `
+      rotate: ${(1 - t) * rotateValue}${rotateUnit};
+			opacity: ${target_opacity - od * u}`,
+  }
+}
+
+export default rotate
+
+=== 2051 packages/svelte/src/lib/transition/slide.ts	ts	module	-
+import type { SlideParams } from 'svelte/transition'
+import { cubicOut } from 'svelte/easing'
+
+type SecondaryProp = 'Left' | 'Right' | 'Top' | 'Bottom'
+
+export function slide(
+  node: Element,
+  { delay = 0, duration = 400, easing = cubicOut, axis = 'y' }: SlideParams = {}
+) {
+  const style = getComputedStyle(node)
+
+  const opacity = +style.opacity
+  const primary_property = axis === 'y' ? 'height' : 'width'
+  const primary_property_value = parseFloat(style[primary_property])
+  const secondary_properties = axis === 'y' ? ['top', 'bottom'] : ['left', 'right']
+  const capitalized_secondary_properties: SecondaryProp[] = secondary_properties.map(
+    (e) => `${e[0].toUpperCase()}${e.slice(1)}` as SecondaryProp
+  )
+  const padding_start_value = parseFloat(style[`padding${capitalized_secondary_properties[0]}`])
+  const padding_end_value = parseFloat(style[`padding${capitalized_secondary_properties[1]}`])
+  const margin_start_value = parseFloat(style[`margin${capitalized_secondary_properties[0]}`])
+  const margin_end_value = parseFloat(style[`margin${capitalized_secondary_properties[1]}`])
+  const border_width_start_value = parseFloat(
+    style[`border${capitalized_secondary_properties[0]}Width`]
+  )
+  const border_width_end_value = parseFloat(
+    style[`border${capitalized_secondary_properties[1]}Width`]
+  )
+  return {
+    delay,
+    duration,
+    easing,
+    css: (t: number) =>
+      'overflow: hidden;' +
+      `opacity: ${Math.min(t * 20, 1) * opacity};` +
+      `${primary_property}: ${t * primary_property_value}px;` +
+      `padding-${secondary_properties[0]}: ${t * padding_start_value}px;` +
+      `padding-${secondary_properties[1]}: ${t * padding_end_value}px;` +
+      `margin-${secondary_properties[0]}: ${t * margin_start_value}px;` +
+      `margin-${secondary_properties[1]}: ${t * margin_end_value}px;` +
+      `border-${secondary_properties[0]}-width: ${t * border_width_start_value}px;` +
+      `border-${secondary_properties[1]}-width: ${t * border_width_end_value}px;` +
+      `min-${primary_property}: 0`,
+  }
+}
+
+=== 1987 packages/svelte/src/lib/transition/slideXY.ts	ts	module	-
+import { quartOut } from 'svelte/easing'
+import type { SlideParams, TransitionConfig } from 'svelte/transition'
+
+export function slideXY(
+  node: Element,
+  { delay = 0, duration = 400, easing = quartOut }: SlideParams = {}
+): TransitionConfig {
+  const style = getComputedStyle(node)
+
+  // const opacity = +style.opacity
+  const height_property_value = parseFloat(style['height'])
+  const width_property_value = parseFloat(style['width'])
+
+  const paddingValues = {
+    top: parseFloat(style['paddingTop']),
+    bottom: parseFloat(style['paddingBottom']),
+    right: parseFloat(style['paddingRight']),
+    left: parseFloat(style['paddingLeft']),
+  }
+  const marginValues = {
+    top: parseFloat(style['marginTop']),
+    bottom: parseFloat(style['marginBottom']),
+    right: parseFloat(style['marginRight']),
+    left: parseFloat(style['marginLeft']),
+  }
+  const borderValues = {
+    top: parseFloat(style['borderTopWidth']),
+    bottom: parseFloat(style['borderBottomWidth']),
+    right: parseFloat(style['borderRightWidth']),
+    left: parseFloat(style['borderLeftWidth']),
+  }
+
+  return {
+    delay,
+    duration,
+    easing,
+    css: (t) => {
+      return (
+        'overflow: hidden;' +
+        `width: ${t * width_property_value}px;` +
+        `height: ${t * height_property_value}px;` +
+        `padding-top: ${t * paddingValues.top}px;` +
+        `padding-bottom: ${t * paddingValues.bottom}px;` +
+        `padding-right: ${t * paddingValues.right}px;` +
+        `padding-left: ${t * paddingValues.left}px;` +
+        `margin-top: ${t * marginValues.top}px;` +
+        `margin-bottom: ${t * marginValues.bottom}px;` +
+        `margin-right: ${t * marginValues.right}px;` +
+        `margin-left: ${t * marginValues.left}px;` +
+        `border-top-width: ${t * borderValues.top}px;` +
+        `border-bottom-width: ${t * borderValues.bottom}px;` +
+        `border-right-width: ${t * borderValues.right}px;` +
+        `min-height: 0;` +
+        `min-width: 0`
+      )
+    },
+  }
+}
+
+=== 797 packages/svelte/src/lib/typedoc.ts	ts	module	-
+export { type Configurable, configured, type InlineConfig } from './configurable.js'
+export { addToPanel, removeFromPanel } from './global.svelte.js'
+export { inspectElement } from './attachments/inspect-element.js'
+export {
+  type InspectOptions,
+  setGlobalInspectOptions,
+  type InspectHotkeys,
+} from './options.svelte.js'
+export type { CollapseState } from './state.svelte.js'
+export type {
+  CustomComponentEntry,
+  CustomComponentPredicate,
+  CustomComponentProps,
+  CustomComponentPropsTransformFn,
+  CustomComponents,
+  CustomEntryComponentOnly,
+  CustomEntryWithPredicate,
+  CustomEntryWithTransform,
+  InspectProps,
+  InspectValuesOptions,
+  PanelProps,
+  PanelPersistProps,
+  PanelSettings,
+  TypeViewProps,
+} from './types.js'
+export { addComponent, type ValueType } from './util.js'
+
+=== 11039 packages/svelte/src/lib/types.ts	ts	module	-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import type { Component, ComponentProps } from 'svelte'
+import type { HTMLAttributes, SvelteHTMLElements } from 'svelte/elements'
+import type { InspectOptions } from './options.svelte.js'
+import type { ValueType } from './util.js'
+
+/**
+ * Shared props for `Inspect` and `Inspect.Panel`
+ *
+ * @inline
+ */
+export type BaseProps = {
+  /**
+   * Any (single) value of any type to be inspected.
+   *
+   * Will not be inspected if {@linkcode BaseProps.values} is used
+   *
+   * If value is `undefined` or `null` without `name` being set,
+   * the value will not be inspected
+   */
+  value?: unknown
+  /**
+   * Inspect every enumerable property of a value, object or array-like.
+   *
+   * Allows for multiple root-level nodes, unlike `value`.
+   */
+  values?: unknown
+  /**
+   * Name of inspected value. Will be displayed as the "key" of the value.
+   *
+   * Will not be used if `values` is set
+   *
+   * @see {@linkcode InspectOptions.expandPaths}
+   */
+  name?: string
+}
+
+/**
+ * Props for `Inspect`
+ *
+ * @see {@link InspectOptions}
+ */
+export type InspectProps = BaseProps & Partial<InspectOptions> & SvelteHTMLElements['div']
+
+/**
+ * @inline
+ */
+export type PanelAppearance = 'solid' | 'glassy' | 'floating' | 'dense'
+
+export type XPos = 'left' | 'right' | 'center' | 'full'
+export type YPos = 'top' | 'bottom' | 'middle' | 'full'
+export type Direction = 'right' | 'left' | 'top' | 'bottom'
+
+/**
+ * All possible positions for `Inspect.Panel`
+ */
+export type PositionProp<X extends XPos = XPos, Y extends YPos = YPos> =
+  | (X extends 'center' | 'full'
+      ? `${XPos} ${Exclude<YPos, 'full' | 'middle'>}`
+      : Y extends 'middle' | 'full'
+        ? `${Exclude<XPos, 'full' | 'center'>} ${YPos}`
+        : never)
+  | ('left' | 'right')
+
+/**
+ * Options for persisting `Inspect.Panel` state or configuration using the Panel UI.
+ */
+export type PanelPersistProps = {
+  /**
+   * Storage key used with local/session storage
+   *
+   * @default 'siv.panel'
+   */
+  key?: string
+  /**
+   * The storage type to use.
+   * @default 'local'
+   */
+  storage?: 'local' | 'session'
+  /**
+   * Enable or disable syncing the state changes from other tabs.
+   * @default false
+   */
+  syncTabs?: boolean
+}
+
+/**
+ * Props / settings that can be changed within the `Inspect.Panel` UI.
+ *
+ * These can be persisted using built-in logic with `persist` or
+ * customized logic using the `onSettingsChange`-callback
+ *
+ * @see {@link PanelProps.persist}
+ * @see {@link PanelProps.onSettingsChange}
+ */
+export type PanelSettings = {
+  /**
+   * Initial panel position
+   *
+   * Format: `'<x-position> <y-position?>'` (y is optional)
+   *
+   * x-position can be one of `'left' | 'right' | 'center' | 'full'`
+   *
+   * y-position can be one of `'top' | 'bottom' | 'middle' | 'full'`
+   *
+   * *Note: if only x-position is given it can only be `'left'` or `'right'`*
+   *
+   * **Bindable**
+   * @example
+   * ```svelte
+   * <Inspect.Panel align="left">
+   * <Inspect.Panel align="right middle">
+   * <Inspect.Panel align="center top">
+   * ```
+   *
+   * @default 'right full'
+   */
+  align: PositionProp
+  /**
+   * Initially open panel
+   *
+   * **Bindable**
+   * @default false
+   */
+  open: boolean
+  /**
+   * Sets appearance of panel.
+   *
+   * Can be `'solid'|'glassy'|'dense'|'floating'`
+   *
+   * **Bindable**
+   * @default 'solid'
+   */
+  appearance: PanelAppearance
+  /**
+   *
+   * Apply opacity to the panel when not hovered or focused
+   *
+   * **Bindable**
+   * @default false
+   */
+  opacity: boolean
+  /**
+   * Panel width in pixels.
+   *
+   * Not used if x-position in `align` is `'full'`
+   *
+   * **Bindable**
+   * @default undefined
+   */
+  width?: number | undefined
+  /**
+   * Panel height in pixels
+   *
+   * Not used if y-position in `align` is `'full'`
+   *
+   * **Bindable**
+   * @default undefined
+   */
+  height?: number | undefined
+}
+
+/**
+ * Props for `Inspect.Panel`
+ *
+ * @see {@link InspectOptions}
+ * @see {@link PanelSettings}
+ */
+export type PanelProps = {
+  /**
+   * Panel should open on hover.
+   *
+   * Enabling this will leave part of the panel visible for easier reach.
+   *
+   * @default false
+   */
+  openOnHover?: boolean
+  /**
+   * Don't render Panel toolbar with controls for setting position, opacity and appearance
+   *
+   * @default false
+   */
+  hideToolbar?: boolean
+  /**
+   * Don't display "global" values added with `addToPanel`
+   *
+   * @default false
+   */
+  hideGlobalValues?: boolean
+  /**
+   * Enable resizing
+   *
+   * @default true
+   */
+  resize?: boolean
+  /**
+   * Extra elements to be added at the bottom of the panel
+   */
+  children?: import('svelte').Snippet
+  /**
+   * Z-index of panel
+   *
+   * @default 1000
+   */
+  zIndex?: number
+  /**
+   * When closed, wiggle the panel button when an inspected value is updated
+   *
+   * @default true
+   */
+  wiggleOnUpdate?: boolean
+  /**
+   * Callback for when panel is opened or closed
+   *
+   * @param open
+   * @default undefined
+   */
+  onOpenChange?: (open: boolean) => void
+  /**
+   * Callback for when any panel prop/setting is changed with the panel UI. Can be used for
+   * customized persisting of settings using `localStorage`
+   *
+   * Will run when any of the following prop / setting is changed:
+   *
+   * - `open`
+   * - `align`
+   * - `appearance`
+   * - `opacity`
+   * - `width` and `height` (if resizing is enabled)
+   * @param {Required<PanelSettings>} settings Current value of settings
+   * @param {(keyof PanelSettings[])} changed Keys of changed settings
+   * @default undefined
+   * @see {@link PanelSettings}
+   */
+  onSettingsChange?: (settings: PanelSettings, changed: (keyof PanelSettings)[]) => void
+  /**
+   * Enable/disable persistence of {@linkcode PanelSettings} using localStorage or sessionStorage
+   * when changed through Panel UI, e.g. open/closed state, width, height, appearance, alignment and opacity setting.
+   *
+   * When enabled, stored settings will take precedence over passed props.
+   *
+   * Pass a configuration object ({@link PanelPersistProps}), `true` or a string (storage key) to enable.
+   *
+   * Passing `true` will enable persistence and using these default options:
+   * ```typescript
+   * {
+   *  storage: 'local',
+   *  key: 'siv.panel',
+   *  syncTabs: false
+   * }
+   * ```
+   * Passing a string will use those defaults but use the passed string as the key
+   *
+   * @default false
+   * @see {@link PanelPersistProps}
+   */
+  persist?: boolean | string | PanelPersistProps
+  /**
+   * Alias for `persist` except tab syncing is always enabled.
+   *
+   * If `persist` is truthy this prop will not have any effect.
+   *
+   * @default false
+   * @see {@link PanelProps.persist}
+   * @see {@link PanelPersistProps.syncTabs}
+   */
+  persistSync?: boolean | string | Omit<PanelPersistProps, 'syncTabs'>
+} & BaseProps &
+  Partial<PanelSettings> &
+  Partial<InspectOptions> &
+  SvelteHTMLElements['aside']
+
+/**
+ * @inline
+ */
+export type Note = { title?: string; description?: string }
+
+export type TypeViewProps<Value = unknown, Type = ValueType> = {
+  value: Value
+  key?: PropertyKey
+  /**
+   * Prefix for key e.g. "get" or "static"
+   */
+  keyPrefix?: string
+  /**
+   * Should key be shown
+   */
+  showKey?: boolean
+  /**
+   * Key delimiter
+   */
+  keyDelim?: string
+  /**
+   * Style overrides for key
+   */
+  keyStyle?: HTMLAttributes<HTMLDivElement>['style']
+  /**
+   * Path of the node
+   */
+  path?: PropertyKey[]
+  /**
+   * Representation of value.
+   *
+   * Use to customize how a value is represented while still being able to pass the original
+   * value for other purposes
+   */
+  display?: string
+  /**
+   * Type of the value
+   */
+  type?: Type
+  /**
+   * Force type indicator visibility for this node
+   */
+  forceType?: boolean
+  /**
+   * Title / description for node note, e.g. "parsed" for parsed JSON strings
+   */
+  note?: Note
+  /**
+   * The node is a search match
+   */
+  match?: boolean
+  /**
+   * Number of child entries / items.
+   * Also determines if expandables can be expanded (needs to be not `undefined`/`null`/`zero`).
+   */
+  length?: number
+  /**
+   * Should the node show it's given length / count
+   */
+  showLength?: boolean
+}
+
+/**
+ * Options for `Inspect.Values`
+ *
+ * Includes `elementAttributes` for setting HTML-attributes on the element without using props.
+ */
+export type InspectValuesOptions = () => Partial<InspectOptions> & {
+  /**
+   * HTML-attributes (like `class` and `style`) that will be applied to the `Inspect.Values`-element.
+   *
+   * Will be overwritten, not merged if a child-variation defined with `withOptions` defines this object.
+   */
+  elementAttributes?: SvelteHTMLElements['div']
+}
+
+/**
+ * @hidden
+ */
+export type CustomComponentPropsTransformFn<TComponent extends Component<any>> = (
+  props: ComponentProps<TComponent>
+) => Partial<ComponentProps<TComponent>>
+
+/**
+ * Function returning boolean value. If false, use default component.
+ * @hidden
+ */
+export type CustomComponentPredicate<TComponent extends Component<any>> = (
+  props: ComponentProps<TComponent>
+) => boolean
+
+/**
+ * @hidden
+ */
+export type CustomEntryComponentOnly<TComponent extends Component<any>> = [TComponent]
+/**
+ * @hidden
+ */
+export type CustomEntryWithTransform<TComponent extends Component<any>> = [
+  TComponent,
+  CustomComponentPropsTransformFn<TComponent>,
+]
+/**
+ * @hidden
+ */
+export type CustomEntryWithPredicate<TComponent extends Component<any>> = [
+  TComponent,
+  CustomComponentPropsTransformFn<TComponent> | undefined,
+  CustomComponentPredicate<TComponent>,
+]
+/**
+ * @hidden
+ */
+export type CustomComponentEntry<TComponent extends Component<any> = Component<any>> =
+  | CustomEntryComponentOnly<TComponent>
+  | CustomEntryWithTransform<TComponent>
+  | CustomEntryWithPredicate<TComponent>
+
+/**
+ * @hidden
+ */
+export type CustomComponents = Record<string, CustomComponentEntry>
+
+export class InspectError extends Error {
+  private errorValue: unknown
+  public get value() {
+    return this.errorValue
+  }
+
+  override name = 'InspectError'
+
+  constructor(message: string, value?: unknown, options?: ErrorOptions) {
+    super(message, options)
+    this.errorValue = value
+  }
+}
+
+/**
+ * Props received by custom components.
+ * Define extra props using third generic parameter
+ *
+ * @see {@linkcode TypeViewProps}
+ */
+export type CustomComponentProps<
+  T = unknown,
+  Type = string | undefined,
+  ExtraProps extends Record<string, any> = Record<string, any>,
+> = TypeViewProps<T, Type> & ExtraProps
+
+export type List =
+  | unknown[]
+  | Int8Array
+  | Uint8Array
+  | Uint8ClampedArray
+  | Int16Array
+  | Uint16Array
+  | Int32Array
+  | Uint32Array
+  | Float32Array
+  | Float64Array
+  | BigInt64Array
+  | BigUint64Array
+
+type Enumerate<N extends number, Acc extends number[] = []> = Acc['length'] extends N
+  ? Acc[number]
+  : Enumerate<N, [...Acc, Acc['length']]>
+
+export type IntRange<F extends number, T extends number> = Exclude<Enumerate<T>, Enumerate<F>>
+
+export type SecondArgOf<T> = T extends (
+  first: any,
+  second: infer SecondArgument,
+  ...args: any[]
+) => any
+  ? SecondArgument
+  : never
+
 === 1113 packages/svelte/src/lib/typingbuffer.svelte.ts	svelte-module-ts	runes	-
 import { getContext, setContext } from 'svelte'
 import { focusBySearch } from './attachments/focus.js'
@@ -13148,6 +16217,832 @@ export function createTypingBufferContext(scopeId: string) {
 
 export function getTypingBuffer(): TypingBuffer {
   return getContext(TYPING_BUFFER_CONTEXT)
+}
+
+=== 12822 packages/svelte/src/lib/util.ts	ts	module	-
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import { setContext, type Component } from 'svelte'
+import type { Readable, Writable } from 'svelte/store'
+import { initValueCache } from './contexts.js'
+import {
+  OPTIONS_CONTEXT,
+  OPTIONS_KEYS,
+  type InspectOptions,
+  type OptionsContext,
+} from './options.svelte.js'
+import type {
+  CustomComponentEntry,
+  CustomComponentPredicate,
+  CustomComponentPropsTransformFn,
+} from './types.js'
+
+export function initialize(opts: OptionsContext) {
+  setContext(OPTIONS_CONTEXT, opts)
+  initValueCache()
+}
+
+export function getType(value: unknown, stores: InspectOptions['stores'] = false) {
+  const t = typeOf(value)
+
+  if (t === 'function') {
+    if (
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+      (value as Function).toString().startsWith('class') ||
+      // eslint-disable-next-line @typescript-eslint/no-unsafe-function-type
+      (value as Function).toLocaleString().startsWith('class')
+    ) {
+      return 'class'
+    }
+  } else if (t === 'object') {
+    if (stores && isStore(value)) {
+      return 'store'
+    }
+    return 'object'
+  }
+  return t
+}
+
+// source: http://stackoverflow.com/questions/7390426/better-way-to-get-type-of-a-javascript-variable/7390612#7390612
+export function typeOf(obj: unknown): ValueType {
+  const t = {}.toString.call(obj).slice(8, -1)
+
+  return (t.replace(' ', '').toLowerCase() ?? 'undefined') as unknown as ValueType
+}
+
+export function isArray(value: unknown): value is unknown[] {
+  return Array.isArray(value)
+}
+
+export function isStore(value: unknown): value is Readable<unknown> {
+  return typeof (value as any).subscribe === 'function'
+}
+
+export function isPromise(value: unknown): value is Promise<unknown> {
+  return getType(value) === 'promise'
+}
+
+export function isObject(value: unknown): value is object {
+  return getType(value) === 'object'
+}
+
+// eslint-disable-next-line @typescript-eslint/no-unused-vars
+function typeofAsFunction(value: unknown) {
+  return typeof value
+}
+
+/** @inline */
+export type ValueType =
+  | 'string'
+  | 'number'
+  | 'bigint'
+  | 'boolean'
+  | 'symbol'
+  | 'undefined'
+  | 'object'
+  | 'function'
+  | 'asyncfunction'
+  | 'generatorfunction'
+  | 'asyncgeneratorfunction'
+  | 'regexp'
+  | 'date'
+  | 'class'
+  | 'error'
+  | 'array'
+  | 'null'
+  | 'set'
+  | 'map'
+  | 'url'
+  | 'urlsearchparams'
+  | 'promise'
+  | 'iterator'
+  | 'NaN'
+  | 'store'
+  | (string & {})
+
+export function stringify(
+  value: unknown,
+  indent: number | string = 2,
+  quotes: 'single' | 'double' | 'none' = 'single'
+) {
+  if (typeof value === 'string' && quotes === 'single') {
+    const str = `'${JSON.stringify(value, null, indent).slice(1, -1)}'`
+    return str
+  } else if (typeof value === 'string' && quotes === 'none') {
+    return `${JSON.stringify(value, null, indent).slice(1, -1)}`
+  }
+  return JSON.stringify(
+    value,
+    (_key, value) => {
+      if (typeof value === 'bigint') {
+        try {
+          JSON.stringify(value)
+        } catch (e: unknown) {
+          if (e instanceof Error) {
+            return 'Caught ' + e.name + ': ' + e.message
+          }
+          return JSON.stringify(e)
+        }
+        return '< escaped bigint to avoid TypeError >'
+      }
+      return value
+    },
+    indent
+  )
+}
+
+export function stringifyOrToString(val: unknown): string {
+  const stringified = stringify(val, 0)
+  if (stringified !== '{}') {
+    return stringified
+  }
+  // TODO ??
+  try {
+    return getType(val)
+    // return (val as object).toString()
+  } catch {
+    return getType(val)
+  }
+}
+
+export const stringifyPath = (path: PropertyKey[]) => {
+  return path.map((k) => k.toString()).join('.')
+}
+
+export function collapseString(value: string, length: undefined | number) {
+  if (length === 0) {
+    return value
+  }
+  return length && length < value.length
+    ? value.slice(0, length).trimEnd().trimStart() + '…'
+    : value
+}
+
+export function descriptorPrefix(descriptor?: PropertyDescriptor) {
+  return [descriptor?.set ? 'set' : undefined, descriptor?.get ? 'get' : undefined]
+    .filter(Boolean)
+    .join('|')
+}
+
+export function getAllProperties(object: any) {
+  if (object == null) return []
+  const enumerableKeys = []
+  for (const enumerableKey in object) {
+    enumerableKeys.push(enumerableKey)
+  }
+  return [
+    ...new Set([
+      ...enumerableKeys,
+      ...Object.getOwnPropertyNames(object),
+      ...Object.getOwnPropertySymbols(object),
+      // ...(object['__proto__'] ? ['__proto__'] : []),
+    ]),
+  ]
+}
+
+interface ClassMemberInfo<T> {
+  properties: (keyof T | symbol)[]
+  methods: (keyof T | symbol)[]
+  getters: (keyof T | symbol)[]
+  setters: (keyof T | symbol)[]
+}
+
+export function enumerateClassInstance<T extends object>(instance: T): ClassMemberInfo<T> {
+  const result = {
+    properties: new Set<keyof T | symbol>(),
+    methods: new Set<keyof T | symbol>(),
+    getters: new Set<keyof T | symbol>(),
+    setters: new Set<keyof T | symbol>(),
+  }
+
+  let current: object | null = instance
+
+  // Walk up the prototype chain
+  while (current && current !== Object.prototype) {
+    const descriptors = Object.getOwnPropertyDescriptors(current)
+
+    // Handle string/number keys
+    for (const [name, descriptor] of Object.entries(descriptors)) {
+      // Skip constructor
+      if (name === 'constructor') continue
+
+      const key = name as keyof T
+
+      if (descriptor.get || descriptor.set) {
+        if (descriptor.get) result.getters.add(key)
+        if (descriptor.set) result.setters.add(key)
+      } else if (typeof descriptor.value === 'function') {
+        result.methods.add(key)
+      } else {
+        result.properties.add(key)
+      }
+    }
+
+    // Handle symbol keys
+    const symbolKeys = Object.getOwnPropertySymbols(current)
+    for (const symbol of symbolKeys) {
+      const descriptor = Object.getOwnPropertyDescriptor(current, symbol)
+      if (!descriptor) continue
+
+      if (descriptor.get || descriptor.set) {
+        if (descriptor.get) result.getters.add(symbol)
+        if (descriptor.set) result.setters.add(symbol)
+      } else if (typeof descriptor.value === 'function') {
+        result.methods.add(symbol)
+      } else {
+        result.properties.add(symbol)
+      }
+    }
+
+    current = Object.getPrototypeOf(current)
+  }
+
+  return {
+    properties: Array.from(result.properties),
+    methods: Array.from(result.methods),
+    getters: Array.from(result.getters),
+    setters: Array.from(result.setters),
+  }
+}
+
+export function consolidateClassMembers<T>(memberInfo: ClassMemberInfo<T>): (keyof T | symbol)[] {
+  const allMembers = new Set<keyof T | symbol>()
+
+  memberInfo.properties.forEach((prop) => allMembers.add(prop))
+  memberInfo.methods.forEach((method) => allMembers.add(method))
+  memberInfo.getters.forEach((getter) => allMembers.add(getter))
+  memberInfo.setters.forEach((setter) => allMembers.add(setter))
+
+  return Array.from(allMembers)
+}
+
+export function enumerateObject<T extends object = object>(value: T): (keyof T | symbol)[] {
+  const members = enumerateClassInstance<T>(value)
+  return consolidateClassMembers<T>(members) as (keyof T | symbol)[]
+}
+
+export function getAllKeysOf(values: unknown, type = getType(values)) {
+  if (type === 'map' || type === 'set') {
+    const map = values as Map<unknown, unknown> | Set<unknown>
+    return { keys: [...map.keys()], type }
+  }
+  if (type === 'object') {
+    return { keys: getAllProperties(values), type }
+  }
+  if (type === 'array') {
+    const arr = values as Array<unknown>
+    const keys = [
+      ...arr.keys(),
+      getAllProperties(arr).filter((prop) => {
+        if (typeof prop === 'string') {
+          return /\d+/.test(prop) === false && prop !== 'length'
+        }
+        return true
+      }),
+    ]
+    return { keys, type }
+  }
+}
+
+export function getPropertyDescriptor(object: any, prop: PropertyKey) {
+  if (!object) {
+    return {}
+  }
+  // else if (prop === '__proto__') {
+  //   return {
+  //     value: Object.getPrototypeOf(object),
+  //   }
+  // }
+  else {
+    const ownPropertyDescriptor = Object.getOwnPropertyDescriptor(object, prop)
+    if (ownPropertyDescriptor) {
+      return ownPropertyDescriptor
+    } else {
+      const prototype = Object.getPrototypeOf(object)
+      return getPropertyDescriptor(prototype, prop)
+    }
+  }
+}
+
+export function ensureStringPath(path: string | PropertyKey[]) {
+  let key: string
+  if (Array.isArray(path)) {
+    key = stringifyPath(path)
+  } else {
+    key = path
+  }
+  return key
+}
+
+// Source: https://github.com/tanhauhau/svelte-json-tree/blob/1f8a2d8b52810c416020235dd9a2dc9b1a964742/src/lib/svelte-json-tree/SvelteJsonTree/utils/expand.ts#L11
+function matchPath(keyPath: string[], expandPaths: string[]) {
+  const expandPathParts = expandPaths.map((path) => path.split('.'))
+  outer: for (const parts of expandPathParts) {
+    if (keyPath.length > parts.length) continue
+    const length = Math.min(keyPath.length, parts.length)
+    for (let i = 0; i < length; i++) {
+      if (parts[i] !== '*' && parts[i] !== String(keyPath[i])) continue outer
+    }
+    return true
+  }
+  return false
+}
+
+export const neverExpandInitial = ['constructor', 'prototype'] as (PropertyKey | undefined)[]
+
+export function shouldInitiallyExpandNode(
+  currentPath: PropertyKey[],
+  expandLevel: number,
+  expandAll: boolean,
+  expandPaths: string[]
+) {
+  if (neverExpandInitial.includes(currentPath[currentPath.length - 1])) return false // avoid infinite loops
+  if (expandAll) return true
+  if (currentPath.length <= expandLevel) {
+    return true
+  }
+  if (expandPaths.length) {
+    const pathParts = stringifyPath(currentPath).split('.')
+    return matchPath(pathParts, expandPaths)
+  }
+
+  return false
+}
+
+/**
+ * Helper-function for adding custom components with a props transform function.
+ *
+ * The function ensures proper typing for the props parameter of the transform / predicate functions
+ *
+ * @param component Custom component
+ * @param transformProps Function modifying props passed to component
+ * @param predicate Function returning boolean value. If false, use default component.
+ *
+ * @example
+ * ```svelte
+ * <script lang="ts">
+ *  import {Inspect, addComponent} from 'svelte-inspect-value';
+ *  import CustomNumber from './CustomNumber.svelte';
+ *  import CustomString from './CustomString.svelte';
+ * </script>
+ *
+ * <Inspect value={1234} customComponents={{
+ *   number: addComponent(
+ *    CustomNumber,
+ *    // props here is properly typed with props of CustomNumber
+ *    (props) => ({ value: Math.floor(props.value) })
+ *    // third parameter is a predicate function that decides if custom component should be used
+ *    // if false is returned, the default component will be used instead for this type
+ *    (props) => props.value < 1000
+ *   ),
+ *   // custom component without props transform function or predicate
+ *   string: [CustomString]
+ *  }}
+ * />
+ * ```
+ */
+export function addComponent<TComponent extends Component<any> = Component<any>>(
+  component: TComponent,
+  transformProps?: CustomComponentPropsTransformFn<TComponent>,
+  predicate?: CustomComponentPredicate<TComponent>
+): CustomComponentEntry<TComponent> {
+  if (predicate) return [component, transformProps, predicate]
+  if (transformProps) return [component, transformProps]
+  return [component]
+}
+
+export function sortProps<T extends Record<PropertyKey, unknown>>(
+  props: T
+): [Partial<InspectOptions>, Partial<T>] {
+  const options = {} as Partial<InspectOptions>
+  const restProps = {} as Partial<T>
+
+  Object.entries(props).forEach(([key, value]) => {
+    if (OPTIONS_KEYS.includes(key as keyof InspectOptions)) {
+      options[key as keyof InspectOptions] = value as any
+    } else {
+      restProps[key as keyof Partial<T>] = value as any
+    }
+  })
+
+  Object.getOwnPropertySymbols(props).forEach((s) => {
+    restProps[s as keyof Partial<T>] = props[s] as any
+  })
+
+  return [options, restProps]
+}
+
+export function clamp(value: number, min: number, max: number) {
+  return Math.min(Math.max(value, min), max)
+}
+
+export const wait = (duration: number = 25) =>
+  new Promise<void>((resolve) => {
+    window.setTimeout(() => {
+      resolve()
+    }, duration)
+  })
+
+export function isValidStore(store: Readable<unknown> | Writable<unknown>) {
+  try {
+    const sub = store.subscribe(() => void 0) as any
+    if (typeof sub === 'function') {
+      sub()
+      return true
+    } else if (typeof sub === 'object' && typeof sub.unsubscribe === 'function') {
+      sub.unsubscribe()
+      return true
+    } else {
+      return false
+    }
+  } catch {
+    return false
+  }
+}
+
+export function nodeActionKeydown<F extends (e: UIEvent) => void | Promise<void>>(fn?: F) {
+  return function (this: unknown, event: KeyboardEvent) {
+    if (['Enter', ' '].includes(event.key)) {
+      event.preventDefault()
+      event.stopPropagation()
+      fn?.call(this, event)
+    }
+  }
+}
+
+=== 1522 packages/svelte/src/lib/util/highlight-text.ts	ts	module	-
+type HighlightSearchTerm = {
+  value: string
+  exact: boolean
+}
+
+type Chunk = {
+  match: boolean
+  text: string
+  start: number
+  end: number
+}
+export function highlightText(text: string, terms: HighlightSearchTerm[]): Chunk[] {
+  if (!text || !terms.length) {
+    return []
+  }
+
+  const chunks: Chunk[] = []
+  let currentIndex = 0
+
+  // Build a regex pattern to match all terms
+  const regexParts = terms.map(({ value }) => escapeRegex(value))
+  const regex = new RegExp(regexParts.join('|'), 'gi') // Case-insensitive global match
+
+  let match: RegExpExecArray | null
+
+  while ((match = regex.exec(text)) !== null) {
+    const matchStart = match.index
+    const matchEnd = regex.lastIndex
+
+    // Add unmatched text before the match
+    if (currentIndex < matchStart) {
+      chunks.push({
+        match: false,
+        text: text.slice(currentIndex, matchStart),
+        start: currentIndex,
+        end: matchStart,
+      })
+    }
+
+    // Add the matched text
+    chunks.push({
+      match: true,
+      text: text.slice(matchStart, matchEnd),
+      start: matchStart,
+      end: matchEnd,
+    })
+
+    currentIndex = matchEnd
+  }
+
+  // Add any remaining unmatched text
+  if (currentIndex < text.length) {
+    chunks.push({
+      match: false,
+      text: text.slice(currentIndex),
+      start: currentIndex,
+      end: text.length,
+    })
+  }
+
+  return chunks
+}
+
+// Helper function to escape special regex characters
+function escapeRegex(value: string): string {
+  return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')
+}
+
+=== 7718 packages/svelte/src/lib/util/hotkeys.ts	ts	module	-
+/*
+ * Source: https://github.com/jamiebuilds/tinykeys
+ */
+
+/**
+ * A single press of a keybinding sequence
+ */
+export type KeyBindingPress = [mods: string[], key: string | RegExp]
+
+/**
+ * A map of keybinding strings to event handlers.
+ */
+export interface KeyBindingMap {
+  [keybinding: string]: (event: KeyboardEvent) => void
+}
+
+export interface KeyBindingHandlerOptions {
+  /**
+   * Keybinding sequences will wait this long between key presses before
+   * cancelling (default: 1000).
+   *
+   * **Note:** Setting this value too low (i.e. `300`) will be too fast for many
+   * of your users.
+   */
+  timeout?: number
+}
+
+/**
+ * Options to configure the behavior of keybindings.
+ */
+export interface KeyBindingOptions extends KeyBindingHandlerOptions {
+  /**
+   * Key presses will listen to this event (default: "keydown").
+   */
+  event?: 'keydown' | 'keyup'
+
+  /**
+   * Key presses will use a capture listener (default: false)
+   */
+  capture?: boolean
+}
+
+/**
+ * These are the modifier keys that change the meaning of keybindings.
+ *
+ * Note: Ignoring "AltGraph" because it is covered by the others.
+ */
+const KEYBINDING_MODIFIER_KEYS = ['Shift', 'Meta', 'Alt', 'Control']
+
+/**
+ * Keybinding sequences should timeout if individual key presses are more than
+ * 1s apart by default.
+ */
+const DEFAULT_TIMEOUT = 1000
+
+/**
+ * Keybinding sequences should bind to this event by default.
+ */
+const DEFAULT_EVENT = 'keydown' as const
+
+/**
+ * Platform detection code.
+ * @see https://github.com/jamiebuilds/tinykeys/issues/184
+ */
+const PLATFORM = typeof navigator === 'object' ? navigator.platform : ''
+const APPLE_DEVICE = /Mac|iPod|iPhone|iPad/.test(PLATFORM)
+
+/**
+ * An alias for creating platform-specific keybinding aliases.
+ */
+const MOD = APPLE_DEVICE ? 'Meta' : 'Control'
+
+/**
+ * Meaning of `AltGraph`, from MDN:
+ * - Windows: Both Alt and Ctrl keys are pressed, or AltGr key is pressed
+ * - Mac: ⌥ Option key pressed
+ * - Linux: Level 3 Shift key (or Level 5 Shift key) pressed
+ * - Android: Not supported
+ * @see https://github.com/jamiebuilds/tinykeys/issues/185
+ */
+const ALT_GRAPH_ALIASES = PLATFORM === 'Win32' ? ['Control', 'Alt'] : APPLE_DEVICE ? ['Alt'] : []
+
+/**
+ * There's a bug in Chrome that causes event.getModifierState not to exist on
+ * KeyboardEvent's for F1/F2/etc keys.
+ */
+function getModifierState(event: KeyboardEvent, mod: string) {
+  return typeof event.getModifierState === 'function'
+    ? event.getModifierState(mod) ||
+        (ALT_GRAPH_ALIASES.includes(mod) && event.getModifierState('AltGraph'))
+    : false
+}
+
+/**
+ * Parses a "Key Binding String" into its parts
+ *
+ * grammar    = `<sequence>`
+ * <sequence> = `<press> <press> <press> ...`
+ * <press>    = `<key>` or `<mods>+<key>`
+ * <mods>     = `<mod>+<mod>+...`
+ * <key>      = `<KeyboardEvent.key>` or `<KeyboardEvent.code>` (case-insensitive)
+ * <key>      = `(<regex>)` -> `/^<regex>$/` (case-sensitive)
+ */
+export function parseKeybinding(str: string): KeyBindingPress[] {
+  return str
+    .trim()
+    .split(' ')
+    .map((press) => {
+      let mods = press.split(/\b\+/)
+      let key: string | RegExp = mods.pop() as string
+      const match = key.match(/^\((.+)\)$/)
+      if (match) {
+        key = new RegExp(`^${match[1]}$`)
+      }
+      mods = mods.map((mod) => (mod === '$mod' ? MOD : mod))
+      return [mods, key]
+    })
+}
+
+/**
+ * This tells us if a single keyboard event matches a single keybinding press.
+ */
+export function matchKeyBindingPress(event: KeyboardEvent, [mods, key]: KeyBindingPress): boolean {
+  // prettier-ignore
+  return !(
+		// Allow either the `event.key` or the `event.code`
+		// MDN event.key: https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/key
+		// MDN event.code: https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/code
+		(
+			key instanceof RegExp ? !(key.test(event.key) || key.test(event.code)) :
+			(key.toUpperCase() !== event.key.toUpperCase() &&
+			key !== event.code)
+		) ||
+
+		// Ensure all the modifiers in the keybinding are pressed.
+		mods.find(mod => {
+			return !getModifierState(event, mod)
+		}) ||
+
+		// KEYBINDING_MODIFIER_KEYS (Shift/Control/etc) change the meaning of a
+		// keybinding. So if they are pressed but aren't part of the current
+		// keybinding press, then we don't have a match.
+		KEYBINDING_MODIFIER_KEYS.find(mod => {
+			return !mods.includes(mod) && key !== mod && getModifierState(event, mod)
+		})
+	)
+}
+
+/**
+ * Creates an event listener for handling keybindings.
+ *
+ * @example
+ * ```js
+ * import { createKeybindingsHandler } from "../src/keybindings"
+ *
+ * let handler = createKeybindingsHandler({
+ * 	"Shift+d": () => {
+ * 		alert("The 'Shift' and 'd' keys were pressed at the same time")
+ * 	},
+ * 	"y e e t": () => {
+ * 		alert("The keys 'y', 'e', 'e', and 't' were pressed in order")
+ * 	},
+ * 	"$mod+d": () => {
+ * 		alert("Either 'Control+d' or 'Meta+d' were pressed")
+ * 	},
+ * })
+ *
+ * window.addEvenListener("keydown", handler)
+ * ```
+ */
+export function createKeybindingsHandler(
+  keyBindingMap: KeyBindingMap,
+  options: KeyBindingHandlerOptions = {}
+): EventListener {
+  const timeout = options.timeout ?? DEFAULT_TIMEOUT
+
+  const keyBindings = Object.keys(keyBindingMap).map((key) => {
+    return [parseKeybinding(key), keyBindingMap[key]] as const
+  })
+
+  const possibleMatches = new Map<KeyBindingPress[], KeyBindingPress[]>()
+  let timer: number | null = null
+
+  return (event) => {
+    // Ensure and stop any event that isn't a full keyboard event.
+    // Autocomplete option navigation and selection would fire a instanceof Event,
+    // instead of the expected KeyboardEvent
+    if (!(event instanceof KeyboardEvent)) {
+      return
+    }
+
+    keyBindings.forEach((keyBinding) => {
+      const sequence = keyBinding[0]
+      const callback = keyBinding[1]
+
+      const prev = possibleMatches.get(sequence)
+      const remainingExpectedPresses = prev ? prev : sequence
+      const currentExpectedPress = remainingExpectedPresses[0]
+
+      const matches = matchKeyBindingPress(event, currentExpectedPress)
+
+      if (!matches) {
+        // Modifier keydown events shouldn't break sequences
+        // Note: This works because:
+        // - non-modifiers will always return false
+        // - if the current keypress is a modifier then it will return true when we check its state
+        // MDN: https://developer.mozilla.org/en-US/docs/Web/API/KeyboardEvent/getModifierState
+        if (!getModifierState(event, event.key)) {
+          possibleMatches.delete(sequence)
+        }
+      } else if (remainingExpectedPresses.length > 1) {
+        possibleMatches.set(sequence, remainingExpectedPresses.slice(1))
+      } else {
+        possibleMatches.delete(sequence)
+        callback(event)
+      }
+    })
+
+    if (timer) {
+      window.clearTimeout(timer)
+    }
+
+    timer = window.setTimeout(possibleMatches.clear.bind(possibleMatches), timeout)
+  }
+}
+
+/**
+ * Subscribes to keybindings.
+ *
+ * Returns an unsubscribe method.
+ *
+ * @example
+ * ```js
+ * import { tinykeys } from "../src/tinykeys"
+ *
+ * tinykeys(window, {
+ * 	"Shift+d": () => {
+ * 		alert("The 'Shift' and 'd' keys were pressed at the same time")
+ * 	},
+ * 	"y e e t": () => {
+ * 		alert("The keys 'y', 'e', 'e', and 't' were pressed in order")
+ * 	},
+ * 	"$mod+d": () => {
+ * 		alert("Either 'Control+d' or 'Meta+d' were pressed")
+ * 	},
+ * })
+ * ```
+ */
+export function tinykeys(
+  target: Window | HTMLElement,
+  keyBindingMap: KeyBindingMap,
+  { event = DEFAULT_EVENT, capture, timeout }: KeyBindingOptions = {}
+): () => void {
+  const onKeyEvent = createKeybindingsHandler(keyBindingMap, { timeout })
+  target.addEventListener(event, onKeyEvent, capture)
+  return () => {
+    target.removeEventListener(event, onKeyEvent, capture)
+  }
+}
+
+=== 874 packages/svelte/src/lib/util/is-url.ts	ts	module	-
+/* eslint-disable no-useless-escape */
+
+/**
+ * RegExps.
+ * A URL must match #1 and then at least one of #2/#3.
+ * Use two levels of REs to avoid REDOS.
+ */
+
+const protocolAndDomainRE = /^(?:\w+:)?\/\/(\S+)$/
+
+const localhostDomainRE = /^localhost[\:?\d]*(?:[^\:?\d]\S*)?$/
+const nonLocalhostDomainRE = /^[^\s\.]+\.\S{2,}$/
+
+/**
+ * Loosely validate a URL `string`.
+ *
+ * @param {String} string
+ * @return {Boolean}
+ */
+
+export function isUrl(string: string): boolean {
+  if (typeof string !== 'string') {
+    return false
+  }
+
+  const match = string.match(protocolAndDomainRE)
+  if (!match) {
+    return false
+  }
+
+  const everythingAfterProtocol = match[1]
+  if (!everythingAfterProtocol) {
+    return false
+  }
+
+  if (
+    localhostDomainRE.test(everythingAfterProtocol) ||
+    nonLocalhostDomainRE.test(everythingAfterProtocol)
+  ) {
+    return true
+  }
+
+  return false
 }
 
 === 792 packages/svelte/src/lib/util/mutation-observer.svelte.ts	svelte-module-ts	runes	-
@@ -13372,6 +17267,630 @@ export class PersistedState<T> {
       )
     }
   }
+}
+
+=== 14663 packages/svelte/src/lib/util/search.ts	ts	module	-
+/* eslint-disable @typescript-eslint/no-unsafe-function-type */
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import ManyKeysMap from 'many-keys-map'
+import memoize, { memoizeClear } from 'memoize'
+import { get, type Readable, type Writable } from 'svelte/store'
+import type { InspectOptions } from '../options.svelte.js'
+import type { List } from '../types.js'
+import {
+  descriptorPrefix,
+  getPropertyDescriptor,
+  getType,
+  isValidStore,
+  stringify,
+} from '../util.js'
+
+type SearchNode = {
+  path: string
+  key: string
+  tokens?: string[]
+  type: string
+}
+
+type IndexerArgs = {
+  value: any
+  key: unknown
+  prevPath: unknown[]
+  index: SearchIndex
+  visited: WeakSet<any>
+  maxDepth?: number
+  depth?: number
+  type: string
+  options: InspectOptions
+}
+
+type Indexer = (args: IndexerArgs) => SearchNode[] | void
+
+export type SearchIndex = SearchNode[]
+
+export const stringifyPath = (path: unknown[]) => {
+  return path.map((k) => String(k)).join('.')
+}
+
+const tokenizers = {
+  function: (value: Function) => {
+    return String(value).replaceAll('\n', '').replaceAll('\t', '')
+  },
+}
+
+const typedArrays = [
+  'int8array',
+  'uint8array',
+  'uint8clampedarray',
+  'int16array',
+  'uint16array',
+  'int32array',
+  'uint32array',
+  'float32array',
+  'float64array',
+  'bigint64array',
+  'biguint64array',
+]
+
+function addNode(index: SearchIndex, path: unknown[], tokens: string[] | undefined, type: string) {
+  index.push({
+    path: stringifyPath(path),
+    key: String(path[path.length - 1]),
+    tokens,
+    type,
+  })
+}
+
+const indexers = {
+  default({ index, prevPath, value, type }) {
+    addNode(index, prevPath, [String(value)], type)
+  },
+  string: (args) => {
+    const { index, prevPath, options } = args
+    const v = args.value as string
+
+    addNode(
+      index,
+      prevPath,
+      [`${stringify(v, 0, options.quotes)}`, v, v.length ? 'chars' : 'empty'],
+      'string'
+    )
+
+    return index
+  },
+  object: ({ value, prevPath, index, visited, maxDepth, depth = 0, type, options }) => {
+    if (visited.has(value)) {
+      return index
+    }
+    visited.add(value)
+
+    const tokens: string[] = ['entries']
+
+    const descriptors = Object.getOwnPropertyDescriptors(value)
+    const symbolProps = Object.getOwnPropertySymbols(value)
+
+    for (const key of Object.keys(descriptors)) {
+      const descriptor = descriptors[key]
+
+      if (descriptor.get || descriptor.set) {
+        buildSearchIndex({
+          value: descriptor,
+          key,
+          prevPath,
+          index,
+          maxDepth,
+          depth: depth + 1,
+          visited,
+          descriptor,
+          options,
+        })
+        continue
+      } else {
+        buildSearchIndex({
+          value: value[key],
+          key,
+          prevPath,
+          index,
+          maxDepth,
+          depth: depth + 1,
+          visited,
+          options,
+        })
+      }
+    }
+
+    for (const key of symbolProps) {
+      buildSearchIndex({
+        value: value[key],
+        key,
+        prevPath,
+        index,
+        maxDepth,
+        depth: depth + 1,
+        visited,
+        options,
+      })
+    }
+
+    addNode(index, prevPath, tokens, type)
+
+    return index
+  },
+  array: ({ value, prevPath, index, visited, maxDepth, depth = 0, type, options }) => {
+    if (visited.has(value)) return index
+    visited.add(value)
+    const array = value as unknown[]
+
+    addNode(index, prevPath, [array.length ? 'items' : 'empty'], type)
+
+    if (Array.isArray(array)) {
+      array.forEach((v, i) => {
+        buildSearchIndex({
+          value: v,
+          key: i,
+          prevPath,
+          index,
+          maxDepth,
+          depth: depth + 1,
+          visited,
+          options,
+        })
+      })
+    }
+
+    return index
+  },
+  typedarray: ({ value, prevPath, index, visited, maxDepth, depth = 0, type, options }) => {
+    if (visited.has(value)) return index
+    visited.add(value)
+    const array = value as List
+
+    addNode(index, prevPath, [array.length ? 'items' : 'empty'], type)
+
+    const internalKeys = ['buffer', 'byteLength', 'byteOffset', 'length'] as (keyof typeof array)[]
+
+    for (const [k, v] of array.entries()) {
+      buildSearchIndex({
+        value: v,
+        key: k,
+        prevPath,
+        index,
+        maxDepth,
+        depth: depth + 1,
+        visited,
+        options,
+      })
+    }
+
+    internalKeys.forEach((key) =>
+      buildSearchIndex({
+        value: array[key],
+        key,
+        prevPath,
+        index,
+        maxDepth,
+        depth: depth + 1,
+        visited,
+        options,
+      })
+    )
+
+    return index
+  },
+  map({ value, prevPath, index, visited, maxDepth, depth = 0, options }) {
+    if (visited.has(value)) return index
+    const map = value as Map<unknown, unknown>
+    addNode(index, prevPath, [map.size ? 'entries' : 'empty'], 'map')
+    ;[...map.entries()].forEach(([key, value], i) => {
+      this.object({
+        value: { key, value },
+        key: i,
+        prevPath: [...prevPath, i],
+        maxDepth,
+        depth: depth + 1,
+        type: 'mapentry',
+        index,
+        visited,
+        options,
+      })
+    })
+    return index
+  },
+  set({ value, prevPath, index, visited, maxDepth, depth = 0, options }) {
+    if (visited.has(value)) return index
+    const set = value as Set<unknown>
+
+    addNode(index, prevPath, [set.size > 0 ? 'entries' : 'empty'], 'set')
+    ;[...set.entries()].forEach(([key, value], i) => {
+      this.object({
+        value: { key, value },
+        key: i,
+        prevPath: [...prevPath, i],
+        maxDepth,
+        depth: depth + 1,
+        type: 'mapentry',
+        index,
+        visited,
+        options,
+      })
+    })
+    return index
+  },
+  descriptor: ({ value, index, prevPath }) => {
+    addNode(index, prevPath, [descriptorPrefix(value)], 'descriptor')
+
+    if (value.get) {
+      addNode(index, [...prevPath, 'getter'], [tokenizers.function(value.get)], 'function')
+    }
+    if (value.set) {
+      addNode(index, [...prevPath, 'setter'], [tokenizers.function(value.set)], 'function')
+    }
+
+    return index
+  },
+  function: ({ value, index, prevPath, type }) => {
+    addNode(index, prevPath, [tokenizers.function(value)], type)
+    return index
+  },
+  promise: ({ index, prevPath, type }) => {
+    addNode(index, prevPath, ['state', 'result'], type)
+
+    return index
+  },
+  bigint: ({ value, prevPath, index }) => {
+    addNode(index, prevPath, [String(value) + 'n'], 'bigint')
+    return index
+  },
+  iterator: ({ prevPath, index, type }) => {
+    addNode(index, prevPath, [], type)
+    return index
+  },
+  date: ({ value, prevPath, index, visited }) => {
+    visited.add(value)
+    const date = value as Date
+    addNode(
+      index,
+      prevPath,
+      [
+        'year',
+        'month',
+        'day',
+        'date',
+        'hour',
+        'minutes',
+        'seconds',
+        'milliseconds',
+        'time',
+        date.toString(),
+      ],
+      'date'
+    )
+    return index
+  },
+  url: ({ value, prevPath = [], index, type, depth = 0, maxDepth, options }) => {
+    const url = value as URL
+
+    const { hash, host, hostname, href, origin, password, pathname, port, protocol, username } =
+      value
+
+    const entries = Object.entries({
+      protocol,
+      username,
+      password,
+      host,
+      port,
+      pathname,
+      hash,
+      hostname,
+      origin,
+      href,
+    }).filter((prop) => !!prop[1].toString())
+
+    addNode(index, prevPath, [url.toString()], type)
+
+    entries.forEach(([key, value]) => {
+      buildSearchIndex({ value, key, index, prevPath, options, maxDepth, depth: depth + 1 })
+    })
+
+    if (url.searchParams.size) {
+      buildSearchIndex({
+        value: url.searchParams,
+        index,
+        prevPath,
+        key: 'searchParams',
+        depth: depth + 1,
+        maxDepth,
+        options,
+      })
+    }
+
+    return index
+  },
+  error: (args) => {
+    const { index, prevPath, value, visited, depth = 0, maxDepth, options } = args
+    const err = value as Error
+
+    addNode(index, prevPath, [err.name], 'error')
+
+    buildSearchIndex({
+      value: err.name,
+      prevPath,
+      key: 'name',
+      visited,
+      depth: depth + 1,
+      maxDepth,
+      options,
+    })
+
+    buildSearchIndex({
+      value: err.message,
+      prevPath,
+      key: 'message',
+      visited,
+      depth: depth + 1,
+      maxDepth,
+      options,
+    })
+
+    if (err.stack) {
+      buildSearchIndex({
+        value: err.stack,
+        prevPath,
+        key: 'stack',
+        visited,
+        depth: depth + 1,
+        maxDepth,
+        options,
+      })
+    }
+
+    if (err.cause) {
+      buildSearchIndex({
+        value: err.cause,
+        prevPath,
+        key: 'cause',
+        visited,
+        depth: depth + 1,
+        maxDepth,
+        options,
+      })
+    }
+  },
+  urlsearchparams: ({ value, prevPath, index, type }) => {
+    const params = value as URLSearchParams
+    if (params.size > 0) {
+      addNode(index, prevPath, [params.toString(), params.size ? 'entries' : 'empty'], type)
+    }
+    return index
+  },
+  store(args) {
+    const { value, index, prevPath, maxDepth, depth = 0, visited, options } = args
+    const store = value as Readable<unknown>
+
+    const isValid = isValidStore(store)
+
+    if (isValid) {
+      const storeType =
+        typeof (value as Writable<unknown>).set === 'function' ? 'writable' : 'readable'
+      addNode(index, prevPath, ['store', 'subscribe'], storeType)
+      visited.add(value)
+
+      try {
+        const storeValue = get(store)
+
+        buildSearchIndex({
+          value: storeValue,
+          key: 'Symbol($).value',
+          prevPath,
+          index,
+          maxDepth,
+          depth: depth + 1,
+          options,
+        })
+      } catch (e) {
+        console.error('failed indexing store:', e)
+      }
+    } else {
+      this.object({ ...args, type: 'object' })
+    }
+
+    return index
+  },
+  regexp({ index, prevPath, value, type, options, depth = 0, maxDepth }) {
+    const regexp = value as RegExp
+    const keys = [
+      'lastIndex',
+      'dotAll',
+      'flags',
+      'global',
+      'hasIndices',
+      'ignoreCase',
+      'multiline',
+      'source',
+      'sticky',
+      'unicode',
+      'unicodeSets',
+    ] as (keyof RegExp)[]
+
+    addNode(index, prevPath, [String(value)], type)
+
+    keys.forEach((key) => {
+      const descriptor = getPropertyDescriptor(regexp, key)
+      buildSearchIndex({
+        value: regexp[key],
+        descriptor,
+        key,
+        index,
+        options,
+        depth: depth + 1,
+        maxDepth,
+        prevPath,
+      })
+    })
+
+    return index
+  },
+} as const satisfies Record<string, Indexer>
+
+type BuildSearchIndexArgs = {
+  value: unknown
+  key?: unknown
+  prevPath?: unknown[]
+  maxDepth?: number
+  depth?: number
+  visited?: WeakSet<WeakKey>
+  descriptor?: PropertyDescriptor
+
+  index?: SearchIndex
+  options: InspectOptions
+}
+
+export const buildSearchIndex = (indexArgs: BuildSearchIndexArgs) => {
+  const {
+    value,
+    key = 'root',
+    prevPath = [],
+    index = [],
+    descriptor,
+    maxDepth = 20,
+    depth = 0,
+    visited = new WeakSet(),
+    options,
+  } = indexArgs
+
+  if (depth > maxDepth) return index
+
+  let indexerId: keyof typeof indexers | undefined = undefined
+  const type = getType(value, options.stores)
+
+  if (typedArrays.includes(type)) indexerId = 'typedarray'
+  if (type.includes('function')) indexerId = 'function'
+  if (['iterator', 'generator'].some((t) => type.includes(t))) indexerId = 'iterator'
+  if (descriptor && (descriptor.set || descriptor.get)) {
+    indexerId = 'descriptor'
+  }
+
+  //@ts-expect-error - yeah
+  const indexer = indexers[indexerId ?? type]
+
+  const args: IndexerArgs = {
+    value,
+    key,
+    prevPath: [...prevPath, key].filter((k) => k != null && k !== ''),
+    index,
+    maxDepth,
+    depth,
+    visited,
+    type,
+    options,
+  }
+
+  try {
+    indexer.call(indexers, args)
+  } catch {
+    // retry with default indexer
+    try {
+      indexers.default(args)
+    } catch (err) {
+      console.error(`[Inspect] error while indexing value with type ${type}:`, err)
+    }
+  }
+
+  return index
+}
+
+export const build_search_index = memoize(buildSearchIndex, {
+  cacheKey: ([args]) => [args.value, args.key, args.options, args.depth, args.maxDepth],
+  cache: new ManyKeysMap(),
+  maxAge: 10 * 1000,
+})
+
+export function clearSearchCache() {
+  memoizeClear(build_search_index)
+}
+
+export function searchStructuredIndex(
+  index: SearchNode[],
+  searchString: string,
+  mode: 'and' | 'or' = 'or'
+): string[] {
+  if (!searchString.trim()) return []
+  const terms = parseSearchTerms(searchString)
+
+  if (mode === 'and') {
+    return index.filter((node) => terms.every((term) => matchTerm(node, term))).map((n) => n.path)
+  } else {
+    return index.filter((node) => terms.some((term) => matchTerm(node, term))).map((n) => n.path)
+  }
+}
+
+export type SearchTerm = {
+  field: 'value' | 'path' | 'key' | 'type' | 'any'
+  value: string
+  exact: boolean
+}
+
+export function parseSearchTerms(input: string, lowercase = true): SearchTerm[] {
+  const termRegex = /(?:(\w+):)?(?:"([^"]+)"|(\S+))/g
+  const terms: SearchTerm[] = []
+
+  let match: RegExpExecArray | null
+  while ((match = termRegex.exec(input))) {
+    const fieldRaw = match[1]
+    const quoted = match[2]
+    const unquoted = match[3]
+
+    const field = (fieldRaw?.toLowerCase() ?? 'any') as SearchTerm['field']
+    const value = quoted ?? unquoted
+    const exact = !!quoted
+
+    terms.push({
+      field: ['value', 'path', 'type', 'key'].includes(field) ? field : 'any',
+      value: lowercase ? value.toLowerCase() : value,
+      exact,
+    })
+  }
+
+  return terms
+}
+
+function matchTerm(node: SearchNode, term: SearchTerm) {
+  const tokens = node.tokens?.map((t) => t.toLowerCase()) ?? []
+  const path = node.path.toLowerCase()
+  const type = node.type.toLowerCase()
+  const key = node.key.toLowerCase()
+
+  const { field, exact, value } = term
+  const matchToken = (t: string) => (exact ? t === value : t.includes(value.toLowerCase()))
+
+  switch (field) {
+    case 'any':
+      return (
+        tokens.some(matchToken) ||
+        [path, path.split('.').at(-1)].some((p) => matchToken(p ?? '')) ||
+        matchToken(type)
+      )
+    case 'key':
+      return matchToken(key)
+    case 'type':
+      return matchToken(type)
+    case 'value':
+      return tokens.some(matchToken)
+    case 'path':
+      return [path, path.split('.').at(-1)].some(() => matchToken(path))
+  }
+}
+
+export function getAncestorPaths(path: string): string[] {
+  const parts = path.split('.')
+  const ancestors: string[] = []
+
+  for (let i = 1; i < parts.length; i++) {
+    const ancestor = parts.slice(0, i).join('.')
+    ancestors.push(ancestor)
+  }
+
+  return ancestors
 }
 
 === 13995 packages/svelte/src/routes/(app)/+layout.svelte	svelte	runes	runes
@@ -13975,6 +18494,22 @@ export class PersistedState<T> {
   }
 </style>
 
+=== 382 packages/svelte/src/routes/(app)/+layout.ts	ts	module	-
+export const prerender = 'auto'
+
+import type { Document } from '$doclib/types.js'
+import type { LayoutLoad } from './$types.js'
+
+export const load = (async ({ fetch }) => {
+  try {
+    const docs: Document[] = await fetch('/api/docs').then((r) => r.json())
+    return { docs }
+  } catch (e) {
+    console.error('LAYOUT LOAD ERROR:')
+    console.error(e)
+  }
+}) satisfies LayoutLoad
+
 === 4137 packages/svelte/src/routes/(app)/+page.svelte	svelte	runes	runes
 <script lang="ts">
   import { createPageTitle } from '$doclib/util.js'
@@ -14144,6 +18679,30 @@ export class PersistedState<T> {
     text-align: left;
   }
 </style>
+
+=== 669 packages/svelte/src/routes/(app)/+page.ts	ts	module	-
+import type { PageLoad } from './$types.js'
+
+export const prerender = false
+
+export const load = (async ({ fetch }) => {
+  const installCount = fetch(
+    'https://api.npmjs.org/downloads/point/1970-01-01:2038-01-19/svelte-inspect-value'
+  )
+    .then((res) => res.json())
+    .then((res) => res.downloads as number)
+
+  const githubStars = fetch('https://api.github.com/repos/ampled/svelte-inspect-value')
+    .then((res) => res.json())
+    .then((data) => data.stargazers_count as number)
+
+  return {
+    stats: Promise.all([installCount, githubStars]).then(([installCount, githubStars]) => ({
+      installCount,
+      githubStars,
+    })),
+  }
+}) satisfies PageLoad
 
 === 732 packages/svelte/src/routes/(app)/Expandroute.svelte	svelte	runes	runes
 <script lang="ts">
@@ -14465,6 +19024,50 @@ export class PersistedState<T> {
   }
 </style>
 
+=== 1047 packages/svelte/src/routes/(app)/api/docs/+server.ts	ts	module	-
+import { json } from '@sveltejs/kit'
+import type { RequestHandler } from './$types.js'
+
+export type Document = {
+  title: [string, string]
+  children?: [string, string][]
+  type?: string
+}
+
+async function getPosts() {
+  const posts: Document[] = []
+
+  try {
+    const paths = import.meta.glob('/src/doclib/typedoc/md/**/*.md', { eager: true })
+    for (const path in paths) {
+      const file = paths[path]
+      const type = path.split('/').at(-2)
+
+      if (file && typeof file === 'object' && 'metadata' in file) {
+        const metadata = file.metadata as Omit<Document, 'slug'>
+        const post = { ...metadata, type } satisfies Document
+        posts.push(post)
+      }
+    }
+    return posts
+  } catch (e) {
+    console.error('error in /docs endpoint:')
+    console.error(e)
+
+    return []
+  }
+
+  // posts = posts.sort(
+  //   (first, second) => new Date(second.date).getTime() - new Date(first.date).getTime()
+  // )
+  return []
+}
+
+export const GET: RequestHandler = async () => {
+  const posts = await getPosts()
+  return json(posts)
+}
+
 === 1866 packages/svelte/src/routes/(app)/docs/+layout.svelte	svelte	runes	runes
 <script lang="ts">
   import { page } from '$app/state'
@@ -14557,6 +19160,16 @@ export class PersistedState<T> {
   }
 </style>
 
+=== 257 packages/svelte/src/routes/(app)/docs/+layout.ts	ts	module	-
+import type { Document } from '$doclib/types.js'
+import type { LayoutLoad } from './$types.js'
+
+export const load = (async ({ fetch }) => {
+  const docs: Document[] = await fetch('/api/docs').then((r) => r.json())
+
+  return { docs }
+}) satisfies LayoutLoad
+
 === 1026 packages/svelte/src/routes/(app)/docs/+page.svelte	svelte	runes	runes
 <script lang="ts">
   import type { PageData } from './$types.js'
@@ -14616,6 +19229,24 @@ export class PersistedState<T> {
 
 <data.content />
 
+=== 395 packages/svelte/src/routes/(app)/docs/[...file]/+page.ts	ts	module	-
+import { error } from '@sveltejs/kit'
+import type { PageLoad } from './$types.js'
+
+export const load = (async ({ params }) => {
+  try {
+    const post = await import(`$doclib/typedoc/md/${params.file}.md`)
+
+    return {
+      content: post.default,
+      meta: post.metadata,
+    }
+  } catch (_e) {
+    console.error(_e)
+    error(404, `Could not find ${params.file}`)
+  }
+}) satisfies PageLoad
+
 === 524 packages/svelte/src/routes/(app)/docs/functions/+page.svelte	svelte	runes	runes
 <script lang="ts">
   import type { PageData } from './$types.js'
@@ -14659,6 +19290,24 @@ export class PersistedState<T> {
 </svelte:head>
 
 <data.content />
+
+=== 405 packages/svelte/src/routes/(app)/docs/functions/[slug]/+page.ts	ts	module	-
+import { error } from '@sveltejs/kit'
+import type { PageLoad } from './$types.js'
+
+export const load = (async ({ params }) => {
+  try {
+    const post = await import(`$doclib/typedoc/md/functions/${params.slug}.md`)
+
+    return {
+      content: post.default,
+      meta: post.metadata,
+    }
+  } catch (_e) {
+    console.error(_e)
+    error(404, `Could not find ${params.slug}`)
+  }
+}) satisfies PageLoad
 
 === 518 packages/svelte/src/routes/(app)/docs/types/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -14716,6 +19365,26 @@ export class PersistedState<T> {
 
 <data.content />
 
+=== 524 packages/svelte/src/routes/(app)/docs/types/[slug]/+page.ts	ts	module	-
+import type { Document } from '$doclib/types.js'
+import { error } from '@sveltejs/kit'
+import type { Component } from 'svelte'
+import type { PageLoad } from './$types.js'
+
+export const load = (async ({ params }) => {
+  try {
+    const post = await import(`$doclib/typedoc/md/types/${params.slug}.md`)
+
+    return {
+      content: post.default as Component,
+      meta: post.metadata as Partial<Document>,
+    }
+  } catch (_e) {
+    console.error(_e)
+    error(404, `Could not find ${params.slug}`)
+  }
+}) satisfies PageLoad
+
 === 311 packages/svelte/src/routes/(app)/docs/variables/[slug]/+page.svelte	svelte	runes	runes
 <script lang="ts">
   import type { PageData } from './$types.js'
@@ -14733,6 +19402,26 @@ export class PersistedState<T> {
 {/if}
 
 <data.content />
+
+=== 528 packages/svelte/src/routes/(app)/docs/variables/[slug]/+page.ts	ts	module	-
+import type { Document } from '$doclib/types.js'
+import { error } from '@sveltejs/kit'
+import type { Component } from 'svelte'
+import type { PageLoad } from './$types.js'
+
+export const load = (async ({ params }) => {
+  try {
+    const post = await import(`$doclib/typedoc/md/variables/${params.slug}.md`)
+
+    return {
+      content: post.default as Component,
+      meta: post.metadata as Partial<Document>,
+    }
+  } catch (_e) {
+    console.error(_e)
+    error(404, `Could not find ${params.slug}`)
+  }
+}) satisfies PageLoad
 
 === 2814 packages/svelte/src/routes/(app)/playground/[...example]/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -14854,6 +19543,128 @@ export class PersistedState<T> {
     }
   }
 </style>
+
+=== 2289 packages/svelte/src/routes/(app)/playground/[...example]/examples.ts	ts	module	-
+const primitives = `return [
+  'Inspect',
+  42,
+  [true, false],
+  { [Symbol('key')]: [0,1,2] }, 
+  Symbol('svelte'),
+  1234n,
+  undefined,
+  null
+]`
+
+const iterators = `function* fibonacci() {
+  let current = 1
+  let next = 1
+  while (true) {
+    yield current
+    ;[current, next] = [next, current + next]
+  }
+}
+
+async function* suspensefulFibonacci() {
+  let current = 1
+  let next = 1
+  while (true) {
+    await new Promise((resolve) => {
+      setTimeout(
+        () => {
+          resolve(undefined)
+        },
+        Math.ceil(Math.random() * 1000)
+      )
+    })
+    yield current
+    ;[current, next] = [next, current + next]
+  }
+}
+
+return {
+  generator: fibonacci(),
+  async_gen: suspensefulFibonacci(),
+  arr: '12345'.split('').values(),
+  map: new Map([[0,1], [1,2], [3,4]]).entries(),
+  set: new Set([0,0,1,2,3,4,5,6,7,8,9,10,11]).values(),
+  string: 'abcdefgæøå'[Symbol.iterator]()
+}`
+
+const gettersAndSetters = `return {
+    num: 12,
+    get current() {
+        this.lastAccessed = new Date()
+        return this.num
+    },
+    set current(num) {
+        this.num = num;
+    },
+    get doubled() {
+        return this.current * 2;
+    },
+    lastAccessed: undefined
+}`
+
+const mapAndSet = `return {
+    map: new Map([
+        [{ msg: 'i am a map key'}, 1],
+        [,'undefined is a valid key'],
+        [null, 'null is a valid key'],
+        [Promise.resolve('key!'), 'anything is a key!!'],
+        [new Map([[1,2]]), 'hmm']
+    ]),
+    set: new Set(['one', 'one', 'two', 'three'])
+}`
+
+const promises = `const neverResolves = new Promise(() => undefined)
+
+const resolvesInASec = new Promise((res) => {
+  setTimeout(() => res('yup'), 1000)
+})
+
+const rejects = new Promise((res,rej) => {
+  setTimeout(() => rej('no!'), 1500)
+})
+
+return {
+  neverResolves,
+  resolvesInASec,
+  rejects
+}`
+
+const classInstances = `class Cls {
+  _props;
+  
+  constructor(props) {
+      this._props = props;
+  }
+  
+  logProps() {
+      console.log(this._props);
+  }
+  
+  inc() {
+      this._props.a++;
+  }
+  
+  get props() {
+      return this._props;
+  }
+}
+
+const cls = new Cls({ a: 1, b: 2, c: 4 });
+
+return { cls };`
+
+export default {
+  primitives,
+  iterators,
+  ['getters and setters']: gettersAndSetters,
+  ['map and set']: mapAndSet,
+  ['class instances']: classInstances,
+  promises,
+}
 
 === 112 packages/svelte/src/routes/(app)/reference/+layout.svelte	svelte	runes	runes
 <script lang="ts">
@@ -15147,6 +19958,28 @@ Result
   }
 </style>
 
+=== 558 packages/svelte/src/routes/(app)/reference/examples/+page.server.ts	ts	module	-
+import gettersAndSettersCode from '$doclib/examples/gettersandsetters.txt?raw'
+import iteratorsCode from '$doclib/examples/iterators.txt?raw'
+import promisesCode from '$doclib/examples/promises.txt?raw'
+import { highlight } from '$doclib/shiki.js'
+
+export const load = async () => {
+  const [promises, gettersAndSetters, iterators] = await Promise.all([
+    highlight(promisesCode),
+    highlight(gettersAndSettersCode),
+    highlight(iteratorsCode),
+  ])
+
+  return {
+    codeSamples: {
+      promises,
+      gettersAndSetters,
+      iterators,
+    },
+  }
+}
+
 === 1684 packages/svelte/src/routes/(app)/reference/examples/+page.svelte	svelte	runes	runes
 <script lang="ts">
   import BasicEditable from '$doclib/examples/BasicEditable.svelte'
@@ -15316,6 +20149,28 @@ Result:
     justify-content: center;
   }
 </style>
+
+=== 545 packages/svelte/src/routes/(app)/reference/getting-started/+page.ts	ts	module	-
+import configured from '$doclib/examples/configured.txt?raw'
+import valuesexample from '$doclib/examples/inspectvalueexample.txt?raw'
+import minimalcode from '$doclib/examples/minimalexample.txt?raw'
+import { highlight } from '$doclib/shiki.js'
+
+export const load = async () => {
+  const [minimalCode, valuesCode, configuredCode] = await Promise.all([
+    highlight(minimalcode),
+    highlight(valuesexample),
+    highlight(configured),
+  ])
+
+  return {
+    codeSamples: {
+      minimalCode,
+      valuesCode,
+      configuredCode,
+    },
+  }
+}
 
 === 1822 packages/svelte/src/routes/(app)/reference/panel/+page.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -15747,6 +20602,129 @@ Result:
   <Inspect values={new Uint16Array([1, 2, 3])} />
 </div>
 
+=== 7724 packages/svelte/src/routes/(app)/testing/deep-nest.ts	ts	module	-
+export default {
+  1: {
+    2: {
+      3: {
+        4: {
+          5: {
+            6: {
+              7: {
+                8: {
+                  9: {
+                    10: {
+                      11: {
+                        12: {
+                          13: {
+                            14: {
+                              15: {
+                                16: {
+                                  17: {
+                                    18: {
+                                      19: {
+                                        20: {
+                                          21: {
+                                            22: {
+                                              23: {
+                                                24: {
+                                                  25: {
+                                                    26: {
+                                                      27: {
+                                                        28: {
+                                                          29: {
+                                                            30: {
+                                                              31: {
+                                                                32: {
+                                                                  33: {
+                                                                    34: {
+                                                                      35: {
+                                                                        1: {
+                                                                          2: {
+                                                                            3: {
+                                                                              4: {
+                                                                                5: {
+                                                                                  1: {
+                                                                                    2: {
+                                                                                      3: {
+                                                                                        4: {
+                                                                                          5: {
+                                                                                            1: {
+                                                                                              2: {
+                                                                                                3: {
+                                                                                                  4: {
+                                                                                                    5: {
+                                                                                                      1: {
+                                                                                                        2: {
+                                                                                                          3: {
+                                                                                                            4: {
+                                                                                                              5: {
+                                                                                                                1: {
+                                                                                                                  2: {
+                                                                                                                    3: {
+                                                                                                                      4: {
+                                                                                                                        5: {},
+                                                                                                                      },
+                                                                                                                    },
+                                                                                                                  },
+                                                                                                                },
+                                                                                                              },
+                                                                                                            },
+                                                                                                          },
+                                                                                                        },
+                                                                                                      },
+                                                                                                    },
+                                                                                                  },
+                                                                                                },
+                                                                                              },
+                                                                                            },
+                                                                                          },
+                                                                                        },
+                                                                                      },
+                                                                                    },
+                                                                                  },
+                                                                                },
+                                                                              },
+                                                                            },
+                                                                          },
+                                                                        },
+                                                                      },
+                                                                    },
+                                                                  },
+                                                                },
+                                                              },
+                                                            },
+                                                          },
+                                                        },
+                                                      },
+                                                    },
+                                                  },
+                                                },
+                                              },
+                                            },
+                                          },
+                                        },
+                                      },
+                                    },
+                                  },
+                                },
+                              },
+                            },
+                          },
+                        },
+                      },
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  },
+}
+
 === 1302 packages/svelte/src/routes/(app)/testing/expand/+page.svelte	svelte	runes	runes
 <script lang="ts">
   import Inspect from '$lib/Inspect.svelte'
@@ -15990,6 +20968,100 @@ dotted green"
     {/each}
   </select>
 </label>
+
+=== 2602 packages/svelte/src/routes/(app)/testing/search/haystack.ts	ts	module	-
+export type NestedStructure =
+  | string
+  | number
+  | NestedStructure[]
+  | { [key: string]: NestedStructure }
+
+/**
+ * Generates a random string suitable for use as a property key.
+ */
+function randomKey(): string {
+  return Math.random().toString(36).slice(2, 8)
+}
+
+function shuffle<T = unknown>(array: T[]) {
+  let currentIndex = array.length
+
+  // While there remain elements to shuffle...
+  while (currentIndex != 0) {
+    // Pick a remaining element...
+    const randomIndex = Math.floor(Math.random() * currentIndex)
+    currentIndex--
+
+    // And swap it with the current element.
+    ;[array[currentIndex], array[randomIndex]] = [array[randomIndex], array[currentIndex]]
+  }
+
+  return array
+}
+
+/**
+ * Returns a random string or number, but never "needle".
+ */
+function randomPrimitive(): string | number {
+  let value: string | number
+  do {
+    value =
+      Math.random() < 0.5
+        ? Math.random().toString(36).slice(2, 7)
+        : Math.floor(Math.random() * 1000)
+  } while (value === 'needle')
+  return value
+}
+
+/**
+ * Generates a nested structure with randomized property names and array contents,
+ * inserting exactly one instance of "needle" at the deepest level.
+ * @param depth The depth to which the nesting should go.
+ * @param useRandomStructure Whether to randomly switch between array and object nesting.
+ */
+export function generateNestedNeedle(
+  depth: number,
+  withNeedle = true,
+  useRandomStructure: boolean = true
+): NestedStructure {
+  const insertNeedle = (currentDepth: number): NestedStructure => {
+    if (currentDepth === depth) {
+      if (withNeedle) {
+        if (Math.random() < 0.5) {
+          return shuffle(['needle', randomPrimitive()])
+        } else {
+          return {
+            [randomKey()]: 'needle',
+            [randomKey()]: randomPrimitive(),
+          }
+        }
+      } else {
+        return ['not here']
+      }
+    }
+
+    const useArray = useRandomStructure ? Math.random() < 0.5 : currentDepth % 2 === 0
+
+    if (useArray) {
+      const child = insertNeedle(currentDepth + 1)
+      return shuffle([
+        child,
+        randomPrimitive(),
+        Math.random() < 0.5 ? generateNestedNeedle(1, false) : randomPrimitive(),
+      ])
+    } else {
+      return {
+        [randomKey()]: Math.random() < 0.5 ? generateNestedNeedle(1, false) : ['boo!'],
+        [randomKey()]: insertNeedle(currentDepth + 1),
+        [randomKey()]: randomPrimitive(),
+        [randomKey()]: Math.random() < 0.5 ? generateNestedNeedle(1, false) : { isItHere: 'no' },
+        [randomKey()]: randomPrimitive(),
+      }
+    }
+  }
+
+  return insertNeedle(0)
+}
 
 === 2066 packages/svelte/src/routes/(app)/testing/with-options/+page.svelte	svelte	runes	runes
 <script lang="ts">
@@ -16752,6 +21824,109 @@ Result:
   }
 </style>
 
+=== 3521 packages/svelte/src/routes/(app)/theming/vars/vars-defaults.ts	ts	module	-
+const base16 = [
+  ['--base00', ''],
+  ['--base01', ''],
+  ['--base02', ''],
+  ['--base03', ''],
+  ['--base04', ''],
+  ['--base05', ''],
+  ['--base06', ''],
+  ['--base07', ''],
+  ['--base08', ''],
+  ['--base09', ''],
+  ['--base0A', ''],
+  ['--base0B', ''],
+  ['--base0C', ''],
+  ['--base0D', ''],
+  ['--base0E', ''],
+  ['--base0F', ''],
+]
+
+export default [
+  ...base16,
+  ['--inspect-background', 'none'],
+  ['--inspect-font-size', '12px'],
+  ['--inspect-font', 'monospace'],
+  ['--inspect-min-width', '360px'],
+  ['--inspect-max-width', '100%'],
+  ['--inspect-width', '100%'],
+  ['--background-color', '--base00'],
+  ['--hover-color', '--base01'],
+  ['--text-selection-background', '--base02'],
+  ['--text-search-highlight-color', '--base0A'],
+  ['--text-search-highlight-fg-color', '--base01'],
+  ['--text-search-highlight-border-top', 'none'],
+  ['--text-search-highlight-border-bottom', 'none'],
+  ['--text-search-highlight-border-left', 'none'],
+  ['--text-search-highlight-border-right', 'none'],
+  ['--text-search-highlight-outline', 'none'],
+  ['--text-search-highlight-decoration', 'none'],
+  ['--indent-color', '--base03'],
+  ['--indent', '0.75em'],
+  ['--indent-compact', '0.5em'],
+  ['--padding', '0.25em 0'],
+  ['--padding-compact', '0.25em 0'],
+  ['--length-color', '--base03'],
+  ['--border-color', '--base03'],
+  ['--border-radius', '8px'],
+  ['--bullet-color', '--base03'],
+  ['--comment-color', '--base03'],
+  ['--caret-color', '--base03'],
+  ['--key-whitespace-color', '--base03'],
+  ['--key-whitespace-opacity', '0.5'],
+  ['--tools-background-color', '--base00'],
+  ['--tools-background-color-borderless', 'transparent'],
+  ['--tools-border-color', '--base03'],
+  ['--caret-focus-color', '--base05'],
+  ['--caret-hover-color', '--base05'],
+  ['--text-color', '--base05'],
+  ['--child-update-flash-color', '--base05'],
+  ['--update-flash-color', '--base06'],
+  ['--delimiter-color', '--base08'],
+  ['--key-prefix-color', '--base08'],
+  ['--note-color', '--base0C'],
+  ['--button-color', '--base0E'],
+  ['--button-disabled-color', '--base03'],
+  ['--button-success-color', '--base0B'],
+  ['--promise-pending-color', '--base0A'],
+  ['--promise-fulfilled-color', '--base0B'],
+  ['--promise-rejected-color', '--base0E'],
+  ['--promise-bracket-color', '--base03'],
+  ['--error-color', '--base08'],
+  ['--string-value-color', '--base0A'],
+  ['--function-name-color', '--base0B'],
+  ['--function-var-color', '--base0E'],
+  ['--function-attribute-color', '--base0E'],
+  ['--function-comment-color', '--base03'],
+  ['--function-params-color', '--base09'],
+  ['--function-property-color', '--base0B'],
+  ['--symbol-value-color', '--base0C'],
+  ['--regex-value-color', '--base0C'],
+  ['--number-value-color', '--base0E'],
+  ['--bigint-value-color', '--base0E'],
+  ['--boolean-value-color', '--base0E'],
+  ['--class-name-color', '--base0D'],
+  ['--niltype-bg-color', '--base01'],
+  ['--niltype-text-color', '--base05'],
+  ['--number-type-color', '--base08'],
+  ['--bigint-type-color', '--base08'],
+  ['--boolean-type-color', '--base08'],
+  ['--symbol-type-color', '--base09'],
+  ['--regex-type-color', '--base0B'],
+  ['--array-type-color', '--base0C'],
+  ['--date-type-color', '--base0C'],
+  ['--map-type-color', '--base0C'],
+  ['--set-type-color', '--base0C'],
+  ['--url-type-color', '--base0C'],
+  ['--urlsearchparams-type-color', '--base0C'],
+  ['--object-type-color', '--base0C'],
+  ['--class-type-color', '--base08'],
+  ['--function-type-color', '--base08'],
+  ['--string-type-color', '--base0E'],
+] as const
+
 === 3941 packages/svelte/src/routes/(app)/usage/hotkeys/+page.svelte	svelte	runes	neutral
 <script lang="ts">
   import AllTypes from '$doclib/examples/AllTypes.svelte'
@@ -17059,4 +22234,972 @@ Result:
 </script>
 
 {@render children()}
+
+=== 8536 packages/svelte/tests/expandable.test.ts	ts	module	-
+import { cleanup, screen } from '@testing-library/svelte'
+import { readable } from 'svelte/store'
+import { afterAll, describe, expect, test } from 'vitest'
+import { renderInspect } from './util/index.js'
+
+describe('expandable values', () => {
+  const inspect = renderInspect({
+    value: undefined,
+    showLength: true,
+    showTypes: true,
+    elementView: 'full',
+  })
+  const { rerender, unmount, user } = inspect
+
+  afterAll(() => {
+    unmount()
+    cleanup()
+  })
+
+  test('it can display the keys and values of an object, including symbol keys', async () => {
+    await rerender({
+      name: 'test',
+      value: {
+        foo: 1,
+        bar: 2,
+        [Symbol('baz')]: 33,
+      },
+    })
+
+    expect(screen.getAllByTestId('key')).toHaveLength(4)
+
+    // check count
+    const count = screen.queryByTestId('count')
+    expect(count).toHaveTextContent('3 entries')
+
+    // check keys
+    const [foo, bar, baz] = [
+      screen.queryByText('foo'),
+      screen.queryByText('bar'),
+      screen.queryByText('Symbol(baz)'),
+    ]
+    expect(foo).toBeInTheDocument()
+    expect(bar).toBeInTheDocument()
+    expect(baz).toBeInTheDocument()
+
+    // check type
+    const type = screen.getAllByTestId('type')[0]
+    expect(type).toHaveTextContent('obj')
+
+    // check values
+    screen.getAllByTestId('value').forEach((value) => {
+      expect(value.innerText).toBeOneOf(['1', '2', '33'])
+    })
+  })
+
+  test('it can list and display properties of an object at root level using the propertiesOf-prop', async () => {
+    await rerender({
+      values: {
+        foo: 1,
+        bar: 2,
+        [Symbol('baz')]: 33,
+      },
+    })
+
+    expect(screen.getAllByTestId('key')).toHaveLength(3)
+  })
+
+  test('it can display the keys and values of a map', async () => {
+    await rerender({
+      values: undefined,
+      showPreview: true,
+      expandAll: false,
+      value: new Map<unknown, unknown>([
+        ['foo', 1],
+        ['bar', 2],
+        ['baz', '33'],
+      ]),
+    })
+
+    // check count
+    const count = screen.getAllByTestId('count')[0]
+    expect(count).toHaveTextContent('3 entries')
+
+    // check keys
+    const [foo, bar, baz] = [
+      screen.queryByText('foo'),
+      screen.queryByText('bar'),
+      screen.queryByText('baz'),
+    ]
+
+    expect(foo).toBeInTheDocument()
+    expect(bar).toBeInTheDocument()
+    expect(baz).toBeInTheDocument()
+
+    // check type
+    const type = screen.getAllByTestId('type')[0]
+    expect(type).toHaveTextContent('Map')
+
+    // check values
+    screen.getAllByTestId('value').forEach((value) => {
+      expect(value.innerText).toBeOneOf(['1', '2', `'33'`])
+    })
+  })
+
+  test('it can display the values of an array', async () => {
+    await rerender({ value: [1111, 2222, 3333] })
+
+    // check count
+    const count = screen.queryByTestId('count')
+    expect(count).toHaveTextContent('3 items')
+
+    // check keys
+    const [foo, bar, baz] = [
+      screen.queryByText('1'),
+      screen.queryByText('2'),
+      screen.queryByText('3'),
+    ]
+
+    expect(foo).toBeInTheDocument()
+    expect(bar).toBeInTheDocument()
+    expect(baz).toBeInTheDocument()
+
+    // check type
+    const type = screen.getAllByTestId('type')[0]
+    expect(type).toHaveTextContent('arr')
+
+    // check values
+    screen.getAllByTestId('value').forEach((value) => {
+      expect(value.innerText).toBeOneOf(['1111', '2222', '3333'])
+    })
+  })
+
+  test('it can display the values of a set', async () => {
+    await rerender({ value: new Set([111, 222, 333]) })
+
+    // check count
+    const count = screen.queryByTestId('count')
+    expect(count).toHaveTextContent('3 entries')
+
+    // check keys
+    const [foo, bar, baz] = [
+      screen.queryByText('0'),
+      screen.queryByText('1'),
+      screen.queryByText('2'),
+    ]
+
+    expect(foo).toBeInTheDocument()
+    expect(bar).toBeInTheDocument()
+    expect(baz).toBeInTheDocument()
+
+    // check type
+    const type = screen.getAllByTestId('type')[0]
+    expect(type).toHaveTextContent('Set')
+
+    // check values
+    screen.getAllByTestId('value').forEach((value) => {
+      expect(value.innerText).toBeOneOf(['111', '222', '333'])
+    })
+  })
+
+  test('it renders multiline strings', async () => {
+    await rerender({
+      value: '  hello \n     world',
+      expandAll: true,
+    })
+    const element = screen.queryByTestId('inspect')
+    expect(element).toBeInTheDocument()
+
+    const count = screen.getByTestId('count')
+
+    expect(count).toHaveTextContent('19 chars')
+
+    const indent = screen.getByTestId('indent')
+
+    expect(indent).toHaveTextContent('hello world')
+    expect(indent).toHaveClass('indent', 'string')
+  })
+
+  test('it renders multiline functions', async () => {
+    await rerender({
+      value: function greet(name: string) {
+        return 'hello ' + name
+      },
+      noanimate: true,
+      expandAll: true,
+      showPreview: false,
+    })
+
+    const type = screen.queryByTestId('type')
+    expect(type).toHaveTextContent('fn')
+    const value = screen.queryByTestId('value')
+    expect(value).toHaveTextContent(`function greet(name) { return "hello " + name; }`)
+    const indent = screen.queryByTestId('indent')
+    expect(indent).toHaveClass('indent', 'function')
+  })
+
+  test('it can parse JSON strings and display the parsed value', async () => {
+    await rerender({
+      value: JSON.stringify(
+        {
+          foo: 1,
+          bar: 2,
+          baz: 33,
+        },
+        undefined,
+        1
+      ),
+      noanimate: true,
+      expandAll: true,
+      parseJson: true,
+      showPreview: false,
+    })
+
+    // check count
+    const count = screen.getAllByTestId('count')[0]
+    expect(count).toHaveTextContent('3 entries')
+
+    // check keys
+    const [foo, bar, baz] = [
+      screen.queryByText('foo'),
+      screen.queryByText('bar'),
+      screen.queryByText('baz'),
+    ]
+    expect(foo).toBeInTheDocument()
+    expect(bar).toBeInTheDocument()
+    expect(baz).toBeInTheDocument()
+
+    const note = screen.getByText('json')
+    expect(note).toBeInTheDocument()
+    expect(note).toHaveAttribute('title', 'This value was parsed from a JSON string')
+
+    // check type
+    const type = screen.getAllByTestId('type')[0]
+    expect(type).toHaveTextContent('obj')
+
+    // check values
+    screen.getAllByTestId('value').forEach((value) => {
+      expect(value.innerText).toBeOneOf(['1', '2', '33'])
+    })
+  })
+
+  test.skip('it can display properties of html elements', async () => {
+    document.body.classList.add('test')
+    document.body.dataset['test'] = 'test'
+
+    await rerender({
+      value: document.body,
+      noanimate: true,
+      expandAll: true,
+      showPreview: false,
+      showTypes: true,
+    })
+
+    const type = screen.queryAllByTestId('type')[0]
+    expect(type).toHaveTextContent('htmlbodyelement')
+    const value = screen.queryAllByTestId('value')[0]
+
+    expect(value).toHaveTextContent(`<body class="test" data-test="test">`)
+    const indent = screen.queryAllByTestId('indent')[0]
+    expect(indent).toBeInTheDocument()
+    expect(indent).toHaveClass('indent', 'htmlbodyelement')
+  })
+
+  test('it can display the value and other properties of stores', async () => {
+    await rerender({
+      value: readable('12345'),
+      name: undefined,
+      noanimate: true,
+      expandAll: true,
+      showPreview: false,
+      showTypes: true,
+      stores: true,
+    })
+
+    const [storeType, valueType] = screen.queryAllByTestId('type')
+    const [valueKey] = screen.queryAllByTestId('key')
+    const [value] = screen.queryAllByTestId('value')
+
+    expect(storeType).toHaveTextContent('readable')
+    expect(valueType).toHaveTextContent('str')
+    expect(valueKey).toHaveTextContent('$ value')
+    expect(value).toHaveTextContent(`'12345'`)
+
+    await rerender({ stores: 'value-only' })
+
+    const note = screen.getByTestId('note')
+
+    expect(note).toBeInTheDocument()
+    expect(note).toHaveTextContent('store')
+    expect(note).toHaveAttribute('title', 'Value was retrieved by subscribing to a store')
+  })
+
+  test('it can be opened and closed', async () => {
+    await rerender({
+      value: { hey: 'im a test value' },
+      name: 'test',
+      expandAll: false,
+    })
+
+    const button = screen.getByTestId('collapse-button')
+
+    let indent = screen.queryByTestId('indent')
+    expect(indent).toBeInTheDocument()
+    expect(button).toHaveAttribute('aria-label', 'collapse test')
+
+    await user.click(button)
+
+    indent = screen.queryByTestId('indent')
+
+    expect(indent).not.toBeInTheDocument()
+    expect(button).toHaveAttribute('aria-label', 'expand test')
+  })
+})
+
+=== 1582 packages/svelte/tests/focus.test.ts	ts	module	-
+import { describe, expect, test } from 'vitest'
+import Inspect from '../src/lib/index.js'
+import { renderComponent } from './util/index.js'
+import { waitFor } from '@testing-library/svelte'
+
+describe('focus features', () => {
+  test('set focus by typing', async () => {
+    using rendered = renderComponent(Inspect, {
+      props: {
+        values: { lorem: 'aa', ipsum: 'bb', dolor: 'cc', sit: 'amet' },
+        noanimate: true,
+      },
+    })
+
+    const { user, result } = rendered
+
+    expect(result.getAllByTestId('row')).toHaveLength(4)
+    const sitLine = result.getByText('sit')
+    await user.click(sitLine)
+    await user.keyboard('lor')
+
+    await waitFor(
+      () => expect(result.container.ownerDocument.activeElement).toHaveTextContent('lorem'),
+      { interval: 100, timeout: 600 }
+    )
+  })
+
+  test('navigate lines with keyboard', async () => {
+    using rendered = renderComponent(Inspect, {
+      props: {
+        values: { lorem: 'aa', ipsum: 'bb', dolor: 'cc', sit: 'dd' },
+        noanimate: true,
+      },
+    })
+    const {
+      user,
+      result,
+      result: {
+        container: {
+          ownerDocument: { activeElement },
+        },
+      },
+    } = rendered
+
+    const sitLine = result.getByText('sit')
+    await user.click(sitLine)
+    await user.keyboard('{ArrowUp}')
+    expect(activeElement).toHaveTextContent('dolor')
+    await user.keyboard('{ArrowUp}{ArrowUp}')
+    expect(activeElement).toHaveTextContent('lorem')
+    await user.keyboard('{ArrowUp}') // it loops from top to end
+    expect(activeElement).toHaveTextContent('sit')
+  })
+})
+
+=== 1094 packages/svelte/tests/gettersetter.svelte.test.ts	ts	module	-
+import { cleanup, screen } from '@testing-library/svelte'
+import { afterAll, expect, test } from 'vitest'
+import { renderInspect } from './util/index.js'
+
+afterAll(() => {
+  cleanup()
+})
+
+test('it has interactive elements for getters and setters', async () => {
+  const value = $state({
+    get current() {
+      return this.value
+    },
+    set current(value: number) {
+      this.value = value
+    },
+    get double() {
+      return this.value * 2
+    },
+    value: 1,
+  })
+
+  const { unmount, user } = renderInspect({ value, expandAll: true, name: 'numberValue' })
+
+  const key = screen.queryAllByTestId('key')[2]
+
+  // getters / setters get key prefixes
+  expect(key).toHaveTextContent('set|get current')
+
+  const getButton = screen.queryAllByRole('button', { name: 'get' })[0]
+
+  let getterValueElement = screen.queryAllByTestId('value')[1]
+
+  expect(getterValueElement).toHaveTextContent('get current() { return this.value; }')
+
+  await user.click(getButton)
+
+  getterValueElement = screen.queryAllByTestId('value')[0]
+
+  expect(getterValueElement).toHaveTextContent('1')
+
+  unmount()
+})
+
+=== 1119 packages/svelte/tests/global-options.svelte.test.ts	ts	module	-
+import { GLOBAL_OPTIONS_CONTEXT } from '../src/lib/options.svelte.js'
+import { act, cleanup, screen } from '@testing-library/svelte'
+import { afterAll, describe, expect, test } from 'vitest'
+import { renderInspect } from './util/index.js'
+
+afterAll(() => {
+  cleanup()
+})
+
+describe('global options', () => {
+  test('it can set options for all nested inspect instances', async () => {
+    const { unmount } = renderInspect({ value: 'testing' }, [
+      [GLOBAL_OPTIONS_CONTEXT, () => ({ showTypes: false })],
+    ])
+
+    expect(screen.queryByTestId('type')).not.toBeInTheDocument()
+
+    unmount()
+  })
+
+  test('it reacts to changes if a reactive object is passed as global options', async () => {
+    const options = $state({ showTypes: false })
+
+    const { unmount } = renderInspect({ value: 'testing' }, [[GLOBAL_OPTIONS_CONTEXT, options]])
+
+    expect(screen.queryByTestId('type')).not.toBeInTheDocument()
+
+    await act(() => {
+      options.showTypes = true
+    })
+
+    const type = screen.queryByTestId('type')
+    expect(type).toBeInTheDocument()
+    expect(type).toHaveTextContent('str')
+
+    unmount()
+  })
+})
+
+=== 854 packages/svelte/tests/highlight.spec.ts	ts	module	-
+import { parseSearchTerms } from '$lib/util/search.js'
+import { highlightText } from '../src/lib/util/highlight-text.js'
+import { describe, test, expect } from 'vitest'
+
+describe('highlight', () => {
+  test('it should highlight the search terms in the text', async () => {
+    const chunks = highlightText(`it should highlight the search terms in the text`, [
+      { value: `the`, exact: false },
+    ])
+
+    expect(chunks.some((chunk) => chunk.text === 'the' && chunk.match)).toBeTruthy()
+  })
+
+  test('it should highlight exact matches with strings wrapped in single quotes', async () => {
+    const value = `'numbers are cool'`
+    const query = `"'numbers are cool'"`
+
+    const terms = parseSearchTerms(query, false)
+
+    const chunks = highlightText(value, terms)
+
+    expect(chunks).toHaveLength(1)
+    expect(chunks[0].text).toBe(value)
+  })
+})
+
+=== 3794 packages/svelte/tests/inspect-values.test.ts	ts	module	-
+import { screen } from '@testing-library/svelte'
+
+import { describe, expect, test } from 'vitest'
+import Inspect, { GLOBAL_OPTIONS_CONTEXT } from '../src/lib/index.js'
+import { renderComponent } from './util/index.js'
+
+describe('inspect values', () => {
+  test('it renders', async () => {
+    using rendered = renderComponent(Inspect.Values, { props: { a: 'a', b: 'b', c: 'c' } })
+
+    expect(rendered.result.component).toBeDefined()
+
+    const [keyA, keyB, keyC] = screen.getAllByTestId('key')
+    const [a, b, c] = screen.getAllByTestId('value')
+
+    expect(keyA).toHaveTextContent('a')
+    expect(keyB).toHaveTextContent('b')
+    expect(keyC).toHaveTextContent('c')
+    expect(a).toHaveTextContent(`'a'`)
+    expect(b).toHaveTextContent(`'b'`)
+    expect(c).toHaveTextContent(`'c'`)
+  })
+
+  test('it can be configured', async () => {
+    const Configured = Inspect.Values.withOptions(() => ({
+      stringCollapse: 5,
+      quotes: 'none',
+      showPreview: false,
+      expandLevel: 0,
+      noanimate: true,
+    }))
+
+    using rendered = renderComponent(Configured, {
+      props: { test: '123456' },
+      context: new Map([
+        // passing an empty context map avoids "lifecycle_outside_component" error
+      ]),
+    })
+
+    expect(rendered.result.component).toBeDefined()
+
+    const key = screen.getByTestId('key')
+    const value = screen.getByTestId('value')
+    expect(key).toHaveTextContent('test')
+    expect(value).toHaveTextContent('12345…')
+  })
+
+  test('it can be configured and inherit configurations', async () => {
+    const Configured = Inspect.Values.withOptions(() => ({
+      stringCollapse: 5,
+      quotes: 'none',
+      showPreview: false,
+      expandLevel: 0,
+      noanimate: true,
+    }))
+
+    const Inherits = Configured.withOptions(() => ({
+      quotes: 'double',
+    }))
+
+    using renderedConfigured = renderComponent(Configured, {
+      props: { test: '123456' },
+      context: new Map([
+        // passing an empty context map avoids "lifecycle_outside_component" error
+      ]),
+    })
+
+    const key = screen.getByTestId('key')
+    const value = screen.getByTestId('value')
+    expect(value).toHaveTextContent('12345…')
+    expect(key).toHaveTextContent('test')
+
+    renderedConfigured[Symbol.dispose]()
+
+    using rendered = renderComponent(Inherits, {
+      props: { test: '123456' },
+      context: new Map([]),
+    })
+
+    expect(rendered.result.component).toBeDefined()
+
+    const inheritsValue = screen.getByTestId('value')
+
+    // string should be collapsed (inherited option) but have double quotes
+    expect(inheritsValue).toHaveTextContent('"12345…"')
+  })
+
+  test('it can be rendered with a preset initial expand-level', async () => {
+    using rendered = renderComponent(Inspect.Values.Expand0, {
+      props: { test: { test: '123456' } },
+      context: new Map([
+        [
+          GLOBAL_OPTIONS_CONTEXT,
+          { showPreview: false, noanimate: true, showTools: false, showTypes: false },
+        ],
+      ]),
+    })
+
+    expect(rendered.result.component).toBeDefined()
+
+    const key = screen.getByTestId('key')
+    const value = screen.queryByTestId('value')
+    expect(value).toBe(null) // no value (123456) has been rendered
+    expect(key).toHaveTextContent('test')
+  })
+
+  test('it can be configured using inline chainable configuration', async () => {
+    using rendered = renderComponent(Inspect.Values.Config.PlainTheme.NoAnimate.Ok, {
+      props: { test: { test: '123456' } },
+      context: new Map([
+        [GLOBAL_OPTIONS_CONTEXT, { showPreview: false, showTools: false, showTypes: false }],
+      ]),
+    })
+
+    expect(rendered.result.component).toBeDefined()
+
+    const inspect = screen.getByTestId('inspect')
+    expect(inspect).toHaveClass('plain')
+    expect(inspect).toHaveClass('noanimate')
+  })
+})
+
+=== 2205 packages/svelte/tests/oneline.test.ts	ts	module	-
+import { cleanup, screen } from '@testing-library/svelte'
+import { afterAll, expect, test } from 'vitest'
+import { renderInspect } from './util/index.js'
+
+afterAll(() => {
+  cleanup()
+})
+
+const fixtures = [
+  { value: undefined, expectedType: 'undefined' },
+  { value: null, expectedType: 'null' },
+  { value: 'string', expectedType: 'str', expectedValue: `'string'`, expectedCount: '6 chars' },
+  { value: 123, expectedType: 'num', expectedValue: '123' },
+  { value: false, expectedType: 'bool', expectedValue: 'false' },
+  { value: 1n, expectedType: 'bigint', expectedValue: '1n' },
+  { value: /r(e+)gExp/, expectedType: 'regex', expectedValue: '/r(e+)gExp/' },
+  { value: Symbol('test'), expectedType: 'symbol', expectedValue: 'Symbol(test)' },
+  { value: () => void 0, expectedType: 'fn', expectedValue: '() => void 0' },
+  { value: async () => void 0, expectedType: 'async fn', expectedValue: '() => void 0' },
+  {
+    value: eval(`(function* generator() { yield 'a' })`),
+    expectedType: 'fn*',
+    expectedValue: `generator() { yield 'a' }`,
+  },
+  {
+    value: eval(`(async function* generator() { yield undefined })`),
+    expectedType: 'async fn*',
+    expectedValue: 'generator() { yield undefined }',
+  },
+]
+
+test('it can display simple values', async () => {
+  const { unmount, rerender } = renderInspect({
+    value: undefined,
+    showLength: true,
+    showTypes: true,
+  })
+
+  for (const { value, expectedType, expectedValue, expectedCount } of fixtures) {
+    try {
+      await rerender({
+        value,
+        showLength: expectedCount != null,
+        showTypes: true,
+        name: expectedType,
+      })
+      // check type
+      const type = screen.getAllByTestId('type')[0]
+      expect(type).toHaveTextContent(expectedType)
+      // check count
+      if (expectedCount) {
+        const count = screen.getByTestId('count')
+        expect(count).toHaveTextContent(expectedCount)
+      }
+      // check value
+      if (expectedValue) {
+        const valueElement = screen.getAllByTestId('value')[0]
+        expect(valueElement).toHaveTextContent(expectedValue)
+      }
+    } catch (e) {
+      console.error(`Test failed for value ${value}`)
+      throw e
+    }
+  }
+
+  unmount()
+})
+
+=== 2662 packages/svelte/tests/options.test.ts	ts	module	-
+import { cleanup, screen } from '@testing-library/svelte'
+import { afterAll, describe, expect, test } from 'vitest'
+import { renderInspect } from './util/index.js'
+
+afterAll(() => {
+  cleanup()
+})
+
+describe('inspect options', () => {
+  test('it can expand all nodes by default', async () => {
+    const { unmount, rerender } = renderInspect({
+      value: { a: { b: { c: { d: 'end' } } } },
+      expandAll: true,
+    })
+
+    let expandables = screen.queryAllByTestId('expandable')
+
+    expect(expandables.length).toBe(4)
+    expandables.forEach((e) => {
+      expect(e).toHaveAttribute('aria-expanded', 'true')
+    })
+
+    await rerender({ value: [[[[[['end']]]]]] })
+    expandables = screen.queryAllByTestId('expandable')
+
+    expect(expandables.length).toBe(6)
+
+    const value = screen.queryByTestId('value')
+
+    // fully expanded = value visible
+    expect(value).toBeInTheDocument()
+    expect(value).toHaveTextContent('end')
+
+    unmount()
+  })
+
+  test('it can expand nodes to a certain depth', async () => {
+    const { unmount } = renderInspect({ value: { a: { b: { c: { d: 'end' } } } }, expandLevel: 2 })
+
+    const expandables = screen.queryAllByTestId('expandable')
+
+    expect(expandables.length).toBe(3)
+
+    expect(expandables[0]).toHaveAttribute('aria-expanded', 'true')
+    expect(expandables[1]).toHaveAttribute('aria-expanded', 'true')
+    expect(expandables[2]).toHaveAttribute('aria-expanded', 'false')
+
+    unmount()
+  })
+
+  test('it can shorten strings based on stringCollapse prop', async () => {
+    const { unmount, rerender } = renderInspect({ value: '1234567', stringCollapse: 3 })
+    const valueElement = screen.getByTestId('value')
+    expect(valueElement).toHaveTextContent(`'123…'`)
+
+    // whitespace is trimmed
+    await rerender({ value: '12 34567' })
+    expect(valueElement).toHaveTextContent(`'12…'`)
+
+    unmount()
+  })
+
+  test('it will show or hide types based on showTypes prop', async () => {
+    const { unmount, rerender } = renderInspect({ value: 'a string', showTypes: true })
+    const type = screen.queryByTestId('type')
+    expect(type).toBeInTheDocument()
+    expect(type).toHaveTextContent('str')
+    await rerender({ showTypes: false })
+    expect(type).not.toBeInTheDocument()
+    unmount()
+  })
+
+  test('it will show or hide counts based on showLength prop', async () => {
+    const { unmount, rerender } = renderInspect({ value: [1, 2, 3], showLength: true })
+    const count = screen.queryByTestId('count')
+    expect(count).toBeInTheDocument()
+    expect(count).toHaveTextContent('3 items')
+    await rerender({ showLength: false })
+    expect(count).not.toBeInTheDocument()
+    unmount()
+  })
+})
+
+=== 1291 packages/svelte/tests/panel.test.ts	ts	module	-
+import { describe, expect, test } from 'vitest'
+import Inspect, { GLOBAL_OPTIONS_CONTEXT, type InspectOptions } from '../src/lib/index.js'
+import { renderComponent } from './util/index.js'
+
+describe('inspect panel', () => {
+  test('it renders', async () => {
+    using rendered = renderComponent(Inspect.Panel, {
+      props: { values: { a: 'a', b: 'b', c: 'c' }, open: true },
+      context: new Map([
+        [GLOBAL_OPTIONS_CONTEXT, { noanimate: true } satisfies Partial<InspectOptions>],
+      ]),
+    })
+
+    expect(rendered.result.component).toBeDefined()
+  })
+
+  test('it can persist settings using localStorage', async () => {
+    let persistedSettings = localStorage.getItem('siv.panel')
+    expect(persistedSettings).toBeNull()
+
+    using rendered = renderComponent(Inspect.Panel, {
+      props: { values: { a: 'a', b: 'b', c: 'c' }, open: true, persist: true },
+      context: new Map([
+        [GLOBAL_OPTIONS_CONTEXT, { noanimate: true } satisfies Partial<InspectOptions>],
+      ]),
+    })
+
+    expect(rendered.result.component).toBeDefined()
+
+    persistedSettings = JSON.parse(localStorage.getItem('siv.panel') ?? `{}`)
+    expect(persistedSettings).toStrictEqual({
+      open: true,
+      appearance: 'solid',
+      opacity: false,
+      align: 'right full',
+    })
+  })
+})
+
+=== 1522 packages/svelte/tests/search.spec.ts	ts	module	-
+import { describe, test, expect } from 'vitest'
+import { buildSearchIndex, searchStructuredIndex } from '../src/lib/util/search.js'
+
+import { DEFAULT_OPTIONS, type InspectOptions } from '../src/lib/options.svelte.js'
+
+const options: InspectOptions = {
+  ...DEFAULT_OPTIONS,
+  noanimate: true,
+  stores: true,
+  quotes: 'single',
+}
+
+describe('search', () => {
+  test('it should build an index of any given value', async () => {
+    const index = buildSearchIndex({ value: ['hello'], options, key: 'test' }).sort(
+      (a, b) => a.path.length - b.path.length
+    )
+
+    expect(index).toHaveLength(2)
+    expect(index[0]).toBeDefined()
+    expect(index[0].type).toBe('array')
+    expect(index[0].path).toBe('test')
+    expect(index[1].tokens?.[0]).toBe(`'hello'`)
+
+    let searchResult = searchStructuredIndex(index, 'hello')
+    expect(searchResult).toHaveLength(1)
+    expect(searchResult[0]).toBeDefined()
+    expect(searchResult[0]).toBe('test.0')
+
+    searchResult = searchStructuredIndex(index, 'type:string')
+    expect(searchResult).toHaveLength(1)
+    expect(searchResult[0]).toBeDefined()
+    expect(searchResult[0]).toBe('test.0')
+
+    searchResult = searchStructuredIndex(index, 'path:test.0')
+    expect(searchResult).toHaveLength(1)
+    expect(searchResult[0]).toBeDefined()
+    expect(searchResult[0]).toBe('test.0')
+
+    searchResult = searchStructuredIndex(index, 'key:0')
+    expect(searchResult).toHaveLength(1)
+    expect(searchResult[0]).toBeDefined()
+    expect(searchResult[0]).toBe('test.0')
+  })
+})
+
+=== 988 packages/svelte/tests/search.test.ts	ts	module	-
+import { describe, expect, test } from 'vitest'
+import Inspect from '../src/lib/index.js'
+import { renderComponent } from './util/index.js'
+
+describe('inspect search', () => {
+  test('it can show matches only', async () => {
+    using rendered = renderComponent(Inspect, {
+      props: {
+        values: { aa: 'aa', bb: 'bb', cc: 'cc' },
+        noanimate: true,
+        search: 'filter-strict',
+        highlightMatches: false,
+      },
+    })
+
+    const { user, result } = rendered
+
+    expect(result.component).toBeDefined()
+
+    const searchField = result.queryByPlaceholderText('search') as HTMLInputElement
+
+    expect(searchField).toBeInTheDocument()
+    let rows = result.getAllByTestId('row')
+    expect(rows).toHaveLength(3)
+
+    await user.type(searchField, 'aa')
+    await user.keyboard('{Enter}')
+
+    const clearBtn = result.getByTitle('clear search')
+    expect(clearBtn).toBeInTheDocument()
+    rows = result.getAllByTestId('row')
+    expect(rows).toHaveLength(1)
+  })
+})
+
+=== 923 packages/svelte/tests/util/index.ts	ts	module	-
+import { render } from '@testing-library/svelte'
+import { userEvent } from '@testing-library/user-event'
+import type { Component, ComponentProps } from 'svelte'
+import Inspect from '../../src/lib/Inspect.svelte'
+
+export function renderInspect(
+  props: ComponentProps<typeof Inspect>,
+  context?: [unknown, unknown][]
+) {
+  const user = userEvent.setup()
+
+  const renderResult = render(Inspect, {
+    props: {
+      borderless: true,
+      noanimate: true,
+      showPreview: false,
+      showTools: false,
+      showLength: false,
+      flashOnUpdate: false,
+      ...props,
+    },
+    context: new Map(context),
+  })
+
+  return {
+    ...renderResult,
+    user,
+  }
+}
+
+export function renderComponent<T extends Component>(...args: Parameters<typeof render<T>>) {
+  const result = render(...args)
+  const user = userEvent.setup()
+  return {
+    result,
+    user,
+    [Symbol.dispose]() {
+      result.unmount()
+    },
+  }
+}
+
+=== 899 packages/svelte/vite.config.ts	ts	module	-
+import { sveltekit } from '@sveltejs/kit/vite'
+import { svelteTesting } from '@testing-library/svelte/vite'
+import { defineConfig } from 'vitest/config'
+
+import { createLogger } from 'vite'
+
+const logger = createLogger()
+const loggerWarn = logger.warn
+
+logger.warn = (msg, options) => {
+  if (msg.includes('Use of eval in')) return
+  loggerWarn(msg, options)
+}
+
+export default defineConfig({
+  customLogger: logger,
+  plugins: [
+    sveltekit(),
+    svelteTesting({
+      // disable auto cleanup
+      autoCleanup: false,
+      // disable browser resolution condition
+      resolveBrowser: true,
+    }),
+  ],
+  build: {
+    minify: 'terser',
+    terserOptions: {
+      keep_classnames: true,
+      keep_fnames: true,
+    },
+  },
+  test: {
+    environment: 'happy-dom',
+    setupFiles: ['./vitest-setup.ts'],
+    include: ['tests/**/*.{test,spec}.{js,ts}', 'tests/**/*.svelte.test.{js,ts}'],
+  },
+})
+
+=== 42 packages/svelte/vitest-setup.ts	ts	module	-
+import '@testing-library/jest-dom/vitest'
 

@@ -941,7 +941,7 @@
 		"checkout": "submodules/appwrite-console",
 		"license": {
 			"spdx": "BSD-3-Clause",
-			"file": "corpus/_own/test262/LICENSE"
+			"file": "LICENSE"
 		}
 	},
 	{

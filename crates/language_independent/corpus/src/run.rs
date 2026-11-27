@@ -9,15 +9,22 @@ use std::sync::Mutex;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::Instant;
 
-use rsvelte_kernel::computation::pipeline::{DocumentResult, RunOptions, Sharing, run_each};
+use rsvelte_kernel::computation::pipeline::{
+    DocumentResult, RunOptions, Sharing, run_each_per_document,
+};
 use rsvelte_kernel::computation::registry::Registry;
 use rsvelte_kernel::performance::parallel;
 use rsvelte_kernel::source::document::Document;
 
-use crate::compare::{self, Ours, Verdict};
+use crate::compare::{self, Ours, Parentheses, Verdict};
 use crate::pack::{self, Entry, Pack};
 use crate::sources::{self, Source};
 use crate::{ledger, task_files};
+
+mod applies;
+
+use applies::tasks_per_unit;
+pub use applies::{Applies, Unit};
 
 /// Set to 1, records the verdicts in the ledger instead of failing on a move.
 const UPDATE: &str = "UPDATE_EXPECT";
@@ -38,6 +45,8 @@ pub struct Conformance {
     compared: Vec<Compared>,
     also_run: Vec<&'static str>,
     out_of_scope: Option<&'static str>,
+    /// `(task, applies)`: the task runs only on a unit `applies` accepts.
+    applies: Vec<(&'static str, Applies)>,
     /// The units [`Self::out_of_scope`]'s task reported.
     excluded: AtomicUsize,
     /// `(unit key, task)` for each official entry of a unit that no reader of the pack takes.
@@ -52,8 +61,8 @@ struct Compared {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Kind {
-    /// The task's output against its own pack.
-    Output,
+    /// The task's output against its own pack, the JavaScript with or without its parentheses.
+    Output { parentheses: Parentheses },
     /// A task in `readers.toml`: it compares one file of another task's official output.
     Reader,
     /// Where the comments of another task's JavaScript are, against that task's pack.
@@ -75,6 +84,7 @@ impl Conformance {
             compared: Vec::new(),
             also_run: Vec::new(),
             out_of_scope: None,
+            applies: Vec::new(),
             excluded: AtomicUsize::new(0),
             stale: Mutex::new(Vec::new()),
         }
@@ -85,7 +95,22 @@ impl Conformance {
     pub fn compare(mut self, task: &'static str) -> Self {
         self.compared.push(Compared {
             task,
-            kind: Kind::Output,
+            kind: Kind::Output {
+                parentheses: Parentheses::Dropped,
+            },
+        });
+        self
+    }
+
+    /// [`Self::compare`], with each pair of parentheses in the JavaScript part of the tree: for an
+    /// oracle whose output keeps the pairs of its source.
+    #[must_use]
+    pub fn compare_with_parentheses(mut self, task: &'static str) -> Self {
+        self.compared.push(Compared {
+            task,
+            kind: Kind::Output {
+                parentheses: Parentheses::Kept,
+            },
         });
         self
     }
@@ -139,6 +164,14 @@ impl Conformance {
     #[must_use]
     pub const fn out_of_scope(mut self, task: &'static str) -> Self {
         self.out_of_scope = Some(task);
+        self
+    }
+
+    /// Runs `task` only on a unit `applies` accepts, as an official task's `appliesTo` does. A task
+    /// whose project is the units that run it, such as a type check, then holds only those.
+    #[must_use]
+    pub fn applies_to(mut self, task: &'static str, applies: Applies) -> Self {
+        self.applies.push((task, applies));
         self
     }
 
@@ -271,10 +304,15 @@ impl Conformance {
     ) -> Result<(usize, Verdicts), String> {
         let inputs = source.inputs()?;
         let mut documents = Vec::with_capacity(inputs.len());
+        let mut units = Vec::with_capacity(inputs.len());
         for e in inputs.entries().filter(|e| selected(&source.key(e.path))) {
             let d = Document::new(e.path, e.body)
                 .map_err(|err| format!("{}: {err:?}", source.key(e.path)))?;
             documents.push(d);
+            units.push(Unit {
+                language: e.attributes.split('\t').next().unwrap_or(e.attributes),
+                path: e.path,
+            });
         }
         let expected: Vec<Pack> = self
             .compared
@@ -289,6 +327,7 @@ impl Conformance {
             .chain(self.also_run.iter().copied())
             .chain(self.out_of_scope)
             .collect();
+        let (lists, list_of) = tasks_per_unit(&tasks, &self.applies, &units);
         let options = RunOptions {
             tasks: &tasks,
             sharing: Sharing::Shared,
@@ -325,7 +364,9 @@ impl Conformance {
                 }
             }
         };
-        run_each(&self.registry, &documents, &options, &sink).map_err(|e| e.to_string())?;
+        let tasks_of = |i: usize| -> Option<&[&str]> { Some(&lists[list_of[i]]) };
+        run_each_per_document(&self.registry, &documents, &options, &tasks_of, &sink)
+            .map_err(|e| e.to_string())?;
         if write_actual {
             let actual = actual
                 .into_inner()
@@ -361,7 +402,7 @@ impl Conformance {
         let table = registry.units.get(&key);
         for (i, c) in self.compared.iter().enumerate() {
             // Regen writes nothing for a unit no reader of the pack takes.
-            if c.kind == Kind::Output
+            if matches!(c.kind, Kind::Output { .. })
                 && table.is_some_and(|t| registry.skips_every_reader(t, c.task))
                 && expected[i].find(&document.path).next().is_some()
             {
@@ -449,7 +490,11 @@ impl Conformance {
                     diagnostics: (!out.diagnostics.is_empty())
                         .then(|| task_files::diagnostics_json(&document.text, out)),
                 });
-                compare::verdict(&official, ours.as_ref())
+                let parentheses = match c.kind {
+                    Kind::Output { parentheses } => parentheses,
+                    _ => Parentheses::Dropped,
+                };
+                compare::verdict(&official, ours.as_ref(), parentheses)
                     .map_err(|e| format!("{}: {e}", source.key(&document.path)))?
             };
             if let Some(v) = verdict {
@@ -468,7 +513,8 @@ impl Conformance {
         expected: &'p [Pack],
         path: &str,
     ) -> Result<Vec<Entry<'p>>, String> {
-        let Some(j) = (self.compared.iter()).position(|o| o.task == of && o.kind == Kind::Output)
+        let Some(j) = (self.compared.iter())
+            .position(|o| o.task == of && matches!(o.kind, Kind::Output { .. }))
         else {
             return Err(format!("{of} is not compared"));
         };

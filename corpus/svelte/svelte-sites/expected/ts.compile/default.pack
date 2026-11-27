@@ -1,0 +1,342 @@
+# rsvelte pack 1
+=== 3892 sites/hn.svelte.dev/src/lib/htmlSubsetParse.ts	js
+/// Types used by the parser
+/// HTML Entities (most of them anyway)
+function decodeEntities(s) {
+    return s
+        .replace(/&#x([0-9a-fA-F]+);/g, (_, h) => String.fromCharCode(parseInt(h, 16)))
+        .replace(/&#(\d+);/g, (_, d) => String.fromCharCode(Number(d)))
+        .replace(/&lt;/g, '<')
+        .replace(/&gt;/g, '>')
+        .replace(/&quot;/g, '"')
+        .replace(/&apos;/g, "'")
+        .replace(/&amp;/g, '&'); // last — prevents double-decode
+}
+/// Scanner
+function scan(text, markers) {
+    let best = null;
+    for (const marker of markers) {
+        const i = text.indexOf(marker);
+        if (i !== -1 && (best === null || i < best.index)) {
+            best = { marker, index: i };
+        }
+    }
+    return best;
+}
+/// Inline elements
+/// plain text, <a>, <i>
+/// <i> elements can contain plain text and <a>
+function parseInlines(html) {
+    const nodes = [];
+    let rest = html;
+    while (rest) {
+        const hit = scan(rest, ['<a ', '<i>']);
+        if (!hit) {
+            addText(nodes, rest);
+            break;
+        }
+        if (hit.index > 0)
+            addText(nodes, rest.slice(0, hit.index));
+        if (hit.marker === '<a ') {
+            const result = consumeLink(rest, hit.index);
+            nodes.push(result.node);
+            rest = result.rest;
+        }
+        else {
+            const result = consumeItalic(rest, hit.index);
+            nodes.push(result.node);
+            rest = result.rest;
+        }
+    }
+    return nodes;
+}
+function consumeLink(text, openIdx) {
+    const closeIdx = text.indexOf('</a>', openIdx);
+    if (closeIdx === -1) {
+        return { node: { type: 'text', text: decodeEntities(text.slice(openIdx)) }, rest: '' };
+    }
+    const hrefStart = text.indexOf('"', openIdx) + 1;
+    const hrefEnd = text.indexOf('"', hrefStart);
+    const bodyStart = text.indexOf('>', hrefEnd) + 1;
+    return {
+        node: {
+            type: 'link',
+            href: decodeEntities(text.slice(hrefStart, hrefEnd)),
+            text: decodeEntities(text.slice(bodyStart, closeIdx))
+        },
+        rest: text.slice(closeIdx + 4)
+    };
+}
+function consumeItalic(text, openIdx) {
+    const closeIdx = text.indexOf('</i>', openIdx);
+    if (closeIdx === -1) {
+        return { node: { type: 'text', text: decodeEntities(text.slice(openIdx + 3)) }, rest: '' };
+    }
+    return {
+        node: { type: 'italic', children: parseInlines(text.slice(openIdx + 3, closeIdx)) },
+        rest: text.slice(closeIdx + 4)
+    };
+}
+function addText(nodes, raw) {
+    const text = decodeEntities(raw);
+    if (text)
+        nodes.push({ type: 'text', text });
+}
+/// Block elements
+/// <p> or <pre><code> (never separated)
+/**
+ * Parse HN comment HTML into structured blocks.
+ */
+export function parse(html) {
+    const blocks = [];
+    let rest = html;
+    while (rest) {
+        const hit = scan(rest, ['<p>', '<pre><code>']);
+        if (!hit) {
+            pushParagraph(blocks, rest);
+            break;
+        }
+        if (hit.index > 0)
+            pushParagraph(blocks, rest.slice(0, hit.index));
+        if (hit.marker === '<pre><code>') {
+            const result = consumeCode(rest, hit.index);
+            blocks.push(result.node);
+            rest = result.rest;
+        }
+        else {
+            rest = rest.slice(hit.index + 3);
+        }
+    }
+    return blocks;
+}
+function consumeCode(text, openIdx) {
+    const closeIdx = text.indexOf('</code></pre>', openIdx);
+    if (closeIdx === -1) {
+        return { node: { type: 'code', text: decodeEntities(text.slice(openIdx + 11)) }, rest: '' };
+    }
+    return {
+        node: { type: 'code', text: decodeEntities(text.slice(openIdx + 11, closeIdx)) },
+        rest: text.slice(closeIdx + 13)
+    };
+}
+function pushParagraph(blocks, raw) {
+    const children = parseInlines(raw);
+    if (children.length)
+        blocks.push({ type: 'paragraph', children });
+}
+
+=== 695 sites/hn.svelte.dev/src/lib/utils.ts	js
+// this compresses stupidly well
+const ORDERED_UNITS_AND_FACTOR = [
+    ['year', 31_556_952], // using 365.2425 days
+    ['month', 2_629_746], // divive year by 12
+    ['week', 604_800],
+    ['day', 86_400],
+    ['hour', 3_600],
+    ['minute', 60],
+    ['second', 1]
+];
+export function timeAgo(deltaSeconds) {
+    for (const [unit, factor] of ORDERED_UNITS_AND_FACTOR) {
+        if (deltaSeconds >= factor) {
+            const truncValue = Math.trunc(deltaSeconds / factor);
+            const displayUnit = truncValue === 1 ? unit : `${unit}s`;
+            return `${truncValue} ${displayUnit} ago`;
+        }
+    }
+    // under 1s, you must be very quick or a time traveler
+    return 'now';
+}
+
+=== 130 sites/hn.svelte.dev/src/params/category.ts	js
+const categories = new Set(['top', 'new', 'best', 'show', 'ask', 'jobs']);
+export const match = ((name) => categories.has(name));
+
+=== 59 sites/hn.svelte.dev/src/params/numeric.ts	js
+export const match = ((numeric) => /^\d+$/.test(numeric));
+
+=== 162 sites/hn.svelte.dev/src/routes/+page.ts	js
+import { dev } from '$app/environment';
+import { redirect } from '@sveltejs/kit';
+export const load = (() => {
+    throw redirect(dev ? 302 : 301, '/top/1');
+});
+
+=== 426 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/+page.ts	js
+import { error } from '@sveltejs/kit';
+export const load = (async ({ params, fetch }) => {
+    const list = params.list === 'jobs' ? 'job' : params.list;
+    const page = +params.page;
+    const res = await fetch(`/${params.list}/${params.page}/api`);
+    if (!res.ok)
+        error(res.status, res.statusText);
+    const items = await res.json();
+    const now = Date.now() / 1000;
+    return { list, page, items, now };
+});
+
+=== 1077 sites/hn.svelte.dev/src/routes/[list=category]/[page=numeric]/api/+server.ts	js
+import { json, error } from '@sveltejs/kit';
+const FIRESTORE_BASE = 'https://hacker-news.firebaseio.com/v0/';
+const ITEMS_PER_PAGE = 30;
+export const GET = (async ({ params, fetch }) => {
+    const list = params.list === 'jobs' ? 'job' : params.list;
+    const page = +params.page;
+    const offset = (page - 1) * ITEMS_PER_PAGE;
+    const storyResponse = await fetch(`${FIRESTORE_BASE}${list}stories.json`);
+    if (!storyResponse.ok)
+        error(storyResponse.status, `Upstream Responded with ${storyResponse.statusText}`);
+    const itemIds = await storyResponse.json();
+    const relevantItemIds = itemIds.slice(offset, offset + ITEMS_PER_PAGE);
+    if (relevantItemIds.length === 0) {
+        error(404, 'Page not found');
+    }
+    const items = await Promise.all(relevantItemIds.map((id) => fetch(`${FIRESTORE_BASE}item/${id}.json`).then(
+    // allow partial failure in fetch
+    (res) => (res.ok ? res.json() : { type: 'null', id }))));
+    return json(items, {
+        headers: {
+            'Cache-Control': 'public, max-age=60, s-maxage=60'
+        }
+    });
+});
+
+=== 1434 sites/hn.svelte.dev/src/routes/[list=category]/rss/+server.ts	js
+import { error } from '@sveltejs/kit';
+const render = (list, items) => `<?xml version="1.0" encoding="UTF-8" ?>
+<rss version="2.0">
+<channel>
+	<title>Svelte HN (${list})</title>
+	<link>https://hn.svelte.dev/${list}/1</link>
+	<description>Links from the orange site</description>
+	<image>
+		<url>https://hn.svelte.dev/favicon.png</url>
+		<title>Svelte HN (${list})</title>
+		<link>https://hn.svelte.dev/${list}/1</link>
+	</image>
+	${items
+    .filter((item) => item.type !== 'null')
+    .map((item) => `
+				<item>
+					<title>${item.title}${item.type !== 'poll' ? ` (${new URL(item.url).hostname})` : ''}</title>
+					<link>https://hn.svelte.dev/item/${item.id}</link>
+					<description><![CDATA[${item.type !== 'poll' ? `<a href="${item.url}">link</a> / ` : ''}<a href="https://hn.svelte.dev/item/${item.id}">comments</a>
+					]]></description>
+					<pubDate>${new Date(item.time * 1000).toUTCString()}</pubDate>
+				</item>
+			`)
+    .join('\n')}
+</channel>
+</rss>`;
+export const GET = (async ({ params, fetch }) => {
+    const res = await fetch(`/${params.list}/1/api`);
+    if (!res.ok)
+        error(res.status, res.statusText);
+    const items = await res.json();
+    const { list } = params;
+    const feed = render(list, items);
+    return new Response(feed, {
+        headers: {
+            'Cache-Control': `max-age=0, s-max-age=${600}`, // 10 minutes
+            'Content-Type': 'application/rss+xml'
+        }
+    });
+});
+
+=== 73 sites/hn.svelte.dev/src/routes/about/+page.ts	js
+export const prerender = true;
+export const config = {
+    isr: false
+};
+
+=== 350 sites/hn.svelte.dev/src/routes/item/[id=numeric]/+page.ts	js
+import { error } from '@sveltejs/kit';
+export const load = (async ({ params, fetch }) => {
+    const res = await fetch(`/item/${params.id}/api`);
+    if (!res.ok)
+        error(res.status, res.statusText);
+    const { algoliaItem, pollOptions } = await res.json();
+    const now = Date.now() / 1000;
+    return { algoliaItem, pollOptions, now };
+});
+
+=== 1744 sites/hn.svelte.dev/src/routes/item/[id=numeric]/api/+server.ts	js
+import { json, error } from '@sveltejs/kit';
+const FIRESTORE_BASE = 'https://hacker-news.firebaseio.com/v0/';
+export const GET = (async ({ params, fetch }) => {
+    // HN fetch is allowed to fail
+    const [hnRes, algoliaRes] = await Promise.allSettled([
+        fetch(`${FIRESTORE_BASE}item/${params.id}.json`),
+        fetch(`https://hn.algolia.com/api/v1/items/${params.id}`)
+    ]);
+    if (algoliaRes.status === 'rejected')
+        error(500, 'Network failure');
+    if (!algoliaRes.value.ok)
+        error(algoliaRes.value.status, `Upstream Responded with ${algoliaRes.value.statusText}`);
+    const algoliaItem = await algoliaRes.value.json();
+    const hnItem = hnRes.status === 'fulfilled' && hnRes.value.ok ? await hnRes.value.json() : null;
+    // if hn available, use their top-level sort
+    if (hnItem) {
+        // comment sort
+        if ('kids' in hnItem && typeof hnItem.kids !== 'undefined') {
+            const { kids } = hnItem;
+            algoliaItem.children.sort((a, b) => {
+                const indexA = kids.indexOf(a.id);
+                const indexB = kids.indexOf(b.id);
+                return indexA - indexB;
+            });
+        }
+        // poll item sort
+        if ('parts' in hnItem) {
+            algoliaItem.options = hnItem.parts;
+        }
+    }
+    let pollOptions = [];
+    if (algoliaItem.type === 'poll') {
+        const pollsResponses = await Promise.all(algoliaItem.options.map((id) => fetch(`${FIRESTORE_BASE}item/${id}.json`)));
+        pollOptions = await Promise.all(pollsResponses.map((poll) => poll.json()));
+    }
+    return json({
+        algoliaItem,
+        pollOptions
+    }, {
+        headers: {
+            'Cache-Control': 'public, max-age=60, s-maxage=60'
+        }
+    });
+});
+
+=== 157 sites/hn.svelte.dev/src/routes/rss/+server.ts	js
+import { dev } from '$app/environment';
+import { redirect } from '@sveltejs/kit';
+export const GET = (() => {
+    redirect(dev ? 301 : 302, '/top/rss');
+});
+
+=== 334 sites/hn.svelte.dev/src/routes/user/[name]/+page.ts	js
+import { error } from '@sveltejs/kit';
+export const csr = false;
+export const load = (async ({ params, fetch }) => {
+    const res = await fetch(`/user/${params.name}/api`);
+    if (!res.ok)
+        error(res.status, res.statusText);
+    const user = await res.json();
+    const now = Date.now() / 1000;
+    return { user, now };
+});
+
+=== 487 sites/hn.svelte.dev/src/routes/user/[name]/api/+server.ts	js
+import { json, error } from '@sveltejs/kit';
+const FIRESTORE_BASE = 'https://hacker-news.firebaseio.com/v0/';
+export const GET = (async ({ params, fetch }) => {
+    const res = await fetch(`${FIRESTORE_BASE}user/${params.name}.json`);
+    if (!res.ok)
+        error(res.status, `Upstream Responded with ${res.statusText}`);
+    const user = await res.json();
+    return json(user, {
+        headers: {
+            'Cache-Control': 'public, max-age=60, s-maxage=60'
+        }
+    });
+});
+

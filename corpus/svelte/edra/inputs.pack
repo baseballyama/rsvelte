@@ -629,6 +629,14 @@
 	/>
 </svg>
 
+=== 235 src/lib/components/highlighter.ts	ts	module	-
+import { createHighlighter } from 'shiki';
+
+export const highlighter = await createHighlighter({
+	langs: ['html', 'css', 'js', 'ts', 'svelte', 'shell', 'diff', 'json', 'latex', 'markdown'],
+	themes: ['github-dark', 'github-light']
+});
+
 === 7039 src/lib/components/magic/dot-pattern/dot-pattern.svelte	svelte	runes	runes
 <script module lang="ts">
 	const TWO_PI = Math.PI * 2;
@@ -902,6 +910,10 @@
 		/>
 	</svg>
 </div>
+
+=== 70 src/lib/components/magic/dot-pattern/index.ts	ts	module	-
+import DotPattern from './dot-pattern.svelte';
+export { DotPattern };
 
 === 3883 src/lib/components/ui/button/button.svelte	svelte	runes	runes
 <script lang="ts" module>
@@ -2066,6 +2078,14 @@
 	{...restProps}
 />
 
+=== 279 src/lib/components/ui/sidebar/constants.ts	ts	module	-
+export const SIDEBAR_COOKIE_NAME = 'sidebar_state';
+export const SIDEBAR_COOKIE_MAX_AGE = 60 * 60 * 24 * 7;
+export const SIDEBAR_WIDTH = '16rem';
+export const SIDEBAR_WIDTH_MOBILE = '18rem';
+export const SIDEBAR_WIDTH_ICON = '3rem';
+export const SIDEBAR_KEYBOARD_SHORTCUT = 'b';
+
 === 549 src/lib/components/ui/sidebar/sidebar-content.svelte	svelte	runes	runes
 <script lang="ts">
 	import type { HTMLAttributes } from 'svelte/elements';
@@ -2721,6 +2741,747 @@
 
 <TooltipPrimitive.Root bind:open {...restProps} />
 
+=== 3404 src/lib/edra/commands/ai.ts	ts	module	-
+import { generatePrompt } from './prompts.js';
+
+export enum AIState {
+	Idle = 'Idle',
+	Confirmation = 'Confirmation'
+}
+
+export const SUMMARIZE_PROMPT = (text: string) => {
+	const userPrompt = `
+You are an expert editor. Summarize the text below.
+Rules:
+1. Capture the core meaning and key points.
+2. If the text describes steps or a list, use a Markdown list.
+3. If the text is narrative, use a concise paragraph.
+4. Output ONLY the summary, no conversational filler.
+`;
+	return generatePrompt(userPrompt, undefined, text);
+};
+
+export const MAKE_SHORTER_PROMPT = (text: string) => {
+	const userPrompt = `
+Rewrite the text below to be more concise.
+Rules:
+1. Retain all key information and meaning.
+2. Remove filler words, redundancy, and fluff.
+3. Improve clarity and flow.
+4. Output ONLY the rewritten text.
+`;
+	return generatePrompt(userPrompt, undefined, text);
+};
+
+export const MAKE_LONGER_PROMPT = (text: string) => {
+	const userPrompt = `
+Expand upon the text below.
+Rules:
+1. Add relevant details, examples, or context to provide depth.
+2. Maintain the original tone and voice of the author.
+3. Ensure the expansion flows naturally.
+4. Output ONLY the expanded text.
+`;
+	return generatePrompt(userPrompt, undefined, text);
+};
+
+export const FIX_GRAMMAR_PROMPT = (text: string) => {
+	const userPrompt = `
+Act as a professional copy editor. specific_instructions:
+1. Fix all grammar, spelling, and punctuation errors.
+2. Improve sentence clarity and structure where needed.
+3. STRICTLY PRESERVE the original author's voice, style, and intent. Do not rewrite the content, only polish it.
+4. Output ONLY the corrected text.
+`;
+	return generatePrompt(userPrompt, undefined, text);
+};
+
+export const CONTINUE_WRITING_PROMPT = (text: string, preText?: string) => {
+	const userPrompt = `
+You are a co-author. Continue writing based on the context below.
+Rules:
+1. Strictly mimic the existing style, tone, and formatting (e.g., if it is a list, continue the list).
+2. Ensure the continuation is logically consistent with the preceding text.
+3. Do not repeat the last sentence provided.
+4. Output ONLY the new content.
+`;
+	return generatePrompt(userPrompt, preText, text);
+};
+
+export const SOLVE_PROBLEM_PROMPT = (text: string) => {
+	const userPrompt = `
+You are a problem solver. Solve the problem below.
+Rules:
+1. Strictly mimic the existing style, tone, and formatting (e.g., if it is a list, continue the list).
+2. Ensure the solution is logically consistent with the preceding text.
+3. Do not repeat the last sentence provided.
+4. Do not provide solution in a verbose way. Keep it concise.
+5. Output ONLY the solution.
+`;
+	return generatePrompt(userPrompt, undefined, text);
+};
+
+export const IMPROVE_WRITING_PROMPT = (text: string) => {
+	const userPrompt = `
+Improve the writing of the text below to make it more clear, engaging, and professional.
+Rules:
+1. Enhance clarity, flow, and sentence structure.
+2. Keep the original intent and tone.
+3. Output ONLY the improved text.
+`;
+	return generatePrompt(userPrompt, undefined, text);
+};
+
+export const SIMPLIFY_LANGUAGE_PROMPT = (text: string) => {
+	const userPrompt = `
+Rewrite the text below using simpler, more plain language.
+Rules:
+1. Make it easier to read and understand.
+2. Avoid complex jargon and long sentence structures.
+3. Retain the core meaning.
+4. Output ONLY the simplified text.
+`;
+	return generatePrompt(userPrompt, undefined, text);
+};
+
+=== 16070 src/lib/edra/commands/commands.ts	ts	module	-
+import AlignCenter from '@lucide/svelte/icons/align-center';
+import AlighJustify from '@lucide/svelte/icons/align-justify';
+import AlignLeft from '@lucide/svelte/icons/align-left';
+import AlignRight from '@lucide/svelte/icons/align-right';
+import Audio from '@lucide/svelte/icons/audio-lines';
+import Bold from '@lucide/svelte/icons/bold';
+import Code from '@lucide/svelte/icons/code';
+import IFrame from '@lucide/svelte/icons/code-xml';
+import Heading1 from '@lucide/svelte/icons/heading-1';
+import Heading2 from '@lucide/svelte/icons/heading-2';
+import Heading3 from '@lucide/svelte/icons/heading-3';
+import Heading4 from '@lucide/svelte/icons/heading-4';
+import Image from '@lucide/svelte/icons/image';
+import Italic from '@lucide/svelte/icons/italic';
+import Link from '@lucide/svelte/icons/link-2';
+import List from '@lucide/svelte/icons/list';
+import ListChecks from '@lucide/svelte/icons/list-checks';
+import ListOrdered from '@lucide/svelte/icons/list-ordered';
+import Pilcrow from '@lucide/svelte/icons/pilcrow';
+import Quote from '@lucide/svelte/icons/quote';
+import Radical from '@lucide/svelte/icons/radical';
+import Redo from '@lucide/svelte/icons/redo-2';
+import SquareRadical from '@lucide/svelte/icons/square-radical';
+import StrikeThrough from '@lucide/svelte/icons/strikethrough';
+import Subscript from '@lucide/svelte/icons/subscript';
+import Superscript from '@lucide/svelte/icons/superscript';
+import Table from '@lucide/svelte/icons/table';
+import Underline from '@lucide/svelte/icons/underline';
+import Undo from '@lucide/svelte/icons/undo-2';
+import Video from '@lucide/svelte/icons/video';
+import { isTextSelection } from '@tiptap/core';
+import type { Node } from '@tiptap/pm/model';
+import { ISMAC } from '../utils.js';
+import strings from '../strings.js';
+import { type Editor } from '../tiptap/index.ts';
+import { FileCode, type Icon } from '@lucide/svelte';
+import Workflow from '@lucide/svelte/icons/workflow';
+
+export interface EdraCommand {
+	name: string;
+	icon: typeof Icon;
+	tooltip: string;
+	shortCut?: string;
+	onClick?: (editor: Editor) => void;
+	turnInto?: (editor: Editor, node: Node, pos: number) => void;
+	isActive?: (editor: Editor) => boolean;
+	clickable?: (editor: Editor) => boolean;
+}
+
+export const commands: Record<string, EdraCommand[]> = {
+	'undo-redo': [
+		{
+			icon: Undo,
+			name: 'undo',
+			tooltip: strings.command.undo,
+			shortCut: `${ISMAC ? '⌘' : 'Ctrl+'}Z`,
+			onClick: (editor) => {
+				editor.chain().focus().undo().run();
+			},
+			clickable: (editor) => {
+				return editor.can().undo();
+			}
+		},
+		{
+			icon: Redo,
+			name: 'redo',
+			tooltip: strings.command.redo,
+			shortCut: `${ISMAC ? '⌘' : 'Ctrl+'}Y`,
+			onClick: (editor) => {
+				editor.chain().focus().redo().run();
+			},
+			clickable: (editor) => {
+				return editor.can().redo();
+			}
+		}
+	],
+	headings: [
+		{
+			icon: Heading1,
+			name: 'h1',
+			tooltip: strings.command.h1,
+			shortCut: `${ISMAC ? '⌘⌥' : 'Ctrl+Alt+'}1`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleHeading({ level: 1 }).run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).setHeading({ level: 1 }).run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleHeading({ level: 1 });
+			},
+			isActive: (editor) => {
+				return editor.isActive('heading', { level: 1 });
+			}
+		},
+		{
+			icon: Heading2,
+			name: 'h2',
+			tooltip: strings.command.h2,
+			shortCut: `${ISMAC ? '⌘⌥' : 'Ctrl+Alt+'}2`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleHeading({ level: 2 }).run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).setHeading({ level: 2 }).run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleHeading({ level: 2 });
+			},
+			isActive: (editor) => {
+				return editor.isActive('heading', { level: 2 });
+			}
+		},
+		{
+			icon: Heading3,
+			name: 'h3',
+			tooltip: strings.command.h3,
+			shortCut: `${ISMAC ? '⌘⌥' : 'Ctrl+Alt+'}3`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleHeading({ level: 3 }).run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).setHeading({ level: 3 }).run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleHeading({ level: 3 });
+			},
+			isActive: (editor) => {
+				return editor.isActive('heading', { level: 3 });
+			}
+		},
+		{
+			icon: Heading4,
+			name: 'h4',
+			tooltip: strings.command.h4,
+			shortCut: `${ISMAC ? '⌘⌥' : 'Ctrl+Alt+'}4`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleHeading({ level: 4 }).run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).setHeading({ level: 4 }).run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleHeading({ level: 4 });
+			},
+			isActive: (editor) => {
+				return editor.isActive('heading', { level: 4 });
+			}
+		}
+	],
+	'text-formatting': [
+		{
+			icon: Link,
+			name: 'link',
+			tooltip: strings.command.link,
+			onClick: (editor) => {
+				if (editor.isActive('link')) {
+					editor.chain().focus().unsetLink().run();
+				} else {
+					const url = window.prompt('Enter the URL of the link:');
+					if (url) {
+						editor.chain().focus().toggleLink({ href: url }).run();
+					}
+				}
+			},
+			isActive: (editor) => {
+				return editor.isActive('link');
+			}
+		},
+		{
+			icon: Pilcrow,
+			name: 'paragraph',
+			tooltip: 'Paragraph',
+			shortCut: `${ISMAC ? '⌘⇧' : 'Ctrl+Shift+'}0`,
+			onClick: (editor) => {
+				editor.chain().focus().setParagraph().run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).setParagraph().run();
+			},
+			clickable: (editor) => {
+				return editor.can().setParagraph();
+			},
+			isActive: (editor) => {
+				return editor.isActive('paragraph');
+			}
+		},
+		{
+			icon: Bold,
+			name: 'bold',
+			tooltip: strings.command.bold,
+			shortCut: `${ISMAC ? '⌘' : 'Ctrl+'}B`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleBold().run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).setMark('bold').run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleBold();
+			},
+			isActive: (editor) => {
+				return editor.isActive('bold');
+			}
+		},
+		{
+			icon: Italic,
+			name: 'italic',
+			tooltip: strings.command.italic,
+			shortCut: `${ISMAC ? '⌘' : 'Ctrl+'}I`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleItalic().run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).setMark('italic').run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleItalic();
+			},
+			isActive: (editor) => {
+				return editor.isActive('italic');
+			}
+		},
+		{
+			icon: Underline,
+			name: 'underline',
+			tooltip: strings.command.underline,
+			shortCut: `${ISMAC ? '⌘' : 'Ctrl+'}U`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleUnderline().run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).setMark('underline').run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleUnderline();
+			},
+			isActive: (editor) => {
+				return editor.isActive('underline');
+			}
+		},
+		{
+			icon: StrikeThrough,
+			name: 'strikethrough',
+			tooltip: strings.command.strikethrough,
+			shortCut: `${ISMAC ? '⌘⇧' : 'Ctrl+Shift+'}S`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleStrike().run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).setMark('strike').run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleStrike();
+			},
+			isActive: (editor) => {
+				return editor.isActive('strike');
+			}
+		},
+		{
+			icon: Quote,
+			name: 'blockQuote',
+			tooltip: strings.command.blockQuote,
+			shortCut: `${ISMAC ? '⌘⇧' : 'Ctrl+Shift+'}B`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleBlockquote().run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).toggleBlockquote().run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleBlockquote();
+			},
+			isActive: (editor) => {
+				return editor.isActive('blockquote');
+			}
+		},
+		{
+			icon: Code,
+			name: 'code',
+			tooltip: strings.command.code,
+			shortCut: `${ISMAC ? '⌘' : 'Ctrl+'}E`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleCode().run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).toggleCodeBlock().run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleCode();
+			},
+			isActive: (editor) => {
+				return editor.isActive('code');
+			}
+		},
+		{
+			icon: FileCode,
+			name: 'codeBlock',
+			tooltip: strings.command.codeBlock,
+			shortCut: `${ISMAC ? '⌘⌥' : 'Ctrl+Shift+'}C`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleCodeBlock({ language: 'plaintext' }).run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).toggleCodeBlock({ language: 'plaintext' }).run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleCodeBlock({ language: 'plaintext' });
+			},
+			isActive: (editor) => {
+				return editor.isActive('codeBlock');
+			}
+		},
+		{
+			icon: Superscript,
+			name: 'superscript',
+			tooltip: strings.command.superscript,
+			shortCut: `${ISMAC ? '⌘' : 'Ctrl+'}.`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleSuperscript().run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleSuperscript();
+			},
+			isActive: (editor) => {
+				return editor.isActive('superscript');
+			}
+		},
+		{
+			icon: Subscript,
+			name: 'subscript',
+			tooltip: strings.command.subscript,
+			shortCut: `${ISMAC ? '⌘' : 'Ctrl+'},`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleSubscript().run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleSubscript();
+			},
+			isActive: (editor) => {
+				return editor.isActive('subscript');
+			}
+		}
+	],
+	alignment: [
+		{
+			icon: AlignLeft,
+			name: 'align-left',
+			tooltip: strings.command.alignLeft,
+			shortCut: `${ISMAC ? '⌘⇧' : 'Ctrl+Shift+'}L`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleTextAlign('left').run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).toggleTextAlign('left').run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleTextAlign('left');
+			},
+			isActive: (editor) => editor.isActive({ textAlign: 'left' })
+		},
+		{
+			icon: AlignCenter,
+			name: 'align-center',
+			tooltip: strings.command.alignCenter,
+			shortCut: `${ISMAC ? '⌘⇧' : 'Ctrl+Shift+'}E`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleTextAlign('center').run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).toggleTextAlign('center').run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleTextAlign('center');
+			},
+			isActive: (editor) => editor.isActive({ textAlign: 'center' })
+		},
+		{
+			icon: AlignRight,
+			name: 'align-right',
+			tooltip: strings.command.alignRight,
+			shortCut: `${ISMAC ? '⌘⇧' : 'Ctrl+Shift+'}R`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleTextAlign('right').run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).toggleTextAlign('right').run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleTextAlign('right');
+			},
+			isActive: (editor) => editor.isActive({ textAlign: 'right' })
+		},
+		{
+			icon: AlighJustify,
+			name: 'align-justify',
+			tooltip: strings.command.alignJustify,
+			shortCut: `${ISMAC ? '⌘⇧' : 'Ctrl+Shift+'}J`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleTextAlign('justify').run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).toggleTextAlign('justify').run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleTextAlign('justify');
+			},
+			isActive: (editor) => editor.isActive({ textAlign: 'justify' })
+		}
+	],
+	lists: [
+		{
+			icon: List,
+			name: 'bulletList',
+			tooltip: strings.command.bulletList,
+			shortCut: `${ISMAC ? '⌘⇧' : 'Ctrl+Shift+'}8`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleBulletList().run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).toggleBulletList().run();
+			},
+			isActive: (editor) => editor.isActive('bulletList')
+		},
+		{
+			icon: ListOrdered,
+			name: 'orderedList',
+			tooltip: strings.command.orderedList,
+			shortCut: `${ISMAC ? '⌘⇧' : 'Ctrl+Shift+'}7`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleOrderedList().run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).toggleOrderedList().run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleOrderedList();
+			},
+			isActive: (editor) => {
+				return editor.isActive('orderedList');
+			}
+		},
+		{
+			icon: ListChecks,
+			name: 'taskList',
+			tooltip: strings.command.taskList,
+			shortCut: `${ISMAC ? '⌘⇧' : 'Ctrl+Shift+'}9`,
+			onClick: (editor) => {
+				editor.chain().focus().toggleTaskList().run();
+			},
+			turnInto: (editor, node, pos) => {
+				editor.chain().setNodeSelection(pos).toggleTaskList().run();
+			},
+			clickable: (editor) => {
+				return editor.can().toggleTaskList();
+			},
+			isActive: (editor) => {
+				return editor.isActive('taskList');
+			}
+		}
+	],
+	media: [
+		{
+			icon: Image,
+			name: 'image-placeholder',
+			tooltip: strings.command.imagePlaceholder,
+			onClick: (editor) => {
+				editor.chain().focus().insertMediaPlaceholder({ mediaType: 'image' }).run();
+			},
+			isActive: (editor) => editor.isActive('mediaPlaceholder', { mediaType: 'image' })
+		},
+		{
+			icon: Video,
+			name: 'video-placeholder',
+			tooltip: strings.command.videoPlaceholder,
+			onClick: (editor) => {
+				editor.chain().focus().insertMediaPlaceholder({ mediaType: 'video' }).run();
+			},
+			isActive: (editor) => editor.isActive('mediaPlaceholder', { mediaType: 'video' })
+		},
+		{
+			icon: Audio,
+			name: 'audio-placeholder',
+			tooltip: strings.command.audioPlaceholder,
+			onClick: (editor) => {
+				editor.chain().focus().insertMediaPlaceholder({ mediaType: 'audio' }).run();
+			},
+			isActive: (editor) => editor.isActive('mediaPlaceholder', { mediaType: 'audio' })
+		},
+		{
+			icon: IFrame,
+			name: 'iframe-placeholder',
+			tooltip: strings.command.iframePlaceholder,
+			onClick: (editor) => {
+				editor.chain().focus().insertMediaPlaceholder({ mediaType: 'iframe' }).run();
+			},
+			isActive: (editor) => editor.isActive('mediaPlaceholder', { mediaType: 'iframe' })
+		}
+	],
+	table: [
+		{
+			icon: Table,
+			name: 'table',
+			tooltip: strings.command.table,
+			onClick: (editor) => {
+				if (editor.isActive('table')) {
+					const del = confirm('Do you really want to delete this table??');
+					if (del) {
+						editor.chain().focus().deleteTable().run();
+						return;
+					}
+				}
+				editor.chain().focus().insertTable({ cols: 3, rows: 3, withHeaderRow: false }).run();
+			},
+			isActive: (editor) => editor.isActive('table')
+		}
+	],
+	math: [
+		{
+			icon: Radical,
+			name: 'mathematics',
+			tooltip: strings.command.inlineExpression,
+			onClick: (editor) => {
+				let latex = 'a^2 + b^2 = c^2';
+				const chain = editor.chain().focus();
+				if (isTextSelection(editor.view.state.selection)) {
+					const { from, to } = editor.view.state.selection;
+					latex = editor.view.state.doc.textBetween(from, to);
+					chain.deleteRange({ from, to });
+				}
+				chain.insertInlineMath({ latex }).run();
+			},
+			isActive: (editor) => editor.isActive('inlineMath')
+		},
+		{
+			icon: SquareRadical,
+			name: 'blockMathematics',
+			tooltip: strings.command.blockExpression,
+			onClick: (editor) => {
+				const latex = 'a^2 + b^2 = c^2';
+				editor.chain().focus().insertBlockMath({ latex }).run();
+			},
+			isActive: (editor) => editor.isActive('blockMath')
+		}
+	],
+	diagram: [
+		{
+			icon: Workflow,
+			name: 'mermaid',
+			tooltip: 'Mermaid Diagram',
+			onClick: (editor) => {
+				editor.chain().focus().setMermaid(' ').run();
+			},
+			isActive: (editor) => editor.isActive('mermaid')
+		}
+	]
+};
+
+=== 56 src/lib/edra/commands/index.ts	ts	module	-
+export * from './commands.ts';
+export * from './ai.ts';
+
+=== 3634 src/lib/edra/commands/prompts.ts	ts	module	-
+export const systemInstruction = `
+### ROLE & OBJECTIVE
+You are an intelligent, context-aware AI writing assistant embedded within a collaborative note-taking application. Your goal is to seamlessly augment the user's thought process. You do not chat; you co-create.
+
+### CORE OPERATING PRINCIPLE: INTENT INFERENCE
+Before generating text, analyze the user's request AND the surrounding context to determine the appropriate "Mode."
+
+1. **The Architect Mode (Structure & Planning)**
+   - Trigger: User asks for outlines, plans, or brainstorming.
+   - Output: Use hierarchical Markdown (headers, bullet points). Be organized and comprehensive.
+
+2. **The Coder Mode (Development & Engineering)**
+   - Trigger: User asks for functions, classes, or bug fixes.
+   - SUB-LOGIC for Code:
+     - *Default:* Provide code + brief explanation of *why* it works.
+     - *Constraint "Just code":* Output ONLY the code block. No intro/outro.
+     - *Constraint "Explain this":* Output code with heavy inline comments and a breakdown text.
+     - *Constraint "Refactor/Fix":* Output the corrected code and a diff-style summary of changes.
+
+3. **The Scholar Mode (Learning & Math)**
+   - Trigger: User asks for solutions, definitions, or complex explanations.
+   - SUB-LOGIC for Depth:
+     - If the user asks "What is X?": Provide a concise definition.
+     - If the user asks "Explain X like I'm 5" or "Deep dive": Adjust complexity accordingly.
+     - *Math/Logic:* Use LaTeX format ($$) for equations.
+
+4. **The Editor Mode (Refining)**
+   - Trigger: User highlights text and asks to summarize, expand, or change tone.
+   - Output: Maintain the user's original voice but improve clarity/grammar.
+
+### Markdown Instructions
+We follow typical markdown format. But we have few custom rules as well.
+
+   - Use $$ (double dollars) for inline math and $$$ (triple dollars) for math block
+   - For inserting mermaid directly, use :::mermaid\ncontent\n::: in a new line
+
+### VERBOSITY & FORMATTING RULES
+- **Mirror the Context:** If the user's existing notes are bulleted, continue with bullets. If they are writing paragraphs, write paragraphs.
+- **Markdown is King:** Always formatting using standard Markdown (## Headers, **Bold**, \`Code\`, > Quotes).
+- **No Fluff:** Do not use conversational filler like "Sure, here is the code you asked for" or "I hope this helps." DIVE STRAIGHT INTO THE CONTENT.
+- **Conciseness Algorithm:**
+  - Short, specific prompt -> Short, direct answer.
+  - Open-ended, complex prompt -> Structured, detailed answer.
+
+### EXCEPTION HANDLING
+- If the user's intent is ambiguous, lean towards **brevity**. It is easier for a user to ask "expand on this" than to delete 3 paragraphs of text.
+- If the request is dangerous or unethical, refuse politely and briefly.
+
+### INPUT VARIABLES
+You will receive context in this format:
+[PRECEDING_TEXT]: The text immediately before the cursor (if any).
+[SELECTED_TEXT]: Text the user has highlighted (if any).
+[USER_PROMPT]: The specific instruction the user just typed.
+`;
+
+/**
+ * Generate a prompt string to be sent to the AI model.
+ * @param userPrompt The specific instruction the user just typed.
+ * @param precedingText The text immediately before the cursor (if any).
+ * @param selectedText Text the user has highlighted (if any).
+ * @returns A prompt string to be sent to the AI model.
+ */
+export const generatePrompt = (
+	userPrompt: string,
+	precedingText?: string,
+	selectedText?: string
+) => {
+	return `
+    ${precedingText ? `[PRECEDING_TEXT]: ${precedingText}` : ''}
+    ${selectedText ? `[SELECTED_TEXT]: ${selectedText}` : ''}
+    [USER_PROMPT]: ${userPrompt}
+    `;
+};
+
 === 831 src/lib/edra/docs/packageManager.svelte.ts	svelte-module-ts	runes	-
 import { getContext, setContext } from 'svelte';
 
@@ -2755,6 +3516,120 @@ export function initPackageManager() {
 export function getPackageManager(): PackageManagerState {
 	return getContext(CONTEXT_KEY);
 }
+
+=== 2906 src/lib/edra/extensions.ts	ts	module	-
+import type { Extensions } from '@tiptap/core';
+import StarterKit from '@tiptap/starter-kit';
+import { CharacterCount, Placeholder } from '@tiptap/extensions';
+import strings from './strings.ts';
+import Highlight from '@tiptap/extension-highlight';
+import { Color, FontSize, TextStyle } from '@tiptap/extension-text-style';
+import Typography from '@tiptap/extension-typography';
+import Subscript from '@tiptap/extension-subscript';
+import TextAlign from '@tiptap/extension-text-align';
+import SuperScript from '@tiptap/extension-superscript';
+import {
+	Audio,
+	ColorHighlighter,
+	SelectAcrossAtoms,
+	Table,
+	TableCell,
+	TableHeader,
+	TableRow
+} from './tiptap/index.ts';
+import { TaskItem, TaskList } from '@tiptap/extension-list';
+import { Markdown } from '@tiptap/markdown';
+import Mathematics from '@tiptap/extension-mathematics';
+
+export interface DefaultExtensionsOptions {
+	/** Whether to enable history (undo/redo). Disabled for collaboration (Yjs) */
+	undoRedo?: boolean;
+}
+
+export function getDefaultExtensions(options: DefaultExtensionsOptions = {}): Extensions {
+	const { undoRedo = true } = options;
+	return [
+		StarterKit.configure({
+			undoRedo: undoRedo ? undefined : false,
+			orderedList: {
+				HTMLAttributes: {
+					class: 'list-decimal'
+				}
+			},
+			bulletList: {
+				HTMLAttributes: {
+					class: 'list-disc'
+				}
+			},
+			heading: {
+				levels: [1, 2, 3, 4]
+			},
+			link: {
+				openOnClick: false,
+				autolink: true,
+				linkOnPaste: true,
+				HTMLAttributes: {
+					target: '_blank',
+					rel: 'noopener noreferrer nofollow'
+				}
+			},
+			codeBlock: false
+		}),
+		Audio,
+		CharacterCount,
+		Highlight.configure({
+			multicolor: true
+		}),
+		Placeholder.configure({
+			emptyEditorClass: 'is-empty',
+			// Use a placeholder:
+			// Use different placeholders depending on the node type:
+			placeholder: ({ node }) => {
+				if (node.type.name === 'heading') {
+					return strings.editor.headingPlaceholder;
+				}
+				if (node.type.name === 'paragraph') {
+					return strings.editor.paragraphPlaceholder;
+				}
+				return '';
+			}
+		}),
+		Color,
+		Subscript,
+		SuperScript,
+		Typography,
+		ColorHighlighter,
+		TextStyle,
+		FontSize,
+		TextAlign.configure({
+			types: ['heading', 'paragraph']
+		}),
+		TaskList,
+		TaskItem.configure({
+			nested: true
+		}),
+		// SearchAndReplace,
+		Table,
+		TableHeader,
+		TableRow,
+		TableCell,
+		Markdown,
+		Mathematics.configure({
+			// Options for the KaTeX renderer. See here: https://katex.org/docs/options.html
+			katexOptions: {
+				throwOnError: true, // don't throw an error if the LaTeX code is invalid
+				macros: {
+					'\\R': '\\mathbb{R}', // add a macro for the real numbers
+					'\\N': '\\mathbb{N}' // add a macro for the natural numbers
+				}
+			}
+		}),
+		// Drag-select across images/math/media; decorate selected atoms; keep selection on right-click
+		SelectAcrossAtoms
+	] as Extensions;
+}
+
+export default getDefaultExtensions();
 
 === 2278 src/lib/edra/headless/components/Callout.svelte	svelte	runes	runes
 <script lang="ts">
@@ -5985,6 +6860,14 @@ export function getPackageManager(): PackageManagerState {
 	}
 </style>
 
+=== 352 src/lib/edra/headless/components/menu/index.ts	ts	module	-
+export { default as Link } from './Link.svelte';
+export { default as MathBlock } from './MathBlock.svelte';
+export { default as MathInline } from './MathInline.svelte';
+export { default as TableColMenu } from './TableCol.svelte';
+export { default as TableRowMenu } from './TableRow.svelte';
+export { default as BubbleMenu } from './BubbleMenu.svelte';
+
 === 1661 src/lib/edra/headless/components/tools/AlignMent.svelte	svelte	runes	neutral
 <script lang="ts">
 	import {
@@ -6964,6 +7847,101 @@ export function getPackageManager(): PackageManagerState {
 	<TiptapContent class={className} />
 </div>
 
+=== 2421 src/lib/edra/headless/editor.ts	ts	module	-
+import {
+	AIHighlight,
+	Callout,
+	IFrameExtended,
+	ImageExtended,
+	Mermaid,
+	SlashCommand,
+	SvelteNodeViewRenderer,
+	useEditor,
+	VideoExtended
+} from '../tiptap/index.ts';
+import { all, createLowlight } from 'lowlight';
+import { getDefaultExtensions } from '../extensions.ts';
+import type { Extensions } from '@tiptap/core';
+const lowlight = createLowlight(all);
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import CodeBlock from './components/CodeBlock.svelte';
+import { MediaPlaceholder } from '../tiptap/extensions/MediaPlaceHolder.ts';
+import MediaPlaceholderComp from './components/MediaPlaceHolder.svelte';
+import ImageExtendedComp from './components/ImageExtended.svelte';
+import VideoExtendedComp from './components/VideoExtended.svelte';
+import IFrameComp from './components/IFrame.svelte';
+import MermaidComp from './components/Mermaid.svelte';
+import SlashCommandComp from './components/SlashCommand.svelte';
+import CalloutComp from './components/Callout.svelte';
+
+export interface EdraEditorProps {
+	extensions?: Extensions;
+	onUpdate?: () => void;
+	collaborative?: boolean;
+	/**
+	 * Callback function to handle file uploads when a user drags/drops, pastes,
+	 * or selects a media file (image, video, audio) to insert.
+	 * It should upload the file to your storage (e.g., S3, Vercel Blob, etc.)
+	 * and return a promise resolving to the public URL of the uploaded file.
+	 *
+	 * @param file The file to be uploaded.
+	 * @returns A promise resolving to the uploaded file's URL.
+	 */
+	onFileUpload?: (file: File) => Promise<string>;
+	callAI?: (
+		prompt: string,
+		onChunk: (chunk: string) => void,
+		onError: (error: Error) => void
+	) => Promise<void>;
+}
+
+export const createEditor = (props?: EdraEditorProps) =>
+	useEditor({
+		extensions: [
+			...getDefaultExtensions({ undoRedo: !props?.collaborative }),
+			...(props?.extensions || []),
+			CodeBlockLowlight.configure({
+				lowlight
+			}).extend({
+				addNodeView() {
+					return SvelteNodeViewRenderer(CodeBlock);
+				}
+			}),
+			MediaPlaceholder(MediaPlaceholderComp).configure({
+				onUpload: props?.onFileUpload
+			}),
+			ImageExtended(ImageExtendedComp),
+			VideoExtended(VideoExtendedComp),
+			IFrameExtended(IFrameComp),
+			Mermaid(MermaidComp),
+			SlashCommand(SlashCommandComp),
+			Callout(CalloutComp),
+			AIHighlight.configure({
+				callAI: props?.callAI || null
+			})
+		],
+		onUpdate: props?.onUpdate || (() => {})
+	});
+
+=== 486 src/lib/edra/headless/index.ts	ts	module	-
+import { Tiptap } from '../tiptap/index.ts';
+import Toolbar from './components/Toolbar.svelte';
+import DragHandle from './drag-handle.svelte';
+import Editor from './editor.svelte';
+export { createEditor } from './editor.ts';
+export * from '@tiptap/core';
+import UseAI from './components/menu/AI.svelte';
+import BubbleMenu from './components/menu/BubbleMenu.svelte';
+
+const Edra = Object.assign(Tiptap, {
+	Content: Editor,
+	Toolbar,
+	BubbleMenu,
+	DragHandle,
+	UseAI
+});
+export { Edra };
+
 === 1905 src/lib/edra/headless/primitives/Popover.svelte	svelte	runes	runes
 <script lang="ts">
 	import { onMount, tick, type Snippet } from 'svelte';
@@ -7592,6 +8570,72 @@ export function getPackageManager(): PackageManagerState {
 	{@render children()}
 </button>
 
+=== 481 src/lib/edra/headless/primitives/dropdown/context.ts	ts	module	-
+import { setContext, getContext } from 'svelte';
+
+export interface DropdownContext {
+	open: boolean;
+	triggerEl: HTMLElement | null;
+	contentEl: HTMLElement | null;
+	close: () => void;
+	toggle: () => void;
+	setTrigger: (el: HTMLElement | null) => void;
+	setContent: (el: HTMLElement | null) => void;
+}
+
+export function setDropdown(ctx: DropdownContext) {
+	setContext('edra-dropdown', ctx);
+}
+
+export function getDropdown() {
+	return getContext<DropdownContext>('edra-dropdown');
+}
+
+=== 1099 src/lib/edra/headless/primitives/dropdown/index.ts	ts	module	-
+import Root from './DropdownRoot.svelte';
+import Trigger from './DropdownTrigger.svelte';
+import Content from './DropdownContent.svelte';
+import Item from './DropdownItem.svelte';
+import Label from './DropdownLabel.svelte';
+import Shortcut from './DropdownShortcut.svelte';
+import Separator from './DropdownSeparator.svelte';
+import Sub from './DropdownSub.svelte';
+import SubTrigger from './DropdownSubTrigger.svelte';
+import SubContent from './DropdownSubContent.svelte';
+import Portal from './DropdownPortal.svelte';
+
+export {
+	Root,
+	Trigger,
+	Content,
+	Item,
+	Label,
+	Shortcut,
+	Separator,
+	Sub,
+	SubTrigger,
+	SubContent,
+	Portal
+};
+export { Root as DropdownMenu };
+export { Trigger as DropdownMenuTrigger };
+export { Content as DropdownMenuContent };
+export { Item as DropdownMenuItem };
+export { Label as DropdownMenuLabel };
+export { Shortcut as DropdownMenuShortcut };
+export { Separator as DropdownMenuSeparator };
+export { Sub as DropdownMenuSub };
+export { SubTrigger as DropdownMenuSubTrigger };
+export { SubContent as DropdownMenuSubContent };
+export { Portal as DropdownMenuPortal };
+
+=== 175 src/lib/edra/headless/primitives/index.ts	ts	module	-
+import Popover from './Popover.svelte';
+import * as DropdownMenu from './dropdown/index.ts';
+import * as Tabs from './tabs/index.ts';
+
+export { Popover, DropdownMenu, Tabs };
+
 === 539 src/lib/edra/headless/primitives/tabs/TabsContent.svelte	svelte	runes	runes
 <script lang="ts">
 	import { getTabs } from './context.ts';
@@ -7743,6 +8787,34 @@ export function getPackageManager(): PackageManagerState {
 		color: var(--edra-ink);
 	}
 </style>
+
+=== 288 src/lib/edra/headless/primitives/tabs/context.ts	ts	module	-
+import { setContext, getContext } from 'svelte';
+
+export interface TabsContext {
+	value: string;
+	setValue: (val: string) => void;
+}
+
+export function setTabs(ctx: TabsContext) {
+	setContext('edra-tabs', ctx);
+}
+
+export function getTabs() {
+	return getContext<TabsContext>('edra-tabs');
+}
+
+=== 330 src/lib/edra/headless/primitives/tabs/index.ts	ts	module	-
+import Root from './TabsRoot.svelte';
+import List from './TabsList.svelte';
+import Trigger from './TabsTrigger.svelte';
+import Content from './TabsContent.svelte';
+
+export { Root, List, Trigger, Content };
+export { Root as Tabs };
+export { List as TabsList };
+export { Trigger as TabsTrigger };
+export { Content as TabsContent };
 
 === 1665 src/lib/edra/shadcn/components/Callout.svelte	svelte	runes	runes
 <script lang="ts">
@@ -11049,6 +12121,116 @@ export function getPackageManager(): PackageManagerState {
 <TableRowMenu />
 <TiptapContent class={cn('relative', className)} />
 
+=== 2856 src/lib/edra/shadcn/editor.ts	ts	module	-
+import {
+	AIHighlight,
+	Callout,
+	IFrameExtended,
+	ImageExtended,
+	Mermaid,
+	SlashCommand,
+	SvelteNodeViewRenderer,
+	useEditor,
+	VideoExtended
+} from '../tiptap/index.ts';
+import { all, createLowlight } from 'lowlight';
+import { getDefaultExtensions } from '../extensions.ts';
+import CodeBlockLowlight from '@tiptap/extension-code-block-lowlight';
+import CodeBlock from './components/CodeBlock.svelte';
+import { MediaPlaceholder } from '../tiptap/extensions/MediaPlaceHolder.ts';
+import MediaPlaceholderComp from './components/MediaPlaceHolder.svelte';
+import ImageExtendedComp from './components/ImageExtended.svelte';
+import VideoExtendedComp from './components/VideoExtended.svelte';
+import IFrameComp from './components/IFrame.svelte';
+import MermaidComp from './components/Mermaid.svelte';
+import SlashCommandComp from './components/SlashCommand.svelte';
+import CalloutComp from './components/Callout.svelte';
+import TableOfContents, { getHierarchicalIndexes } from '@tiptap/extension-table-of-contents';
+import { setTocItems } from './toc.svelte';
+import type { Extensions } from '@tiptap/core';
+
+const lowlight = createLowlight(all);
+
+export interface EdraEditorProps {
+	extensions?: Extensions;
+	onUpdate?: () => void;
+	/**
+	 * When true, disables StarterKit history (undo/redo) for use with
+	 * Yjs Collaboration. Required because Collaboration handles its own history.
+	 */
+	collaborative?: boolean;
+	/**
+	 * Callback function to handle file uploads when a user drags/drops, pastes,
+	 * or selects a media file (image, video, audio) to insert.
+	 * It should upload the file to your storage (e.g., S3, Vercel Blob, etc.)
+	 * and return a promise resolving to the public URL of the uploaded file.
+	 *
+	 * @param file The file to be uploaded.
+	 * @returns A promise resolving to the uploaded file's URL.
+	 */
+	onFileUpload?: (file: File) => Promise<string>;
+	callAI?: (
+		prompt: string,
+		onChunk: (chunk: string) => void,
+		onError: (error: Error) => void
+	) => Promise<void>;
+}
+
+export const createEditor = (props?: EdraEditorProps) =>
+	useEditor({
+		extensions: [
+			...getDefaultExtensions({ undoRedo: !props?.collaborative }),
+			...(props?.extensions || []),
+			CodeBlockLowlight.configure({
+				lowlight
+			}).extend({
+				addNodeView() {
+					return SvelteNodeViewRenderer(CodeBlock);
+				}
+			}),
+			MediaPlaceholder(MediaPlaceholderComp).configure({
+				onUpload: props?.onFileUpload
+			}),
+			ImageExtended(ImageExtendedComp),
+			VideoExtended(VideoExtendedComp),
+			IFrameExtended(IFrameComp),
+			Mermaid(MermaidComp),
+			SlashCommand(SlashCommandComp),
+			Callout(CalloutComp),
+			AIHighlight.configure({
+				callAI: props?.callAI || null
+			}),
+			TableOfContents.configure({
+				getIndex: getHierarchicalIndexes,
+				onUpdate: (indexes) => {
+					setTocItems(indexes);
+				}
+			})
+		],
+		onUpdate: props?.onUpdate || (() => {})
+	});
+
+=== 524 src/lib/edra/shadcn/index.ts	ts	module	-
+import { Tiptap } from '../tiptap/index.ts';
+import Toolbar from './components/Toolbar.svelte';
+import DragHandle from './drag-handle.svelte';
+import Editor from './editor.svelte';
+export { createEditor } from './editor.ts';
+export * from '@tiptap/core';
+import UseAI from './components/menu/AI.svelte';
+import BubbleMenu from './components/menu/BubbleMenu.svelte';
+import ToC from './toc.svelte';
+
+const Edra = Object.assign(Tiptap, {
+	Content: Editor,
+	Toolbar,
+	BubbleMenu,
+	DragHandle,
+	UseAI,
+	ToC
+});
+export { Edra };
+
 === 1607 src/lib/edra/shadcn/toc.svelte	svelte	runes	runes
 <script lang="ts" module>
 	let tocItems = $state<TableOfContentData>([]);
@@ -11103,6 +12285,306 @@ export function getPackageManager(): PackageManagerState {
 		</Tooltip.Content>
 	</Tooltip.Root>
 </Tooltip.Provider>
+
+=== 6915 src/lib/edra/strings.ts	ts	module	-
+const strings = {
+	command: {
+		undo: 'Undo',
+		redo: 'Redo',
+		h1: 'Heading 1',
+		h2: 'Heading 2',
+		h3: 'Heading 3',
+		h4: 'Heading 4',
+		link: 'Link',
+		paragraph: 'Paragraph',
+		bold: 'Bold',
+		italic: 'Italic',
+		underline: 'Underline',
+		strikethrough: 'Strikethrough',
+		blockQuote: 'BlockQuote',
+		code: 'Inline Code',
+		codeBlock: 'Code Block',
+		superscript: 'Superscript',
+		subscript: 'Subscript',
+		alignLeft: 'Align Left',
+		alignCenter: 'Align Center',
+		alignRight: 'Align Right',
+		alignJustify: 'Align Justify',
+		bulletList: 'Bullet List',
+		orderedList: 'Ordered List',
+		taskList: 'Task List',
+		imagePlaceholder: 'Image Placeholder',
+		videoPlaceholder: 'Video Placeholder',
+		audioPlaceholder: 'Audio Placeholder',
+		iframePlaceholder: 'Iframe Placeholder',
+		table: 'Table',
+		inlineExpression: 'Inline Expression',
+		blockExpression: 'Block Expression',
+		horizontalRule: 'Horizontal Rule',
+		mermaidDiagram: 'Mermaid Diagram',
+		formatGroup: 'Format',
+		insertGroup: 'Insert'
+	},
+	dragHandle: {
+		title: 'Drag Handle',
+		turnInto: 'Turn into',
+		insertNext: 'Insert Next',
+		removeFormatting: 'Remove Formatting',
+		duplicate: 'Duplicate',
+		copy: 'Copy',
+		delete: 'Delete Node'
+	},
+	editor: {
+		headingPlaceholder: "What's the title?",
+		paragraphPlaceholder: 'Write, press space for AI or / for commands',
+		contentErrorTitle: 'Unable to load the content',
+		contentErrorDescription: 'The content of this page might be corrupted.'
+	},
+	extension: {
+		audio: {
+			multiplePasteWarningTitle: 'Can not paste multiple files at once!',
+			multiplePasteWarningDescription:
+				'You can only paste one file at a time. Only the first file will be pasted.',
+			pasteProcessing: 'Processing Pasted Audio',
+			pasteError: 'Could not paste audio',
+			multipleDropWarningTitle: 'Can not drop multiple files at once!',
+			multipleDropWarningDescription:
+				'You can only drop one file at a time. Only the first file will be dropped.',
+			dropProcessing: 'Processing Dropped Audio',
+			dropError: 'Could not upload audio',
+			enterURLPrompt: 'Enter Audio URL',
+			insertPlaceholder: 'Insert an audio',
+			uploadProcessing: 'Uploading Audio File',
+			openButton: 'Open',
+			openError: 'Could not process audio files.',
+			uploadTab: 'Upload',
+			embedLinkTab: 'Embed Link',
+			uploadButton: 'Upload Audio',
+			embedLinkButton: 'Insert',
+			embedLinkPlaceholder: 'Embed Audio'
+		},
+		code: {
+			copy: 'Copy',
+			copied: 'Copied!',
+			plainText: 'Plain Text',
+			searchLanguagePlaceholder: 'Search language...',
+			searchLanguageEmpty: 'No Language found.'
+		},
+		iframe: {
+			enterURLPrompt: 'Please enter the iframe URL',
+			insertPlaceholder: 'Insert an iframe',
+			openButton: 'Open',
+			embedLinkPlaceholder: 'Embed Iframe',
+			embedLinkButton: 'Insert'
+		},
+		image: {
+			enterURLPrompt: 'Please enter the image URL',
+			insertPlaceholder: 'Insert an image',
+			uploadProcessing: 'Uploading Image File',
+			openButton: 'Open',
+			openError: 'Could not process image files.',
+			uploadTab: 'Upload',
+			embedLinkTab: 'Embed Link',
+			uploadButton: 'Upload Image',
+			embedLinkButton: 'Insert',
+			embedLinkPlaceholder: 'Embed Image'
+		},
+		media: {
+			back: 'Back',
+			resizeLeft: 'Resize Left',
+			resizeRight: 'Resize Right',
+			alignLeft: 'Align Left',
+			alignCenter: 'Align Center',
+			alignRight: 'Align Right',
+			moreOptions: 'More Options',
+			caption: 'Caption',
+			captionPlaceholder: 'Your Media Caption',
+			duplicate: 'Duplicate',
+			fullscreen: 'Full Screen',
+			delete: 'Delete'
+		},
+		table: {
+			selectCell: 'Select Cell',
+			selectRow: 'Select Row',
+			addRow: 'Add Row',
+			addRowAfter: 'Add Row After',
+			addRowBefore: 'Add Row Before',
+			deleteRow: 'Delete Row',
+			selectColumn: 'Select Column',
+			addColumn: 'Add Column',
+			addColumnAfter: 'Add Column After',
+			addColumnBefore: 'Add Column Before',
+			deleteColumn: 'Delete Column'
+		},
+		video: {
+			multiplePasteWarningTitle: 'Can not paste multiple files at once!',
+			multiplePasteWarningDescription:
+				'You can only paste one file at a time. Only the first file will be pasted.',
+			pasteProcessing: 'Processing Pasted Video',
+			pasteError: 'Could not handle pasted video',
+			multipleDropWarningTitle: 'Can not drop multiple files at once!',
+			multipleDropWarningDescription:
+				'You can only drop one file at a time. Only the first file will be processed.',
+			dropProcessing: 'Processing Dropped Video',
+			dropError: 'Could not upload video',
+			enterURLPrompt: 'Please enter the video URL',
+			insertPlaceholder: 'Insert a video',
+			uploadProcessing: 'Uploading Video',
+			openButton: 'Open',
+			openError: 'Could not process video files.',
+			uploadTab: 'Upload',
+			embedLinkTab: 'Embed Link',
+			uploadButton: 'Upload Video',
+			embedLinkButton: 'Insert',
+			embedLinkPlaceholder: 'Embed Video'
+		}
+	},
+	menu: {
+		link: {
+			open: 'Open Link',
+			edit: 'Edit Link',
+			copy: 'Copy Link',
+			remove: 'Remove Link',
+			save: 'Save',
+			enterLinkPlaceholder: 'Type or paste a link',
+			enterLinkButton: 'Set new link'
+		},
+		math: {
+			enterExpressionPlaceholder: 'Enter Math Expression'
+		},
+		table: {
+			headerColumn: 'Header Column',
+			addColumnAfter: 'Add Column After',
+			addColumnBefore: 'Add Column Before',
+			moveColumnLeft: 'Move Column Left',
+			moveColumnRight: 'Move Column Right',
+			deleteColumn: 'Delete This Column',
+			headerRow: 'Header Row',
+			addRowAfter: 'Add Row After',
+			addRowBefore: 'Add Row Before',
+			moveRowUp: 'Move Row Up',
+			moveRowDown: 'Move Row Down',
+			deleteRow: 'Delete This Row'
+		}
+	},
+	toolbar: {
+		alignment: {
+			buttonTitle: 'Alignment',
+			dropdownTitle: 'Alignments'
+		},
+		color: {
+			buttonTitle: 'Quick Colors',
+			textColor: 'Text Color',
+			textColors: 'Text Colors',
+			highlightColor: 'Highlight Color',
+			highlightColors: 'Highlight Colors',
+			templateCharacter: 'A',
+			default: 'Default',
+			blue: 'Blue',
+			red: 'Red',
+			brown: 'Brown',
+			green: 'Green',
+			gray: 'Gray',
+			orange: 'Orange',
+			pink: 'Pink',
+			purple: 'Purple',
+			yellow: 'Yellow'
+		},
+		font: {
+			buttonTitle: 'Font Size',
+			dropdownTitle: 'Font Size',
+			tiny: 'Tiny',
+			smaller: 'Smaller',
+			small: 'Small',
+			default: 'Default',
+			large: 'Large',
+			extraLarge: 'Extra Large'
+		},
+		heading: {
+			buttonTitle: 'Headings'
+		},
+		link: {
+			buttonTitle: 'Link',
+			insertLinkPlaceholder: 'Insert Link',
+			insertLink: 'Insert Link'
+		},
+		list: {
+			buttonTitle: 'Lists',
+			dropdownTitle: 'Lists'
+		},
+		searchAndReplace: {
+			buttonTitle: 'Search and Replace',
+			showMore: 'Show More',
+			goBack: 'Go Back',
+			searchAndReplace: 'Search and Replace',
+			searchPlaceholder: 'Search...',
+			caseSensitive: 'Case Sensitive',
+			goToPrevious: 'Go to Previous',
+			goToNext: 'Go to Next',
+			previous: 'Previous',
+			next: 'Next',
+			replacePlaceholder: 'Replace...',
+			replace: 'Replace',
+			replaceAll: 'Replace All'
+		}
+	}
+};
+
+export default strings;
+
+=== 1364 src/lib/edra/tiptap/Editor.ts	ts	module	-
+import type { EditorOptions, Storage } from '@tiptap/core';
+import { Editor as CoreEditor } from '@tiptap/core';
+import type { EditorState, Plugin, PluginKey } from '@tiptap/pm/state';
+
+export class Editor extends CoreEditor {
+	public reactiveState: EditorState = this.view.state;
+
+	public reactiveExtensionStorage: Storage = this.extensionStorage;
+
+	constructor(options: Partial<EditorOptions> = {}) {
+		super(options);
+
+		this.reactiveState = this.view.state;
+		this.reactiveExtensionStorage = this.extensionStorage;
+
+		this.on('beforeTransaction', ({ nextState }) => {
+			this.reactiveState = nextState;
+			this.reactiveExtensionStorage = this.extensionStorage;
+		});
+	}
+
+	get state() {
+		return this.reactiveState ?? this.view.state;
+	}
+
+	get storage() {
+		return this.reactiveExtensionStorage ?? super.storage;
+	}
+
+	public registerPlugin(
+		plugin: Plugin,
+		handlePlugins?: (newPlugin: Plugin, plugins: Plugin[]) => Plugin[]
+	): EditorState {
+		const nextState = super.registerPlugin(plugin, handlePlugins);
+
+		if (this.reactiveState) {
+			this.reactiveState = nextState;
+		}
+
+		return nextState;
+	}
+
+	public unregisterPlugin(nameOrPluginKey: string | PluginKey): EditorState | undefined {
+		const nextState = super.unregisterPlugin(nameOrPluginKey);
+
+		if (this.reactiveState && nextState) {
+			this.reactiveState = nextState;
+		}
+
+		return nextState;
+	}
+}
 
 === 771 src/lib/edra/tiptap/components/EditorContent.svelte	svelte	runes	runes
 <script lang="ts">
@@ -11278,6 +12760,27 @@ export function getPackageManager(): PackageManagerState {
 
 <EditorContent {editor} class={className} />
 
+=== 443 src/lib/edra/tiptap/components/editorContext.ts	ts	module	-
+import { getContext, setContext } from 'svelte';
+
+import type { Editor } from '../Editor.ts';
+
+const EDITOR_CTX = Symbol('editor');
+
+export const getEditor = (): Editor => {
+	const editor = getContext<Editor>(EDITOR_CTX);
+
+	if (!editor) {
+		throw new Error('No editor found in context. Did you wrap your component in <Tiptap>?');
+	}
+
+	return editor;
+};
+
+export const setEditor = (editor: Editor): void => {
+	setContext(EDITOR_CTX, editor);
+};
+
 === 1960 src/lib/edra/tiptap/components/menus/BubbleMenu.svelte	svelte	runes	runes
 <script lang="ts">
 	import { untrack } from 'svelte';
@@ -11365,6 +12868,3377 @@ export function getPackageManager(): PackageManagerState {
 <div bind:this={rootEl} class={className} {...rest}>
 	{@render children()}
 </div>
+
+=== 61 src/lib/edra/tiptap/components/menus/index.ts	ts	module	-
+export { default as BubbleMenu } from './BubbleMenu.svelte';
+
+=== 2380 src/lib/edra/tiptap/extensions/Callout.ts	ts	module	-
+import { mergeAttributes, Node, wrappingInputRule, type NodeViewProps } from '@tiptap/core';
+import type { Component } from 'svelte';
+import { SvelteNodeViewRenderer } from '../index.ts';
+
+declare module '@tiptap/core' {
+	interface Commands<ReturnType> {
+		callout: {
+			setCallout: () => ReturnType;
+		};
+	}
+}
+
+export const Callout = (component: Component<NodeViewProps>) =>
+	Node.create({
+		name: 'callout',
+		content: 'paragraph+',
+		group: 'block',
+		defining: true,
+		selectable: true,
+		draggable: true,
+
+		addAttributes() {
+			return {
+				emoji: {
+					default: '💡'
+				}
+			};
+		},
+
+		markdownTokenizer: {
+			name: 'callout',
+			level: 'block',
+
+			start: (src: string) => {
+				return src.indexOf('$');
+			},
+
+			tokenize: (src: string, tokens: any, lexer: any) => {
+				// Match $callout[emoji]\ncontent\n$
+				const match = /^\$callout\s*(.*)?\n([\s\S]*?)\n\$/.exec(src);
+
+				if (!match) {
+					return undefined;
+				}
+
+				return {
+					type: 'callout',
+					raw: match[0],
+					emoji: match[1]?.trim() || '💡',
+					text: match[2],
+					tokens: lexer.blockTokens(match[2])
+				};
+			}
+		},
+
+		parseMarkdown: (token: any, helpers: any) => {
+			return {
+				type: 'callout',
+				attrs: {
+					emoji: token.emoji
+				},
+				content: helpers.parseChildren(token.tokens || [])
+			};
+		},
+
+		renderMarkdown: (node: any, helpers: any) => {
+			const content = helpers.renderChildren(node);
+			const emoji = node.attrs?.emoji || '💡';
+			return `$callout${emoji}\n${content}\n$\n\n`;
+		},
+
+		addOptions() {
+			return {
+				HTMLAttributes: {
+					class: 'callout'
+				}
+			};
+		},
+
+		parseHTML() {
+			return [{ tag: 'div[class=callout]' }];
+		},
+
+		renderHTML({ HTMLAttributes }) {
+			return ['div', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+		},
+
+		addCommands() {
+			return {
+				setCallout:
+					() =>
+					({ commands, editor }) => {
+						const { type = null } = editor.getAttributes(this.name);
+						if (type) {
+							return commands.lift(this.name);
+						} else {
+							return commands.toggleWrap(this.name);
+						}
+					}
+			};
+		},
+
+		addInputRules() {
+			return [
+				wrappingInputRule({
+					find: /^\$callout\s*(.*)?\s$/,
+					type: this.type,
+					getAttributes: (match) => {
+						return { emoji: match[1]?.trim() || '💡' };
+					}
+				})
+			];
+		},
+
+		addNodeView() {
+			return SvelteNodeViewRenderer(component);
+		}
+	});
+
+=== 556 src/lib/edra/tiptap/extensions/ColorHighlighter.ts	ts	module	-
+import { Extension } from '@tiptap/core';
+import { Plugin } from '@tiptap/pm/state';
+
+import { findColors } from '../../utils.ts';
+
+export default Extension.create({
+	name: 'colorHighlighter',
+
+	addProseMirrorPlugins() {
+		return [
+			new Plugin({
+				state: {
+					init(_, { doc }) {
+						return findColors(doc);
+					},
+					apply(transaction, oldState) {
+						return transaction.docChanged ? findColors(transaction.doc) : oldState;
+					}
+				},
+				props: {
+					decorations(state) {
+						return this.getState(state);
+					}
+				}
+			})
+		];
+	}
+});
+
+=== 3418 src/lib/edra/tiptap/extensions/MediaPlaceHolder.ts	ts	module	-
+import { mergeAttributes, Node, type NodeViewProps } from '@tiptap/core';
+import { SvelteNodeViewRenderer } from '../index.ts';
+import type { Component } from 'svelte';
+import { NodeSelection } from '@tiptap/pm/state';
+
+export interface MediaPlaceholderOptions {
+	HTMLAttributes: Record<string, unknown>;
+	onUpload?: (file: File) => Promise<string>;
+}
+
+declare module '@tiptap/core' {
+	interface Commands<ReturnType> {
+		mediaPlaceholder: {
+			/**
+			 * Inserts a media placeholder
+			 */
+			insertMediaPlaceholder: (options: {
+				mediaType: 'image' | 'video' | 'audio' | 'iframe';
+			}) => ReturnType;
+
+			/**
+			 * Set the upload handler
+			 */
+			setMediaUploadHandler: (handler: (file: File) => Promise<string>) => ReturnType;
+
+			/**
+			 * Upload a media and insert the result
+			 */
+			uploadMedia: (file: File) => ReturnType;
+		};
+	}
+
+	interface Storage {
+		mediaPlaceholder: {
+			onUpload?: (file: File) => Promise<string>;
+		};
+	}
+}
+
+export const MediaPlaceholder = (component: Component<NodeViewProps>) =>
+	Node.create<MediaPlaceholderOptions>({
+		name: 'mediaPlaceholder',
+
+		addOptions() {
+			return {
+				HTMLAttributes: {},
+				onUpload: undefined
+			};
+		},
+
+		addStorage() {
+			return {
+				onUpload: this.options.onUpload
+			};
+		},
+
+		addAttributes() {
+			return {
+				mediaType: {
+					default: 'image',
+					parseHTML: (element) => element.getAttribute('data-media-type'),
+					renderHTML: (attributes) => {
+						if (!attributes.mediaType) {
+							return {};
+						}
+						return {
+							'data-media-type': attributes.mediaType
+						};
+					}
+				}
+			};
+		},
+
+		parseHTML() {
+			return [{ tag: `div[data-type="${this.name}"]` }];
+		},
+
+		renderHTML({ HTMLAttributes }) {
+			return [
+				'div',
+				mergeAttributes({ 'data-type': this.name }, this.options.HTMLAttributes, HTMLAttributes)
+			];
+		},
+
+		group: 'block',
+		draggable: true,
+		atom: true,
+		content: 'inline*',
+		isolating: true,
+
+		addNodeView() {
+			return SvelteNodeViewRenderer(component);
+		},
+
+		addCommands() {
+			return {
+				insertMediaPlaceholder:
+					(options) =>
+					({ commands }) => {
+						return commands.insertContent({
+							type: this.name,
+							attrs: {
+								mediaType: options.mediaType
+							}
+						});
+					},
+
+				setMediaUploadHandler:
+					(handler) =>
+					({ editor }) => {
+						editor.storage.mediaPlaceholder.onUpload = handler;
+						return true;
+					},
+
+				uploadMedia:
+					(file: File) =>
+					({ editor }) => {
+						const onUpload = editor.storage.mediaPlaceholder.onUpload || this.options.onUpload;
+						if (!onUpload) {
+							throw new Error('onUpload is not defined');
+						}
+
+						// Detect mediaType from current selection
+						let mediaType = 'image';
+						const { selection } = editor.state;
+						if (selection instanceof NodeSelection) {
+							const selectedNode = selection.node;
+							if (selectedNode.type.name === this.name) {
+								mediaType = selectedNode.attrs.mediaType;
+							}
+						}
+
+						void onUpload(file)
+							.then((src) => {
+								editor.view.focus();
+								if (mediaType === 'audio') {
+									editor.commands.setAudio({ src });
+								} else if (mediaType === 'video') {
+									editor.commands.setVideo({ src });
+								} else {
+									editor.commands.setImage({ src });
+								}
+							})
+							.catch((error) => {
+								console.error('Failed to upload media:', error);
+							});
+
+						return true;
+					}
+			};
+		}
+	});
+
+=== 22477 src/lib/edra/tiptap/extensions/SelectAcrossAtoms.ts	ts	module	-
+import { Extension } from '@tiptap/core';
+import { NodeSelection, Plugin, PluginKey, Selection, TextSelection } from '@tiptap/pm/state';
+import { Decoration, DecorationSet, type EditorView } from '@tiptap/pm/view';
+import type { Node as ProseMirrorNode, ResolvedPos } from '@tiptap/pm/model';
+
+const selectAcrossAtomsKey = new PluginKey('selectAcrossAtoms');
+
+/** Penetration depth below this threshold is treated as a "slight graze" and won't be merged into the selection */
+export const ATOM_SLIGHT_PENETRATION_PX = 12;
+
+/**
+ * Returns the effective penetration threshold for a given atom element,
+ * clamped to the atom's dimensions. This prevents small atoms (whose
+ * smaller dimension is below ~24px) from never reaching the fixed threshold.
+ */
+export function effectivePenetrationThreshold(rect: DOMRectReadOnly): number {
+	const maxPossible = Math.min(rect.width, rect.height) / 2;
+	return Math.min(ATOM_SLIGHT_PENETRATION_PX, maxPossible);
+}
+
+export type AtomVerticalSide = 'above' | 'below';
+
+/** Block-level leaf / atom: should be merged as a whole block into TextSelection during drag-selection */
+function isAcrossSelectableNode(node: ProseMirrorNode): boolean {
+	if (node.isText) return false;
+	if (node.type.name === 'image') return true;
+	if (node.type.name === 'blockMath' || node.type.name === 'inlineMath') return true;
+	if (node.type.name === 'video' || node.type.name === 'audio' || node.type.name === 'iframe') {
+		return true;
+	}
+	return node.isAtom && (node.isLeaf || !node.type.inlineContent);
+}
+
+/**
+ * Construct a TextSelection covering [nodeStart, nodeEnd) while preserving the original anchor.
+ * Cannot simply use TextSelection.between(anchor, nodeEnd) because nodeEnd is often in a doc gap,
+ * and `between` would pull the head back before the image/formula, preventing the node from being
+ * truly included in the selection.
+ */
+export function selectionCoveringNode(
+	doc: ProseMirrorNode,
+	anchor: number,
+	nodeStart: number,
+	nodeEnd: number
+): TextSelection {
+	const forward = anchor <= nodeStart;
+	const edge = forward ? nodeEnd : nodeStart;
+	const bias = forward ? 1 : -1;
+	const found = Selection.findFrom(doc.resolve(edge), bias, true);
+
+	if (found) {
+		const next = TextSelection.between(doc.resolve(anchor), found.$head);
+		if (next instanceof TextSelection && next.from <= nodeStart && next.to >= nodeEnd) {
+			return next;
+		}
+	}
+
+	const from = Math.min(anchor, nodeStart);
+	const to = Math.max(anchor, nodeEnd);
+	return TextSelection.create(doc, from, to);
+}
+
+/** Mouse penetration depth relative to an element (distance to nearest edge); 0 if outside */
+export function atomPenetrationDepth(
+	clientX: number,
+	clientY: number,
+	rect: DOMRectReadOnly
+): number {
+	if (clientX < rect.left || clientX > rect.right || clientY < rect.top || clientY > rect.bottom) {
+		return 0;
+	}
+	return Math.min(
+		clientX - rect.left,
+		rect.right - clientX,
+		clientY - rect.top,
+		rect.bottom - clientY
+	);
+}
+
+/** Determine whether the drag-selection enters the atom node from above or below, based on selection position */
+export function entrySideFromSelection(
+	sel: Selection,
+	nodeStart: number,
+	nodeEnd: number
+): AtomVerticalSide | null {
+	const from = Math.min(sel.anchor, sel.head);
+	const to = Math.max(sel.anchor, sel.head);
+	if (to <= nodeStart) return 'above';
+	if (from >= nodeEnd) return 'below';
+	// Already spanning the node: use the side where the anchor is
+	if (sel.anchor <= nodeStart) return 'above';
+	if (sel.anchor >= nodeEnd) return 'below';
+	return null;
+}
+
+/** Determine the exit side based on the pointer position relative to the node's bounding rect when leaving */
+export function leaveSideFromPoint(clientY: number, rect: DOMRectReadOnly): AtomVerticalSide {
+	const mid = (rect.top + rect.bottom) / 2;
+	return clientY < mid ? 'above' : 'below';
+}
+
+function clampPosToSide(
+	doc: ProseMirrorNode,
+	pos: number,
+	nodeStart: number,
+	nodeEnd: number,
+	side: AtomVerticalSide
+): number {
+	if (side === 'below') {
+		if (pos >= nodeEnd) return pos;
+		const found = Selection.findFrom(doc.resolve(nodeEnd), 1, true);
+		return found?.from ?? nodeEnd;
+	}
+	if (pos <= nodeStart) return pos;
+	const found = Selection.findFrom(doc.resolve(nodeStart), -1, true);
+	return found?.from ?? nodeStart;
+}
+
+/** Merge an atom node into the current drag TextSelection (preserving the anchor) */
+export function includeAtomInDragSelection(
+	view: EditorView,
+	nodeStart: number,
+	nodeEnd: number
+): boolean {
+	const { state } = view;
+	const sel = state.selection;
+
+	if (sel instanceof NodeSelection) return false;
+	if (sel.empty) return false;
+	if (sel.from <= nodeStart && sel.to >= nodeEnd) return true;
+
+	try {
+		const next = selectionCoveringNode(state.doc, sel.anchor, nodeStart, nodeEnd);
+		if (!sel.eq(next)) {
+			view.dispatch(state.tr.setSelection(next).setMeta('addToHistory', false));
+		}
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * Exclude an atom node from the selection, pulling the selection back to the specified side
+ * (retracting after accidentally entering). savedAnchor is the anchor before entry, used to
+ * restore the original selection intent as closely as possible.
+ */
+export function excludeAtomFromDragSelection(
+	view: EditorView,
+	nodeStart: number,
+	nodeEnd: number,
+	side: AtomVerticalSide,
+	savedAnchor: number,
+	clientX: number,
+	clientY: number
+): boolean {
+	const { state } = view;
+	const sel = state.selection;
+	if (sel instanceof NodeSelection || sel.empty) return false;
+
+	const posInfo = view.posAtCoords({ left: clientX, top: clientY });
+	const rawHead = posInfo?.pos ?? savedAnchor;
+	const anchor = clampPosToSide(state.doc, savedAnchor, nodeStart, nodeEnd, side);
+	const head = clampPosToSide(state.doc, rawHead, nodeStart, nodeEnd, side);
+
+	try {
+		const next = TextSelection.between(state.doc.resolve(anchor), state.doc.resolve(head));
+		if (!sel.eq(next)) {
+			view.dispatch(state.tr.setSelection(next).setMeta('addToHistory', false));
+		}
+		return true;
+	} catch {
+		try {
+			const next = TextSelection.create(state.doc, anchor, head);
+			view.dispatch(state.tr.setSelection(next).setMeta('addToHistory', false));
+			return true;
+		} catch {
+			return false;
+		}
+	}
+}
+
+/**
+ * Settle when leaving an atom node: exit on same side → exclude the node; exit on opposite side → keep it included.
+ */
+export function resolveAtomLeave(
+	view: EditorView,
+	opts: {
+		nodeStart: number;
+		nodeEnd: number;
+		entrySide: AtomVerticalSide;
+		savedAnchor: number;
+		included: boolean;
+		clientX: number;
+		clientY: number;
+		rect: DOMRectReadOnly;
+	}
+): void {
+	if (!opts.included) return;
+
+	const leaveSide = leaveSideFromPoint(opts.clientY, opts.rect);
+	if (leaveSide === opts.entrySide) {
+		excludeAtomFromDragSelection(
+			view,
+			opts.nodeStart,
+			opts.nodeEnd,
+			leaveSide,
+			opts.savedAnchor,
+			opts.clientX,
+			opts.clientY
+		);
+	} else {
+		// Crossed to opposite side: selection should include the image
+		includeAtomInDragSelection(view, opts.nodeStart, opts.nodeEnd);
+	}
+}
+
+/**
+ * Only match when coordinates fall "inside" the atom node.
+ * Avoids using nodeBefore since it can be falsely matched when a paragraph starts right after an image above.
+ */
+function findAcrossNodeAtPos($pos: ResolvedPos): { pos: number; node: ProseMirrorNode } | null {
+	for (let d = $pos.depth; d > 0; d--) {
+		const node = $pos.node(d);
+		if (isAcrossSelectableNode(node)) {
+			return { pos: $pos.before(d), node };
+		}
+	}
+
+	const nodeAfter = $pos.nodeAfter;
+	if (nodeAfter && isAcrossSelectableNode(nodeAfter)) {
+		return { pos: $pos.pos, node: nodeAfter };
+	}
+	return null;
+}
+
+function atomHitFromPos(
+	view: EditorView,
+	pos: number
+): { nodeStart: number; nodeEnd: number; dom: Element } | null {
+	const hit = findAcrossNodeAtPos(view.state.doc.resolve(pos));
+	if (!hit) return null;
+	const nodeStart = hit.pos;
+	const nodeEnd = nodeStart + hit.node.nodeSize;
+	const dom = view.nodeDOM(nodeStart);
+	if (!(dom instanceof Element)) return null;
+	return { nodeStart, nodeEnd, dom };
+}
+
+/**
+ * Prefer elementFromPoint to hit NodeView (during drag-selection, posAtCoords often lands in gaps before/after images).
+ */
+function hitAtomAtCoords(
+	view: EditorView,
+	clientX: number,
+	clientY: number
+): { nodeStart: number; nodeEnd: number; dom: Element } | null {
+	const el = document.elementFromPoint(clientX, clientY);
+	if (el && view.dom.contains(el)) {
+		const wrapper =
+			el.closest('[data-node-view-wrapper]') ??
+			el.closest('.tiptap-mathematics-render') ??
+			(el instanceof HTMLImageElement || el instanceof HTMLVideoElement ? el : null);
+
+		if (wrapper && view.dom.contains(wrapper)) {
+			try {
+				const pos = view.posAtDOM(wrapper, 0);
+				const fromDom = atomHitFromPos(view, pos);
+				if (fromDom) {
+					const rect = fromDom.dom.getBoundingClientRect();
+					if (
+						clientX >= rect.left &&
+						clientX <= rect.right &&
+						clientY >= rect.top &&
+						clientY <= rect.bottom
+					) {
+						return fromDom;
+					}
+				}
+			} catch {
+				/* posAtDOM failed, fall back */
+			}
+		}
+	}
+
+	const posInfo = view.posAtCoords({ left: clientX, top: clientY });
+	if (!posInfo) return null;
+
+	const inside = posInfo.inside >= 0 ? posInfo.inside : posInfo.pos;
+	return atomHitFromPos(view, inside);
+}
+
+function pointInRect(clientX: number, clientY: number, rect: DOMRectReadOnly): boolean {
+	return (
+		clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom
+	);
+}
+
+type AtomVisit = {
+	nodeStart: number;
+	nodeEnd: number;
+	maxPenetration: number;
+	included: boolean;
+	entrySide: AtomVerticalSide;
+	savedAnchor: number;
+	dom: Element;
+};
+
+type PreservedRange = { anchor: number; head: number };
+
+/** Check if right-click falls within the current non-empty selection (including atoms fully covered by TextSelection) */
+function shouldPreserveSelectionOnRightClick(view: EditorView, event: MouseEvent): boolean {
+	if (event.button !== 2) return false;
+	const sel = view.state.selection;
+	if (sel.empty) return false;
+
+	const hit = hitAtomAtCoords(view, event.clientX, event.clientY);
+	if (hit && sel.from <= hit.nodeStart && sel.to >= hit.nodeEnd) {
+		return true;
+	}
+
+	const posInfo = view.posAtCoords({ left: event.clientX, top: event.clientY });
+	if (!posInfo) return false;
+
+	const pos = posInfo.inside >= 0 ? posInfo.inside : posInfo.pos;
+	return pos >= sel.from && pos <= sel.to;
+}
+
+function restorePreservedSelection(view: EditorView, preserved: PreservedRange): void {
+	const { state } = view;
+	const sel = state.selection;
+	if (sel.anchor === preserved.anchor && sel.head === preserved.head) {
+		const from = Math.min(preserved.anchor, preserved.head);
+		const to = Math.max(preserved.anchor, preserved.head);
+		let coversAll = true;
+		state.doc.nodesBetween(from, to, (node, pos) => {
+			if (!isAcrossSelectableNode(node)) return;
+			if (from <= pos && to >= pos + node.nodeSize) {
+				if (!(sel.from <= pos && sel.to >= pos + node.nodeSize)) coversAll = false;
+			}
+		});
+		if (coversAll) return;
+	}
+
+	try {
+		let next: TextSelection = TextSelection.create(state.doc, preserved.anchor, preserved.head);
+		const from = Math.min(preserved.anchor, preserved.head);
+		const to = Math.max(preserved.anchor, preserved.head);
+		state.doc.nodesBetween(from, to, (node, pos) => {
+			if (!isAcrossSelectableNode(node)) return;
+			const nodeEnd = pos + node.nodeSize;
+			if (from <= pos && to >= nodeEnd && !(next.from <= pos && next.to >= nodeEnd)) {
+				next = selectionCoveringNode(state.doc, next.anchor, pos, nodeEnd);
+			}
+		});
+		if (!sel.eq(next)) {
+			view.dispatch(state.tr.setSelection(next).setMeta('addToHistory', false));
+		}
+	} catch {
+		try {
+			const next = TextSelection.between(
+				state.doc.resolve(preserved.anchor),
+				state.doc.resolve(preserved.head)
+			);
+			view.dispatch(state.tr.setSelection(next).setMeta('addToHistory', false));
+		} catch {
+			/* ignore */
+		}
+	}
+}
+
+/**
+ * Left-click to select an atom node: posAtCoords.inside on NodeView is often -1,
+ * PM's default selectClickedLeaf will fail, so we use DOM hit testing to supplement with NodeSelection.
+ */
+function selectAtomOnClick(view: EditorView, event: MouseEvent): boolean {
+	if (event.button !== 0 || !view.editable) return false;
+
+	const target = event.target;
+	if (
+		target instanceof Element &&
+		target.closest('.resize-handle, .media-toolbar, .more-options-menu, input, button, textarea, a')
+	) {
+		return false;
+	}
+
+	const hit = hitAtomAtCoords(view, event.clientX, event.clientY);
+	if (!hit || !pointInRect(event.clientX, event.clientY, hit.dom.getBoundingClientRect())) {
+		return false;
+	}
+
+	const node = view.state.doc.nodeAt(hit.nodeStart);
+	if (!node || !isAcrossSelectableNode(node) || !NodeSelection.isSelectable(node)) {
+		return false;
+	}
+
+	const sel = view.state.selection;
+	if (sel instanceof NodeSelection && sel.from === hit.nodeStart) {
+		return true;
+	}
+
+	try {
+		view.dispatch(
+			view.state.tr
+				.setSelection(NodeSelection.create(view.state.doc, hit.nodeStart))
+				.setMeta('pointer', true)
+		);
+		return true;
+	} catch {
+		return false;
+	}
+}
+
+/**
+ * When drag-selecting across atom nodes (images, formulas, etc.), merge the entire block into TextSelection.
+ *
+ * - Left-click on an atom like image → NodeSelection + selection highlight
+ * - Truly entered (sufficient penetration depth) → immediately merge into selection
+ * - On leaving: exit on entry side → exclude the image; exit on opposite side → keep it included
+ * - Slight edge graze → do not merge
+ * - Right-click within selection: preventDefault + restore snapshot, maintaining TextSelection / atom highlight
+ */
+export const SelectAcrossAtoms = Extension.create({
+	name: 'selectAcrossAtoms',
+
+	addProseMirrorPlugins() {
+		let dragging = false;
+		let visit: AtomVisit | null = null;
+		/** Preserve selection on right-click within selection, preventing browser/PM from collapsing it to a cursor or NodeSelection */
+		let preservedOnRightClick: PreservedRange | null = null;
+		let restoreRaf = 0;
+		/** Pointer position when left button is pressed, used to distinguish click-select from drag-select */
+		let mouseDownX = 0;
+		let mouseDownY = 0;
+
+		const resetVisit = () => {
+			visit = null;
+		};
+
+		const scheduleRestorePreserved = (view: EditorView) => {
+			if (!preservedOnRightClick) return;
+			const snap = preservedOnRightClick;
+			if (restoreRaf) cancelAnimationFrame(restoreRaf);
+			restoreRaf = requestAnimationFrame(() => {
+				restoreRaf = 0;
+				if (preservedOnRightClick) restorePreservedSelection(view, snap);
+			});
+		};
+
+		const leaveCurrentVisit = (view: EditorView, clientX: number, clientY: number) => {
+			if (!visit) return;
+			const v = visit;
+			visit = null;
+			const rect = v.dom.getBoundingClientRect();
+			resolveAtomLeave(view, {
+				nodeStart: v.nodeStart,
+				nodeEnd: v.nodeEnd,
+				entrySide: v.entrySide,
+				savedAnchor: v.savedAnchor,
+				included: v.included,
+				clientX,
+				clientY,
+				rect
+			});
+		};
+
+		const trackAtomUnderPointer = (view: EditorView, clientX: number, clientY: number) => {
+			if (!dragging || !view.editable) return;
+
+			let hit = hitAtomAtCoords(view, clientX, clientY);
+
+			// When posAtCoords / DOM briefly misses: if pointer is still within the current visit rect, treat as still hitting
+			// (otherwise it would leave → exclude, and PM would pull the selection outside the image on the next frame)
+			if (!hit && visit && pointInRect(clientX, clientY, visit.dom.getBoundingClientRect())) {
+				hit = {
+					nodeStart: visit.nodeStart,
+					nodeEnd: visit.nodeEnd,
+					dom: visit.dom
+				};
+			}
+
+			if (hit) {
+				const rect = hit.dom.getBoundingClientRect();
+				const pen = atomPenetrationDepth(clientX, clientY, rect);
+
+				if (visit && visit.nodeStart !== hit.nodeStart) {
+					leaveCurrentVisit(view, clientX, clientY);
+				}
+
+				if (!visit || visit.nodeStart !== hit.nodeStart) {
+					const sel = view.state.selection;
+					if (sel instanceof NodeSelection || sel.empty) return;
+
+					const entrySide = entrySideFromSelection(sel, hit.nodeStart, hit.nodeEnd);
+					if (!entrySide) {
+						// Selection already covers this node: just keep it
+						if (sel.from <= hit.nodeStart && sel.to >= hit.nodeEnd) {
+							visit = {
+								nodeStart: hit.nodeStart,
+								nodeEnd: hit.nodeEnd,
+								maxPenetration: pen,
+								included: true,
+								entrySide: sel.anchor <= hit.nodeStart ? 'above' : 'below',
+								savedAnchor: sel.anchor,
+								dom: hit.dom
+							};
+						}
+						return;
+					}
+
+					visit = {
+						nodeStart: hit.nodeStart,
+						nodeEnd: hit.nodeEnd,
+						maxPenetration: pen,
+						included: false,
+						entrySide,
+						savedAnchor: sel.anchor,
+						dom: hit.dom
+					};
+				} else {
+					visit.maxPenetration = Math.max(visit.maxPenetration, pen);
+				}
+
+				// Once truly entered, merge immediately; re-merge each frame to counteract PM mouseDown.move rewriting
+				const threshold = effectivePenetrationThreshold(rect);
+				if (visit && visit.maxPenetration >= threshold) {
+					includeAtomInDragSelection(view, visit.nodeStart, visit.nodeEnd);
+					visit.included = true;
+				}
+				return;
+			}
+
+			// Pointer has left the atom
+			if (visit) {
+				leaveCurrentVisit(view, clientX, clientY);
+			}
+		};
+
+		return [
+			new Plugin({
+				key: selectAcrossAtomsKey,
+				props: {
+					handleClick(view, _pos, event) {
+						return selectAtomOnClick(view, event);
+					},
+					handleDOMEvents: {
+						mousedown(view, event) {
+							// Right-click within selection: preventDefault stops browser from collapsing ::selection;
+							// return true prevents PM from collapsing atom to NodeSelection
+							if (shouldPreserveSelectionOnRightClick(view, event)) {
+								const sel = view.state.selection;
+								preservedOnRightClick = { anchor: sel.anchor, head: sel.head };
+								event.preventDefault();
+								scheduleRestorePreserved(view);
+								return true;
+							}
+							preservedOnRightClick = null;
+							if (event.button === 0) {
+								dragging = true;
+								mouseDownX = event.clientX;
+								mouseDownY = event.clientY;
+								resetVisit();
+							}
+							return false;
+						},
+						mouseup(view, event) {
+							if (event.button === 2 && preservedOnRightClick) {
+								restorePreservedSelection(view, preservedOnRightClick);
+								scheduleRestorePreserved(view);
+								// Right-click flow ended; system context menu may not appear due to preventDefault
+								preservedOnRightClick = null;
+							}
+							if (dragging && visit) {
+								// Mouse released on atom: intent is ambiguous, keep the merged state
+								// (don't do same-side exclusion since we never left)
+								const threshold = effectivePenetrationThreshold(visit.dom.getBoundingClientRect());
+								if (!visit.included && visit.maxPenetration >= threshold) {
+									includeAtomInDragSelection(view, visit.nodeStart, visit.nodeEnd);
+								}
+							}
+							// If PM skips handleClick due to minor movement (allowDefault=true), supplement with click-select here
+							if (
+								dragging &&
+								event.button === 0 &&
+								!visit &&
+								Math.abs(event.clientX - mouseDownX) <= 4 &&
+								Math.abs(event.clientY - mouseDownY) <= 4
+							) {
+								selectAtomOnClick(view, event);
+							}
+							dragging = false;
+							resetVisit();
+							return false;
+						},
+						contextmenu(view, event) {
+							// Some browsers still fire contextmenu; restore the selection then allow the menu
+							if (!preservedOnRightClick) return false;
+							restorePreservedSelection(view, preservedOnRightClick);
+							scheduleRestorePreserved(view);
+							const snap = preservedOnRightClick;
+							queueMicrotask(() => {
+								if (preservedOnRightClick === snap) {
+									restorePreservedSelection(view, snap);
+									preservedOnRightClick = null;
+								}
+							});
+							void event;
+							return false;
+						},
+						mousemove(view, event) {
+							if (!dragging || event.buttons !== 1 || !view.editable) return false;
+							trackAtomUnderPointer(view, event.clientX, event.clientY);
+							return false;
+						}
+					},
+					decorations(state) {
+						const sel = state.selection;
+						if (sel.empty) return null;
+
+						const decos: Decoration[] = [];
+
+						if (sel instanceof NodeSelection) {
+							if (isAcrossSelectableNode(sel.node)) {
+								decos.push(
+									Decoration.node(sel.from, sel.to, {
+										class: 'ProseMirror-selectednode'
+									})
+								);
+							}
+						} else {
+							state.doc.nodesBetween(sel.from, sel.to, (node, pos) => {
+								if (!isAcrossSelectableNode(node)) return;
+								if (sel.from <= pos && sel.to >= pos + node.nodeSize) {
+									decos.push(
+										Decoration.node(pos, pos + node.nodeSize, {
+											class: 'ProseMirror-selectednode'
+										})
+									);
+								}
+							});
+						}
+
+						return decos.length ? DecorationSet.create(state.doc, decos) : null;
+					}
+				},
+				view(editorView) {
+					const onMove = (event: MouseEvent) => {
+						if (!dragging || event.buttons !== 1 || !editorView.editable) return;
+						// Re-merge after PM has processed mousemove (which may have pulled the selection outside the atom)
+						trackAtomUnderPointer(editorView, event.clientX, event.clientY);
+						requestAnimationFrame(() => {
+							if (!dragging || event.buttons !== 1) return;
+							trackAtomUnderPointer(editorView, event.clientX, event.clientY);
+						});
+					};
+					const onUp = (event: MouseEvent) => {
+						if (event.button === 2 && preservedOnRightClick) {
+							restorePreservedSelection(editorView, preservedOnRightClick);
+							scheduleRestorePreserved(editorView);
+							preservedOnRightClick = null;
+						}
+						if (dragging && visit) {
+							const threshold = effectivePenetrationThreshold(visit.dom.getBoundingClientRect());
+							if (!visit.included && visit.maxPenetration >= threshold) {
+								includeAtomInDragSelection(editorView, visit.nodeStart, visit.nodeEnd);
+							}
+						}
+						if (
+							dragging &&
+							event.button === 0 &&
+							!visit &&
+							Math.abs(event.clientX - mouseDownX) <= 4 &&
+							Math.abs(event.clientY - mouseDownY) <= 4
+						) {
+							selectAtomOnClick(editorView, event);
+						}
+						dragging = false;
+						resetVisit();
+					};
+					window.addEventListener('mousemove', onMove);
+					window.addEventListener('mouseup', onUp);
+					return {
+						destroy() {
+							window.removeEventListener('mousemove', onMove);
+							window.removeEventListener('mouseup', onUp);
+							if (restoreRaf) cancelAnimationFrame(restoreRaf);
+						}
+					};
+				}
+			})
+		];
+	}
+});
+
+=== 4210 src/lib/edra/tiptap/extensions/ai/index.ts	ts	module	-
+import { type Editor, Mark, markInputRule, markPasteRule, mergeAttributes } from '@tiptap/core';
+
+export interface AIHighlightOptions {
+	HTMLAttributes: Record<string, string>;
+	callAI:
+		| ((
+				prompt: string,
+				onChunk: (chunk: string) => void,
+				onError: (error: Error) => void
+		  ) => Promise<void>)
+		| null;
+}
+
+declare module '@tiptap/core' {
+	interface Commands<ReturnType> {
+		AIHighlight: {
+			/**
+			 * Set a AIHighlight mark
+			 */
+			setAIHighlight: (attributes?: { color: string }) => ReturnType;
+			/**
+			 * Toggle a AIHighlight mark
+			 */
+			toggleAIHighlight: (attributes?: { color: string }) => ReturnType;
+			/**
+			 * Unset a AIHighlight mark
+			 */
+			unsetAIHighlight: () => ReturnType;
+		};
+	}
+}
+
+export const inputRegex = /(?:^|\s)((?:==)((?:[^~=]+))(?:==))$/;
+export const pasteRegex = /(?:^|\s)((?:==)((?:[^~=]+))(?:==))/g;
+
+export const AIHighlight = Mark.create<AIHighlightOptions>({
+	name: 'ai-highlight',
+
+	addOptions() {
+		return {
+			HTMLAttributes: {},
+			callAI: null
+		};
+	},
+
+	addAttributes() {
+		return {
+			color: {
+				default: null,
+				parseHTML: (element) => element.getAttribute('data-color') || element.style.backgroundColor,
+				renderHTML: (attributes) => {
+					if (!attributes.color) {
+						return {};
+					}
+
+					return {
+						'data-color': attributes.color,
+						style: `background-color: ${attributes.color}; color: inherit`
+					};
+				}
+			}
+		};
+	},
+
+	parseHTML() {
+		return [
+			{
+				tag: 'mark'
+			}
+		];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return ['mark', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+	},
+
+	addCommands() {
+		return {
+			setAIHighlight:
+				(attributes) =>
+				({ commands }) => {
+					return commands.setMark(this.name, attributes);
+				},
+			toggleAIHighlight:
+				(attributes) =>
+				({ commands }) => {
+					return commands.toggleMark(this.name, attributes);
+				},
+			unsetAIHighlight:
+				() =>
+				({ commands }) => {
+					return commands.unsetMark(this.name);
+				}
+		};
+	},
+
+	addKeyboardShortcuts() {
+		return {
+			'Mod-Shift-ai': () => this.editor.commands.toggleAIHighlight(),
+			// Space bar activation on new line
+			Space: () => {
+				const { state } = this.editor;
+				const { selection } = state;
+				const { $from } = selection;
+
+				// Check if we're at the start of a line
+				const isAtStart = $from.parentOffset === 0;
+
+				// Check if the line is empty (only contains this position)
+				const isEmpty = $from.parent.textContent.length === 0;
+
+				if (isAtStart && isEmpty) {
+					// Insert a space character first
+					this.editor.commands.insertContent(' ');
+					// Select the space we just inserted
+					const pos = this.editor.state.selection.$from.pos;
+					this.editor.commands.setTextSelection({ from: pos - 1, to: pos });
+					// Apply transparent highlight
+					this.editor.commands.setAIHighlight({ color: 'transparent' });
+					// Move cursor to the end of the selection
+					this.editor.commands.focus();
+					return true;
+				}
+
+				// Return false to allow default space behavior
+				return false;
+			}
+		};
+	},
+
+	addInputRules() {
+		return [
+			markInputRule({
+				find: inputRegex,
+				type: this.type
+			})
+		];
+	},
+
+	addPasteRules() {
+		return [
+			markPasteRule({
+				find: pasteRegex,
+				type: this.type
+			})
+		];
+	}
+});
+
+export const removeAIHighlight = (editor: Editor) => {
+	let hasMark = false;
+	editor.state.doc.descendants((node) => {
+		if (node.marks.some((mark) => mark.type.name === 'ai-highlight')) {
+			hasMark = true;
+			return false;
+		}
+	});
+	if (!hasMark) return;
+
+	const tr = editor.state.tr;
+	tr.removeMark(0, editor.state.doc.nodeSize - 2, editor.state.schema.marks['ai-highlight']);
+	editor.view.dispatch(tr);
+};
+export const addAIHighlight = (editor: Editor, color?: string) => {
+	const { from, to } = editor.state.selection;
+	if (from === to) {
+		const $pos = editor.state.doc.resolve(from);
+		const depth = $pos.depth;
+		const blockFrom = $pos.start(depth);
+		const blockTo = $pos.end(depth);
+		editor
+			.chain()
+			.setTextSelection({ from: blockFrom, to: blockTo })
+			.setAIHighlight({ color: color ?? '#c1ecf970' })
+			.run();
+	} else {
+		editor
+			.chain()
+			.setAIHighlight({ color: color ?? '#c1ecf970' })
+			.run();
+	}
+};
+
+=== 1665 src/lib/edra/tiptap/extensions/audio/index.ts	ts	module	-
+import { Node, nodeInputRule } from '@tiptap/core';
+
+export interface AudioOptions {
+	HTMLAttributes: Record<string, unknown>;
+}
+
+declare module '@tiptap/core' {
+	interface Commands<ReturnType> {
+		audio: {
+			/**
+			 * Set a audio node
+			 */
+			setAudio: ({ src }: { src: string }) => ReturnType;
+			/**
+			 * Remove a audio
+			 */
+			removeAudio: () => ReturnType;
+		};
+	}
+}
+
+const AUDIO_INPUT_REGEX = /!\[(.+|:?)]\((\S+)(?:(?:\s+)["'](\S+)["'])?\)/;
+
+export const Audio = Node.create<AudioOptions>({
+	name: 'audio',
+	group: 'block',
+	draggable: true,
+	isolating: true,
+	atom: true,
+	addOptions() {
+		return {
+			HTMLAttributes: {}
+		};
+	},
+	addAttributes() {
+		return {
+			src: {
+				default: null,
+				parseHTML: (el) => (el as HTMLSpanElement).getAttribute('src'),
+				renderHTML: (attrs) => ({ src: attrs.src })
+			}
+		};
+	},
+	parseHTML() {
+		return [
+			{
+				tag: 'audio',
+				getAttrs: (el) => ({ src: (el as HTMLAudioElement).getAttribute('src') })
+			}
+		];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return [
+			'audio',
+			{ controls: 'true', style: 'width: 100%;', ...HTMLAttributes },
+			['source', HTMLAttributes]
+		];
+	},
+	addCommands() {
+		return {
+			setAudio:
+				({ src }: { src: string }) =>
+				({ commands }) =>
+					commands.insertContent(
+						`<audio preload="none" controls autoplay="false" style="width: 100%;" src="${src}"/>`
+					),
+
+			removeAudio:
+				() =>
+				({ commands }) =>
+					commands.deleteNode(this.name)
+		};
+	},
+	addInputRules() {
+		return [
+			nodeInputRule({
+				find: AUDIO_INPUT_REGEX,
+				type: this.type,
+				getAttributes: (match) => {
+					const [, , src] = match;
+
+					return { src };
+				}
+			})
+		];
+	}
+});
+
+=== 3443 src/lib/edra/tiptap/extensions/iframe/index.ts	ts	module	-
+import { Node, type NodeViewProps } from '@tiptap/core';
+import { Plugin, PluginKey } from '@tiptap/pm/state';
+import { SvelteNodeViewRenderer } from '../../index.ts';
+import type { Component } from 'svelte';
+
+export interface IframeOptions {
+	allowFullscreen: boolean;
+	HTMLAttributes: {
+		[key: string]: unknown;
+	};
+}
+
+declare module '@tiptap/core' {
+	interface Commands<ReturnType> {
+		iframe: {
+			/**
+			 * Add an iframe with src
+			 */
+			setIframe: (options: { src: string }) => ReturnType;
+			removeIframe: () => ReturnType;
+		};
+	}
+}
+
+const IFrame = Node.create<IframeOptions>({
+	name: 'iframe',
+
+	group: 'block',
+
+	atom: true,
+
+	addOptions() {
+		return {
+			allowFullscreen: true,
+			HTMLAttributes: {
+				class: 'iframe-wrapper'
+			}
+		};
+	},
+
+	addAttributes() {
+		return {
+			src: {
+				default: null
+			},
+			frameborder: {
+				default: 0
+			},
+			allowfullscreen: {
+				default: this.options.allowFullscreen,
+				parseHTML: () => this.options.allowFullscreen
+			}
+		};
+	},
+
+	parseHTML() {
+		return [
+			{
+				tag: 'iframe'
+			}
+		];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return ['div', this.options.HTMLAttributes, ['iframe', HTMLAttributes]];
+	},
+
+	addCommands() {
+		return {
+			setIframe:
+				(options: { src: string }) =>
+				({ tr, dispatch }) => {
+					const { selection } = tr;
+					const node = this.type.create(options);
+
+					if (dispatch) {
+						tr.replaceRangeWith(selection.from, selection.to, node);
+					}
+
+					return true;
+				},
+			removeIframe:
+				() =>
+				({ commands }) =>
+					commands.deleteNode(this.name)
+		};
+	},
+
+	addProseMirrorPlugins() {
+		return [
+			new Plugin({
+				key: new PluginKey('iframePasteHandler'),
+				props: {
+					handlePaste: (view, event) => {
+						const text = event.clipboardData?.getData('text/plain');
+						if (!text) {
+							return false;
+						}
+
+						const trimmed = text.trim();
+						if (trimmed.includes('<iframe') && trimmed.includes('</iframe>')) {
+							try {
+								const parser = new DOMParser();
+								const htmlDoc = parser.parseFromString(trimmed, 'text/html');
+								const iframeEl = htmlDoc.querySelector('iframe');
+								if (iframeEl) {
+									const src = iframeEl.getAttribute('src');
+									if (src) {
+										const { state, dispatch } = view;
+										const { selection } = state;
+										const node = this.type.create({
+											src,
+											width: iframeEl.getAttribute('width') || '100%',
+											height: iframeEl.getAttribute('height') || null,
+											title: iframeEl.getAttribute('title') || null,
+											alt: iframeEl.getAttribute('alt') || null,
+											align: iframeEl.getAttribute('align') || 'left'
+										});
+										if (dispatch) {
+											const tr = state.tr.replaceRangeWith(selection.from, selection.to, node);
+											dispatch(tr);
+										}
+										return true;
+									}
+								}
+							} catch (e) {
+								console.error('Failed to parse pasted iframe HTML:', e);
+							}
+						}
+						return false;
+					}
+				}
+			})
+		];
+	}
+});
+
+export const IFrameExtended = (component: Component<NodeViewProps>) =>
+	IFrame.extend({
+		addAttributes() {
+			return {
+				src: {
+					default: null
+				},
+				alt: {
+					default: null
+				},
+				title: {
+					default: null
+				},
+				width: {
+					default: '100%'
+				},
+				height: {
+					default: null
+				},
+				align: {
+					default: 'left'
+				}
+			};
+		},
+
+		addNodeView: () => {
+			return SvelteNodeViewRenderer(component);
+		}
+	});
+
+=== 742 src/lib/edra/tiptap/extensions/image/ImageExtended.ts	ts	module	-
+import type { Node, NodeViewProps } from '@tiptap/core';
+import Image, { type ImageOptions } from '@tiptap/extension-image';
+import { SvelteNodeViewRenderer } from '../../index.ts';
+import type { Component } from 'svelte';
+
+export const ImageExtended = (component: Component<NodeViewProps>): Node<ImageOptions, unknown> => {
+	return Image.extend({
+		addAttributes() {
+			return {
+				src: {
+					default: null
+				},
+				alt: {
+					default: null
+				},
+				title: {
+					default: null
+				},
+				width: {
+					default: '100%'
+				},
+				height: {
+					default: null
+				},
+				align: {
+					default: 'left'
+				}
+			};
+		},
+		addNodeView: () => {
+			return SvelteNodeViewRenderer(component);
+		}
+	}).configure({
+		allowBase64: false
+	});
+};
+
+=== 620 src/lib/edra/tiptap/extensions/index.ts	ts	module	-
+import ColorHighlighter from './ColorHighlighter.ts';
+export { ColorHighlighter };
+export * from './table/index.ts';
+export * from './image/ImageExtended.ts';
+export * from './video/VideoExtended.ts';
+export * from './iframe/index.js';
+export * from './mermaid/index.js';
+export { default as SlashCommand } from './slash/index.js';
+export * from './ai/index.js';
+export * from './Callout.ts';
+export * from './audio/index.js';
+export {
+	SelectAcrossAtoms,
+	ATOM_SLIGHT_PENETRATION_PX,
+	selectionCoveringNode,
+	includeAtomInDragSelection,
+	excludeAtomFromDragSelection,
+	resolveAtomLeave
+} from './SelectAcrossAtoms.ts';
+
+=== 2485 src/lib/edra/tiptap/extensions/mermaid/index.ts	ts	module	-
+import {
+	mergeAttributes,
+	Node,
+	textblockTypeInputRule,
+	type NodeViewProps,
+	type JSONContent,
+	type MarkdownToken,
+	type MarkdownLexerConfiguration,
+	type MarkdownParseHelpers,
+	type MarkdownRendererHelpers,
+	type RenderContext
+} from '@tiptap/core';
+import { SvelteNodeViewRenderer } from '../../index.ts';
+import type { Component } from 'svelte';
+
+declare module '@tiptap/core' {
+	interface Commands<ReturnType> {
+		mermaid: {
+			setMermaid: (code?: string) => ReturnType;
+		};
+	}
+}
+
+export const Mermaid = (component: Component<NodeViewProps>) =>
+	Node.create({
+		name: 'mermaid',
+		group: 'block',
+		content: 'text*',
+		atom: true,
+		code: true,
+		defining: true,
+		isolating: true,
+		draggable: true,
+
+		addAttributes() {
+			return {
+				HTMLAttributes: {
+					default: {}
+				}
+			};
+		},
+
+		markdownTokenizer: {
+			name: 'mermaid',
+			level: 'block',
+
+			start: (src: string) => {
+				return src.indexOf(':::');
+			},
+
+			tokenize: (src: string, _tokens: MarkdownToken[], lexer: MarkdownLexerConfiguration) => {
+				// Match :::mermaid\ncontent\n:::
+				const match = /^:::mermaid\n([\s\S]*?)\n:::/.exec(src);
+
+				if (!match) {
+					return undefined;
+				}
+
+				return {
+					type: 'mermaid',
+					raw: match[0],
+					text: match[1], // Content
+					tokens: lexer.blockTokens(match[1]) // Parse block content
+				};
+			}
+		},
+
+		parseMarkdown: (token: MarkdownToken, _helpers: MarkdownParseHelpers) => {
+			return {
+				type: 'mermaid',
+				content: [
+					{
+						type: 'text',
+						text: token.text ?? ''
+					}
+				]
+			};
+		},
+		renderMarkdown: (node: JSONContent, helpers: MarkdownRendererHelpers, _ctx: RenderContext) => {
+			return `:::mermaid\n${helpers.renderChildren(node)}\n:::\n\n`;
+		},
+
+		parseHTML() {
+			return [
+				{
+					tag: `div[data-type="${this.name}"]`,
+					preserveWhitespace: 'full'
+				}
+			];
+		},
+
+		renderHTML({ HTMLAttributes }) {
+			return [
+				'div',
+				mergeAttributes({ 'data-type': this.name }, this.options.HTMLAttributes, HTMLAttributes),
+				0
+			];
+		},
+
+		addCommands() {
+			return {
+				setMermaid:
+					(code) =>
+					({ commands }) => {
+						return commands.insertContent({
+							type: this.name,
+							content: [
+								{
+									type: 'text',
+									text: code || ''
+								}
+							]
+						});
+					}
+			};
+		},
+
+		addInputRules() {
+			return [
+				textblockTypeInputRule({
+					find: /^:::mermaid$/,
+					type: this.type
+				})
+			];
+		},
+
+		addNodeView() {
+			return SvelteNodeViewRenderer(component);
+		}
+	});
+
+=== 7743 src/lib/edra/tiptap/extensions/slash/index.ts	ts	module	-
+import Minus from '@lucide/svelte/icons/minus';
+import Quote from '@lucide/svelte/icons/quote';
+import SquareCode from '@lucide/svelte/icons/square-code';
+import { commands, type EdraCommand } from '../../../commands/index.js';
+import { autoUpdate, computePosition, flip, offset, type Placement } from '@floating-ui/dom';
+import { Extension } from '@tiptap/core';
+import type { Editor } from '../../../tiptap/index.js';
+import { EditorState, PluginKey } from '@tiptap/pm/state';
+import Suggestion, { type SuggestionKeyDownProps, type SuggestionProps } from '@tiptap/suggestion';
+import type { Component } from 'svelte';
+import { SvelteRenderer } from '../../index.ts';
+import Lightbulb from '@lucide/svelte/icons/lightbulb';
+
+interface Group {
+	name: string;
+	title: string;
+	actions: EdraCommand[];
+}
+
+const GROUPS: Group[] = [
+	{
+		name: 'format',
+		title: 'Format',
+		actions: [
+			...commands.headings,
+			{
+				icon: Quote,
+				name: 'blockquote',
+				tooltip: 'Blockquote',
+				onClick: (editor: Editor) => {
+					editor.chain().focus().setBlockquote().run();
+				}
+			},
+			{
+				icon: SquareCode,
+				name: 'codeBlock',
+				tooltip: 'Code Block',
+				onClick: (editor: Editor) => {
+					editor.chain().focus().setCodeBlock().run();
+				}
+			},
+			...commands.lists
+		]
+	},
+	{
+		name: 'insert',
+		title: 'Insert',
+		actions: [
+			...commands.media,
+			...commands.table,
+			...commands.math,
+			...commands.diagram,
+			{
+				icon: Minus,
+				name: 'horizontalRule',
+				tooltip: 'Horizontal Rule',
+				onClick: (editor: Editor) => {
+					editor.chain().focus().setHorizontalRule().run();
+				}
+			},
+			{
+				icon: Lightbulb,
+				name: 'callOut',
+				tooltip: 'Callout',
+				onClick: (editor: Editor) => {
+					editor.chain().focus().setCallout().run();
+				}
+			}
+		]
+	}
+];
+
+const extensionName = 'slashCommand';
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export default (menuList: Component<any, any, ''>): Extension =>
+	Extension.create({
+		name: extensionName,
+
+		priority: 200,
+
+		addStorage() {
+			return {
+				rect: {
+					width: 0,
+					height: 0,
+					left: 0,
+					top: 0,
+					right: 0,
+					bottom: 0
+				},
+				// Instance-scoped popup state (no module-level singleton)
+				popupElement: null as HTMLElement | null,
+				popupCleanup: null as (() => void) | null
+			};
+		},
+
+		onCreate() {
+			// Create popup container scoped to this editor instance
+			const el = document.createElement('div');
+			el.style.position = 'fixed';
+			el.style.zIndex = '9999';
+			el.style.maxWidth = '16rem';
+			el.style.visibility = 'hidden';
+			el.style.pointerEvents = 'none';
+			el.className = 'slash-command-popup';
+			document.body.appendChild(el);
+			this.storage.popupElement = el;
+		},
+
+		onDestroy() {
+			this.storage.popupCleanup?.();
+			this.storage.popupElement?.remove();
+			this.storage.popupElement = null;
+			this.storage.popupCleanup = null;
+		},
+
+		addProseMirrorPlugins() {
+			const storage = this.storage;
+
+			return [
+				Suggestion({
+					editor: this.editor,
+					char: '/',
+					allowSpaces: true,
+					pluginKey: new PluginKey(extensionName),
+					allow: ({
+						state,
+						range
+					}: {
+						state: EditorState;
+						range: { from: number; to: number };
+					}) => {
+						const $from = state.doc.resolve(range.from);
+						const afterContent = $from.parent.textContent?.substring(
+							$from.parent.textContent?.indexOf('/')
+						);
+						const isValidAfterContent = !afterContent?.endsWith('  ');
+
+						return isValidAfterContent;
+					},
+					command: ({ editor, range, props }) => {
+						// Use Suggestion's provided range to cleanly delete the /query text
+						// instead of manual positional math.
+						editor.chain().focus().deleteRange(range).run();
+						props.onClick?.(editor);
+					},
+					items: ({ query }: { query: string }) => {
+						const queryNormalized = query.toLowerCase().trim();
+
+						return GROUPS.map((group) => ({
+							...group,
+							commands: group.actions.filter((item) =>
+								item.tooltip!.toLowerCase().trim().includes(queryNormalized)
+							)
+						})).filter((group) => group.commands.length > 0);
+					},
+					render: () => {
+						// eslint-disable-next-line @typescript-eslint/no-explicit-any
+						let component: any;
+						let currentClientRect: (() => DOMRect | null) | null = null;
+						let contextElement: Element | null = null;
+
+						const updatePosition = () => {
+							if (!storage.popupElement || !currentClientRect) return;
+
+							const rect = currentClientRect();
+							if (!rect) return;
+
+							const referenceElement = {
+								getBoundingClientRect: () => rect,
+								...(contextElement ? { contextElement } : {})
+							};
+
+							computePosition(referenceElement, storage.popupElement, {
+								placement: 'bottom-start' as Placement,
+								strategy: 'fixed',
+								middleware: [
+									offset({ mainAxis: 8, crossAxis: 16 }),
+									flip({ fallbackPlacements: ['top-start', 'bottom-start'] })
+								]
+							}).then(({ x, y }: { x: number; y: number }) => {
+								if (storage.popupElement) {
+									storage.popupElement.style.left = `${x}px`;
+									storage.popupElement.style.top = `${y}px`;
+								}
+							});
+						};
+
+						return {
+							onStart: (props: SuggestionProps) => {
+								component = new SvelteRenderer(menuList, {
+									props: { ...props }
+								});
+
+								currentClientRect = props.clientRect ?? null;
+								contextElement = props.editor.view.dom;
+
+								if (storage.popupElement) {
+									storage.popupElement.appendChild(component.element);
+									storage.popupElement.style.visibility = 'visible';
+									storage.popupElement.style.pointerEvents = 'auto';
+
+									updatePosition();
+
+									// autoUpdate handles scroll and resize repositioning —
+									// no manual scroll listener needed.
+									if (currentClientRect) {
+										storage.popupCleanup = autoUpdate(
+											{
+												getBoundingClientRect: () => currentClientRect?.() || new DOMRect(),
+												...(contextElement ? { contextElement } : {})
+											},
+											storage.popupElement,
+											updatePosition
+										);
+									}
+								}
+							},
+
+							onUpdate(props: SuggestionProps) {
+								component.updateProps(props);
+								currentClientRect = props.clientRect ?? null;
+								contextElement = props.editor.view.dom;
+
+								// Re-show popup if it was hidden (e.g., after Escape)
+								if (storage.popupElement) {
+									storage.popupElement.style.visibility = 'visible';
+									storage.popupElement.style.pointerEvents = 'auto';
+								}
+
+								updatePosition();
+
+								if (currentClientRect) {
+									const rect = currentClientRect();
+									if (rect) {
+										storage.rect = rect;
+									}
+								}
+							},
+
+							onKeyDown(props: SuggestionKeyDownProps) {
+								if (props.event.key === 'Escape') {
+									if (storage.popupElement) {
+										storage.popupElement.style.visibility = 'hidden';
+										storage.popupElement.style.pointerEvents = 'none';
+									}
+									return true;
+								}
+
+								// Delegate keyboard handling to the mounted Svelte component
+								// instead of relying on a global <svelte:window> listener.
+								return component.ref?.handleKeyDown?.(props.event) ?? false;
+							},
+
+							onExit() {
+								if (storage.popupElement) {
+									storage.popupElement.style.visibility = 'hidden';
+									storage.popupElement.style.pointerEvents = 'none';
+									storage.popupElement.innerHTML = '';
+								}
+
+								if (storage.popupCleanup) {
+									storage.popupCleanup();
+									storage.popupCleanup = null;
+								}
+
+								currentClientRect = null;
+								contextElement = null;
+								component?.destroy();
+							}
+						};
+					}
+				})
+			];
+		}
+	});
+
+=== 201 src/lib/edra/tiptap/extensions/table/index.ts	ts	module	-
+export { Table } from './table.js';
+export { TableCell } from './table-cell.js';
+export { TableHeader } from './table-header.js';
+export { TableRow } from './table-row.js';
+export * from './utils.js';
+
+=== 10740 src/lib/edra/tiptap/extensions/table/table-cell.ts	ts	module	-
+import { mergeAttributes, Node } from '@tiptap/core';
+import { Plugin } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import strings from '../../../strings.ts';
+
+import { getCellsInColumn, isRowSelected, selectRow } from './utils.js';
+
+export interface TableCellOptions {
+	HTMLAttributes: Record<string, unknown>;
+}
+
+export const TableCell = Node.create<TableCellOptions>({
+	name: 'tableCell',
+
+	content: 'block+',
+	tableRole: 'cell',
+
+	isolating: true,
+
+	addOptions() {
+		return {
+			HTMLAttributes: {}
+		};
+	},
+
+	parseHTML() {
+		return [{ tag: 'td' }];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return ['td', mergeAttributes(this.options.HTMLAttributes, HTMLAttributes), 0];
+	},
+
+	addAttributes() {
+		return {
+			colspan: {
+				default: 1,
+				parseHTML: (element) => {
+					const colspan = element.getAttribute('colspan');
+					const value = colspan ? Number.parseInt(colspan, 10) : 1;
+
+					return value;
+				}
+			},
+			rowspan: {
+				default: 1,
+				parseHTML: (element) => {
+					const rowspan = element.getAttribute('rowspan');
+					const value = rowspan ? Number.parseInt(rowspan, 10) : 1;
+
+					return value;
+				}
+			},
+			colwidth: {
+				default: null,
+				parseHTML: (element) => {
+					const colwidth = element.getAttribute('colwidth');
+					const value = colwidth ? [Number.parseInt(colwidth, 10)] : null;
+
+					return value;
+				}
+			},
+			style: {
+				default: null
+			}
+		};
+	},
+
+	addProseMirrorPlugins() {
+		const { isEditable } = this.editor;
+
+		return [
+			new Plugin({
+				props: {
+					decorations: (state) => {
+						if (!isEditable) {
+							return DecorationSet.empty;
+						}
+
+						const { doc, selection } = state;
+						const decorations: Decoration[] = [];
+						const firstColCells = getCellsInColumn(0)(selection);
+						// const allCells = getCellsInTable(selection);
+
+						// Row grips (left edge) — appear for first column cells
+						if (firstColCells) {
+							firstColCells.forEach(({ pos }: { pos: number }, index: number) => {
+								decorations.push(
+									Decoration.widget(pos + 1, () => {
+										const rowSelected = isRowSelected(index)(selection);
+										let className = 'grip-row';
+
+										if (rowSelected) {
+											className += ' selected';
+										}
+
+										if (index === 0) {
+											className += ' first';
+										}
+
+										if (index === firstColCells.length - 1) {
+											className += ' last';
+										}
+
+										const grip = document.createElement('a');
+
+										grip.className = className;
+										grip.setAttribute('role', 'button');
+										grip.setAttribute('aria-label', strings.extension.table.selectRow);
+										grip.setAttribute('tabindex', '0');
+										grip.dataset.rowIndex = String(index);
+										grip.addEventListener('mousedown', (event) => {
+											event.preventDefault();
+											event.stopImmediatePropagation();
+
+											this.editor.view.dispatch(selectRow(index)(this.editor.state.tr));
+										});
+
+										return grip;
+									})
+								);
+							});
+						}
+
+						// Cell grips — small handles inside each cell for single-cell selection
+						// if (allCells) {
+						// 	allCells.forEach(({ pos }: { pos: number }) => {
+						// 		decorations.push(
+						// 			Decoration.widget(pos + 1, () => {
+						// 				const grip = document.createElement('a');
+						// 				grip.className = 'grip-cell';
+						// 				grip.setAttribute('role', 'button');
+						// 				grip.setAttribute('aria-label', strings.extension.table.selectCell);
+						// 				grip.setAttribute('tabindex', '0');
+						// 				grip.addEventListener('mousedown', (event) => {
+						// 					event.preventDefault();
+						// 					event.stopImmediatePropagation();
+
+						// 					const tr = this.editor.state.tr;
+						// 					const $cell = tr.doc.resolve(pos);
+						// 					// Select just this cell
+						// 					tr.setSelection(new CellSelection($cell, $cell));
+						// 					this.editor.view.dispatch(tr);
+						// 				});
+
+						// 				return grip;
+						// 			})
+						// 		);
+						// 	});
+						// }
+
+						// Add-row "+" button — anchored to the last row (first column)
+						if (firstColCells && firstColCells.length > 0) {
+							const lastRowCell = firstColCells[firstColCells.length - 1];
+							decorations.push(
+								Decoration.widget(lastRowCell.pos + 1, () => {
+									const btn = document.createElement('button');
+									btn.className = 'add-row-btn';
+									btn.type = 'button';
+									btn.setAttribute('aria-label', strings.extension.table.addRow);
+									btn.setAttribute('title', strings.extension.table.addRowAfter);
+									btn.textContent = '+';
+									btn.addEventListener('mousedown', (event) => {
+										event.preventDefault();
+										event.stopImmediatePropagation();
+										// Select last row, then add after
+										this.editor.view.dispatch(
+											selectRow(firstColCells.length - 1)(this.editor.state.tr)
+										);
+										this.editor.chain().focus().addRowAfter().run();
+									});
+									return btn;
+								})
+							);
+						}
+
+						return DecorationSet.create(doc, decorations);
+					}
+				}
+			}),
+			// Interaction plugin to toggle visibility of row grips based on hover/click
+			new Plugin({
+				props: {
+					handleDOMEvents: {
+						mousemove: (view, event) => {
+							const target = event.target as HTMLElement;
+							const cell = target.closest('td, th');
+							const table = target.closest('table');
+							if (!cell || !table) return false;
+							const rowIndex = (cell.parentElement as HTMLTableRowElement).rowIndex;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-row');
+							grips.forEach((g, idx) => {
+								if (idx === rowIndex) g.classList.add('show-row-grip');
+								else g.classList.remove('show-row-grip');
+							});
+							// Toggle add-row visibility only for last row hover
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) {
+								const lastIndex = table.rows.length ? table.rows.length - 1 : -1;
+								if (rowIndex === lastIndex) wrapper.classList.add('last-row-hover');
+								else wrapper.classList.remove('last-row-hover');
+							}
+							return false;
+						},
+						focusin: (view, event) => {
+							const target = event.target as HTMLElement;
+							const cell = target.closest('td, th');
+							const table = target.closest('table');
+							if (!cell || !table) return false;
+							const rowIndex = (cell.parentElement as HTMLTableRowElement).rowIndex;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-row');
+							grips.forEach((g, idx) => {
+								if (idx === rowIndex) g.classList.add('show-row-grip');
+								else g.classList.remove('show-row-grip');
+							});
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) {
+								const lastIndex = table.rows.length ? table.rows.length - 1 : -1;
+								if (rowIndex === lastIndex) wrapper.classList.add('last-row-hover');
+								else wrapper.classList.remove('last-row-hover');
+							}
+							return false;
+						},
+						mousedown: (view, event) => {
+							const target = event.target as HTMLElement;
+							const cell = target.closest('td, th');
+							const table = target.closest('table');
+							if (!cell || !table) return false;
+							const rowIndex = (cell.parentElement as HTMLTableRowElement).rowIndex;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-row');
+							grips.forEach((g, idx) => {
+								if (idx === rowIndex) g.classList.add('show-row-grip');
+								else g.classList.remove('show-row-grip');
+							});
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) {
+								const lastIndex = table.rows.length ? table.rows.length - 1 : -1;
+								if (rowIndex === lastIndex) wrapper.classList.add('last-row-hover');
+								else wrapper.classList.remove('last-row-hover');
+							}
+							return false;
+						},
+						mouseleave: (view, event) => {
+							const table = (event.target as HTMLElement).closest('table');
+							if (!table) return false;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-row');
+							grips.forEach((g) => g.classList.remove('show-row-grip'));
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) wrapper.classList.remove('last-row-hover');
+							return false;
+						},
+						mouseout: (view, event) => {
+							const target = event.target as HTMLElement;
+							const table = target.closest('table');
+							const to = (event as MouseEvent).relatedTarget as HTMLElement | null;
+							if (!table) return false;
+							if (!to || !to.closest('table') || to.closest('table') !== table) {
+								const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-row');
+								grips.forEach((g) => g.classList.remove('show-row-grip'));
+								const wrapper = table.closest('.tableWrapper');
+								if (wrapper) wrapper.classList.remove('last-row-hover');
+							}
+							return false;
+						},
+						touchstart: (view, event) => {
+							const target = (event as TouchEvent).target as HTMLElement;
+							const cell = target.closest('td, th');
+							const table = target.closest('table');
+							if (!cell || !table) return false;
+							const rowIndex = (cell.parentElement as HTMLTableRowElement).rowIndex;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-row');
+							grips.forEach((g, idx) => {
+								if (idx === rowIndex) g.classList.add('show-row-grip');
+								else g.classList.remove('show-row-grip');
+							});
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) {
+								const lastIndex = table.rows.length ? table.rows.length - 1 : -1;
+								if (rowIndex === lastIndex) wrapper.classList.add('last-row-hover');
+								else wrapper.classList.remove('last-row-hover');
+							}
+							return false;
+						},
+						touchmove: (view, event) => {
+							const target = (event as TouchEvent).target as HTMLElement;
+							const cell = target.closest('td, th');
+							const table = target.closest('table');
+							if (!cell || !table) return false;
+							const rowIndex = (cell.parentElement as HTMLTableRowElement).rowIndex;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-row');
+							grips.forEach((g, idx) => {
+								if (idx === rowIndex) g.classList.add('show-row-grip');
+								else g.classList.remove('show-row-grip');
+							});
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) {
+								const lastIndex = table.rows.length ? table.rows.length - 1 : -1;
+								if (rowIndex === lastIndex) wrapper.classList.add('last-row-hover');
+								else wrapper.classList.remove('last-row-hover');
+							}
+							return false;
+						}
+					}
+				}
+			})
+		];
+	}
+});
+
+=== 8903 src/lib/edra/tiptap/extensions/table/table-header.ts	ts	module	-
+import { TableHeader as TiptapTableHeader } from '@tiptap/extension-table';
+import { Plugin } from '@tiptap/pm/state';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+import strings from '../../../strings.js';
+
+import { getCellsInRow, isColumnSelected, selectColumn } from './utils.js';
+
+export const TableHeader = TiptapTableHeader.extend({
+	addAttributes() {
+		return {
+			colspan: {
+				default: 1
+			},
+			rowspan: {
+				default: 1
+			},
+			colwidth: {
+				default: null,
+				parseHTML: (element) => {
+					const colwidth = element.getAttribute('colwidth');
+					const value = colwidth
+						? colwidth.split(',').map((item) => Number.parseInt(item, 10))
+						: null;
+
+					return value;
+				}
+			},
+			style: {
+				default: null
+			}
+		};
+	},
+
+	addProseMirrorPlugins() {
+		const { isEditable } = this.editor;
+
+		return [
+			new Plugin({
+				props: {
+					decorations: (state) => {
+						if (!isEditable) {
+							return DecorationSet.empty;
+						}
+
+						const { doc, selection } = state;
+						const decorations: Decoration[] = [];
+						const cells = getCellsInRow(0)(selection);
+
+						if (cells) {
+							cells.forEach(({ pos }: { pos: number }, index: number) => {
+								decorations.push(
+									Decoration.widget(pos + 1, () => {
+										const colSelected = isColumnSelected(index)(selection);
+										let className = 'grip-column';
+
+										if (colSelected) {
+											className += ' selected';
+										}
+
+										if (index === 0) {
+											className += ' first';
+										}
+
+										if (index === cells.length - 1) {
+											className += ' last';
+										}
+
+										const grip = document.createElement('a');
+
+										grip.className = className;
+										grip.setAttribute('role', 'button');
+										grip.setAttribute('aria-label', strings.extension.table.selectColumn);
+										grip.setAttribute('tabindex', '0');
+										grip.dataset.colIndex = String(index);
+										grip.addEventListener('mousedown', (event) => {
+											event.preventDefault();
+											event.stopImmediatePropagation();
+
+											this.editor.view.dispatch(selectColumn(index)(this.editor.state.tr));
+										});
+
+										return grip;
+									})
+								);
+							});
+
+							// Add-column "+" button — anchored to the last column of the header row
+							const lastHeaderCell = cells[cells.length - 1];
+							decorations.push(
+								Decoration.widget(lastHeaderCell.pos + 1, () => {
+									const btn = document.createElement('button');
+									btn.className = 'add-column-btn';
+									btn.type = 'button';
+									btn.setAttribute('aria-label', strings.extension.table.addColumn);
+									btn.setAttribute('title', strings.extension.table.addColumnAfter);
+									btn.textContent = '+';
+									btn.addEventListener('mousedown', (event) => {
+										event.preventDefault();
+										event.stopImmediatePropagation();
+										// Select last column, then add after
+										this.editor.view.dispatch(selectColumn(cells.length - 1)(this.editor.state.tr));
+										this.editor.chain().focus().addColumnAfter().run();
+									});
+
+									return btn;
+								})
+							);
+						}
+
+						return DecorationSet.create(doc, decorations);
+					}
+				}
+			}),
+			// Interaction plugin to toggle visibility of column grips based on hover/click
+			new Plugin({
+				props: {
+					handleDOMEvents: {
+						mousemove: (view, event) => {
+							const target = event.target as HTMLElement;
+							const cell = target.closest('td, th');
+							const table = target.closest('table');
+							if (!cell || !table) return false;
+							const colIndex = (cell as HTMLTableCellElement).cellIndex;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-column');
+							grips.forEach((g, idx) => {
+								if (idx === colIndex) g.classList.add('show-col-grip');
+								else g.classList.remove('show-col-grip');
+							});
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) {
+								const lastIndex = table.rows[0]?.cells.length ? table.rows[0].cells.length - 1 : -1;
+								if (colIndex === lastIndex) wrapper.classList.add('last-column-hover');
+								else wrapper.classList.remove('last-column-hover');
+							}
+							return false;
+						},
+						focusin: (view, event) => {
+							const target = event.target as HTMLElement;
+							const cell = target.closest('td, th');
+							const table = target.closest('table');
+							if (!cell || !table) return false;
+							const colIndex = (cell as HTMLTableCellElement).cellIndex;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-column');
+							grips.forEach((g, idx) => {
+								if (idx === colIndex) g.classList.add('show-col-grip');
+								else g.classList.remove('show-col-grip');
+							});
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) {
+								const lastIndex = table.rows[0]?.cells.length ? table.rows[0].cells.length - 1 : -1;
+								if (colIndex === lastIndex) wrapper.classList.add('last-column-hover');
+								else wrapper.classList.remove('last-column-hover');
+							}
+							return false;
+						},
+						mousedown: (view, event) => {
+							const target = event.target as HTMLElement;
+							const cell = target.closest('td, th');
+							const table = target.closest('table');
+							if (!cell || !table) return false;
+							const colIndex = (cell as HTMLTableCellElement).cellIndex;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-column');
+							grips.forEach((g, idx) => {
+								if (idx === colIndex) g.classList.add('show-col-grip');
+								else g.classList.remove('show-col-grip');
+							});
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) {
+								const lastIndex = table.rows[0]?.cells.length ? table.rows[0].cells.length - 1 : -1;
+								if (colIndex === lastIndex) wrapper.classList.add('last-column-hover');
+								else wrapper.classList.remove('last-column-hover');
+							}
+							return false;
+						},
+						mouseleave: (view, event) => {
+							const table = (event.target as HTMLElement).closest('table');
+							if (!table) return false;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-column');
+							grips.forEach((g) => g.classList.remove('show-col-grip'));
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) wrapper.classList.remove('last-column-hover');
+							return false;
+						},
+						mouseout: (view, event) => {
+							const target = event.target as HTMLElement;
+							const table = target.closest('table');
+							const to = (event as MouseEvent).relatedTarget as HTMLElement | null;
+							if (!table) return false;
+							if (!to || !to.closest('table') || to.closest('table') !== table) {
+								const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-column');
+								grips.forEach((g) => g.classList.remove('show-col-grip'));
+								const wrapper = table.closest('.tableWrapper');
+								if (wrapper) wrapper.classList.remove('last-column-hover');
+							}
+							return false;
+						},
+						touchstart: (view, event) => {
+							const target = (event as TouchEvent).target as HTMLElement;
+							const cell = target.closest('td, th');
+							const table = target.closest('table');
+							if (!cell || !table) return false;
+							const colIndex = (cell as HTMLTableCellElement).cellIndex;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-column');
+							grips.forEach((g, idx) => {
+								if (idx === colIndex) g.classList.add('show-col-grip');
+								else g.classList.remove('show-col-grip');
+							});
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) {
+								const lastIndex = table.rows[0]?.cells.length ? table.rows[0].cells.length - 1 : -1;
+								if (colIndex === lastIndex) wrapper.classList.add('last-column-hover');
+								else wrapper.classList.remove('last-column-hover');
+							}
+							return false;
+						},
+						touchmove: (view, event) => {
+							const target = (event as TouchEvent).target as HTMLElement;
+							const cell = target.closest('td, th');
+							const table = target.closest('table');
+							if (!cell || !table) return false;
+							const colIndex = (cell as HTMLTableCellElement).cellIndex;
+							const grips = table.querySelectorAll<HTMLAnchorElement>('a.grip-column');
+							grips.forEach((g, idx) => {
+								if (idx === colIndex) g.classList.add('show-col-grip');
+								else g.classList.remove('show-col-grip');
+							});
+							const wrapper = table.closest('.tableWrapper');
+							if (wrapper) {
+								const lastIndex = table.rows[0]?.cells.length ? table.rows[0].cells.length - 1 : -1;
+								if (colIndex === lastIndex) wrapper.classList.add('last-column-hover');
+								else wrapper.classList.remove('last-column-hover');
+							}
+							return false;
+						}
+					}
+				}
+			})
+		];
+	}
+});
+
+export default TableHeader;
+
+=== 212 src/lib/edra/tiptap/extensions/table/table-row.ts	ts	module	-
+import { TableRow as TiptapTableRow } from '@tiptap/extension-table';
+
+export const TableRow = TiptapTableRow.extend({
+	allowGapCursor: false,
+	content: '(tableCell | tableHeader)*'
+});
+
+export default TableRow;
+
+=== 214 src/lib/edra/tiptap/extensions/table/table.ts	ts	module	-
+import { Table as TiptapTable } from '@tiptap/extension-table';
+
+export const Table = TiptapTable.configure({
+	resizable: true,
+	lastColumnResizable: true,
+	allowTableNodeSelection: true
+});
+
+export default Table;
+
+=== 15780 src/lib/edra/tiptap/extensions/table/utils.ts	ts	module	-
+import { type Editor, findParentNode, findParentNodeClosestToPos } from '@tiptap/core';
+import type { Node, ResolvedPos } from '@tiptap/pm/model';
+import type { EditorState, Selection, Transaction } from '@tiptap/pm/state';
+import { CellSelection, type Rect, TableMap } from '@tiptap/pm/tables';
+import type { EditorView } from '@tiptap/pm/view';
+import Table from './table.js';
+
+export const isRectSelected = (rect: Rect) => (selection: CellSelection) => {
+	const map = TableMap.get(selection.$anchorCell.node(-1));
+	const start = selection.$anchorCell.start(-1);
+	const cells = map.cellsInRect(rect);
+	const selectedCells = map.cellsInRect(
+		map.rectBetween(selection.$anchorCell.pos - start, selection.$headCell.pos - start)
+	);
+
+	for (let i = 0, count = cells.length; i < count; i += 1) {
+		if (selectedCells.indexOf(cells[i]) === -1) {
+			return false;
+		}
+	}
+
+	return true;
+};
+
+export const findTable = (selection: Selection) =>
+	findParentNode((node) => node.type.spec.tableRole && node.type.spec.tableRole === 'table')(
+		selection
+	);
+
+export const isCellSelection = (selection: Selection): selection is CellSelection =>
+	selection instanceof CellSelection;
+
+export const isColumnSelected = (columnIndex: number) => (selection: Selection) => {
+	if (isCellSelection(selection)) {
+		const map = TableMap.get(selection.$anchorCell.node(-1));
+
+		return isRectSelected({
+			left: columnIndex,
+			right: columnIndex + 1,
+			top: 0,
+			bottom: map.height
+		})(selection);
+	}
+
+	return false;
+};
+
+export const isRowSelected = (rowIndex: number) => (selection: Selection) => {
+	if (isCellSelection(selection)) {
+		const map = TableMap.get(selection.$anchorCell.node(-1));
+
+		return isRectSelected({
+			left: 0,
+			right: map.width,
+			top: rowIndex,
+			bottom: rowIndex + 1
+		})(selection);
+	}
+
+	return false;
+};
+
+export const isTableSelected = (selection: Selection) => {
+	if (isCellSelection(selection)) {
+		const map = TableMap.get(selection.$anchorCell.node(-1));
+
+		return isRectSelected({
+			left: 0,
+			right: map.width,
+			top: 0,
+			bottom: map.height
+		})(selection);
+	}
+
+	return false;
+};
+
+export const getCellsInColumn = (columnIndex: number | number[]) => (selection: Selection) => {
+	const table = findTable(selection);
+	if (table) {
+		const map = TableMap.get(table.node);
+		const indexes = Array.isArray(columnIndex) ? columnIndex : Array.from([columnIndex]);
+
+		return indexes.reduce(
+			(acc, index) => {
+				if (index >= 0 && index <= map.width - 1) {
+					const cells = map.cellsInRect({
+						left: index,
+						right: index + 1,
+						top: 0,
+						bottom: map.height
+					});
+
+					return acc.concat(
+						cells.map((nodePos) => {
+							const node = table.node.nodeAt(nodePos);
+							const pos = nodePos + table.start;
+
+							return { pos, start: pos + 1, node };
+						})
+					);
+				}
+
+				return acc;
+			},
+			[] as { pos: number; start: number; node: Node | null | undefined }[]
+		);
+	}
+	return null;
+};
+
+export const getCellsInRow = (rowIndex: number | number[]) => (selection: Selection) => {
+	const table = findTable(selection);
+
+	if (table) {
+		const map = TableMap.get(table.node);
+		const indexes = Array.isArray(rowIndex) ? rowIndex : Array.from([rowIndex]);
+
+		return indexes.reduce(
+			(acc, index) => {
+				if (index >= 0 && index <= map.height - 1) {
+					const cells = map.cellsInRect({
+						left: 0,
+						right: map.width,
+						top: index,
+						bottom: index + 1
+					});
+
+					return acc.concat(
+						cells.map((nodePos) => {
+							const node = table.node.nodeAt(nodePos);
+							const pos = nodePos + table.start;
+							return { pos, start: pos + 1, node };
+						})
+					);
+				}
+
+				return acc;
+			},
+			[] as { pos: number; start: number; node: Node | null | undefined }[]
+		);
+	}
+
+	return null;
+};
+
+export const getCellsInTable = (selection: Selection) => {
+	const table = findTable(selection);
+
+	if (table) {
+		const map = TableMap.get(table.node);
+		const cells = map.cellsInRect({
+			left: 0,
+			right: map.width,
+			top: 0,
+			bottom: map.height
+		});
+
+		return cells.map((nodePos) => {
+			const node = table.node.nodeAt(nodePos);
+			const pos = nodePos + table.start;
+
+			return { pos, start: pos + 1, node };
+		});
+	}
+
+	return null;
+};
+
+// export const findParentNodeClosestToPos = (
+// 	$pos: ResolvedPos,
+// 	predicate: (node: Node) => boolean
+// ) => {
+// 	for (let i = $pos.depth; i > 0; i -= 1) {
+// 		const node = $pos.node(i);
+
+// 		if (predicate(node)) {
+// 			return {
+// 				pos: i > 0 ? $pos.before(i) : 0,
+// 				start: $pos.start(i),
+// 				depth: i,
+// 				node
+// 			};
+// 		}
+// 	}
+
+// 	return null;
+// };
+
+export const findCellClosestToPos = ($pos: ResolvedPos) => {
+	const predicate = (node: Node) =>
+		node.type.spec.tableRole && /cell/i.test(node.type.spec.tableRole);
+
+	return findParentNodeClosestToPos($pos, predicate);
+};
+
+const select = (type: 'row' | 'column') => (index: number) => (tr: Transaction) => {
+	const table = findTable(tr.selection);
+	const isRowSelection = type === 'row';
+
+	if (table) {
+		const map = TableMap.get(table.node);
+
+		// Check if the index is valid
+		if (index >= 0 && index < (isRowSelection ? map.height : map.width)) {
+			const left = isRowSelection ? 0 : index;
+			const top = isRowSelection ? index : 0;
+			const right = isRowSelection ? map.width : index + 1;
+			const bottom = isRowSelection ? index + 1 : map.height;
+
+			const cellsInFirstRow = map.cellsInRect({
+				left,
+				top,
+				right: isRowSelection ? right : left + 1,
+				bottom: isRowSelection ? top + 1 : bottom
+			});
+
+			const cellsInLastRow =
+				bottom - top === 1
+					? cellsInFirstRow
+					: map.cellsInRect({
+							left: isRowSelection ? left : right - 1,
+							top: isRowSelection ? bottom - 1 : top,
+							right,
+							bottom
+						});
+
+			const head = table.start + cellsInFirstRow[0];
+			const anchor = table.start + cellsInLastRow[cellsInLastRow.length - 1];
+			const $head = tr.doc.resolve(head);
+			const $anchor = tr.doc.resolve(anchor);
+
+			return tr.setSelection(new CellSelection($anchor, $head));
+		}
+	}
+	return tr;
+};
+
+export const selectColumn = select('column');
+
+export const selectRow = select('row');
+
+export const selectTable = (tr: Transaction) => {
+	const table = findTable(tr.selection);
+
+	if (table) {
+		const { map } = TableMap.get(table.node);
+
+		if (map && map.length) {
+			const head = table.start + map[0];
+			const anchor = table.start + map[map.length - 1];
+			const $head = tr.doc.resolve(head);
+			const $anchor = tr.doc.resolve(anchor);
+
+			return tr.setSelection(new CellSelection($anchor, $head));
+		}
+	}
+
+	return tr;
+};
+
+export const isColumnGripSelected = ({
+	editor,
+	view,
+	state,
+	from
+}: {
+	editor: Editor;
+	view: EditorView;
+	state: EditorState;
+	from: number;
+}) => {
+	const domAtPos = view.domAtPos(from).node as HTMLElement;
+	const nodeDOM = view.nodeDOM(from) as HTMLElement;
+	const node = nodeDOM || domAtPos;
+
+	if (!editor.isActive(Table.name) || !node || isTableSelected(state.selection)) {
+		return false;
+	}
+
+	let container = node;
+
+	while (container && !['TD', 'TH'].includes(container.tagName)) {
+		container = container.parentElement!;
+	}
+
+	const gripColumn =
+		container && container.querySelector && container.querySelector('a.grip-column.selected');
+
+	return !!gripColumn;
+};
+
+export const isRowGripSelected = ({
+	editor,
+	view,
+	state,
+	from
+}: {
+	editor: Editor;
+	view: EditorView;
+	state: EditorState;
+	from: number;
+}) => {
+	const domAtPos = view.domAtPos(from).node as HTMLElement;
+	const nodeDOM = view.nodeDOM(from) as HTMLElement;
+	const node = nodeDOM || domAtPos;
+
+	if (!editor.isActive(Table.name) || !node || isTableSelected(state.selection)) {
+		return false;
+	}
+
+	let container = node;
+
+	while (container && !['TD', 'TH'].includes(container.tagName)) {
+		container = container.parentElement!;
+	}
+
+	const gripRow =
+		container && container.querySelector && container.querySelector('a.grip-row.selected');
+
+	return !!gripRow;
+};
+
+// Show row menu when a cell in that row is selected (DOM-based)
+export const isRowActiveFromSelection = ({
+	editor,
+	view,
+	state,
+	from
+}: {
+	editor: Editor;
+	view: EditorView;
+	state: EditorState;
+	from: number;
+}) => {
+	if (!editor.isActive(Table.name)) return false;
+
+	// Container at the BubbleMenu anchor
+	const domAtPos = view.domAtPos(from).node as HTMLElement;
+	const nodeDOM = view.nodeDOM(from) as HTMLElement;
+	let container = nodeDOM || domAtPos;
+
+	while (container && !['TD', 'TH'].includes(container.tagName)) {
+		container = container.parentElement!;
+	}
+	if (!container) return false;
+
+	const rowEl = container.closest('tr');
+	if (!rowEl) return false;
+
+	// Current selection anchor cell
+	const anchorDom = view.domAtPos(state.selection.$from.pos).node as HTMLElement;
+	let anchorCell = anchorDom;
+	while (anchorCell && !['TD', 'TH'].includes(anchorCell.tagName)) {
+		anchorCell = anchorCell.parentElement!;
+	}
+	if (!anchorCell) return false;
+
+	const anchorRow = anchorCell.closest('tr');
+	return !!anchorRow && anchorRow === rowEl;
+};
+
+// Show column menu when a cell in that column is selected (DOM-based)
+export const isColumnActiveFromSelection = ({
+	editor,
+	view,
+	state,
+	from
+}: {
+	editor: Editor;
+	view: EditorView;
+	state: EditorState;
+	from: number;
+}) => {
+	if (!editor.isActive(Table.name)) return false;
+
+	// Container at the BubbleMenu anchor (header cell)
+	const domAtPos = view.domAtPos(from).node as HTMLElement;
+	const nodeDOM = view.nodeDOM(from) as HTMLElement;
+	let container = nodeDOM || domAtPos;
+
+	while (container && !['TD', 'TH'].includes(container.tagName)) {
+		container = container.parentElement!;
+	}
+	if (!container) return false;
+
+	const headerRow = container.closest('tr');
+	if (!headerRow) return false;
+
+	const headerCells = Array.from(headerRow.children).filter(
+		(el) => (el as HTMLElement).tagName === 'TD' || (el as HTMLElement).tagName === 'TH'
+	);
+	const containerIndex = headerCells.indexOf(container);
+	if (containerIndex < 0) return false;
+
+	// Current selection anchor cell DOM index in its row
+	const anchorDom = view.domAtPos(state.selection.$from.pos).node as HTMLElement;
+	let anchorCell = anchorDom;
+	while (anchorCell && !['TD', 'TH'].includes(anchorCell.tagName)) {
+		anchorCell = anchorCell.parentElement!;
+	}
+	if (!anchorCell) return false;
+
+	const anchorRow = anchorCell.closest('tr');
+	if (!anchorRow) return false;
+	const anchorCells = Array.from(anchorRow.children).filter(
+		(el) => (el as HTMLElement).tagName === 'TD' || (el as HTMLElement).tagName === 'TH'
+	);
+	const anchorIndex = anchorCells.indexOf(anchorCell);
+
+	return anchorIndex === containerIndex;
+};
+
+const getCurrentCellRect = (tr: Transaction) => {
+	const table = findTable(tr.selection);
+	if (!table || !isCellSelection(tr.selection)) return null;
+	const map = TableMap.get(table.node);
+	const cell = map.findCell(tr.selection.$anchorCell.pos - table.start);
+	return { table, map, cell };
+};
+
+type CellInfo = { pos: number; start: number; node: Node | null | undefined };
+
+const getSpanMetrics = (n: Node | null | undefined) => {
+	const attrs = (n?.attrs ?? {}) as Record<string, unknown>;
+	const rowspan = typeof attrs.rowspan === 'number' ? attrs.rowspan : 1;
+	const colspan = typeof attrs.colspan === 'number' ? attrs.colspan : 1;
+	return { rowspan, colspan };
+};
+
+const hasSpans = (cellsA: CellInfo[] | null, cellsB: CellInfo[] | null) => {
+	if (!cellsA || !cellsB) return true;
+	if (cellsA.length !== cellsB.length) return true;
+	// Disallow operation if any cell has rowspan/colspan > 1
+	for (let i = 0; i < cellsA.length; i++) {
+		const a = cellsA[i].node;
+		const b = cellsB[i].node;
+		const aSp = getSpanMetrics(a);
+		const bSp = getSpanMetrics(b);
+		if (aSp.rowspan !== 1 || aSp.colspan !== 1) return true;
+		if (bSp.rowspan !== 1 || bSp.colspan !== 1) return true;
+	}
+	return false;
+};
+
+export const moveColumnLeft = (tr: Transaction) => {
+	const ctx = getCurrentCellRect(tr);
+	if (!ctx) return tr;
+	const { cell } = ctx;
+	const source = cell.left;
+	const target = source - 1;
+	if (target < 0) return tr;
+
+	const sel = tr.selection as CellSelection;
+	const sourceCells = getCellsInColumn(source)(sel);
+	const targetCells = getCellsInColumn(target)(sel);
+	if (hasSpans(sourceCells, targetCells)) return tr;
+
+	for (let i = 0; i < sourceCells!.length; i++) {
+		const a = sourceCells![i];
+		const b = targetCells![i];
+		const posA = tr.mapping.map(a.pos);
+		const posB = tr.mapping.map(b.pos);
+		const nodeA = tr.doc.nodeAt(posA);
+		const nodeB = tr.doc.nodeAt(posB);
+		if (!nodeA || !nodeB) continue;
+		tr = tr.replaceWith(posA, posA + nodeA.nodeSize, (nodeB as Node).copy((nodeB as Node).content));
+		const mappedB = tr.mapping.map(posB);
+		const newNodeA = nodeA as Node;
+		tr = tr.replaceWith(
+			mappedB,
+			mappedB + (nodeB as Node).nodeSize,
+			newNodeA.copy(newNodeA.content)
+		);
+	}
+	return tr;
+};
+
+export const moveColumnRight = (tr: Transaction) => {
+	const ctx = getCurrentCellRect(tr);
+	if (!ctx) return tr;
+	const { map, cell } = ctx;
+	const source = cell.left;
+	const target = source + 1;
+	if (target >= map.width) return tr;
+
+	const sel = tr.selection as CellSelection;
+	const sourceCells = getCellsInColumn(source)(sel);
+	const targetCells = getCellsInColumn(target)(sel);
+	if (hasSpans(sourceCells, targetCells)) return tr;
+
+	for (let i = 0; i < sourceCells!.length; i++) {
+		const a = sourceCells![i];
+		const b = targetCells![i];
+		const posA = tr.mapping.map(a.pos);
+		const posB = tr.mapping.map(b.pos);
+		const nodeA = tr.doc.nodeAt(posA);
+		const nodeB = tr.doc.nodeAt(posB);
+		if (!nodeA || !nodeB) continue;
+		tr = tr.replaceWith(posA, posA + nodeA.nodeSize, (nodeB as Node).copy((nodeB as Node).content));
+		const mappedB = tr.mapping.map(posB);
+		const newNodeA = nodeA as Node;
+		tr = tr.replaceWith(
+			mappedB,
+			mappedB + (nodeB as Node).nodeSize,
+			newNodeA.copy(newNodeA.content)
+		);
+	}
+	return tr;
+};
+
+export const moveRowUp = (tr: Transaction) => {
+	const ctx = getCurrentCellRect(tr);
+	if (!ctx) return tr;
+	const { cell } = ctx;
+	const source = cell.top;
+	const target = source - 1;
+	if (target < 0) return tr;
+	const sel = tr.selection as CellSelection;
+	const sourceRow = getCellsInRow(source)(sel);
+	const targetRow = getCellsInRow(target)(sel);
+	if (hasSpans(sourceRow, targetRow)) return tr;
+	for (let i = 0; i < sourceRow!.length; i++) {
+		const a = sourceRow![i];
+		const b = targetRow![i];
+		const posA = tr.mapping.map(a.pos);
+		const posB = tr.mapping.map(b.pos);
+		const nodeA = tr.doc.nodeAt(posA);
+		const nodeB = tr.doc.nodeAt(posB);
+		if (!nodeA || !nodeB) continue;
+		tr = tr.replaceWith(posA, posA + nodeA.nodeSize, (nodeB as Node).copy((nodeB as Node).content));
+		const mappedB = tr.mapping.map(posB);
+		const newNodeA = nodeA as Node;
+		tr = tr.replaceWith(
+			mappedB,
+			mappedB + (nodeB as Node).nodeSize,
+			newNodeA.copy(newNodeA.content)
+		);
+	}
+	return tr;
+};
+
+export const moveRowDown = (tr: Transaction) => {
+	const ctx = getCurrentCellRect(tr);
+	if (!ctx) return tr;
+	const { map, cell } = ctx;
+	const source = cell.top;
+	const target = source + 1;
+	if (target >= map.height) return tr;
+	const sel = tr.selection as CellSelection;
+	const sourceRow = getCellsInRow(source)(sel);
+	const targetRow = getCellsInRow(target)(sel);
+	if (hasSpans(sourceRow, targetRow)) return tr;
+	for (let i = 0; i < sourceRow!.length; i++) {
+		const a = sourceRow![i];
+		const b = targetRow![i];
+		const posA = tr.mapping.map(a.pos);
+		const posB = tr.mapping.map(b.pos);
+		const nodeA = tr.doc.nodeAt(posA);
+		const nodeB = tr.doc.nodeAt(posB);
+		if (!nodeA || !nodeB) continue;
+		tr = tr.replaceWith(posA, posA + nodeA.nodeSize, (nodeB as Node).copy((nodeB as Node).content));
+		const mappedB = tr.mapping.map(posB);
+		const newNodeA = nodeA as Node;
+		tr = tr.replaceWith(
+			mappedB,
+			mappedB + (nodeB as Node).nodeSize,
+			newNodeA.copy(newNodeA.content)
+		);
+	}
+	return tr;
+};
+
+=== 5393 src/lib/edra/tiptap/extensions/video/Video.ts	ts	module	-
+import type { ResizableNodeViewDirection } from '@tiptap/core';
+import { mergeAttributes, Node, nodeInputRule, ResizableNodeView } from '@tiptap/core';
+
+export interface VideoOptions {
+	/**
+	 * Controls if the Video node should be inline or not.
+	 * @default false
+	 * @example true
+	 */
+	inline: boolean;
+
+	/**
+	 * Controls if base64 Videos are allowed. Enable this if you want to allow
+	 * base64 Video urls in the `src` attribute.
+	 * @default false
+	 * @example true
+	 */
+	allowBase64: boolean;
+
+	/**
+	 * HTML attributes to add to the Video element.
+	 * @default {}
+	 * @example { class: 'foo' }
+	 */
+	HTMLAttributes: Record<string, unknown>;
+
+	/**
+	 * Controls if the Video should be resizable and how the resize is configured.
+	 * @default false
+	 * @example { directions: { top: true, right: true, bottom: true, left: true, topLeft: true, topRight: true, bottomLeft: true, bottomRight: true }, minWidth: 100, minHeight: 100 }
+	 */
+	resize:
+		| {
+				enabled: boolean;
+				directions?: ResizableNodeViewDirection[];
+				minWidth?: number;
+				minHeight?: number;
+				alwaysPreserveAspectRatio?: boolean;
+		  }
+		| false;
+}
+
+export interface SetVideoOptions {
+	src: string;
+	alt?: string;
+	title?: string;
+	width?: number;
+	height?: number;
+}
+
+declare module '@tiptap/core' {
+	interface Commands<ReturnType> {
+		video: {
+			/**
+			 * Add a Video
+			 * @param options The Video attributes
+			 * @example
+			 * editor
+			 *   .commands
+			 *   .setVideo({ src: 'https://...', alt: 'video', title: 'my video' })
+			 */
+			setVideo: (options: SetVideoOptions) => ReturnType;
+		};
+	}
+}
+
+/**
+ * Matches a Video to a ![Video](src "title") on input.
+ */
+export const inputRegex = /(?:^|\s)(!\[(.+|:?)]\((\S+)(?:(?:\s+)["'](\S+)["'])?\))$/;
+
+export const Video = Node.create<VideoOptions>({
+	name: 'video',
+
+	addOptions() {
+		return {
+			inline: false,
+			allowBase64: false,
+			HTMLAttributes: {},
+			resize: false,
+			onDrop: undefined
+		};
+	},
+
+	inline() {
+		return this.options.inline;
+	},
+
+	group() {
+		return this.options.inline ? 'inline' : 'block';
+	},
+
+	draggable: true,
+
+	addAttributes() {
+		return {
+			src: {
+				default: null
+			},
+			alt: {
+				default: null
+			},
+			title: {
+				default: null
+			},
+			width: {
+				default: '100%'
+			},
+			height: {
+				default: null
+			}
+		};
+	},
+
+	parseHTML() {
+		return [
+			{
+				tag: this.options.allowBase64 ? 'video[src]' : 'video[src]:not([src^="data:"])'
+			}
+		];
+	},
+
+	renderHTML({ HTMLAttributes }) {
+		return [
+			'video',
+			mergeAttributes(
+				{ controls: 'true', preload: 'none', playsinline: 'true' },
+				this.options.HTMLAttributes,
+				HTMLAttributes
+			)
+		];
+	},
+
+	parseMarkdown: (token, helpers) => {
+		return helpers.createNode('video', {
+			src: token.href,
+			title: token.title,
+			alt: token.text
+		});
+	},
+
+	renderMarkdown: (node) => {
+		const src = node.attrs?.src ?? '';
+		const alt = node.attrs?.alt ?? '';
+		const title = node.attrs?.title ?? '';
+
+		return title ? `![${alt}](${src} "${title}")` : `![${alt}](${src})`;
+	},
+
+	addNodeView() {
+		if (!this.options.resize || !this.options.resize.enabled || typeof document === 'undefined') {
+			return null;
+		}
+
+		const { directions, minWidth, minHeight, alwaysPreserveAspectRatio } = this.options.resize;
+
+		return ({ node, getPos, HTMLAttributes, editor }) => {
+			const el = document.createElement('video');
+			el.draggable = false;
+			el.controls = true;
+			el.preload = 'none';
+			el.playsInline = true;
+
+			const mergedAttributes = mergeAttributes(this.options.HTMLAttributes, HTMLAttributes);
+
+			Object.entries(mergedAttributes).forEach(([key, value]) => {
+				if (value != null) {
+					switch (key) {
+						case 'width':
+						case 'height':
+							break;
+						default:
+							el.setAttribute(key, value);
+							break;
+					}
+				}
+			});
+
+			if (mergedAttributes.src !== null) {
+				el.src = mergedAttributes.src;
+			}
+
+			const nodeView = new ResizableNodeView({
+				element: el,
+				editor,
+				node,
+				getPos,
+				onResize: (width, height) => {
+					el.style.width = `${width}px`;
+					el.style.height = `${height}px`;
+				},
+				onCommit: (width, height) => {
+					const pos = getPos();
+					if (pos === undefined) {
+						return;
+					}
+
+					this.editor
+						.chain()
+						.setNodeSelection(pos)
+						.updateAttributes(this.name, {
+							width,
+							height
+						})
+						.run();
+				},
+				onUpdate: (updatedNode) => {
+					if (updatedNode.type !== node.type) {
+						return false;
+					}
+
+					return true;
+				},
+				options: {
+					directions,
+					min: {
+						width: minWidth,
+						height: minHeight
+					},
+					preserveAspectRatio: alwaysPreserveAspectRatio === true
+				}
+			});
+
+			const dom = nodeView.dom as HTMLElement;
+
+			// when Video metadata is loaded, show the node view to get the correct dimensions
+			dom.style.visibility = 'hidden';
+			dom.style.pointerEvents = 'none';
+			el.onloadedmetadata = () => {
+				dom.style.visibility = '';
+				dom.style.pointerEvents = '';
+			};
+
+			return nodeView;
+		};
+	},
+
+	addCommands() {
+		return {
+			setVideo:
+				(options) =>
+				({ commands }) => {
+					return commands.insertContent({
+						type: this.name,
+						attrs: options
+					});
+				}
+		};
+	},
+	addInputRules() {
+		return [
+			nodeInputRule({
+				find: inputRegex,
+				type: this.type,
+				getAttributes: (match) => {
+					const [, , alt, src, title] = match;
+
+					return { src, alt, title };
+				}
+			})
+		];
+	}
+});
+
+=== 627 src/lib/edra/tiptap/extensions/video/VideoExtended.ts	ts	module	-
+import { Video } from './Video.js';
+import { SvelteNodeViewRenderer } from '../../index.ts';
+import type { Component } from 'svelte';
+import type { NodeViewProps } from '@tiptap/core';
+
+export const VideoExtended = (component: Component<NodeViewProps>) =>
+	Video.extend({
+		addAttributes() {
+			return {
+				src: {
+					default: null
+				},
+				alt: {
+					default: null
+				},
+				title: {
+					default: null
+				},
+				width: {
+					default: '100%'
+				},
+				height: {
+					default: null
+				},
+				align: {
+					default: 'left'
+				}
+			};
+		},
+
+		addNodeView: () => {
+			return SvelteNodeViewRenderer(component);
+		}
+	});
 
 === 566 src/lib/edra/tiptap/hooks/useEditor.svelte.ts	svelte-module-ts	runes	-
 import type { EditorOptions } from '@tiptap/core';
@@ -11491,6 +16365,323 @@ export function useEditorTransaction(editor: Editor) {
 	};
 }
 
+=== 1166 src/lib/edra/tiptap/index.ts	ts	module	-
+import TiptapRoot from './components/Tiptap.svelte';
+import TiptapContent from './components/TiptapContent.svelte';
+
+export { default as EditorContent } from './components/EditorContent.svelte';
+export { getEditor } from './components/editorContext.js';
+export { default as MarkViewContent } from './components/MarkViewContent.svelte';
+export { default as NodeViewContent } from './components/NodeViewContent.svelte';
+export { default as NodeViewWrapper } from './components/NodeViewWrapper.svelte';
+export { Editor } from './Editor.ts';
+export { useEditor } from './hooks/useEditor.svelte.js';
+export { useEditorState } from './hooks/useEditorState.svelte.js';
+export { useEditorTransaction } from './hooks/useEditorTransaction.svelte.js';
+export { SvelteMarkViewRenderer } from './renderers/SvelteMarkViewRenderer.js';
+export { SvelteNodeViewRenderer } from './renderers/SvelteNodeViewRenderer.js';
+export { SvelteRenderer } from './renderers/SvelteRenderer.svelte.js';
+
+export const Tiptap = Object.assign(TiptapRoot, { Content: TiptapContent });
+
+export * from '@tiptap/core';
+
+export * from './extensions/index.ts';
+export * from './components/menus/index.ts';
+
+=== 1627 src/lib/edra/tiptap/renderers/SvelteMarkViewRenderer.ts	ts	module	-
+import type { MarkViewProps, MarkViewRenderer, MarkViewRendererOptions } from '@tiptap/core';
+import { MarkView } from '@tiptap/core';
+import type { Component } from 'svelte';
+
+import MarkViewFrame from '../components/MarkViewFrame.svelte';
+import { SvelteRenderer } from './SvelteRenderer.svelte.js';
+
+export interface SvelteMarkViewRendererOptions extends MarkViewRendererOptions {
+	as?: string;
+	className?: string;
+	attrs?: { [key: string]: string };
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+class SvelteMarkView extends MarkView<Component<any>, SvelteMarkViewRendererOptions> {
+	renderer: SvelteRenderer;
+
+	constructor(
+		// eslint-disable-next-line @typescript-eslint/no-explicit-any
+		component: Component<any>,
+		props: MarkViewProps,
+		options?: Partial<SvelteMarkViewRendererOptions>
+	) {
+		super(component, props, options);
+
+		const componentProps = {
+			...props,
+			updateAttributes: this.updateAttributes.bind(this)
+		} satisfies MarkViewProps;
+
+		this.renderer = new SvelteRenderer(MarkViewFrame, {
+			props: {
+				component: this.component,
+				...componentProps
+			}
+		});
+	}
+
+	get dom() {
+		return this.renderer.element as HTMLElement;
+	}
+
+	get contentDOM() {
+		return this.dom.querySelector('[data-mark-view-content]') as HTMLElement | null;
+	}
+
+	destroy() {
+		this.renderer.destroy();
+	}
+}
+
+export function SvelteMarkViewRenderer(
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	component: Component<any>,
+	options: Partial<SvelteMarkViewRendererOptions> = {}
+): MarkViewRenderer {
+	return (props) => {
+		return new SvelteMarkView(component, props, options);
+	};
+}
+
+=== 5759 src/lib/edra/tiptap/renderers/SvelteNodeViewRenderer.ts	ts	module	-
+import type {
+	DecorationWithType,
+	NodeViewProps,
+	NodeViewRenderer,
+	NodeViewRendererOptions
+} from '@tiptap/core';
+import type { Component } from 'svelte';
+import { NodeView } from '@tiptap/core';
+import type { Node as ProseMirrorNode } from '@tiptap/pm/model';
+import type { Decoration, DecorationSource } from '@tiptap/pm/view';
+
+import NodeViewFrame from '../components/NodeViewFrame.svelte';
+import type { Editor } from '../Editor.ts';
+import { SvelteRenderer } from './SvelteRenderer.svelte.js';
+
+export interface SvelteNodeViewRendererOptions extends NodeViewRendererOptions {
+	update:
+		| ((props: {
+				oldNode: ProseMirrorNode;
+				oldDecorations: readonly Decoration[];
+				oldInnerDecorations: DecorationSource;
+				newNode: ProseMirrorNode;
+				newDecorations: readonly Decoration[];
+				innerDecorations: DecorationSource;
+				updateProps: () => void;
+		  }) => boolean)
+		| null;
+}
+
+class SvelteNodeView extends NodeView<Component, Editor, SvelteNodeViewRendererOptions> {
+	declare renderer: SvelteRenderer;
+
+	declare decorationClasses: string;
+
+	private cachedExtensionWithSyncedStorage: NodeViewProps['extension'] | null = null;
+
+	get extensionWithSyncedStorage(): NodeViewProps['extension'] {
+		if (!this.cachedExtensionWithSyncedStorage) {
+			const editor = this.editor;
+			const extension = this.extension;
+
+			this.cachedExtensionWithSyncedStorage = new Proxy(extension, {
+				get(target, prop, receiver) {
+					if (prop === 'storage') {
+						return editor.storage[extension.name as keyof typeof editor.storage] ?? {};
+					}
+					return Reflect.get(target, prop, receiver);
+				}
+			});
+		}
+
+		return this.cachedExtensionWithSyncedStorage;
+	}
+
+	mount() {
+		const props = {
+			editor: this.editor,
+			node: this.node,
+			decorations: this.decorations as DecorationWithType[],
+			innerDecorations: this.innerDecorations,
+			view: this.view,
+			selected: false,
+			extension: this.extensionWithSyncedStorage,
+			HTMLAttributes: this.HTMLAttributes,
+			getPos: () => this.getPos(),
+			updateAttributes: (attributes = {}) => this.updateAttributes(attributes),
+			deleteNode: () => this.deleteNode()
+		} satisfies NodeViewProps;
+
+		const onDragStart = this.onDragStart.bind(this);
+
+		this.decorationClasses = this.getDecorationClasses();
+
+		this.handleSelectionUpdate = this.handleSelectionUpdate.bind(this);
+		this.editor.on('selectionUpdate', this.handleSelectionUpdate);
+
+		this.renderer = new SvelteRenderer(NodeViewFrame, {
+			props: {
+				component: this.component,
+				onDragStart,
+				decorationClasses: this.decorationClasses,
+				...props
+			}
+		});
+	}
+
+	get dom() {
+		if (!this.renderer.element || !this.renderer.element.hasAttribute('data-node-view-wrapper')) {
+			throw Error('Please use the NodeViewWrapper component for your node view.');
+		}
+
+		return this.renderer.element as HTMLElement;
+	}
+
+	get contentDOM() {
+		if (this.node.isLeaf) {
+			return null;
+		}
+
+		return this.dom.querySelector('[data-node-view-content]') as HTMLElement | null;
+	}
+
+	handleSelectionUpdate() {
+		const { from, to } = this.editor.state.selection;
+		const pos = this.getPos();
+
+		if (typeof pos !== 'number') {
+			return;
+		}
+
+		if (from <= pos && to >= pos + this.node.nodeSize) {
+			if (this.renderer.props.selected) {
+				return;
+			}
+
+			this.selectNode();
+		} else {
+			if (!this.renderer.props.selected) {
+				return;
+			}
+
+			this.deselectNode();
+		}
+	}
+
+	update(
+		node: ProseMirrorNode,
+		decorations: readonly Decoration[],
+		innerDecorations: DecorationSource
+	): boolean {
+		const rerenderComponent = (props?: Record<string, unknown>) => {
+			this.decorationClasses = this.getDecorationClasses();
+			this.renderer.updateProps({ decorationClasses: this.decorationClasses, ...props });
+		};
+
+		if (typeof this.options.update === 'function') {
+			const oldNode = this.node;
+			const oldDecorations = this.decorations;
+			const oldInnerDecorations = this.innerDecorations;
+
+			this.node = node;
+			this.decorations = decorations;
+			this.innerDecorations = innerDecorations;
+
+			return this.options.update({
+				oldNode,
+				oldDecorations,
+				newNode: node,
+				newDecorations: decorations,
+				oldInnerDecorations,
+				innerDecorations,
+				updateProps: () =>
+					rerenderComponent({
+						node,
+						decorations,
+						innerDecorations,
+						extension: this.extensionWithSyncedStorage
+					})
+			});
+		}
+
+		if (node.type !== this.node.type) {
+			return false;
+		}
+
+		if (
+			node === this.node &&
+			this.decorations === decorations &&
+			this.innerDecorations === innerDecorations
+		) {
+			return true;
+		}
+
+		this.node = node;
+		this.decorations = decorations;
+		this.innerDecorations = innerDecorations;
+
+		rerenderComponent({
+			node,
+			decorations,
+			innerDecorations,
+			extension: this.extensionWithSyncedStorage
+		});
+
+		return true;
+	}
+
+	selectNode() {
+		this.renderer.updateProps({
+			selected: true
+		});
+		if (this.renderer.element) {
+			this.renderer.element.classList.add('ProseMirror-selectednode');
+		}
+	}
+
+	deselectNode() {
+		this.renderer.updateProps({
+			selected: false
+		});
+		if (this.renderer.element) {
+			this.renderer.element.classList.remove('ProseMirror-selectednode');
+		}
+	}
+
+	getDecorationClasses() {
+		return (
+			this.decorations
+				// @ts-expect-error - FlatMap signature attributes might be class strings not typed in core
+				.flatMap((item) => item.type.attrs.class)
+				.join(' ')
+		);
+	}
+
+	destroy() {
+		this.renderer.destroy();
+		this.editor.off('selectionUpdate', this.handleSelectionUpdate);
+	}
+}
+
+export function SvelteNodeViewRenderer(
+	// eslint-disable-next-line @typescript-eslint/no-explicit-any
+	component: Component<any>,
+	options?: Partial<SvelteNodeViewRendererOptions>
+): NodeViewRenderer {
+	return (props) => {
+		return new SvelteNodeView(component, props, options);
+	};
+}
+
 === 1562 src/lib/edra/tiptap/renderers/SvelteRenderer.svelte.ts	svelte-module-ts	runes	-
 import { mount, unmount, type Component } from 'svelte';
 
@@ -11569,6 +16760,192 @@ export class SvelteRenderer {
 	}
 }
 
+=== 55 src/lib/edra/types.ts	ts	module	-
+export type EdraEditorOptions = Record<string, never>;
+
+=== 2789 src/lib/edra/utils.ts	ts	module	-
+import type { Editor } from '@tiptap/core';
+import type { Node } from '@tiptap/pm/model';
+import { Decoration, DecorationSet } from '@tiptap/pm/view';
+const isBrowser = typeof window !== 'undefined' && typeof window.document !== 'undefined';
+import strings from './strings.js';
+
+/**
+ * Check if the current browser is in mac or not
+ */
+export const ISMAC = isBrowser
+	? navigator.userAgent.includes('Macintosh') || navigator.userAgent.includes('Mac OS X')
+	: false;
+
+export const getKeyboardShortcut = (key: string, ctrl = false, shift = false, alt = false) => {
+	const modifiers: string[] = [];
+	if (ISMAC) {
+		if (ctrl) modifiers.push('⌘');
+		if (shift) modifiers.push('⇧');
+		if (alt) modifiers.push('⌥');
+	} else {
+		if (ctrl) modifiers.push('Ctrl');
+		if (shift) modifiers.push('Shift');
+		if (alt) modifiers.push('Alt');
+	}
+
+	return [...modifiers, key].join(' ');
+};
+
+/**
+ * Find colors in the document
+ * @param doc Node - node to find colors in
+ * @returns DecorationSet - set of decorations for the colors found in the node
+ */
+export const findColors = (doc: Node) => {
+	const hexColor = /(#[0-9a-f]{3,6})\b/gi;
+	const decorations: Decoration[] = [];
+
+	doc.descendants((node, position) => {
+		if (!node.text) {
+			return;
+		}
+
+		Array.from(node.text.matchAll(hexColor)).forEach((match) => {
+			const color = match[0];
+			const index = match.index || 0;
+			const from = position + index;
+			const to = from + color.length;
+			const decoration = Decoration.inline(from, to, {
+				class: 'color',
+				style: `--color: ${color}`
+			});
+
+			decorations.push(decoration);
+		});
+	});
+
+	return DecorationSet.create(doc, decorations);
+};
+
+/**
+ * Dupilcate content at the current selection
+ * @param editor Editor instance
+ * @param node Node to be duplicated
+ */
+export const duplicateContent = (editor: Editor, node: Node) => {
+	const { view } = editor;
+	const { state } = view;
+	const { selection } = state;
+
+	editor
+		.chain()
+		.insertContentAt(selection.to, node.toJSON(), {
+			updateSelection: true
+		})
+		.focus(selection.to)
+		.run();
+};
+
+export const isURL = (str: string): boolean => {
+	try {
+		new URL(str);
+		return true;
+	} catch {
+		return false;
+	}
+};
+
+export const quickcolors = [
+	{ label: strings.toolbar.color.default, value: '' },
+	{ label: strings.toolbar.color.blue, value: '#0E0E99' },
+	{ label: strings.toolbar.color.brown, value: '#7D0404' },
+	{ label: strings.toolbar.color.green, value: '#077507' },
+	{ label: strings.toolbar.color.gray, value: '#636262' },
+	{ label: strings.toolbar.color.orange, value: '#A34603' },
+	{ label: strings.toolbar.color.pink, value: '#DB0762' },
+	{ label: strings.toolbar.color.purple, value: '#83069C' },
+	{ label: strings.toolbar.color.red, value: '#B30707' },
+	{ label: strings.toolbar.color.yellow, value: '#C4C404' }
+];
+
+=== 39 src/lib/index.ts	ts	module	-
+// Reexport your entry components here
+
+=== 1867 src/lib/utils.ts	ts	module	-
+import { clsx, type ClassValue } from 'clsx';
+import { twMerge } from 'tailwind-merge';
+
+export function cn(...inputs: ClassValue[]) {
+	return twMerge(clsx(inputs));
+}
+
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type WithoutChild<T> = T extends { child?: any } ? Omit<T, 'child'> : T;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export type WithoutChildren<T> = T extends { children?: any } ? Omit<T, 'children'> : T;
+export type WithoutChildrenOrChild<T> = WithoutChildren<WithoutChild<T>>;
+export type WithElementRef<T, U extends HTMLElement = HTMLElement> = T & { ref?: U | null };
+
+const RANDOM_COLORS = [
+	'#6D28D9',
+	'#7C3AED',
+	'#4F46E5',
+	'#2563EB',
+	'#0284C7',
+	'#0891B2',
+	'#0D9488',
+	'#0F766E',
+	'#15803D',
+	'#16A34A',
+	'#65A30D',
+	'#CA8A04',
+	'#B45309',
+	'#EA580C',
+	'#DC2626',
+	'#B91C1C',
+	'#BE123C',
+	'#E11D48',
+	'#DB2777',
+	'#C026D3',
+	'#9333EA',
+	'#7E22CE',
+	'#86198F',
+	'#9F1239'
+] as const;
+
+const RANDOM_NAMES = [
+	'Lea Thompson',
+	'Cyndi Lauper',
+	'Tom Cruise',
+	'Madonna',
+	'Jerry Hall',
+	'Joan Collins',
+	'Winona Ryder',
+	'Christina Applegate',
+	'Alyssa Milano',
+	'Molly Ringwald',
+	'Ally Sheedy',
+	'Debbie Harry',
+	'Olivia Newton-John',
+	'Elton John',
+	'Michael J. Fox',
+	'Axl Rose',
+	'Emilio Estevez',
+	'Ralph Macchio',
+	'Rob Lowe',
+	'Jennifer Grey',
+	'Mickey Rourke',
+	'John Cusack',
+	'Matthew Broderick',
+	'Justine Bateman',
+	'Lisa Bonet'
+] as const;
+
+/** O(1) random pick — avoids `Array#at` polyfill and narrows return type */
+function getRandomElement<const T>(list: readonly T[]): T {
+	return list[Math.floor(Math.random() * list.length)] as T;
+}
+
+export const getRandomColor = (): string => getRandomElement(RANDOM_COLORS);
+export const getRandomName = (): string => getRandomElement(RANDOM_NAMES);
+export const getRandomUser = () => ({ name: getRandomName(), color: getRandomColor() });
+
 === 161 src/lib/vitest-examples/Welcome.svelte	svelte	runes	runes
 <script>
 	import { greet } from './greet.js';
@@ -11578,6 +16955,38 @@ export class SvelteRenderer {
 
 <h1>{greet(host)}</h1>
 <p>{greet(guest)}</p>
+
+=== 527 src/lib/vitest-examples/Welcome.svelte.spec.ts	ts	module	-
+import { page } from 'vitest/browser';
+import { describe, expect, it } from 'vitest';
+import { render } from 'vitest-browser-svelte';
+import Welcome from './Welcome.svelte';
+
+describe('Welcome.svelte', () => {
+	it('renders greetings for host and guest', async () => {
+		render(Welcome, { host: 'SvelteKit', guest: 'Vitest' });
+
+		await expect
+			.element(page.getByRole('heading', { level: 1 }))
+			.toHaveTextContent('Hello, SvelteKit!');
+		await expect.element(page.getByText('Hello, Vitest!')).toBeInTheDocument();
+	});
+});
+
+=== 203 src/lib/vitest-examples/greet.spec.ts	ts	module	-
+import { describe, it, expect } from 'vitest';
+import { greet } from './greet.js';
+
+describe('greet', () => {
+	it('returns a greeting', () => {
+		expect(greet('Svelte')).toBe('Hello, Svelte!');
+	});
+});
+
+=== 80 src/lib/vitest-examples/greet.ts	ts	module	-
+export function greet(name: string): string {
+	return 'Hello, ' + name + '!';
+}
 
 === 454 src/routes/+layout.svelte	svelte	runes	runes
 <script lang="ts">
@@ -11597,6 +17006,67 @@ export class SvelteRenderer {
 <TooltipProvider>
 	{@render children()}
 </TooltipProvider>
+
+=== 178 src/routes/+layout.ts	ts	module	-
+import { injectAnalytics } from '@vercel/analytics/sveltekit';
+import { injectSpeedInsights } from '@vercel/speed-insights/sveltekit';
+
+injectAnalytics();
+injectSpeedInsights();
+
+=== 1100 src/routes/code.ts	ts	module	-
+export const exampleCode = `<script lang="ts">
+	import { createEditor, Edra } from '$lib/edra/shadcn/index.js';
+    import { updateInDB } from '$lib/db';
+
+    /**
+     * [OPTIONAL] Use this function so perform something when content is updated.
+     * May be save the content somewhere. You can define your own logic here.
+     */
+    const onUpdate = () => {
+        const content = editor?.getJSON();
+        updateInDB(content)
+	};
+
+    /**
+     * [OPTIONAL] Pass an call AI function which takes a prompt, onChunk and onError callbacks
+     * This function allows you to implement your own AI provider
+     */
+	async function callAI(
+		prompt: string,
+		onChunk: (chunk: string) => void,
+		onError: (error: Error) => void
+	) {}
+
+	const editor = createEditor({
+		onUpdate,
+		callAI
+	});
+</script>
+<div class="border rounded-lg">
+	<Edra {editor}>
+		<Edra.UseAI />
+		<Edra.Toolbar class="border-b scrollbar-none p-1 overflow-x-scroll max-w-full!" />
+		<Edra.BubbleMenu />
+		<Edra.Content class="*:outline-none cursor-auto h-150 overflow-y-scroll py-4 px-8" />
+		<Edra.DragHandle />
+	</Edra>
+</div>`;
+
+=== 362 src/routes/data.remote.ts	ts	module	-
+import { query } from '$app/server';
+
+export const getGithubStars = query(async () => {
+	let stars: number;
+	try {
+		const res = await fetch('https://api.github.com/repos/Tsuzat/Edra');
+		const data = await res.json();
+		stars = data.stargazers_count as number;
+	} catch {
+		stars = 0;
+	}
+	return stars < 1000 ? `${stars}` : `${(stars / 1000).toFixed(1)}K`;
+});
 
 === 1175 src/routes/docs/+layout.svelte	svelte	runes	runes
 <script lang="ts">
@@ -11633,6 +17103,10 @@ export class SvelteRenderer {
 		</main>
 	</Sidebar.Inset>
 </Sidebar.Provider>
+
+=== 56 src/routes/docs/+layout.ts	ts	module	-
+export const ssr = true;
+export const prerender = true;
 
 === 2548 src/routes/docs/+page.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -11836,6 +17310,91 @@ export class SvelteRenderer {
 		</Button>
 	</div>
 </article>
+
+=== 3006 src/routes/docs/collaboration/code.ts	ts	module	-
+export const installCode = `pnpm add @hocuspocus/provider @hocuspocus/server yjs @tiptap/extension-collaboration @tiptap/extension-collaboration-caret`;
+
+export const serverCode = `// Server Code
+import { Server } from '@hocuspocus/server';
+
+const server = Server.configure({
+  port: 8787,
+  // name = room id (e.g. "edra:demoroom"); one Y.Doc per room is kept in memory
+  // Add hooks for auth / persistence as needed:
+  // async onAuthenticate({ token }) { /* verify token or throw */ },
+  // async onStoreDocument({ documentName, document }) { /* persist Y.Doc */ },
+  // async onLoadDocument({ documentName, document }) { /* restore Y.Doc */ },
+});
+
+server.listen();
+console.log('Hocuspocus listening on ws://localhost:8787');`;
+
+export const envCode = `# .env  (or .env.local)
+PUBLIC_REALTIME_URL=ws://localhost:8787
+# In production, use wss://your-hocuspocus-host`;
+
+export const clientBasicCode = `<script lang="ts">
+  import { browser } from '$app/environment';
+  import { createEditor, Edra } from '$lib/edra/shadcn/index.js';
+  import { HocuspocusProvider } from '@hocuspocus/provider';
+  import { Doc } from 'yjs';
+  import Collaboration from '@tiptap/extension-collaboration';
+  import CollaborationCaret from '@tiptap/extension-collaboration-caret';
+  import type { Editor } from '$lib/edra/tiptap/index.js';
+  import { PUBLIC_REALTIME_URL } from '$env/static/public';
+
+  let editor = $state.raw<Editor>();
+  let provider: HocuspocusProvider | undefined;
+  let ydoc: Doc | undefined;
+
+  if (browser) {
+    ydoc = new Doc();
+    provider = new HocuspocusProvider({
+      url: PUBLIC_REALTIME_URL,
+      name: 'edra:demoroom',
+      document: ydoc
+    });
+
+    editor = createEditor({
+      collaborative: true, // disables StarterKit history — Yjs owns undo/redo
+      extensions: [
+        Collaboration.configure({ document: ydoc }),
+        CollaborationCaret.configure({ provider, user: { name: 'Jane', color: '#7C3AED' } })
+      ]
+    });
+  }
+
+  $effect(() => () => {
+    editor?.destroy();
+    provider?.destroy();
+    ydoc?.destroy();
+  });
+</script>
+
+{#if editor}
+  <Edra {editor}>
+		<Edra.UseAI />
+		<Edra.ToC />
+		<Edra.BubbleMenu />
+		<Edra.Content	/>
+		<Edra.DragHandle />
+	</Edra>
+{/if}`;
+
+export const userUpdateCode = `// Update local user (name / color) at runtime
+editor.commands.updateUser({ name: 'John Doe', color: '#2563EB' });
+
+// Fallback if the command is not yet registered (e.g. before editor is ready):
+provider.awareness.setLocalStateField('user', { name: 'John Doe', color: '#2563EB' });`;
+
+export const caveatsCode = `// Do NOT re-enable history when collaborative:true — Edra disables StarterKit undoRedo for you.
+// Do NOT pass the same HocuspocusProvider/document to two editors.
+// Seed initial content via the Y.Doc on the server, or set content after the provider syncs.
+provider.on('synced', () => {
+  if (ydoc.get('content', Y.XmlFragment).length === 0) {
+    editor?.commands.setContent('<p>Hello, realtime!</p>', { contentType: 'html' });
+  }
+});`;
 
 === 4799 src/routes/docs/configuration/+page.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -12542,6 +18101,28 @@ a {
 	</div>
 </article>
 
+=== 547 src/routes/docs/extensions/ai/code.ts	ts	module	-
+export const providerCode = `import { createEditor } from '$lib/edra/shadcn/index.js';
+
+async function callAI(
+	prompt: string,
+	onChunk: (chunk: string) => void,
+	onError: (error: Error) => void
+) {
+	// Call your endpoint (e.g. Gemini, OpenAI, Claude) and stream chunks:
+	const response = await fetch('/api/chat', {
+		method: 'POST',
+		body: JSON.stringify({ prompt })
+	});
+	
+	const reader = response.body?.getReader();
+	// read stream and call onChunk(textChunk)
+}`;
+
+export const initCode = `const editor = createEditor({
+	callAI: callAI
+});`;
+
 === 2146 src/routes/docs/extensions/callout/+page.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -12748,6 +18329,22 @@ editor.chain().focus().toggleCodeBlock().run();`;
 		</Button>
 	</div>
 </article>
+
+=== 328 src/routes/docs/extensions/drag-handle/code.ts	ts	module	-
+export const setUpCode = `<script lang="ts">
+	import { createEditor, Edra } from '$lib/edra/shadcn/index.js';
+
+	const editor = createEditor();
+</script>
+
+<div class="border rounded-lg">
+	<Edra {editor}>
+		<!-- Add the DragHandle markup inside the Edra container -->
+		<Edra.DragHandle />
+		
+		<Edra.Content />
+	</Edra>
+</div>`;
 
 === 1930 src/routes/docs/extensions/markdown/+page.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -13259,6 +18856,28 @@ StarterKit.configure({
 	</div>
 </article>
 
+=== 463 src/routes/docs/extensions/table-of-contents/code.ts	ts	module	-
+export const usageCode = `<script lang="ts">
+	import { ToC, createEditor, Edra } from '$lib/edra/shadcn/index.js';
+
+	const editor = createEditor();
+</script>
+
+<div class="flex gap-4">
+	<!-- Main Editor Canvas -->
+	<div class="flex-1">
+		<Edra {editor} />
+	</div>
+
+	<!-- Sidebar Table of Contents -->
+	<div class="w-64 hidden md:block">
+		<div class="sticky top-4">
+			<h4 class="font-semibold mb-4">On this page</h4>
+			<ToC {editor} />
+		</div>
+	</div>
+</div>`;
+
 === 2527 src/routes/docs/extensions/tables/+page.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -13607,6 +19226,31 @@ editor.chain().focus().setTextAlign('center').run();`;
 	</div>
 </article>
 
+=== 614 src/routes/docs/installation/code.ts	ts	module	-
+export const usageCode = `<script lang="ts">
+	import { createEditor, Edra } from '$lib/edra/shadcn/index.js';
+
+	// Create editor instance
+	const editor = createEditor({
+		onUpdate: () => {
+			console.log(editor?.getHTML());
+		}
+	});
+</script>
+
+<div class="border rounded-lg p-2">
+	<Edra {editor}>
+		<Edra.Toolbar class="border-b p-1" />
+		<Edra.Content class="min-h-60 px-4 py-2" />
+	</Edra>
+</div>`;
+
+export const cliShadcn = `npx shadcn-svelte@latest add https://edra.tsuzat.com/registry/edra.json`;
+
+export const cliEdraHeadless = `npx edra init headless`;
+
+export const cliEdraShadcn = `npx edra init shadcn`;
+
 === 2272 src/routes/docs/usages/+page.svelte	svelte	runes	neutral
 <script lang="ts">
 	import { Button } from '$lib/components/ui/button/index.js';
@@ -13676,6 +19320,97 @@ editor.chain().focus().setTextAlign('center').run();`;
 		</Button>
 	</div>
 </article>
+
+=== 2074 src/routes/docs/usages/code.ts	ts	module	-
+export const uploadCode = `// A typical file upload handler
+async function handleFileUpload(file: File): Promise<string> {
+	const formData = new FormData();
+	formData.append('file', file);
+
+	const response = await fetch('/api/upload', {
+		method: 'POST',
+		body: formData
+	});
+
+	if (!response.ok) {
+		throw new Error('Upload failed');
+	}
+
+	const data = await response.json();
+	return data.url; // Return the public URL of the uploaded media
+}`;
+
+export const shadcnUsageCode = `<script lang="ts">
+	import { createEditor, Edra } from '$lib/edra/shadcn/index.js';
+
+	// Simple file upload handler
+	async function handleFileUpload(file: File): Promise<string> {
+		const formData = new FormData();
+		formData.append('file', file);
+
+		const response = await fetch('/api/upload', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (!response.ok) {
+			throw new Error('Failed to upload file');
+		}
+
+		const data = await response.json();
+		return data.url; // Must return the public URL string
+	}
+
+	const editor = createEditor({
+		onFileUpload: handleFileUpload,
+		onUpdate: () => {
+			console.log(editor?.getHTML());
+		}
+	});
+</script>
+
+<div class="border rounded-lg p-2">
+	<Edra {editor}>
+		<Edra.Toolbar class="border-b p-1" />
+		<Edra.Content class="min-h-60 px-4 py-2" />
+	</Edra>
+</div>`;
+
+export const headlessUsageCode = `<script lang="ts">
+	import { createEditor, Edra } from '$lib/edra/headless/index.js';
+
+	// File upload handler
+	async function handleFileUpload(file: File): Promise<string> {
+		const formData = new FormData();
+		formData.append('file', file);
+
+		const response = await fetch('/api/upload', {
+			method: 'POST',
+			body: formData
+		});
+
+		if (!response.ok) {
+			throw new Error('Failed to upload file');
+		}
+
+		const data = await response.json();
+		return data.url;
+	}
+
+	const editor = createEditor({
+		onFileUpload: handleFileUpload,
+		onUpdate: () => {
+			console.log(editor?.getHTML());
+		}
+	});
+</script>
+
+<div class="demo-container">
+	<Edra {editor}>
+		<Edra.Toolbar class="demo-toolbar" />
+		<Edra.Content class="demo-content" />
+	</Edra>
+</div>`;
 
 === 3038 src/routes/docs/usages/serialization/+page.svelte	svelte	runes	neutral
 <script lang="ts">
@@ -14403,6 +20138,338 @@ editor.commands.setContent(markdown);`;
 	</main>
 </div>
 
+=== 8488 src/routes/sample-content.ts	ts	module	-
+export default {
+	type: 'doc',
+	content: [
+		{
+			type: 'heading',
+			attrs: {
+				textAlign: 'left',
+				id: '02b06982-5398-4f9a-b6d1-6ed65e9cff72',
+				'data-toc-id': '02b06982-5398-4f9a-b6d1-6ed65e9cff72',
+				level: 1
+			},
+			content: [{ type: 'text', text: 'Welcome to Edra Editor 🚀' }]
+		},
+		{
+			type: 'paragraph',
+			attrs: { textAlign: 'left' },
+			content: [
+				{ type: 'text', text: 'Edra is a modern, extensible rich text editor built on top of ' },
+				{
+					type: 'text',
+					marks: [
+						{
+							type: 'link',
+							attrs: {
+								href: 'https://edra.tsuzat.com',
+								target: '_blank',
+								rel: 'noopener noreferrer nofollow',
+								class: null,
+								title: null
+							}
+						}
+					],
+					text: 'link'
+				},
+				{ type: 'text', text: ' specifically for ' },
+				{ type: 'text', marks: [{ type: 'bold' }], text: 'Svelte 5' },
+				{
+					type: 'text',
+					text: '. It leverages shadcn-svelte for a beautiful, cohesive, and fully accessible writing experience right out of the box.'
+				}
+			]
+		},
+		{
+			type: 'callout',
+			attrs: { emoji: '💡' },
+			content: [
+				{
+					type: 'paragraph',
+					attrs: { textAlign: 'left' },
+					content: [
+						{ type: 'text', text: 'Tip: You can drag and drop blocks using the ' },
+						{ type: 'text', marks: [{ type: 'bold' }], text: 'grip icon' },
+						{ type: 'text', text: ' on the left, or type ' },
+						{ type: 'text', marks: [{ type: 'code' }], text: '/' },
+						{ type: 'text', text: ' to open the Slash Command menu!' }
+					]
+				}
+			]
+		},
+		{
+			type: 'heading',
+			attrs: {
+				textAlign: 'left',
+				id: 'cb0f0888-693f-42fe-9742-fc711b53b6d3',
+				'data-toc-id': 'cb0f0888-693f-42fe-9742-fc711b53b6d3',
+				level: 2
+			},
+			content: [{ type: 'text', text: 'Powerful Features' }]
+		},
+		{
+			type: 'taskList',
+			content: [
+				{
+					type: 'taskItem',
+					attrs: { checked: true },
+					content: [
+						{
+							type: 'paragraph',
+							attrs: { textAlign: 'left' },
+							content: [{ type: 'text', text: 'Notion-style drag and drop block handles' }]
+						}
+					]
+				},
+				{
+					type: 'taskItem',
+					attrs: { checked: true },
+					content: [
+						{
+							type: 'paragraph',
+							attrs: { textAlign: 'left' },
+							content: [{ type: 'text', text: 'Slash commands for quick formatting' }]
+						}
+					]
+				},
+				{
+					type: 'taskItem',
+					attrs: { checked: true },
+					content: [
+						{
+							type: 'paragraph',
+							attrs: { textAlign: 'left' },
+							content: [{ type: 'text', text: 'AI integration ready (callAI)' }]
+						}
+					]
+				},
+				{
+					type: 'taskItem',
+					attrs: { checked: false },
+					content: [
+						{
+							type: 'paragraph',
+							attrs: { textAlign: 'left' },
+							content: [{ type: 'text', text: 'Advanced media uploads & Iframe embedding' }]
+						}
+					]
+				}
+			]
+		},
+		{ type: 'horizontalRule' },
+		{
+			type: 'heading',
+			attrs: {
+				textAlign: 'left',
+				id: '7c1d0b7b-7971-466d-86b0-c85ecb13ac1e',
+				'data-toc-id': '7c1d0b7b-7971-466d-86b0-c85ecb13ac1e',
+				level: 2
+			},
+			content: [{ type: 'text', text: 'Mermaid Diagrams & Code' }]
+		},
+		{
+			type: 'paragraph',
+			attrs: { textAlign: 'left' },
+			content: [
+				{ type: 'text', text: 'Edra natively supports ' },
+				{ type: 'text', marks: [{ type: 'bold' }], text: 'Mermaid' },
+				{
+					type: 'text',
+					text: ' diagrams. Just create a code block and set the language to mermaid, or, use the slash command to add mermaid. '
+				}
+			]
+		},
+		{
+			type: 'codeBlock',
+			attrs: { language: 'mermaid' },
+			content: [
+				{
+					type: 'text',
+					text: 'graph TD\n    A[Need an Editor] --> B{Using Svelte 5?}\n    B -- Yes --> C[Install Edra]\n    B -- No --> D[Upgrade to Svelte 5]\n    C --> E[Enjoy writing!]'
+				}
+			]
+		},
+		{
+			type: 'mermaid',
+			attrs: { HTMLAttributes: {} },
+			content: [
+				{
+					type: 'text',
+					text: 'flowchart TD\n    A[Christmas] -->|Get money| B(Go shopping)\n    B --> C{Let me think}\n    C -->|One| D[Laptop]\n    C -->|Two| E[iPhone]\n    C -->|Three| F[fa:fa-car Car]'
+				}
+			]
+		},
+		{
+			type: 'paragraph',
+			attrs: { textAlign: 'left' },
+			content: [{ type: 'text', text: 'And standard syntax highlighted code blocks are built-in:' }]
+		},
+		{
+			type: 'codeBlock',
+			attrs: { language: 'go' },
+			content: [
+				{
+					type: 'text',
+					text: 'func binarySearch(arr []int, target int) int {\n\tleft, right := 0, len(arr)-1\n\n\tfor left <= right {\n\t\tmid := left + (right-left)/2\n\n\t\tif arr[mid] == target {\n\t\t\treturn mid\n\t\t} else if arr[mid] < target {\n\t\t\tleft = mid + 1\n\t\t} else {\n\t\t\tright = mid - 1\n\t\t}\n\t}\n\treturn -1\n}'
+				}
+			]
+		},
+		{
+			type: 'heading',
+			attrs: {
+				textAlign: 'left',
+				id: '244218c9-145c-4ccc-a68d-af7141c401f0',
+				'data-toc-id': '244218c9-145c-4ccc-a68d-af7141c401f0',
+				level: 2
+			},
+			content: [{ type: 'text', text: 'Tables' }]
+		},
+		{
+			type: 'table',
+			content: [
+				{
+					type: 'tableRow',
+					content: [
+						{
+							type: 'tableHeader',
+							attrs: { colspan: 1, rowspan: 1, colwidth: null, style: null },
+							content: [
+								{
+									type: 'paragraph',
+									attrs: { textAlign: 'left' },
+									content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'Flavor' }]
+								}
+							]
+						},
+						{
+							type: 'tableHeader',
+							attrs: { colspan: 1, rowspan: 1, colwidth: [911], style: null },
+							content: [
+								{
+									type: 'paragraph',
+									attrs: { textAlign: 'left' },
+									content: [{ type: 'text', marks: [{ type: 'bold' }], text: 'Description' }]
+								}
+							]
+						}
+					]
+				},
+				{
+					type: 'tableRow',
+					content: [
+						{
+							type: 'tableCell',
+							attrs: { colspan: 1, rowspan: 1, colwidth: null, style: null },
+							content: [
+								{
+									type: 'paragraph',
+									attrs: { textAlign: 'left' },
+									content: [{ type: 'text', text: 'Shadcn UI' }]
+								}
+							]
+						},
+						{
+							type: 'tableCell',
+							attrs: { colspan: 1, rowspan: 1, colwidth: [911], style: null },
+							content: [
+								{
+									type: 'paragraph',
+									attrs: { textAlign: 'left' },
+									content: [
+										{
+											type: 'text',
+											text: 'Opinionated, beautifully styled components built with Tailwind.'
+										}
+									]
+								}
+							]
+						}
+					]
+				},
+				{
+					type: 'tableRow',
+					content: [
+						{
+							type: 'tableCell',
+							attrs: { colspan: 1, rowspan: 1, colwidth: null, style: null },
+							content: [
+								{
+									type: 'paragraph',
+									attrs: { textAlign: 'left' },
+									content: [{ type: 'text', text: 'Headless' }]
+								}
+							]
+						},
+						{
+							type: 'tableCell',
+							attrs: { colspan: 1, rowspan: 1, colwidth: [911], style: null },
+							content: [
+								{
+									type: 'paragraph',
+									attrs: { textAlign: 'left' },
+									content: [
+										{
+											type: 'text',
+											text: 'Bring your own styles using raw CSS variables and components.'
+										}
+									]
+								}
+							]
+						}
+					]
+				}
+			]
+		},
+		{
+			type: 'paragraph',
+			attrs: { textAlign: 'left' },
+			content: [
+				{ type: 'text', text: 'Explore the Slash Command ( / ) to see what else you can build!' }
+			]
+		},
+		{ type: 'horizontalRule' },
+		{
+			type: 'heading',
+			attrs: {
+				textAlign: 'left',
+				id: 'math-and-placeholders',
+				'data-toc-id': 'math-and-placeholders',
+				level: 2
+			},
+			content: [{ type: 'text', text: 'Math & Placeholders' }]
+		},
+		{
+			type: 'paragraph',
+			attrs: { textAlign: 'left' },
+			content: [
+				{ type: 'text', text: 'Edra supports beautiful KaTeX math equations, use single dollar ' },
+				{ type: 'text', marks: [{ type: 'code' }], text: '$' },
+				{ type: 'text', text: ' enclose for inline math expression and double dollar ' },
+				{ type: 'text', marks: [{ type: 'code' }], text: '$$' },
+				{ type: 'text', text: ' enclose for block math.' }
+			]
+		},
+		{
+			type: 'blockMath',
+			attrs: { latex: 'f(a) = \\frac{1}{2\\pi i} \\oint_\\gamma \\frac{f(z)}{z-a} dz' }
+		},
+		{
+			type: 'paragraph',
+			attrs: { textAlign: 'left' },
+			content: [
+				{
+					type: 'text',
+					text: 'And you can easily insert empty media placeholders that users can click to upload content:'
+				}
+			]
+		},
+		{ type: 'mediaPlaceholder', attrs: { mediaType: 'image' } },
+		{ type: 'mediaPlaceholder', attrs: { mediaType: 'video' } },
+		{ type: 'paragraph', attrs: { textAlign: null } }
+	]
+};
+
 === 2881 src/routes/templates/ai/+page.svelte	svelte	runes	runes
 <script lang="ts">
 	import { resolve } from '$app/paths';
@@ -14704,4 +20771,59 @@ editor.commands.setContent(markdown);`;
 		<span>{words} words</span>
 	</footer>
 </div>
+
+=== 1257 vite.config.ts	ts	module	-
+import tailwindcss from '@tailwindcss/vite';
+import { defineConfig } from 'vitest/config';
+import { playwright } from '@vitest/browser-playwright';
+import adapter from '@sveltejs/adapter-vercel';
+import { sveltekit } from '@sveltejs/kit/vite';
+
+export default defineConfig({
+	plugins: [
+		tailwindcss(),
+		sveltekit({
+			compilerOptions: {
+				// Force runes mode for the project, except for libraries. Can be removed in svelte 6.
+				runes: ({ filename }) =>
+					filename.split(/[/\\]/).includes('node_modules') ? undefined : true,
+				experimental: {
+					async: true
+				}
+			},
+			adapter: adapter(),
+			experimental: {
+				remoteFunctions: true
+			}
+		})
+	],
+	test: {
+		expect: { requireAssertions: true },
+		projects: [
+			{
+				extends: './vite.config.ts',
+				test: {
+					name: 'client',
+					browser: {
+						enabled: true,
+						provider: playwright(),
+						instances: [{ browser: 'chromium', headless: true }]
+					},
+					include: ['src/**/*.svelte.{test,spec}.{js,ts}'],
+					exclude: ['src/lib/server/**']
+				}
+			},
+
+			{
+				extends: './vite.config.ts',
+				test: {
+					name: 'server',
+					environment: 'node',
+					include: ['src/**/*.{test,spec}.{js,ts}'],
+					exclude: ['src/**/*.svelte.{test,spec}.{js,ts}']
+				}
+			}
+		]
+	}
+});
 

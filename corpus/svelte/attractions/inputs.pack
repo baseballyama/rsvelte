@@ -159,6 +159,29 @@
 <style src="./loading.scss">
 </style>
 
+=== 448 attractions/slider/types.ts	ts	module	-
+export type TickConfig =
+  | { mode: 'none' }
+  | {
+      mode: 'steps';
+      step: number;
+      subDensity?: number;
+    }
+  | {
+      mode: 'values';
+      values: number[];
+      subDensity?: number;
+    };
+export type RangeBehavior = 'free' | 'block' | 'push';
+export type SliderState = {
+  value: number;
+  activeHandle: number;
+  min: number;
+  max: number;
+  sliderActive: boolean;
+};
+export type Tooltips = 'active' | 'always' | 'never';
+
 === 392 attractions/star-rating/star.svelte	svelte	runes	neutral
 <!-- Star icon from the Feather Icons pack: https://feathericons.com/ -->
 <svg

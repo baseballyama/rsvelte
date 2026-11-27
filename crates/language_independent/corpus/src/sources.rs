@@ -136,6 +136,25 @@ impl UnitTable {
     }
 }
 
+/// Adds the skips of `unparseable.txt`, which regen writes: `<unit
+/// key>\t<task>/<variant>\t<reason>`.
+fn add_unparseable(units: &mut BTreeMap<String, UnitTable>, text: &str) -> Result<(), String> {
+    for line in text
+        .lines()
+        .filter(|l| !l.is_empty() && !l.starts_with('#'))
+    {
+        let mut fields = line.splitn(3, '\t');
+        let (Some(key), Some(task), Some(reason)) = (fields.next(), fields.next(), fields.next())
+        else {
+            return Err(format!("not <unit key>\\t<task>\\t<reason>: {line}"));
+        };
+        (units.entry(key.to_owned()).or_default().skip)
+            .entry(task.to_owned())
+            .or_insert_with(|| reason.to_owned());
+    }
+    Ok(())
+}
+
 /// A task that compares one file of another task's official output (`readers.toml`).
 #[derive(Deserialize, Debug)]
 pub(crate) struct Reader {
@@ -159,7 +178,10 @@ impl Registry {
             let file = dir.join(name);
             std::fs::read_to_string(&file).map_err(|e| format!("{}: {e}", file.display()))
         };
-        let units = toml::from_str(&read("units.toml")?).map_err(|e| format!("units.toml: {e}"))?;
+        let mut units =
+            toml::from_str(&read("units.toml")?).map_err(|e| format!("units.toml: {e}"))?;
+        add_unparseable(&mut units, &read("unparseable.txt")?)
+            .map_err(|e| format!("unparseable.txt: {e}"))?;
         let readers =
             toml::from_str(&read("readers.toml")?).map_err(|e| format!("readers.toml: {e}"))?;
         Ok(Self {

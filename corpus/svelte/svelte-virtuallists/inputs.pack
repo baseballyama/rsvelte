@@ -1,4 +1,38 @@
 # rsvelte pack 1
+=== 609 playwright.config.ts	ts	module	-
+import { type PlaywrightTestConfig, devices } from '@playwright/test';
+
+const config: PlaywrightTestConfig = {
+  forbidOnly: !!process.env.CI,
+
+  retries: process.env.CI ? 2 : 0,
+  timeout: 5 * 60 * 1000,
+  webServer: {
+    command: 'pnpm run static-serv',
+    port: 3000
+  },
+  use: {
+    trace: 'on',
+    video: 'on'
+  },
+  projects: [
+    {
+      name: 'chromium',
+      use: { ...devices['Desktop Chrome'] }
+    },
+    {
+      name: 'firefox',
+      use: { ...devices['Desktop Firefox'] }
+    },
+    {
+      name: 'webkit',
+      use: { ...devices['Desktop Safari'] }
+    }
+  ]
+};
+
+export default config;
+
 === 5409 src/comp/Button.svelte	svelte	runes	runes
 <script lang="ts">
   // @ts-nocheck
@@ -689,6 +723,17 @@
     left: calc(100% - 1em + 2px);
   }
 </style>
+
+=== 382 src/comp/pathUtils.ts	ts	module	-
+import type { Page } from '@sveltejs/kit';
+
+import { base } from '$app/paths';
+
+const removeTrailingSlash = (path: string) => (path.endsWith('/') ? path.slice(0, -1) : path);
+
+// use by the menu to highlight the current selection
+export const pathIsCurrent = (path: string, currentPage: Page) =>
+  removeTrailingSlash(base + path) === removeTrailingSlash(currentPage.url.pathname);
 
 === 18972 src/lib/VirtualListNew.svelte	svelte	runes	rejected
 <script module lang="ts">
@@ -1381,6 +1426,72 @@
   {/if}
 </div>
 
+=== 1596 src/lib/index.ts	ts	module	-
+export { default as VirtualList } from './VirtualListNew.svelte';
+
+// sizing calculator signature, used to programmatically size elements. recommendation: stick to css and defaults
+export type SizingCalculatorFn = (index: number, item: unknown) => number;
+
+// used by the vl_slot() snippet
+export interface VLSlotSignature<ItemType> {
+  // The row's index being rendered, from the original dataset
+  // The index is a string if the IDs are processed via the getKey() function
+  index: number | string;
+
+  // the item being rendered
+  item: ItemType;
+
+  // only present if there a custom sizing calculator configured, holds calculated size in pixels
+  size?: number;
+}
+
+export interface VLRangeEvent {
+  // index of the first visible item
+  start: number;
+  // index of the last visible item
+  end: number;
+}
+
+export interface VLScrollEvent {
+  // either the value of `wrapper.scrollTop` or `wrapper.scrollLeft`
+  offset: number | string;
+  // the original event
+  event: Event;
+}
+
+export enum SCROLL_BEHAVIOR {
+  AUTO = 'auto',
+  SMOOTH = 'smooth',
+  INSTANT = 'instant'
+}
+
+export enum ALIGNMENT {
+  AUTO = 'auto',
+  START = 'start',
+  CENTER = 'center',
+  END = 'end'
+}
+
+export type VariantScrollToIndex = {
+  scrollToIndex: number;
+  scrollToOffset?: undefined;
+};
+
+export type VariantScrollToOffset = {
+  scrollToIndex?: undefined;
+  scrollToOffset: number;
+};
+
+export type VariantScrollPositionUndefined = {
+  scrollToIndex?: undefined;
+  scrollToOffset?: undefined;
+};
+
+export type VariantScrollConfig =
+  | VariantScrollToIndex
+  | VariantScrollToOffset
+  | VariantScrollPositionUndefined;
+
 === 4640 src/routes/+layout.svelte	svelte	runes	runes
 <script lang="ts">
   import { base } from '$app/paths';
@@ -1959,6 +2070,53 @@
   }
 </style>
 
+=== 798 src/routes/examples/sushi.ts	ts	module	-
+const sushiArray = [
+  'Nigiri',
+  'Maguro',
+  'Sake',
+  'Unagi',
+  'Buri',
+  'Suzuki',
+  'Saba',
+  'Iwashi',
+  'Kohada',
+  'Hirame',
+  'Tobiwo',
+  'Maki',
+  'Ana-kyu',
+  'Chutoro',
+  'Kaiware',
+  'Kampyo',
+  'Kappa',
+  'Natto',
+  'Negitoro',
+  'Oshinko',
+  'Otoro',
+  'Tekka',
+  'Sashimi',
+  'Maguro',
+  'Toro',
+  'Ebi',
+  'Saba',
+  'Ika',
+  'Tako',
+  'Tomago',
+  'Kani',
+  'Katsuo',
+  'Maguro'
+];
+
+function getRandomFourDigitNumber() {
+  const randomNumber = Math.floor(Math.random() * 10000); // Generates a number between 0 and 9999
+  return randomNumber.toString().padStart(4, '0'); // Pads with zeros if necessary
+}
+
+export function getRandomSushi() {
+  const randomIndex = Math.floor(Math.random() * sushiArray.length);
+  return sushiArray[randomIndex] + ' ' + getRandomFourDigitNumber();
+}
+
 === 183 src/routes/examples/table/+page.svelte	svelte	runes	neutral
 <script lang="ts">
   import ExampleArea from '$comp/ExampleArea.svelte';
@@ -2138,4 +2296,49 @@
   <br />
   Please note, the size includes type definitions, styles and components.
 </p>
+
+=== 1607 tests/scrollVirtualList.spec.ts	ts	module	-
+import { expect, test } from '@playwright/test';
+
+test('index 0, then 5000, then back to 0', async ({ page }) => {
+  await page.goto('http://localhost:3000/');
+  await page.waitForTimeout(2000);
+  await page.goto('/examples/positioning');
+
+  const testpage = page.locator(':has-text("Positioning")~div');
+  expect(testpage).toBeDefined();
+
+  const listWrapper = testpage.locator('div.vtlist-inner').first();
+  expect(listWrapper).toBeDefined();
+
+  // count the rendered list rows
+  expect(await listWrapper.locator('div').count()).toBeGreaterThan(7);
+
+  // Find the first rendered Row
+  let firstRowElement = await listWrapper.locator('div').first();
+  let innerHTML = await firstRowElement.allTextContents();
+  expect(innerHTML[0].toString().substring(0, 2)).toContain('#0');
+
+  // Goto element 5000
+  const numberInput = await testpage.locator('#index');
+  await numberInput.fill('5000');
+  await page.waitForTimeout(2000);
+
+  // count the rendered list rows
+  expect(await listWrapper.locator('div').count()).toBeGreaterThan(7);
+
+  // validate that the first rendered row is not "#0..." anymore
+  firstRowElement = await listWrapper.locator('div').first();
+  innerHTML = await firstRowElement.allTextContents();
+  expect(innerHTML[0].toString().substring(0, 2)).not.toContain('#0');
+
+  // go back to item 0
+  await numberInput.fill('0');
+  await page.waitForTimeout(2000);
+
+  // ensure we are back on the first item
+  firstRowElement = await listWrapper.locator('div').first();
+  innerHTML = await firstRowElement.allTextContents();
+  expect(innerHTML[0].toString().substring(0, 2)).toContain('#0');
+});
 
