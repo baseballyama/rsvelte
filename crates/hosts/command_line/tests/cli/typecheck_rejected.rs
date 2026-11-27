@@ -107,3 +107,31 @@ fn typecheck_declares_no_global_for_a_rejected_component_s_script() {
     let unbound = "src/P.svelte(5,20): error TS2304: Cannot find name 'tsx'.\n";
     assert!(report.contains(&unbound.native()), "{report}");
 }
+
+/// Where every component is one svelte2tsx rejects, a script still reads each as its script, in
+/// TypeScript and in JavaScript. svelte-check 4.7.8 reports these lines, its parse error twice.
+#[test]
+fn typecheck_reads_a_rejected_component_where_no_component_is_checked() {
+    let tsconfig = (
+        "tsconfig.json",
+        r#"{"compilerOptions":{"strict":true,"module":"esnext","moduleResolution":"bundler",
+"target":"esnext","types":[],"skipLibCheck":true,"allowJs":true},"include":["src"]}"#,
+    );
+    let importer = (
+        "src/R.ts",
+        "import * as x from \"./X.svelte\";\nexport const z: string = x.y;\n",
+    );
+    for lang in [" lang=\"ts\"", ""] {
+        let component = format!("<script{lang}>\n\texport const y = 1;\n</script>\n\n<div {{\n");
+        let report = check(&[tsconfig, ("src/X.svelte", &component), importer]);
+        assert_eq!(
+            report,
+            "src/X.svelte(5,6): error check_rejected: Attribute shorthand cannot be empty\n\
+             https://svelte.dev/e/attribute_empty_shorthand\n\
+             src/R.ts(2,14): error TS2322: Type 'number' is not assignable to type 'string'.\n\
+             \nFound 2 errors in 2 files.\n"
+                .native(),
+            "{component:?}"
+        );
+    }
+}

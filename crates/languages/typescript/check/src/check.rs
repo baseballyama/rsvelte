@@ -62,7 +62,10 @@ impl Facet for TypeScriptView {
 pub enum TypeScriptDocument {
     /// Not type-checked: a document of another language that the projection reads as
     /// JavaScript it does not cover, so always JavaScript. Its findings are empty.
-    Unchecked,
+    Unchecked {
+        /// The language's env, which the document's stand-in brings into the run.
+        env: Option<Arc<TypeScriptEnv>>,
+    },
     /// A document the language's own parser rejects: svelte-check reports only that error, with
     /// the code `-1`, instead of type checking.
     Rejected {
@@ -70,6 +73,8 @@ pub enum TypeScriptDocument {
         span: Span,
         /// Whether the upstream checker reads the document as JavaScript, by its script elements.
         javascript: bool,
+        /// The language's env, which the document's stand-in brings into the run.
+        env: Option<Arc<TypeScriptEnv>>,
     },
     Checked(Arc<CheckedDocument>),
 }
@@ -253,6 +258,7 @@ pub struct MappedLanguage {
 struct StandInPart {
     path: String,
     stand_in: StandIn,
+    env: Option<Arc<TypeScriptEnv>>,
 }
 
 /// What an import of a document reads when the document is not checked.
@@ -264,6 +270,9 @@ pub struct StandIn {
     /// reads it as JavaScript, which TypeScript can read as untyped, and the checker here reads
     /// its stand-in as TypeScript.
     pub javascript: bool,
+    /// The extension the checker maps the document's language by, so an import reaches the
+    /// stand-in where no document of the language is checked.
+    pub extension: Option<&'static str>,
 }
 
 /// What an import of a document reads when the document is not checked. `None`, or no provider:
@@ -319,15 +328,17 @@ impl FinishTask for Check {
                 stand_in: StandIn {
                     text: context.source_text().to_owned(),
                     javascript: false,
+                    extension: None,
                 },
+                env: None,
             }));
         }
         match context.facet::<TypeScriptView>()? {
             Err(d) => {
                 out.diagnostics.push(d.clone());
-                self.stand_in(context, false)
+                self.stand_in(context, false, None)
             }
-            Ok(TypeScriptDocument::Unchecked) => {
+            Ok(TypeScriptDocument::Unchecked { env }) => {
                 out.file(
                     "json",
                     render_findings::<&str>(
@@ -335,12 +346,13 @@ impl FinishTask for Check {
                         &[],
                     ),
                 );
-                self.stand_in(context, true)
+                self.stand_in(context, true, env.as_ref())
             }
             Ok(TypeScriptDocument::Rejected {
                 message,
                 span,
                 javascript,
+                env,
             }) => {
                 out.file(
                     "json",
@@ -351,7 +363,7 @@ impl FinishTask for Check {
                 );
                 out.findings
                     .push(findings::finding(*span, -1, message.clone()));
-                self.stand_in(context, *javascript)
+                self.stand_in(context, *javascript, env.as_ref())
             }
             Ok(TypeScriptDocument::Checked(_)) if self.tsc.is_none() => {
                 out.diagnostics.push(Diagnostic::error(
@@ -378,6 +390,7 @@ impl FinishTask for Check {
         let mut docs: Vec<Prepared> = Vec::new();
         let mut checked_outs = Vec::new();
         let mut stand_ins = Vec::new();
+        let mut envs = Vec::new();
         for (part, out) in parts.into_iter().zip(outs) {
             match part.downcast::<Prepared>() {
                 Ok(d) => {
@@ -389,6 +402,7 @@ impl FinishTask for Check {
                         .downcast::<StandInPart>()
                         .expect("parts are this task's");
                     stand_ins.push((s.path, s.stand_in));
+                    envs.extend(s.env);
                 }
             }
         }
@@ -398,8 +412,7 @@ impl FinishTask for Check {
         }
         let mut env = TypeScriptEnv::default();
         let mut merged: Vec<&Arc<TypeScriptEnv>> = Vec::new();
-        for d in &docs {
-            let own = &d.document.env;
+        for own in docs.iter().map(|d| &d.document.env).chain(&envs) {
             if merged.iter().any(|e| Arc::ptr_eq(e, own)) {
                 continue;
             }
@@ -414,8 +427,14 @@ impl FinishTask for Check {
 }
 
 impl Check {
-    /// The stand-in of a document the view does not check, `javascript` as the view says.
-    fn stand_in(&self, context: &DocumentContext<'_>, javascript: bool) -> Option<Part> {
+    /// The stand-in of a document the view does not check, `javascript` and the language's `env`
+    /// as the view says.
+    fn stand_in(
+        &self,
+        context: &DocumentContext<'_>,
+        javascript: bool,
+        env: Option<&Arc<TypeScriptEnv>>,
+    ) -> Option<Part> {
         self.tsc.as_ref()?;
         // A language's own stand-in serves every check, so the project-wide check resolves an
         // unchecked component as the language's own check does.
@@ -425,7 +444,12 @@ impl Check {
             .or_else(|| self.stand_in.map(str::to_owned))?;
         Some(Box::new(StandInPart {
             path: context.document.file_path().to_string_lossy().into_owned(),
-            stand_in: StandIn { text, javascript },
+            stand_in: StandIn {
+                text,
+                javascript,
+                extension: env.and_then(|env| env.mapped_extension),
+            },
+            env: env.cloned(),
         }))
     }
 }
