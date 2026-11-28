@@ -433,6 +433,22 @@ fn a_module_file_reads_a_rune_beside_its_store_s_name_as_the_rune() {
 }
 
 #[test]
+fn a_module_file_has_no_store_subscriptions() {
+    use crate::compiler_syntax_tree::{Children, CompilerSyntaxTreeBuilder};
+
+    let code = "promise.then($DONE, $DONE);\n";
+    let document =
+        rsvelte_kernel::source::document::Document::new("a.svelte.js".to_owned(), code.to_owned())
+            .expect("small");
+    let (tree, program) =
+        rsvelte_typescript_tree::Tree::program(&document, oxc_span::SourceType::mjs())
+            .expect("parses");
+    assert!(!super::resolve_module(&tree, program).is_store_subscription("$DONE"));
+    let empty = CompilerSyntaxTreeBuilder::new(code, 0, 0).finish(Children::default());
+    assert!(resolve(&tree, None, Some(program), &empty).is_store_subscription("$DONE"));
+}
+
+#[test]
 fn generics_bind_type_references_only() {
     let source = "<script lang=\"ts\" generics=\"T extends Item\">\
                   import type { Item } from './x'; let x = T; let y: T;</script>{T}";
