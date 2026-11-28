@@ -1,7 +1,8 @@
 # rsvelte for Visual Studio Code
 
-The extension shows the problems `rsvelte lint` finds in Svelte, TypeScript and JavaScript files
-as you type, fixes them, and formats files as `rsvelte format` does. It runs `rsvelte lsp`, the
+The extension shows the problems `rsvelte lint` and `rsvelte typecheck` find in Svelte,
+TypeScript and JavaScript files as you type, fixes the lint's, and formats files as
+`rsvelte format` does. It runs `rsvelte lsp`, the
 language server of the [`@rsvelte/cli`](../cli/README.md) that each workspace folder installs, so
 the editor and the folder's scripts run the same version:
 
@@ -18,6 +19,10 @@ cannot set it.
 - Problems: what `rsvelte lint` reports, for the text in the editor, saved or not, with
   oxlint's configuration (`.oxlintrc.json` and the others oxlint reads). The language server of
   oxlint reports them, with the Svelte rules of rsvelte.
+- Type errors: what `rsvelte typecheck` reports when run in the workspace folder, in every file
+  of the project, with the texts in the editor, saved or not. As for `rsvelte typecheck`, the
+  folder needs a `tsconfig.json` and TypeScript 7.1 installed. They follow each change after a
+  short pause.
 - Fixes: oxlint's quick fixes and its fix of all problems. To fix on save:
 
   ```json
@@ -34,9 +39,10 @@ cannot set it.
 It lints as oxc's extension does, with Svelte files too, so turn that one off in the
 folder: with both, each problem shows twice.
 
-It does not type check; run `rsvelte typecheck`. It does not highlight Svelte syntax or offer
-TypeScript features. The [Svelte extension](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode)
-does, and the two can run together.
+It does not highlight Svelte syntax or offer TypeScript features such as completion. The
+[Svelte extension](https://marketplace.visualstudio.com/items?itemName=svelte.svelte-vscode) does,
+and the two can run together. That extension reports type errors too; to see each once, set
+`svelte.plugin.typescript.diagnostics.enable` to `false`.
 
 It runs only in a trusted workspace, because it runs the workspace's program and configuration
 files. A JavaScript or TypeScript configuration needs `node` on the `PATH` that the editor sees.
