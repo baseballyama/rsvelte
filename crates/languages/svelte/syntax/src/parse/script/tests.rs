@@ -55,3 +55,70 @@ fn a_script_read_as_typescript_keeps_what_oxc_recovered() {
     let program = component.javascript.get_program(instance.program);
     assert_eq!(program.body.len(), 1);
 }
+
+#[test]
+fn a_script_attribute_svelte_keeps_or_refuses_fails() {
+    // Each source's error from svelte 5.59.1, with its byte range.
+    for (source, code, start, end) in [
+        (
+            "<script server>let a = 1;</script>",
+            "script_reserved_attribute",
+            8,
+            14,
+        ),
+        (
+            r#"<script lang="ts" test>let a = 1;</script>"#,
+            "script_reserved_attribute",
+            18,
+            22,
+        ),
+        (
+            r#"<script module="server">let a = 1;</script>"#,
+            "script_invalid_attribute_value",
+            8,
+            23,
+        ),
+        (
+            "<script module=x>let a = 1;</script>",
+            "script_invalid_attribute_value",
+            8,
+            16,
+        ),
+        (
+            r#"<script module="">let a = 1;</script>"#,
+            "script_invalid_attribute_value",
+            8,
+            17,
+        ),
+        (
+            "<script context>let a = 1;</script>",
+            "script_invalid_context",
+            8,
+            15,
+        ),
+        (
+            r#"<script context="foo">let a = 1;</script>"#,
+            "script_invalid_context",
+            8,
+            21,
+        ),
+        (
+            "<script default>let a = </script>",
+            "js_parse_error",
+            24,
+            24,
+        ),
+    ] {
+        let error = parse(source).expect_err(source);
+        assert_eq!(
+            (
+                error.code.as_ref(),
+                error.span.start_offset,
+                error.span.end_offset
+            ),
+            (code, start, end),
+            "{source}"
+        );
+    }
+    parse(r#"<script context="module">let a = 1;</script>"#).expect("a module script");
+}
