@@ -40,7 +40,7 @@ impl Described {
                 options.caught_errors_ignore_pattern.as_ref(),
             ),
             Self::Arg => ("args", options.args_ignore_pattern.as_ref()),
-            Self::Var => ("vars", options.vars_ignore_pattern.as_ref()),
+            Self::Var => ("vars", options.variables_ignore_pattern.as_ref()),
         }
     }
 }
@@ -94,7 +94,9 @@ pub(super) fn filter(
                 return Filtered::Skipped;
             }
         }
-        _ if matches(&options.vars_ignore_pattern) => return Filtered::Ignored(Described::Var),
+        _ if matches(&options.variables_ignore_pattern) => {
+            return Filtered::Ignored(Described::Var);
+        }
         AstKind::VariableDeclarator(_)
             if options.ignore_using_declarations
                 && f.parent(declaration).is_some_and(

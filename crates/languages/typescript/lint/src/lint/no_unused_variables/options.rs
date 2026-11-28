@@ -12,7 +12,7 @@ use serde::de::IgnoredAny;
     reason = "one flag per upstream option"
 )]
 pub struct NoUnusedVariablesOptions {
-    pub(super) vars_ignore_pattern: Option<IgnorePattern>,
+    pub(super) variables_ignore_pattern: Option<IgnorePattern>,
     pub(super) args: Args,
     pub(super) args_ignore_pattern: Option<IgnorePattern>,
     pub(super) caught_errors: CaughtErrors,
@@ -26,7 +26,7 @@ pub struct NoUnusedVariablesOptions {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "kebab-case")]
-enum Vars {
+enum Variables {
     All,
     Local,
 }
@@ -108,8 +108,9 @@ fn escaped_source(pattern: &str) -> String {
 #[serde(rename_all = "camelCase", deny_unknown_fields)]
 struct RawObject {
     #[serde(rename = "vars")]
-    _vars: Option<Vars>,
-    vars_ignore_pattern: Option<String>,
+    _variables: Option<Variables>,
+    #[serde(rename = "varsIgnorePattern")]
+    variables_ignore_pattern: Option<String>,
     args: Option<Args>,
     args_ignore_pattern: Option<String>,
     caught_errors: Option<CaughtErrors>,
@@ -126,7 +127,7 @@ struct RawObject {
     _fix: Option<IgnoredAny>,
     // oxlint's switch for a value used only as a type, which typescript-eslint always reports.
     #[serde(rename = "reportVarsOnlyUsedAsTypes")]
-    _report_vars_only_used_as_types: Option<bool>,
+    _report_variables_only_used_as_types: Option<bool>,
 }
 
 impl NoUnusedVariablesOptions {
@@ -138,12 +139,12 @@ impl NoUnusedVariablesOptions {
     pub fn from_json(json: &str) -> Result<Self, String> {
         // A string sets `vars` alone; parsing by the first character keeps serde's message.
         if json.trim_start().starts_with('"') {
-            serde_json::from_str::<Vars>(json).map_err(|e| e.to_string())?;
+            serde_json::from_str::<Variables>(json).map_err(|e| e.to_string())?;
             return Ok(Self::default());
         }
         let object: RawObject = serde_json::from_str(json).map_err(|e| e.to_string())?;
         Ok(Self {
-            vars_ignore_pattern: pattern(object.vars_ignore_pattern)?,
+            variables_ignore_pattern: pattern(object.variables_ignore_pattern)?,
             args: object.args.unwrap_or_default(),
             args_ignore_pattern: pattern(object.args_ignore_pattern)?,
             caught_errors: object.caught_errors.unwrap_or_default(),
