@@ -84,7 +84,7 @@ namespaces in their own ways.
   is the body of an `if` with no braces.
 - TypeScript emits a namespace that exports a `var` or a `let`, as in
   `namespace D { export var y = 1; }`. oxc's transform refuses it, and so does rsvelte, with
-  `typescript_transform`: "Namespaces exporting non-const are not supported by Oxc". See oxc's
+  `typescript_transform` and oxc's message "Namespaces exporting non-const are not supported". See oxc's
   [partial namespace support](https://oxc.rs/docs/guide/usage/transformer/typescript.html#partial-namespace-support).
 - rsvelte keeps oxc's emit. Writing TypeScript's text would patch oxc's transform at each of these
   places.
