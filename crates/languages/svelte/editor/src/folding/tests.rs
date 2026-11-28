@@ -50,7 +50,8 @@ fn a_region_folds_to_its_end() {
 
 #[test]
 fn the_elements_in_blocks_fold_as_the_elements_around_them() {
-    let text = "{#if a}\n\t<ul>\n\t\t<li>\n\t\t\tx\n\t\t</li>\n\t</ul>\n{:else}\n\t<p>\n\t\ty\n\t</p>\n{/if}\n";
+    let text = "{#if a}\n\t<ul>\n\t\t<li>\n\t\t\tx\n\t\t</li>\n\t</ul>\n\
+                {:else}\n\t<p>\n\t\ty\n\t</p>\n{/if}\n";
     assert_eq!(folded(text), [(2, 3, None), (1, 4, None), (7, 8, None)]);
 }
 
