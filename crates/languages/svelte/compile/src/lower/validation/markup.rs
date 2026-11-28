@@ -9,6 +9,7 @@ use rsvelte_svelte_semantic::compiler_syntax_tree::{
 use rsvelte_typescript_tree::{ExpressionIdentifier, Tree, document_span};
 use rustc_hash::FxHashSet;
 
+mod attributes;
 mod handlers;
 mod lets;
 mod slot_snippets;
@@ -262,7 +263,7 @@ fn element<'a>(
         );
     }
     lets::fragment(el, attributes)?;
-    event_handlers(source, el, attributes)?;
+    attributes::element_attributes(source, el, attributes)?;
     let slot = attributes
         .iter()
         .find(|a| !is_directive(&a.value) && a.name.text(source) == "slot");
@@ -426,9 +427,11 @@ fn event_modifiers(attributes: &[Attribute]) -> Result<(), Diagnostic> {
     Ok(())
 }
 
-/// Upstream's component checks of each directive: its kind, then an `on:` modifier but one `once`.
+/// Upstream's component checks of each attribute: a directive's kind, an `on:` modifier but one
+/// `once`, and an unquoted value of several parts.
 fn component_attributes(attributes: &[Attribute]) -> Result<(), Diagnostic> {
     for a in attributes {
+        attributes::unquoted_sequence(a)?;
         match a.value {
             AttributeValue::Use { .. }
             | AttributeValue::Transition { .. }
@@ -480,32 +483,6 @@ fn slot_attributes(attributes: &[Attribute], source: &str) -> Result<(), Diagnos
             }
             _ => {}
         }
-    }
-    Ok(())
-}
-
-/// Upstream's `attribute_invalid_event_handler`: an `on…` attribute of an element is an
-/// expression.
-fn event_handlers(source: &str, el: &Element, attributes: &[Attribute]) -> Result<(), Diagnostic> {
-    if matches!(
-        el.kind,
-        ElementKind::Regular | ElementKind::Metadata(Some(MetadataTag::Element))
-    ) && let Some(handler) = attributes.iter().find(|a| {
-        let name = a.name.text(source);
-        name.len() > 2
-            && name.starts_with("on")
-            && matches!(
-                a.value,
-                AttributeValue::Boolean
-                    | AttributeValue::Static(_)
-                    | AttributeValue::Interpolated(_)
-            )
-    }) {
-        return invalid(
-            "attribute_invalid_event_handler",
-            "Event attribute must be a JavaScript expression, not a string",
-            handler.span,
-        );
     }
     Ok(())
 }

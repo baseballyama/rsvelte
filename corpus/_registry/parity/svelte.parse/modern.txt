@@ -1,4 +1,4 @@
-# svelte.parse/modern: 34848 match
+# svelte.parse/modern: 34851 match
 svelte/appwrite-console/src/lib/components/columnSelector.svelte	mismatch
 svelte/appwrite-console/src/lib/components/loadingDots.svelte	mismatch
 svelte/appwrite-console/src/lib/components/multiSelectTable.svelte	mismatch
@@ -930,8 +930,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_asy
 svelte/rsvelte/check/sibling-paths-alias/project/pkg-libs/components/survey-options/survey-options.svelte	mismatch
 svelte/rsvelte/check/sibling-symlink/project/pkg-libs/src/components/survey-options.svelte	mismatch
 svelte/rsvelte/check/tsx-ambiguous-angle-brackets/project/src/Arrows.svelte	mismatch
-svelte/rsvelte/errors/script_invalid_attribute_value.svelte	unexpected
-svelte/rsvelte/errors/script_reserved_attribute.svelte	unexpected
 svelte/rsvelte/lint/block-lang/05-case-insensitive.svelte	js-equivalent
 svelte/rsvelte/lint/max-lines-per-block/06-style.svelte	mismatch
 svelte/rsvelte/lint/mustache-spacing/18-exotic-ws-controls.svelte	mismatch
@@ -1116,7 +1114,6 @@ svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-attribute/in
 svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-textarea/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	unexpected
 svelte/svelte/packages/svelte/tests/validator/samples/ts-unsupported-accessor/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/ts-unsupported-decorator/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/ts-unsupported-enum/input.svelte	mismatch

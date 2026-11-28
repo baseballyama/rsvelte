@@ -1,10 +1,8 @@
-# svelte.lint/default: 40985 match
+# svelte.lint/default: 40997 match
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/databases/database-[database]/collection-[collection]/(components)/sonners/suggestions.svelte	mismatch
 svelte/appwrite-console/src/routes/(console)/project-[region]-[project]/overview/platforms/+page.svelte	unexpected
 svelte/rsvelte-mutants/animotion/open-expression/js_parse_error/35da9d6bccd68cc1.svelte	js-equivalent
 svelte/rsvelte-mutants/animotion/open-expression/js_parse_error/bf2dfbcca3b401fb.svelte	js-equivalent
-svelte/rsvelte-mutants/bits-ui/bind-sum/attribute_invalid_name/06880dae52249363.svelte	mismatch
-svelte/rsvelte-mutants/bits-ui/bind-sum/attribute_invalid_name/5591bc9ac0badcba.svelte	mismatch
 svelte/rsvelte-mutants/cnblocks/duplicate-attribute/expected_token/7a556e431c90630e.svelte	mismatch
 svelte/rsvelte-mutants/cnblocks/duplicate-attribute/expected_token/a22d6c3178e84aac.svelte	mismatch
 svelte/rsvelte-mutants/eslint-plugin-svelte/duplicate-attribute/declaration_duplicate/c83689e9c0d7cc37.svelte	mismatch
@@ -537,8 +535,6 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_asy
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/8371c625b986c189.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/b791981ddba05886.svelte	js-equivalent
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_top_level_await/render_is_async_exactly_when_upstream_sees_a_top_level_await/e059fc71ff7da8cf.svelte	js-equivalent
-svelte/rsvelte/errors/script_invalid_attribute_value.svelte	mismatch
-svelte/rsvelte/errors/script_reserved_attribute.svelte	mismatch
 svelte/rsvelte/lint/block-lang/05-case-insensitive.svelte	js-equivalent
 svelte/rsvelte/lint/no-dupe-on-directives/16-cr-only-lineno.svelte	unexpected
 svelte/rsvelte/lint/prefer-const/23-redeclared-let.svelte	js-equivalent
@@ -569,19 +565,12 @@ svelte/svelte/packages/svelte/tests/compiler-errors/samples/runes-export-let/mai
 svelte/svelte/packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/compiler-errors/samples/runes-wrong-derived-args/main.svelte.js	mismatch
 svelte/svelte/packages/svelte/tests/compiler-errors/samples/store-autosub-context-module/main.svelte	mismatch
-svelte/svelte/packages/svelte/tests/compiler-errors/samples/unbalanced-curly-component/main.svelte	mismatch
-svelte/svelte/packages/svelte/tests/compiler-errors/samples/unbalanced-curly-element/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/compiler-errors/samples/unclosed-attribute-self-close-tag/main.svelte	mismatch
 svelte/svelte/packages/svelte/tests/migrate/samples/css-ignore/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/preprocess/samples/comments/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/preprocess/samples/comments/output.svelte	mismatch
 svelte/svelte/packages/svelte/tests/preprocess/samples/script-multiple/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/preprocess/samples/script-multiple/output.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-2/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-3/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-4/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name-5/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/attribute-invalid-name/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/bind-group-snippet-parameter/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/declaration-tag-already-declared/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/default-export-indirect/input.svelte	mismatch
@@ -596,7 +585,6 @@ svelte/svelte/packages/svelte/tests/validator/samples/html-block-in-textarea/inp
 svelte/svelte/packages/svelte/tests/validator/samples/let-directive/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-attribute/input.svelte	mismatch
 svelte/svelte/packages/svelte/tests/validator/samples/logic-block-in-textarea/input.svelte	mismatch
-svelte/svelte/packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	mismatch
 svelte/test262/expressions/assignmenttargettype/simple-basic-identifierreference-await.svelte.js	mismatch
 svelte/test262/expressions/await/await-BindingIdentifier-in-global.svelte.js	mismatch
 svelte/test262/expressions/await/await-in-global.svelte.js	mismatch

@@ -66,6 +66,9 @@ fn is_module(source_text: &str, attributes: &[TagAttributes]) -> bool {
     })
 }
 
+/// The attribute names a script element may not carry, which Svelte keeps for itself.
+const RESERVED_SCRIPT_ATTRIBUTES: &[&str] = &["server", "client", "worker", "test", "default"];
+
 impl Parser<'_, '_> {
     pub(super) fn script_or_style(&mut self, start_offset: usize, name: &str) -> ParseResult<()> {
         let attributes = self.open_tag_attributes()?;
@@ -131,6 +134,41 @@ impl Parser<'_, '_> {
                 }
             }
         }
+    }
+
+    /// Upstream `read_script`'s checks of each attribute, which it makes once the script parses:
+    /// a reserved name, a `module` with a value, and a `context` that is not `"module"`.
+    fn script_attributes(&self, attributes: &[TagAttributes]) -> ParseResult<()> {
+        for &(name, value) in attributes {
+            let text = name.text(self.source_text);
+            // A quoted value starts past `="`, and the attribute ends past its closing quote.
+            let end = value.map_or(name.end_offset, |v| {
+                v.end_offset + u32::from(v.start_offset > name.end_offset + 1)
+            });
+            let span = Span::new(name.start_offset, end);
+            if RESERVED_SCRIPT_ATTRIBUTES.contains(&text) {
+                return Self::err_at(
+                    span,
+                    "script_reserved_attribute",
+                    format!("The `{text}` attribute is reserved and cannot be used"),
+                );
+            }
+            if text == "module" && value.is_some() {
+                return Self::err_at(
+                    span,
+                    "script_invalid_attribute_value",
+                    "If the `module` attribute is supplied, it must be a boolean attribute",
+                );
+            }
+            if text == "context" && value.is_none_or(|v| v.text(self.source_text) != "module") {
+                return Self::err_at(
+                    span,
+                    "script_invalid_context",
+                    "If the context attribute is supplied, its value must be \"module\"",
+                );
+            }
+        }
+        Ok(())
     }
 
     fn raw_text(&mut self, tag: &str) -> ParseResult<Span> {
@@ -269,6 +307,7 @@ impl Parser<'_, '_> {
             Scripts::ReadAsChecked => Ok(self.program_read_as_checked(content)),
         }
         .map_err(javascript_failure)?;
+        self.script_attributes(&attributes)?;
         // Upstream parses the script before it checks for another.
         if duplicate {
             return Self::err_at(
