@@ -226,6 +226,48 @@ fn an_event_attribute_is_an_expression() {
 }
 
 #[test]
+fn an_element_attribute_has_a_valid_name() {
+    assert_outcomes(&[
+        ("<svelte:element this=\"div\" a.b></svelte:element>", None),
+        ("<C 1a />", None),
+        (
+            "<p 3aa=\"abc\">Test</p>",
+            Some(("attribute_invalid_name", (3, 12))),
+        ),
+        ("<p -a>Test</p>", Some(("attribute_invalid_name", (3, 5)))),
+        (
+            "<p a;=\"abc\">Test</p>",
+            Some(("attribute_invalid_name", (3, 11))),
+        ),
+        ("<p }>Test</p>", Some(("attribute_invalid_name", (3, 4)))),
+        (
+            "<input bind:value + 1 />",
+            Some(("attribute_invalid_name", (18, 19))),
+        ),
+        (
+            "<button onclick 1a>x</button>",
+            Some(("attribute_invalid_event_handler", (8, 15))),
+        ),
+    ]);
+}
+
+#[test]
+fn an_attribute_value_of_several_parts_is_quoted() {
+    assert_outcomes(&[
+        ("<p title=\"a{b}\" data-x={c}>ok</p>", None),
+        ("<textarea>a {b} c</textarea>", None),
+        (
+            "<p title=a{b}>ok</p>",
+            Some(("attribute_unquoted_sequence", (3, 13))),
+        ),
+        (
+            "<C a={1}} />",
+            Some(("attribute_unquoted_sequence", (3, 9))),
+        ),
+    ]);
+}
+
+#[test]
 fn arguments_stands_in_a_function() {
     assert_outcomes(&[
         (

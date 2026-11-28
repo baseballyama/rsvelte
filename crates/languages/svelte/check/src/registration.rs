@@ -4,8 +4,8 @@ use rsvelte_kernel::computation::plugins::{Dependency, Plugin};
 use rsvelte_kernel::computation::registry::{Registry, ReplacedFile, ReplacedFiles};
 use rsvelte_svelte_typescript_projection::{Unprojected, unprojected};
 use rsvelte_typescript_check::{
-    Check, Documents, MappedLanguage, MappedLanguages, TypeScriptDocument, TypeScriptStandIn,
-    TypeScriptView,
+    Check, Documents, MappedLanguage, MappedLanguages, TypeCheckers, TypeScriptDocument,
+    TypeScriptStandIn, TypeScriptView,
 };
 
 use crate::Configuration;
@@ -44,6 +44,7 @@ pub fn register(reg: &mut Registry, config: &Configuration) {
             extension: ".svelte",
             content_mapper: check.content_mapper.clone(),
         });
+        reg.contribute::<TypeCheckers>(check.tsc.checker.clone());
     }
     let env = config
         .check

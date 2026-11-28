@@ -97,6 +97,23 @@ export async function run(): Promise<void> {
 	await apply(typed, [vscode.TextEdit.replace(fixed, '1')]);
 	// The unsaved text is what the type check reads next.
 	await until('no type errors', () => (typeErrors().length === 0 ? true : undefined));
+	// In the template too, from the checker through the content mapper.
+	const used = typed.positionAt(typed.getText().indexOf('{n}') + 1);
+	const hovered = await until('a hover', async () => {
+		const hovers = await vscode.commands.executeCommand<vscode.Hover[]>(
+			'vscode.executeHoverProvider',
+			typed.uri,
+			used,
+		);
+		const texts = hovers.flatMap((hover) =>
+			hover.contents.map((content) => (typeof content === 'string' ? content : content.value)),
+		);
+		return texts.length > 0 ? texts : undefined;
+	});
+	assert.ok(
+		hovered.some((text) => text.includes('const n: number')),
+		hovered.join('\n'),
+	);
 
 	const format = await open('src/Format.svelte');
 	const edits = await vscode.commands.executeCommand<vscode.TextEdit[]>(

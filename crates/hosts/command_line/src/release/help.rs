@@ -56,14 +56,20 @@ Exits with 1 when it finds an error, and with 2 when it cannot run.
 ";
 
 pub(super) const LSP: &str = "\
-Usage: rsvelte lsp [--stdio]
+Usage: rsvelte lsp [--stdio] [--no-typescript]
 
 Serves an editor over the Language Server Protocol, on standard input and output. For the text
 in the editor, it reports what rsvelte lint reports and offers its fixes, as oxlint's language
 server does with the configuration oxlint reads, and it formats as rsvelte format formats the
 file when run in the workspace folder. After each change, it reports the errors that rsvelte
 typecheck run in the workspace folder finds in every file of the project, with the editor's
-unsaved texts. --stdio, which language clients add, is accepted.
+unsaved texts. In Svelte components it offers TypeScript's hover, completion, signature help,
+definitions, references, highlights and renames, from the type checker rsvelte typecheck runs.
+--stdio, which language clients add, is accepted.
+
+Options:
+  --no-typescript  Offers none of TypeScript's features, for an editor whose Svelte extension
+                   offers them
 ";
 
 pub(super) const HELP: &str = "\

@@ -15,11 +15,12 @@ use tower_lsp_server::gen_lsp_types::{
     Code, Diagnostic, DiagnosticSeverity, DidChangeTextDocumentParams, DidChangeWatchedFilesParams,
     DidCloseTextDocumentParams, DidOpenTextDocumentParams, DidSaveTextDocumentParams,
     InitializeParams, InitializeResult, InitializedParams, Message, MessageType,
-    TextDocumentContentChangeEvent, Uri, WorkspaceFolders,
+    TextDocumentContentChangeEvent, Uri,
 };
 use tower_lsp_server::jsonrpc::Result;
 use tower_lsp_server::{Client, LanguageServer};
 
+use super::folders::{Folder, folders, real};
 use crate::commands::typecheck::{self, Checked};
 use crate::configuration;
 
@@ -41,13 +42,6 @@ struct State {
     changed: Notify,
     /// The editor asked the server to shut down, so no check is wanted.
     stopped: AtomicBool,
-}
-
-/// A workspace folder, by the path the editor names it and by its real path.
-#[derive(Clone)]
-struct Folder {
-    given: PathBuf,
-    real: PathBuf,
 }
 
 impl TypeCheck {
@@ -89,23 +83,10 @@ impl LanguageServer for TypeCheck {
             ..
         }: InitializeParams,
     ) -> impl Future<Output = Result<InitializeResult>> + Send {
-        let root = root_uri.as_ref();
-        let listed = match &folder_parameters.workspace_folders {
-            Some(WorkspaceFolders::WorkspaceFolderList(folders)) => folders.as_slice(),
-            _ => &[],
-        };
-        let mut folders = (listed.iter())
-            .map(|folder| &folder.uri)
-            .chain(root)
-            .filter_map(|uri| {
-                let given = uri_to_file_path(uri)?.into_owned();
-                let real = real(&given)?;
-                Some(Folder { given, real })
-            })
-            .collect::<Vec<_>>();
-        folders.sort_by(|a, b| a.real.cmp(&b.real));
-        folders.dedup_by(|a, b| a.real == b.real);
-        *lock(&self.state.folders) = folders;
+        *lock(&self.state.folders) = folders(
+            root_uri.as_ref(),
+            folder_parameters.workspace_folders.as_ref(),
+        );
         // The router answers the editor with the lint's capabilities.
         std::future::ready(Ok(InitializeResult::default()))
     }
@@ -328,10 +309,6 @@ fn panicked(panic: &str) -> Diagnostic {
 }
 
 /// `path` as the checker names it, by its real path, such as `/private/var` for `/var`.
-fn real(path: &Path) -> Option<PathBuf> {
-    rsvelte_kernel::source::paths::canonicalize(path).ok()
-}
-
 fn lock<T>(mutex: &Mutex<T>) -> std::sync::MutexGuard<'_, T> {
     mutex.lock().unwrap_or_else(PoisonError::into_inner)
 }
