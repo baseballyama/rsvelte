@@ -35,13 +35,15 @@ impl Options {
         }
     }
 
-    /// The configuration file and what it evaluates to, or `None` when there is none.
-    pub(crate) fn load(&self) -> Result<Option<(PathBuf, LoadedConfiguration)>, CallError> {
+    /// The configuration file and what it evaluates to, or `None` when there is none. Without
+    /// `--config`, the file is the nearest of `directory` and its ancestors.
+    pub(crate) fn load(
+        &self,
+        directory: &Path,
+    ) -> Result<Option<(PathBuf, LoadedConfiguration)>, CallError> {
         let path = match &self.path {
             Some(path) => Some(path.clone()),
-            None => {
-                discover(&std::env::current_dir().map_err(|error| CallError(error.to_string()))?)?
-            }
+            None => discover(directory)?,
         };
         let Some(path) = path else {
             if self.loader.is_some()
