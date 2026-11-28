@@ -8,13 +8,14 @@ use rsvelte_lint_runner::catalog::Category;
 use rsvelte_lint_runner::rule::Reporter;
 use rsvelte_svelte_semantic::compiler_syntax_tree::{AttributeValue, ElementKind, NodeKind};
 use rsvelte_svelte_semantic::resolve::TemplateScope;
+use rsvelte_typescript_lint::NoUnusedVariablesOptions;
 use rsvelte_typescript_tree::document_span;
 use rustc_hash::{FxHashMap, FxHashSet};
 
 use super::shared::legacy_reactivity::{TopLevel, Variable, legacy};
 use super::shared::nodes;
 use super::shared::svelte_names::{TopLevelNames, has_reactive_statement};
-use crate::rule::{File, Files, RuleDefinition, SvelteRule, without_options};
+use crate::rule::{File, Files, RuleDefinition, RuleOptions, SvelteRule};
 
 #[cfg(test)]
 mod tests;
@@ -25,15 +26,26 @@ pub(super) static RULE: RuleDefinition = RuleDefinition {
     name: "no-unused-vars",
     files: Files::Components,
     category: Category::Correctness,
-    configure: without_options::<NoUnusedVariables>,
+    configure,
 };
 
-#[derive(Debug, Default)]
-struct NoUnusedVariables;
+#[derive(Debug)]
+struct NoUnusedVariables(NoUnusedVariablesOptions);
+
+fn configure(options: &RuleOptions<'_>) -> Result<Box<dyn SvelteRule>, String> {
+    if options.options.len() > 1 {
+        return Err("takes one option".to_owned());
+    }
+    let options = match options.options.first() {
+        Some(option) => NoUnusedVariablesOptions::from_json(option.get())?,
+        None => NoUnusedVariablesOptions::default(),
+    };
+    Ok(Box::new(NoUnusedVariables(options)))
+}
 
 impl SvelteRule for NoUnusedVariables {
     fn check(&self, file: &File<'_>, reporter: &mut Reporter<'_>) {
-        check(file, reporter);
+        check(file, &self.0, reporter);
     }
 }
 
@@ -41,7 +53,7 @@ impl SvelteRule for NoUnusedVariables {
 /// props, names a re-export lists, subscribed stores, snippets passed to a component, and one of
 /// two top-level names the scripts share. Its reads include the scripts' references to top-level
 /// snippets.
-fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
+fn check(file: &File<'_>, options: &NoUnusedVariablesOptions, reporter: &mut Reporter<'_>) {
     let mut skipped = FxHashSet::default();
     let runes = file.runes() != Some(false);
     virtually_read(file, runes, &mut skipped);
@@ -59,6 +71,7 @@ fn check(file: &File<'_>, reporter: &mut Reporter<'_>) {
     rsvelte_typescript_lint::no_unused_variables(
         file.semantic(),
         rsvelte_typescript_lint::Dialect::TypeScriptEslint,
+        options,
         |symbol| !skipped.contains(&symbol),
         |symbol| reads.get(&symbol).map_or(&[], Vec::as_slice),
         |symbol| bodies.get(&symbol).copied(),

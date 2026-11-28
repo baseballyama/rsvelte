@@ -2,8 +2,8 @@
 
 pub(crate) mod lint;
 pub use lint::{
-    Dialect, NoInnerDeclarationsOptions, PreferConstOptions, ProgramStatements,
-    no_inner_declarations, no_unused_variables, prefer_const,
+    Dialect, NoInnerDeclarationsOptions, NoUnusedVariablesOptions, PreferConstOptions,
+    ProgramStatements, no_inner_declarations, no_unused_variables, prefer_const,
 };
 
 mod task;

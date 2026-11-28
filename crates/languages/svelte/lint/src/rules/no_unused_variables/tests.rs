@@ -1,5 +1,7 @@
 use rsvelte_kernel::source::positions::LineIndex;
 
+mod options;
+
 fn lint(source_text: &str) -> String {
     use rsvelte_kernel::computation::database::DocumentContext;
     use rsvelte_kernel::computation::registry::Registry;

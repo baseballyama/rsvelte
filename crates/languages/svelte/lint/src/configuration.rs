@@ -216,7 +216,7 @@ impl Configuration {
     ///
     /// # Panics
     ///
-    /// Never: the default rules take no options.
+    /// Never: the default rules need no options.
     #[must_use]
     pub(crate) fn with_default_rules(settings: LintSettings) -> Self {
         let mut configuration = Self::new(settings);
