@@ -29,6 +29,7 @@ cannot set it.
   package to `node_modules/.cache/rsvelte/`; it does not change your `tsconfig.json`.
 - Folding in Svelte components: elements, comments and `<!-- #region -->` blocks, as the
   Svelte extension folds them.
+- Symbols in Svelte components: each element in the outline, named by its tag, `id` and classes.
 - Fixes: oxlint's quick fixes and its fix of all problems. To fix on save:
 
   ```json

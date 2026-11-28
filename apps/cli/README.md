@@ -113,7 +113,7 @@ reports what `lint` reports and offers its fixes. It formats as `format` does. A
 reports the errors `typecheck` finds in every file of the project, with the unsaved texts. In Svelte
 components it offers TypeScript's hover and completion, definitions, references and renames from
 the checker `typecheck` runs; `--no-typescript` leaves them to another server. It folds the markup
-of components as the official Svelte language server does. The
+of components and lists its elements as symbols, as the official Svelte language server does. The
 [Visual Studio Code extension](../vscode/README.md) runs the project's `rsvelte lsp`. Another editor can run
 `npx rsvelte lsp` in the project directory.
 
