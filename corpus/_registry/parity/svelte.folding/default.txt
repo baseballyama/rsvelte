@@ -1,4 +1,4 @@
-# svelte.folding/default: 33896 match
+# svelte.folding/default: 33893 match
 svelte/rsvelte-mutants/animotion/drop-close/block_unclosed/257243e1793b9e85.svelte	refused
 svelte/rsvelte-mutants/animotion/drop-close/block_unclosed/3b318146e67b6801.svelte	refused
 svelte/rsvelte-mutants/animotion/drop-close/block_unclosed/66eeea51011c5566.svelte	refused
@@ -1913,6 +1913,8 @@ svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_validation_walk_gates/the_fir
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_validation_walk_gates/the_first_error_in_source_order_wins/c7722a9b0f95986a.svelte	refused
 svelte/rsvelte-tests/rsvelte_projection/svelte2tsx_validation_walk_gates/validation_markers_preserve_debug_and_meta_errors/cee97ceb0e83c148.svelte	refused
 svelte/rsvelte/errors/block_invalid_elseif.svelte	refused
+svelte/rsvelte/errors/script_invalid_attribute_value.svelte	refused
+svelte/rsvelte/errors/script_reserved_attribute.svelte	refused
 svelte/rsvelte/lint/no-nested-style-tag/06-self-closing-top.svelte	refused
 svelte/rsvelte/pattern/adversarial/expressions/rejected-comment-in-open-tag.svelte	refused
 svelte/rsvelte/pattern/adversarial/legacy/rejected-slot-duplicate-name.svelte	refused
@@ -2059,6 +2061,7 @@ svelte/svelte/packages/svelte/tests/validator/samples/multiple-script-default-co
 svelte/svelte/packages/svelte/tests/validator/samples/multiple-script-module-context/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/namespace-invalid/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/namespace-non-literal/input.svelte	refused
+svelte/svelte/packages/svelte/tests/validator/samples/script-invalid-context/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/tag-invalid/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/tag-non-string/input.svelte	refused
 svelte/svelte/packages/svelte/tests/validator/samples/tag-reserved/input.svelte	refused
