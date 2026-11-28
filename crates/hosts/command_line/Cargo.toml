@@ -59,7 +59,7 @@ ignore.workspace = true
 oxfmt.workspace = true
 oxc_language_server.workspace = true
 tower-lsp-server.workspace = true
-tokio.workspace = true
+tokio = { workspace = true, features = ["io-std", "io-util", "sync"] }
 oxc_formatter.workspace = true
 bpaf.workspace = true
 
@@ -80,6 +80,7 @@ oxc_parser.workspace = true
 oxc_span.workspace = true
 rsvelte_test_harness.workspace = true
 serde.workspace = true
+tokio = { workspace = true, features = ["macros"] }
 
 [[test]]
 name = "fixtures"

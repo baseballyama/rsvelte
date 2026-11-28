@@ -19,6 +19,8 @@ use tower_lsp_server::gen_lsp_types::{
 use tower_lsp_server::jsonrpc::ErrorCode;
 
 mod convert;
+mod router;
+mod rpc;
 
 /// Serves the editor until it exits. `arguments` are the words after `lsp`.
 pub(super) fn language_server(arguments: &[String]) -> ExitCode {
@@ -50,11 +52,27 @@ pub(super) fn language_server(arguments: &[String]) -> ExitCode {
     let lint = ServerLinterBuilder::default()
         .with_hosts(vec![super::host_lint::svelte()])
         .with_host_config_loader(super::node_configuration::Node);
-    runtime.block_on(oxc_language_server::run_server(
-        "rsvelte".to_owned(),
-        env!("CARGO_PKG_VERSION").to_owned(),
-        WorkerManager::new(Arc::new(Builder { lint })),
-    ));
+    runtime.block_on(async {
+        // The lint and the format talk over a pipe in this process.
+        let (router_end, server_end) = tokio::io::duplex(1 << 20);
+        let (server_input, server_output) = tokio::io::split(server_end);
+        tokio::spawn(oxc_language_server::run_server_on(
+            server_input,
+            server_output,
+            "rsvelte".to_owned(),
+            env!("CARGO_PKG_VERSION").to_owned(),
+            WorkerManager::new(Arc::new(Builder { lint })),
+        ));
+        let (output, input) = tokio::io::split(router_end);
+        let lint = router::Server {
+            name: "lint",
+            input: Box::new(input),
+            output: Box::new(output),
+        };
+        router::serve(tokio::io::stdin(), tokio::io::stdout(), vec![lint]).await;
+    });
+    // The read of standard input that may still wait would hold a runtime that waits for it.
+    runtime.shutdown_background();
     ExitCode::SUCCESS
 }
 
