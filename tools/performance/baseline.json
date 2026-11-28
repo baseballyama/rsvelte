@@ -26,8 +26,8 @@
 			"vuelte.compile/server"
 		]
 	},
-	"allocs": 38183300,
-	"alloc_bytes": 9178082327,
+	"allocs": 38183299,
+	"alloc_bytes": 9178049575,
 	"peak_live_growth_bytes": 3489147,
 	"phases": {
 		"@typescript-eslint/no-unused-vars": {
@@ -357,8 +357,8 @@
 		},
 		"ts.compile/default": {
 			"calls": 15050,
-			"allocs": 121141,
-			"alloc_bytes": 461628650
+			"allocs": 121140,
+			"alloc_bytes": 461595898
 		},
 		"ts.format/default": {
 			"calls": 15050,
